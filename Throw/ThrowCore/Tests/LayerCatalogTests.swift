@@ -19,6 +19,8 @@ struct LayerCatalogTests {
         #expect(catalog.descriptors[1].supportedModes == [.map])
         #expect(catalog.descriptors[1].runtimeFactory() is GeographyLayerRuntime)
         #expect(catalog.geography.zOrder < catalog.flights.zOrder)
+        #expect(catalog.geography.zOrder == GeographyLayerKind.zOrder)
+        #expect(catalog.flights.zOrder == FlightsLayerKind.zOrder)
         guard case .enabled = catalog.descriptors[0].availability else {
             Issue.record("Flights should be enabled")
             return

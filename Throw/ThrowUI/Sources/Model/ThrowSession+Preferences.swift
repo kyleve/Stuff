@@ -35,12 +35,9 @@ extension ThrowSession {
         )
         mayApplyTrueHeadingHint = preferences.setupCompleted == false
             && preferences.calibration == .defaultValue
-        projectionFrame = ProjectionFrame(
+        projectionFrame = .emptyAirAndSpace(
             mode: projectionMode,
             generatedAt: dateProvider.now(),
-            geography: nil,
-            geographyOpacity: 1,
-            marks: [],
         )
     }
 

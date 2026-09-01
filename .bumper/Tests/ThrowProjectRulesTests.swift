@@ -87,6 +87,26 @@ struct ThrowProjectRulesTests {
         )
     }
 
+    @Test func projectedFramesEraseOnlyAtThePresentationBoundary() throws {
+        let source = "func erase() { _ = ProjectedLayer(); _ = ProjectionFrame() }"
+        let allowed = try evaluate(
+            path: "Throw/ThrowUI/Sources/Projection/ProjectionFrame.swift",
+            component: .throwUI,
+            source: source,
+        )
+        let rejected = try evaluate(
+            path: "Throw/ThrowUI/Sources/Projection/ProjectionFrameWorker.swift",
+            component: .throwUI,
+            source: source,
+        )
+
+        #expect(allowed.violations.isEmpty)
+        #expect(rejected.violations.count == 2)
+        #expect(rejected.violations.allSatisfy {
+            $0.rule.id == "throw.projected_frame_erasure_ownership"
+        })
+    }
+
     @Test func productionViewsKeepConcreteTypes() throws {
         let allowed = try evaluate(
             path: "Throw/Throw/Sources/ConcreteRoot.swift",

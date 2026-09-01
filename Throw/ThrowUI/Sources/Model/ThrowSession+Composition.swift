@@ -1,6 +1,10 @@
 import CreditKit
 import Foundation
-import ThrowCore
+#if DEBUG
+    @_spi(Testing) import ThrowCore
+#else
+    import ThrowCore
+#endif
 
 extension ThrowSession {
     /// Builds the live session once at the app composition root.
@@ -353,12 +357,12 @@ extension ThrowSession {
                 labelOpacity: 1,
                 altitudeIsApproximate: false,
             )
-            session.projectionFrame = ProjectionFrame(
+            session.projectionFrame = .testing(
                 mode: mode,
                 generatedAt: session.dateProvider.now(),
                 geography: mode == .map
-                    ? ProjectedGeography(
-                        id: GeographyProjectionID(rawValue: 1),
+                    ? ProjectedGeography.testing(
+                        id: GeographyProjectionID.testing(rawValue: 1),
                         segments: fixtureGeographySegments(),
                     )
                     : nil,
@@ -746,13 +750,7 @@ extension ThrowSession {
             mode: ProjectionMode,
             at date: Date,
         ) -> ProjectionFrame {
-            ProjectionFrame(
-                mode: mode,
-                generatedAt: date,
-                geography: nil,
-                geographyOpacity: 1,
-                marks: [],
-            )
+            .emptyAirAndSpace(mode: mode, generatedAt: date)
         }
 
         private static func fixtureProjectionFrame(
@@ -863,12 +861,12 @@ extension ThrowSession {
             aircraft: [SnapshotAircraft],
             opacity: Double,
         ) -> ProjectionFrame {
-            ProjectionFrame(
+            .testing(
                 mode: mode,
                 generatedAt: date,
                 geography: mode == .map
-                    ? ProjectedGeography(
-                        id: GeographyProjectionID(rawValue: 1),
+                    ? ProjectedGeography.testing(
+                        id: GeographyProjectionID.testing(rawValue: 1),
                         segments: fixtureGeographySegments(),
                     )
                     : nil,
@@ -927,7 +925,7 @@ extension ThrowSession {
             in frame: ProjectionFrame,
             transform: (ProjectionLabel?) -> ProjectionLabel?,
         ) -> ProjectionFrame {
-            ProjectionFrame(
+            .testing(
                 mode: frame.mode,
                 generatedAt: frame.generatedAt,
                 geography: frame.geography,

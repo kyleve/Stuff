@@ -20,10 +20,6 @@ struct AirAndSpaceRuntimeUpdate {
     let snapshot: AircraftSnapshot?
     let activePollingSignature: PollingSignature?
 
-    var layerFrame: LayerFrame? {
-        flightsFrame?.erased
-    }
-
     var experienceFrame: ProjectionExperienceFrame {
         .airAndSpace(AirAndSpaceExperienceFrame(
             geography: nil,

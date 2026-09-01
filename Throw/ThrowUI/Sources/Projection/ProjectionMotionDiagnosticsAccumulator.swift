@@ -24,7 +24,7 @@ struct ProjectionMotionDiagnosticsAccumulator {
     private var lastSnapshotRetainedPercent: Double?
 
     mutating func record(
-        layerFrame: LayerFrame?,
+        layerFrame: ProjectionLayerFrame<FlightsLayerKind>?,
         target: ProjectionFrame,
         at date: Date,
         observationChanged: Bool,
@@ -107,7 +107,10 @@ struct ProjectionMotionDiagnosticsAccumulator {
         }
     }
 
-    private mutating func recordSemanticState(layerFrame: LayerFrame?, at date: Date) {
+    private mutating func recordSemanticState(
+        layerFrame: ProjectionLayerFrame<FlightsLayerKind>?,
+        at date: Date,
+    ) {
         let marks = layerFrame?.marks.filter {
             if case .aircraft = $0.glyph { true } else { false }
         } ?? []
@@ -131,7 +134,7 @@ struct ProjectionMotionDiagnosticsAccumulator {
     }
 
     private mutating func recordSnapshotTransition(
-        layerFrame: LayerFrame?,
+        layerFrame: ProjectionLayerFrame<FlightsLayerKind>?,
         target: ProjectionFrame,
     ) {
         let semanticIDs = Set(layerFrame?.marks.compactMap { mark -> LayerMarkID? in

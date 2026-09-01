@@ -1,7 +1,7 @@
 import Foundation
 import Synchronization
 import Testing
-import ThrowCore
+@_spi(Testing) import ThrowCore
 @testable import ThrowUI
 
 struct ProjectionFrameWorkerTests {
@@ -168,10 +168,10 @@ struct ProjectionFrameWorkerTests {
             generatedAt: sampledAt,
             reduceMotion: false,
         ).frame
-        let target = try ProjectionEngine().frame(
+        let targetMarks = try ProjectionEngine().projectedMarksForTesting(
             layerFrames: [newLayer],
-            geography: nil,
             observer: observer,
+            mapCenter: observer.coordinate,
             viewport: viewport,
             calibration: .defaultValue,
             geometry: ProjectionGeometry(width: 1, height: 1),
@@ -180,7 +180,7 @@ struct ProjectionFrameWorkerTests {
         let firstPoint = try #require(first.marks.first?.point)
         let secondPoint = try #require(second.marks.first?.point)
         let displayedPoint = try #require(displayed.marks.first?.point)
-        let targetPoint = try #require(target.marks.first?.point)
+        let targetPoint = try #require(targetMarks.first?.point)
         let continuedSource = ProjectionPoint(
             x: secondPoint.x + (secondPoint.x - firstPoint.x),
             y: secondPoint.y + (secondPoint.y - firstPoint.y),
@@ -904,14 +904,21 @@ struct ProjectionFrameWorkerTests {
             generatedAt: sampledAt,
             reduceMotion: reduceMotion,
         ).frame
-        let target = try ProjectionEngine().frame(
+        let targetMarks = try ProjectionEngine().projectedMarksForTesting(
             layerFrames: [targetLayer],
-            geography: nil,
             observer: observer,
+            mapCenter: observer.coordinate,
             viewport: viewport,
             calibration: .defaultValue,
             geometry: ProjectionGeometry(width: 1, height: 1),
             generatedAt: sampledAt,
+        )
+        let target = ProjectionFrame.testing(
+            mode: viewport.mode,
+            generatedAt: sampledAt,
+            geography: nil,
+            geographyOpacity: 1,
+            marks: targetMarks,
         )
         return (source, displayed, target)
     }

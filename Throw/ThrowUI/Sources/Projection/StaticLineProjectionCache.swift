@@ -1,42 +1,42 @@
 import Foundation
 import ThrowCore
 
-/// Retains a bounded least-recently-used set of expensive static line projections.
-struct StaticLineProjectionCache {
-    private static let capacity = 8
+private let staticLineProjectionCacheCapacity = 8
 
+/// Retains a bounded least-recently-used set of expensive static line projections.
+struct StaticLineProjectionCache<Layer: ProjectionLineLayerKind> {
     struct Key: Hashable {
-        let layerID: LayerID
         let revision: Date
         let mapCenter: GeoCoordinate
         let viewport: ProjectionViewport
         let calibration: ProjectionCalibration
+        let geometry: ProjectionGeometry
     }
 
     private struct Entry {
         let key: Key
-        let projection: ProjectedLineCollection
+        let frame: ProjectedLayerFrame<Layer>
     }
 
     private var entries: [Entry] = []
 
     init() {
-        entries.reserveCapacity(Self.capacity)
+        entries.reserveCapacity(staticLineProjectionCacheCapacity)
     }
 
-    mutating func projection(for key: Key) -> ProjectedLineCollection? {
+    mutating func frame(for key: Key) -> ProjectedLayerFrame<Layer>? {
         guard let index = entries.firstIndex(where: { $0.key == key }) else { return nil }
         let entry = entries.remove(at: index)
         entries.append(entry)
-        return entry.projection
+        return entry.frame
     }
 
-    mutating func insert(_ projection: ProjectedLineCollection, for key: Key) {
+    mutating func insert(_ frame: ProjectedLayerFrame<Layer>, for key: Key) {
         if let index = entries.firstIndex(where: { $0.key == key }) {
             entries.remove(at: index)
-        } else if entries.count == Self.capacity {
+        } else if entries.count == staticLineProjectionCacheCapacity {
             entries.removeFirst()
         }
-        entries.append(Entry(key: key, projection: projection))
+        entries.append(Entry(key: key, frame: frame))
     }
 }

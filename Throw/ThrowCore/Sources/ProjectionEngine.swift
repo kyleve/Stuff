@@ -50,82 +50,318 @@ public struct ProjectionEngine: Sendable {
 
     public init() {}
 
-    #if DEBUG
-        public func frame(
-            layerFrames: [LayerFrame],
-            geography: ProjectedGeography?,
-            observer: ObserverPosition,
-            viewport: ProjectionViewport,
-            calibration: ProjectionCalibration,
-            geometry: ProjectionGeometry,
-            generatedAt: Date,
-        ) throws -> ProjectionFrame {
-            try frame(
-                layerFrames: layerFrames,
-                geography: geography,
-                observer: observer,
-                mapCenter: observer.coordinate,
-                viewport: viewport,
-                calibration: calibration,
-                geometry: geometry,
-                generatedAt: generatedAt,
-            )
+    /// Projects one closed experience input into its matching closed output.
+    public func frame(
+        input: PreparedProjectionExperienceInput,
+        observer: ObserverPosition,
+        mapCenter: GeoCoordinate,
+        calibration: ProjectionCalibration,
+        geometry: ProjectionGeometry,
+        generatedAt: Date,
+    ) throws -> ProjectedExperienceFrame {
+        switch input {
+            case let .airAndSpace(input):
+                try validateLineContext(
+                    input.geography,
+                    mapCenter: mapCenter,
+                    viewport: input.viewport.viewport,
+                    calibration: calibration,
+                    geometry: geometry,
+                )
+                return try .airAndSpace(airAndSpaceFrame(
+                    input: input,
+                    observer: observer,
+                    mapCenter: mapCenter,
+                    calibration: calibration,
+                    geometry: geometry,
+                    generatedAt: generatedAt,
+                ))
+            case let .transit(input):
+                let viewport = ProjectionViewport.map(input.viewport)
+                try validateLineContext(
+                    input.geography,
+                    mapCenter: mapCenter,
+                    viewport: viewport,
+                    calibration: calibration,
+                    geometry: geometry,
+                )
+                try validateLineContext(
+                    input.network,
+                    expectedSourceRevision: input.networkSourceRevision,
+                    mapCenter: mapCenter,
+                    viewport: viewport,
+                    calibration: calibration,
+                    geometry: geometry,
+                )
+                return try .transit(transitFrame(
+                    input: input,
+                    observer: observer,
+                    mapCenter: mapCenter,
+                    calibration: calibration,
+                    geometry: geometry,
+                    generatedAt: generatedAt,
+                ))
         }
+    }
 
-        public func frame(
-            layerFrames: [LayerFrame],
-            geography: ProjectedGeography?,
-            observer: ObserverPosition,
-            mapCenter: GeoCoordinate,
-            viewport: ProjectionViewport,
-            calibration: ProjectionCalibration,
-            geometry: ProjectionGeometry,
-            generatedAt: Date,
-        ) throws -> ProjectionFrame {
-            let zOrders = Dictionary(
-                uniqueKeysWithValues: LayerCatalog.standard.descriptors.map { ($0.id, $0.zOrder) },
-            )
-            let lineLayers: [ProjectedLayer] = geography.map {
-                [
-                    ProjectedLayer(
-                        id: .geography,
-                        zOrder: zOrders[.geography] ?? 0,
-                        opacity: 1,
-                        content: .lines($0),
-                    ),
-                ]
-            } ?? []
-            return try frameUnchecked(
-                experienceID: .airAndSpace,
-                layerFrames: layerFrames,
-                projectedLineLayers: lineLayers,
-                layerZOrders: zOrders,
+    /// Projects one typed semantic line layer and records the source and geometry used.
+    public func lineFrame<Layer: ProjectionLineLayerKind>(
+        source: ProjectionLayerFrame<Layer>,
+        mapCenter: GeoCoordinate,
+        viewport: ProjectionViewport,
+        calibration: ProjectionCalibration,
+        geometry: ProjectionGeometry,
+    ) throws -> ProjectedLayerFrame<Layer> {
+        let segments = try lineSegments(
+            lines: source.lines,
+            mapCenter: mapCenter,
+            viewport: viewport,
+            calibration: calibration,
+            geometry: geometry,
+        )
+        try Task.checkCancellation()
+        let provenance = ProjectedLineProvenance(
+            layerID: Layer.id,
+            sourceRevision: source.observedAt,
+            mapCenter: mapCenter,
+            viewport: viewport,
+            calibration: calibration,
+            geometry: geometry,
+        )
+        return ProjectedLayerFrame(
+            segments: segments,
+            provenance: provenance,
+        )
+    }
+
+    private func validateLineContext<Layer: ProjectionLineLayerKind>(
+        _ frame: ProjectedLayerFrame<Layer>?,
+        expectedSourceRevision: Date? = nil,
+        mapCenter: GeoCoordinate,
+        viewport: ProjectionViewport,
+        calibration: ProjectionCalibration,
+        geometry: ProjectionGeometry,
+    ) throws {
+        guard let frame else { return }
+        guard let provenance = frame.payload.provenance else {
+            throw ProjectionPreparationError.missingLineProvenance(layerID: Layer.id)
+        }
+        guard provenance.layerID == Layer.id else {
+            throw ProjectionPreparationError.layerIdentityMismatch(layerID: Layer.id)
+        }
+        if let expectedSourceRevision,
+           provenance.sourceRevision != expectedSourceRevision
+        {
+            throw ProjectionPreparationError.sourceRevisionMismatch(layerID: Layer.id)
+        }
+        guard provenance.mapCenter == mapCenter,
+              provenance.viewport == viewport,
+              provenance.calibration == calibration,
+              provenance.geometry == geometry
+        else {
+            throw ProjectionPreparationError.projectionContextMismatch(layerID: Layer.id)
+        }
+    }
+
+    private func airAndSpaceFrame(
+        input: PreparedAirAndSpaceProjectionInput,
+        observer: ObserverPosition,
+        mapCenter: GeoCoordinate,
+        calibration: ProjectionCalibration,
+        geometry: ProjectionGeometry,
+        generatedAt: Date,
+    ) throws -> AirAndSpaceProjectedFrame {
+        let viewport = input.viewport.viewport
+        let flights = try projectedMarkLayer(
+            input.flights,
+            observer: observer,
+            mapCenter: mapCenter,
+            viewport: viewport,
+            calibration: calibration,
+            geometry: geometry,
+            generatedAt: generatedAt,
+        )
+        let satellites = try projectedMarkLayer(
+            input.satellites,
+            observer: observer,
+            mapCenter: mapCenter,
+            viewport: viewport,
+            calibration: calibration,
+            geometry: geometry,
+            generatedAt: generatedAt,
+        )
+
+        switch input.viewport {
+            case .map:
+                return .map(AirAndSpaceMapProjectedFrame(
+                    generatedAt: generatedAt,
+                    geography: input.geography,
+                    flights: flights,
+                    satellites: satellites,
+                ))
+            case .trueSky:
+                let stars = try projectedMarkLayer(
+                    input.stars,
+                    observer: observer,
+                    mapCenter: mapCenter,
+                    viewport: viewport,
+                    calibration: calibration,
+                    geometry: geometry,
+                    generatedAt: generatedAt,
+                )
+                return .trueSky(AirAndSpaceTrueSkyProjectedFrame(
+                    generatedAt: generatedAt,
+                    flights: flights,
+                    stars: stars,
+                    satellites: satellites,
+                ))
+        }
+    }
+
+    private func transitFrame(
+        input: PreparedTransitProjectionInput,
+        observer: ObserverPosition,
+        mapCenter: GeoCoordinate,
+        calibration: ProjectionCalibration,
+        geometry: ProjectionGeometry,
+        generatedAt: Date,
+    ) throws -> TransitProjectedFrame {
+        let viewport = ProjectionViewport.map(input.viewport)
+        return try TransitProjectedFrame(
+            generatedAt: generatedAt,
+            geography: input.geography,
+            network: input.network,
+            vehicles: projectedMarkLayer(
+                input.vehicles,
                 observer: observer,
                 mapCenter: mapCenter,
                 viewport: viewport,
                 calibration: calibration,
                 geometry: geometry,
                 generatedAt: generatedAt,
+            ),
+        )
+    }
+
+    private func projectedMarkLayer<Layer: ProjectionMarkLayerKind>(
+        _ layerFrame: ProjectionLayerFrame<Layer>?,
+        observer: ObserverPosition,
+        mapCenter: GeoCoordinate,
+        viewport: ProjectionViewport,
+        calibration: ProjectionCalibration,
+        geometry: ProjectionGeometry,
+        generatedAt: Date,
+    ) throws -> ProjectedLayerFrame<Layer>? {
+        guard let layerFrame else { return nil }
+        return try ProjectedLayerFrame(
+            marks: projectedMarks(
+                layerFrame.marks,
+                observer: observer,
+                mapCenter: mapCenter,
+                viewport: viewport,
+                calibration: calibration,
+                geometry: geometry,
+                generatedAt: generatedAt,
+            ),
+        )
+    }
+
+    private func projectedMarks(
+        _ marks: [ProjectionMark],
+        observer: ObserverPosition,
+        mapCenter: GeoCoordinate,
+        viewport: ProjectionViewport,
+        calibration: ProjectionCalibration,
+        geometry: ProjectionGeometry,
+        generatedAt: Date,
+    ) throws -> [ProjectedMark] {
+        try Task.checkCancellation()
+        let projectionObserver = switch viewport {
+            case .map:
+                ObserverPosition(coordinate: mapCenter, altitude: observer.altitude)
+            case .trueSky:
+                observer
+        }
+        var projected: [ProjectedMark] = []
+        for (markIndex, mark) in marks.enumerated() {
+            if markIndex.isMultiple(of: 64) {
+                try Task.checkCancellation()
+            }
+            if case .airport = mark.glyph, viewport.mode != .map { continue }
+            guard let prediction = try FlightPredictor.prediction(for: mark, at: generatedAt)
+            else {
+                continue
+            }
+            guard let radial = try radialPosition(
+                for: prediction.mark.anchor,
+                observer: projectionObserver,
+                viewport: viewport,
+                screenTopBearing: calibration.screenTopBearing,
+            ) else {
+                continue
+            }
+            let point = calibratedPoint(
+                radial: radial,
+                calibration: calibration,
+                geometry: geometry,
+            )
+            let orientation = switch mark.glyph {
+                case let .airport(descriptor): try projectedOrientation(
+                        bearing: descriptor.runwayBearing,
+                        anchor: prediction.mark.anchor,
+                        observer: projectionObserver,
+                        viewport: viewport,
+                        calibration: calibration,
+                        geometry: geometry,
+                        currentPoint: point,
+                    )
+                case .aircraft, .star, .satellite: try apparentOrientation(
+                        for: mark,
+                        at: generatedAt,
+                        observer: projectionObserver,
+                        viewport: viewport,
+                        calibration: calibration,
+                        geometry: geometry,
+                        currentPoint: point,
+                    )
+            }
+            let altitudeIsApproximate: Bool = switch prediction.mark.anchor {
+                case let .geodetic(anchor):
+                    anchor.altitude.quality == .barometricApproximation
+                case .horizontal:
+                    false
+            }
+            projected.append(
+                ProjectedMark(
+                    id: prediction.mark.id,
+                    point: point,
+                    range: radial.range,
+                    glyph: prediction.mark.glyph,
+                    label: prediction.mark.label,
+                    secondaryProminence: prediction.mark.prominence == .secondary ? 1 : 0,
+                    orientationDegrees: orientation,
+                    opacity: prediction.opacity,
+                    labelOpacity: 1,
+                    altitudeIsApproximate: altitudeIsApproximate,
+                ),
             )
         }
+        return projected
+    }
 
-        public func frameForTesting(
-            experienceID: ProjectionExperienceID,
+    #if DEBUG
+        /// Raw semantic support for focused ThrowUI animation tests.
+        @_spi(Testing) public func projectedMarksForTesting(
             layerFrames: [LayerFrame],
-            projectedLineLayers: [ProjectedLayer],
-            layerZOrders: [LayerID: Int],
             observer: ObserverPosition,
             mapCenter: GeoCoordinate,
             viewport: ProjectionViewport,
             calibration: ProjectionCalibration,
             geometry: ProjectionGeometry,
             generatedAt: Date,
-        ) throws -> ProjectionFrame {
-            try frameUnchecked(
-                experienceID: experienceID,
-                layerFrames: layerFrames,
-                projectedLineLayers: projectedLineLayers,
-                layerZOrders: layerZOrders,
+        ) throws -> [ProjectedMark] {
+            try projectedMarks(
+                layerFrames.flatMap(\.marks),
                 observer: observer,
                 mapCenter: mapCenter,
                 viewport: viewport,
@@ -135,134 +371,6 @@ public struct ProjectionEngine: Sendable {
             )
         }
     #endif
-
-    public func frame(
-        input: ProjectionExperienceInput,
-        projectedLineLayers: [ProjectedLayer],
-        layerZOrders: [LayerID: Int],
-        observer: ObserverPosition,
-        mapCenter: GeoCoordinate,
-        calibration: ProjectionCalibration,
-        geometry: ProjectionGeometry,
-        generatedAt: Date,
-    ) throws -> ProjectionFrame {
-        try frameUnchecked(
-            experienceID: input.experienceFrame.experienceID,
-            layerFrames: input.experienceFrame.layers,
-            projectedLineLayers: projectedLineLayers,
-            layerZOrders: layerZOrders,
-            observer: observer,
-            mapCenter: mapCenter,
-            viewport: input.viewport,
-            calibration: calibration,
-            geometry: geometry,
-            generatedAt: generatedAt,
-        )
-    }
-
-    private func frameUnchecked(
-        experienceID: ProjectionExperienceID,
-        layerFrames: [LayerFrame],
-        projectedLineLayers: [ProjectedLayer],
-        layerZOrders: [LayerID: Int],
-        observer: ObserverPosition,
-        mapCenter: GeoCoordinate,
-        viewport: ProjectionViewport,
-        calibration: ProjectionCalibration,
-        geometry: ProjectionGeometry,
-        generatedAt: Date,
-    ) throws -> ProjectionFrame {
-        try Task.checkCancellation()
-        let projectionObserver = switch viewport {
-            case .map:
-                ObserverPosition(coordinate: mapCenter, altitude: observer.altitude)
-            case .trueSky:
-                observer
-        }
-        var projectedLayers = projectedLineLayers
-        for layerFrame in layerFrames {
-            var projected: [ProjectedMark] = []
-            for (markIndex, mark) in layerFrame.marks.enumerated() {
-                if markIndex.isMultiple(of: 64) {
-                    try Task.checkCancellation()
-                }
-                if case .airport = mark.glyph, viewport.mode != .map { continue }
-                guard let prediction = try FlightPredictor.prediction(for: mark, at: generatedAt)
-                else {
-                    continue
-                }
-                guard let radial = try radialPosition(
-                    for: prediction.mark.anchor,
-                    observer: projectionObserver,
-                    viewport: viewport,
-                    screenTopBearing: calibration.screenTopBearing,
-                ) else {
-                    continue
-                }
-                let point = calibratedPoint(
-                    radial: radial,
-                    calibration: calibration,
-                    geometry: geometry,
-                )
-                let orientation = switch mark.glyph {
-                    case let .airport(descriptor): try projectedOrientation(
-                            bearing: descriptor.runwayBearing,
-                            anchor: prediction.mark.anchor,
-                            observer: projectionObserver,
-                            viewport: viewport,
-                            calibration: calibration,
-                            geometry: geometry,
-                            currentPoint: point,
-                        )
-                    case .aircraft, .star, .satellite: try apparentOrientation(
-                            for: mark,
-                            at: generatedAt,
-                            observer: projectionObserver,
-                            viewport: viewport,
-                            calibration: calibration,
-                            geometry: geometry,
-                            currentPoint: point,
-                        )
-                }
-                let altitudeIsApproximate: Bool = switch prediction.mark.anchor {
-                    case let .geodetic(anchor):
-                        anchor.altitude.quality == .barometricApproximation
-                    case .horizontal:
-                        false
-                }
-                projected.append(
-                    ProjectedMark(
-                        id: prediction.mark.id,
-                        point: point,
-                        range: radial.range,
-                        glyph: prediction.mark.glyph,
-                        label: prediction.mark.label,
-                        secondaryProminence: prediction.mark.prominence == .secondary ? 1 : 0,
-                        orientationDegrees: orientation,
-                        opacity: prediction.opacity,
-                        labelOpacity: 1,
-                        altitudeIsApproximate: altitudeIsApproximate,
-                    ),
-                )
-            }
-            if case .marks = layerFrame.content {
-                projectedLayers.append(
-                    ProjectedLayer(
-                        id: layerFrame.layerID,
-                        zOrder: layerZOrders[layerFrame.layerID] ?? 0,
-                        opacity: 1,
-                        content: .marks(projected),
-                    ),
-                )
-            }
-        }
-        return ProjectionFrame(
-            experienceID: experienceID,
-            mode: viewport.mode,
-            generatedAt: generatedAt,
-            layers: projectedLayers,
-        )
-    }
 
     /// Projects and clips static geographic or network lines for a Map viewport. Callers
     /// can cache the result until the Map center, viewport, or calibration changes.

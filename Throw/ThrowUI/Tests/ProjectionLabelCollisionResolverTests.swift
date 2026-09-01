@@ -7,7 +7,7 @@ struct ProjectionLabelCollisionResolverTests {
     @Test(arguments: ProjectionMode.allCases)
     func collisionUsesPhysicalRangeInsteadOfScreenRadius(_ mode: ProjectionMode) throws {
         var resolver = ProjectionLabelCollisionResolver()
-        let frame = try ProjectionFrame(
+        let frame = try ProjectionFrame.testing(
             mode: mode,
             generatedAt: .init(timeIntervalSince1970: 100),
             geography: nil,
@@ -28,7 +28,7 @@ struct ProjectionLabelCollisionResolverTests {
     @Test func rangeHysteresisKeepsThePreviousWinnerWithinQuarterMile() throws {
         var resolver = ProjectionLabelCollisionResolver()
         let date = Date(timeIntervalSince1970: 100)
-        _ = try resolver.resolve(ProjectionFrame(
+        _ = try resolver.resolve(ProjectionFrame.testing(
             mode: .map,
             generatedAt: date,
             geography: nil,
@@ -39,7 +39,7 @@ struct ProjectionLabelCollisionResolverTests {
             ],
         ))
 
-        let withinTolerance = try resolver.resolve(ProjectionFrame(
+        let withinTolerance = try resolver.resolve(ProjectionFrame.testing(
             mode: .map,
             generatedAt: date.addingTimeInterval(1),
             geography: nil,
@@ -66,7 +66,7 @@ struct ProjectionLabelCollisionResolverTests {
             labelOpacity: 0.4,
         )
 
-        let resolved = resolver.resolve(ProjectionFrame(
+        let resolved = resolver.resolve(ProjectionFrame.testing(
             mode: .map,
             generatedAt: .init(timeIntervalSince1970: 100),
             geography: nil,
@@ -81,7 +81,7 @@ struct ProjectionLabelCollisionResolverTests {
 
     @Test func detailOnlyLabelsUseSmallerCollisionBounds() throws {
         let date = Date(timeIntervalSince1970: 100)
-        let headline = try ProjectionFrame(
+        let headline = try ProjectionFrame.testing(
             mode: .map,
             generatedAt: date,
             geography: nil,
@@ -91,7 +91,7 @@ struct ProjectionLabelCollisionResolverTests {
                 mark(id: "bravo", x: 0.557, range: 2, labelRole: .headline),
             ],
         )
-        let detail = try ProjectionFrame(
+        let detail = try ProjectionFrame.testing(
             mode: .map,
             generatedAt: date,
             geography: nil,

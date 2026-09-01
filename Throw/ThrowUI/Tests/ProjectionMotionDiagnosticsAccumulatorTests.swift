@@ -38,11 +38,13 @@ struct ProjectionMotionDiagnosticsAccumulatorTests {
         #expect(sample.previousSnapshotRetainedPercent == 0)
     }
 
-    private func layerFrame(rawID: String, observedAt: Date) throws -> LayerFrame {
-        try LayerFrame(
-            layerID: .flights,
+    private func layerFrame(
+        rawID: String,
+        observedAt: Date,
+    ) throws -> ProjectionLayerFrame<FlightsLayerKind> {
+        try ProjectionLayerFrame(
             observedAt: observedAt,
-            content: .marks([
+            marks: [
                 ProjectionMark(
                     id: markID(rawValue: rawID),
                     anchor: .geodetic(GeodeticAnchor(
@@ -65,7 +67,7 @@ struct ProjectionMotionDiagnosticsAccumulatorTests {
                         availability: .current,
                     ),
                 ),
-            ]),
+            ],
         )
     }
 
@@ -74,7 +76,7 @@ struct ProjectionMotionDiagnosticsAccumulatorTests {
         x: Double,
         at date: Date,
     ) throws -> ProjectionFrame {
-        try ProjectionFrame(
+        try ProjectionFrame.testing(
             mode: .map,
             generatedAt: date,
             geography: nil,

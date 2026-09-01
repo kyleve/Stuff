@@ -350,11 +350,11 @@ extension ThrowSession {
         else { return }
         let previousLayer = currentLayerFrame
         currentSnapshot = update.snapshot
-        currentLayerFrame = update.layerFrame
+        currentLayerFrame = update.flightsFrame
         currentExperienceFrame = update.experienceFrame
         feedHealth = update.health
 
-        if update.layerFrame != nil {
+        if update.flightsFrame != nil {
             restartRenderer()
         } else if previousLayer != nil || update.health.visibleContentCount == 0 {
             await clearProjectionState(restartsGeography: true)
@@ -589,18 +589,21 @@ extension ThrowSession {
                             minimumElevation: ElevationAngle(degrees: minimumElevation),
                         ))
                 }
-                return .airAndSpace(frame: enabledFrame, viewport: viewport)
+                return .airAndSpace(AirAndSpaceProjectionInput(
+                    frame: enabledFrame,
+                    viewport: viewport,
+                ))
             case let .transit(frame):
                 let enabledFrame = TransitExperienceFrame(
                     geography: geographyEnabled ? frame.geography : nil,
                     network: frame.network,
                     vehicles: frame.vehicles,
                 )
-                return try .transit(
+                return try .transit(TransitProjectionInput(
                     frame: enabledFrame,
                     viewport: MapViewport(radius: NauticalMiles(value: mapRadius)),
                     geography: geographyEnabled ? .visible : .hidden,
-                )
+                ))
         }
     }
 
@@ -735,22 +738,29 @@ extension ThrowSession {
     }
 
     func emptyProjectionFrame() -> ProjectionFrame {
-        ProjectionFrame(
-            experienceID: activeExperienceID ?? .airAndSpace,
-            mode: projectionMode,
-            generatedAt: dateProvider.now(),
-            layers: [],
-        )
+        let experienceID = activeExperienceID ?? .airAndSpace
+        switch experienceID {
+            case .airAndSpace:
+                return .emptyAirAndSpace(
+                    mode: projectionMode,
+                    generatedAt: dateProvider.now(),
+                )
+            case .transit:
+                return .emptyTransit(generatedAt: dateProvider.now())
+            #if DEBUG
+                case .testing:
+                    return .testing(
+                        experienceID: experienceID,
+                        mode: projectionMode,
+                        generatedAt: dateProvider.now(),
+                        layers: [],
+                    )
+            #endif
+        }
     }
 
     func projectionFrameWithoutMarks() -> ProjectionFrame {
-        let withoutMarks = projectionFrame.replacingMarks([])
-        return ProjectionFrame(
-            experienceID: projectionFrame.experienceID,
-            mode: projectionFrame.mode,
-            generatedAt: dateProvider.now(),
-            layers: withoutMarks.layers,
-        )
+        projectionFrame.withoutMarks(generatedAt: dateProvider.now())
     }
 
     func discardOldFrame() async throws {
