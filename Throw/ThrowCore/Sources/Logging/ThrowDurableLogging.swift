@@ -9,15 +9,12 @@ public protocol ThrowDurableLoggingSession: Sendable {
 }
 
 /// Opens and attaches Throw's one durable logging session.
-public protocol ThrowDurableLoggingStarting: Sendable {
+public protocol ThrowDurableLoggingStarting: ThrowSessionFailureLogging {
     func start() async throws -> any ThrowDurableLoggingSession
 }
 
 /// Opens an on-disk Periscope store and routes Throw's process log into it.
-public final class PeriscopeThrowDurableLoggingStarter: ThrowDurableLoggingStarting,
-    ThrowSessionFailureLogging,
-    Sendable
-{
+public final class PeriscopeThrowDurableLoggingStarter: ThrowDurableLoggingStarting, Sendable {
     private let makeStore: @Sendable () async throws -> PeriscopeStore
     private let softwareCreditsLoadFailure: ThrowSoftwareCreditsLoadFailure?
     private let now: @Sendable () -> Date

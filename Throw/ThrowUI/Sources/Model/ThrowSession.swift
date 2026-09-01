@@ -271,8 +271,15 @@ public final class ThrowSession {
     let calendar: Calendar
     let layerCatalog: LayerCatalog
     let projectionWorker: ProjectionFrameWorker
-    let sessionFailureLogger: any ThrowSessionFailureLogging
     let durableLoggingStarter: (any ThrowDurableLoggingStarting)?
+
+    var sessionFailureLogger: any ThrowSessionFailureLogging {
+        if let durableLoggingStarter {
+            durableLoggingStarter
+        } else {
+            DiscardingThrowSessionFailureLogger()
+        }
+    }
 
     @ObservationIgnored var hasForegroundControllerScene: Bool
     #if DEBUG
@@ -380,7 +387,6 @@ public final class ThrowSession {
         routeLogger: any FlightRouteLogging,
         rotationClock: any ProjectionRotationClock,
         softwareCreditsState: SoftwareCreditsLoadState,
-        sessionFailureLogger: any ThrowSessionFailureLogging,
         durableLoggingStarter: (any ThrowDurableLoggingStarting)?,
         initiallyHasForegroundControllerScene: Bool,
         initialLaunchState: ThrowSessionLaunchState,
@@ -408,6 +414,11 @@ public final class ThrowSession {
         self.locationSource = locationSource
         self.calendar = calendar
         self.layerCatalog = layerCatalog
+        let sessionFailureLogger: any ThrowSessionFailureLogging = if let durableLoggingStarter {
+            durableLoggingStarter
+        } else {
+            DiscardingThrowSessionFailureLogger()
+        }
         let flightsRuntime = layerCatalog.flights.runtimeFactory()
         airAndSpaceRuntime = AirAndSpaceRuntime(
             pollingCoordinator: pollingCoordinator,
@@ -428,7 +439,6 @@ public final class ThrowSession {
             sessionFailureLogger: sessionFailureLogger,
         )
         self.softwareCreditsState = softwareCreditsState
-        self.sessionFailureLogger = sessionFailureLogger
         self.durableLoggingStarter = durableLoggingStarter
         locationHealth = Self.locationHealth(
             for: preferences.confirmedLocation,
