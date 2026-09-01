@@ -102,6 +102,42 @@ struct AirAndSpaceRuntimeTests {
         await runtime.deactivate(lease: lease(2), reporting: .idle)
     }
 
+    @Test func newerDeactivationTombstonesActivationSuspendedDuringReset() async throws {
+        let date = Date(timeIntervalSince1970: 1_800_100_000)
+        let flightsRuntime = ControllableFlightsLayerRuntime(suspendedResetNumbers: [1])
+        let coordinator = AircraftPollingCoordinator(
+            sourceFactory: ConfigurationEchoAircraftSourceFactory(date: date),
+            clock: LongAircraftPollingClock(now: date),
+            logger: DiscardingAircraftPollingLogger(),
+        )
+        let runtime = makeRuntime(
+            pollingCoordinator: coordinator,
+            flightsRuntime: flightsRuntime,
+            date: date,
+        )
+        let query = try query()
+
+        let supersededActivation = Task {
+            await runtime.activate(
+                configuration: .adsbLol,
+                query: query,
+                labelMode: .adaptive,
+                lease: lease(1),
+            )
+        }
+        await flightsRuntime.waitForResetCount(1)
+
+        await runtime.deactivate(lease: lease(2), reporting: .idle)
+        await flightsRuntime.releaseReset(1)
+        await supersededActivation.value
+
+        let update = await runtime.currentUpdate()
+        #expect(update.activationLease == nil)
+        #expect(update.activePollingSignature == nil)
+        #expect(update.health == .idle)
+        #expect(await coordinator.currentState() == .idle)
+    }
+
     @Test func visibleCountRejectsAnOlderActivationGeneration() async throws {
         let date = Date(timeIntervalSince1970: 1_800_100_000)
         let snapshot = AircraftSnapshot(

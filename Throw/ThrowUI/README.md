@@ -81,6 +81,8 @@ monotonic session revisions. The coordinator rejects an older value that arrives
 late.
 The coordinator exposes a lease only while its runtime is running. Thus, a direct
 session read cannot restore a lease after its deactivation command completes.
+The Air & Space runtime stores each deactivation generation as a tombstone.
+A newer teardown retires older work. An older teardown cannot stop a newer lease.
 Each production rendered projection stores the lease that produced it. A
 source or observer replacement blocks local reactivation while the old runtime
 drains. The renderer stops before the replacement becomes visible.
