@@ -1,0 +1,40 @@
+{
+  "source": "tla",
+  "module": "ProjectionContextTransition.tla",
+  "cases": [
+    {
+      "name": "broken-context",
+      "config": "BrokenContext.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoInvalidatedContextCommit is violated."
+    },
+    {
+      "name": "broken-pair",
+      "config": "BrokenPair.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant ExactVisiblePair is violated."
+    },
+    {
+      "name": "broken-writer",
+      "config": "BrokenWriter.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoWriterDuringFadeIn is violated."
+    },
+    {
+      "name": "reachability",
+      "config": "Reachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RequiredPathsNotAllReached is violated."
+    },
+    {
+      "name": "current-small",
+      "config": "CurrentSmall.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-larger",
+      "config": "CurrentLarger.cfg",
+      "expect": "pass"
+    }
+  ]
+}
