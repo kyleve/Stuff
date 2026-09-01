@@ -18,6 +18,7 @@ let throwProjectRules = RuleSet {
         id: "throw.layer_frame_erasure_ownership",
     )
     throwProjectedFrameErasureRule
+    throwTypedProjectionFamiliesRule
     throwLiveDependencyCompositionRule
     throwAnyViewRule
     throwProviderBoundaryRule
@@ -34,6 +35,8 @@ private let throwLayerFrameErasurePath: RelativeFilePath =
     "Throw/ThrowCore/Sources/ProjectionModels.swift"
 private let throwProjectedFrameErasurePath: RelativeFilePath =
     "Throw/ThrowUI/Sources/Projection/ProjectionFrame.swift"
+private let throwProjectionModelsPath: RelativeFilePath =
+    "Throw/ThrowCore/Sources/ProjectionModels.swift"
 
 private let throwProductionScope = RuleScope
     .component(ThrowComponent.throwCore)
@@ -73,6 +76,97 @@ private let throwProjectedFrameErasureRule = Rules.files(
                 ),
             )
         }
+}
+
+private let throwProjectionFamilyAliases: [String: (name: String, type: String)] = [
+    "FlightsLayerKind": ("MarkElement", "FlightsMarkElement"),
+    "GeographyLayerKind": ("LineStyle", "GeographyLineKind"),
+    "SatellitesLayerKind": ("MarkElement", "SatelliteMarkElement"),
+    "StarsLayerKind": ("MarkElement", "StarMarkElement"),
+    "TransitNetworkLayerKind": ("LineStyle", "TransitNetworkLineStyle"),
+    "TransitVehiclesLayerKind": ("MarkElement", "TransitVehicleMarkElement"),
+]
+
+private let throwTypedProjectionFamiliesRule = Rules.files(
+    "throw.typed_projection_families",
+    severity: .error,
+    summary: "Throw keeps projection element families compiler-checked through presentation.",
+    scope: throwProductionScope,
+) { file in
+    if file.path == throwProjectionModelsPath {
+        let aliasFailures = SyntaxQuery<TypeAliasDeclSyntax>()
+            .filter { match in
+                guard
+                    let enumName = enclosingEnumName(match.node),
+                    let expected = throwProjectionFamilyAliases[enumName],
+                    match.node.name.text == expected.name
+                else {
+                    return false
+                }
+                return match.node.initializer.value.trimmedDescription != expected.type
+            }
+            .matches(in: file)
+            .map { match in
+                let enumName = enclosingEnumName(match.node) ?? "projection layer kind"
+                let expected = throwProjectionFamilyAliases[enumName]
+                return match.failure(
+                    message: "Throw changes the element family owned by \(enumName).",
+                    evidence: ViolationEvidence(
+                        observed: match.node.trimmedDescription,
+                        expectation: expected.map { "typealias \($0.name) = \($0.type)" }
+                            ?? "the declared projection family",
+                    ),
+                )
+            }
+        let airportIdentityFailures = SyntaxQuery<EnumCaseElementSyntax>()
+            .filter { match in
+                guard
+                    match.node.name.text == "airport",
+                    enclosingEnumName(match.node) == "FlightsMarkElement"
+                else {
+                    return false
+                }
+                let parameterTypes = match.node.parameterClause?.parameters
+                    .map(\.type.trimmedDescription) ?? []
+                return parameterTypes != ["AirportGlyphDescriptor"]
+            }
+            .matches(in: file)
+            .map { match in
+                match.failure(
+                    message: "Throw stores airport identity separately from its glyph descriptor.",
+                    evidence: ViolationEvidence(
+                        observed: match.node.trimmedDescription,
+                        expectation: "case airport(AirportGlyphDescriptor)",
+                    ),
+                )
+            }
+        return aliasFailures + airportIdentityFailures
+    }
+
+    guard file.path == throwProjectedFrameErasurePath else { return [] }
+    return SyntaxQuery<FunctionDeclSyntax>()
+        .filter { $0.node.name.text == "replacingMarks" }
+        .matches(in: file)
+        .map { match in
+            match.failure(
+                message: "ThrowUI accepts an erased mark array at its presentation mutation seam.",
+                evidence: ViolationEvidence(
+                    observed: match.node.signature.trimmedDescription,
+                    expectation: "case-preserving presentation-field updates",
+                ),
+            )
+        }
+}
+
+private func enclosingEnumName(_ node: some SyntaxProtocol) -> String? {
+    var ancestor = Syntax(node).parent
+    while let current = ancestor {
+        if let declaration = current.as(EnumDeclSyntax.self) {
+            return declaration.name.text
+        }
+        ancestor = current.parent
+    }
+    return nil
 }
 
 private let throwLiveDependencyCompositionRule = Rules.files(

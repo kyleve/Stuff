@@ -91,7 +91,7 @@ struct ProjectionMotionDiagnosticsAccumulator {
         let interval = target.generatedAt.timeIntervalSince(previousTarget.generatedAt)
         guard interval > 0, interval <= 0.25 else { return }
         let previousByID = previousTarget.marks.reduce(
-            into: [LayerMarkID: ProjectedMark](),
+            into: [LayerMarkID: PresentedMark](),
         ) {
             $0[$1.id] = $1
         }
@@ -139,7 +139,7 @@ struct ProjectionMotionDiagnosticsAccumulator {
     ) {
         let semanticIDs = Set(layerFrame?.marks.compactMap { mark -> LayerMarkID? in
             guard case .aircraft = mark.glyph else { return nil }
-            return mark.id
+            return presentationID(mark.id)
         } ?? [])
         if let previousSemanticIDs, previousSemanticIDs.isEmpty == false {
             lastSnapshotRetainedPercent = Double(
@@ -150,7 +150,7 @@ struct ProjectionMotionDiagnosticsAccumulator {
 
         guard let previousTarget, previousTarget.mode == target.mode else { return }
         let previousByID = previousTarget.marks.reduce(
-            into: [LayerMarkID: ProjectedMark](),
+            into: [LayerMarkID: PresentedMark](),
         ) {
             $0[$1.id] = $1
         }

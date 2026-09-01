@@ -223,36 +223,21 @@ actor ProjectionFrameWorker {
             #if DEBUG
                 case let .testing(request):
                     let layerFrames = request.layerFrames
-                    let zOrders = Dictionary(
-                        uniqueKeysWithValues: LayerCatalog.standard.descriptors.map {
-                            ($0.id, $0.zOrder)
-                        },
-                    )
                     var projectedLayers = geographyResult.projection.map {
-                        [ProjectedLayer.testing(
-                            id: .geography,
-                            zOrder: zOrders[.geography] ?? 0,
-                            opacity: 1,
-                            content: .lines($0.lines),
-                        )]
+                        [testingGeographyLayer($0.lines)]
                     } ?? []
                     for lineFrame in layerFrames {
                         guard case .lines = lineFrame.content,
                               projectedLayers.contains(where: { $0.id == lineFrame.layerID }) ==
                               false
                         else { continue }
-                        let projection = try projectedLineCollectionForTesting(
+                        let projectedLayer = try projectedLineLayerForTesting(
                             layerFrame: lineFrame,
                             mapCenter: mapCenter,
                             viewport: viewport,
                             calibration: calibration,
                         )
-                        projectedLayers.append(ProjectedLayer.testing(
-                            id: lineFrame.layerID,
-                            zOrder: zOrders[lineFrame.layerID] ?? 0,
-                            opacity: 1,
-                            content: .lines(projection),
-                        ))
+                        projectedLayers.append(projectedLayer)
                     }
                     let marks = try engine.projectedMarksForTesting(
                         layerFrames: layerFrames,
@@ -263,15 +248,7 @@ actor ProjectionFrameWorker {
                         geometry: ProjectionGeometry(width: 1, height: 1),
                         generatedAt: generatedAt,
                     )
-                    let marksByLayer = Dictionary(grouping: marks, by: \.id.layerID)
-                    projectedLayers.append(contentsOf: marksByLayer.map { id, marks in
-                        ProjectedLayer.testing(
-                            id: id,
-                            zOrder: zOrders[id] ?? 0,
-                            opacity: 1,
-                            content: .marks(marks),
-                        )
-                    })
+                    projectedLayers.append(contentsOf: testingMarkLayers(marks))
                     target = .testing(
                         experienceID: experienceID,
                         mode: viewport.mode,
@@ -387,33 +364,59 @@ actor ProjectionFrameWorker {
     }
 
     #if DEBUG
-        private func projectedLineCollectionForTesting(
+        private func projectedLineLayerForTesting(
             layerFrame: LayerFrame,
             mapCenter: GeoCoordinate,
             viewport: ProjectionViewport,
             calibration: ProjectionCalibration,
-        ) throws -> ProjectedLineCollection {
+        ) throws -> ProjectedLayer {
             switch layerFrame.layerID {
                 case .geography:
-                    try projectedGeographyLineLayer(
-                        ProjectionLayerFrame<GeographyLayerKind>(
-                            observedAt: layerFrame.observedAt,
-                            lines: layerFrame.lines,
-                        ),
-                        mapCenter: mapCenter,
-                        viewport: viewport,
-                        calibration: calibration,
-                    ).lines
+                    let lines = try layerFrame.lines.map { line in
+                        guard let kind = line.style.geographyKind else {
+                            preconditionFailure("A Geography test layer must use Geography styles")
+                        }
+                        return try GeographicPolyline(
+                            kind: kind,
+                            detailLevel: line.detailLevel,
+                            bounds: line.bounds,
+                            coordinates: line.coordinates,
+                        )
+                    }
+                    return try testingGeographyLayer(
+                        projectedGeographyLineLayer(
+                            ProjectionLayerFrame<GeographyLayerKind>(
+                                observedAt: layerFrame.observedAt,
+                                lines: lines,
+                            ),
+                            mapCenter: mapCenter,
+                            viewport: viewport,
+                            calibration: calibration,
+                        ).lines,
+                    )
                 case .transitNetwork:
-                    try projectedTransitNetworkLayer(
-                        ProjectionLayerFrame<TransitNetworkLayerKind>(
-                            observedAt: layerFrame.observedAt,
-                            lines: layerFrame.lines,
-                        ),
-                        mapCenter: mapCenter,
-                        viewport: viewport,
-                        calibration: calibration,
-                    ).lines
+                    let lines = try layerFrame.lines.map { line in
+                        guard line.style.isTransitRoute else {
+                            preconditionFailure("A Transit test layer must use Transit styles")
+                        }
+                        return try ProjectionPolyline<TransitNetworkLineStyle>(
+                            style: .route,
+                            detailLevel: line.detailLevel,
+                            bounds: line.bounds,
+                            coordinates: line.coordinates,
+                        )
+                    }
+                    return try testingTransitNetworkLayer(
+                        projectedTransitNetworkLayer(
+                            ProjectionLayerFrame<TransitNetworkLayerKind>(
+                                observedAt: layerFrame.observedAt,
+                                lines: lines,
+                            ),
+                            mapCenter: mapCenter,
+                            viewport: viewport,
+                            calibration: calibration,
+                        ).lines,
+                    )
                 case .flights, .stars, .satellites, .transitVehicles:
                     preconditionFailure("A mark layer cannot carry test line content")
             }
@@ -651,7 +654,7 @@ actor ProjectionFrameWorker {
         sourceVelocities: [LayerMarkID: ProjectedPointVelocity]?,
         elapsed: TimeInterval,
     ) -> ProjectionFrame {
-        let sourceByID = source.marks.reduce(into: [LayerMarkID: ProjectedMark]()) {
+        let sourceByID = source.marks.reduce(into: [LayerMarkID: PresentedMark]()) {
             $0[$1.id] = $1
         }
         let targetIDs = Set(target.marks.map(\.id))
@@ -660,7 +663,10 @@ actor ProjectionFrameWorker {
         let presenceProgress = transitionsLabels
             ? 1
             : min(1, progress * AnimationDuration.correction / AnimationDuration.presence)
-        var marks = target.marks.map { mark in
+        var fieldsByID: [LayerMarkID: PresentedMarkFields] = [:]
+        fieldsByID.reserveCapacity(target.marks.count + source.marks.count)
+        for mark in target.marks {
+            let fields: PresentedMarkFields
             guard let old = sourceByID[mark.id] else {
                 let duration = if case .airport = mark.glyph {
                     AnimationDuration.anchor
@@ -670,11 +676,8 @@ actor ProjectionFrameWorker {
                 let insertionProgress = transitionsLabels
                     ? 1
                     : min(1, progress * AnimationDuration.correction / duration)
-                return ProjectedMark(
-                    id: mark.id,
+                fields = PresentedMarkFields(
                     point: mark.point,
-                    range: mark.range,
-                    glyph: mark.glyph,
                     label: usesSourceLabels ? nil : mark.label,
                     secondaryProminence: mark.secondaryProminence,
                     orientationDegrees: mark.orientationDegrees,
@@ -682,8 +685,9 @@ actor ProjectionFrameWorker {
                     labelOpacity: usesSourceLabels
                         ? 0
                         : mark.labelOpacity * labelPhaseOpacity,
-                    altitudeIsApproximate: mark.altitudeIsApproximate,
                 )
+                fieldsByID[mark.id] = fields
+                continue
             }
             let transitionedLabel = transitionsLabels
                 ? TransitionedLabel(
@@ -706,16 +710,13 @@ actor ProjectionFrameWorker {
             } else {
                 old.point
             }
-            return ProjectedMark(
-                id: mark.id,
+            fields = PresentedMarkFields(
                 point: interpolatesPosition
                     ? ProjectionPoint(
                         x: sourcePoint.x + (mark.point.x - sourcePoint.x) * positionProgress,
                         y: sourcePoint.y + (mark.point.y - sourcePoint.y) * positionProgress,
                     )
                     : mark.point,
-                range: mark.range,
-                glyph: mark.glyph,
                 label: transitionedLabel.label,
                 secondaryProminence: old.secondaryProminence +
                     (mark.secondaryProminence - old.secondaryProminence) * progress,
@@ -728,41 +729,62 @@ actor ProjectionFrameWorker {
                     : mark.orientationDegrees,
                 opacity: old.opacity + (mark.opacity - old.opacity) * progress,
                 labelOpacity: transitionedLabel.opacity * labelPhaseOpacity,
-                altitudeIsApproximate: mark.altitudeIsApproximate,
             )
+            fieldsByID[mark.id] = fields
         }
+        var appendedSourceIDs: Set<LayerMarkID> = []
         if transitionsLabels == false, progress < 1 {
-            marks.append(contentsOf: source.marks.compactMap { mark in
-                guard targetIDs.contains(mark.id) == false else { return nil }
+            for mark in source.marks {
+                guard targetIDs.contains(mark.id) == false else { continue }
                 let duration = removalDuration(for: mark)
                 let removalProgress = min(
                     1,
                     progress * AnimationDuration.correction / duration,
                 )
-                guard removalProgress < 1 else { return nil }
-                return ProjectedMark(
-                    id: mark.id,
+                guard removalProgress < 1 else { continue }
+                appendedSourceIDs.insert(mark.id)
+                fieldsByID[mark.id] = PresentedMarkFields(
                     point: mark.point,
-                    range: mark.range,
-                    glyph: mark.glyph,
                     label: mark.label,
                     secondaryProminence: mark.secondaryProminence,
                     orientationDegrees: mark.orientationDegrees,
                     opacity: mark.opacity * (1 - removalProgress),
                     labelOpacity: mark.labelOpacity,
-                    altitudeIsApproximate: mark.altitudeIsApproximate,
                 )
-            })
+            }
         }
-        guard transitionsLabels else { return target.replacingMarks(marks) }
+        guard transitionsLabels else {
+            guard let frame = target.updatingMarkPresentation(
+                fieldsByID: fieldsByID,
+                retainedTargetIDs: targetIDs,
+                appendedSourceIDs: appendedSourceIDs,
+                sourceFrame: source,
+                lineLayersFrom: target,
+                lineOpacity: 1,
+            ) else {
+                preconditionFailure("Correction morphs must preserve the presentation case")
+            }
+            return frame
+        }
         let usesSourceLines = progress < 0.5
-        let lineFrame = usesSourceLines ? source : target
-        let lineOpacity = usesSourceLines ? 1 - progress * 2 : (progress - 0.5) * 2
-        return target.replacingMarks(
-            marks,
+        let framesHaveSameCase = target.hasSamePresentationCase(as: source)
+        let lineFrame = usesSourceLines && framesHaveSameCase ? source : target
+        let lineOpacity = if usesSourceLines {
+            framesHaveSameCase ? 1 - progress * 2 : 0
+        } else {
+            (progress - 0.5) * 2
+        }
+        guard let frame = target.updatingMarkPresentation(
+            fieldsByID: fieldsByID,
+            retainedTargetIDs: targetIDs,
+            appendedSourceIDs: appendedSourceIDs,
+            sourceFrame: framesHaveSameCase ? source : target,
             lineLayersFrom: lineFrame,
             lineOpacity: lineOpacity,
-        )
+        ) else {
+            preconditionFailure("Mode morphs must use one closed presentation case")
+        }
+        return frame
     }
 
     private func cubicEaseOut(_ progress: Double) -> Double {
@@ -773,7 +795,7 @@ actor ProjectionFrameWorker {
         progress * progress * (3 - 2 * progress)
     }
 
-    private func removalDuration(for mark: ProjectedMark) -> TimeInterval {
+    private func removalDuration(for mark: PresentedMark) -> TimeInterval {
         if case let .aircraft(descriptor) = mark.glyph,
            case let .arrival(context, .approach, _) = descriptor.activity,
            context.aircraftDistance.value <= 8
@@ -804,8 +826,8 @@ actor ProjectionFrameWorker {
     }
 
     private func transitionLabel(
-        from source: ProjectedMark,
-        to target: ProjectedMark,
+        from source: PresentedMark,
+        to target: PresentedMark,
         progress: Double,
     ) -> TransitionedLabel {
         guard source.label != target.label else {
@@ -950,7 +972,7 @@ private struct ProjectionPresentationSignature: Equatable {
         let label: ProjectionLabel?
         let secondaryProminence: Double
 
-        init(mark: ProjectedMark) {
+        init(mark: PresentedMark) {
             id = mark.id
             glyph = mark.glyph
             label = mark.label
@@ -1025,7 +1047,7 @@ extension ProjectionFrameWorker {
                 FlightActivity
             )? in
                 guard case let .aircraft(descriptor) = mark.glyph else { return nil }
-                return (mark.id, descriptor.activity)
+                return (presentationID(mark.id), descriptor.activity)
             } ?? []
             let semanticIDs = Set(semanticAircraft.map(\.0))
 
@@ -1131,7 +1153,7 @@ extension ProjectionFrameWorker {
                                 progress: pulseProgress,
                             ),
                         )
-                    case .star, .satellite:
+                    case .star, .satellite, .transitVehicle:
                         break
                 }
             }

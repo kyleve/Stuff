@@ -68,8 +68,11 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   `ProjectionExperienceID` values at display and persistence boundaries.
 - Construct semantic frames through typed layer and experience cases. Never pass
   parallel experience IDs, raw layer arrays, and modes across production boundaries.
-- Keep layer IDs, mark identities, line styles, and payload shapes closed and
-  typed. Construct raw `LayerFrame` values only in `ProjectionModels.swift`.
+- Keep layer IDs, mark element families, line styles, and payload shapes closed
+  and typed through semantic and projected frames. Keep raw `LayerFrame`
+  construction in DEBUG Testing SPI in `ProjectionModels.swift`.
+- Derive an airport mark's identity and glyph from one descriptor. Never store
+  a parallel airport ID beside that descriptor.
 - Bind each semantic layer kind to its projected payload with
   `ProjectionMarkLayerKind` or `ProjectionLineLayerKind`.
 - Derive renderer z-order from the closed `LayerID`. Never duplicate it in a

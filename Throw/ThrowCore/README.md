@@ -95,13 +95,13 @@ a separate validation flag.
 `TemporaryQuietWake` closes the supported 15-minute, 30-minute, and 60-minute
 wake choices. Session intents do not accept other minute values.
 
-`LayerID`, `LayerMarkID`, and `ProjectionLineStyleID` are closed typed values.
+`LayerID` and `LayerMarkID` are closed typed values.
 `GeodeticAltitude` stores altitude availability, value, and quality in one
 state. An unavailable altitude cannot carry a quality.
-`ProjectionLayerFrame` fixes each semantic layer identity and payload shape in
-its generic type. A mark layer cannot receive line content, and a line layer
-cannot receive marks. Raw `LayerFrame` construction stays at the Core erasure
-boundary.
+`ProjectionLayerFrame` fixes each semantic layer identity, element family, and
+payload shape in its generic type. A mark layer cannot receive another layer's
+elements. A line layer cannot receive another layer's style. Raw `LayerFrame`
+construction exists only in DEBUG Testing SPI.
 `ProjectionExperienceFrame` then accepts only the typed layers for its experience.
 `ProjectionExperienceInput` also pairs each experience with its supported projection modes.
 Transit can accept only a Map viewport. Geography visibility belongs to Map
@@ -115,9 +115,9 @@ available only through the DEBUG Testing SPI. Playlist entries and mutations
 require runnable identities, so planned Transit cannot enter a release playlist.
 
 `ProjectionMarkLayerKind` and `ProjectionLineLayerKind` bind each semantic
-payload to its projected payload. `ProjectedLayerFrame` keeps that binding
-through `ProjectionEngine`. Its mark initializer checks the erased
-`LayerMarkID` tag before it stores a mark.
+element or style family to its projected payload. `ProjectedLayerFrame` keeps
+that binding through `ProjectionEngine`. Airport elements derive both identity
+and glyph from one `AirportGlyphDescriptor`, so those values cannot drift.
 `ProjectedExperienceFrame` fixes each experience's projected layers and modes.
 Air & Space True Sky cannot carry Geography. Transit cannot carry Air & Space
 layers or a True Sky mode. Map output cannot carry the True-Sky-only Stars

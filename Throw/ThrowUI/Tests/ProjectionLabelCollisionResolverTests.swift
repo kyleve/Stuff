@@ -115,8 +115,8 @@ struct ProjectionLabelCollisionResolverTests {
         opacity: Double = 1,
         labelOpacity: Double = 1,
         labelRole: ProjectionLabelRole = .headline,
-    ) throws -> ProjectedMark {
-        try ProjectedMark(
+    ) throws -> PresentedMark {
+        try PresentedMark(
             id: #require(AircraftID(kind: .icao, rawValue: id)).layerMarkID,
             point: ProjectionPoint(x: x, y: 0.5),
             range: NauticalMiles(value: range),

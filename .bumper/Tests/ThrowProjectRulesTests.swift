@@ -107,6 +107,50 @@ struct ThrowProjectRulesTests {
         })
     }
 
+    @Test func projectionFamiliesStayTypedThroughThePresentationBoundary() throws {
+        let coreAllowed = try evaluate(
+            path: "Throw/ThrowCore/Sources/ProjectionModels.swift",
+            component: .throwCore,
+            source: """
+            enum StarsLayerKind { typealias MarkElement = StarMarkElement }
+            enum GeographyLayerKind { typealias LineStyle = GeographyLineKind }
+            enum FlightsMarkElement { case airport(AirportGlyphDescriptor) }
+            """,
+        )
+        let coreRejected = try evaluate(
+            path: "Throw/ThrowCore/Sources/ProjectionModels.swift",
+            component: .throwCore,
+            source: """
+            enum StarsLayerKind { typealias MarkElement = FlightsMarkElement }
+            enum GeographyLayerKind { typealias LineStyle = TransitNetworkLineStyle }
+            enum FlightsMarkElement {
+                case airport(AirportID, AirportGlyphDescriptor)
+            }
+            """,
+        )
+        let presentationAllowed = try evaluate(
+            path: "Throw/ThrowUI/Sources/Projection/ProjectionFrame.swift",
+            component: .throwUI,
+            source: "func updatingMarkPresentation(fieldsByID: [ID: Fields]) {}",
+        )
+        let presentationRejected = try evaluate(
+            path: "Throw/ThrowUI/Sources/Projection/ProjectionFrame.swift",
+            component: .throwUI,
+            source: "func replacingMarks(_ marks: [PresentedMark]) {}",
+        )
+
+        #expect(coreAllowed.violations.isEmpty)
+        #expect(coreRejected.violations.count == 3)
+        #expect(coreRejected.violations.allSatisfy {
+            $0.rule.id == "throw.typed_projection_families"
+        })
+        #expect(presentationAllowed.violations.isEmpty)
+        #expect(
+            presentationRejected.violations.map(\.rule.id) ==
+                ["throw.typed_projection_families"],
+        )
+    }
+
     @Test func productionViewsKeepConcreteTypes() throws {
         let allowed = try evaluate(
             path: "Throw/Throw/Sources/ConcreteRoot.swift",

@@ -99,9 +99,9 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   only in `Projection/ProjectionFrame.swift`.
 - Construct and replace raw `ProjectionFrame` and `ProjectedLayer` values only
   in `Projection/ProjectionFrame.swift`. Keep arbitrary test factories in DEBUG.
-- Keep erased production frames in the closed Air & Space or Transit
-  presentation case. Never animate across cases or combine a DEBUG frame with a
-  production frame.
+- Keep erased production frames in a closed experience-and-mode presentation
+  case. Change marks through case-preserving presentation fields only. Reject a
+  source or line frame from another case before animation transforms it.
 - Keep setup lifecycle data in the session's single `ThrowSetupState`. Change
   validated source and location values atomically through that state. Persist a
   replacement location before publishing it, and invalidate the old projection

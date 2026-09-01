@@ -101,13 +101,16 @@ These use Bumper's standard `constructionOwnership` shaper. TheButtonHeist's
 as the analogous lower-level ownership check and retained; the standard shaper
 fully expresses Where's constructor facts.
 
-Throw has five matching ownership guards:
+Throw has matching ownership and typed-projection guards:
 
 - `throw.session_composition_ownership` permits `ThrowSession` construction only in `ThrowSession+Composition.swift`.
 - `throw.live_dependency_composition_ownership` keeps live stores, durable logging, sources, and polling dependencies in that same file.
 - `throw.runtime_composition_ownership` permits `ThrowRuntime` construction only in `ThrowRuntime.swift`.
-- `throw.layer_frame_erasure_ownership` permits raw `LayerFrame` construction only at the typed Core erasure boundary.
+- `throw.layer_frame_erasure_ownership` permits raw DEBUG Testing `LayerFrame` construction only in `ProjectionModels.swift`.
 - `throw.projected_frame_erasure_ownership` permits raw `ProjectionFrame` and `ProjectedLayer` construction only at the ThrowUI presentation boundary.
+- `throw.typed_projection_families` preserves each layer kind's element or style
+  family, keeps airport identity in its glyph descriptor, and rejects erased
+  mark-array replacement at the presentation boundary.
 
 Repair a violation by injecting the existing object or by using a typed layer
 or experience frame. Change an owner only when the matching Throw module contract changes.

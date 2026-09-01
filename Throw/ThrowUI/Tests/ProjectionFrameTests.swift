@@ -36,8 +36,8 @@ struct ProjectionFrameTests {
     }
 
     @Test func transitPresentationErasesOnlyItsFixedLayersInRenderOrder() throws {
-        let geography = lineCollection(id: 1, styleID: .geography(.coastline))
-        let network = lineCollection(id: 2, styleID: .transitRoute)
+        let geography = geographyLineCollection(id: 1, kind: .coastline)
+        let network = transitLineCollection(id: 2)
         let vehicle = try transitVehicleMark(rawID: "vehicle")
         let frame = present(.transit(TransitProjectedFrame(
             generatedAt: testDate,
@@ -50,9 +50,9 @@ struct ProjectionFrameTests {
         #expect(frame.mode == .map)
         #expect(frame.layers.map(\.id) == [.geography, .transitNetwork, .transitVehicles])
         #expect(frame.layers.map(\.content) == [
-            .lines(geography),
-            .lines(network),
-            .marks([vehicle]),
+            .geography(geography),
+            .transitNetwork(network),
+            .transitVehicles([vehicle]),
         ])
     }
 
@@ -74,7 +74,7 @@ struct ProjectionFrameTests {
     }
 
     @Test func markReplacementPreservesTheErasedLineRevisionAndIdentity() throws {
-        let geography = lineCollection(id: 7, styleID: .geography(.coastline))
+        let geography = geographyLineCollection(id: 7, kind: .coastline)
         let first = try aircraftMark(rawID: "first")
         let replacement = try aircraftMark(rawID: "replacement")
         let frame = present(.airAndSpace(.map(AirAndSpaceMapProjectedFrame(
@@ -84,12 +84,28 @@ struct ProjectionFrameTests {
             satellites: nil,
         ))))
 
-        let replaced = frame.replacingMarks([replacement])
+        let replacementFrame = present(.airAndSpace(.map(AirAndSpaceMapProjectedFrame(
+            generatedAt: testDate,
+            geography: nil,
+            flights: ProjectedLayerFrame(marks: [replacement]),
+            satellites: nil,
+        ))))
+        let replacementFields = Dictionary(uniqueKeysWithValues: replacementFrame.marks.map {
+            ($0.id, PresentedMarkFields($0))
+        })
+        let replaced = try #require(frame.updatingMarkPresentation(
+            fieldsByID: replacementFields,
+            retainedTargetIDs: [],
+            appendedSourceIDs: Set(replacementFrame.marks.map(\.id)),
+            sourceFrame: replacementFrame,
+            lineLayersFrom: frame,
+            lineOpacity: 1,
+        ))
 
         #expect(replaced.experienceID == .airAndSpace)
         #expect(replaced.mode == .map)
         #expect(replaced.geography == geography)
-        #expect(replaced.marks == [replacement])
+        #expect(replaced.marks.map(\.id) == [presentationID(replacement.id)])
         #expect(replaced.description == "<ProjectionFrame mode=map marks=1 geography=1>")
     }
 
@@ -97,14 +113,61 @@ struct ProjectionFrameTests {
         Date(timeIntervalSince1970: 100)
     }
 
-    private func lineCollection(
+    @Test func productionReplacementRejectsAFrameFromAnotherPresentationCase() throws {
+        let aircraft = try aircraftMark(rawID: "aircraft")
+        let vehicle = try transitVehicleMark(rawID: "vehicle")
+        let frame = present(.airAndSpace(.map(AirAndSpaceMapProjectedFrame(
+            generatedAt: testDate,
+            geography: nil,
+            flights: ProjectedLayerFrame(marks: [aircraft]),
+            satellites: nil,
+        ))))
+        let transit = present(.transit(TransitProjectedFrame(
+            generatedAt: testDate,
+            geography: nil,
+            network: nil,
+            vehicles: ProjectedLayerFrame(marks: [vehicle]),
+        )))
+
+        let replaced = frame.updatingMarkPresentation(
+            fieldsByID: Dictionary(uniqueKeysWithValues: transit.marks.map {
+                ($0.id, PresentedMarkFields($0))
+            }),
+            retainedTargetIDs: Set(frame.marks.map(\.id)),
+            appendedSourceIDs: Set(transit.marks.map(\.id)),
+            sourceFrame: transit,
+            lineLayersFrom: frame,
+            lineOpacity: 1,
+        )
+
+        #expect(frame.hasSamePresentationCase(as: transit) == false)
+        #expect(replaced == nil)
+    }
+
+    @Test func mapAndTrueSkyAreDifferentPresentationCases() {
+        let map = ProjectionFrame.emptyAirAndSpace(mode: .map, generatedAt: testDate)
+        let trueSky = ProjectionFrame.emptyAirAndSpace(mode: .trueSky, generatedAt: testDate)
+
+        #expect(map.hasSamePresentationExperience(as: trueSky))
+        #expect(map.hasSamePresentationCase(as: trueSky) == false)
+        #expect(map.updatingMarkPresentation(
+            fieldsByID: [:],
+            retainedTargetIDs: [],
+            appendedSourceIDs: [],
+            sourceFrame: trueSky,
+            lineLayersFrom: map,
+            lineOpacity: 1,
+        ) == nil)
+    }
+
+    private func geographyLineCollection(
         id: UInt64,
-        styleID: ProjectionLineStyleID,
-    ) -> ProjectedLineCollection {
-        ProjectedLineCollection.testing(
+        kind: GeographyLineKind,
+    ) -> ProjectedGeography {
+        ProjectedGeography.testing(
             id: ProjectionLineRevisionID.testing(rawValue: id),
             segments: [ProjectedLineSegment(
-                styleID: styleID,
+                style: kind,
                 start: ProjectionPoint(x: 0.1, y: 0.2),
                 end: ProjectionPoint(x: 0.8, y: 0.9),
                 startsNewSubpath: true,
@@ -112,36 +175,47 @@ struct ProjectionFrameTests {
         )
     }
 
-    private func aircraftMark(rawID: String) throws -> ProjectedMark {
-        try projectedMark(
-            id: #require(AircraftID(kind: .icao, rawValue: rawID)).layerMarkID,
-            glyph: .aircraft(.unknownAirborne),
+    private func transitLineCollection(
+        id: UInt64,
+    ) -> ProjectedLineCollection<TransitNetworkLineStyle> {
+        ProjectedLineCollection.testing(
+            id: ProjectionLineRevisionID.testing(rawValue: id),
+            segments: [ProjectedLineSegment(
+                style: .route,
+                start: ProjectionPoint(x: 0.1, y: 0.2),
+                end: ProjectionPoint(x: 0.8, y: 0.9),
+                startsNewSubpath: true,
+            )],
         )
     }
 
-    private func starMark(rawID: String) throws -> ProjectedMark {
-        try projectedMark(
-            id: .star(#require(StarID(rawValue: rawID))),
-            glyph: .star,
-        )
-    }
-
-    private func transitVehicleMark(rawID: String) throws -> ProjectedMark {
-        try projectedMark(
-            id: .transitVehicle(#require(TransitVehicleID(rawValue: rawID))),
-            glyph: .aircraft(.unknownAirborne),
-        )
-    }
-
-    private func projectedMark(
-        id: LayerMarkID,
-        glyph: ProjectionGlyph,
-    ) throws -> ProjectedMark {
-        try ProjectedMark(
+    private func aircraftMark(rawID: String) throws -> ProjectedMark<FlightsMarkElement> {
+        let id = try #require(AircraftID(kind: .icao, rawValue: rawID))
+        return try projectedMark(element: FlightsMarkElement.aircraft(
             id: id,
+            glyph: .unknownAirborne,
+        ))
+    }
+
+    private func starMark(rawID: String) throws -> ProjectedMark<StarMarkElement> {
+        try projectedMark(element: StarMarkElement(id: #require(StarID(rawValue: rawID))))
+    }
+
+    private func transitVehicleMark(
+        rawID: String,
+    ) throws -> ProjectedMark<TransitVehicleMarkElement> {
+        try projectedMark(element: TransitVehicleMarkElement(
+            id: #require(TransitVehicleID(rawValue: rawID)),
+        ))
+    }
+
+    private func projectedMark<Element: ProjectionMarkElement>(
+        element: Element,
+    ) throws -> ProjectedMark<Element> {
+        try ProjectedMark(
+            element: element,
             point: ProjectionPoint(x: 0.5, y: 0.5),
             range: NauticalMiles(value: 1),
-            glyph: glyph,
             label: nil,
             secondaryProminence: 0,
             orientationDegrees: nil,

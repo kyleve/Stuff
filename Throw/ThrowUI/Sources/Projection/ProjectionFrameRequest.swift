@@ -133,7 +133,36 @@ enum ProjectionFrameRequest: Equatable {
                     }) else { return nil }
                     return ProjectionLayerFrame(
                         observedAt: frame.observedAt,
-                        marks: frame.marks,
+                        marks: frame.marks.map { mark in
+                            let element: FlightsMarkElement = switch (mark.id, mark.glyph) {
+                                case let (.aircraft(id), .aircraft(descriptor)):
+                                    .aircraft(id: id, glyph: descriptor)
+                                case let (.airport(id), .airport(descriptor)):
+                                    if id == descriptor.airportID {
+                                        .airport(descriptor)
+                                    } else {
+                                        preconditionFailure(
+                                            "A raw test airport ID must match its descriptor",
+                                        )
+                                    }
+                                case (.aircraft, .airport), (.airport, .aircraft),
+                                     (.aircraft, .star), (.aircraft, .satellite),
+                                     (.aircraft, .transitVehicle), (.airport, .star),
+                                     (.airport, .satellite), (.airport, .transitVehicle),
+                                     (.star, _), (.satellite, _), (.transitVehicle, _):
+                                    preconditionFailure(
+                                        "A raw test Flights mark must use a Flights element",
+                                    )
+                            }
+                            return ThrowCore.ProjectionMark(
+                                element: element,
+                                anchor: mark.anchor,
+                                label: mark.label,
+                                prominence: mark.prominence,
+                                velocity: mark.velocity,
+                                freshness: mark.freshness,
+                            )
+                        },
                     )
             #endif
         }

@@ -407,7 +407,7 @@ extension ThrowSession {
             ]
             let points = [(0.30, 0.38), (0.45, 0.58), (0.67, 0.36), (0.62, 0.68)]
             let aircraft = activities.enumerated().map { index, activity in
-                ProjectedMark(
+                PresentedMark(
                     id: fixtureAircraftMarkID(rawValue: "activity-\(index)"),
                     point: ProjectionPoint(x: points[index].0, y: points[index].1),
                     range: try! NauticalMiles(value: Double(5 + index * 8)),
@@ -429,7 +429,7 @@ extension ThrowSession {
                     altitudeIsApproximate: false,
                 )
             }
-            let airportMark = ProjectedMark(
+            let airportMark = PresentedMark(
                 id: airport.id.layerMarkID,
                 point: ProjectionPoint(x: 0.5, y: 0.5),
                 range: try! NauticalMiles(value: 12),
@@ -975,7 +975,7 @@ extension ThrowSession {
                     : nil,
                 geographyOpacity: 1,
                 marks: aircraft.map { value in
-                    ProjectedMark(
+                    PresentedMark(
                         id: fixtureAircraftMarkID(rawValue: value.rawID),
                         point: ProjectionPoint(x: value.x, y: value.y),
                         range: fixtureRange(value.range),
@@ -1034,17 +1034,13 @@ extension ThrowSession {
                 geography: frame.geography,
                 geographyOpacity: frame.geographyOpacity,
                 marks: frame.marks.map { mark in
-                    ProjectedMark(
-                        id: mark.id,
+                    mark.replacing(
                         point: mark.point,
-                        range: mark.range,
-                        glyph: mark.glyph,
                         label: transform(mark.label),
                         secondaryProminence: mark.secondaryProminence,
                         orientationDegrees: mark.orientationDegrees,
                         opacity: mark.opacity,
                         labelOpacity: mark.labelOpacity,
-                        altitudeIsApproximate: mark.altitudeIsApproximate,
                     )
                 },
             )
