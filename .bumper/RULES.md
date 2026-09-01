@@ -144,6 +144,10 @@ conformance only in the Where app component.
 Where production sources. Production logging uses the typed `WhereLog` or
 `RegionLog` Periscope facades.
 
+`throw.logging_facade` rejects direct system-log imports and raw diagnostic
+output calls in Throw production sources. Production logging uses typed
+`ThrowLog` events.
+
 This complements `repository.logging_type_ownership`, which controls where the
 typed event declarations live.
 

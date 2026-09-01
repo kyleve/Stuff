@@ -22,6 +22,7 @@ let throwProjectRules = RuleSet {
     throwProviderBoundaryRule
     throwSceneLifecycleRule
     throwCheckedConcurrencyRule
+    throwLoggingFacadeRule
 }
 
 private let throwSessionCompositionPath: RelativeFilePath =
@@ -215,4 +216,40 @@ private let throwCheckedConcurrencyRule = Rules.files(
             )
         }
     return preconcurrencyFailures + unsafeNonisolatedFailures
+}
+
+private let throwLoggingFacadeRule = Rules.files(
+    "throw.logging_facade",
+    severity: .error,
+    summary: "Throw production logging goes through its typed Periscope facade.",
+    scope: throwProductionScope,
+) { file in
+    let rawLoggingImports = SyntaxQuery<ImportDeclSyntax>()
+        .filter { ["OSLog", "os"].contains($0.node.path.trimmedDescription) }
+        .matches(in: file)
+        .map { match in
+            match.failure(
+                message: "Throw production code imports system logging directly.",
+                evidence: ViolationEvidence(
+                    observed: match.node.trimmedDescription,
+                    expectation: "the typed ThrowLog facade",
+                ),
+            )
+        }
+
+    let rawOutputNames: Set = ["NSLog", "debugPrint", "dump", "print"]
+    let rawOutputCalls = functionCalls()
+        .filter { rawOutputNames.contains($0.node.calledExpression.trimmedDescription) }
+        .matches(in: file)
+        .map { match in
+            match.failure(
+                message: "Throw production code writes diagnostic output directly.",
+                evidence: ViolationEvidence(
+                    observed: match.node.calledExpression.trimmedDescription,
+                    expectation: "a typed ThrowLog event",
+                ),
+            )
+        }
+
+    return rawLoggingImports + rawOutputCalls
 }
