@@ -88,3 +88,59 @@ enum ThrowSessionLocationTestFixture {
         )
     }
 }
+
+enum ControlledThrowPreferenceStoreFailure: Error {
+    case save
+}
+
+actor ControlledThrowPreferenceStore: ThrowPreferenceStore {
+    enum SaveBehavior {
+        case suspended
+        case failing
+    }
+
+    private var preferences: ThrowPreferences
+    private let saveBehavior: SaveBehavior
+    private var saveStartedContinuation: CheckedContinuation<Void, Never>?
+    private var saveContinuation: CheckedContinuation<Void, Never>?
+    private var saveHasStarted = false
+
+    init(
+        initialValue: ThrowPreferences = .defaultValue,
+        saveBehavior: SaveBehavior,
+    ) {
+        preferences = initialValue
+        self.saveBehavior = saveBehavior
+    }
+
+    func load() -> ThrowPreferences {
+        preferences
+    }
+
+    func save(_ preferences: ThrowPreferences) async throws {
+        switch saveBehavior {
+            case .suspended:
+                saveHasStarted = true
+                saveStartedContinuation?.resume()
+                saveStartedContinuation = nil
+                await withCheckedContinuation { continuation in
+                    saveContinuation = continuation
+                }
+                self.preferences = preferences
+            case .failing:
+                throw ControlledThrowPreferenceStoreFailure.save
+        }
+    }
+
+    func waitForSaveToStart() async {
+        guard saveHasStarted == false else { return }
+        await withCheckedContinuation { continuation in
+            saveStartedContinuation = continuation
+        }
+    }
+
+    func resumeSave() {
+        saveContinuation?.resume()
+        saveContinuation = nil
+    }
+}
