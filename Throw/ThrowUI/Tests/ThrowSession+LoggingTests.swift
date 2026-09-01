@@ -40,7 +40,6 @@ struct ThrowSessionLoggingTests {
                 states: [:],
             ),
             durableLoggingStarter: starter,
-            sessionFailureLogger: starter,
         )
 
         session.startLaunch()
@@ -163,6 +162,16 @@ private actor ScriptedDurableLoggingStarter: ThrowDurableLoggingStarting {
             case let .failure(error): throw error
         }
     }
+
+    nonisolated func recordColdLaunchFailure(
+        at _: ThrowSessionLogEvent.ColdLaunchBoundary,
+        error _: any Error,
+    ) {}
+
+    nonisolated func recordPostLaunchFailure(
+        at _: ThrowSessionLogEvent.PostLaunchOperation,
+        error _: any Error,
+    ) {}
 }
 
 private actor SuspendingDurableLoggingSession: ThrowDurableLoggingSession {

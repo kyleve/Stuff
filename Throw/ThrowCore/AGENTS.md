@@ -103,6 +103,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   event after sink attachment, or before a store-open error returns.
 - Route cold-launch and post-launch failures through the process-owned durable
   logging starter. Retain each typed event with its error attachment until attachment.
+- Make the durable-logging starter the session-failure logger. Never inject a
+  second logger beside it.
 - Flush the existing sinks before the store handoff. Write each retained record
   to the store once, then release records that arrived during the handoff.
 - Open one durable logging session through `PeriscopeThrowDurableLoggingStarter`.

@@ -20,8 +20,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   must not cancel it.
 - Start one durable logging task with the launch. Publish opening, ready, and
   failed storage as one typed state. Keep product launch independent of it.
-- Inject the starter's one session-failure logger into the session, Air & Space
-  runtime, and projection worker. Never bypass its pre-attachment handoff.
+- Inject one durable-logging starter into the session. Derive the session,
+  Air & Space, and projection-worker failure logger from that starter.
 - Leave loading only after preferences and both credential states load. Treat a
   missing credential as data and a credential access error as launch failure.
 - Show localized recovery text for launch failures. Record the underlying error

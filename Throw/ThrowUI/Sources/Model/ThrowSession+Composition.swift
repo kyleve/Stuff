@@ -67,7 +67,6 @@ extension ThrowSession {
             routeLogger: PeriscopeFlightRouteLogger(log: ThrowLog.flightRoutes),
             rotationClock: SystemProjectionRotationClock(),
             softwareCreditsState: softwareCreditsLoadResolution.state,
-            sessionFailureLogger: durableLogging,
             durableLoggingStarter: durableLogging,
             initiallyHasForegroundControllerScene: false,
             initialLaunchState: .loading,
@@ -168,7 +167,6 @@ extension ThrowSession {
             preferenceStore: any ThrowPreferenceStore,
             credentialStore: any AircraftCredentialStore,
             durableLoggingStarter: any ThrowDurableLoggingStarting,
-            sessionFailureLogger: any ThrowSessionFailureLogging,
         ) -> ThrowSession {
             makeFixture(
                 setupCompleted: setupCompleted,
@@ -177,7 +175,6 @@ extension ThrowSession {
                 preferenceStoreOverride: preferenceStore,
                 credentialStoreOverride: credentialStore,
                 durableLoggingStarterOverride: durableLoggingStarter,
-                sessionFailureLoggerOverride: sessionFailureLogger,
                 initialLaunchStateOverride: .loading,
             )
         }
@@ -640,7 +637,6 @@ extension ThrowSession {
             preferenceStoreOverride: (any ThrowPreferenceStore)? = nil,
             credentialStoreOverride: (any AircraftCredentialStore)? = nil,
             durableLoggingStarterOverride: (any ThrowDurableLoggingStarting)? = nil,
-            sessionFailureLoggerOverride: (any ThrowSessionFailureLogging)? = nil,
             initialLaunchStateOverride: ThrowSessionLaunchState? = nil,
             projectionMode: ProjectionMode = .map,
             airAndSpacePreferencesOverride: AirAndSpacePreferences? = nil,
@@ -768,8 +764,6 @@ extension ThrowSession {
                     routeLogger: DiscardingFlightRouteLogger(),
                     rotationClock: SystemProjectionRotationClock(),
                     softwareCreditsState: softwareCreditsStateOverride ?? .loaded([]),
-                    sessionFailureLogger: sessionFailureLoggerOverride ??
-                        DiscardingThrowSessionFailureLogger(),
                     durableLoggingStarter: durableLoggingStarterOverride,
                     initiallyHasForegroundControllerScene: true,
                     initialLaunchState: initialLaunchStateOverride ?? .loaded(setupState),
