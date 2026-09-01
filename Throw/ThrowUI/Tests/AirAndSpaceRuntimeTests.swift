@@ -522,8 +522,12 @@ private struct LongAircraftPollingClock: AircraftPollingClock {
         date
     }
 
-    func sleep(for _: Duration) async throws {
-        try await Task.sleep(for: .seconds(3600))
+    func sleep(for _: Duration) async throws(CancellationError) {
+        do {
+            try await Task.sleep(for: .seconds(3600))
+        } catch {
+            throw CancellationError()
+        }
     }
 }
 

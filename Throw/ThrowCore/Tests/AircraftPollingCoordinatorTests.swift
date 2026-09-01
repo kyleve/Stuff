@@ -612,8 +612,10 @@ struct AircraftPollingCoordinatorTests {
             ThrowCoreFixture.date
         }
 
-        func sleep(for _: Duration) async throws {
-            try Task.checkCancellation()
+        func sleep(for _: Duration) async throws(CancellationError) {
+            if Task.isCancelled {
+                throw CancellationError()
+            }
         }
     }
 
@@ -919,8 +921,8 @@ private struct SuspendingPollingClock: AircraftPollingClock {
         ThrowCoreFixture.date
     }
 
-    func sleep(for duration: Duration) async throws {
-        try await Task.sleep(for: duration)
+    func sleep(for duration: Duration) async throws(CancellationError) {
+        try await sleepForPollingTest(for: duration)
     }
 }
 
@@ -931,10 +933,10 @@ private actor SingleImmediateSleepPollingClock: AircraftPollingClock {
         ThrowCoreFixture.date
     }
 
-    func sleep(for duration: Duration) async throws {
+    func sleep(for duration: Duration) async throws(CancellationError) {
         sleepCount += 1
         guard sleepCount > 1 else { return }
-        try await Task.sleep(for: duration)
+        try await sleepForPollingTest(for: duration)
     }
 }
 
@@ -952,7 +954,7 @@ private actor RetryObservationPollingClock: AircraftPollingClock {
         return ThrowCoreFixture.date.addingTimeInterval(dateOffset)
     }
 
-    func sleep(for duration: Duration) async throws {
+    func sleep(for duration: Duration) async throws(CancellationError) {
         sleepCount += 1
         switch sleepCount {
             case 1:
@@ -962,12 +964,24 @@ private actor RetryObservationPollingClock: AircraftPollingClock {
                 // first retry until the recorder observes it before permitting
                 // the second failure.
                 while await recorder.retryFailureDates().isEmpty {
-                    try Task.checkCancellation()
+                    if Task.isCancelled {
+                        throw CancellationError()
+                    }
                     await Task.yield()
                 }
             default:
-                try await Task.sleep(for: duration)
+                try await sleepForPollingTest(for: duration)
         }
+    }
+}
+
+private func sleepForPollingTest(
+    for duration: Duration,
+) async throws(CancellationError) {
+    do {
+        try await Task.sleep(for: duration)
+    } catch {
+        throw CancellationError()
     }
 }
 

@@ -134,6 +134,8 @@ main actor. Generation checks reject late work.
 Position prediction continues until a later successful poll replaces the
 snapshot. A retryable poll failure starts a 15-second grace period and a
 15-second fade.
+The polling clock can finish a wait or report cancellation. It cannot leave a
+dead poll task in a retrying state through another error.
 
 The Flights runtime compares consecutive positions for each aircraft.
 Valid provider track and speed remain authoritative.

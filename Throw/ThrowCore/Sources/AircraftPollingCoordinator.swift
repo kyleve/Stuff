@@ -2,7 +2,7 @@ import Foundation
 
 public protocol AircraftPollingClock: Sendable {
     func now() async -> Date
-    func sleep(for duration: Duration) async throws
+    func sleep(for duration: Duration) async throws(CancellationError)
 }
 
 public struct SystemAircraftPollingClock: AircraftPollingClock {
@@ -12,8 +12,13 @@ public struct SystemAircraftPollingClock: AircraftPollingClock {
         Date()
     }
 
-    public func sleep(for duration: Duration) async throws {
-        try await Task.sleep(for: duration)
+    public func sleep(for duration: Duration) async throws(CancellationError) {
+        do {
+            try await Task.sleep(for: duration)
+        } catch {
+            // Task.sleep uses its error channel only for task cancellation.
+            throw CancellationError()
+        }
     }
 }
 
@@ -456,8 +461,6 @@ public actor AircraftPollingCoordinator {
                 )
                 do {
                     try await clock.sleep(for: delay)
-                } catch is CancellationError {
-                    return
                 } catch {
                     return
                 }
@@ -510,8 +513,6 @@ public actor AircraftPollingCoordinator {
                 )
                 do {
                     try await clock.sleep(for: delay)
-                } catch is CancellationError {
-                    return
                 } catch {
                     return
                 }
