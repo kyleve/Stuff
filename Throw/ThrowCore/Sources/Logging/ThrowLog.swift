@@ -8,7 +8,8 @@ public struct ThrowRootLogEvent: LogEvent {
     }
 }
 
-public struct AircraftPollingLogEvent: LogEvent {
+public enum AircraftPollingLogEvent: Hashable, Sendable {
+    public static let eventName = "AircraftPollingLogEvent"
     public static let eventVersion = 3
 
     public enum Kind: String, CaseIterable, Codable, Hashable, Sendable {
@@ -39,51 +40,174 @@ public struct AircraftPollingLogEvent: LogEvent {
         case decoding
     }
 
-    public let kind: Kind
-    public let source: AircraftSourceKind
-    public let requestCount: Int
-    public let durationMilliseconds: Int?
-    public let httpStatus: Int?
-    public let decodedAircraftCount: Int?
-    public let decodingDiagnostics: AircraftSnapshotDecodingDiagnostics?
-    public let backoffSeconds: Double?
-    public let failureCategory: FailureCategory?
+    public struct SourceActivation: Hashable, Sendable {
+        public let source: AircraftSourceKind
 
-    public init(
-        kind: Kind,
-        source: AircraftSourceKind,
-        requestCount: Int,
-        durationMilliseconds: Int?,
-        httpStatus: Int?,
-        decodedAircraftCount: Int?,
-        decodingDiagnostics: AircraftSnapshotDecodingDiagnostics?,
-        backoffSeconds: Double?,
-        failureCategory: FailureCategory?,
-    ) {
-        precondition(
-            kind == .partialSchemaDrift
-                ? decodingDiagnostics?.hasDiscardedRecords == true
-                : decodingDiagnostics == nil,
-        )
-        precondition(
-            kind == .receiverMetadataFallback
-                ? source == .readsb && failureCategory != nil
-                : true,
-        )
-        precondition(kind == .sourceActivated ? failureCategory == nil : true)
-        self.kind = kind
-        self.source = source
-        self.requestCount = requestCount
-        self.durationMilliseconds = durationMilliseconds
-        self.httpStatus = httpStatus
-        self.decodedAircraftCount = decodedAircraftCount
-        self.decodingDiagnostics = decodingDiagnostics
-        self.backoffSeconds = backoffSeconds
-        self.failureCategory = failureCategory
+        public init(source: AircraftSourceKind) {
+            self.source = source
+        }
+    }
+
+    public struct ReceiverMetadataFallback: Hashable, Sendable {
+        public let failureCategory: FailureCategory
+
+        public init(failureCategory: FailureCategory) {
+            self.failureCategory = failureCategory
+        }
+    }
+
+    public struct RequestSuccess: Hashable, Sendable {
+        public let source: AircraftSourceKind
+        public let requestCount: Int
+        public let durationMilliseconds: Int
+        public let httpStatus: Int?
+        public let decodedAircraftCount: Int
+
+        public init(
+            source: AircraftSourceKind,
+            requestCount: Int,
+            durationMilliseconds: Int,
+            httpStatus: Int?,
+            decodedAircraftCount: Int,
+        ) {
+            self.source = source
+            self.requestCount = requestCount
+            self.durationMilliseconds = durationMilliseconds
+            self.httpStatus = httpStatus
+            self.decodedAircraftCount = decodedAircraftCount
+        }
+    }
+
+    public struct PartialSchemaDrift: Hashable, Sendable {
+        public let source: AircraftSourceKind
+        public let requestCount: Int
+        public let httpStatus: Int?
+        public let decodedAircraftCount: Int
+        public let discardedRecords: AircraftSnapshotDecodingDiagnostics.DiscardedRecords
+
+        public init(
+            source: AircraftSourceKind,
+            requestCount: Int,
+            httpStatus: Int?,
+            decodedAircraftCount: Int,
+            discardedRecords: AircraftSnapshotDecodingDiagnostics.DiscardedRecords,
+        ) {
+            self.source = source
+            self.requestCount = requestCount
+            self.httpStatus = httpStatus
+            self.decodedAircraftCount = decodedAircraftCount
+            self.discardedRecords = discardedRecords
+        }
+    }
+
+    public struct RequestFailure: Hashable, Sendable {
+        public let source: AircraftSourceKind
+        public let requestCount: Int
+        public let durationMilliseconds: Int
+        public let httpStatus: Int?
+        public let failureCategory: FailureCategory
+
+        public init(
+            source: AircraftSourceKind,
+            requestCount: Int,
+            durationMilliseconds: Int,
+            httpStatus: Int?,
+            failureCategory: FailureCategory,
+        ) {
+            self.source = source
+            self.requestCount = requestCount
+            self.durationMilliseconds = durationMilliseconds
+            self.httpStatus = httpStatus
+            self.failureCategory = failureCategory
+        }
+    }
+
+    public struct RetrySchedule: Hashable, Sendable {
+        public let source: AircraftSourceKind
+        public let requestCount: Int
+        public let httpStatus: Int?
+        public let decodedAircraftCount: Int?
+        public let backoffSeconds: Double
+        public let failureCategory: FailureCategory
+
+        public init(
+            source: AircraftSourceKind,
+            requestCount: Int,
+            httpStatus: Int?,
+            decodedAircraftCount: Int?,
+            backoffSeconds: Double,
+            failureCategory: FailureCategory,
+        ) {
+            self.source = source
+            self.requestCount = requestCount
+            self.httpStatus = httpStatus
+            self.decodedAircraftCount = decodedAircraftCount
+            self.backoffSeconds = backoffSeconds
+            self.failureCategory = failureCategory
+        }
+    }
+
+    public struct PollingStop: Hashable, Sendable {
+        public let source: AircraftSourceKind
+        public let requestCount: Int
+        public let decodedAircraftCount: Int?
+
+        public init(
+            source: AircraftSourceKind,
+            requestCount: Int,
+            decodedAircraftCount: Int?,
+        ) {
+            self.source = source
+            self.requestCount = requestCount
+            self.decodedAircraftCount = decodedAircraftCount
+        }
+    }
+
+    case sourceActivated(SourceActivation)
+    case receiverMetadataFallback(ReceiverMetadataFallback)
+    case requestSucceeded(RequestSuccess)
+    case partialSchemaDrift(PartialSchemaDrift)
+    case requestFailed(RequestFailure)
+    case retryScheduled(RetrySchedule)
+    case pollingStopped(PollingStop)
+
+    public var kind: Kind {
+        switch self {
+            case .sourceActivated: .sourceActivated
+            case .receiverMetadataFallback: .receiverMetadataFallback
+            case .requestSucceeded: .requestSucceeded
+            case .partialSchemaDrift: .partialSchemaDrift
+            case .requestFailed: .requestFailed
+            case .retryScheduled: .retryScheduled
+            case .pollingStopped: .pollingStopped
+        }
+    }
+
+    public var source: AircraftSourceKind {
+        switch self {
+            case let .sourceActivated(event): event.source
+            case .receiverMetadataFallback: .readsb
+            case let .requestSucceeded(event): event.source
+            case let .partialSchemaDrift(event): event.source
+            case let .requestFailed(event): event.source
+            case let .retryScheduled(event): event.source
+            case let .pollingStopped(event): event.source
+        }
+    }
+
+    public var requestCount: Int {
+        switch self {
+            case .sourceActivated, .receiverMetadataFallback: 0
+            case let .requestSucceeded(event): event.requestCount
+            case let .partialSchemaDrift(event): event.requestCount
+            case let .requestFailed(event): event.requestCount
+            case let .retryScheduled(event): event.requestCount
+            case let .pollingStopped(event): event.requestCount
+        }
     }
 
     public var level: LogLevel {
-        switch kind {
+        switch self {
             case .sourceActivated, .requestSucceeded, .pollingStopped:
                 .info
             case .receiverMetadataFallback, .partialSchemaDrift, .requestFailed,
@@ -101,29 +225,33 @@ public struct AircraftPollingLogEvent: LogEvent {
     }
 
     public var remoteFields: [RemoteLogField] {
-        if let decodingDiagnostics {
-            return [
-                .eventKind(kind),
-                sourceRemoteField,
-                RemoteLogField(
-                    key: RemoteLogFieldKey("malformed_record_count"),
-                    value: .count(decodingDiagnostics.malformedRecordCount),
-                ),
-                RemoteLogField(
-                    key: RemoteLogFieldKey("missing_position_record_count"),
-                    value: .count(decodingDiagnostics.missingPositionRecordCount),
-                ),
-            ]
+        switch self {
+            case let .partialSchemaDrift(event):
+                [
+                    .eventKind(kind),
+                    sourceRemoteField,
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("malformed_record_count"),
+                        value: .count(event.discardedRecords.malformedRecordCount),
+                    ),
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("missing_position_record_count"),
+                        value: .count(event.discardedRecords.missingPositionRecordCount),
+                    ),
+                ]
+            case let .receiverMetadataFallback(event):
+                [
+                    .eventKind(kind),
+                    sourceRemoteField,
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("failure_category"),
+                        value: .category(RemoteLogCategory(event.failureCategory)),
+                    ),
+                ]
+            case .sourceActivated, .requestSucceeded, .requestFailed, .retryScheduled,
+                 .pollingStopped:
+                []
         }
-        guard kind == .receiverMetadataFallback, let failureCategory else { return [] }
-        return [
-            .eventKind(kind),
-            sourceRemoteField,
-            RemoteLogField(
-                key: RemoteLogFieldKey("failure_category"),
-                value: .category(RemoteLogCategory(failureCategory)),
-            ),
-        ]
     }
 
     private var sourceRemoteField: RemoteLogField {
@@ -131,6 +259,198 @@ public struct AircraftPollingLogEvent: LogEvent {
             key: RemoteLogFieldKey("source"),
             value: .category(RemoteLogCategory(source)),
         )
+    }
+}
+
+/// Keeps the flat version-three payload stable while the in-memory event uses
+/// case-specific state. Records from the polling coordinator stay decodable with
+/// the same event name, field names, and kind vocabulary.
+extension AircraftPollingLogEvent: LogEvent {
+    private enum CodingKeys: String, CodingKey {
+        case kind
+        case source
+        case requestCount
+        case durationMilliseconds
+        case httpStatus
+        case decodedAircraftCount
+        case decodingDiagnostics
+        case backoffSeconds
+        case failureCategory
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let kind = try container.decode(Kind.self, forKey: .kind)
+        let source = try container.decode(AircraftSourceKind.self, forKey: .source)
+        let requestCount = try container.decode(Int.self, forKey: .requestCount)
+
+        switch kind {
+            case .sourceActivated:
+                guard requestCount == 0 else {
+                    throw DecodingError.dataCorruptedError(
+                        forKey: .requestCount,
+                        in: container,
+                        debugDescription: "Source activation must precede all requests",
+                    )
+                }
+                self = .sourceActivated(SourceActivation(source: source))
+            case .receiverMetadataFallback:
+                guard source == .readsb else {
+                    throw DecodingError.dataCorruptedError(
+                        forKey: .source,
+                        in: container,
+                        debugDescription: "Receiver metadata belongs to readsb",
+                    )
+                }
+                guard requestCount == 0 else {
+                    throw DecodingError.dataCorruptedError(
+                        forKey: .requestCount,
+                        in: container,
+                        debugDescription: "Receiver metadata fallback must precede all requests",
+                    )
+                }
+                self = try .receiverMetadataFallback(
+                    ReceiverMetadataFallback(
+                        failureCategory: container.decode(
+                            FailureCategory.self,
+                            forKey: .failureCategory,
+                        ),
+                    ),
+                )
+            case .requestSucceeded:
+                self = try .requestSucceeded(
+                    RequestSuccess(
+                        source: source,
+                        requestCount: requestCount,
+                        durationMilliseconds: container.decode(
+                            Int.self,
+                            forKey: .durationMilliseconds,
+                        ),
+                        httpStatus: container.decodeIfPresent(Int.self, forKey: .httpStatus),
+                        decodedAircraftCount: container.decode(
+                            Int.self,
+                            forKey: .decodedAircraftCount,
+                        ),
+                    ),
+                )
+            case .partialSchemaDrift:
+                let diagnostics = try container.decode(
+                    AircraftSnapshotDecodingDiagnostics.self,
+                    forKey: .decodingDiagnostics,
+                )
+                guard let discardedRecords = diagnostics.discardedRecords else {
+                    throw DecodingError.dataCorruptedError(
+                        forKey: .decodingDiagnostics,
+                        in: container,
+                        debugDescription: "Partial schema drift must discard a record",
+                    )
+                }
+                self = try .partialSchemaDrift(
+                    PartialSchemaDrift(
+                        source: source,
+                        requestCount: requestCount,
+                        httpStatus: container.decodeIfPresent(Int.self, forKey: .httpStatus),
+                        decodedAircraftCount: container.decode(
+                            Int.self,
+                            forKey: .decodedAircraftCount,
+                        ),
+                        discardedRecords: discardedRecords,
+                    ),
+                )
+            case .requestFailed:
+                self = try .requestFailed(
+                    RequestFailure(
+                        source: source,
+                        requestCount: requestCount,
+                        durationMilliseconds: container.decode(
+                            Int.self,
+                            forKey: .durationMilliseconds,
+                        ),
+                        httpStatus: container.decodeIfPresent(Int.self, forKey: .httpStatus),
+                        failureCategory: container.decode(
+                            FailureCategory.self,
+                            forKey: .failureCategory,
+                        ),
+                    ),
+                )
+            case .retryScheduled:
+                self = try .retryScheduled(
+                    RetrySchedule(
+                        source: source,
+                        requestCount: requestCount,
+                        httpStatus: container.decodeIfPresent(Int.self, forKey: .httpStatus),
+                        decodedAircraftCount: container.decodeIfPresent(
+                            Int.self,
+                            forKey: .decodedAircraftCount,
+                        ),
+                        backoffSeconds: container.decode(
+                            Double.self,
+                            forKey: .backoffSeconds,
+                        ),
+                        failureCategory: container.decode(
+                            FailureCategory.self,
+                            forKey: .failureCategory,
+                        ),
+                    ),
+                )
+            case .pollingStopped:
+                self = try .pollingStopped(
+                    PollingStop(
+                        source: source,
+                        requestCount: requestCount,
+                        decodedAircraftCount: container.decodeIfPresent(
+                            Int.self,
+                            forKey: .decodedAircraftCount,
+                        ),
+                    ),
+                )
+        }
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(kind, forKey: .kind)
+        try container.encode(source, forKey: .source)
+        try container.encode(requestCount, forKey: .requestCount)
+
+        switch self {
+            case .sourceActivated:
+                break
+            case let .receiverMetadataFallback(event):
+                try container.encode(event.failureCategory, forKey: .failureCategory)
+            case let .requestSucceeded(event):
+                try container.encode(event.durationMilliseconds, forKey: .durationMilliseconds)
+                try container.encodeIfPresent(event.httpStatus, forKey: .httpStatus)
+                try container.encode(event.decodedAircraftCount, forKey: .decodedAircraftCount)
+            case let .partialSchemaDrift(event):
+                try container.encodeIfPresent(event.httpStatus, forKey: .httpStatus)
+                try container.encode(event.decodedAircraftCount, forKey: .decodedAircraftCount)
+                try container.encode(
+                    AircraftSnapshotDecodingDiagnostics(
+                        malformedRecordCount: event.discardedRecords.malformedRecordCount,
+                        missingPositionRecordCount: event.discardedRecords
+                            .missingPositionRecordCount,
+                    ),
+                    forKey: .decodingDiagnostics,
+                )
+            case let .requestFailed(event):
+                try container.encode(event.durationMilliseconds, forKey: .durationMilliseconds)
+                try container.encodeIfPresent(event.httpStatus, forKey: .httpStatus)
+                try container.encode(event.failureCategory, forKey: .failureCategory)
+            case let .retryScheduled(event):
+                try container.encodeIfPresent(event.httpStatus, forKey: .httpStatus)
+                try container.encodeIfPresent(
+                    event.decodedAircraftCount,
+                    forKey: .decodedAircraftCount,
+                )
+                try container.encode(event.backoffSeconds, forKey: .backoffSeconds)
+                try container.encode(event.failureCategory, forKey: .failureCategory)
+            case let .pollingStopped(event):
+                try container.encodeIfPresent(
+                    event.decodedAircraftCount,
+                    forKey: .decodedAircraftCount,
+                )
+        }
     }
 }
 

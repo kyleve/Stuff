@@ -359,6 +359,17 @@ public struct AircraftObservation: Hashable, Sendable, CustomStringConvertible,
 
 /// Privacy-safe counts for provider records that a snapshot decoder discarded.
 public struct AircraftSnapshotDecodingDiagnostics: Codable, Hashable, Sendable {
+    /// Counts that prove a decoder discarded at least one provider record.
+    public struct DiscardedRecords: Hashable, Sendable {
+        public let malformedRecordCount: Int
+        public let missingPositionRecordCount: Int
+
+        fileprivate init(malformedRecordCount: Int, missingPositionRecordCount: Int) {
+            self.malformedRecordCount = malformedRecordCount
+            self.missingPositionRecordCount = missingPositionRecordCount
+        }
+    }
+
     public static let none = AircraftSnapshotDecodingDiagnostics(
         malformedRecordCount: 0,
         missingPositionRecordCount: 0,
@@ -376,6 +387,14 @@ public struct AircraftSnapshotDecodingDiagnostics: Codable, Hashable, Sendable {
 
     public var hasDiscardedRecords: Bool {
         malformedRecordCount > 0 || missingPositionRecordCount > 0
+    }
+
+    public var discardedRecords: DiscardedRecords? {
+        guard hasDiscardedRecords else { return nil }
+        return DiscardedRecords(
+            malformedRecordCount: malformedRecordCount,
+            missingPositionRecordCount: missingPositionRecordCount,
+        )
     }
 
     public func adding(

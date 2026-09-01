@@ -298,16 +298,12 @@ public actor AircraftPollingCoordinator {
         var lastGood: AircraftSnapshot?
         defer {
             logger.record(
-                AircraftPollingLogEvent(
-                    kind: .pollingStopped,
-                    source: configuration.kind,
-                    requestCount: requestCount,
-                    durationMilliseconds: nil,
-                    httpStatus: nil,
-                    decodedAircraftCount: lastGood?.observations.count,
-                    decodingDiagnostics: nil,
-                    backoffSeconds: nil,
-                    failureCategory: nil,
+                AircraftPollingLogEvent.pollingStopped(
+                    AircraftPollingLogEvent.PollingStop(
+                        source: configuration.kind,
+                        requestCount: requestCount,
+                        decodedAircraftCount: lastGood?.observations.count,
+                    ),
                 ),
             )
         }
@@ -347,30 +343,16 @@ public actor AircraftPollingCoordinator {
         var failureCount = 0
         var failureStartedAt: Date?
         logger.record(
-            AircraftPollingLogEvent(
-                kind: .sourceActivated,
-                source: configuration.kind,
-                requestCount: requestCount,
-                durationMilliseconds: nil,
-                httpStatus: nil,
-                decodedAircraftCount: nil,
-                decodingDiagnostics: nil,
-                backoffSeconds: nil,
-                failureCategory: nil,
+            AircraftPollingLogEvent.sourceActivated(
+                AircraftPollingLogEvent.SourceActivation(source: configuration.kind),
             ),
         )
         if let metadataWarning = configuredSource.metadataWarning {
             logger.record(
-                AircraftPollingLogEvent(
-                    kind: .receiverMetadataFallback,
-                    source: configuration.kind,
-                    requestCount: requestCount,
-                    durationMilliseconds: nil,
-                    httpStatus: nil,
-                    decodedAircraftCount: nil,
-                    decodingDiagnostics: nil,
-                    backoffSeconds: nil,
-                    failureCategory: Self.category(metadataWarning),
+                AircraftPollingLogEvent.receiverMetadataFallback(
+                    AircraftPollingLogEvent.ReceiverMetadataFallback(
+                        failureCategory: Self.category(metadataWarning),
+                    ),
                 ),
             )
         }
@@ -392,33 +374,29 @@ public actor AircraftPollingCoordinator {
                 )
                 publish(.healthy(snapshot: snapshot, nextPollAt: nextPollAt))
                 logger.record(
-                    AircraftPollingLogEvent(
-                        kind: .requestSucceeded,
-                        source: configuration.kind,
-                        requestCount: requestCount,
-                        durationMilliseconds: max(
-                            0,
-                            Int(completedAt.timeIntervalSince(requestStartedAt) * 1000),
-                        ),
-                        httpStatus: snapshot.successfulHTTPStatus,
-                        decodedAircraftCount: snapshot.observations.count,
-                        decodingDiagnostics: nil,
-                        backoffSeconds: nil,
-                        failureCategory: nil,
-                    ),
-                )
-                if snapshot.decodingDiagnostics.hasDiscardedRecords {
-                    logger.record(
-                        AircraftPollingLogEvent(
-                            kind: .partialSchemaDrift,
+                    AircraftPollingLogEvent.requestSucceeded(
+                        AircraftPollingLogEvent.RequestSuccess(
                             source: configuration.kind,
                             requestCount: requestCount,
-                            durationMilliseconds: nil,
+                            durationMilliseconds: max(
+                                0,
+                                Int(completedAt.timeIntervalSince(requestStartedAt) * 1000),
+                            ),
                             httpStatus: snapshot.successfulHTTPStatus,
                             decodedAircraftCount: snapshot.observations.count,
-                            decodingDiagnostics: snapshot.decodingDiagnostics,
-                            backoffSeconds: nil,
-                            failureCategory: nil,
+                        ),
+                    ),
+                )
+                if let discardedRecords = snapshot.decodingDiagnostics.discardedRecords {
+                    logger.record(
+                        AircraftPollingLogEvent.partialSchemaDrift(
+                            AircraftPollingLogEvent.PartialSchemaDrift(
+                                source: configuration.kind,
+                                requestCount: requestCount,
+                                httpStatus: snapshot.successfulHTTPStatus,
+                                decodedAircraftCount: snapshot.observations.count,
+                                discardedRecords: discardedRecords,
+                            ),
                         ),
                     )
                 }
@@ -433,19 +411,17 @@ public actor AircraftPollingCoordinator {
                 let startedAt = failureStartedAt ?? completedAt
                 failureStartedAt = startedAt
                 logger.record(
-                    AircraftPollingLogEvent(
-                        kind: .requestFailed,
-                        source: configuration.kind,
-                        requestCount: requestCount,
-                        durationMilliseconds: max(
-                            0,
-                            Int(completedAt.timeIntervalSince(requestStartedAt) * 1000),
+                    AircraftPollingLogEvent.requestFailed(
+                        AircraftPollingLogEvent.RequestFailure(
+                            source: configuration.kind,
+                            requestCount: requestCount,
+                            durationMilliseconds: max(
+                                0,
+                                Int(completedAt.timeIntervalSince(requestStartedAt) * 1000),
+                            ),
+                            httpStatus: Self.statusCode(failure),
+                            failureCategory: Self.category(failure),
                         ),
-                        httpStatus: Self.statusCode(failure),
-                        decodedAircraftCount: nil,
-                        decodingDiagnostics: nil,
-                        backoffSeconds: nil,
-                        failureCategory: Self.category(failure),
                     ),
                 )
                 guard failure.isRetryable else {
@@ -467,16 +443,15 @@ public actor AircraftPollingCoordinator {
                     ),
                 )
                 logger.record(
-                    AircraftPollingLogEvent(
-                        kind: .retryScheduled,
-                        source: configuration.kind,
-                        requestCount: requestCount,
-                        durationMilliseconds: nil,
-                        httpStatus: Self.statusCode(failure),
-                        decodedAircraftCount: lastGood?.observations.count,
-                        decodingDiagnostics: nil,
-                        backoffSeconds: delay.secondsValue,
-                        failureCategory: Self.category(failure),
+                    AircraftPollingLogEvent.retryScheduled(
+                        AircraftPollingLogEvent.RetrySchedule(
+                            source: configuration.kind,
+                            requestCount: requestCount,
+                            httpStatus: Self.statusCode(failure),
+                            decodedAircraftCount: lastGood?.observations.count,
+                            backoffSeconds: delay.secondsValue,
+                            failureCategory: Self.category(failure),
+                        ),
                     ),
                 )
                 do {
@@ -495,19 +470,17 @@ public actor AircraftPollingCoordinator {
                 failureStartedAt = startedAt
                 let failure = AircraftSourceFailure.transport(.other)
                 logger.record(
-                    AircraftPollingLogEvent(
-                        kind: .requestFailed,
-                        source: configuration.kind,
-                        requestCount: requestCount,
-                        durationMilliseconds: max(
-                            0,
-                            Int(completedAt.timeIntervalSince(requestStartedAt) * 1000),
+                    AircraftPollingLogEvent.requestFailed(
+                        AircraftPollingLogEvent.RequestFailure(
+                            source: configuration.kind,
+                            requestCount: requestCount,
+                            durationMilliseconds: max(
+                                0,
+                                Int(completedAt.timeIntervalSince(requestStartedAt) * 1000),
+                            ),
+                            httpStatus: Self.statusCode(failure),
+                            failureCategory: Self.category(failure),
                         ),
-                        httpStatus: Self.statusCode(failure),
-                        decodedAircraftCount: nil,
-                        decodingDiagnostics: nil,
-                        backoffSeconds: nil,
-                        failureCategory: Self.category(failure),
                     ),
                 )
                 let delay = AircraftPollingBackoff.delay(
@@ -524,16 +497,15 @@ public actor AircraftPollingCoordinator {
                     ),
                 )
                 logger.record(
-                    AircraftPollingLogEvent(
-                        kind: .retryScheduled,
-                        source: configuration.kind,
-                        requestCount: requestCount,
-                        durationMilliseconds: nil,
-                        httpStatus: Self.statusCode(failure),
-                        decodedAircraftCount: lastGood?.observations.count,
-                        decodingDiagnostics: nil,
-                        backoffSeconds: delay.secondsValue,
-                        failureCategory: Self.category(failure),
+                    AircraftPollingLogEvent.retryScheduled(
+                        AircraftPollingLogEvent.RetrySchedule(
+                            source: configuration.kind,
+                            requestCount: requestCount,
+                            httpStatus: Self.statusCode(failure),
+                            decodedAircraftCount: lastGood?.observations.count,
+                            backoffSeconds: delay.secondsValue,
+                            failureCategory: Self.category(failure),
+                        ),
                     ),
                 )
                 do {
@@ -560,19 +532,17 @@ public actor AircraftPollingCoordinator {
         completedAt: Date,
     ) {
         logger.record(
-            AircraftPollingLogEvent(
-                kind: .requestFailed,
-                source: configuration.kind,
-                requestCount: 0,
-                durationMilliseconds: max(
-                    0,
-                    Int(completedAt.timeIntervalSince(startedAt) * 1000),
+            AircraftPollingLogEvent.requestFailed(
+                AircraftPollingLogEvent.RequestFailure(
+                    source: configuration.kind,
+                    requestCount: 0,
+                    durationMilliseconds: max(
+                        0,
+                        Int(completedAt.timeIntervalSince(startedAt) * 1000),
+                    ),
+                    httpStatus: Self.statusCode(failure),
+                    failureCategory: Self.category(failure),
                 ),
-                httpStatus: Self.statusCode(failure),
-                decodedAircraftCount: nil,
-                decodingDiagnostics: nil,
-                backoffSeconds: nil,
-                failureCategory: Self.category(failure),
             ),
         )
     }

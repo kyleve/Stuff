@@ -77,10 +77,20 @@ struct AircraftPollingCoordinatorTests {
         }
         let events = logger.events()
         let failure = try #require(events.first { $0.kind == .requestFailed })
-        #expect(failure.requestCount == 0)
-        #expect(failure.failureCategory == .missingCredential)
+        guard case let .requestFailed(failureEvent) = failure else {
+            Issue.record("Expected a request failure event.")
+            await coordinator.deactivate()
+            return
+        }
+        #expect(failureEvent.requestCount == 0)
+        #expect(failureEvent.failureCategory == .missingCredential)
         let stopped = try #require(events.first { $0.kind == .pollingStopped })
-        #expect(stopped.requestCount == 0)
+        guard case let .pollingStopped(stopEvent) = stopped else {
+            Issue.record("Expected a polling stop event.")
+            await coordinator.deactivate()
+            return
+        }
+        #expect(stopEvent.requestCount == 0)
         await coordinator.deactivate()
     }
 
@@ -101,13 +111,23 @@ struct AircraftPollingCoordinatorTests {
         }
 
         let succeeded = try #require(logger.events().first { $0.kind == .requestSucceeded })
-        #expect(succeeded.httpStatus == 206)
+        guard case let .requestSucceeded(successEvent) = succeeded else {
+            Issue.record("Expected a request success event.")
+            await coordinator.deactivate()
+            return
+        }
+        #expect(successEvent.httpStatus == 206)
         await coordinator.deactivate()
         try await waitUntil {
             logger.events().contains { $0.kind == .pollingStopped }
         }
         let stopped = try #require(logger.events().last { $0.kind == .pollingStopped })
-        #expect(stopped.requestCount == 1)
+        guard case let .pollingStopped(stopEvent) = stopped else {
+            Issue.record("Expected a polling stop event.")
+            await coordinator.deactivate()
+            return
+        }
+        #expect(stopEvent.requestCount == 1)
     }
 
     @Test func partialSchemaDriftLogsPrivacySafeCountsAtWarningLevel() async throws {
@@ -131,9 +151,21 @@ struct AircraftPollingCoordinatorTests {
         }
 
         let event = try #require(logger.events().first { $0.kind == .partialSchemaDrift })
+        guard case let .partialSchemaDrift(schemaDrift) = event else {
+            Issue.record("Expected a partial schema-drift event.")
+            await coordinator.deactivate()
+            return
+        }
         #expect(event.level == .warning)
-        #expect(event.decodedAircraftCount == 0)
-        #expect(event.decodingDiagnostics == diagnostics)
+        #expect(schemaDrift.decodedAircraftCount == 0)
+        #expect(
+            schemaDrift.discardedRecords.malformedRecordCount ==
+                diagnostics.malformedRecordCount,
+        )
+        #expect(
+            schemaDrift.discardedRecords.missingPositionRecordCount ==
+                diagnostics.missingPositionRecordCount,
+        )
         let fields = event.remoteFields
         #expect(fields.map(\.key.rawValue) == [
             "kind",
@@ -176,11 +208,20 @@ struct AircraftPollingCoordinatorTests {
         let events = logger.events()
         let activated = try #require(events.first { $0.kind == .sourceActivated })
         let fallback = try #require(events.first { $0.kind == .receiverMetadataFallback })
+        guard case .sourceActivated = activated else {
+            Issue.record("Expected a source activation event.")
+            await coordinator.deactivate()
+            return
+        }
+        guard case let .receiverMetadataFallback(fallbackEvent) = fallback else {
+            Issue.record("Expected a receiver metadata fallback event.")
+            await coordinator.deactivate()
+            return
+        }
         #expect(activated.level == .info)
-        #expect(activated.failureCategory == nil)
         #expect(fallback.level == .warning)
         #expect(fallback.source == .readsb)
-        #expect(fallback.failureCategory == .transportOffline)
+        #expect(fallbackEvent.failureCategory == .transportOffline)
         #expect(fallback.remoteFields.map(\.key.rawValue) == [
             "kind",
             "source",
@@ -206,9 +247,14 @@ struct AircraftPollingCoordinatorTests {
             logger.events().contains { $0.kind == .requestFailed }
         }
         let failure = try #require(logger.events().first { $0.kind == .requestFailed })
-        #expect(failure.source == .readsb)
-        #expect(failure.failureCategory == .transportLocalNetworkDenied)
-        #expect(failure.httpStatus == nil)
+        guard case let .requestFailed(failureEvent) = failure else {
+            Issue.record("Expected a request failure event.")
+            await coordinator.deactivate()
+            return
+        }
+        #expect(failureEvent.source == .readsb)
+        #expect(failureEvent.failureCategory == .transportLocalNetworkDenied)
+        #expect(failureEvent.httpStatus == nil)
         #expect(failure.remoteFields.isEmpty)
         await coordinator.deactivate()
     }
@@ -233,10 +279,20 @@ struct AircraftPollingCoordinatorTests {
         let events = logger.events()
         let requestFailed = try #require(events.first { $0.kind == .requestFailed })
         let retryScheduled = try #require(events.first { $0.kind == .retryScheduled })
-        #expect(requestFailed.failureCategory == .transportOther)
-        #expect(requestFailed.httpStatus == nil)
-        #expect(retryScheduled.failureCategory == .transportOther)
-        #expect(retryScheduled.backoffSeconds == 10)
+        guard case let .requestFailed(failureEvent) = requestFailed else {
+            Issue.record("Expected a request failure event.")
+            await coordinator.deactivate()
+            return
+        }
+        guard case let .retryScheduled(retryEvent) = retryScheduled else {
+            Issue.record("Expected a retry schedule event.")
+            await coordinator.deactivate()
+            return
+        }
+        #expect(failureEvent.failureCategory == .transportOther)
+        #expect(failureEvent.httpStatus == nil)
+        #expect(retryEvent.failureCategory == .transportOther)
+        #expect(retryEvent.backoffSeconds == 10)
         for event in [requestFailed, retryScheduled] {
             #expect(event.message.contains(errorSentinel) == false)
             #expect(event.remoteMessage.contains(errorSentinel) == false)
