@@ -79,6 +79,8 @@ without minting coordinator identities. Location refreshes also recheck their
 generation after the last accumulator read. Playlist configurations carry
 monotonic session revisions. The coordinator rejects an older value that arrives
 late.
+The coordinator exposes a lease only while its runtime is running. Thus, a direct
+session read cannot restore a lease after its deactivation command completes.
 Each production rendered projection stores the lease that produced it. A
 source or observer replacement blocks local reactivation while the old runtime
 drains. The renderer stops before the replacement becomes visible.

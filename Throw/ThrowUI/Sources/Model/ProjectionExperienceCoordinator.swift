@@ -342,7 +342,8 @@ actor ProjectionExperienceCoordinator {
     }
 
     func activationLease(for id: ProjectionExperienceID) -> ProjectionActivationLease? {
-        runtimeStates[id]?.lease
+        guard let state = runtimeStates[id], state.isRunning else { return nil }
+        return state.lease
     }
 
     func currentState() -> ProjectionExperienceCoordinatorState {
