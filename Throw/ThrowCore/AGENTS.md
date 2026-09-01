@@ -35,6 +35,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   polling failure state.
 - Emit a readsb receiver-metadata cadence fallback as a separate warning event.
   Keep source activation informational.
+- Carry polling cadence as a positive `AircraftPollingCadence`. Unwrap its
+  `Duration` only at clock and date boundaries.
 - Build FR24 bounds as a conservative spherical cap. Use all longitudes when
   the cap reaches a pole, and round transmitted edges outward.
 - Never fall back between aircraft sources or merge their frames.

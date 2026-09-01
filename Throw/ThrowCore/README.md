@@ -47,6 +47,8 @@ current region's request multiplicity.
 `readsb` receiver metadata selects its cadence. If metadata fails, Throw uses
 one second and emits a separate warning event. Source activation remains
 informational.
+`AircraftPollingCadence` validates that each configured cadence is positive.
+It keeps fractional receiver cadences intact until the polling-clock boundary.
 Aircraft polling log events use case-specific payloads. Their flat version-three
 wire keys and kind values stay stable for existing Periscope records.
 Source configuration carries no credential value or credential ID. Each paid

@@ -81,9 +81,9 @@ struct HTTPTransportTests {
                 URL(string: "http://\(receiverSentinel)/data/aircraft.json"),
             ),
         )
-        let configured = ConfiguredAircraftSource(
+        let configured = try ConfiguredAircraftSource(
             source: source,
-            baseCadence: .seconds(10),
+            baseCadence: AircraftPollingCadence(duration: .seconds(10)),
             metadataWarning: nil,
         )
         let values = [
