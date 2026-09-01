@@ -92,6 +92,8 @@ Connection tests and provider usage reports go through the injected
 downcast concrete provider sources.
 Each tested source candidate retains its closed Core validation draft. A local
 source cannot carry a replacement credential into the apply transaction.
+Onboarding stores source selection, testing, success, failure, and any staged
+credential in one state. A success keeps the exact draft that the test used.
 
 Views render session state and send intents back to it. They never access
 UserDefaults, Keychain, location, or the network. `ProjectionSurface` is the

@@ -12,6 +12,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   Never refer to a concrete provider source or decoder.
 - Keep tested source candidates in `ValidatedAircraftSourceDraft`. Construct it
   only from a successful closed Core validation draft.
+- Keep onboarding source selection, the exact tested draft, validation, and any
+  staged credential in one exhaustive state. Derive presentation status from it.
 - Keep settings source testing and application in one exhaustive state. Carry
   the closed draft and its generation across every suspension before publishing success.
 - Construct the live `ThrowSession`, stores, source graph, and poller only in

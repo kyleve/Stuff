@@ -10,7 +10,6 @@ struct SourceStepView: View {
                 ForEach(AircraftSourceChoice.allCases, id: \.self) { source in
                     Button {
                         model.sourceChoice = source
-                        model.sourceValidation = .untested
                     } label: {
                         SourceChoiceLabel(source: source, selected: model.sourceChoice == source)
                     }
