@@ -53,9 +53,14 @@ struct ThrowSessionExperiencesTests {
             prepared: prepared,
             bufferedTargetUpdate: bufferedUpdate,
         )
+        let preferenceProducer = try #require(
+            session.beginPreferenceProducer(.experienceTransition),
+        )
+        defer { session.finishPreferenceProducer(preferenceProducer) }
 
         let committed = session.commitPreparedProjectionAtBlack(
             coordinator: projectionTestCoordinator(activeExperienceID: .airAndSpace),
+            preferenceProducer: preferenceProducer,
         )
 
         #expect(committed)
@@ -69,6 +74,124 @@ struct ThrowSessionExperiencesTests {
         #expect(session.projectionPresentationStaging?.bufferedTargetUpdate?.flightsFrame ==
             bufferedFrame.flights)
         #expect(session.projectionPresentationStaging?.preparedProjection == prepared)
+    }
+
+    @Test func coordinatorStateCallbackCannotPublishAPreferenceSelection() {
+        let session = ThrowSession.fixture()
+        let coordinator = projectionTestCoordinator(activeExperienceID: .transit)
+        session.projectionPresentationState = .initial(
+            coordinator: coordinator,
+            preferredExperienceID: .transit,
+            mode: .map,
+            generatedAt: session.dateProvider.now(),
+        )
+        let update = coordinator.updatingHealth(
+            .healthy(
+                lastUpdate: session.dateProvider.now(),
+                visibleContentCount: 4,
+            ),
+            for: .transit,
+        )
+
+        session.applyExperienceCoordinatorState(update)
+
+        #expect(session.activeExperienceID == .transit)
+        #expect(session.activeExperienceHealth.visibleContentCount == 4)
+        #expect(session.projectionPlaylist.selectedExperienceID == .airAndSpace)
+        #expect(session.postLaunchFailureLedger.failure(for: .playlist) == nil)
+    }
+
+    @Test func finalBackgroundFlushWaitsForAnAdmittedCoordinatorActionCallback() async throws {
+        let session = ThrowSession.fixture()
+        session.startLaunch()
+        await session.waitForLaunchForTesting()
+        let lease = ProjectionActivationLease(
+            experienceID: .airAndSpace,
+            generation: .init(rawValue: 9),
+        )
+        let activated = session.airAndSpaceActivation.activate(lease)
+        #expect(activated)
+        session.projectionPresentationStaging = try .prepared(
+            preparedAirAndSpaceProjection(for: session, lease: lease),
+        )
+        let fadeGate = ProjectionTransitionGate()
+        session.waitForProjectionFadeOutForTesting = {
+            await fadeGate.suspend()
+        }
+
+        await session.experienceCoordinator.emitActionForTesting(.beginTransition(
+            from: .transit,
+            to: lease,
+        ))
+        await fadeGate.waitForSuspension()
+        #expect(session.preferencePersistence.activeProducerCount == 1)
+        session.controllerForegroundPresenceDidChange(false)
+
+        let registration = PreferenceFlushCompletionProbe()
+        let completion = PreferenceFlushCompletionProbe()
+        session.preferenceFlushDidRegisterForTesting = {
+            registration.complete()
+        }
+        let flush = Task {
+            await session.flushPreferencesSave()
+            completion.complete()
+        }
+        await registration.waitForCompletion()
+
+        #expect(session.preferencePersistence.quiescenceWaiterCount == 1)
+        #expect(completion.isComplete == false)
+        await fadeGate.resume()
+        await flush.value
+        #expect(completion.isComplete)
+        #expect(session.preferencePersistence.activeProducerCount == 0)
+    }
+
+    @Test func closedAdmissionReconcilesAQueuedCoordinatorTransition() async throws {
+        let session = ThrowSession.fixture()
+        var actions = await session.experienceCoordinator.actions().makeAsyncIterator()
+        try await configureAirAndSpaceRequestFromTransit(on: session)
+        let transitActivation = try #require(await actions.next())
+        guard case let .activate(transitLease, _) = transitActivation else {
+            Issue.record("Expected the Transit activation")
+            return
+        }
+        await session.experienceCoordinator.reportRuntimeUpdate(
+            lease: transitLease,
+            successfulLease: transitLease,
+            health: .healthy(
+                lastUpdate: session.dateProvider.now(),
+                visibleContentCount: 1,
+            ),
+        )
+        await session.experienceCoordinator.select(.airAndSpace)
+        let airAndSpaceActivation = try #require(await actions.next())
+        guard case let .activate(airAndSpaceLease, _) = airAndSpaceActivation else {
+            Issue.record("Expected the Air & Space activation")
+            return
+        }
+        await session.experienceCoordinator.reportRuntimeUpdate(
+            lease: airAndSpaceLease,
+            successfulLease: airAndSpaceLease,
+            health: .healthy(
+                lastUpdate: session.dateProvider.now(),
+                visibleContentCount: 1,
+            ),
+        )
+        #expect(await session.experienceCoordinator.reportRuntimePrepared(airAndSpaceLease))
+        let transition = try #require(await actions.next())
+        guard case .beginTransition = transition else {
+            Issue.record("Expected a prepared transition")
+            return
+        }
+        #expect(await session.experienceCoordinator.currentState().requestedExperienceID ==
+            .airAndSpace)
+        session.controllerForegroundPresenceDidChange(false)
+
+        await session.applyExperienceCoordinatorAction(transition)
+
+        let reconciled = await session.experienceCoordinator.currentState()
+        #expect(reconciled.requestedExperienceID == nil)
+        #expect(reconciled.prewarmingExperienceID == nil)
     }
 
     @Test(arguments: [

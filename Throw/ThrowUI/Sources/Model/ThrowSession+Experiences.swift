@@ -18,15 +18,15 @@ extension ThrowSession {
     }
 
     public func selectExperience(_ id: ProjectionExperienceID) async {
-        await experienceCoordinator.select(id)
+        await performExperienceSelection(.experience(id))
     }
 
     public func selectNextExperience() async {
-        await experienceCoordinator.selectNext()
+        await performExperienceSelection(.next)
     }
 
     public func selectPreviousExperience() async {
-        await experienceCoordinator.selectPrevious()
+        await performExperienceSelection(.previous)
     }
 
     public func pauseExperienceRotation() async {
@@ -90,10 +90,40 @@ extension ThrowSession {
             return
         }
         projectionPresentationState = presentation
-        applyExperienceSelection(state.activeExperienceID)
     }
 
-    private func applyExperienceSelection(_ activeExperienceID: ProjectionExperienceID?) {
+    private func performExperienceSelection(_ command: ExperienceSelectionCommand) async {
+        guard let preferenceProducer = beginPreferenceProducer(.experienceSelection) else {
+            return
+        }
+        defer { finishPreferenceProducer(preferenceProducer) }
+
+        switch command {
+            case let .experience(id):
+                await experienceCoordinator.select(id)
+            case .next:
+                await experienceCoordinator.selectNext()
+            case .previous:
+                await experienceCoordinator.selectPrevious()
+        }
+        let state = await experienceCoordinator.currentState()
+        applyExperienceCoordinatorState(state)
+        applyExperienceSelection(
+            state.activeExperienceID,
+            preferenceProducer: preferenceProducer,
+        )
+    }
+
+    private func applyExperienceSelection(
+        _ activeExperienceID: ProjectionExperienceID?,
+        preferenceProducer: ThrowPreferenceProducerLease,
+    ) {
+        switch preferenceProducer.kind {
+            case .experienceSelection, .experienceTransition:
+                break
+            case .mutation:
+                preconditionFailure("A mutation producer cannot publish a View selection")
+        }
         guard projectionPlaylist.selectedExperienceID != activeExperienceID else { return }
         do {
             projectionPlaylist = try ProjectionPlaylist(
@@ -143,7 +173,17 @@ extension ThrowSession {
                     )
                 }
             case let .beginTransition(from, to):
-                await transitionExperience(from: from, to: to)
+                guard let preferenceProducer = beginPreferenceProducer(.experienceTransition)
+                else {
+                    await experienceCoordinator.invalidatePreparedTransition(lease: to)
+                    return
+                }
+                defer { finishPreferenceProducer(preferenceProducer) }
+                await transitionExperience(
+                    from: from,
+                    to: to,
+                    preferenceProducer: preferenceProducer,
+                )
         }
     }
 
@@ -227,6 +267,7 @@ extension ThrowSession {
     private func transitionExperience(
         from: ProjectionExperienceID,
         to lease: ProjectionActivationLease,
+        preferenceProducer: ThrowPreferenceProducerLease,
     ) async {
         let to = lease.experienceID
         guard let staged = projectionPresentationStaging,
@@ -247,9 +288,16 @@ extension ThrowSession {
             }
             guard projectionContextGeneration == prepared.contextGeneration,
                   projectionPresentationStaging?.preparedProjection == prepared,
-                  publishPreparedProjection(prepared, coordinator: committedState)
+                  publishPreparedProjection(
+                      prepared,
+                      coordinator: committedState,
+                      preferenceProducer: preferenceProducer,
+                  )
             else {
-                replaceProjectionPresentationWithPlaceholder(coordinator: committedState)
+                replaceCommittedProjectionWithPlaceholder(
+                    coordinator: committedState,
+                    preferenceProducer: preferenceProducer,
+                )
                 await experienceCoordinator.completeTransition(to: lease)
                 return
             }
@@ -299,11 +347,17 @@ extension ThrowSession {
             return
         }
         guard currentFadeOut(for: prepared) != nil else {
-            replaceProjectionPresentationWithPlaceholder(coordinator: committedState)
+            replaceCommittedProjectionWithPlaceholder(
+                coordinator: committedState,
+                preferenceProducer: preferenceProducer,
+            )
             await experienceCoordinator.completeTransition(to: lease)
             return
         }
-        guard commitPreparedProjectionAtBlack(coordinator: committedState) else {
+        guard commitPreparedProjectionAtBlack(
+            coordinator: committedState,
+            preferenceProducer: preferenceProducer,
+        ) else {
             assertionFailure("A prepared projection must match its committed identity")
             await experienceCoordinator.rejectPreparedTransition(
                 lease: lease,
@@ -340,6 +394,7 @@ extension ThrowSession {
     @discardableResult
     func commitPreparedProjectionAtBlack(
         coordinator: ProjectionExperienceCoordinatorState,
+        preferenceProducer: ThrowPreferenceProducerLease,
     ) -> Bool {
         guard let staging = projectionPresentationStaging,
               staging.isFadingOut,
@@ -348,12 +403,14 @@ extension ThrowSession {
         return publishPreparedProjection(
             staging.preparedProjection,
             coordinator: coordinator,
+            preferenceProducer: preferenceProducer,
         )
     }
 
     private func publishPreparedProjection(
         _ prepared: PreparedProjectionPresentation,
         coordinator: ProjectionExperienceCoordinatorState,
+        preferenceProducer: ThrowPreferenceProducerLease,
     ) -> Bool {
         let lease = prepared.activationLease
         guard prepared.contextGeneration == projectionContextGeneration,
@@ -364,7 +421,10 @@ extension ThrowSession {
         else { return false }
         // The active identity and complete frame exchange in one assignment while black.
         projectionPresentationState = presentation
-        applyExperienceSelection(coordinator.activeExperienceID)
+        applyExperienceSelection(
+            coordinator.activeExperienceID,
+            preferenceProducer: preferenceProducer,
+        )
         feedHealth = experienceHealth[lease.experienceID] ?? .idle
         return true
     }
@@ -422,6 +482,22 @@ extension ThrowSession {
             mode: projectionMode,
             generatedAt: dateProvider.now(),
         )
-        applyExperienceSelection(coordinator.activeExperienceID)
     }
+
+    private func replaceCommittedProjectionWithPlaceholder(
+        coordinator: ProjectionExperienceCoordinatorState,
+        preferenceProducer: ThrowPreferenceProducerLease,
+    ) {
+        replaceProjectionPresentationWithPlaceholder(coordinator: coordinator)
+        applyExperienceSelection(
+            coordinator.activeExperienceID,
+            preferenceProducer: preferenceProducer,
+        )
+    }
+}
+
+private enum ExperienceSelectionCommand {
+    case experience(ProjectionExperienceID)
+    case next
+    case previous
 }

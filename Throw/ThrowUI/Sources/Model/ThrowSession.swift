@@ -448,7 +448,7 @@ public final class ThrowSession {
     @ObservationIgnored var demandTask: Task<Void, Never>?
     @ObservationIgnored var isReconcilingDemand = false
     @ObservationIgnored var renderTask: Task<Void, Never>?
-    @ObservationIgnored var preferencePersistence = ThrowPreferencePersistenceState()
+    @ObservationIgnored var preferencePersistence: ThrowPreferencePersistenceState
     @ObservationIgnored var locationTask: Task<Void, Never>?
     @ObservationIgnored var quietBoundaryTask: Task<Void, Never>?
     @ObservationIgnored var timeChangeTasks: [Task<Void, Never>] = []
@@ -467,6 +467,8 @@ public final class ThrowSession {
             (@MainActor @Sendable () async -> Void)?
         @ObservationIgnored @_spi(Testing) public var
             waitForProjectionFadeOutForTesting: (@MainActor @Sendable () async -> Void)?
+        @ObservationIgnored @_spi(Testing) public var
+            preferenceFlushDidRegisterForTesting: (@MainActor @Sendable () -> Void)?
     #endif
 
     init(
@@ -490,6 +492,9 @@ public final class ThrowSession {
         initialLaunchState: ThrowSessionLaunchState,
     ) {
         hasForegroundControllerScene = initiallyHasForegroundControllerScene
+        preferencePersistence = ThrowPreferencePersistenceState(
+            acceptsProducers: initiallyHasForegroundControllerScene,
+        )
         setupState = preferences.setupState
         launchState = initialLaunchState
         durableLoggingState = .unavailable
@@ -825,6 +830,7 @@ public final class ThrowSession {
     }
 
     public func controllerForegroundPresenceDidChange(_ hasForegroundControllerScene: Bool) {
+        preferencePersistence.setAcceptsProducers(hasForegroundControllerScene)
         guard self.hasForegroundControllerScene != hasForegroundControllerScene else { return }
         self.hasForegroundControllerScene = hasForegroundControllerScene
         if hasForegroundControllerScene {

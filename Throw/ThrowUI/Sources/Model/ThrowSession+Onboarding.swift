@@ -34,8 +34,8 @@ extension ThrowSession {
 
         guard await useSource(validatedSourceDraft) else { return }
 
-        guard beginPreferenceMutation() else { return }
-        defer { finishPreferenceMutation() }
+        guard let preferenceProducer = beginPreferenceMutation() else { return }
+        defer { finishPreferenceMutation(preferenceProducer) }
 
         let publication: OnboardingPreferencePublication
         while true {

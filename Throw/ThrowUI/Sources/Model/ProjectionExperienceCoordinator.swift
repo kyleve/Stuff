@@ -354,6 +354,10 @@ actor ProjectionExperienceCoordinator {
         func runningExperienceIDsForTesting() -> Set<ProjectionExperienceID> {
             Set(runtimeStates.compactMap { id, state in state.isRunning ? id : nil })
         }
+
+        func emitActionForTesting(_ action: ProjectionExperienceCoordinatorAction) {
+            emitAction(action)
+        }
     #endif
 
     func configure(_ configuration: ProjectionPlaylistConfiguration) async {

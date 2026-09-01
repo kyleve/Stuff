@@ -122,17 +122,17 @@ struct ThrowSessionPreferencesTests {
         #expect(session.postLaunchFailureLedger.failure(for: .preferencePersistence) != nil)
     }
 
-    @Test func deferredMutationSavesRetainEveryRequestOwner() async {
+    @Test func deferredMutationSavesRetainEveryRequestOwner() async throws {
         let preferenceStore = SwitchableThrowPreferenceStore(failsSave: true)
         let session = ThrowSession.fixture(
             preferenceStore: preferenceStore,
             credentialStore: MemoryAircraftCredentialStore(credentials: [:]),
         )
 
-        #expect(session.beginPreferenceMutation())
+        let preferenceProducer = try #require(session.beginPreferenceMutation())
         session.schedulePreferencesSave(failure: .playlist(nil))
         session.schedulePreferencesSave(failure: .preferencePersistence)
-        session.finishPreferenceMutation()
+        session.finishPreferenceMutation(preferenceProducer)
         await session.flushPreferencesSave()
 
         #expect(session.postLaunchFailureLedger.failure(for: .playlist) != nil)
