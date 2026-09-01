@@ -158,12 +158,24 @@ extension ThrowSession {
 
     /// Waits until no save or preference-backed mutation can enqueue more work.
     public func flushPreferencesSave() async {
-        guard Task.isCancelled == false else { return }
-        await withCheckedContinuation { continuation in
-            preferencePersistence.waitForQuiescence(continuation)
-            #if DEBUG
-                preferenceFlushDidRegisterForTesting?()
-            #endif
+        let waiterID = preferencePersistence.makeQuiescenceWaiterID()
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                preferencePersistence.registerQuiescenceWaiter(
+                    id: waiterID,
+                    continuation: continuation,
+                )
+                if Task.isCancelled {
+                    preferencePersistence.cancelQuiescenceWaiter(id: waiterID)
+                }
+                #if DEBUG
+                    preferenceFlushDidRegisterForTesting?()
+                #endif
+            }
+        } onCancel: { [weak self] in
+            Task(name: "Throw cancel preference flush waiter") { @MainActor [weak self] in
+                self?.preferencePersistence.cancelQuiescenceWaiter(id: waiterID)
+            }
         }
     }
 
@@ -506,6 +518,18 @@ struct ThrowPreferenceProducerLease: Hashable {
     fileprivate let id: ID
 }
 
+/// Identifies one cancellation-aware preference quiescence waiter.
+struct ThrowPreferenceQuiescenceWaiterID: Hashable {
+    fileprivate static let initial = ThrowPreferenceQuiescenceWaiterID(rawValue: 0)
+
+    fileprivate let rawValue: UInt64
+
+    fileprivate func successor() -> ThrowPreferenceQuiescenceWaiterID {
+        precondition(rawValue < UInt64.max, "A preference waiter ID must not overflow")
+        return ThrowPreferenceQuiescenceWaiterID(rawValue: rawValue + 1)
+    }
+}
+
 /// The complete save and mutation lifecycle for session preferences.
 @MainActor
 struct ThrowPreferencePersistenceState {
@@ -543,7 +567,10 @@ struct ThrowPreferencePersistenceState {
 
     private var activity = Activity.idle
     private var producerAdmission: ProducerAdmission
-    private var quiescenceWaiters: [CheckedContinuation<Void, Never>] = []
+    private var nextQuiescenceWaiterID = ThrowPreferenceQuiescenceWaiterID.initial
+    private var quiescenceWaiters: [
+        ThrowPreferenceQuiescenceWaiterID: CheckedContinuation<Void, Never>
+    ] = [:]
 
     init(acceptsProducers: Bool) {
         producerAdmission = if acceptsProducers {
@@ -799,17 +826,35 @@ struct ThrowPreferencePersistenceState {
         }
     }
 
-    mutating func waitForQuiescence(_ continuation: CheckedContinuation<Void, Never>) {
+    mutating func makeQuiescenceWaiterID() -> ThrowPreferenceQuiescenceWaiterID {
+        let id = nextQuiescenceWaiterID
+        nextQuiescenceWaiterID = id.successor()
+        return id
+    }
+
+    mutating func registerQuiescenceWaiter(
+        id: ThrowPreferenceQuiescenceWaiterID,
+        continuation: CheckedContinuation<Void, Never>,
+    ) {
+        precondition(
+            quiescenceWaiters[id] == nil,
+            "A preference quiescence waiter can register only once",
+        )
         guard isQuiescent else {
-            quiescenceWaiters.append(continuation)
+            quiescenceWaiters[id] = continuation
             return
         }
         continuation.resume()
     }
 
+    mutating func cancelQuiescenceWaiter(id: ThrowPreferenceQuiescenceWaiterID) {
+        guard let continuation = quiescenceWaiters.removeValue(forKey: id) else { return }
+        continuation.resume()
+    }
+
     mutating func resumeQuiescenceWaitersIfNeeded() {
         guard isQuiescent else { return }
-        let waiters = quiescenceWaiters
+        let waiters = Array(quiescenceWaiters.values)
         quiescenceWaiters.removeAll(keepingCapacity: true)
         for waiter in waiters {
             waiter.resume()

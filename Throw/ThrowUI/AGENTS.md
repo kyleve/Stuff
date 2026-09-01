@@ -96,6 +96,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
 - Coalesce only adjacent UI snapshots, and preserve immediate-write barriers.
   Close producer admission before a final-background flush. A flush completes
   only after admitted producers finish and save activity becomes idle.
+- Remove and resume a canceled flush waiter by its typed identity. Do not force
+  save activity to idle when a flush caller cancels.
 - Keep coordinator state callbacks presentation-only. Require an admitted
   producer lease to publish a selected View after an asynchronous command.
 - Keep final-background task and UIKit execution-lease ownership in the app

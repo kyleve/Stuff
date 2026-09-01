@@ -132,6 +132,17 @@ final class ThrowRuntime: ThrowApplicationRuntime {
         nextID: BackgroundPreferenceFlushID(rawValue: 0),
     )
 
+    #if DEBUG
+        var backgroundPreferenceFlushTaskForTesting: Task<Void, Never>? {
+            switch backgroundPreferenceFlush {
+                case let .active(_, _, task):
+                    task
+                case .idle:
+                    nil
+            }
+        }
+    #endif
+
     init(
         session: ThrowSession,
         idleTimerController: any IdleTimerControlling,
@@ -190,7 +201,9 @@ final class ThrowRuntime: ThrowApplicationRuntime {
         let hasForegroundController = foregroundControllerScenes.isEmpty == false
         guard hasForegroundController != previouslyHadForegroundController else { return }
         session.controllerForegroundPresenceDidChange(hasForegroundController)
-        if hasForegroundController == false {
+        if hasForegroundController {
+            cancelBackgroundPreferenceFlush()
+        } else {
             startBackgroundPreferenceFlush()
         }
     }
@@ -242,6 +255,11 @@ final class ThrowRuntime: ThrowApplicationRuntime {
             self?.completeBackgroundPreferenceFlush(id: id)
         }
         backgroundPreferenceFlush = .active(id: id, lease: lease, task: task)
+    }
+
+    private func cancelBackgroundPreferenceFlush() {
+        guard case let .active(id, _, _) = backgroundPreferenceFlush else { return }
+        expireBackgroundPreferenceFlush(id: id)
     }
 
     private func completeBackgroundPreferenceFlush(id: BackgroundPreferenceFlushID) {
