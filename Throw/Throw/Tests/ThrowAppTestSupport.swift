@@ -6,8 +6,7 @@ import UIKit
 final class ThrowApplicationRuntimeSpy: ThrowApplicationRuntime {
     let session: ThrowSession
 
-    private(set) var backgroundCount = 0
-    private(set) var foregroundCount = 0
+    private(set) var controllerSceneEvents: [RecordedControllerSceneEvent] = []
     private(set) var connectedOutputs: [ProjectionOutput] = []
     private(set) var disconnectedOutputs: [ProjectionOutput] = []
     private(set) var appearances: [UIUserInterfaceStyle] = []
@@ -32,12 +31,11 @@ final class ThrowApplicationRuntimeSpy: ThrowApplicationRuntime {
         disconnectedOutputs.append(output)
     }
 
-    func applicationDidEnterBackground() {
-        backgroundCount += 1
-    }
-
-    func applicationWillEnterForeground() {
-        foregroundCount += 1
+    func controllerScene(
+        _ id: ControllerSceneID,
+        didReceive event: ControllerSceneLifecycleEvent,
+    ) {
+        controllerSceneEvents.append(RecordedControllerSceneEvent(id: id, event: event))
     }
 
     func controllerAppearanceDidChange(_ style: UIUserInterfaceStyle) {
@@ -47,6 +45,11 @@ final class ThrowApplicationRuntimeSpy: ThrowApplicationRuntime {
     func sessionOutputDemandDidChange() {
         outputDemandChangeCount += 1
     }
+}
+
+struct RecordedControllerSceneEvent: Equatable {
+    let id: ControllerSceneID
+    let event: ControllerSceneLifecycleEvent
 }
 
 @MainActor

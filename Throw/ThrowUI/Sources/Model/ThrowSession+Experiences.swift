@@ -129,7 +129,7 @@ extension ThrowSession {
         await experienceCoordinator.reconcile(
             demand: ProjectionExperienceDemand(
                 hasOutput: outputDemands.isEmpty == false,
-                isForeground: isForeground,
+                isForeground: hasForegroundControllerScene,
                 isQuiet: isQuiet,
                 isCalibrating: isCalibrating,
             ),

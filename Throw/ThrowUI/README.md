@@ -19,7 +19,9 @@ ProjectionSurface(session: session, presentation: .externalDisplay)
 Scenes tell the session when an output begins and ends demanding projection
 through `projectionOutputConnected(_:)` and
 `projectionOutputDisconnected(_:)`. The app target remains responsible for
-scene ownership and the idle timer.
+scene ownership and the idle timer. Its process runtime also injects whether
+at least one controller scene is foreground. External-display scenes contribute
+output demand but do not contribute controller foreground presence.
 
 ## Architecture
 

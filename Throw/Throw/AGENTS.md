@@ -13,6 +13,9 @@ The Throw app is the iOS composition and scene shell; see
   controller and projection roots at each scene without `AnyView` erasure.
 - Construct `ThrowRuntime` only in `ThrowRuntime.swift`. `AppDelegate` obtains
   that one live runtime. Scene delegates use the platform handoff and never create a fallback.
+- Track foreground controller scenes by their typed session identities in the
+  process runtime. Derive session foreground presence from the nonempty set;
+  external-display scenes never join it.
 - Host every projected output with ThrowUI's `ProjectionSurface`; keep its
   UIKit window and hosting view opaque black.
 - Derive size and aspect changes from the connected `UIWindowScene`, never

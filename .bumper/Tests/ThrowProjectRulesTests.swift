@@ -119,6 +119,22 @@ struct ThrowProjectRulesTests {
         #expect(rejected.violations.map(\.rule.id) == ["throw.provider_implementation_boundary"])
     }
 
+    @Test func appLifecycleCallbacksCannotReplaceControllerSceneLifecycle() throws {
+        let allowed = try evaluate(
+            path: "Throw/Throw/Sources/ControllerSceneObserver.swift",
+            component: .throwApp,
+            source: "func controllerSceneDidEnterBackground() {}",
+        )
+        let rejected = try evaluate(
+            path: "Throw/Throw/Sources/ThrowApp.swift",
+            component: .throwApp,
+            source: "func applicationDidEnterBackground() {}",
+        )
+
+        #expect(allowed.violations.isEmpty)
+        #expect(rejected.violations.map(\.rule.id) == ["throw.controller_scene_lifecycle"])
+    }
+
     @Test func uncheckedConcurrencyEscapeHatchesFail() throws {
         let preconcurrency = try evaluate(
             path: "Throw/ThrowCore/Sources/Legacy.swift",

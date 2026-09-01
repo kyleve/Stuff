@@ -9,6 +9,27 @@ protocol IdleTimerControlling: AnyObject {
 
 extension UIApplication: IdleTimerControlling {}
 
+/// The stable UIKit identity for one controller scene in this process.
+struct ControllerSceneID: Hashable {
+    let rawValue: String
+
+    init(rawValue: String) {
+        precondition(rawValue.isEmpty == false, "A controller scene ID must not be empty")
+        self.rawValue = rawValue
+    }
+
+    init(session: UISceneSession) {
+        self.init(rawValue: session.persistentIdentifier)
+    }
+}
+
+/// A foreground-membership transition emitted by one controller scene.
+enum ControllerSceneLifecycleEvent: Equatable {
+    case willEnterForeground
+    case didEnterBackground
+    case didDisconnect
+}
+
 /// The class-bound handoff shared by the SwiftUI app and platform-created scenes.
 @MainActor
 protocol ThrowApplicationRuntime: AnyObject {
@@ -19,8 +40,10 @@ protocol ThrowApplicationRuntime: AnyObject {
         appearanceSink: @escaping @MainActor (UIUserInterfaceStyle) -> Void,
     )
     func projectionOutputDisconnected(_ output: ProjectionOutput)
-    func applicationDidEnterBackground()
-    func applicationWillEnterForeground()
+    func controllerScene(
+        _ id: ControllerSceneID,
+        didReceive event: ControllerSceneLifecycleEvent,
+    )
     func controllerAppearanceDidChange(_ style: UIUserInterfaceStyle)
     func sessionOutputDemandDidChange()
 }
@@ -36,10 +59,12 @@ final class ThrowRuntime: ThrowApplicationRuntime {
         [:]
     private var previousIdleTimerState: Bool?
     private var controllerAppearance: UIUserInterfaceStyle = .unspecified
+    private var foregroundControllerScenes: Set<ControllerSceneID> = []
 
     init(session: ThrowSession, idleTimerController: any IdleTimerControlling) {
         self.session = session
         self.idleTimerController = idleTimerController
+        session.controllerForegroundPresenceDidChange(false)
     }
 
     static func live() -> ThrowRuntime {
@@ -71,12 +96,20 @@ final class ThrowRuntime: ThrowApplicationRuntime {
         sessionOutputDemandDidChange()
     }
 
-    func applicationDidEnterBackground() {
-        session.applicationDidEnterBackground()
-    }
-
-    func applicationWillEnterForeground() {
-        session.applicationWillEnterForeground()
+    func controllerScene(
+        _ id: ControllerSceneID,
+        didReceive event: ControllerSceneLifecycleEvent,
+    ) {
+        let previouslyHadForegroundController = foregroundControllerScenes.isEmpty == false
+        switch event {
+            case .willEnterForeground:
+                foregroundControllerScenes.insert(id)
+            case .didEnterBackground, .didDisconnect:
+                foregroundControllerScenes.remove(id)
+        }
+        let hasForegroundController = foregroundControllerScenes.isEmpty == false
+        guard hasForegroundController != previouslyHadForegroundController else { return }
+        session.controllerForegroundPresenceDidChange(hasForegroundController)
     }
 
     func controllerAppearanceDidChange(_ style: UIUserInterfaceStyle) {

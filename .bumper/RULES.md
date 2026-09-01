@@ -189,3 +189,9 @@ owned by ThrowCore.
 `nonisolated(unsafe)` in all Throw production sources. Repair a violation with
 checked isolation. Do not add an exception without first documenting and
 testing the synchronization boundary.
+
+## Throw controller-scene lifecycle
+
+`throw.controller_scene_lifecycle` rejects app-delegate background and
+foreground callbacks in the Throw app. Controller roots deliver their exact
+scene identities and lifecycle transitions to the process runtime instead.
