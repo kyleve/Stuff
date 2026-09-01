@@ -147,9 +147,8 @@ public struct URLSessionHTTPTransport: HTTPTransport {
         } catch let failure as HTTPTransportFailure {
             throw failure
         } catch let error as URLError {
-            throw HTTPTransportFailure(
-                category: Self.category(for: error.code, networkScope: networkScope),
-            )
+            let failure = try Self.failure(for: error, networkScope: networkScope)
+            throw failure
         } catch {
             throw HTTPTransportFailure(category: .other)
         }
@@ -170,6 +169,18 @@ public struct URLSessionHTTPTransport: HTTPTransport {
             configuration: configuration,
             delegate: redirectDelegate,
             delegateQueue: nil,
+        )
+    }
+
+    static func failure(
+        for error: URLError,
+        networkScope: HTTPNetworkScope,
+    ) throws -> HTTPTransportFailure {
+        if error.code == .cancelled {
+            try Task.checkCancellation()
+        }
+        return HTTPTransportFailure(
+            category: category(for: error.code, networkScope: networkScope),
         )
     }
 

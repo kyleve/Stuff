@@ -123,7 +123,8 @@ identity. It does not perform online, route, registration, or operator-name
 lookups for aircraft classification. Separately, the route resolver sends up to
 12 newly seen callsigns per pass to ADSBDB, with at most four concurrent
 requests. It caches successful routes for six hours and unknown routes for one
-hour. A provider failure pauses lookups for five minutes. Aircraft rendering
+hour. A provider failure pauses lookups for five minutes. Cancellation does not
+start this cooldown. Aircraft rendering
 does not wait for this optional enrichment. The resolver is not used for
 Flightradar24 snapshots because FR24 supplies position and route fields in one
 response.
