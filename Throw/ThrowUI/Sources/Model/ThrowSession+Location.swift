@@ -316,10 +316,8 @@ extension ThrowSession {
                             locationHealth
                     }
                     replacement = ObserverLocationReplacement(
-                        setupState: setupState.updatingLocation(
-                            mode: .gps,
-                            confirmedLocation: confirmed,
-                        ),
+                        mode: .gps,
+                        confirmedLocation: confirmed,
                         health: replacementHealth,
                         acquisitionDisposition: .preserve,
                     )
@@ -334,10 +332,8 @@ extension ThrowSession {
                         confirmedAt: dateProvider.now(),
                     )
                     replacement = ObserverLocationReplacement(
-                        setupState: setupState.updatingLocation(
-                            mode: .manual,
-                            confirmedLocation: confirmed,
-                        ),
+                        mode: .manual,
+                        confirmedLocation: confirmed,
                         health: .confirmed(
                             accuracyMeters: 0,
                             acceptedAt: confirmed.confirmedAt,
@@ -365,10 +361,8 @@ extension ThrowSession {
                 confirmedAt: dateProvider.now(),
             )
             let replacement = ObserverLocationReplacement(
-                setupState: setupState.updatingLocation(
-                    mode: mode,
-                    confirmedLocation: confirmed,
-                ),
+                mode: mode,
+                confirmedLocation: confirmed,
                 health: .confirmed(
                     accuracyMeters: fix.horizontalAccuracyMeters,
                     acceptedAt: confirmed.confirmedAt,
@@ -385,34 +379,40 @@ extension ThrowSession {
     }
 
     private func commitObserverLocation(_ replacement: ObserverLocationReplacement) async throws {
-        let preferences: ThrowPreferences
-        do {
-            preferences = try makePreferences(setupState: replacement.setupState)
-        } catch {
-            recordPostLaunchFailure(.location(.persistence), error: error)
-            throw error
-        }
-        try await persistPreferencesImmediately(
-            preferences,
+        let invalidation = try await persistReconciledPreferenceMutation(
             failure: .location(.persistence),
+            makeMutation: { base in
+                ThrowPreferenceMutation(
+                    snapshot: base.replacingSetupState(
+                        base.setupState.updatingLocation(
+                            mode: replacement.mode,
+                            confirmedLocation: replacement.confirmedLocation,
+                        ),
+                    ),
+                    publication: replacement,
+                )
+            },
+            prepareForPublication: {
+                self.prepareProjectionPreferencePublication(.observerLocation)
+            },
+            publish: { replacement in
+                switch replacement.acquisitionDisposition {
+                    case .preserve:
+                        break
+                    case .clearPendingFix:
+                        self.pendingLocationFix = nil
+                    case .cancelAndClearPendingFix:
+                        self.cancelProjectionSessionLocationAcquisition(
+                            restoringPreviousHealth: false,
+                        )
+                        self.pendingLocationFix = nil
+                }
+                self.projectionSessionLocationGate = .ready
+                self.locationHealth = replacement.health
+            },
         )
 
-        await deactivateAirAndSpace(reporting: .idle)
-        activePollingSignature = nil
-        await clearProjectionState(restartsGeography: false)
-        switch replacement.acquisitionDisposition {
-            case .preserve:
-                break
-            case .clearPendingFix:
-                pendingLocationFix = nil
-            case .cancelAndClearPendingFix:
-                cancelProjectionSessionLocationAcquisition(restoringPreviousHealth: false)
-                pendingLocationFix = nil
-        }
-        setupState = replacement.setupState
-        projectionSessionLocationGate = .ready
-        locationHealth = replacement.health
-        projectionPlaylist = preferences.playlist
+        await finishProjectionPreferenceInvalidation(invalidation)
         await configureExperienceCoordinator(with: projectionPlaylist)
         scheduleDemandReconciliation()
     }
@@ -425,7 +425,8 @@ private struct ObserverLocationReplacement {
         case cancelAndClearPendingFix
     }
 
-    let setupState: ThrowSetupState
+    let mode: ObserverLocationMode
+    let confirmedLocation: ConfirmedObserverLocation
     let health: LocationHealth
     let acquisitionDisposition: AcquisitionDisposition
 }
