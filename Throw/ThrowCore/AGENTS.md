@@ -24,6 +24,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   Log partial schema drift at warning level without provider record values.
 - Keep one structured poll task. Cancel and drain before replacement, and
   reject responses from an old generation.
+- Emit a readsb receiver-metadata cadence fallback as a separate warning event.
+  Keep source activation informational.
 - Build FR24 bounds as a conservative spherical cap. Use all longitudes when
   the cap reaches a pole, and round transmitted edges outward.
 - Never fall back between aircraft sources or merge their frames.

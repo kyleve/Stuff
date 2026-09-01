@@ -43,6 +43,9 @@ ground because its position schema has no separate airborne-state field. The
 FR24 adapter also reads the account's 24-hour usage report. Its estimator uses
 the reported credits per request, the selected cadence, quiet hours, and the
 current region's request multiplicity.
+`readsb` receiver metadata selects its cadence. If metadata fails, Throw uses
+one second and emits a separate warning event. Source activation remains
+informational.
 Source configuration carries no credential value or credential ID. Each paid
 provider selects its fixed Keychain slot through `AircraftCredentialID`.
 `AircraftSourceValidationDraft` is the temporary setup boundary. Only its paid

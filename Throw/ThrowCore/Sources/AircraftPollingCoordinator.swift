@@ -356,9 +356,24 @@ public actor AircraftPollingCoordinator {
                 decodedAircraftCount: nil,
                 decodingDiagnostics: nil,
                 backoffSeconds: nil,
-                failureCategory: configuredSource.metadataWarning.map(Self.category),
+                failureCategory: nil,
             ),
         )
+        if let metadataWarning = configuredSource.metadataWarning {
+            logger.record(
+                AircraftPollingLogEvent(
+                    kind: .receiverMetadataFallback,
+                    source: configuration.kind,
+                    requestCount: requestCount,
+                    durationMilliseconds: nil,
+                    httpStatus: nil,
+                    decodedAircraftCount: nil,
+                    decodingDiagnostics: nil,
+                    backoffSeconds: nil,
+                    failureCategory: Self.category(metadataWarning),
+                ),
+            )
+        }
 
         while Task.isCancelled == false {
             requestCount += 1

@@ -9,10 +9,11 @@ public struct ThrowRootLogEvent: LogEvent {
 }
 
 public struct AircraftPollingLogEvent: LogEvent {
-    public static let eventVersion = 2
+    public static let eventVersion = 3
 
     public enum Kind: String, CaseIterable, Codable, Hashable, Sendable {
         case sourceActivated = "source-activated"
+        case receiverMetadataFallback = "receiver-metadata-fallback"
         case requestSucceeded = "request-succeeded"
         case partialSchemaDrift = "partial-schema-drift"
         case requestFailed = "request-failed"
@@ -64,6 +65,12 @@ public struct AircraftPollingLogEvent: LogEvent {
                 ? decodingDiagnostics?.hasDiscardedRecords == true
                 : decodingDiagnostics == nil,
         )
+        precondition(
+            kind == .receiverMetadataFallback
+                ? source == .readsb && failureCategory != nil
+                : true,
+        )
+        precondition(kind == .sourceActivated ? failureCategory == nil : true)
         self.kind = kind
         self.source = source
         self.requestCount = requestCount
@@ -79,7 +86,8 @@ public struct AircraftPollingLogEvent: LogEvent {
         switch kind {
             case .sourceActivated, .requestSucceeded, .pollingStopped:
                 .info
-            case .partialSchemaDrift, .requestFailed, .retryScheduled:
+            case .receiverMetadataFallback, .partialSchemaDrift, .requestFailed,
+                 .retryScheduled:
                 .warning
         }
     }
@@ -93,22 +101,36 @@ public struct AircraftPollingLogEvent: LogEvent {
     }
 
     public var remoteFields: [RemoteLogField] {
-        guard let decodingDiagnostics else { return [] }
+        if let decodingDiagnostics {
+            return [
+                .eventKind(kind),
+                sourceRemoteField,
+                RemoteLogField(
+                    key: RemoteLogFieldKey("malformed_record_count"),
+                    value: .count(decodingDiagnostics.malformedRecordCount),
+                ),
+                RemoteLogField(
+                    key: RemoteLogFieldKey("missing_position_record_count"),
+                    value: .count(decodingDiagnostics.missingPositionRecordCount),
+                ),
+            ]
+        }
+        guard kind == .receiverMetadataFallback, let failureCategory else { return [] }
         return [
             .eventKind(kind),
+            sourceRemoteField,
             RemoteLogField(
-                key: RemoteLogFieldKey("source"),
-                value: .category(RemoteLogCategory(source)),
-            ),
-            RemoteLogField(
-                key: RemoteLogFieldKey("malformed_record_count"),
-                value: .count(decodingDiagnostics.malformedRecordCount),
-            ),
-            RemoteLogField(
-                key: RemoteLogFieldKey("missing_position_record_count"),
-                value: .count(decodingDiagnostics.missingPositionRecordCount),
+                key: RemoteLogFieldKey("failure_category"),
+                value: .category(RemoteLogCategory(failureCategory)),
             ),
         ]
+    }
+
+    private var sourceRemoteField: RemoteLogField {
+        RemoteLogField(
+            key: RemoteLogFieldKey("source"),
+            value: .category(RemoteLogCategory(source)),
+        )
     }
 }
 
