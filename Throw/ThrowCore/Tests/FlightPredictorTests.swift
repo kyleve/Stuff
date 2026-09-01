@@ -123,7 +123,7 @@ struct FlightPredictorTests {
         }
         let expectedCoordinate = try GeoCoordinate(latitude: 0, longitude: 0)
         #expect(anchor.coordinate == expectedCoordinate)
-        #expect(anchor.altitude?.feet == 10100)
+        #expect(anchor.altitude.value?.feet == 10100)
     }
 
     @Test func extremeVerticalRateStopsAtTheValidAltitudeBoundary() throws {
@@ -143,7 +143,7 @@ struct FlightPredictorTests {
             Issue.record("Expected a geodetic prediction")
             return
         }
-        #expect(anchor.altitude?.feet == Altitude.allowedFeet.upperBound)
+        #expect(anchor.altitude.value?.feet == Altitude.allowedFeet.upperBound)
     }
 
     private func movingMark(
@@ -177,8 +177,7 @@ struct FlightPredictorTests {
             anchor: .geodetic(
                 GeodeticAnchor(
                     coordinate: GeoCoordinate(latitude: 0, longitude: 0),
-                    altitude: Altitude(feet: 10000),
-                    altitudeQuality: .geometric,
+                    altitude: .available(Altitude(feet: 10000), quality: .geometric),
                 ),
             ),
             glyph: .aircraft(.unknownAirborne),

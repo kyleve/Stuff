@@ -226,7 +226,7 @@ public struct ProjectionEngine: Sendable {
                 }
                 let altitudeIsApproximate: Bool = switch prediction.mark.anchor {
                     case let .geodetic(anchor):
-                        anchor.altitudeQuality == .barometricApproximation
+                        anchor.altitude.quality == .barometricApproximation
                     case .horizontal:
                         false
                 }
@@ -437,7 +437,7 @@ public struct ProjectionEngine: Sendable {
         observer: ObserverPosition,
         target: GeodeticAnchor,
     ) throws -> HorizontalPosition? {
-        guard let targetAltitude = target.altitude else { return nil }
+        guard let targetAltitude = target.altitude.value else { return nil }
         let observerECEF = ecef(
             coordinate: observer.coordinate,
             altitudeMeters: observer.altitude.meters,
@@ -662,7 +662,6 @@ public struct ProjectionEngine: Sendable {
         let comparisonAnchor = GeodeticAnchor(
             coordinate: comparisonCoordinate,
             altitude: anchor.altitude,
-            altitudeQuality: anchor.altitudeQuality,
         )
         guard let radial = try radialPosition(
             for: .geodetic(comparisonAnchor),

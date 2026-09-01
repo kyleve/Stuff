@@ -43,11 +43,9 @@ public struct FlightLayerFrameBuilder: Sendable {
                 route: route,
                 motion: motion,
             )
-            let altitude = observation.preferredSkyAltitude
             let anchor = GeodeticAnchor(
                 coordinate: observation.coordinate,
-                altitude: altitude,
-                altitudeQuality: observation.skyAltitudeQuality,
+                altitude: observation.skyAltitude,
             )
             try aircraftMarks.append(ProjectionMark(
                 id: observation.id.layerMarkID,
@@ -97,8 +95,9 @@ public struct FlightLayerFrameBuilder: Sendable {
                     id: airport.id.layerMarkID,
                     anchor: .geodetic(GeodeticAnchor(
                         coordinate: airport.coordinate,
-                        altitude: airport.elevation,
-                        altitudeQuality: airport.elevation == nil ? .unavailable : .geometric,
+                        altitude: airport.elevation.map {
+                            .available($0, quality: .geometric)
+                        } ?? .unavailable,
                     )),
                     glyph: .airport(AirportGlyphDescriptor(
                         airportID: airport.id,
@@ -144,15 +143,14 @@ public struct FlightLayerFrameBuilder: Sendable {
             case .callsigns:
                 return label(route: route, callsign: observation.callsign)
             case .adaptive:
-                let altitudeText = observation.preferredSkyAltitude.map(Self.altitudeText)
+                let altitudeText = observation.skyAltitude.value.map(Self.altitudeText)
                 let isNearby: Bool
-                if let altitude = observation.preferredSkyAltitude {
+                if case let .available(altitude, quality) = observation.skyAltitude {
                     let position = try ProjectionEngine().horizontalPosition(
                         observer: observer,
                         target: GeodeticAnchor(
                             coordinate: observation.coordinate,
-                            altitude: altitude,
-                            altitudeQuality: observation.skyAltitudeQuality,
+                            altitude: .available(altitude, quality: quality),
                         ),
                     )
                     isNearby = (position?.slantRange.value ?? .infinity) <= 10

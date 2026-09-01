@@ -3,6 +3,19 @@ import Testing
 @testable import ThrowCore
 
 struct ProjectionModelsTests {
+    @Test func geodeticAltitudeCarriesQualityOnlyWithAValue() throws {
+        let unavailable = GeodeticAltitude.unavailable
+        let available = try GeodeticAltitude.available(
+            Altitude(feet: 12000),
+            quality: .barometricApproximation,
+        )
+
+        #expect(unavailable.value == nil)
+        #expect(unavailable.quality == nil)
+        #expect(available.value?.feet == 12000)
+        #expect(available.quality == .barometricApproximation)
+    }
+
     @Test func calibrationRejectsInsetAboveTwentyPercent() throws {
         #expect(throws: ThrowValidationError.self) {
             try ProjectionCalibration(
@@ -245,8 +258,7 @@ struct ProjectionModelsTests {
         ).layerMarkID
         let geodeticAnchor = try GeodeticAnchor(
             coordinate: GeoCoordinate(latitude: 33.123456, longitude: -111.654321),
-            altitude: Altitude(feet: 12300),
-            altitudeQuality: .geometric,
+            altitude: .available(Altitude(feet: 12300), quality: .geometric),
         )
         let anchor = ProjectionAnchor.geodetic(geodeticAnchor)
         let label = ProjectionLabel(
@@ -322,8 +334,7 @@ struct ProjectionModelsTests {
             id: id,
             anchor: .geodetic(GeodeticAnchor(
                 coordinate: GeoCoordinate(latitude: 37, longitude: -122),
-                altitude: Altitude(feet: 10000),
-                altitudeQuality: .geometric,
+                altitude: .available(Altitude(feet: 10000), quality: .geometric),
             )),
             glyph: .aircraft(.unknownAirborne),
             label: ProjectionLabel(
