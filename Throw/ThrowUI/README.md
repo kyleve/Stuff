@@ -99,6 +99,19 @@ replace newer stream state.
 The runtime publishes its polling signature only after Core accepts the physical
 activation. The session reads that accepted lease and signature instead of
 storing a mirror.
+Geography-only output keeps the coordinator and runtime experience lease active
+while it suspends physical polling. Each reconciliation carries a typed,
+monotonic demand generation. A stop records its generation even when no physical
+attempt exists. An activation after that stop must carry a newer generation.
+The reconciled coordinator lease remains the experience authority. A disabled
+layer or non-operational launch suspends only physical polling. An absent
+coordinator lease causes exact full deactivation of the pre-reconcile lease.
+The runtime publishes stopped, activating, and active polling as one closed
+state. A stop clears the accepted signature, Core token, snapshot, and frame
+before it drains Core. Re-enabling Flights uses the same experience lease. It
+mints a new physical lease and Core token. A stale command or publication cannot
+affect the replacement poller. Full runtime deactivation still retires and
+tombstones the experience lease.
 Each production rendered projection stores the lease that produced it. A
 source or observer replacement blocks local reactivation while the old runtime
 drains. The renderer stops before the replacement becomes visible.

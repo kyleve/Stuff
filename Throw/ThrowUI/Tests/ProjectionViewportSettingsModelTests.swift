@@ -25,6 +25,7 @@ struct ProjectionViewportSettingsModelTests {
             query: activeSignature.query,
             labelMode: session.labelMode,
             lease: activationLease,
+            demandGeneration: session.demandGeneration,
         )
         let demandGeneration = session.demandGeneration
         let model = ProjectionViewportSettingsModel(session: session)
@@ -62,7 +63,7 @@ struct ProjectionViewportSettingsModelTests {
 
         #expect(model.mapViewportIsValid)
         #expect(session.mapRadius == 55)
-        #expect(session.demandGeneration == demandGeneration + 1)
+        #expect(session.demandGeneration == demandGeneration.successor())
         #expect(await preferenceStore.startedSaveCount() == 1)
 
         await preferenceStore.resumeFirstSave()

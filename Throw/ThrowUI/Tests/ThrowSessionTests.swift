@@ -296,9 +296,9 @@ struct ThrowSessionTests {
         session.replaceLocationModeForTesting(.manual)
         session.replaceSourceSelectionForTesting(.awaitingValidation(.adsbLol))
         session.outputDemands.insert(output)
-        session.demandGeneration = 1
+        session.demandGeneration = session.demandGeneration.successor()
 
-        await session.reconcileDemand(generation: 1)
+        await session.reconcileDemand(generation: session.demandGeneration)
         let renderTask = session.renderTask
         await renderTask?.value
 
@@ -310,27 +310,265 @@ struct ThrowSessionTests {
         #expect(session.feedHealth == .failed(.sourceNotValidated))
     }
 
-    @Test func geographyCanProjectWhileFlightsAndPollingAreOff() async {
-        let airAndSpacePreferences = ThrowPreferences.defaultValue.airAndSpace
-            .replacingFlightsEnabled(false)
-        let session = ThrowSession.fixture(
-            airAndSpacePreferences: airAndSpacePreferences,
-        )
+    @Test func geographyKeepsItsLeaseWhilePhysicalPollingStopsAndResumes() async throws {
+        let session = ThrowSession.fixture()
         let output = ProjectionOutput.preview(
             ProjectionOutputID(rawValue: "geography-only-test"),
         )
         session.replaceLocationModeForTesting(.manual)
         session.outputDemands.insert(output)
-        session.demandGeneration = 1
+        session.demandGeneration = session.demandGeneration.successor()
 
-        await session.reconcileDemand(generation: 1)
+        await session.reconcileDemand(generation: session.demandGeneration)
         let renderTask = session.renderTask
         await renderTask?.value
 
-        #expect(await session.airAndSpaceRuntime.currentUpdate().activePollingSignature == nil)
+        let experienceLease = try #require(
+            await session.experienceCoordinator.activationLease(for: .airAndSpace),
+        )
+        let firstToken = try #require(
+            await session.airAndSpaceRuntime.activePollingActivationForTesting(),
+        )
+        let firstPhysicalLease = try #require(
+            await session.airAndSpaceRuntime.currentUpdate().physicalPollingLease,
+        )
+        #expect(
+            await session.airAndSpaceRuntime.currentUpdate().activationLease == experienceLease,
+        )
+
+        session.updateAirAndSpacePreferences(
+            session.airAndSpacePreferences.replacingFlightsEnabled(false),
+        )
+        let stopTask = try #require(session.demandTask)
+        await stopTask.value
+
+        let stopped = await session.airAndSpaceRuntime.currentUpdate()
+        #expect(
+            await session.experienceCoordinator.activationLease(for: .airAndSpace) ==
+                experienceLease,
+        )
+        #expect(stopped.activationLease == experienceLease)
+        #expect(stopped.activePollingSignature == nil)
+        #expect(stopped.snapshot == nil)
+        #expect(stopped.flightsFrame == nil)
+        #expect(stopped.physicalPollingLease == nil)
+        #expect(await session.airAndSpaceRuntime.activePollingActivationForTesting() == nil)
         #expect(session.feedHealth == .idle)
         #expect(session.projectionFrame.geography != nil)
-        #expect(session.renderTask == nil)
+
+        session.updateAirAndSpacePreferences(
+            session.airAndSpacePreferences.replacingFlightsEnabled(true),
+        )
+        let resumeTask = try #require(session.demandTask)
+        await resumeTask.value
+
+        let resumed = await session.airAndSpaceRuntime.currentUpdate()
+        let resumedToken = try #require(
+            await session.airAndSpaceRuntime.activePollingActivationForTesting(),
+        )
+        #expect(
+            await session.experienceCoordinator.activationLease(for: .airAndSpace) ==
+                experienceLease,
+        )
+        #expect(resumed.activationLease == experienceLease)
+        #expect(resumed.activePollingSignature != nil)
+        #expect(resumed.physicalPollingLease != firstPhysicalLease)
+        #expect(resumedToken != firstToken)
+
+        session.outputDemands.remove(output)
+        session.scheduleDemandReconciliation()
+        await session.demandTask?.value
+        #expect(await session.experienceCoordinator.activationLease(for: .airAndSpace) == nil)
+        #expect(await session.airAndSpaceRuntime.currentUpdate().activationLease == nil)
+    }
+
+    @Test func disablingEveryLayerSuspendsWithoutRetiringTheCoordinatorLease() async throws {
+        let session = ThrowSession.fixture()
+        let output = ProjectionOutput.preview(
+            ProjectionOutputID(rawValue: "all-layers-disabled-test"),
+        )
+        session.replaceLocationModeForTesting(.manual)
+        session.outputDemands.insert(output)
+        session.demandGeneration = session.demandGeneration.successor()
+        await session.reconcileDemand(generation: session.demandGeneration)
+
+        let experienceLease = try #require(
+            await session.experienceCoordinator.activationLease(for: .airAndSpace),
+        )
+        let firstToken = try #require(
+            await session.airAndSpaceRuntime.activePollingActivationForTesting(),
+        )
+
+        let disabledGeography = GeographyPreferences.defaultValue.replacingIsEnabled(false)
+        session.updateAirAndSpacePreferences(
+            session.airAndSpacePreferences
+                .replacingFlightsEnabled(false)
+                .replacingGeography(disabledGeography),
+        )
+        let stopTask = try #require(session.demandTask)
+        await stopTask.value
+
+        let stopped = await session.airAndSpaceRuntime.currentUpdate()
+        #expect(
+            await session.experienceCoordinator.activationLease(for: .airAndSpace) ==
+                experienceLease,
+        )
+        #expect(stopped.activationLease == experienceLease)
+        #expect(stopped.physicalPolling == .stopped)
+        #expect(await session.airAndSpaceRuntime.currentPollingUpdateForTesting() == .inactive)
+
+        session.updateAirAndSpacePreferences(
+            session.airAndSpacePreferences.replacingFlightsEnabled(true),
+        )
+        let resumeTask = try #require(session.demandTask)
+        await resumeTask.value
+
+        let resumed = await session.airAndSpaceRuntime.currentUpdate()
+        let resumedToken = try #require(
+            await session.airAndSpaceRuntime.activePollingActivationForTesting(),
+        )
+        #expect(
+            await session.experienceCoordinator.activationLease(for: .airAndSpace) ==
+                experienceLease,
+        )
+        #expect(resumed.activationLease == experienceLease)
+        guard case .active = resumed.physicalPolling else {
+            Issue.record("A newer enabled-layer demand must resume physical polling")
+            return
+        }
+        #expect(resumedToken != firstToken)
+
+        session.outputDemands.remove(output)
+        session.scheduleDemandReconciliation()
+        await session.demandTask?.value
+    }
+
+    @Test func nonOperationalLaunchSuspendsWithoutRetiringTheCoordinatorLease() async throws {
+        let session = ThrowSession.fixture()
+        let output = ProjectionOutput.preview(
+            ProjectionOutputID(rawValue: "non-operational-launch-test"),
+        )
+        session.replaceLocationModeForTesting(.manual)
+        session.outputDemands.insert(output)
+        session.demandGeneration = session.demandGeneration.successor()
+        await session.reconcileDemand(generation: session.demandGeneration)
+
+        let operationalLaunchState = session.launchState
+        let experienceLease = try #require(
+            await session.experienceCoordinator.activationLease(for: .airAndSpace),
+        )
+        let firstToken = try #require(
+            await session.airAndSpaceRuntime.activePollingActivationForTesting(),
+        )
+
+        session.launchState = .loading
+        session.scheduleDemandReconciliation()
+        let stopTask = try #require(session.demandTask)
+        await stopTask.value
+
+        let stopped = await session.airAndSpaceRuntime.currentUpdate()
+        #expect(
+            await session.experienceCoordinator.activationLease(for: .airAndSpace) ==
+                experienceLease,
+        )
+        #expect(stopped.activationLease == experienceLease)
+        #expect(stopped.physicalPolling == .stopped)
+        #expect(await session.airAndSpaceRuntime.currentPollingUpdateForTesting() == .inactive)
+
+        session.launchState = operationalLaunchState
+        session.scheduleDemandReconciliation()
+        let resumeTask = try #require(session.demandTask)
+        await resumeTask.value
+
+        let resumed = await session.airAndSpaceRuntime.currentUpdate()
+        let resumedToken = try #require(
+            await session.airAndSpaceRuntime.activePollingActivationForTesting(),
+        )
+        #expect(
+            await session.experienceCoordinator.activationLease(for: .airAndSpace) ==
+                experienceLease,
+        )
+        #expect(resumed.activationLease == experienceLease)
+        guard case .active = resumed.physicalPolling else {
+            Issue.record("A newer operational demand must resume physical polling")
+            return
+        }
+        #expect(resumedToken != firstToken)
+
+        session.outputDemands.remove(output)
+        session.scheduleDemandReconciliation()
+        await session.demandTask?.value
+    }
+
+    @Test func stoppedDemandRejectsADelayedOlderActivationUnderTheSameLease() async throws {
+        let session = ThrowSession.fixture(
+            airAndSpacePreferences: ThrowPreferences.defaultValue.airAndSpace
+                .replacingFlightsEnabled(false),
+        )
+        let output = ProjectionOutput.preview(
+            ProjectionOutputID(rawValue: "stopped-demand-tombstone-test"),
+        )
+        session.replaceLocationModeForTesting(.manual)
+        session.outputDemands.insert(output)
+        session.demandGeneration = session.demandGeneration.successor()
+        await session.reconcileDemand(generation: session.demandGeneration)
+
+        let experienceLease = try #require(
+            await session.experienceCoordinator.activationLease(for: .airAndSpace),
+        )
+        #expect(await session.airAndSpaceRuntime.currentUpdate().physicalPolling == .stopped)
+
+        let activationGate = DemandActivationGate()
+        session.beforeAirAndSpaceRuntimeActivationForTesting = {
+            await activationGate.hold()
+        }
+        session.updateAirAndSpacePreferences(
+            session.airAndSpacePreferences.replacingFlightsEnabled(true),
+        )
+        let delayedActivation = try #require(session.demandTask)
+        await activationGate.waitUntilHeld()
+
+        session.updateAirAndSpacePreferences(
+            session.airAndSpacePreferences.replacingFlightsEnabled(false),
+        )
+        let newerStop = try #require(session.demandTask)
+        await newerStop.value
+
+        let stopped = await session.airAndSpaceRuntime.currentUpdate()
+        #expect(stopped.activationLease == experienceLease)
+        #expect(stopped.physicalPolling == .stopped)
+        #expect(await session.airAndSpaceRuntime.activePollingActivationForTesting() == nil)
+        #expect(await session.airAndSpaceRuntime.currentPollingUpdateForTesting() == .inactive)
+
+        session.beforeAirAndSpaceRuntimeActivationForTesting = nil
+        await activationGate.release()
+        await delayedActivation.value
+
+        let afterDelayedActivation = await session.airAndSpaceRuntime.currentUpdate()
+        #expect(afterDelayedActivation.activationLease == experienceLease)
+        #expect(afterDelayedActivation.successfulActivationLease == nil)
+        #expect(afterDelayedActivation.physicalPolling == .stopped)
+        #expect(afterDelayedActivation.activePollingSignature == nil)
+        #expect(await session.airAndSpaceRuntime.activePollingActivationForTesting() == nil)
+        #expect(await session.airAndSpaceRuntime.currentPollingUpdateForTesting() == .inactive)
+
+        session.updateAirAndSpacePreferences(
+            session.airAndSpacePreferences.replacingFlightsEnabled(true),
+        )
+        let replacementActivation = try #require(session.demandTask)
+        await replacementActivation.value
+
+        let resumed = await session.airAndSpaceRuntime.currentUpdate()
+        #expect(resumed.activationLease == experienceLease)
+        guard case .active = resumed.physicalPolling else {
+            Issue.record("A newer enabled demand must resume physical polling")
+            return
+        }
+        #expect(await session.airAndSpaceRuntime.activePollingActivationForTesting() != nil)
+
+        session.outputDemands.remove(output)
+        session.scheduleDemandReconciliation()
+        await session.demandTask?.value
     }
 
     @Test func GPSAltitudeEditPreservesAcceptedFixAndStaleHealth() async throws {
@@ -408,5 +646,32 @@ struct ThrowSessionTests {
             Issue.record("Explicit acceptance should switch to the confirmed GPS fix")
             return
         }
+    }
+}
+
+private actor DemandActivationGate {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func hold() async {
+        await withCheckedContinuation { continuation in
+            precondition(self.continuation == nil, "Only one activation can wait at the gate")
+            self.continuation = continuation
+            let waiters = waiters
+            self.waiters.removeAll()
+            waiters.forEach { $0.resume() }
+        }
+    }
+
+    func waitUntilHeld() async {
+        guard continuation == nil else { return }
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
+    }
+
+    func release() {
+        continuation?.resume()
+        continuation = nil
     }
 }

@@ -21,6 +21,22 @@ struct ProjectionContextGeneration: Equatable, Hashable {
     }
 }
 
+/// The monotonic authority of one projection-demand reconciliation.
+struct ProjectionDemandGeneration: Comparable, Hashable {
+    static let initial = ProjectionDemandGeneration(rawValue: 0)
+
+    private let rawValue: UInt64
+
+    static func < (lhs: Self, rhs: Self) -> Bool {
+        lhs.rawValue < rhs.rawValue
+    }
+
+    func successor() -> ProjectionDemandGeneration {
+        precondition(rawValue < UInt64.max, "A projection demand generation must not overflow")
+        return ProjectionDemandGeneration(rawValue: rawValue + 1)
+    }
+}
+
 /// One rendered projection bound to the source and observer generation that produced it.
 struct PreparedProjectionPresentation: Equatable {
     let contextGeneration: ProjectionContextGeneration
@@ -424,7 +440,7 @@ public final class ThrowSession {
     @ObservationIgnored var currentSnapshot: AircraftSnapshot?
     var outputDemands: Set<ProjectionOutput> = []
     @ObservationIgnored var temporaryWakeUntil: Date?
-    @ObservationIgnored var demandGeneration: UInt64 = 0
+    @ObservationIgnored var demandGeneration = ProjectionDemandGeneration.initial
     @ObservationIgnored var renderGeneration: UInt64 = 0
     @ObservationIgnored var projectionInputRevision = ProjectionFrameRequest.Revision.initial
     @ObservationIgnored var projectionContextGeneration = ProjectionContextGeneration.initial
@@ -463,6 +479,9 @@ public final class ThrowSession {
             beforePublishingProjectionForTesting: (@MainActor @Sendable () async -> Void)?
         @ObservationIgnored @_spi(Testing) public var
             beforeProjectionPreferenceRuntimeDeactivationForTesting:
+            (@MainActor @Sendable () async -> Void)?
+        @ObservationIgnored @_spi(Testing) public var
+            beforeAirAndSpaceRuntimeActivationForTesting:
             (@MainActor @Sendable () async -> Void)?
         @ObservationIgnored @_spi(Testing) public var
             waitForProjectionFadeOutForTesting: (@MainActor @Sendable () async -> Void)?
