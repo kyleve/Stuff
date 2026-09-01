@@ -43,9 +43,11 @@ Layering, localization, preview, and testing conventions live in the feature
   states distinct. Crash and replay choices stay pending until relaunch.
   Remote-log revisions apply live. A runtime failure invalidates in-flight
   applies. An older completion must never win.
-- The DEBUG developer accordion may only latch or clear
-  `InspectorModeController` for the next launch. It must not host a live
-  SwiftData inspector or switch the current runtime.
+- The DEBUG developer accordion may only update
+  `WhereDeveloperLaunchController` for the next launch. Inspector and demo are
+  mutually exclusive. It must not switch the current runtime. A demo request
+  is consumed once before the onboarding gate and must never open a real store.
+  Keep its synthetic clock scoped to the in-memory demo session.
 - Keep the DEBUG Logs destination visible for every
   `WhereModel.logStoreState`. Opening, unavailable, and failed stores are
   diagnostics to render, not reasons to hide the tool.

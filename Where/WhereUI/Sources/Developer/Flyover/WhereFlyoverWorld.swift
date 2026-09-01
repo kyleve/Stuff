@@ -35,7 +35,11 @@
                 configuration: Periscope.Configuration(),
                 sinks: [],
             )
-            let scope = try await WhereScope.demo(now: now, logSystem: logSystem)
+            let scope = try await WhereScope.demo(
+                now: now,
+                logSystem: logSystem,
+                configuration: .standard,
+            )
             let session = WhereSession(scope: scope, now: now)
             await session.start()
 

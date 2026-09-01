@@ -404,6 +404,13 @@ enum WhereFormat {
         }
     }
 
+    static func resolutionCategoryList(_ categories: Set<DataIssueCategory>) -> String {
+        DataIssueCategory.allCases
+            .filter(categories.contains)
+            .map(resolutionSectionHeader)
+            .formatted(.list(type: .and))
+    }
+
     static func driftRowSubtitle(region: String, distance: String) -> String {
         String(localized: .resolutionDriftSubtitle(region, distance))
     }

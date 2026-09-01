@@ -54,7 +54,7 @@ public struct RootView: View {
     #endif
     private let launcher: LifecycleRunner<WhereSession>
     #if DEBUG
-        private let inspectorModeController: InspectorModeController?
+        private let developerLaunchController: WhereDeveloperLaunchController?
         /// Hosted snapshots have no active SwiftUI scene even though their
         /// controller is on screen. Production leaves this nil and follows the
         /// real scene phase; the testing SPI can explicitly model visibility.
@@ -66,11 +66,11 @@ public struct RootView: View {
         public init(
             model: WhereModel,
             launcher: LifecycleRunner<WhereSession>,
-            inspectorModeController: InspectorModeController? = nil,
+            developerLaunchController: WhereDeveloperLaunchController? = nil,
         ) {
             _model = State(initialValue: model)
             self.launcher = launcher
-            self.inspectorModeController = inspectorModeController
+            self.developerLaunchController = developerLaunchController
             presentationVisibilityOverride = nil
         }
 
@@ -82,7 +82,7 @@ public struct RootView: View {
         ) {
             _model = State(initialValue: model)
             self.launcher = launcher
-            inspectorModeController = nil
+            developerLaunchController = nil
             self.presentationVisibilityOverride = presentationVisibilityOverride
         }
     #else
@@ -120,7 +120,7 @@ public struct RootView: View {
         _model = State(initialValue: model)
         launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         #if DEBUG
-            inspectorModeController = nil
+            developerLaunchController = nil
             presentationVisibilityOverride = nil
         #endif
     }
@@ -133,7 +133,16 @@ public struct RootView: View {
                 animation: revealAnimation,
                 minimumSplashDuration: stylesheet.launch.minimumSplashDuration,
                 isPresentationVisible: isLifecyclePresentationVisible,
-                splash: { _ in LaunchSplashView() },
+                splash: { _ in
+                    if model.isBuildingLaunchDemo {
+                        LaunchSplashView(caption: .work(
+                            title: String(localized: .demoBuildingTitle),
+                            subtitle: String(localized: .demoBuildingSubtitle),
+                        ))
+                    } else {
+                        LaunchSplashView()
+                    }
+                },
                 failure: { WhereLifecycleFailureView(failure: $0) },
                 gates: {
                     // The gate roots the trunk, so there is no session (and no
@@ -207,7 +216,7 @@ public struct RootView: View {
             // reads it optionally — it can appear before login.
             .environment(model.session)
         #if DEBUG
-            .environment(inspectorModeController)
+            .environment(developerLaunchController)
             .environment(\.cardDesignerModel, cardDesigner)
             .environment(
                 \.cardDesignerConfiguration,

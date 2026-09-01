@@ -26,7 +26,12 @@ For the rules that apply when editing this target, see [`AGENTS.md`](AGENTS.md).
 
 `AppDelegate.init` makes one boot-time selection.
 In release this is always `RegularApplicationRuntime`.
-In DEBUG a dedicated UserDefaults suite can select `WhereInspectorApplicationRuntime` for the next process.
+In DEBUG, `WhereDeveloperLaunchController` persists one mutually exclusive
+next-process choice: the standalone Inspector runtime or a configured,
+one-shot demo inside the regular runtime. The demo request is consumed as the
+regular runtime is built. Its first launch step activates an in-memory scope
+before onboarding can open the real store. A later process therefore returns
+to the user's untouched data unless another demo is scheduled.
 Every later callback and root-view request uses protocol dispatch, so no feature or lifecycle code switches on a mode.
 Before that selection, DEBUG boot completes any store-family recovery Inspector scheduled in the prior process.
 A failed cleanup forces the Inspector runtime and keeps the request visible instead of starting regular systems against the store.
