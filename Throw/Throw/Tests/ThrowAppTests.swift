@@ -11,15 +11,18 @@ struct ThrowAppTests {
         #expect(delegate.runtime === runtime)
     }
 
-    @Test func appLifecycleIsForwardedToTheSameRuntime() {
+    @Test func controllerSceneLifecycleUsesTheSameRuntime() {
         let runtime = ThrowApplicationRuntimeSpy()
         let delegate = AppDelegate(runtime: runtime)
+        let id = ControllerSceneID(rawValue: "controller-test")
 
-        delegate.applicationDidEnterBackground(UIApplication.shared)
-        delegate.applicationWillEnterForeground(UIApplication.shared)
+        delegate.runtime.controllerScene(id, didReceive: .willEnterForeground)
+        delegate.runtime.controllerScene(id, didReceive: .didEnterBackground)
 
-        #expect(runtime.backgroundCount == 1)
-        #expect(runtime.foregroundCount == 1)
+        #expect(runtime.controllerSceneEvents == [
+            RecordedControllerSceneEvent(id: id, event: .willEnterForeground),
+            RecordedControllerSceneEvent(id: id, event: .didEnterBackground),
+        ])
     }
 
     @Test func iOS27ExternalAccessoryConfigurationHasStableSceneIdentity() throws {

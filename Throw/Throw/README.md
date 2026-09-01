@@ -12,6 +12,9 @@ handoff does not erase roots to `AnyView` or construct feature services.
 
 - The iOS 26 scene manifest declares the controller and noninteractive
   external-display roles.
+- Each controller root binds to its exact `UIWindowScene` and forwards that
+  scene's foreground, background, and disconnect notifications to the shared
+  runtime under a typed persistent identity.
 - iOS 27 controller hosting registers a retained external scene accessory,
   availability-gated at runtime.
 - `ExternalDisplaySceneDelegate` hosts the production `ProjectionSurface` in
@@ -21,8 +24,10 @@ handoff does not erase roots to `AnyView` or construct feature services.
   use the same surface.
 
 Output demand is reference-counted by stable IDs so connecting another window
-does not create another poller. The runtime owns idle-timer restoration and
-forwards app background/foreground transitions to the session.
+does not create another poller. The runtime owns idle-timer restoration and the
+set of foreground controller-scene identities. The session is foreground while
+that set is nonempty. External-display scenes provide output demand but never
+stand in for a foreground controller.
 
 ## Resources
 

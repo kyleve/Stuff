@@ -99,4 +99,37 @@ struct ThrowRuntimeTests {
         #expect(idleTimer.isIdleTimerDisabled)
         #expect(idleTimer.assignedStates == [true, true])
     }
+
+    @Test func twoControllerScenesOwnAggregateForegroundPresence() {
+        let session = ThrowSession.fixture()
+        let idleTimer = IdleTimerControllerSpy(isIdleTimerDisabled: false)
+        let runtime = ThrowRuntime(session: session, idleTimerController: idleTimer)
+        let firstController = ControllerSceneID(rawValue: "controller-first")
+        let secondController = ControllerSceneID(rawValue: "controller-second")
+        let externalOutput = ProjectionOutput.externalDisplay(
+            ProjectionOutputID(rawValue: "external-lifecycle-test"),
+        )
+
+        runtime.projectionOutputConnected(externalOutput) { _ in }
+        #expect(session.hasProjectionOutputDemand)
+        #expect(session.hasForegroundControllerSceneForTesting == false)
+
+        runtime.controllerScene(firstController, didReceive: .willEnterForeground)
+        runtime.controllerScene(secondController, didReceive: .willEnterForeground)
+        runtime.controllerScene(firstController, didReceive: .didEnterBackground)
+        #expect(session.hasForegroundControllerSceneForTesting)
+
+        runtime.controllerScene(secondController, didReceive: .didDisconnect)
+        #expect(session.hasForegroundControllerSceneForTesting == false)
+        #expect(session.hasProjectionOutputDemand)
+
+        runtime.controllerScene(firstController, didReceive: .willEnterForeground)
+        #expect(session.hasForegroundControllerSceneForTesting)
+
+        runtime.controllerScene(firstController, didReceive: .didDisconnect)
+        runtime.projectionOutputDisconnected(externalOutput)
+        #expect(session.hasForegroundControllerSceneForTesting == false)
+        #expect(session.hasProjectionOutputDemand == false)
+        #expect(idleTimer.assignedStates == [true, false])
+    }
 }

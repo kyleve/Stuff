@@ -221,7 +221,12 @@ public final class ThrowSession {
 
     @ObservationIgnored var isApplyingPreferences = false
     @ObservationIgnored var hasStarted = false
-    @ObservationIgnored var isForeground = true
+    @ObservationIgnored var hasForegroundControllerScene: Bool
+    #if DEBUG
+        @_spi(Testing) public var hasForegroundControllerSceneForTesting: Bool {
+            hasForegroundControllerScene
+        }
+    #endif
     var aircraftSourceSelection: AircraftSourceSelection {
         get { setupState.sourceSelection }
         set { setupState = setupState.updatingSourceSelection(newValue) }
@@ -317,7 +322,9 @@ public final class ThrowSession {
         routeLogger: any FlightRouteLogging,
         rotationClock: any ProjectionRotationClock,
         softwareCredits: [SoftwareCredit],
+        initiallyHasForegroundControllerScene: Bool,
     ) {
+        hasForegroundControllerScene = initiallyHasForegroundControllerScene
         setupState = preferences.setupState
         projectionPlaylist = preferences.playlist
         activeExperienceID = preferences.playlist.selectedExperienceID
@@ -548,20 +555,17 @@ public final class ThrowSession {
         scheduleDemandReconciliation()
     }
 
-    public func applicationDidEnterBackground() {
-        guard isForeground else { return }
-        isForeground = false
-        cancelProjectionSessionLocationAcquisition(restoringPreviousHealth: true)
-        scheduleDemandReconciliation()
-        Task(name: "Throw flush preferences in background") { [self] in
-            await flushPreferencesSave()
+    public func controllerForegroundPresenceDidChange(_ hasForegroundControllerScene: Bool) {
+        guard self.hasForegroundControllerScene != hasForegroundControllerScene else { return }
+        self.hasForegroundControllerScene = hasForegroundControllerScene
+        if hasForegroundControllerScene {
+            expireTemporaryWakeIfNeeded()
+        } else {
+            cancelProjectionSessionLocationAcquisition(restoringPreviousHealth: true)
+            Task(name: "Throw flush preferences in background") { [self] in
+                await flushPreferencesSave()
+            }
         }
-    }
-
-    public func applicationWillEnterForeground() {
-        guard isForeground == false else { return }
-        isForeground = true
-        expireTemporaryWakeIfNeeded()
         scheduleDemandReconciliation()
     }
 

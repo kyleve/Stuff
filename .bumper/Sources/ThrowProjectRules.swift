@@ -20,6 +20,7 @@ let throwProjectRules = RuleSet {
     throwLiveDependencyCompositionRule
     throwAnyViewRule
     throwProviderBoundaryRule
+    throwSceneLifecycleRule
     throwCheckedConcurrencyRule
 }
 
@@ -152,6 +153,31 @@ private let throwProviderBoundaryRule = Rules.files(
             )
         }
     return typeFailures + referenceFailures
+}
+
+private let throwApplicationLifecycleMethodNames: Set<String> = [
+    "applicationDidEnterBackground",
+    "applicationWillEnterForeground",
+]
+
+private let throwSceneLifecycleRule = Rules.files(
+    "throw.controller_scene_lifecycle",
+    severity: .error,
+    summary: "Throw derives foreground presence from controller scenes.",
+    scope: .component(ThrowComponent.throwApp),
+) { file in
+    SyntaxQuery<FunctionDeclSyntax>()
+        .filter { throwApplicationLifecycleMethodNames.contains($0.node.name.text) }
+        .matches(in: file)
+        .map { match in
+            match.failure(
+                message: "Throw uses an application callback for scene lifecycle.",
+                evidence: ViolationEvidence(
+                    observed: match.node.name.text,
+                    expectation: "typed controller-scene lifecycle delivery",
+                ),
+            )
+        }
 }
 
 private let throwCheckedConcurrencyRule = Rules.files(

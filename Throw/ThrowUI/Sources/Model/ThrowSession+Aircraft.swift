@@ -403,7 +403,7 @@ extension ThrowSession {
         guard generation == demandGeneration else { return }
         let hasEnabledLayer = flightsEnabled || (geographyEnabled && projectionMode == .map)
         guard hasStarted,
-              isForeground,
+              hasForegroundControllerScene,
               outputDemands.isEmpty == false,
               isCalibrating == false,
               hasEnabledLayer,
@@ -506,7 +506,7 @@ extension ThrowSession {
         let generation = renderGeneration
         renderTask?.cancel()
         guard outputDemands.isEmpty == false,
-              isForeground,
+              hasForegroundControllerScene,
               isCalibrating == false,
               isQuietNow == false,
               currentLayerFrame != nil || (geographyEnabled && projectionMode == .map),

@@ -199,8 +199,8 @@ struct ThrowSessionLocationTests {
         await locationSource.waitForStartCount(1)
         let firstAcquisition = try #require(session.locationTask)
 
-        session.applicationDidEnterBackground()
-        session.applicationWillEnterForeground()
+        session.controllerForegroundPresenceDidChange(false)
+        session.controllerForegroundPresenceDidChange(true)
         await firstAcquisition.value
         await locationSource.waitForStartCount(2)
         #expect(session.locationHealth == .locating)

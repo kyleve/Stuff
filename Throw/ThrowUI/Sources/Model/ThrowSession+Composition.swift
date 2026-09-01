@@ -59,6 +59,7 @@ extension ThrowSession {
             routeLogger: PeriscopeFlightRouteLogger(log: ThrowLog.flightRoutes),
             rotationClock: SystemProjectionRotationClock(),
             softwareCredits: credits,
+            initiallyHasForegroundControllerScene: false,
         )
         session.settingsFailure = creditFailure
         return session
@@ -614,6 +615,7 @@ extension ThrowSession {
                     routeLogger: DiscardingFlightRouteLogger(),
                     rotationClock: SystemProjectionRotationClock(),
                     softwareCredits: [],
+                    initiallyHasForegroundControllerScene: true,
                 )
                 session.projectionFrame = quiet
                     ? emptyProjectionFrame(mode: .map, at: now)

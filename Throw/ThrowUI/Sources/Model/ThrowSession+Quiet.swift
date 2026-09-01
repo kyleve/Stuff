@@ -32,7 +32,7 @@ extension ThrowSession {
     func scheduleQuietBoundary() {
         quietBoundaryTask?.cancel()
         quietBoundaryTask = nil
-        guard isForeground else { return }
+        guard hasForegroundControllerScene else { return }
         let now = dateProvider.now()
         let boundary: Date?
         do {

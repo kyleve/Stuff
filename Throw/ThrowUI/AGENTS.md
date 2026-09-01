@@ -12,6 +12,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   Never refer to a concrete provider source or decoder.
 - Construct the live `ThrowSession`, stores, source graph, and poller only in
   `ThrowSession+Composition.swift`. Pass that session to every controller and output scene.
+- Accept aggregate controller foreground presence from the app runtime. Do not
+  observe application or UIKit scene lifecycle independently in ThrowUI.
 - Keep aircraft behavior in the one injected `AirAndSpaceRuntime`. Keep
   selection, prewarming, and rotation in `ProjectionExperienceCoordinator`.
 - Invalidate superseded Air & Space lifecycle work after every suspension.
