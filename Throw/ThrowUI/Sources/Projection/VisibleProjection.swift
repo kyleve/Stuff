@@ -13,7 +13,7 @@ enum VisibleProjection: Equatable {
         enum Content: Equatable {
             case placeholder(Placeholder)
             case rendered(
-                activationGeneration: ProjectionActivationLease.Generation?,
+                activationGeneration: ProjectionActivationLease.Generation,
                 output: ProjectionFrameWorkerOutput.AirAndSpace,
             )
             #if DEBUG
@@ -51,7 +51,7 @@ enum VisibleProjection: Equatable {
         enum Content: Equatable {
             case placeholder(Placeholder)
             case rendered(
-                activationGeneration: ProjectionActivationLease.Generation?,
+                activationGeneration: ProjectionActivationLease.Generation,
                 output: ProjectionFrameWorkerOutput.Transit,
             )
             #if DEBUG
@@ -129,36 +129,58 @@ enum VisibleProjection: Equatable {
     }
 
     static func rendered(
-        activationLease: ProjectionActivationLease?,
+        activationLease: ProjectionActivationLease,
         output: ProjectionFrameWorkerOutput,
     ) -> Self? {
         switch output {
             case let .airAndSpace(output):
-                guard activationLease?.experienceID == .airAndSpace || activationLease == nil
-                else { return nil }
+                guard activationLease.experienceID == .airAndSpace else { return nil }
                 return .airAndSpace(AirAndSpace(content: .rendered(
-                    activationGeneration: activationLease?.generation,
+                    activationGeneration: activationLease.generation,
                     output: output,
                 )))
             case let .transit(output):
-                guard activationLease?.experienceID == .transit || activationLease == nil
-                else { return nil }
+                guard activationLease.experienceID == .transit else { return nil }
                 return .transit(Transit(content: .rendered(
-                    activationGeneration: activationLease?.generation,
+                    activationGeneration: activationLease.generation,
                     output: output,
                 )))
             #if DEBUG
+                case .testing:
+                    return nil
+            #endif
+        }
+    }
+
+    #if DEBUG
+        static func fixture(output: ProjectionFrameWorkerOutput) -> Self {
+            switch output {
+                case let .airAndSpace(output):
+                    .airAndSpace(AirAndSpace(content: .fixture(.init(
+                        activationGeneration: nil,
+                        frame: output.render.frame,
+                        effects: output.render.effects,
+                        observerPoint: output.render.observerPoint,
+                        geographyHealth: output.render.geographyHealth,
+                    ))))
+                case let .transit(output):
+                    .transit(Transit(content: .fixture(.init(
+                        activationGeneration: nil,
+                        frame: output.render.frame,
+                        effects: output.render.effects,
+                        observerPoint: output.render.observerPoint,
+                        geographyHealth: output.render.geographyHealth,
+                    ))))
                 case let .testing(output):
-                    guard activationLease == nil else { return nil }
-                    return .testing(Testing(
+                    .testing(Testing(
                         frame: output.render.frame,
                         effects: output.render.effects,
                         observerPoint: output.render.observerPoint,
                         geographyHealth: output.render.geographyHealth,
                     ))
-            #endif
+            }
         }
-    }
+    #endif
 
     var experienceID: ProjectionExperienceID {
         switch self {

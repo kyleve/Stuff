@@ -44,6 +44,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   selection, prewarming, and rotation in `ProjectionExperienceCoordinator`.
 - Carry the coordinator-issued `ProjectionActivationLease` through activate and
   deactivate commands. Never mint a coordinator activation generation in a runtime.
+- Store a matching activation lease in each production rendered projection.
+  Block local reactivation while a source or observer replacement drains.
 - Invalidate superseded Air & Space lifecycle work after every suspension.
   Never let an old activation or deactivation change newer runtime state.
 - Keep one coordinator timer across all scenes. Run at most the active and
