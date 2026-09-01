@@ -293,8 +293,8 @@ struct ThrowSessionTests {
         let output = ProjectionOutput.preview(
             ProjectionOutputID(rawValue: "invalid-source-test"),
         )
-        session.locationMode = .manual
-        session.aircraftSourceSelection = .awaitingValidation(.adsbLol)
+        session.replaceLocationModeForTesting(.manual)
+        session.replaceSourceSelectionForTesting(.awaitingValidation(.adsbLol))
         session.outputDemands.insert(output)
         session.demandGeneration = 1
 
@@ -319,7 +319,7 @@ struct ThrowSessionTests {
         let output = ProjectionOutput.preview(
             ProjectionOutputID(rawValue: "geography-only-test"),
         )
-        session.locationMode = .manual
+        session.replaceLocationModeForTesting(.manual)
         session.outputDemands.insert(output)
         session.demandGeneration = 1
 
@@ -391,7 +391,7 @@ struct ThrowSessionTests {
 
     @Test func refreshingAManualLocationRequiresExplicitAcceptanceBeforeSwitchingToGPS() async {
         let session = ThrowSession.fixture()
-        session.locationMode = .manual
+        session.replaceLocationModeForTesting(.manual)
 
         await session.refreshLocation()
 

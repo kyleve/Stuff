@@ -288,39 +288,50 @@ public final class ThrowSession {
         }
     #endif
     var aircraftSourceSelection: AircraftSourceSelection {
-        get { setupState.sourceSelection }
-        set { setupState = setupState.updatingSourceSelection(newValue) }
+        setupState.sourceSelection
     }
 
     var selectedSourceConfiguration: AircraftSourceConfiguration? {
-        get { setupState.selectedSource }
-        set { setupState = setupState.selectingSource(newValue) }
+        setupState.selectedSource
     }
 
     var validatedSourceConfiguration: AircraftSourceConfiguration? {
-        get { setupState.validatedSource }
-        set { setupState = setupState.validatingSource(newValue) }
+        setupState.validatedSource
     }
 
     var confirmedLocation: ConfirmedObserverLocation? {
-        get { setupState.confirmedLocation }
-        set {
-            setupState = setupState.updatingLocation(
-                mode: setupState.locationMode,
-                confirmedLocation: newValue,
-            )
-        }
+        setupState.confirmedLocation
     }
 
     var locationMode: ObserverLocationMode {
-        get { setupState.locationMode }
-        set {
+        setupState.locationMode
+    }
+
+    #if DEBUG
+        @_spi(Testing) public func replaceSourceSelectionForTesting(
+            _ selection: AircraftSourceSelection,
+        ) {
+            setupState = setupState.updatingSourceSelection(selection)
+        }
+
+        @_spi(Testing) public func replaceConfirmedLocationForTesting(
+            _ location: ConfirmedObserverLocation?,
+        ) {
             setupState = setupState.updatingLocation(
-                mode: newValue,
+                mode: setupState.locationMode,
+                confirmedLocation: location,
+            )
+        }
+
+        @_spi(Testing) public func replaceLocationModeForTesting(
+            _ mode: ObserverLocationMode,
+        ) {
+            setupState = setupState.updatingLocation(
+                mode: mode,
                 confirmedLocation: setupState.confirmedLocation,
             )
         }
-    }
+    #endif
 
     @ObservationIgnored var pendingLocationFix: LocationFix?
     @ObservationIgnored var mayApplyTrueHeadingHint = true

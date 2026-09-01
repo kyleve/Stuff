@@ -67,6 +67,8 @@ underlying error. The UI does not store or render raw error descriptions.
 `ThrowSession+Composition.swift` is the only live construction boundary. It
 creates the stores, durable-logging starter, aircraft source graph, poller, and
 session once. Previews and tests use the fixture path in that same file.
+Source and observer-location projections are getter-only. Session commands
+persist and invalidate these values before they publish a replacement.
 
 The coordinator issues one `ProjectionActivationLease` for each View activation.
 The lease carries both the View identity and its monotonic generation through
