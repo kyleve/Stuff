@@ -1,4 +1,3 @@
-import CreditKit
 import Observation
 import SwiftUI
 import ThrowCore
@@ -133,7 +132,7 @@ public final class ThrowSession {
 
     public internal(set) var rapidAPICredentialState: CredentialState = .missing
     public internal(set) var flightradar24CredentialState: CredentialState = .missing
-    public internal(set) var softwareCredits: [SoftwareCredit]
+    public let softwareCreditsState: SoftwareCreditsLoadState
     public internal(set) var settingsFailure: String?
 
     public internal(set) var globalPreferences: ThrowGlobalPreferences
@@ -356,7 +355,7 @@ public final class ThrowSession {
         routeResolver: FlightRouteResolver,
         routeLogger: any FlightRouteLogging,
         rotationClock: any ProjectionRotationClock,
-        softwareCredits: [SoftwareCredit],
+        softwareCreditsState: SoftwareCreditsLoadState,
         durableLoggingStarter: (any ThrowDurableLoggingStarting)?,
         initiallyHasForegroundControllerScene: Bool,
         initialLaunchState: ThrowSessionLaunchState,
@@ -402,7 +401,7 @@ public final class ThrowSession {
             geographyLogger: geographyLogger,
             motionLogger: motionLogger,
         )
-        self.softwareCredits = softwareCredits
+        self.softwareCreditsState = softwareCreditsState
         self.durableLoggingStarter = durableLoggingStarter
         locationHealth = Self.locationHealth(
             for: preferences.confirmedLocation,

@@ -33,19 +33,20 @@ extension ThrowSession {
             credentialStore: credentialStore,
             dateProvider: dateProvider,
         )
-        let credits: [SoftwareCredit]
-        let creditFailure: String?
+        let softwareCreditsLoadResolution: SoftwareCreditsLoadResolution
         do {
-            credits = try AttributionManifest.load(
-                from: .main,
-                resource: "attribution",
-            ).credits
-            creditFailure = nil
+            softwareCreditsLoadResolution = try .loaded(
+                AttributionManifest.load(
+                    from: .main,
+                    resource: "attribution",
+                ).credits,
+            )
         } catch {
-            credits = []
-            creditFailure = String(localized: .aboutCreditsUnavailable)
+            softwareCreditsLoadResolution = .failed(
+                ThrowSoftwareCreditsLoadFailure(error: error),
+            )
         }
-        let session = ThrowSession(
+        return ThrowSession(
             preferences: .defaultValue,
             preferenceStore: UserDefaultsThrowPreferenceStore(userDefaults: .standard),
             credentialStore: credentialStore,
@@ -62,13 +63,13 @@ extension ThrowSession {
             ),
             routeLogger: PeriscopeFlightRouteLogger(log: ThrowLog.flightRoutes),
             rotationClock: SystemProjectionRotationClock(),
-            softwareCredits: credits,
-            durableLoggingStarter: PeriscopeThrowDurableLoggingStarter(),
+            softwareCreditsState: softwareCreditsLoadResolution.state,
+            durableLoggingStarter: PeriscopeThrowDurableLoggingStarter(
+                softwareCreditsLoadFailure: softwareCreditsLoadResolution.failure,
+            ),
             initiallyHasForegroundControllerScene: false,
             initialLaunchState: .loading,
         )
-        session.settingsFailure = creditFailure
-        return session
     }
 }
 
@@ -178,6 +179,39 @@ extension ThrowSession {
             let session = onboardingFixture()
             session.launchState = .failed(.preferences)
             return session
+        }
+
+        static func loadedSoftwareCreditsSnapshotFixture() -> ThrowSession {
+            makeFixture(
+                setupCompleted: true,
+                quiet: false,
+                transport: FixtureHTTPTransport(),
+                softwareCreditsStateOverride: .loaded([
+                    SoftwareCredit(
+                        name: "Periscope",
+                        kind: .library,
+                        version: "1.0.0",
+                        homepageURL: URL(string: "https://example.com/periscope"),
+                        license: LicenseNotice(name: "MIT License", text: "Fixture notice"),
+                    ),
+                    SoftwareCredit(
+                        name: "SwiftFormat",
+                        kind: .developmentTool,
+                        version: "0.58.5",
+                        homepageURL: URL(string: "https://github.com/nicklockwood/SwiftFormat"),
+                        license: LicenseNotice(name: "MIT License", text: "Fixture notice"),
+                    ),
+                ]),
+            )
+        }
+
+        static func unavailableSoftwareCreditsSnapshotFixture() -> ThrowSession {
+            makeFixture(
+                setupCompleted: true,
+                quiet: false,
+                transport: FixtureHTTPTransport(),
+                softwareCreditsStateOverride: .failed,
+            )
         }
 
         static func quietFixture() -> ThrowSession {
@@ -585,6 +619,7 @@ extension ThrowSession {
             initialLaunchStateOverride: ThrowSessionLaunchState? = nil,
             projectionMode: ProjectionMode = .map,
             airAndSpacePreferencesOverride: AirAndSpacePreferences? = nil,
+            softwareCreditsStateOverride: SoftwareCreditsLoadState? = nil,
         ) -> ThrowSession {
             do {
                 let now = Date(timeIntervalSince1970: 1_787_594_400)
@@ -707,7 +742,7 @@ extension ThrowSession {
                     ),
                     routeLogger: DiscardingFlightRouteLogger(),
                     rotationClock: SystemProjectionRotationClock(),
-                    softwareCredits: [],
+                    softwareCreditsState: softwareCreditsStateOverride ?? .loaded([]),
                     durableLoggingStarter: durableLoggingStarterOverride,
                     initiallyHasForegroundControllerScene: true,
                     initialLaunchState: initialLaunchStateOverride ?? .loaded(setupState),

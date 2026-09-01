@@ -15,15 +15,22 @@ public protocol ThrowDurableLoggingStarting: Sendable {
 /// Opens an on-disk Periscope store and routes Throw's process log into it.
 public struct PeriscopeThrowDurableLoggingStarter: ThrowDurableLoggingStarting {
     private let system: Periscope
-    private let storage: PeriscopeStore.Storage
+    private let makeStore: @Sendable () async throws -> PeriscopeStore
+    private let softwareCreditsLoadFailure: ThrowSoftwareCreditsLoadFailure?
     private let now: @Sendable () -> Date
     private let logger: Log<ThrowSessionLogEvent>
 
-    public init() {
+    public init(softwareCreditsLoadFailure: ThrowSoftwareCreditsLoadFailure?) {
         self.init(
             system: .shared,
-            storage: .onDisk,
+            pendingSoftwareCreditsLoadFailure: softwareCreditsLoadFailure,
             now: { Date() },
+            makeStore: {
+                try await PeriscopeStore.make(
+                    storage: .onDisk,
+                    session: .current(attributes: [:]),
+                )
+            },
         )
     }
 
@@ -31,45 +38,76 @@ public struct PeriscopeThrowDurableLoggingStarter: ThrowDurableLoggingStarting {
         @_spi(Testing) public init(
             system: Periscope,
             storage: PeriscopeStore.Storage,
+            softwareCreditsLoadFailure: ThrowSoftwareCreditsLoadFailure?,
             now: @escaping @Sendable () -> Date,
         ) {
-            self.system = system
-            self.storage = storage
-            self.now = now
-            logger = Log<ThrowRootLogEvent>(recorder: system)(ThrowSessionLogEvent.self)
+            self.init(
+                system: system,
+                pendingSoftwareCreditsLoadFailure: softwareCreditsLoadFailure,
+                now: now,
+                makeStore: {
+                    try await PeriscopeStore.make(
+                        storage: storage,
+                        session: .current(attributes: [:]),
+                    )
+                },
+            )
         }
-    #else
-        private init(
+
+        @_spi(Testing) public init(
             system: Periscope,
-            storage: PeriscopeStore.Storage,
+            softwareCreditsLoadFailure: ThrowSoftwareCreditsLoadFailure?,
             now: @escaping @Sendable () -> Date,
+            makeStore: @escaping @Sendable () async throws -> PeriscopeStore,
         ) {
-            self.system = system
-            self.storage = storage
-            self.now = now
-            logger = Log<ThrowRootLogEvent>(recorder: system)(ThrowSessionLogEvent.self)
+            self.init(
+                system: system,
+                pendingSoftwareCreditsLoadFailure: softwareCreditsLoadFailure,
+                now: now,
+                makeStore: makeStore,
+            )
         }
     #endif
 
+    private init(
+        system: Periscope,
+        pendingSoftwareCreditsLoadFailure: ThrowSoftwareCreditsLoadFailure?,
+        now: @escaping @Sendable () -> Date,
+        makeStore: @escaping @Sendable () async throws -> PeriscopeStore,
+    ) {
+        self.system = system
+        self.makeStore = makeStore
+        softwareCreditsLoadFailure = pendingSoftwareCreditsLoadFailure
+        self.now = now
+        logger = Log<ThrowRootLogEvent>(recorder: system)(ThrowSessionLogEvent.self)
+    }
+
     public func start() async throws -> any ThrowDurableLoggingSession {
         do {
-            let store = try await PeriscopeStore.make(
-                storage: storage,
-                session: .current(attributes: [:]),
-            )
+            let store = try await makeStore()
             _ = system.add(sink: store)
             logger { .durableLoggingReady }
+            recordSoftwareCreditsLoadFailureIfNeeded()
             return PeriscopeThrowDurableLoggingSession(
                 store: store,
                 now: now,
                 logger: logger,
             )
         } catch {
+            recordSoftwareCreditsLoadFailureIfNeeded()
             logger(attachments: [.error(error, name: "open-error")]) {
                 .durableLoggingUnavailable(description: String(describing: error))
             }
             throw error
         }
+    }
+
+    private func recordSoftwareCreditsLoadFailureIfNeeded() {
+        guard let softwareCreditsLoadFailure else { return }
+        ThrowLog.recordSoftwareCreditsLoadFailure(
+            softwareCreditsLoadFailure,
+            using: logger,
+        )
     }
 }
 

@@ -22,6 +22,7 @@ public enum ThrowSessionLogEvent: LogEvent, Equatable {
     case durableLoggingHistoryPruned(expiredEventCount: Int, overflowEventCount: Int)
     case durableLoggingHistoryPruneFailed(description: String)
     case coldLaunchFailed(boundary: ColdLaunchBoundary)
+    case softwareCreditsLoadFailed
 
     public static let eventName = "ThrowSession"
 
@@ -31,7 +32,7 @@ public enum ThrowSessionLogEvent: LogEvent, Equatable {
                 .info
             case .durableLoggingHistoryPruneFailed:
                 .warning
-            case .durableLoggingUnavailable, .coldLaunchFailed:
+            case .durableLoggingUnavailable, .coldLaunchFailed, .softwareCreditsLoadFailed:
                 .error
         }
     }
@@ -48,6 +49,8 @@ public enum ThrowSessionLogEvent: LogEvent, Equatable {
                 "Failed to prune durable log history: \(description)"
             case let .coldLaunchFailed(boundary):
                 "Cold launch failed at the \(boundary.rawValue) boundary"
+            case .softwareCreditsLoadFailed:
+                "Software credits failed to load"
         }
     }
 
@@ -63,6 +66,8 @@ public enum ThrowSessionLogEvent: LogEvent, Equatable {
                 "Failed to prune durable log history"
             case .coldLaunchFailed:
                 "Cold launch failed"
+            case .softwareCreditsLoadFailed:
+                "Software credits failed to load"
         }
     }
 
@@ -87,7 +92,7 @@ public enum ThrowSessionLogEvent: LogEvent, Equatable {
                     ),
                 ]
             case .durableLoggingReady, .durableLoggingUnavailable,
-                 .durableLoggingHistoryPruneFailed:
+                 .durableLoggingHistoryPruneFailed, .softwareCreditsLoadFailed:
                 []
         }
     }
@@ -652,6 +657,15 @@ public enum ThrowLog {
     ) {
         session(attachments: [.error(error, name: "launch-error")]) {
             .coldLaunchFailed(boundary: boundary)
+        }
+    }
+
+    static func recordSoftwareCreditsLoadFailure(
+        _ failure: ThrowSoftwareCreditsLoadFailure,
+        using logger: Log<ThrowSessionLogEvent>,
+    ) {
+        logger(attachments: [failure.attachment]) {
+            .softwareCreditsLoadFailed
         }
     }
 }

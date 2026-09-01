@@ -18,6 +18,15 @@ struct ThrowLogTests {
         #expect(category.rawValue == "credential")
     }
 
+    @Test func softwareCreditsFailureContainsNoRawErrorText() {
+        let event = ThrowSessionLogEvent.softwareCreditsLoadFailed
+
+        #expect(event.level == .error)
+        #expect(event.message == "Software credits failed to load")
+        #expect(event.remoteMessage == "Software credits failed to load")
+        #expect(event.remoteFields.isEmpty)
+    }
+
     @Test func failureCategoryIsClosedAndCredentialFree() {
         #expect(AircraftPollingLogEvent.FailureCategory.allCases.count == 15)
         let event = AircraftPollingLogEvent.requestFailed(
