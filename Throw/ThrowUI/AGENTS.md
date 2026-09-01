@@ -50,6 +50,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   Block local reactivation while a source or observer replacement drains.
 - Invalidate superseded Air & Space lifecycle work after every suspension.
   Never let an old activation or deactivation change newer runtime state.
+- Treat each Air & Space deactivation generation as a monotonic runtime tombstone.
+  A newer teardown retires older work. An older teardown cannot stop a newer lease.
 - Keep one coordinator timer across all scenes. Run at most the active and
   prewarming experience runtimes.
 - Keep the coordinator playlist and active identity in one validated value.

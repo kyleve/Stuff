@@ -38,6 +38,50 @@ struct AirAndSpaceRuntimeUpdate {
 
 /// Owns aircraft polling, semantic frame construction, motion state, and route enrichment.
 actor AirAndSpaceRuntime {
+    private enum ActivationLifecycle {
+        case idle
+        case active(ProjectionActivationLease)
+        case inactive(latestGeneration: ProjectionActivationLease.Generation)
+
+        var activeLease: ProjectionActivationLease? {
+            guard case let .active(lease) = self else { return nil }
+            return lease
+        }
+
+        mutating func activate(_ lease: ProjectionActivationLease) -> Bool {
+            switch self {
+                case .idle:
+                    self = .active(lease)
+                    return true
+                case let .active(currentLease):
+                    guard lease.generation >= currentLease.generation else { return false }
+                    self = .active(lease)
+                    return true
+                case let .inactive(latestGeneration):
+                    guard lease.generation > latestGeneration else { return false }
+                    self = .active(lease)
+                    return true
+            }
+        }
+
+        /// Retires an active lease when the command is at least as new.
+        mutating func deactivate(upThrough lease: ProjectionActivationLease) -> Bool {
+            switch self {
+                case .idle:
+                    self = .inactive(latestGeneration: lease.generation)
+                    return false
+                case let .active(activeLease):
+                    guard lease.generation >= activeLease.generation else { return false }
+                    self = .inactive(latestGeneration: lease.generation)
+                    return true
+                case let .inactive(latestGeneration):
+                    guard lease.generation >= latestGeneration else { return false }
+                    self = .inactive(latestGeneration: lease.generation)
+                    return false
+            }
+        }
+    }
+
     private let pollingCoordinator: AircraftPollingCoordinator
     private let flightsRuntime: any FlightsLayerRunning
     private let routeResolver: FlightRouteResolver
@@ -50,8 +94,7 @@ actor AirAndSpaceRuntime {
     private var observationTask: Task<Void, Never>?
     private var routeTask: Task<Void, Never>?
     private var activePollingSignature: PollingSignature?
-    private var activeLease: ProjectionActivationLease?
-    private var latestLeaseGeneration: ProjectionActivationLease.Generation?
+    private var activationLifecycle = ActivationLifecycle.idle
     private var successfulActivationLease: ProjectionActivationLease?
     private var lifecycleGeneration: UInt64 = 0
     private var stateGeneration: UInt64 = 0
@@ -112,10 +155,11 @@ actor AirAndSpaceRuntime {
             assertionFailure("Air & Space received another experience's activation lease")
             return
         }
-        guard latestLeaseGeneration.map({ lease.generation >= $0 }) ?? true else { return }
+        let previousLease = activationLifecycle.activeLease
+        guard activationLifecycle.activate(lease) else { return }
         startObservingIfNeeded()
         let signature = PollingSignature(configuration: configuration, query: query)
-        let activationChanged = activeLease != lease
+        let activationChanged = previousLease != lease
         let sourceChanged = activePollingSignature?.configuration != configuration
         let queryChanged = activePollingSignature?.query != query
         let labelsChanged = self.labelMode != labelMode
@@ -125,8 +169,6 @@ actor AirAndSpaceRuntime {
             lifecycleGeneration &+= 1
             let lifecycleGeneration = lifecycleGeneration
             stateGeneration &+= 1
-            activeLease = lease
-            latestLeaseGeneration = lease.generation
             successfulActivationLease = nil
             activePollingSignature = signature
             cancelRouteEnrichment()
@@ -156,15 +198,14 @@ actor AirAndSpaceRuntime {
         lease: ProjectionActivationLease,
         reporting health: FeedHealth,
     ) async {
-        guard activeLease == lease else { return }
-        guard activePollingSignature != nil || currentSnapshot != nil || self.health != health
-        else {
+        guard lease.experienceID == .airAndSpace else {
+            assertionFailure("Air & Space received another experience's deactivation lease")
             return
         }
+        guard activationLifecycle.deactivate(upThrough: lease) else { return }
         lifecycleGeneration &+= 1
         let lifecycleGeneration = lifecycleGeneration
         stateGeneration &+= 1
-        activeLease = nil
         successfulActivationLease = nil
         activePollingSignature = nil
         inactiveHealth = health
@@ -187,7 +228,7 @@ actor AirAndSpaceRuntime {
     }
 
     func updateVisibleContentCount(_ count: Int, lease: ProjectionActivationLease) {
-        guard activeLease == lease else { return }
+        guard activationLifecycle.activeLease == lease else { return }
         switch health {
             case let .healthy(lastUpdate, oldCount) where oldCount != count:
                 health = .healthy(lastUpdate: lastUpdate, visibleContentCount: count)
@@ -242,7 +283,7 @@ actor AirAndSpaceRuntime {
                     currentAvailability = .current
                     currentLayerFrame = layer
                     semanticPreparationState = .ready
-                    successfulActivationLease = activeLease
+                    successfulActivationLease = activationLifecycle.activeLease
                     health = .healthy(
                         lastUpdate: snapshot.fetchedAt,
                         visibleContentCount: health.visibleContentCount,
@@ -453,7 +494,7 @@ actor AirAndSpaceRuntime {
 
     private func updateValue() -> AirAndSpaceRuntimeUpdate {
         AirAndSpaceRuntimeUpdate(
-            activationLease: activeLease,
+            activationLease: activationLifecycle.activeLease,
             successfulActivationLease: successfulActivationLease,
             health: health,
             flightsFrame: currentLayerFrame,
