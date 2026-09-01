@@ -4,8 +4,8 @@ This model checks one question:
 
 > After Throw replaces aircraft polling, can an old or out-of-order update become the new activation's visible state?
 
-The model represents production commit `cf153cf6aae65f9d9177897adf5d543d81656a29`.
-That commit added ordered polling publications and strict revision acceptance.
+The model represents production commit `60c2540189c899a9efca542c157d6b0686710d06`.
+That revision includes the final physical-polling lifecycle and ordered polling publications.
 
 This result is design evidence for the stated bounds and assumptions.
 It is not proof that the Swift implementation is correct.
@@ -25,17 +25,17 @@ Run this concern from the repository root:
 
 | Model state or action | Production authority |
 | --- | --- |
-| `targetContext` | `AirAndSpaceRuntime.activePollingSignature` identifies the requested source and query. |
+| `targetContext` | [`AirAndSpacePhysicalPollingLease`](../../ThrowUI/Sources/Model/AirAndSpaceRuntime.swift#L14-L19) identifies one runtime-owned physical polling incarnation. The model gives each replacement or resume a new context. |
 | `mintedToken` | `AircraftPollingCoordinator.activate(...)` and `update(...)` mint a typed token from `lifecycleRequestGeneration`. |
-| `coreToken` and `coreContext` | `AircraftPollingCoordinator.activePolling` owns the accepted token, configuration, and query. |
+| `coreToken` and `coreContext` | [`AircraftPollingCoordinator.activePolling`](../../ThrowCore/Sources/AircraftPollingCoordinator.swift#L157-L163) owns the accepted Core token, configuration, and query for that incarnation. |
 | `coreRevision` | `AircraftPollingCoordinator.activePublicationRevision` orders publications within one token. |
 | `coreUpdate` | The coordinator's private `update` field is the value returned by `currentUpdate()`. |
 | `sourcePhase` and `PublishHealthySnapshot` | The poll task returns from `snapshot(for:)`, checks its generation, and calls `publish(...)`. |
 | `streamBuffer` | The coordinator's `AsyncStream` uses `.bufferingNewest(1)`. A new yield replaces the pending value. |
 | `streamDelivery` | The observation task has received a value, but `AirAndSpaceRuntime.apply(...)` has not run. |
 | `recoveryUpdate` | `currentUpdate()` captured Core state before the activation task resumed on the runtime actor. |
-| `acceptance` | `PollingPublicationAcceptance` is inactive, awaiting activation, or active with one token and revision cursor. |
-| `lastConsumed` | The last active update that passed `PollingPublicationAcceptance.accept(...)`. |
+| `acceptance` | [`AirAndSpaceRuntime.PhysicalPollingLifecycle`](../../ThrowUI/Sources/Model/AirAndSpaceRuntime.swift#L99-L199) is stopped, activating, or active with one exact Core token and revision cursor. |
+| `lastConsumed` | The last active update that passed `PhysicalPollingLifecycle.accept(_:)`. |
 | `stateGeneration` | `AirAndSpaceRuntime.stateGeneration` invalidates semantic work started from older state. |
 | `pendingFrames` and `CompleteFrame` | `makeLayerFrame(...)` is suspended, or its result has returned to the runtime actor. |
 | `uiState` and content fields | `health`, `currentSnapshot`, and `currentLayerFrame` supply the published runtime update. |
@@ -59,9 +59,16 @@ The model separates each relevant suspension or delivery boundary:
 11. `CompleteFrame` represents the route-cache and frame-builder suspensions returning.
 12. The three deactivation labels cover Core cancellation, drain, and the runtime frame reset.
 
-The token is also the abstract context identifier.
-Distinct tokens therefore represent distinct source or query state.
-This abstraction preserves the identity comparison required by the checked property.
+`targetContext` is a physical polling incarnation, not a `PollingSignature`.
+The signature contains request data and does not grant publication authority.
+
+Suspension preserves the experience lease and clears physical polling state.
+A same-experience resume can use an identical signature.
+The runtime still mints a new physical lease, and Core mints a fresh token.
+The model represents that resume with a new `targetContext`.
+
+The separate [`ProjectionActivation`](../ProjectionActivation/README.md) model checks demand suspension and experience lease retention.
+It also checks that the resumed poller uses a newer physical attempt.
 
 The `update` operation represents a query-only replacement that skips `flightsRuntime.reset()`.
 It also covers the shared Core `performUpdate(...)` to `replace(...)` path.
@@ -124,7 +131,7 @@ The safety properties do not require source completion.
 
 The model excludes source failures, retries, quiet state, task cancellation, and process termination.
 It also excludes route enrichment, frame-builder failure, and provider polls after the first healthy result.
-The separate `ProjectionActivation` model covers overlapping lifecycle commands and lease tombstones.
+The separate [`ProjectionActivation`](../ProjectionActivation/README.md) model covers overlapping lifecycle commands, demand generations, physical suspension, and experience lease tombstones.
 
 The model assumes finite counters do not overflow.
 It assumes a Core update caller installs the returned token before it applies recovery state.
@@ -159,6 +166,9 @@ The manifest requires the named failure, so another TLC error does not count.
 The deterministic Swift guard is
 [`AirAndSpaceRuntimeTests.currentUpdateRecoveryCannotRegressANewerStreamPublication`](../../ThrowUI/Tests/AirAndSpaceRuntimeTests.swift).
 It parks the recovery capture and the healthy frame build without timing delays.
+
+[`AirAndSpaceRuntimeTests.suspendedPollingRejectsAnOldPublicationAndResumesTheSameLease`](../../ThrowUI/Tests/AirAndSpaceRuntimeTests.swift)
+checks an identical-signature resume. It requires a fresh physical lease and Core token.
 
 ## Result
 
