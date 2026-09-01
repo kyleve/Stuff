@@ -4,12 +4,12 @@ public struct ConfiguredAircraftSource: Sendable, CustomStringConvertible,
     CustomDebugStringConvertible
 {
     public let source: any AircraftObservationSource
-    public let baseCadence: Duration
+    public let baseCadence: AircraftPollingCadence
     public let metadataWarning: AircraftSourceFailure?
 
     public init(
         source: any AircraftObservationSource,
-        baseCadence: Duration,
+        baseCadence: AircraftPollingCadence,
         metadataWarning: AircraftSourceFailure?,
     ) {
         self.source = source
@@ -56,13 +56,13 @@ public struct AircraftSourceFactory: AircraftSourceProducing {
         let decoder = ADSBExchangeV2Decoder()
         switch configuration {
             case .adsbLol:
-                return ConfiguredAircraftSource(
+                return try ConfiguredAircraftSource(
                     source: AdsBLolSource(
                         transport: cloudTransport,
                         decoder: decoder,
                         dateProvider: dateProvider,
                     ),
-                    baseCadence: .seconds(10),
+                    baseCadence: AircraftPollingCadence(duration: .seconds(10)),
                     metadataWarning: nil,
                 )
             case let .readsb(readsbConfiguration):
@@ -73,9 +73,11 @@ public struct AircraftSourceFactory: AircraftSourceProducing {
                     dateProvider: dateProvider,
                 )
                 let timing = try await source.recommendedPollingTiming()
-                return ConfiguredAircraftSource(
+                return try ConfiguredAircraftSource(
                     source: source,
-                    baseCadence: .seconds(timing.intervalSeconds),
+                    baseCadence: AircraftPollingCadence(
+                        duration: .seconds(timing.intervalSeconds),
+                    ),
                     metadataWarning: timing.metadataFailure,
                 )
             case let .adsbExchangeRapidAPI(rapidConfiguration):
@@ -84,14 +86,16 @@ public struct AircraftSourceFactory: AircraftSourceProducing {
                 ) else {
                     throw AircraftSourceFailure.missingCredential
                 }
-                return ConfiguredAircraftSource(
+                return try ConfiguredAircraftSource(
                     source: ADSBExchangeRapidAPISource(
                         transport: cloudTransport,
                         decoder: decoder,
                         credential: credential,
                         dateProvider: dateProvider,
                     ),
-                    baseCadence: rapidConfiguration.pollingInterval.duration,
+                    baseCadence: AircraftPollingCadence(
+                        duration: rapidConfiguration.pollingInterval.duration,
+                    ),
                     metadataWarning: nil,
                 )
             case let .flightradar24(configuration):
@@ -100,14 +104,16 @@ public struct AircraftSourceFactory: AircraftSourceProducing {
                 ) else {
                     throw AircraftSourceFailure.missingCredential
                 }
-                return ConfiguredAircraftSource(
+                return try ConfiguredAircraftSource(
                     source: Flightradar24Source(
                         transport: cloudTransport,
                         decoder: Flightradar24Decoder(),
                         credential: credential,
                         dateProvider: dateProvider,
                     ),
-                    baseCadence: configuration.pollingInterval.duration,
+                    baseCadence: AircraftPollingCadence(
+                        duration: configuration.pollingInterval.duration,
+                    ),
                     metadataWarning: nil,
                 )
         }

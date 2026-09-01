@@ -111,12 +111,12 @@ public enum AircraftPollingUpdate: Equatable, Sendable {
 
 public enum AircraftPollingBackoff {
     public static func delay(
-        baseCadence: Duration,
+        baseCadence: AircraftPollingCadence,
         failureCount: Int,
         retryAfterSeconds: Double?,
     ) -> Duration {
         precondition(failureCount > 0)
-        let baseSeconds = baseCadence.secondsValue
+        let baseSeconds = baseCadence.duration.secondsValue
         let exponent = min(failureCount - 1, 20)
         let exponential = baseSeconds * pow(2, Double(exponent))
         let bounded = min(max(exponential, 2), 60)
@@ -478,7 +478,7 @@ public actor AircraftPollingCoordinator {
                 failureStartedAt = nil
                 lastGood = snapshot
                 let nextPollAt = completedAt.addingTimeInterval(
-                    configuredSource.baseCadence.secondsValue,
+                    configuredSource.baseCadence.duration.secondsValue,
                 )
                 publish(
                     .healthy(snapshot: snapshot, nextPollAt: nextPollAt),
@@ -511,7 +511,7 @@ public actor AircraftPollingCoordinator {
                         ),
                     )
                 }
-                try await clock.sleep(for: configuredSource.baseCadence)
+                try await clock.sleep(for: configuredSource.baseCadence.duration)
             } catch is CancellationError {
                 return
             } catch let failure as AircraftSourceFailure {

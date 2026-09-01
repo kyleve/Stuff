@@ -62,18 +62,21 @@ struct AircraftPollingCoordinatorTests {
         (4, 60.0),
         (10, 60.0),
     ])
-    func exponentialBackoffCapsAtSixtySeconds(failureCount: Int, expected: Double) {
-        let delay = AircraftPollingBackoff.delay(
-            baseCadence: .seconds(10),
+    func exponentialBackoffCapsAtSixtySeconds(
+        failureCount: Int,
+        expected: Double,
+    ) throws {
+        let delay = try AircraftPollingBackoff.delay(
+            baseCadence: AircraftPollingCadence(duration: .seconds(10)),
             failureCount: failureCount,
             retryAfterSeconds: nil,
         )
         #expect(delay == .seconds(expected))
     }
 
-    @Test func serverRetryAfterCanExceedSixtySecondCap() {
-        let delay = AircraftPollingBackoff.delay(
-            baseCadence: .seconds(10),
+    @Test func serverRetryAfterCanExceedSixtySecondCap() throws {
+        let delay = try AircraftPollingBackoff.delay(
+            baseCadence: AircraftPollingCadence(duration: .seconds(10)),
             failureCount: 1,
             retryAfterSeconds: 180,
         )
@@ -694,12 +697,12 @@ struct AircraftPollingCoordinatorTests {
         func makeSource(
             configuration: AircraftSourceConfiguration,
         ) async throws -> ConfiguredAircraftSource {
-            ConfiguredAircraftSource(
+            try ConfiguredAircraftSource(
                 source: SuccessfulStatusSource(
                     kind: configuration.kind,
                     statusCode: statusCode,
                 ),
-                baseCadence: .seconds(300),
+                baseCadence: AircraftPollingCadence(duration: .seconds(300)),
                 metadataWarning: nil,
             )
         }
@@ -726,12 +729,12 @@ struct AircraftPollingCoordinatorTests {
         func makeSource(
             configuration: AircraftSourceConfiguration,
         ) async throws -> ConfiguredAircraftSource {
-            ConfiguredAircraftSource(
+            try ConfiguredAircraftSource(
                 source: DiagnosticSnapshotSource(
                     kind: configuration.kind,
                     diagnostics: diagnostics,
                 ),
-                baseCadence: .seconds(300),
+                baseCadence: AircraftPollingCadence(duration: .seconds(300)),
                 metadataWarning: nil,
             )
         }
@@ -756,9 +759,9 @@ struct AircraftPollingCoordinatorTests {
         func makeSource(
             configuration _: AircraftSourceConfiguration,
         ) async throws -> ConfiguredAircraftSource {
-            ConfiguredAircraftSource(
+            try ConfiguredAircraftSource(
                 source: SuccessfulStatusSource(kind: .readsb, statusCode: 200),
-                baseCadence: .seconds(1),
+                baseCadence: AircraftPollingCadence(duration: .seconds(1)),
                 metadataWarning: .transport(.offline),
             )
         }
@@ -770,9 +773,9 @@ struct AircraftPollingCoordinatorTests {
         func makeSource(
             configuration _: AircraftSourceConfiguration,
         ) async throws -> ConfiguredAircraftSource {
-            ConfiguredAircraftSource(
+            try ConfiguredAircraftSource(
                 source: source,
-                baseCadence: .seconds(10),
+                baseCadence: AircraftPollingCadence(duration: .seconds(10)),
                 metadataWarning: nil,
             )
         }
@@ -818,9 +821,9 @@ struct AircraftPollingCoordinatorTests {
         func makeSource(
             configuration _: AircraftSourceConfiguration,
         ) async throws -> ConfiguredAircraftSource {
-            ConfiguredAircraftSource(
+            try ConfiguredAircraftSource(
                 source: GenericFailingSource(errorSentinel: errorSentinel),
-                baseCadence: .seconds(10),
+                baseCadence: AircraftPollingCadence(duration: .seconds(10)),
                 metadataWarning: nil,
             )
         }
@@ -921,9 +924,9 @@ private struct ProbeSourceFactory: AircraftSourceProducing {
         } else {
             ImmediateProbeSource(kind: configuration.kind, journal: journal)
         }
-        return ConfiguredAircraftSource(
+        return try ConfiguredAircraftSource(
             source: source,
-            baseCadence: .seconds(300),
+            baseCadence: AircraftPollingCadence(duration: .seconds(300)),
             metadataWarning: nil,
         )
     }

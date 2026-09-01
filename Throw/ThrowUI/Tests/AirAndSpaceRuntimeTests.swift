@@ -729,9 +729,9 @@ private struct ConfigurationEchoAircraftSourceFactory: AircraftSourceProducing {
     func makeSource(
         configuration: AircraftSourceConfiguration,
     ) async throws -> ConfiguredAircraftSource {
-        ConfiguredAircraftSource(
+        try ConfiguredAircraftSource(
             source: ConfigurationEchoAircraftSource(kind: configuration.kind, date: date),
-            baseCadence: .seconds(300),
+            baseCadence: AircraftPollingCadence(duration: .seconds(300)),
             metadataWarning: nil,
         )
     }
@@ -749,9 +749,9 @@ private struct SuspendedOldSnapshotFactory: AircraftSourceProducing {
         } else {
             ConfigurationEchoAircraftSource(kind: configuration.kind, date: date)
         }
-        return ConfiguredAircraftSource(
+        return try ConfiguredAircraftSource(
             source: source,
-            baseCadence: .seconds(300),
+            baseCadence: AircraftPollingCadence(duration: .seconds(300)),
             metadataWarning: nil,
         )
     }
@@ -793,9 +793,9 @@ private struct FixedAircraftSourceFactory: AircraftSourceProducing {
     func makeSource(
         configuration _: AircraftSourceConfiguration,
     ) async throws -> ConfiguredAircraftSource {
-        ConfiguredAircraftSource(
+        try ConfiguredAircraftSource(
             source: FixedAircraftSource(snapshot: snapshot),
-            baseCadence: .seconds(300),
+            baseCadence: AircraftPollingCadence(duration: .seconds(300)),
             metadataWarning: nil,
         )
     }
