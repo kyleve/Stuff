@@ -8,7 +8,7 @@ let deployment: DeploymentTargets = .iOS("26.0")
 let macDeployment: DeploymentTargets = .macOS("26.0")
 
 /// Local Swift package (see root `Package.swift`) for the library products
-/// (StuffCore, WhereCore, WhereUI, TestHostSupport, the Broadway modules, …).
+/// (WhereCore, WhereUI, TestHostSupport, the Broadway modules, …).
 private let stuffPackage = Package.local(path: .relativeToRoot("."))
 private let sfSafeSymbolsPackage = Package.remote(
     url: "https://github.com/SFSafeSymbols/SFSafeSymbols",
@@ -504,12 +504,6 @@ let project = Project(
             ],
         ),
         unitTests(
-            name: "StuffCoreTests",
-            bundleIdSuffix: "stuffcore",
-            productDependency: "StuffCore",
-            sources: ["Shared/StuffCore/Tests/**"],
-        ),
-        unitTests(
             name: "CreditKitTests",
             bundleIdSuffix: "creditkit",
             productDependency: "CreditKit",
@@ -821,7 +815,6 @@ let project = Project(
                 "Where",
                 "RegionViewer",
                 "StuffTestHost",
-                "StuffCoreTests",
                 "CreditKitTests",
                 "WhereCrashReportingTests",
                 "LifecycleKitTests",
@@ -849,7 +842,6 @@ let project = Project(
             ]),
             testAction: .targets(
                 [
-                    "StuffCoreTests",
                     "CreditKitTests",
                     "WhereCrashReportingTests",
                     "LifecycleKitTests",
@@ -878,7 +870,6 @@ let project = Project(
             ),
         ),
         testScheme(name: "LedgerCoreTests"),
-        testScheme(name: "StuffCoreTests"),
         testScheme(name: "CreditKitTests"),
         testScheme(name: "WhereCrashReportingTests"),
         testScheme(name: "LifecycleKitTests"),

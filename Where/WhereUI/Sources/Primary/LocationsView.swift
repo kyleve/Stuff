@@ -7,8 +7,8 @@ import WhereCore
 
 /// Locations tab: the regions you spend the most days in for the selected year,
 /// shown as prominent Liquid Glass cards, with the Elsewhere summary folded in
-/// at the bottom (only when there are secondary regions) and a Resolve button
-/// that appears — badged — only while there are data issues to fix.
+/// at the bottom (only when there are secondary regions), plus toolbar actions
+/// for planned stays and any data issues that need resolution.
 struct LocationsView: View {
     let report: YearReportModel
 
@@ -16,6 +16,7 @@ struct LocationsView: View {
     @State private var plannedStayEditorTarget: PlannedStayEditorTarget?
     @State private var isCardSurfaceVisible = false
     @State private var cardPresentation: LocationCardsPresentationModel
+    @State private var planning = LocationsPlanningModel()
 
     /// Drives the region cards' tilt-reactive light sheen. Started/stopped
     /// with the view's lifecycle; a no-op on hardware without device motion.
@@ -44,21 +45,32 @@ struct LocationsView: View {
     }
 
     var body: some View {
+        @Bindable var planning = planning
+
         NavigationStack {
             screen
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    // Resolve is a toolbar action here rather than its own tab:
-                    // it appears (badged with the count) only while there are
-                    // data issues to fix, and opens the resolution list.
-                    if report.dataIssueCount > 0 {
-                        ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        // Resolve stays immediately left of the stable planning
+                        // affordance and appears only while issues need attention.
+                        if report.dataIssueCount > 0 {
                             Button {
                                 showingResolution = true
                             } label: {
                                 ResolveToolbarLabel(count: report.dataIssueCount)
                             }
                             .accessibilityIdentifier("where_resolution_button")
+                        }
+
+                        if showsPlanningMenu {
+                            LocationsPlanningMenu(
+                                primaryRegions: primaryRegions,
+                                plannedStay: report.forecasts.activePlannedStay,
+                                isClearing: planning.isClearing,
+                                editAction: editPlannedStay,
+                                clearAction: clearPlannedStay,
+                            )
                         }
                     }
                 }
@@ -74,6 +86,15 @@ struct LocationsView: View {
                 model: report.forecasts,
                 driftThreshold: report.driftThreshold,
             )
+        }
+        .alert(
+            String(localized: .locationsPlanningRemoveErrorTitle),
+            isPresented: $planning.isShowingError,
+            presenting: planning.presentedFailure,
+        ) { _ in
+            Button(String(localized: .commonOk), role: .cancel) {}
+        } message: { message in
+            Text(message)
         }
         // Log View Mode: reveal an inspect badge for the year-report events
         // backing this screen. A no-op in release.
@@ -202,20 +223,6 @@ struct LocationsView: View {
         // overflow only while the authored arc, scale, and rotation need it.
         .scrollClipDisabled(cardPresentation.isSpatialOvertakeActive)
         .accessibilityIdentifier("where_root_title")
-        .safeAreaInset(edge: .bottom) {
-            if report.showsEstimatedTimeAndPlanning, !topForecasts.isEmpty {
-                LocationForecastPanel(
-                    forecasts: topForecasts,
-                    plannedStay: report.forecasts.activePlannedStay,
-                    editableRegions: topForecasts.map(\.region),
-                    editAction: editPlannedStay,
-                    clearAction: report.forecasts.clear,
-                    isCollapsible: true,
-                )
-                .padding(.horizontal)
-                .padding(.bottom, stylesheet.spacing.small)
-            }
-        }
         .onAppear { isCardSurfaceVisible = true }
         .onDisappear { isCardSurfaceVisible = false }
         // Count, order, flourish, persistence, and haptic all share this one
@@ -229,10 +236,13 @@ struct LocationsView: View {
         )
     }
 
-    /// Three forecast rows are independent from the two-card Primary split.
-    /// `.other` is a catch-all rather than a place a user can plan around.
-    private var topForecasts: [LocationForecast] {
-        report.forecasts.leadingForecasts(report: report.report)
+    private var primaryRegions: [Region] {
+        report.ranking.primary.map(\.region).filter { $0 != .other }
+    }
+
+    private var showsPlanningMenu: Bool {
+        report.showsEstimatedTimeAndPlanning
+            && (!primaryRegions.isEmpty || report.forecasts.activePlannedStay != nil)
     }
 
     private func estimatedDays(for region: Region) -> Int? {
@@ -242,6 +252,12 @@ struct LocationsView: View {
 
     private func editPlannedStay(_ region: Region) {
         plannedStayEditorTarget = PlannedStayEditorTarget(region: region)
+    }
+
+    private func clearPlannedStay() {
+        Task {
+            await planning.clear(using: report.forecasts.clear)
+        }
     }
 
     private struct PlannedStayEditorTarget: Identifiable {

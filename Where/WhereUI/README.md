@@ -65,10 +65,11 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   launch-built model + runner (`init(model:launcher:)`). A no-arg `init()` builds
   its own for previews and the hosted UI test.
 - **Developer tools** — DEBUG-only logging, span, region-map, Flyover, forced-crash,
-  and next-launch Inspector controls. Forced crashes cover Swift traps, Objective-C
+  and next-launch Inspector/demo controls. The demo sheet selects which Resolve
+  issue categories appear in a one-shot, in-memory launch. Forced crashes cover Swift traps, Objective-C
   exceptions, abort signals, and invalid memory access so crash reporters can be
   checked end to end. The global launcher's accordion only updates
-  `InspectorModeController`. The current regular runtime continues until the
+  `WhereDeveloperLaunchController`. The current regular runtime continues until the
   developer relaunches. The Logs destination is always present. Before its
   durable store is ready it reports whether the open is still running,
   unavailable, or failed with the actual error.
@@ -319,14 +320,15 @@ invalidate the card's text or Canvas artwork. The card adds no standalone edge
 stroke. Its containing Liquid Glass surface owns the subtle outer border so
 direct and production rendering do not diverge.
 
-After at least three months of the current year, Locations can reveal a collapsible annual estimate
-from the recorded pace and plan a stay through one of its displayed regions. The shared estimate
-renders as an adaptive passport-visa endorsement: security print and an annual seal frame
-region-tinted rows whose solid and hatched rule distinguishes recorded time from the projection.
-A focused region calendar places the same open endorsement after the current month and renders
-planned future days with a continuous hatched band, distinct from recorded presence. Settings >
-Appearance disables every estimate and planning visualization only after clearing the synced plan
-succeeds.
+After three complete months, Locations can show a collapsible annual estimate from the recorded pace.
+The user can plan a stay in one of the displayed regions. The shared estimate uses an adaptive
+passport-visa endorsement. A neutral microprint border repeats the silhouettes of the two main
+location cards around the security print and annual seal. Region-tinted rows use a solid and
+hatched rule to distinguish recorded time from the projection.
+A focused region calendar puts the same open endorsement after the current month. The calendar
+shows planned future days with a continuous hatched band. This band is distinct from recorded
+presence. Appearance settings hide every estimate and planning view only after the app clears the
+synchronized plan.
 
 While the Locations cards are visible, a live reversal between the same two
 primary regions holds the previous counts and order through the existing reveal
