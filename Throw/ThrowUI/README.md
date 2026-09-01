@@ -74,7 +74,8 @@ recent layer, center, viewport, and calibration keys. Prewarming binds a
 complete target frame to one activation generation. A successful provider
 response is not ready until that exact generation has a prepared frame. A
 switch fades the surface to black, exchanges frames at black, and fades back
-in. Reduce Motion keeps this opacity fade but removes experience-specific movement.
+in. The typed fade state buffers newer target output until the prepared pair is
+fully visible. Reduce Motion keeps this opacity fade but removes experience-specific movement.
 
 The production worker accepts one typed `ProjectionExperienceInput`. This value
 pairs an experience with its valid layers and projection modes. Test-only raw

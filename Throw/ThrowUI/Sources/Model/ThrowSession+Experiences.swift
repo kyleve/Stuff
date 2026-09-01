@@ -212,6 +212,15 @@ extension ThrowSession {
             }
             return
         }
+        guard projectionPresentationTransition == nil else {
+            assertionFailure("A projection presentation transition is already active")
+            return
+        }
+        projectionPresentationTransition = .fadingOut(
+            targetLease: lease,
+            bufferedTargetUpdate: nil,
+        )
+        stopRenderer()
         let fadeDuration = ThrowStylesheet.default.projection.experienceTransition.fadeDuration
         withAnimation(.linear(duration: fadeDuration)) {
             projectionSurfaceOpacity = 0
@@ -219,7 +228,7 @@ extension ThrowSession {
         do {
             try await Task.sleep(for: .seconds(fadeDuration))
         } catch {
-            projectionSurfaceOpacity = 1
+            abandonProjectionPresentationTransition()
             return
         }
 
@@ -231,7 +240,7 @@ extension ThrowSession {
                 lease: lease,
                 failure: .decoding,
             )
-            projectionSurfaceOpacity = 1
+            abandonProjectionPresentationTransition()
             return
         }
         guard let committedState = await experienceCoordinator.commitTransitionState(to: lease)
@@ -239,6 +248,7 @@ extension ThrowSession {
             withAnimation(.linear(duration: fadeDuration)) {
                 projectionSurfaceOpacity = 1
             }
+            abandonProjectionPresentationTransition()
             return
         }
         // The active identity and complete frame exchange only while the surface is black.
@@ -247,13 +257,23 @@ extension ThrowSession {
         projectionMarkEffects = prepared.output.effects
         observerMapPoint = prepared.output.observerPoint
         geographyLayerHealth = prepared.output.geographyHealth
-        let semanticFrame = semanticFramesByExperience[to] ?? prepared.semanticFrame
+        let semanticFrame = prepared.semanticFrame
         currentExperienceFrame = semanticFrame
         currentLayerFrame = semanticFrame.layers.first { $0.layerID == .flights }
         feedHealth = experienceHealth[to] ?? .idle
         if preparedOutputsByExperience[to]?.activationLease == lease {
             preparedOutputsByExperience.removeValue(forKey: to)
         }
+        guard let transition = projectionPresentationTransition,
+              transition.targetLease == lease
+        else {
+            assertionFailure("The committed projection transition lost its presentation state")
+            projectionSurfaceOpacity = 1
+            await experienceCoordinator.completeTransition(to: lease)
+            restartRenderer()
+            return
+        }
+        projectionPresentationTransition = transition.advancingToFadeIn()
         withAnimation(.linear(duration: fadeDuration)) {
             projectionSurfaceOpacity = 1
         }
@@ -261,9 +281,30 @@ extension ThrowSession {
             try await Task.sleep(for: .seconds(fadeDuration))
         } catch {
             projectionSurfaceOpacity = 1
+            await experienceCoordinator.completeTransition(to: lease)
+            await finishProjectionPresentationTransition(to: lease)
             return
         }
         await experienceCoordinator.completeTransition(to: lease)
+        await finishProjectionPresentationTransition(to: lease)
+    }
+
+    func finishProjectionPresentationTransition(to lease: ProjectionActivationLease) async {
+        guard let transition = projectionPresentationTransition,
+              transition.targetLease == lease
+        else { return }
+        let bufferedUpdate = transition.bufferedTargetUpdate
+        projectionPresentationTransition = nil
+        if let bufferedUpdate {
+            await publishVisibleAirAndSpaceUpdate(bufferedUpdate)
+        } else {
+            restartRenderer()
+        }
+    }
+
+    private func abandonProjectionPresentationTransition() {
+        projectionPresentationTransition = nil
+        projectionSurfaceOpacity = 1
         restartRenderer()
     }
 }

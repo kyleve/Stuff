@@ -10,6 +10,57 @@ public enum GeographyLayerHealth: Equatable, Sendable {
     case unavailable
 }
 
+/// Holds later runtime output until one prepared experience frame finishes its black exchange.
+enum ProjectionPresentationTransition {
+    case fadingOut(
+        targetLease: ProjectionActivationLease,
+        bufferedTargetUpdate: AirAndSpaceRuntimeUpdate?,
+    )
+    case fadingIn(
+        targetLease: ProjectionActivationLease,
+        bufferedTargetUpdate: AirAndSpaceRuntimeUpdate?,
+    )
+
+    var targetLease: ProjectionActivationLease {
+        switch self {
+            case let .fadingOut(targetLease, _), let .fadingIn(targetLease, _):
+                targetLease
+        }
+    }
+
+    var bufferedTargetUpdate: AirAndSpaceRuntimeUpdate? {
+        switch self {
+            case let .fadingOut(_, update), let .fadingIn(_, update):
+                update
+        }
+    }
+
+    func buffering(_ update: AirAndSpaceRuntimeUpdate) -> Self {
+        guard targetLease.experienceID == .airAndSpace,
+              update.activationLease == targetLease
+        else { return self }
+        switch self {
+            case let .fadingOut(targetLease, _):
+                return .fadingOut(
+                    targetLease: targetLease,
+                    bufferedTargetUpdate: update,
+                )
+            case let .fadingIn(targetLease, _):
+                return .fadingIn(
+                    targetLease: targetLease,
+                    bufferedTargetUpdate: update,
+                )
+        }
+    }
+
+    func advancingToFadeIn() -> Self {
+        .fadingIn(
+            targetLease: targetLease,
+            bufferedTargetUpdate: bufferedTargetUpdate,
+        )
+    }
+}
+
 /// The single main-actor presentation session shared by every Throw scene.
 @MainActor
 @Observable
@@ -300,6 +351,7 @@ public final class ThrowSession {
     @ObservationIgnored var mayApplyTrueHeadingHint = true
     @ObservationIgnored var currentLayerFrame: LayerFrame?
     @ObservationIgnored var currentExperienceFrame: ProjectionExperienceFrame
+    @ObservationIgnored var projectionPresentationTransition: ProjectionPresentationTransition?
     @ObservationIgnored var semanticFramesByExperience: [
         ProjectionExperienceID: ProjectionExperienceFrame
     ] = [:]

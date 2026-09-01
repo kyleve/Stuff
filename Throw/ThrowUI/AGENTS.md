@@ -33,7 +33,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
 - Keep coordinator command delivery lossless. Revalidate revision, demand,
   identity, and generation after each suspension before changing timer state.
 - Require a successful response and a prepared frame from the same fresh target
-  generation. Exchange that frame only at black, and never mix experiences.
+  generation. Exchange that exact semantic/projected pair only at black. Buffer
+  later target updates until fade-in completes, and never mix experiences.
 - Send only `ProjectionExperienceInput` to the production projection worker.
   Keep raw layer-array entry points inside DEBUG test support.
 - Keep setup lifecycle data in the session's single `ThrowSetupState`. Change
