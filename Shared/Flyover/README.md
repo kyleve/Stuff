@@ -184,29 +184,34 @@ paths. Full-content sizing uses SnapshotKitTesting limits and convergence
 rules. A sizing failure stops the export; it never substitutes a viewport
 image.
 
-The website opens the first catalog group in canvas mode. The group navigator
-and overview map move between groups without recalculating the graph. Point to
-or focus a card to emphasize its connected routes. The site dims unrelated
-cards and routes until the focus moves.
+The website opens the first catalog group in canvas mode. A floating control
+dock keeps the canvas visible. The group panel and overview map move between
+groups without recalculating the graph. The canvas keeps its position when a
+state, profile, or panel changes.
 
-Search matches group, screen, state, and connected route names. Filters narrow
-the result by group, capture extent, or route state. List mode shows the same
-selection as a compact catalog. State and profile changes update the native
+Point to or focus a card to emphasize its connected routes. The site dims
+unrelated cards and routes until the focus moves. Filters for groups, capture
+extents, and route states stay in a separate panel.
+
+Search opens a command palette. It matches group, screen, state, and connected
+route names. A result opens its screen or fits its group. List mode shows the
+same selection in grouped rows. State and profile changes update the native
 image without changing the selected screen.
 
-The inspector shows capture dimensions, profile data, and incoming and
-outgoing routes. It also supplies previous-screen and next-screen actions.
-Full-content images use a device-width scroll area. The Fit and 100% controls
-change the image scale without changing the capture.
+The inspector uses the full browser window. The image stays central while a
+drawer supplies capture data and route links. Full-content images use a
+device-width scroll area. The Fit and 100% controls change the image scale
+without changing the capture.
 
 The browser hash stores the view, screen, state, and profile. Browser Back and
 Forward restore these values. The site also supplies these keyboard controls:
 
-- Press `/` to focus search.
+- Press `/` or `Command-K` to open search.
 - Press `F` to fit the complete canvas.
 - Press `0` to fit the current group.
 - Press `+` or `-` to change the canvas zoom.
-- Press `[` or `]` to move between screens in the inspector.
+- Press an arrow key, `[` or `]`, to move between inspector screens.
+- Press `I` to show or hide the inspector details.
 - Press Escape to close the inspector.
 
 ## Testing
