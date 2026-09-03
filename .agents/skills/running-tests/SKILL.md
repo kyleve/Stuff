@@ -66,6 +66,11 @@ dependency graph says they're affected.
   `never` (default). Fix the view first; re-record only when the render is
   correct
 
+Snapshot runs require the exact Xcode build in
+[`.xcode-build-version`](../../../.xcode-build-version). `./test` rejects a
+different selected build before project generation or simulator boot. Install
+the pinned build. Then select it before you review or record references.
+
 Do not parallelize the image suite. Simulators on one Mac share one render
 server. That makes captures slower and flaky. See
 [`Shared/SnapshotKitTesting/AGENTS.md`](../../../Shared/SnapshotKitTesting/AGENTS.md).
@@ -114,8 +119,12 @@ Raw one-off `xcodebuild` (rare):
 ## Environment
 
 - **macOS + Xcode required** for `./test`.
-- **Linux cloud agents** — `./swiftformat --lint` and `./sync-agents` only. No
-  simulator or test runs. Full validation matches CI on macOS.
+- **Linux cloud agents** — no simulator, no `./test`, no Swift toolchain. What
+  does run: `./swiftformat --lint`, `./shellcheck`, `./attribution --check`,
+  `mise exec -- ./sync-agents`, and the retained Python tool tests
+  (`python3 -m unittest discover -s Tools/Tests -p 'test_*.py'`). See the Linux
+  table in the root [`AGENTS.md`](../../../AGENTS.md#what-works-on-linux) for the
+  three macOS-coupled carve-outs among those.
 
 ## Full macOS validation (matches CI)
 

@@ -208,9 +208,9 @@ their own sessions and leave recovery to the app's next launch.
 
 - Messages mirror to OSLog as `.public` — keep PII out of messages, or scrub
   via the redaction hook. The hook may transform any record but cannot
-  suppress span began/ended records (a stripped copy records instead — 
-  pairs never split). silence spans with level floors.
-- One database for every logging system in the process. scopes and types
+  suppress span began/ended records (a stripped copy records instead — pairs
+  never split). Silence spans with level floors.
+- One database for every logging system in the process. Scopes and types
   make it easy to split later.
 - `LogContextProviding` caches one small entry per logging instance, evicted
   automatically when the instance deallocates (a tracker hangs off the

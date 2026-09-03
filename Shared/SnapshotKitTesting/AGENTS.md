@@ -25,6 +25,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Keep PNG export hosted.** `captureSnapshotPNG` requires `StuffTestHost`'s key window and must not gain a headless renderer.
 - **Its `async` is load-bearing.** A synchronous `Snapshotting` pullback could never settle `.task`-driven content.
 - **Accessibility annotations use AccessibilitySnapshot's SwiftUI renderer.** Keep the focused `AccessibilitySnapshotCore` + `AccessibilitySnapshotPreviews` products.
+- **Raised-floor accessibility captures parse twice.** Settle between passes and keep only the second render (`AccessibilitySnapshotViewControllerTests`).
 - **The umbrella also links the upstream SnapshotTesting integration that this module replaces.**
 - **The compare sees on-disk bytes.** Every capture round-trips through PNG encoding before comparison.
 - **Removing PNG encoding re-opens the wide-gamut vs. sRGB flake.** See `renderSnapshotImage`'s doc.
@@ -56,6 +57,13 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **The explicit CI multiplier may scale only maximum settle/hook ceilings.** Never scale the floor, quiet proof, cadence, or image tolerance.
 - **Guards: `SnapshotSettleTimeoutPolicyTests` and `SnapshotRenderingSupportTests`.**
 - **A settled capture is not a ready capture.** The loop proves the pixels stopped changing, not that intended content arrived.
+- **For native navigation or tab glass, do not use `SnapshotSettle.immediate`.**
+- **Keep a measured `SnapshotSettle.settledAtLeast` floor for delayed native-glass adaptation.**
+  Remove it only after a toolchain remeasurement or a system readiness signal.
+  See PRs #101, #144, #151, and #232.
+- **Use `SnapshotMeasurementReadiness.immediate` only for a fixture with a synchronous final height.**
+  This option skips only measurement settling. It does not change the final
+  `SnapshotSettle`.
 - **A loading placeholder is perfectly pixel-stable.** A gap between async phases settles clean and bakes the spinner. Then the suite reports green.
 - **Pixel stability cannot become a readiness signal.** Nothing public sees pending dispatch or Swift-concurrency work — see below.
 - **If content arrives asynchronously, make the case deterministic instead.**
@@ -72,7 +80,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Captures are single-tenant per process.** `renderSnapshotImage` serializes through a FIFO `@MainActor` mutex.
 - **The safe-area swizzle is depth-counted.** Nested captures trap.
 - **Keep the suite serial anyway.** Concurrent scheduling degrades to queued-serial, gaining nothing.
-- **Guard: `SnapshotKitTestingTests.ConcurrentCaptureTests`.** The interleaving failure is recorded in the snapshot job comment in `.github/workflows/ci.yml`.
+- **Guard: `SnapshotKitTestingTests.ConcurrentCaptureTests`.** The interleaving failure and the reasons not to parallelize are recorded below, under the rejected experiments. The snapshot job's own copy of that warning did not survive its move to CircleCI in PR #237 — restoring it is filed in the root [`TODOs.md`](../../TODOs.md).
 - **Rendering requires `StuffTestHost`'s key window** (`TestHostSupport.hostKeyWindow()`). It is not usable from a non-hosted bundle.
 - **Pin determinism.** The pipeline overrides safe-area insets and quiesces animations.
 - **Set `SnapshotCaptureTrait` on the content controller, not a wrapper.** It must survive the intrinsic-measurement re-hosting so views can freeze never-settling motion.
@@ -89,7 +97,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Immediate measurement never shortens final capture settling.** It skips only the intrinsic-sizing probe's settle for synchronously sized fixtures.
 - **The final `.settled` / `.settledAtLeast` policy still runs.** Guards: `AsyncContentCaptureTests`.
 - **A settle phase costs its floor, not its passes.**
-- **Measured 2026-07-28 with `SNAPSHOT_TIMING=1` over 260 references of the time.** The suite holds 381 as of 2026-08-09. Re-measure before acting on the split below.
+- **Measured 2026-07-28 with `SNAPSHOT_TIMING=1` over 260 references of the time.** The suite holds 472 as of 2026-08-30. Re-measure before acting on the split below.
 - **The conclusion (the floor dominates) is what to rely on, not the seconds.**
 - **192 captures sat at 0.25-0.35s — the `minDuration` floor plus a pass or two.** The floor accounts for ~70s of the ~84s of settle time.
 - **The render passes themselves are ~14s across the whole suite.** Making passes cheaper is worth ~11%. Removing floors is worth ~54%.
@@ -112,7 +120,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Quiescence cannot replace the pixel digest.**
 - **`SNAPSHOT_SETTLE` selects `pixel` (default), `quiescence`, or `both`.** Quiescence uses a `beforeWaiting` run-loop observer plus a recursive `needsLayout`/`needsDisplay`/`animationKeys` walk.
 - **`both` runs them together and reports disagreements.**
-- **Run in `both` mode (2026-07-28) over 260 references of the time — 361 today.** The counts below are that run's, not current.
+- **Run in `both` mode (2026-07-28) over 260 references of the time — 472 as of 2026-08-30.** The counts below are that run's, not current.
 - **That run had 226 settle phases, 134 with some disagreement.**
 - **8 cases had quiescence declare settled *earlier* than the digest.** Every one was a `Loaded_*` case whose content arrives late.
 - **That is the one dangerous direction.** It would capture a frame no reference recorded.

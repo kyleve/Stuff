@@ -10,10 +10,10 @@ struct AboutOpenSourceStampText: View {
             Text(LocalizedStringResource.settingsAboutSourceTitle)
                 .font(style.titleFont)
                 .bold()
-                .foregroundStyle(.tint.opacity(style.ink.titleOpacity))
+                .foregroundStyle(style.tint.opacity(style.ink.titleOpacity))
             Text(LocalizedStringResource.settingsAboutSourceAction)
                 .font(style.detailFont)
-                .foregroundStyle(.tint.opacity(style.ink.detailOpacity))
+                .foregroundStyle(style.tint.opacity(style.ink.detailOpacity))
         }
     }
 }

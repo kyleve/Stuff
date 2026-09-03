@@ -19,13 +19,22 @@ env:
   MISE_NO_HOOKS: "1"
 
 jobs:
+  # Prototype and exploratory PRs opt out with `NO-CI` in their title. Main
+  # pushes still run every job.
   format:
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
     name: SwiftFormat Lint
     runs-on: xcode-27
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v3
+      - name: ShellCheck
+        run: ./shellcheck
+      - name: Retained tool tests
+        run: |
+          python3 -m unittest discover -s Tools/Tests -p 'test_*.py'
+          mise exec -- ruby -I Tools/Tests -e 'Dir["Tools/Tests/**/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
       - run: ./swiftformat --lint
       - name: SF Symbol lint
         run: ./sf-symbols --lint
@@ -44,6 +53,7 @@ jobs:
       - name: Attribution report check
         run: ./attribution --check
   architecture:
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
     name: Bumper Bowling
     runs-on: xcode-27
     env:
@@ -72,6 +82,7 @@ jobs:
           key: ${{ steps.bumper-cache.outputs.cache-primary-key }}
 
   test-macos:
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
     name: Build & Test (macOS)
     # Keep the native-macOS target on GitHub's pinned Xcode image.
     runs-on: xcode-27
@@ -83,7 +94,8 @@ jobs:
       - uses: jdx/mise-action@v3
       # The workspace mixes iOS targets and the native-macOS Ledger targets, and
       # no single xcodebuild destination can build both — so the macOS scheme
-      # runs here, in parallel with the iOS `test` job, rather than adding to it.
+      # runs here rather than alongside the iOS bundles. The iOS `test-ios` and
+      # `snapshot` jobs live in .circleci/config.yml (PR #237).
       - name: Build & Test (macOS)
         run: mise exec -- tuist test Ledger-macOS-Tests --no-selective-testing -- -destination 'platform=macOS'
       # Tests can crash the host process on CI without leaving any error in

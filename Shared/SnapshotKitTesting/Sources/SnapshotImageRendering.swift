@@ -354,16 +354,45 @@ private func renderSnapshotImageLocked(
         }
 
         // Parse accessibility only after the content has settled, so the
-        // annotation reflects the loaded/revealed state (not a placeholder), then
-        // re-lay-out at the size `parseAccessibility` sizes the wrapper to.
+        // annotation reflects the loaded/revealed state (not a placeholder).
+        // A raised settle floor opts accessibility rendering into a preparation
+        // pass. That first pass starts one-time native material work caused by
+        // temporarily inserting the content into AccessibilitySnapshot's
+        // renderer. The annotated output is static during this bounded wait; the
+        // wait gives the content's persistent native state time to finish. The
+        // ordinary settle policies stay single-pass because another insertion can
+        // change scrolling content.
         if let accessibilityViewController =
             captureViewController as? AccessibilitySnapshotViewController
         {
-            timing.measure(.accessibilityParse) {
+            func parseAccessibility() {
                 accessibilityViewController.parseAccessibility()
                 wrappingViewController.view.frame.size = accessibilityViewController.view.frame.size
                 wrappingViewController.view.setNeedsLayout()
                 CATransaction.performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
+            }
+
+            if case .settledAtLeast = settle {
+                timing.measure(.accessibilityParse) {
+                    parseAccessibility()
+                }
+                try await throwIfUnsettled(
+                    timing.measure(.settle) {
+                        await settleForCapture(
+                            wrappingViewController.view,
+                            named: name,
+                            settle: settle,
+                            timing: timing,
+                            timeoutPolicy: settleTimeoutPolicy,
+                        )
+                    },
+                    phase: "accessibility preparation",
+                    of: viewController,
+                    named: name,
+                )
+            }
+            timing.measure(.accessibilityParse) {
+                parseAccessibility()
             }
         }
 

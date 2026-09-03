@@ -17,6 +17,7 @@ struct WhereStylesheet: BStylesheet {
     var spacing = Spacing()
     var size = Size()
     var card = CardStyles.standard
+    var locationCardStack = LocationCardStackStyle.standard
     var calendar = CalendarStyle.standard
     var appIcon = AppIconStyle.standard
     var timeline = TimelineStyle.standard
@@ -33,7 +34,8 @@ struct WhereStylesheet: BStylesheet {
     var featureDiscovery = FeatureDiscoveryStyle.standard
     var passportSeal = PassportSealStyle.standard
     var privacyPassportCard = PrivacyPassportCardStyle.standard
-    var openSourceStamp = OpenSourceStampStyle.standard
+    var openSourceStamp = StampBannerStyle.openSource
+    var plannedStayWarningStamp = StampBannerStyle.plannedStayWarning
     var developerOverlay = DeveloperOverlayStyle.standard
 
     init() {}
@@ -70,13 +72,16 @@ struct WhereStylesheet: BStylesheet {
         }
 
         if traits.accessibility.isDarkerSystemColorsEnabled {
+            locationForecast.ink = .increasedContrast
             openSourceStamp.ink = .increasedContrast
+            plannedStayWarningStamp.ink = .increasedContrast
         }
 
         // Reduce Motion stops the cards' day count rolling its digits; it
         // crossfades to the new number instead.
         if traits.accessibility.isReduceMotionEnabled {
             card.dayCount = .reducedMotion
+            locationCardStack.overtake = .reducedMotion
             developerOverlay.menu.motion = .reduced
         }
 
@@ -93,36 +98,227 @@ struct WhereStylesheet: BStylesheet {
     static let `default` = WhereStylesheet()
 }
 
+// MARK: - Location card stack
+
+extension WhereStylesheet {
+    /// Motion owned by the ranked Locations-card container. Card appearance
+    /// remains in ``CardStyles``; this style describes how complete cards move
+    /// when the same two regions reverse rank while the surface is visible.
+    struct LocationCardStackStyle: Equatable {
+        var overtake: OvertakeMotion
+
+        /// The winner's lift, passing arc, and rubber-stamp settle. The stored
+        /// primitives keep the DEBUG lab directly tunable.
+        struct OvertakeMotion: Equatable {
+            var duration: Double
+            var bounce: Double
+            var lateralArc: CGFloat
+            var liftScale: CGFloat
+            var rotationDegrees: Double
+            var settleScale: CGFloat
+            var minimumOpacity: Double
+            var usesSpatialMotion: Bool
+
+            static let durationRange = 0.3 ... 1.2
+            static let bounceRange = 0.0 ... 0.5
+            static let lateralArcRange: ClosedRange<CGFloat> = 0 ... 48
+            static let liftScaleRange: ClosedRange<CGFloat> = 1 ... 1.08
+            static let rotationRange = 0.0 ... 6.0
+            static let settleScaleRange: ClosedRange<CGFloat> = 0.92 ... 1
+
+            static let standard = OvertakeMotion(
+                duration: 0.72,
+                bounce: 0.18,
+                lateralArc: 18,
+                liftScale: 1.03,
+                rotationDegrees: 1.5,
+                settleScale: 0.975,
+                minimumOpacity: 1,
+                usesSpatialMotion: true,
+            )
+
+            /// Reduce Motion keeps the delayed data reveal but removes travel,
+            /// scale, and rotation. A brief fade still emphasizes the new lead.
+            static let reducedMotion = OvertakeMotion(
+                duration: 0.2,
+                bounce: 0,
+                lateralArc: 0,
+                liftScale: 1,
+                rotationDegrees: 0,
+                settleScale: 1,
+                minimumOpacity: 0.82,
+                usesSpatialMotion: false,
+            )
+        }
+
+        static let standard = LocationCardStackStyle(overtake: .standard)
+    }
+}
+
 // MARK: - Location forecast
 
 extension WhereStylesheet {
-    /// Geometry for the annual-estimate panel shared by the Locations tab and
-    /// region-focused calendars.
+    /// Passport-visa appearance for the annual estimate shared by Locations,
+    /// calendars, and Estimated Time feature discovery.
     struct LocationForecastStyle: Equatable {
         var cornerRadius: CGFloat
         var padding: CGFloat
         var rowSpacing: CGFloat
-        var estimateSpacing: CGFloat
-        var collapsedLabelColor: Color
-        var borderColor: Color
-        var borderWidth: CGFloat
-        var shadowColor: Color
-        var shadowRadius: CGFloat
-        var shadowOffsetY: CGFloat
         var expansionAnimation: Animation
+        var surface: Surface
+        var header: Header
+        var row: Row
+        var progress: Progress
+        var controls: Controls
+        var ink: Ink
+
+        struct Surface: Equatable {
+            var outlineWidth: CGFloat
+            var inset: CGFloat
+            var microprintGlyphSize: CGFloat
+            var microprintSpacing: CGFloat
+            var rosetteWobble: CGFloat
+            var rosetteLineWidth: CGFloat
+            var primaryRingSpacing: CGFloat
+            var secondaryRingSpacing: CGFloat
+            var shadowColor: Color
+            var shadowRadius: CGFloat
+            var shadowOffsetY: CGFloat
+        }
+
+        struct Header: Equatable {
+            var contentSpacing: CGFloat
+            var textSpacing: CGFloat
+            var titleFont: Font
+            var elapsedFont: Font
+            var minimumHeight: CGFloat
+        }
+
+        struct Row: Equatable {
+            var cornerRadius: CGFloat
+            var padding: CGFloat
+            var contentSpacing: CGFloat
+            var estimateSpacing: CGFloat
+            var regionFont: Font
+            var estimateFont: Font
+            var detailFont: Font
+            var outlineWidth: CGFloat
+        }
+
+        struct Progress: Equatable {
+            var height: CGFloat
+            var hatchSpacing: CGFloat
+            var hatchLineWidth: CGFloat
+        }
+
+        struct Controls: Equatable {
+            var sectionSpacing: CGFloat
+            var layoutSpacing: CGFloat
+            var cornerRadius: CGFloat
+            var horizontalPadding: CGFloat
+            var minimumHeight: CGFloat
+            var strokeWidth: CGFloat
+            var font: Font
+        }
+
+        struct Ink: Equatable {
+            var surfaceWashOpacity: Double
+            var surfaceOutlineOpacity: Double
+            var microprintOpacity: Double
+            var rosettePrimaryOpacity: Double
+            var rosetteSecondaryOpacity: Double
+            var sealOpacity: Double
+            var rowFillOpacity: Double
+            var rowOutlineOpacity: Double
+            var progressTrackOpacity: Double
+            var progressEstimateFillOpacity: Double
+            var progressHatchOpacity: Double
+            var controlFillOpacity: Double
+            var controlStrokeOpacity: Double
+
+            static let standard = Ink(
+                surfaceWashOpacity: 0.035,
+                surfaceOutlineOpacity: 0.22,
+                microprintOpacity: 0.18,
+                rosettePrimaryOpacity: 0.08,
+                rosetteSecondaryOpacity: 0.045,
+                sealOpacity: 0.72,
+                rowFillOpacity: 0.07,
+                rowOutlineOpacity: 0.24,
+                progressTrackOpacity: 0.1,
+                progressEstimateFillOpacity: 0.2,
+                progressHatchOpacity: 0.42,
+                controlFillOpacity: 0.06,
+                controlStrokeOpacity: 0.24,
+            )
+
+            static let increasedContrast = Ink(
+                surfaceWashOpacity: 0.065,
+                surfaceOutlineOpacity: 0.5,
+                microprintOpacity: 0.4,
+                rosettePrimaryOpacity: 0.14,
+                rosetteSecondaryOpacity: 0.09,
+                sealOpacity: 1,
+                rowFillOpacity: 0.12,
+                rowOutlineOpacity: 0.55,
+                progressTrackOpacity: 0.2,
+                progressEstimateFillOpacity: 0.32,
+                progressHatchOpacity: 0.68,
+                controlFillOpacity: 0.12,
+                controlStrokeOpacity: 0.56,
+            )
+        }
 
         static let standard = LocationForecastStyle(
             cornerRadius: 22,
             padding: 16,
             rowSpacing: 12,
-            estimateSpacing: 3,
-            collapsedLabelColor: Color.primary.opacity(0.5),
-            borderColor: Color.primary.opacity(0.06),
-            borderWidth: 0.5,
-            shadowColor: Color.black.opacity(0.06),
-            shadowRadius: 8,
-            shadowOffsetY: 2,
             expansionAnimation: .easeInOut(duration: 0.2),
+            surface: Surface(
+                outlineWidth: 1.25,
+                inset: 9,
+                microprintGlyphSize: 7,
+                microprintSpacing: 10,
+                rosetteWobble: 5,
+                rosetteLineWidth: 0.75,
+                primaryRingSpacing: 10,
+                secondaryRingSpacing: 16,
+                shadowColor: Color.black.opacity(0.08),
+                shadowRadius: 10,
+                shadowOffsetY: 3,
+            ),
+            header: Header(
+                contentSpacing: 10,
+                textSpacing: 2,
+                titleFont: .system(.headline, design: .serif),
+                elapsedFont: .footnote,
+                minimumHeight: 50,
+            ),
+            row: Row(
+                cornerRadius: 14,
+                padding: 10,
+                contentSpacing: 6,
+                estimateSpacing: 2,
+                regionFont: .system(.title3, design: .serif),
+                estimateFont: .system(.headline, design: .rounded),
+                detailFont: .footnote,
+                outlineWidth: 0.75,
+            ),
+            progress: Progress(
+                height: 8,
+                hatchSpacing: 6,
+                hatchLineWidth: 1,
+            ),
+            controls: Controls(
+                sectionSpacing: 8,
+                layoutSpacing: 6,
+                cornerRadius: 12,
+                horizontalPadding: 10,
+                minimumHeight: 44,
+                strokeWidth: 1,
+                font: .subheadline,
+            ),
+            ink: .standard,
         )
     }
 }
@@ -581,6 +777,8 @@ extension WhereStylesheet {
         var nameOpacity: Double
         /// Opacity of the estimated progress rendered behind recorded days.
         var estimatedProgressOpacity: Double = 0.3
+        /// Visa-style endorsement for an annual estimate on a primary card.
+        var estimateSticker = EstimateSticker.standard
         /// Fill opacities of the two security-print rosettes.
         var rosetteFill: RosetteFill
         /// How the region tint is prepared for decorative security printing.
@@ -610,6 +808,48 @@ extension WhereStylesheet {
                 coreWhiteMix: 0.72,
                 haloRadius: 6,
                 haloOpacity: 0.32,
+            )
+        }
+
+        struct EstimateSticker: Equatable {
+            var labelTypography: CardStyle.Typography
+            var valueTypography: CardStyle.Typography
+            var contentOpacity: Double
+            var scale: CGFloat
+            var cornerRadius: CGFloat
+            var horizontalPadding: CGFloat
+            var verticalPadding: CGFloat
+            var rotationDegrees: Double
+            var fillOpacity: Double
+            var outlineOpacity: Double
+            var outlineWidth: CGFloat
+            var innerInset: CGFloat
+            var innerOutlineWidth: CGFloat
+            var innerDash: [CGFloat]
+
+            static let standard = EstimateSticker(
+                labelTypography: .init(
+                    size: .semantic(.caption),
+                    weight: .semibold,
+                    design: .default,
+                ),
+                valueTypography: .init(
+                    size: .semantic(.headline),
+                    weight: .semibold,
+                    design: .default,
+                ),
+                contentOpacity: 0.92,
+                scale: 0.8,
+                cornerRadius: 8,
+                horizontalPadding: 10,
+                verticalPadding: 7,
+                rotationDegrees: -2,
+                fillOpacity: 0.08,
+                outlineOpacity: 0.58,
+                outlineWidth: 1,
+                innerInset: 3,
+                innerOutlineWidth: 1,
+                innerDash: [3, 2],
             )
         }
 
@@ -1831,8 +2071,9 @@ extension WhereStylesheet {
         )
     }
 
-    /// Appearance for the flat, single-ink source stamp at the end of About.
-    struct OpenSourceStampStyle: Equatable {
+    /// Appearance for a flat, single-ink stamp banner.
+    struct StampBannerStyle: Equatable {
+        var tint: Color
         var padding: CGFloat
         var contentSpacing: CGFloat
         var titleFont: Font
@@ -1878,7 +2119,24 @@ extension WhereStylesheet {
             )
         }
 
-        static let standard = OpenSourceStampStyle(
+        static let openSource = StampBannerStyle(
+            tint: .accentColor,
+            padding: 16,
+            contentSpacing: 12,
+            titleFont: .headline,
+            detailFont: .subheadline,
+            outlineWidth: 1.5,
+            rosette: Rosette(
+                wobble: 5,
+                lineWidth: 0.75,
+                primaryRingSpacing: 10,
+                secondaryRingSpacing: 16,
+            ),
+            ink: .standard,
+        )
+
+        static let plannedStayWarning = StampBannerStyle(
+            tint: .orange,
             padding: 16,
             contentSpacing: 12,
             titleFont: .headline,

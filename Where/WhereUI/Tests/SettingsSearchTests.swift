@@ -59,6 +59,15 @@ struct SettingsSearchTests {
         })
     }
 
+    @Test func matchesTheRankingAnimationLabOnMotionKeyword() {
+        let results = SettingsCatalog.results(matching: "overtake")
+
+        #expect(results.contains {
+            $0.destination == .appearance
+                && $0.title == String(localized: .rankingAnimationTitle)
+        })
+    }
+
     @Test func matchesTheAboutScreenOnALicenseKeyword() {
         // "license" is nowhere in a section title, so this only passes if the
         // About screen's keywords are registered.

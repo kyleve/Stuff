@@ -43,9 +43,11 @@ Layering, localization, preview, and testing conventions live in the feature
   states distinct. Crash and replay choices stay pending until relaunch.
   Remote-log revisions apply live. A runtime failure invalidates in-flight
   applies. An older completion must never win.
-- The DEBUG developer accordion may only latch or clear
-  `InspectorModeController` for the next launch. It must not host a live
-  SwiftData inspector or switch the current runtime.
+- The DEBUG developer accordion may only update
+  `WhereDeveloperLaunchController` for the next launch. Inspector and demo are
+  mutually exclusive. It must not switch the current runtime. A demo request
+  is consumed once before the onboarding gate and must never open a real store.
+  Keep its synthetic clock scoped to the in-memory demo session.
 - Keep the DEBUG Logs destination visible for every
   `WhereModel.logStoreState`. Opening, unavailable, and failed stores are
   diagnostics to render, not reasons to hide the tool.
@@ -79,18 +81,20 @@ Layering, localization, preview, and testing conventions live in the feature
 - Keep render-ready region geometry in the root-injected
   `RegionOutlinePathCache`. RegionKit owns the cached source outlines and its
   stateless simplifier. WhereUI chooses full/medium/small/micro tolerances and
-  caches the resulting SwiftUI `Path`s. Use the small path for the stamp and
-  the micro path for the repeated border. Project Locations-card GPS points
-  through the cache's shared `RegionArtworkProjection`. Never project,
-  simplify, or spatially reduce artwork in a card's `body`.
+  caches the resulting SwiftUI `Path`s. Use the small path for the stamp. Use
+  the micro path for repeated borders on location cards and estimate panels.
+  Project Locations-card GPS points through the cache's shared
+  `RegionArtworkProjection`. Never project, simplify, or spatially reduce
+  artwork in a card's `body`.
 - Keep Locations-card points on `YearReportModel`'s loaded
   `YearReportDetails`.
 - Keep `RootView` passing LifecycleKitUI the stylesheet's positive splash
   minimum and active-scene visibility: the first foreground-visible `MainTabs`
   reveal stays covered when headless promotion coalesces or the first hold is
   interrupted, while warm resumes never replay it.
-- Keep planned-stay persistence and forecast math in WhereCore; `LocationForecastModel` only mirrors
-  the active register and orchestrates intents for the Locations, calendar, and timeline surfaces.
+- Keep planned-stay persistence, forecast math, and location verification in WhereCore.
+  `LocationForecastModel` mirrors the register and the advisory check for the Locations, calendar,
+  and timeline surfaces.
 - Hide every forecast and planned-stay visualization behind
   `YearReportModel.showsEstimatedTimeAndPlanning`; persist Off only after clearing the synced plan.
 - Continuous/looping motion (repeat-forever pulses, `TimelineView(.animation)`,
@@ -109,10 +113,30 @@ Layering, localization, preview, and testing conventions live in the feature
   renders relative to *today*. No reference containing one is stable across
   days. Views do not read `\.isCapturingSnapshot` to branch themselves. Capture
   handling stays inside the shared component.
-- Reconcile `LocationDayCountPresentationModel` only from the visible primary
+- Reconcile `LocationCardsPresentationModel` only from the visible primary
   card surface after its stylesheet-owned reveal delay. If another tab, covering
   sheet, or pushed destination is visible, cancel the delay. Leave its persisted
   baseline untouched so returning can animate and haptically signal the change.
+- Release Location-card counts and rank motion through the same delayed
+  reconciliation. Flourish only when the same two primary regions reverse
+  during one visible, same-year session. Synchronize initial, hidden, year,
+  and membership changes quietly.
+- Keep settled Location cards in displayed rank source order. Use each card's
+  `Region` for the `ForEach` and ranking-layout identity.
+- Use only `RegionRanking.primary` silhouettes in the estimate-panel microprint,
+  even when the panel shows a third forecast or a focused secondary region.
+- Give each ranked card an independent `GlassEffectContainer`. Apply ranking
+  and overtake motion outside the complete link and card surface.
+- Keep the source hierarchy stable while the cards cross. Commit the real
+  displayed order without animation after the ranking keyframes finish.
+- Keep the explicit ranking layout as the only reorder animation. Use the
+  identity glass transition. Do not add `matchedGeometryEffect` or
+  `glassEffectID`.
+- Keep the ranking layout separate from the calendar zoom namespace. Preserve
+  exactly one calendar transition source for each visible region.
+- Play at least two overtakes in the lab after each ranking-motion change.
+  Inspect Reduce Motion and VoiceOver order because settled snapshots do not
+  prove the transition. See PR #289.
 
 ## Design system — `WhereStylesheet`
 
@@ -136,6 +160,8 @@ worked examples.
 - The DEBUG card designer may override only presentation values already owned
   by `CardStyles`. It must not add a second production styling system or alter
   count animation and outline-cache behavior.
+- Keep the DEBUG Ranking Animation Lab session-only. It tunes the containing
+  Location-card stack, never Card Designer persistence, exports, or app overrides.
 
 ## Testing
 

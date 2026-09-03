@@ -73,6 +73,9 @@ internal shape.
 - **The planned stay is a generation-scoped last-writer register with tombstones.** Resolve
   duplicate CloudKit revisions by `updatedAt` then UUID, and clear or expire by writing a newer
   `nil` value; deleting the winner can resurrect stale intent (`PlannedStayCoordinatorTests`).
+- **Keep planned-stay location checks advisory.** `PlannedStayLocationVerifier` accepts a fix
+  inside the region or within the configured drift threshold outside its boundary. Do not add
+  horizontal accuracy to the threshold.
 - **A logical day is a `CalendarDay`, not a `Date`.** `CalendarDay` (Y-M-D)
   is the timezone-independent identity every stored user record and day
   comparison keys on. Persisting a `Date` makes a day drift across time-zone
@@ -151,7 +154,9 @@ internal shape.
 - **`DemoDataBuilder` seeds through the ordinary write paths** (`DayJournal`,
   `setPrimaryRegions`). No private door into the store. A demo exercises
   the code a real user does. Its data is sized against the *elapsed* year, not
-  the calendar. Fixed sizes made a January demo mostly-unlogged. Guard:
+  the calendar. Configured issue categories must be independently selectable:
+  checked categories appear and unchecked categories do not. Keep any
+  early-year clock adjustment inside the in-memory demo. Guard:
   `DemoDataBuilderTests.holdsItsShapeWhereverInTheYearItIsEntered`.
 - **Impossible states trap. Recoverable ones surface.** `WhereStore` methods
   are `async throws`. A `catch` logs a typed `WhereLog` event (PII-free,

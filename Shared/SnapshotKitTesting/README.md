@@ -77,6 +77,10 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
 - **Accessibility captures** — for `.accessibility` configurations, content is
   wrapped in AccessibilitySnapshot's SwiftUI renderer so the image is annotated
   with the VoiceOver reading order, labels, traits, and activation points.
+  AccessibilitySnapshot temporarily moves the content while it renders. A case
+  that uses `.settledAtLeast` discards the first accessibility render, applies
+  its settle policy, and parses again. This prevents a transient native-material
+  frame from becoming the reference image. Other settle policies parse once.
 - **`\.isCapturingSnapshot`** — the pipeline overrides `SnapshotCaptureTrait`
   on every captured controller, so SwiftUI content reads the SnapshotKit
   environment flag as `true` and can freeze never-settling motion

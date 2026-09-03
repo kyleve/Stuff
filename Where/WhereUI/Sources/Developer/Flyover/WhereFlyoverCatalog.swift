@@ -92,6 +92,7 @@
                 AlertsSettingsView.flyoverData,
                 AppearanceSettingsView.flyoverData,
                 CardDesignerStudioView.flyoverData,
+                RankingAnimationLabView.flyoverData,
                 AppIconView.flyoverData,
                 VisibleYearSettingsView.flyoverData,
                 SiriFeaturesView.flyoverData,

@@ -65,10 +65,11 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   launch-built model + runner (`init(model:launcher:)`). A no-arg `init()` builds
   its own for previews and the hosted UI test.
 - **Developer tools** — DEBUG-only logging, span, region-map, Flyover, forced-crash,
-  and next-launch Inspector controls. Forced crashes cover Swift traps, Objective-C
+  and next-launch Inspector/demo controls. The demo sheet selects which Resolve
+  issue categories appear in a one-shot, in-memory launch. Forced crashes cover Swift traps, Objective-C
   exceptions, abort signals, and invalid memory access so crash reporters can be
   checked end to end. The global launcher's accordion only updates
-  `InspectorModeController`. The current regular runtime continues until the
+  `WhereDeveloperLaunchController`. The current regular runtime continues until the
   developer relaunches. The Logs destination is always present. Before its
   durable store is ready it reports whether the open is still running,
   unavailable, or failed with the actual error.
@@ -108,7 +109,7 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `refreshWidgetSnapshot()`). It holds no presentation state of its own.
 - **Scope-tiered models** — scene-scoped **`YearReportModel`** (the selected
   year's `YearReportDetails`, its `LoadState`, manual-day edit intents, and the shared
-  **`LocationForecastModel`** planned-stay mirror), plus
+  **`LocationForecastModel`** planned-stay mirror and current-location advisory), plus
   view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
   (Settings export progress and failures),
   **`RemindersSettingsModel`** (notification prefs),
@@ -118,12 +119,13 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   status, and irreversible removal), plus **`OnboardingFlowModel`** (first-run phase, restore,
   demo, and completion orchestration) and **`OnboardingImportRecoveryModel`** (the sidecar/store
   recovery handshake after an interrupted onboarding import), and
-  **`LocationDayCountPresentationModel`** (the last primary-card counts the
-  user saw). The Location model holds saved values until the card surface is
-  visible and unobscured, holds them there for another half second, then
-  advances every changed number in one animated beat, adding one light haptic
-  when any count increased. Decreases, first visits, and newly appearing cards
-  stay silent. Each model orchestrates Core services or presentation state.
+  **`LocationCardsPresentationModel`** (the last primary-card counts and order
+  the user saw). The Location model holds saved values until the card surface
+  is visible and unobscured, holds them there for another half second, then
+  advances every changed number and any live two-card reversal in one animated
+  beat, adding one light haptic. Decreases, first visits, hidden updates, and
+  newly appearing cards stay spatially quiet. Each model orchestrates Core
+  services or presentation state.
   None reimplements Core rules.
 
 ### Reusable views & styling
@@ -309,19 +311,31 @@ year are projected through that same geometry and reduced to a clipped,
 static constellation of glowing pinpricks. Manually logged days add no invented
 points. Settings > Appearance can hide or restore that constellation without
 altering the recorded data. Security-print layers use normal compositing in
-light mode and Screen in dark mode, so the same tinted details darken pale glass
-but lighten dark glass. Reduce Transparency removes the constellation halos
-while retaining the crisp centers.
+light mode. Dark mode mixes the region tint 65% toward white and uses luminosity
+blending, which keeps the ink legible without oversaturating it when interactive
+glass illuminates. Reduce Transparency removes the constellation halos while
+retaining the crisp centers.
 Live tilt is observed only by the sheen overlay, so its 60 Hz updates do not
 invalidate the card's text or Canvas artwork. The card adds no standalone edge
 stroke. Its containing Liquid Glass surface owns the subtle outer border so
 direct and production rendering do not diverge.
 
-After at least three months of the current year, Locations can reveal a collapsible annual estimate
-from the recorded pace and plan a stay through one of its displayed regions. A focused region
-calendar places the estimate after the current month and renders planned future days with a
-continuous hatched band, distinct from recorded presence. Settings > Appearance disables every
-estimate and planning visualization only after clearing the synced plan succeeds.
+After three complete months, Locations can show a collapsible annual estimate from the recorded pace.
+The user can plan a stay in one of the displayed regions. The shared estimate uses an adaptive
+passport-visa endorsement. A neutral microprint border repeats the silhouettes of the two main
+location cards around the security print and annual seal. Region-tinted rows use a solid and
+hatched rule to distinguish recorded time from the projection.
+A focused region calendar puts the same open endorsement after the current month. The calendar
+shows planned future days with a continuous hatched band. This band is distinct from recorded
+presence. Appearance settings hide every estimate and planning view only after the app clears the
+synchronized plan.
+
+While the Locations cards are visible, a live reversal between the same two
+primary regions holds the previous counts and order through the existing reveal
+delay. The winning card then passes above the other card and settles with the
+count morph and one haptic in the same beat. Initial loads, year changes, hidden
+updates, and a different region entering the primary pair update without the
+spatial flourish. Reduce Motion replaces the pass with a brief fade emphasis.
 
 DEBUG builds include Card Designer Studio under Settings → Appearance. It
 edits a versioned, persisted draft of the regular, compact, and shared card
@@ -329,6 +343,11 @@ presentation, previews both appearances with live tilt, and exports the full
 result—or only its changes from the app defaults—as shareable or clipboard JSON
 and Swift. The draft affects the rest of the app only while “Apply to App” is
 enabled. That switch intentionally resets on every launch.
+
+The separate DEBUG Ranking Animation Lab appears directly below Card Designer
+Studio. It replays the production ranked-card coordinator and provides
+session-only controls for the pass motion. It does not modify Card Designer
+drafts, exports, or the app-wide card override.
 
 ## Previews
 

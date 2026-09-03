@@ -317,6 +317,25 @@
             )
         }
 
+        /// Planned-stay editor fixture whose one-shot location result is fixed.
+        @MainActor
+        public static func plannedStayEditorYearReportModel(
+            currentLocation: LocationSample?,
+            plannedStay: PlannedStay?,
+        ) -> YearReportModel {
+            let source = ScriptedLocationSource()
+            source.setNextRequestedLocation(currentLocation)
+            let model = YearReportModel(
+                services: previewServices(locationSource: source),
+                details: sampleYearReportDetails(),
+                selectedYear: year,
+                preferences: previewPreferences(),
+                now: { referenceNow },
+            )
+            model.forecasts.setActivePlannedStay(plannedStay)
+            return model
+        }
+
         /// A report stopped at the pinned "today" with a deterministic future
         /// New York stay, for forecast and planned-calendar previews.
         @MainActor

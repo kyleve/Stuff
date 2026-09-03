@@ -61,6 +61,8 @@ public struct WhereServices: Sendable {
     /// The single synced “I’ll be here through…” intent used by location
     /// forecasts.
     public let plannedStays: PlannedStayCoordinator
+    /// Best-effort current-location verification for the planned-stay editor.
+    public let plannedStayLocation: PlannedStayLocationVerifier
     /// Data-quality issue detection for the Resolve tab.
     public let resolution: DataIssueScanner
     /// The persistence boundary, retained so `dataChangeUpdates()` can hand out
@@ -269,6 +271,10 @@ public struct WhereServices: Sendable {
             calendar: aggregator.calendar,
             now: now,
         )
+        let plannedStayLocation = PlannedStayLocationVerifier(
+            ingestor: ingestor,
+            attributor: attributor,
+        )
         self.reports = reports
         self.evidence = evidence
         self.reminders = reminders
@@ -280,6 +286,7 @@ public struct WhereServices: Sendable {
         self.journal = journal
         self.backup = backup
         self.plannedStays = plannedStays
+        self.plannedStayLocation = plannedStayLocation
         self.resolution = resolution
         self.store = store
         self.attributor = attributor

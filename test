@@ -66,9 +66,13 @@ OS="27.0"
 SCOPE=changed          # changed | all | snapshots | everything | bundles | only
 BUNDLES=()
 ONLY=()
+ONLY_FILE=""
 RECORD=""
 DO_BUILD=true
 DO_GENERATE=true
+BUILD_ARTIFACTS=""
+TEST_ARTIFACTS=""
+ENUMERATE_SUITES=""
 HEARTBEAT=15
 STATUS_FILE=""
 TIMINGS=false
@@ -99,6 +103,7 @@ Scope:
   --everything      Both suites — what CI runs
   --only ID         An xcodebuild test identifier, repeatable:
                     Bundle, Bundle/Suite, or 'Bundle/Suite/test()'
+  --only-file PATH  Read newline-delimited Bundle/Suite identifiers from PATH
   --base REF        Compare against REF instead of origin/main
 
 Architecture:
@@ -108,6 +113,12 @@ Architecture:
 Running:
   --no-build        Reuse the last build (test-without-building)
   --no-generate     Skip `tuist generate` (assumes the project is current)
+  --build-artifacts DIR
+                    Build the selected schemes into DIR without running tests
+  --test-artifacts DIR
+                    Run tests from the manifest and .xctestrun files in DIR
+  --enumerate-suites PATH
+                    Write the selected artifact's Bundle/Suite identifiers
   --record MODE     Re-record snapshots: all | failed | missing | never
   --device NAME     Simulator device name (default: "iPhone 17")
   --os VERSION      Simulator iOS version (default: "27.0")
@@ -147,9 +158,32 @@ while [ $# -gt 0 ]; do
             ONLY+=("${1:?--only requires a test identifier}")
             [ "$SCOPE" = changed ] && SCOPE=only
             ;;
+        --only-file)
+            HAS_TEST_ARGUMENTS=true
+            shift
+            ONLY_FILE="${1:?--only-file requires a path}"
+            [ "$SCOPE" = changed ] && SCOPE=only
+            ;;
         --base) HAS_TEST_ARGUMENTS=true; shift; BASE_REF="${1:?--base requires a git ref}" ;;
         --no-build) DO_BUILD=false; HAS_TEST_ARGUMENTS=true ;;
         --no-generate) DO_GENERATE=false; HAS_TEST_ARGUMENTS=true ;;
+        --build-artifacts)
+            HAS_TEST_ARGUMENTS=true
+            shift
+            BUILD_ARTIFACTS="${1:?--build-artifacts requires a directory}"
+            ;;
+        --test-artifacts)
+            HAS_TEST_ARGUMENTS=true
+            shift
+            TEST_ARTIFACTS="${1:?--test-artifacts requires a directory}"
+            DO_BUILD=false
+            DO_GENERATE=false
+            ;;
+        --enumerate-suites)
+            HAS_TEST_ARGUMENTS=true
+            shift
+            ENUMERATE_SUITES="${1:?--enumerate-suites requires a path}"
+            ;;
         --record) HAS_TEST_ARGUMENTS=true; shift; RECORD="${1:?--record requires a mode}" ;;
         --device) HAS_TEST_ARGUMENTS=true; shift; DEVICE="${1:?--device requires a value}" ;;
         --shared) SHARED=true; HAS_TEST_ARGUMENTS=true ;;
@@ -169,6 +203,20 @@ done
 
 cd "$(dirname "$0")"
 
+if [ -n "$ONLY_FILE" ]; then
+    if [ ! -f "$ONLY_FILE" ]; then
+        echo "error: --only-file does not exist: $ONLY_FILE" >&2
+        exit 1
+    fi
+    while IFS= read -r identifier || [ -n "$identifier" ]; do
+        [ -n "$identifier" ] && ONLY+=("$identifier")
+    done <"$ONLY_FILE"
+    if [ "${#ONLY[@]}" -eq 0 ]; then
+        echo "error: --only-file contains no test identifiers: $ONLY_FILE" >&2
+        exit 1
+    fi
+fi
+
 case "$RECORD" in
     ""|all|failed|missing|never) ;;
     *) echo "error: --record must be all, failed, missing or never (got '$RECORD')" >&2
@@ -181,6 +229,24 @@ if [ "$ARCHITECTURE_ONLY" = true ] && [ "$RUN_ARCHITECTURE" = false ]; then
 fi
 if [ "$ARCHITECTURE_ONLY" = true ] && [ "$HAS_TEST_ARGUMENTS" = true ]; then
     echo "error: --architecture-only cannot be combined with test options or bundles" >&2
+    exit 1
+fi
+if [ -n "$BUILD_ARTIFACTS" ] && [ -n "$TEST_ARTIFACTS" ]; then
+    echo "error: --build-artifacts cannot be combined with --test-artifacts" >&2
+    exit 1
+fi
+if [ -n "$BUILD_ARTIFACTS" ] && { [ "$DO_BUILD" = false ] || [ -n "$ONLY_FILE" ] ||
+    [ "${#ONLY[@]}" -gt 0 ] || [ -n "$ENUMERATE_SUITES" ]; }
+then
+    echo "error: --build-artifacts cannot be combined with test filters or test-only modes" >&2
+    exit 1
+fi
+if [ -n "$ENUMERATE_SUITES" ] && [ -z "$TEST_ARTIFACTS" ]; then
+    echo "error: --enumerate-suites requires --test-artifacts" >&2
+    exit 1
+fi
+if [ -n "$ENUMERATE_SUITES" ] && [ "$SCOPE" != snapshots ]; then
+    echo "error: --enumerate-suites requires --snapshots" >&2
     exit 1
 fi
 
@@ -215,21 +281,25 @@ CHECKOUT_HASH="$(printf '%s' "$(pwd -P)" | shasum -a 256 | cut -c1-12)"
 # checkout path's hash so clones/worktrees cannot overwrite one another's
 # logs, progress state, or result bundles while running concurrently.
 WORKDIR="${TEST_WORKDIR:-${TMPDIR:-/tmp}/where-test-$CHECKOUT_HASH}"
-# 700 because this directory holds the progress filter, which the run then
-# executes — a world-writable path would let anyone on the machine swap it.
+# Test logs and result metadata can include developer paths and failure details.
+# Keep the per-checkout work directory private while preserving its stable path.
 mkdir -p "$WORKDIR" && chmod 700 "$WORKDIR"
 
 rule() { printf '%s\n' "============================================================"; }
+
+phase_started() {
+    python3 Tools/test_runner.py phase-started
+}
+
+emit_phase_timing() {
+    python3 Tools/test_runner.py phase-timing "$1" "$2" "${3:-}" "${4:-0}"
+}
 
 # The image bundles, read from the manifest rather than listed here: a bundle can
 # only run from a scheme that contains it, and StuffSnapshotTests is the only one
 # carrying the SNAPSHOT_EXPECTED_* / TZ pins the comparisons rely on.
 snapshot_bundles() {
-    python3 - <<'PY'
-import re, pathlib
-manifest = pathlib.Path('Project.swift').read_text()
-print('\n'.join(sorted(set(re.findall(r'name:\s*"(\w+SnapshotTests)"', manifest)))))
-PY
+    python3 Tools/test_runner.py snapshot-bundles
 }
 
 # The backup upgrader is a host-side unit regression, not an image test. Keep it
@@ -238,6 +308,7 @@ PY
 backup_upgrader_is_needed() {
     local image_bundles bundle identifier
     image_bundles="$(snapshot_bundles)"
+    { [ -n "$BUILD_ARTIFACTS" ] || [ -n "$TEST_ARTIFACTS" ]; } && return 1
 
     case "$SCOPE" in
         changed|all|everything) return 0 ;;
@@ -268,362 +339,14 @@ fi
 
 # Which bundles a set of changed paths affects.
 affected_bundles() {
-    CHANGED_FILES="$1" python3 - <<'PY'
-import json, os, re, subprocess, pathlib, sys
-
-changed = [line for line in os.environ['CHANGED_FILES'].splitlines() if line.strip()]
-if not changed:
-    sys.exit(0)
-
-package = json.loads(subprocess.run(
-    ['swift', 'package', 'dump-package'],
-    capture_output=True, text=True, check=True).stdout)
-
-paths, deps = {}, {}
-for target in package['targets']:
-    paths[target['name']] = (target.get('path') or '').rstrip('/')
-    names = []
-    for dep in target.get('dependencies', []):
-        for key in ('byName', 'target', 'product'):
-            if key in dep:
-                names.append(dep[key][0])
-                break
-    deps[target['name']] = names
-
-# Reverse edges, so "what breaks if this target changes?" is a forward walk.
-reverse = {}
-for name, dependencies in deps.items():
-    for dependency in dependencies:
-        reverse.setdefault(dependency, set()).add(name)
-
-manifest = pathlib.Path('Project.swift').read_text()
-
-# Every unit-test bundle: the sources it owns and the package products it links.
-# Both declaration forms appear — the `unitTests(...)` helper and a hand-rolled
-# `.target(...)` for the app-hosted bundles.
-#
-# Declarations are delimited by indentation, because the two obvious shortcuts
-# both produce silently wrong answers. A fixed-size window runs past short
-# declarations and absorbs the next target's products (a LifecycleKit change then
-# looked like it affected StuffCoreTests). Splitting on the next
-# `unitTests(`/`.target(` truncates at the first `.target(name:)` *dependency*
-# line, dropping every product from the app-hosted bundles (a WhereUI change then
-# missed WhereTests). In this manifest a target declaration sits at indent 8 and a
-# dependency entry at 16, so indent 8 is the boundary. `verify_parse` below is
-# what keeps that assumption honest.
-DECLARATION = re.compile(r'^ {8}(?:unitTests\(|\.target\()', re.MULTILINE)
-starts = [m.start() for m in DECLARATION.finditer(manifest)] + [len(manifest)]
-
-def products_in(window):
-    """The package products a declaration links, however it spells them."""
-    found = set(re.findall(r'\.package\(product:\s*"(\w+)"\)', window))
-    dependency = re.search(r'productDependency:\s*"(\w+)"', window)
-    if dependency:
-        found.add(dependency.group(1))
-    extra = re.search(r'extraPackageProducts:\s*\[([^\]]*)\]', window)
-    if extra:
-        found.update(re.findall(r'"(\w+)"', extra.group(1)))
-    return found
-
-
-declarations = {}
-for index, start in enumerate(starts[:-1]):
-    window = manifest[start:starts[index + 1]]
-    name = re.search(r'name:\s*"(\w+)"', window)
-    if name:
-        declarations[name.group(1)] = window
-
-bundles = {}
-for name, window in declarations.items():
-    sources = re.search(r'sources:\s*\[\s*"([^"]+)"', window)
-    if not sources or not name.endswith('Tests'):
-        continue
-    products = products_in(window)
-    # An app-hosted bundle (WhereTests, BroadwayCatalogTests) links its app by
-    # target rather than by product, so it inherits what that app links —
-    # otherwise a BroadwayCore change misses BroadwayCatalogTests, whose app
-    # builds against Broadway even though the bundle itself only lists
-    # TestHostSupport.
-    hosts = [host for host in re.findall(r'\.target\(name:\s*"(\w+)"\)', window)
-             if host in declarations]
-    for host in hosts:
-        products |= products_in(declarations[host])
-    bundles[name] = {
-        'sources': sources.group(1).replace('/**', '').rstrip('/'),
-        'products': products,
-        'hostedByTarget': bool(hosts),
-    }
-
-
-def verify_parse():
-    """Reasons the parse can't be trusted, so a bad one fails loudly.
-
-    Silently mis-parsing this manifest under-selects, which is the one failure
-    mode worth crashing over: a skipped bundle looks exactly like a passing one.
-    """
-    problems = []
-    if len(bundles) < 15:
-        problems.append(f'only found {len(bundles)} test bundles')
-    for name, bundle in bundles.items():
-        if not bundle['sources']:
-            problems.append(f'{name} has no sources')
-        if not bundle['products'] and not bundle['hostedByTarget']:
-            problems.append(f'{name} links neither a package product nor a target')
-    return problems
-
-
-problems = verify_parse()
-if problems:
-    # Exit non-zero rather than printing a short list. An unreadable manifest
-    # must not degrade into "no bundle covers these changes", which is
-    # indistinguishable from a clean run.
-    print('could not read Project.swift reliably: ' + '; '.join(problems),
-          file=sys.stderr)
-    sys.exit(2)
-
-# Paths no target owns change what every target means: the manifests themselves,
-# the shared scripts, the format config, CI. Over-select rather than skip the
-# bundle that would have caught it.
-GLOBAL = {'Package.swift', 'Package.resolved', 'Project.swift', 'Tuist.swift',
-          '.swiftformat', '.mise.toml', 'test', 'simulator', 'ide', 'flyover'}
-
-selected, changed_targets, everything = set(), set(), False
-for path in changed:
-    if path in GLOBAL or path.startswith('.github/'):
-        everything = True
-        continue
-    owner = next((name for name, bundle in bundles.items()
-                  if bundle['sources'] and path.startswith(bundle['sources'] + '/')), None)
-    if owner:
-        # A changed test file only implicates the bundle that owns it.
-        selected.add(owner)
-        continue
-    target = next((name for name, source in paths.items()
-                   if source and path.startswith(source + '/')), None)
-    if target:
-        changed_targets.add(target)
-        continue
-    # An app target's own sources (Where/Where, BroadwayCatalog, …): no package
-    # target owns them, so fall back to bundles living in the same module folder.
-    module = '/'.join(path.split('/')[:2])
-    for name, bundle in bundles.items():
-        if bundle['sources'].startswith(module + '/'):
-            selected.add(name)
-
-if everything:
-    print('\n'.join(sorted(bundles)))
-    sys.exit(0)
-
-# Transitive closure: a WhereCore change implicates WhereUI and WhereIntents,
-# and therefore their bundles too.
-frontier, affected = list(changed_targets), set(changed_targets)
-while frontier:
-    target = frontier.pop()
-    for dependent in reverse.get(target, ()):
-        if dependent not in affected:
-            affected.add(dependent)
-            frontier.append(dependent)
-
-for name, bundle in bundles.items():
-    if bundle['products'] & affected:
-        selected.add(name)
-
-print('\n'.join(sorted(selected)))
-PY
+    printf '%s\n' "$1" | python3 Tools/test_runner.py affected-bundles
 }
 
-# The progress filter. It can't be a heredoc on the pipe (that would take over
-# the stdin it needs to read) and it can't be passed with `python3 -c "$(cat
-# <<'PY' …)"` either — bash 3.2, which is what /bin/bash is on macOS, mis-parses
-# a heredoc this quote-heavy inside a command substitution. So it is written out
-# and run, and $WORKDIR is created mode 700 above so the thing we execute can't
-# be swapped by another user.
-PROGRESS="$WORKDIR/progress.py"
-cat >"$PROGRESS" <<'PROGRESS_PY'
-"""Streams a test run's progress, in whichever shape the reader can use.
+# The importable progress filter reads xcodebuild output from stdin. Keeping it
+# in Tools makes its terminal, heartbeat, cache, and zero-test behavior directly
+# testable without launching Xcode.
 
-On a terminal this redraws one status line in place. When stdout is not a
-terminal — an agent tailing a captured log, or CI — it emits a newline-terminated
-line every `HEARTBEAT` seconds instead, because a carriage-return redraw leaves
-nothing behind in a log.
-
-Snapshot runs count *images*, not tests, when SNAPSHOT_TIMING is on: one test
-there can run 70 seconds across 16 captures, so test-level progress is
-indistinguishable from a hang.
-"""
-import json
-import os
-import pathlib
-import re
-import sys
-import time
-
-heartbeat = float(os.environ.get('HEARTBEAT') or 15)
-status_path = os.environ.get('STATUS_FILE') or ''
-counts_path = pathlib.Path(os.environ['COUNTS_FILE'])
-scheme = os.environ.get('SCHEME', '?')
-is_terminal = sys.stdout.isatty()
-# Only count captures when the run asked for timing lines; otherwise the timing
-# module's *own* tests, which emit sample lines, would read as captured images.
-count_images = bool(os.environ.get('COUNT_IMAGES'))
-
-# The denominator comes from the previous run of this scheme. Deliberately not
-# `-enumerate-tests`: that needs its own launch, and being wrong about the total
-# on a first run is cheaper than paying for it on every run.
-# The cache is keyed by scheme *and* filter set (see COUNTS_FILE), so a filtered
-# run compares against its own previous total rather than the whole scheme's —
-# which is what previously left the default `./test` invocation, always filtered,
-# with no denominator at all.
-expected = {'tests': 0, 'images': 0}
-if counts_path.exists():
-    try:
-        expected.update(json.loads(counts_path.read_text()))
-    except ValueError:
-        pass
-
-SUITE = re.compile(r'^[◇✔✘]\s+Suite (\S+) (started|passed|failed)')
-# `(?!run\b)` because Swift Testing announces the whole run as "Test run
-# started", which would otherwise register as a test named `run`.
-TEST_STARTED = re.compile(r'^◇\s+Test (?!run\b)(\S+?) started')
-TEST_DONE = re.compile(r'^[✔✘]\s+Test (?!run\b)(\S+?) (passed|failed) after')
-INTERESTING = re.compile(r'does not match reference|^error:|Failure collecting|'
-                         r'\*\* TEST (SUCCEEDED|FAILED) \*\*')
-
-started = time.monotonic()
-tests = images = failures = 0
-suite = ''
-current = ''
-last_emit = 0.0
-failed_names = []
-
-
-def elapsed():
-    seconds = int(time.monotonic() - started)
-    return f'{seconds // 60:d}:{seconds % 60:02d}'
-
-
-def status():
-    if expected['images'] and images:
-        done, total, unit = images, expected['images'], 'images'
-    elif expected['tests']:
-        done, total, unit = tests, expected['tests'], 'tests'
-    else:
-        done, total, unit = (images or tests), 0, ('images' if images else 'tests')
-    parts = [f'[{elapsed()}]']
-    # A cached total from a previous run can be stale — a bundle gained tests, or
-    # the cache predates a change in scope. Overshooting it means the denominator
-    # is wrong, so drop it rather than reporting 368/38 and a negative estimate.
-    if total and done <= total:
-        parts.append(f'{done}/{total} {unit} ({int(100 * done / total)}%)')
-        if done:
-            remaining = (time.monotonic() - started) / done * (total - done)
-            parts.append(f'~{int(remaining // 60)}:{int(remaining % 60):02d} left')
-    else:
-        parts.append(f'{done} {unit}')
-    if suite:
-        parts.append(suite)
-    if current:
-        parts.append(current)
-    parts.append(f'{failures} failed' if failures else 'ok')
-    return ' · '.join(parts)
-
-
-def emit(force=False):
-    global last_emit
-    now = time.monotonic()
-    line = status()
-    if status_path:
-        try:
-            pathlib.Path(status_path).write_text(line + '\n')
-        except OSError:
-            pass
-    if is_terminal:
-        sys.stdout.write('\r\033[K' + line)
-        sys.stdout.flush()
-    elif force or now - last_emit >= heartbeat:
-        print(line, flush=True)
-        last_emit = now
-
-
-print(f'    (progress for {scheme}; full log alongside it in the work directory)',
-      flush=True)
-
-for raw in sys.stdin:
-    line = raw.rstrip('\n')
-    if count_images and line.startswith('SNAPSHOT_TIMING '):
-        images += 1
-        emit()
-        continue
-    if line.startswith('FLYOVER_EXPORT '):
-        if is_terminal:
-            sys.stdout.write('\r\033[K')
-        print(f'    {line}', flush=True)
-        last_emit = 0.0
-        continue
-    match = SUITE.match(line)
-    if match:
-        if match.group(2) == 'started':
-            suite = match.group(1)
-        emit()
-        continue
-    match = TEST_STARTED.match(line)
-    if match:
-        current = match.group(1)
-        emit()
-        continue
-    match = TEST_DONE.match(line)
-    if match:
-        tests += 1
-        if match.group(2) == 'failed':
-            failures += 1
-            failed_names.append(f'{suite}/{match.group(1)}')
-            # A failure is the one event worth interrupting the cadence for.
-            if is_terminal:
-                sys.stdout.write('\r\033[K')
-            print(f'    ✘ {suite}/{match.group(1)}', flush=True)
-            emit(force=True)
-        else:
-            current = ''
-            emit()
-        continue
-    if INTERESTING.search(line):
-        if is_terminal:
-            sys.stdout.write('\r\033[K')
-        print(f'    {line.strip()}', flush=True)
-        last_emit = 0.0
-
-if is_terminal:
-    sys.stdout.write('\r\033[K')
-    sys.stdout.flush()
-summary = f'    {tests} tests'
-if images:
-    summary += f', {images} images'
-summary += f' in {elapsed()}'
-if failures:
-    summary += f' — {failures} failed'
-elif tests:
-    summary += ' — all passed'
-else:
-    summary += ' — nothing ran'
-if tests == 0:
-    summary += '\n    error: this run matched no tests — check the --only identifier '
-    summary += '(Swift Testing filters at Bundle/Suite, not per function)'
-print(summary, flush=True)
-
-# Remember the totals so the next identically-scoped run can show a percentage.
-if tests:
-    counts_path.write_text(json.dumps({'tests': tests, 'images': images}))
-
-# Exit non-zero when nothing ran, so a filter that matches nothing can't read as
-# a pass. The shell reads xcodebuild's status, so this is surfaced via the log
-# line above plus the marker file the caller checks.
-if tests == 0:
-    pathlib.Path(str(counts_path) + '.empty').write_text('1')
-else:
-    pathlib.Path(str(counts_path) + '.empty').unlink(missing_ok=True)
-PROGRESS_PY
-
-# Resolve the run plan: which scheme(s), and which -only-testing filters.
+# Resolve the run plan:
 SCHEMES=()
 UNIT_FILTERS=()
 SNAPSHOT_FILTERS=()
@@ -699,12 +422,24 @@ if [ "${#ONLY[@]}" -gt 0 ]; then
     for identifier in "${ONLY[@]}"; do
         if printf '%s\n' "$only_images" | grep -qx "${identifier%%/*}"; then
             add_scheme "$SNAPSHOT_SCHEME"
-            SNAPSHOT_FILTERS+=("-only-testing:$identifier")
+            [ -z "$ONLY_FILE" ] && SNAPSHOT_FILTERS+=("-only-testing:$identifier")
         else
             add_scheme "$UNIT_SCHEME"
-            UNIT_FILTERS+=("-only-testing:$identifier")
+            [ -z "$ONLY_FILE" ] && UNIT_FILTERS+=("-only-testing:$identifier")
         fi
     done
+fi
+
+if [ -n "$ONLY_FILE" ]; then
+    if [ "${#SCHEMES[@]}" -ne 1 ]; then
+        echo "error: --only-file must contain identifiers for one test scheme" >&2
+        exit 1
+    fi
+    if [ "${SCHEMES[0]}" = "$SNAPSHOT_SCHEME" ]; then
+        SNAPSHOT_FILTERS=("-only-testing" "@$ONLY_FILE")
+    else
+        UNIT_FILTERS=("-only-testing" "@$ONLY_FILE")
+    fi
 fi
 
 if [ "${#SCHEMES[@]}" -eq 0 ]; then
@@ -712,19 +447,62 @@ if [ "${#SCHEMES[@]}" -eq 0 ]; then
     exit 1
 fi
 
+for scheme in "${SCHEMES[@]}"; do
+    [ "$scheme" = "$SNAPSHOT_SCHEME" ] || continue
+
+    expected_xcode_build="$(< .xcode-build-version)"
+    xcode_build="$(xcodebuild -version | awk '/Build version/{print $3}')"
+    if [ "$xcode_build" != "$expected_xcode_build" ]; then
+        echo "error: snapshot tests require Xcode build $expected_xcode_build; found $xcode_build" >&2
+        echo "       Install the pinned Xcode build. Then select it before capturing snapshots." >&2
+        exit 1
+    fi
+    break
+done
+
 if [ "$DO_GENERATE" = true ]; then
     echo "==> Regenerating project (tuist generate --no-open)"
-    if ! mise exec -- tuist generate --no-open >"$WORKDIR/generate.log" 2>&1; then
+    started="$(phase_started)"
+    if mise exec -- tuist generate --no-open >"$WORKDIR/generate.log" 2>&1; then
+        emit_phase_timing generate "$started"
+    else
+        status=$?
+        emit_phase_timing generate "$started" "" "$status"
         echo "error: tuist generate failed. Tail of $WORKDIR/generate.log:" >&2
         tail -n 20 "$WORKDIR/generate.log" >&2
-        exit 1
+        exit "$status"
     fi
 fi
 
-SIMULATOR_FLAGS=(--device "$DEVICE" --os "$OS")
-[ "$SHARED" = true ] && SIMULATOR_FLAGS+=(--shared)
-UDID="$(./simulator "${SIMULATOR_FLAGS[@]}")"
-DESTINATION="platform=iOS Simulator,id=$UDID"
+if [ -n "$TEST_ARTIFACTS" ]; then
+    ARTIFACT_SCHEME_ARGS=()
+    for scheme in "${SCHEMES[@]}"; do
+        ARTIFACT_SCHEME_ARGS+=(--scheme "$scheme")
+    done
+    python3 .circleci/test_artifacts.py resolve-all \
+        --root "$TEST_ARTIFACTS" \
+        "${ARTIFACT_SCHEME_ARGS[@]}" >/dev/null
+    echo "Validated test artifacts before simulator boot."
+fi
+
+if [ -n "$BUILD_ARTIFACTS" ]; then
+    BUILD_ARTIFACTS="$(mkdir -p "$BUILD_ARTIFACTS" && cd "$BUILD_ARTIFACTS" && pwd -P)"
+    DESTINATION="generic/platform=iOS Simulator"
+    DERIVED_DATA_ARGS=(-derivedDataPath "$BUILD_ARTIFACTS/DerivedData")
+else
+    SIMULATOR_FLAGS=(--device "$DEVICE" --os "$OS")
+    [ "$SHARED" = true ] && SIMULATOR_FLAGS+=(--shared)
+    started="$(phase_started)"
+    if UDID="$(./simulator "${SIMULATOR_FLAGS[@]}")"; then
+        emit_phase_timing simulator "$started"
+    else
+        status=$?
+        emit_phase_timing simulator "$started" "" "$status"
+        exit "$status"
+    fi
+    DESTINATION="platform=iOS Simulator,id=$UDID"
+    DERIVED_DATA_ARGS=()
+fi
 
 # xcodebuild strips the TEST_RUNNER_ prefix on the way in, which is why the
 # pipeline reads SNAPSHOT_* rather than these names.
@@ -750,14 +528,21 @@ done
 # `packageResourceEnvironment` in Project.swift for why the lookup needs an
 # override at all (Xcode 27 beta 4's package linking orphans the resource
 # bundles copied into each .xctest).
-BUILT_PRODUCTS_DIR="$(xcodebuild -showBuildSettings \
-    -workspace "$WORKSPACE" \
-    -scheme "${SCHEMES[0]}" \
-    -destination "$DESTINATION" 2>/dev/null \
-    | awk -F' = ' '/ BUILT_PRODUCTS_DIR = /{print $2; exit}')"
+if [ -n "$TEST_ARTIFACTS" ]; then
+    BUILT_PRODUCTS_DIR="$(python3 .circleci/test_artifacts.py resolve \
+        --root "$TEST_ARTIFACTS" --scheme "${SCHEMES[0]}" --field products)"
+elif [ -n "$BUILD_ARTIFACTS" ]; then
+    BUILT_PRODUCTS_DIR=""
+else
+    BUILT_PRODUCTS_DIR="$(xcodebuild -showBuildSettings \
+        -workspace "$WORKSPACE" \
+        -scheme "${SCHEMES[0]}" \
+        -destination "$DESTINATION" 2>/dev/null \
+        | awk -F' = ' '/ BUILT_PRODUCTS_DIR = /{print $2; exit}')"
+fi
 if [ -n "$BUILT_PRODUCTS_DIR" ]; then
     RUN_ENV+=("TEST_RUNNER_PACKAGE_RESOURCE_BUNDLE_PATH=$BUILT_PRODUCTS_DIR")
-else
+elif [ -z "$BUILD_ARTIFACTS" ]; then
     echo "warning: could not resolve BUILT_PRODUCTS_DIR; package resource" \
         "bundle lookups will fall back to the linker's placement" >&2
 fi
@@ -779,15 +564,58 @@ for scheme in "${SCHEMES[@]}"; do
 
     if [ "$DO_BUILD" = true ]; then
         echo "==> Building $scheme for testing"
-        if ! xcodebuild build-for-testing \
+        started="$(phase_started)"
+        if xcodebuild build-for-testing \
             -workspace "$WORKSPACE" \
             -scheme "$scheme" \
+            -configuration Debug \
             -destination "$DESTINATION" \
+            ${DERIVED_DATA_ARGS[@]+"${DERIVED_DATA_ARGS[@]}"} \
+            ${BUILD_ARTIFACTS:+ARCHS=arm64} \
+            ${BUILD_ARTIFACTS:+ONLY_ACTIVE_ARCH=YES} \
             >"$WORKDIR/$scheme-build.log" 2>&1
         then
+            emit_phase_timing build "$started" "$scheme"
+        else
+            status=$?
+            emit_phase_timing build "$started" "$scheme" "$status"
             echo "error: build failed for $scheme. Tail of $WORKDIR/$scheme-build.log:" >&2
             tail -n 30 "$WORKDIR/$scheme-build.log" >&2
-            exit 1
+            exit "$status"
+        fi
+    fi
+
+    [ -n "$BUILD_ARTIFACTS" ] && continue
+
+    if [ -n "$TEST_ARTIFACTS" ]; then
+        XCTESTRUN="$(python3 .circleci/test_artifacts.py resolve \
+            --root "$TEST_ARTIFACTS" --scheme "$scheme" --field xctestrun)"
+        TEST_LOCATION=(-xctestrun "$XCTESTRUN")
+    else
+        TEST_LOCATION=(-workspace "$WORKSPACE" -scheme "$scheme")
+    fi
+
+    if [ -n "$ENUMERATE_SUITES" ]; then
+        raw_enumeration="$WORKDIR/$scheme-enumeration.json"
+        started="$(phase_started)"
+        if xcodebuild test-without-building \
+            ${TEST_LOCATION[@]+"${TEST_LOCATION[@]}"} \
+            -destination "$DESTINATION" \
+            -enumerate-tests \
+            -test-enumeration-style hierarchical \
+            -test-enumeration-format json \
+            -test-enumeration-output-path "$raw_enumeration" \
+            >"$WORKDIR/$scheme-enumeration.log" 2>&1
+        then
+            python3 .circleci/test_artifacts.py suites \
+                --input "$raw_enumeration" --output "$ENUMERATE_SUITES"
+            emit_phase_timing enumerate "$started" "$scheme"
+            exit 0
+        else
+            status=$?
+            emit_phase_timing enumerate "$started" "$scheme" "$status"
+            tail -n 30 "$WORKDIR/$scheme-enumeration.log" >&2
+            exit "$status"
         fi
     fi
 
@@ -797,27 +625,38 @@ for scheme in "${SCHEMES[@]}"; do
     scope_key="$(printf '%s\n' "$scheme" ${filters[@]+"${filters[@]}"} \
         | shasum | cut -c1-12)"
     counts="$WORKDIR/counts-$scheme-$scope_key.json"
+    progress_args=(
+        --heartbeat "$HEARTBEAT"
+        --counts-file "$counts"
+        --scheme "$scheme"
+    )
+    [ -n "$STATUS_FILE" ] && progress_args+=(--status-file "$STATUS_FILE")
+    [ "$TIMINGS" = true ] && progress_args+=(--count-images)
 
     echo "==> Testing $scheme on $DEVICE / iOS $OS"
+    started="$(phase_started)"
     set +e
     env ${RUN_ENV[@]+"${RUN_ENV[@]}"} \
         xcodebuild test-without-building \
-        -workspace "$WORKSPACE" \
-        -scheme "$scheme" \
+        ${TEST_LOCATION[@]+"${TEST_LOCATION[@]}"} \
         -destination "$DESTINATION" \
         -resultBundlePath "$result" \
         -collect-test-diagnostics never \
         ${filters[@]+"${filters[@]}"} \
         2>&1 \
         | tee "$log" \
-        | HEARTBEAT="$HEARTBEAT" STATUS_FILE="$STATUS_FILE" \
-          COUNTS_FILE="$counts" SCHEME="$scheme" \
-          COUNT_IMAGES="$([ "$TIMINGS" = true ] && echo 1 || true)" \
-          python3 -u "$PROGRESS"
-    # [0] is xcodebuild; [1] is tee and [2] the progress filter, either of which
-    # exiting 0 would otherwise mask a failed run.
-    status="${PIPESTATUS[0]}"
+        | python3 -u Tools/test_runner.py progress "${progress_args[@]}"
+    # [0] is xcodebuild; [1] is tee and [2] the progress filter. Prefer the
+    # authoritative test status, then surface a logging/reporting failure when
+    # Xcode itself succeeded. No pipeline stage may turn a broken run green.
+    pipeline_statuses=("${PIPESTATUS[@]}")
+    status="${pipeline_statuses[0]}"
+    [ "$status" -eq 0 ] && [ "${pipeline_statuses[1]}" -ne 0 ] \
+        && status="${pipeline_statuses[1]}"
+    [ "$status" -eq 0 ] && [ "${pipeline_statuses[2]}" -ne 0 ] \
+        && status="${pipeline_statuses[2]}"
     set -e
+    emit_phase_timing test "$started" "$scheme" "$status"
     RESULTS+=("$result")
     LOGS+=("$log")
     [ "$status" -ne 0 ] && overall_status="$status"
@@ -827,6 +666,19 @@ for scheme in "${SCHEMES[@]}"; do
     fi
 done
 
+if [ -n "$BUILD_ARTIFACTS" ]; then
+    manifest_args=()
+    for scheme in "${SCHEMES[@]}"; do
+        manifest_args+=(--scheme "$scheme")
+    done
+    python3 .circleci/test_artifacts.py create \
+        --root "$BUILD_ARTIFACTS" "${manifest_args[@]}"
+    artifact_bytes="$(du -sk "$BUILD_ARTIFACTS/DerivedData/Build/Products" | awk '{print $1 * 1024}')"
+    printf 'CI_ARTIFACT {"bytes":%s,"schemes":%s}\n' \
+        "$artifact_bytes" "${#SCHEMES[@]}"
+    exit 0
+fi
+
 # Failures, reprinted with the identifier that re-runs each one.
 if [ "$overall_status" -ne 0 ]; then
     echo
@@ -835,40 +687,10 @@ if [ "$overall_status" -ne 0 ]; then
     rule
     for result in "${RESULTS[@]}"; do
         [ -d "$result" ] || continue
-        # Via a file, not a pipe: `python3 - <<'PY'` takes its *program* from
-        # stdin, so piped data would never reach sys.stdin.
         xcrun xcresulttool get test-results tests --path "$result" \
             >"$WORKDIR/failures.json" 2>/dev/null || true
-        RESULT="$result" TESTS_JSON="$WORKDIR/failures.json" python3 - <<'PY'
-import json, os, sys
-
-def walk(node, bundle, suite, out):
-    kind, name = node.get('nodeType'), node.get('name', '')
-    if kind == 'Unit test bundle':
-        bundle = name
-    elif kind == 'Test Suite':
-        suite = name
-    elif kind == 'Test Case' and node.get('result') == 'Failed':
-        # Re-run at Bundle/Suite. A third (function) component is not usable
-        # here: with parentheses xcodebuild errors, and without them it silently
-        # matches zero tests and still exits 0.
-        out.append((f'{bundle}/{suite}/{name}', f'{bundle}/{suite}'))
-    for child in node.get('children', []):
-        walk(child, bundle, suite, out)
-
-try:
-    data = json.load(open(os.environ['TESTS_JSON']))
-except (ValueError, OSError):
-    sys.exit(0)
-failures = []
-for node in data.get('testNodes', []):
-    walk(node, '?', '?', failures)
-for label, identifier in failures:
-    print(f'  {label}')
-    print(f"      ./test --only '{identifier}'")
-if failures:
-    print(f"\n  Result bundle: {os.environ['RESULT']}")
-PY
+        python3 Tools/test_runner.py failures \
+            --result "$result" --tests-json "$WORKDIR/failures.json"
     done
 fi
 
@@ -882,29 +704,7 @@ if [ "$TIMINGS" = true ]; then
         grep -o 'SNAPSHOT_TIMING {.*}' "$log" 2>/dev/null \
             | sed 's/^SNAPSHOT_TIMING //' >>"$WORKDIR/timings.jsonl" || true
     done
-    LINES="$WORKDIR/timings.jsonl" python3 - <<'PY'
-import json, os, sys, collections
-rows = [json.loads(line) for line in open(os.environ['LINES']) if line.strip()]
-if not rows:
-    print('  (no timing lines — was this a snapshot scheme?)')
-    sys.exit(0)
-grand = sum(row['total'] for row in rows)
-totals = collections.Counter()
-for row in rows:
-    for phase, seconds in row['phases'].items():
-        totals[phase] += seconds
-print(f'  {len(rows)} captures, {grand:.1f}s total, {grand / len(rows):.3f}s per image\n')
-print(f"  {'phase':20s} {'total':>9s} {'share':>7s} {'mean':>9s}")
-for phase, seconds in totals.most_common():
-    print(f'  {phase:20s} {seconds:8.2f}s {100 * seconds / grand:6.1f}% '
-          f'{seconds / len(rows):8.3f}s')
-passes = [row['settlePasses'] for row in rows]
-print(f'\n  settle passes: min {min(passes)}, max {max(passes)}, '
-      f'mean {sum(passes) / len(passes):.1f}')
-print('\n  slowest captures:')
-for row in sorted(rows, key=lambda row: -row['total'])[:8]:
-    print(f"    {row['total']:6.3f}s  {row['id']}")
-PY
+    python3 Tools/snapshot_reports.py timings "$WORKDIR/timings.jsonl"
 fi
 
 if [ "$REVIEW" = true ]; then
@@ -917,35 +717,10 @@ if [ "$REVIEW" = true ]; then
         grep -o 'SNAPSHOT_DIFF {.*}' "$log" 2>/dev/null \
             | sed 's/^SNAPSHOT_DIFF //' >>"$WORKDIR/diffs.jsonl" || true
     done
-    LINES="$WORKDIR/diffs.jsonl" \
-        IS_RECORDING="$([ -n "$RECORD" ] && [ "$RECORD" != never ] && echo 1 || true)" \
-        python3 - <<'PY'
-import json, os, sys
-rows = [json.loads(line) for line in open(os.environ['LINES']) if line.strip()]
-# A missing reference is the expected state of a recording run, so reporting one
-# per image there is noise at exactly the moment nobody wants it.
-if os.environ.get('IS_RECORDING'):
-    rows = [row for row in rows if row['outcome'] != 'referenceMissing']
-if not rows:
-    print('  Every capture matched its reference byte for byte.')
-    sys.exit(0)
-differs = [row for row in rows if row['outcome'] == 'differs']
-print(f'  {len(rows)} capture(s) did not match byte for byte.\n')
-if differs:
-    # Sorted by max channel delta, because that is what separates a broken
-    # render from antialiasing drift. Pixel count does not: the worst real
-    # defect found so far touched fewer pixels than the noisiest harmless one.
-    print(f"  {'maxDelta':>8s} {'pixels':>8s} {'of image':>9s}  region (x,y,w,h)  reference")
-    for row in sorted(differs, key=lambda row: -row['maxChannelDelta']):
-        region = ','.join(str(value) for value in row['region'])
-        reference = row.get('reference', '?').split('__Snapshots__/')[-1]
-        print(f"  {row['maxChannelDelta']:8d} {row['differingPixels']:8d} "
-              f"{100 * row['differingFraction']:8.3f}%  ({region})  {reference}")
-    print('\n  A single-digit max delta is sub-visible drift; a large one is a real')
-    print('  change however few pixels it touches.')
-for row in (row for row in rows if row['outcome'] != 'differs'):
-    print(f"  {row['outcome']}: {row.get('reference') or row.get('detail')}")
-PY
+    difference_args=()
+    [ -n "$RECORD" ] && [ "$RECORD" != never ] && difference_args+=(--recording)
+    python3 Tools/snapshot_reports.py differences \
+        "$WORKDIR/diffs.jsonl" ${difference_args[@]+"${difference_args[@]}"}
 fi
 
 echo

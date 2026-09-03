@@ -2,10 +2,12 @@ import RegionKit
 import SwiftUI
 import WhereCore
 
-/// Annual location estimates shared by the Locations summary and calendar
-/// surfaces. Calendar hosts can offer one or more regions for stay planning.
+/// Annual location estimates presented as one passport-style visa endorsement.
+/// Locations collapses the endorsement; calendars and feature discovery show
+/// its complete region rows and optional stay-planning controls.
 struct LocationForecastPanel: View {
     let forecasts: [LocationForecast]
+    let microprintRegions: [Region]
     var plannedStay: PlannedStay?
     var editableRegions: [Region] = []
     var editAction: ((Region) -> Void)?
@@ -13,19 +15,24 @@ struct LocationForecastPanel: View {
     var isCollapsible = false
 
     @State private var isExpanded = false
+    @State private var regionBorderPaths: [Path] = []
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionOutlinePathCache) private var regionOutlinePathCache
 
     private var style: WhereStylesheet.LocationForecastStyle {
         stylesheet.locationForecast
     }
 
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: style.cornerRadius)
+        let showsContent = !isCollapsible || isExpanded
+
         VStack(alignment: .leading, spacing: style.rowSpacing) {
             if isCollapsible {
                 LocationForecastHeader(
                     elapsedDays: forecasts.first?.elapsedDays,
-                    isExpanded: isExpanded,
+                    isExpanded: showsContent,
                     expansionAction: toggleExpansion,
                 )
             } else {
@@ -35,49 +42,94 @@ struct LocationForecastPanel: View {
                 )
             }
 
-            if !isCollapsible || isExpanded {
-                forecastContent
-                    .transition(.move(edge: .top).combined(with: .opacity))
+            if showsContent {
+                VStack(alignment: .leading, spacing: style.rowSpacing) {
+                    ForEach(forecasts, id: \.region) { forecast in
+                        LocationForecastRow(
+                            forecast: forecast,
+                            plannedStay: plannedStay,
+                        )
+                    }
+
+                    if !editableRegions.isEmpty, let editAction {
+                        LocationForecastControls(
+                            editableRegions: editableRegions,
+                            plannedStay: plannedStay,
+                            editAction: editAction,
+                            clearAction: clearAction,
+                        )
+                    }
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
         .padding(style.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
-            let shape = RoundedRectangle(cornerRadius: style.cornerRadius)
-            if isCollapsible {
-                shape
-                    .fill(.background)
-                    .overlay {
-                        shape.strokeBorder(style.borderColor, lineWidth: style.borderWidth)
-                    }
-                    .shadow(
-                        color: style.shadowColor,
-                        radius: style.shadowRadius,
-                        y: style.shadowOffsetY,
-                    )
-            } else {
-                Color.clear.glassEffect(.regular, in: shape)
+            ZStack {
+                shape.fill(.background)
+                LinearGradient(
+                    colors: [
+                        Color.primary.opacity(style.ink.surfaceWashOpacity),
+                        .clear,
+                        Color.primary.opacity(style.ink.surfaceWashOpacity * 0.45),
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing,
+                )
+                SecurityPrintRosette(
+                    tint: .primary,
+                    wobble: style.surface.rosetteWobble,
+                    lineWidth: style.surface.rosetteLineWidth,
+                    primaryRingSpacing: style.surface.primaryRingSpacing,
+                    secondaryRingSpacing: style.surface.secondaryRingSpacing,
+                    primaryOpacity: style.ink.rosettePrimaryOpacity,
+                    secondaryOpacity: style.ink.rosetteSecondaryOpacity,
+                )
             }
+            .clipShape(shape)
+            .allowsHitTesting(false)
         }
+        .overlay {
+            ZStack {
+                shape.strokeBorder(
+                    Color.primary.opacity(style.ink.surfaceOutlineOpacity),
+                    lineWidth: style.surface.outlineWidth,
+                )
+                RegionOutlineSecurityBorder(
+                    paths: regionBorderPaths,
+                    tint: .primary,
+                    cornerRadius: style.cornerRadius,
+                    inset: style.surface.inset,
+                    glyphSize: style.surface.microprintGlyphSize,
+                    spacing: style.surface.microprintSpacing,
+                    opacity: style.ink.microprintOpacity,
+                )
+            }
+            .allowsHitTesting(false)
+        }
+        .shadow(
+            color: style.surface.shadowColor,
+            radius: style.surface.shadowRadius,
+            y: style.surface.shadowOffsetY,
+        )
+        .task(id: microprintRegions, loadRegionBorderPaths)
     }
 
-    @ViewBuilder
-    private var forecastContent: some View {
-        ForEach(forecasts, id: \.region) { forecast in
-            LocationForecastRow(
-                forecast: forecast,
-                plannedStay: plannedStay,
-            )
-        }
+    /// Loads the complete ordered pattern before publishing it so a changing
+    /// forecast never shows a partial or stale sequence around the panel.
+    private func loadRegionBorderPaths() async {
+        regionBorderPaths = []
+        guard let regionOutlinePathCache else { return }
 
-        if !editableRegions.isEmpty, let editAction {
-            LocationForecastControls(
-                editableRegions: editableRegions,
-                plannedStay: plannedStay,
-                editAction: editAction,
-                clearAction: clearAction,
-            )
+        var loadedPaths: [Path] = []
+        loadedPaths.reserveCapacity(microprintRegions.count)
+        for region in microprintRegions {
+            let path = await regionOutlinePathCache.path(for: region, resolution: .micro)
+            guard !Task.isCancelled else { return }
+            loadedPaths.append(path)
         }
+        regionBorderPaths = loadedPaths
     }
 
     private func toggleExpansion() {
@@ -87,45 +139,18 @@ struct LocationForecastPanel: View {
     }
 }
 
-private struct LocationForecastRow: View {
-    let forecast: LocationForecast
-    var plannedStay: PlannedStay?
-
-    @Environment(\.stylesheet) private var stylesheet
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: stylesheet.locationForecast.estimateSpacing) {
-            Text(WhereFormat.locationForecastEstimate(
-                region: forecast.region,
-                days: forecast.estimatedTotalDays,
-            ))
-            .font(.subheadline)
-            Text(WhereFormat.locationForecastBasis(
-                yearToDateDays: forecast.yearToDateDays,
-            ))
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-
-            if let plannedStay, plannedStay.region == forecast.region {
-                Text(WhereFormat.locationForecastPlan(through: plannedStay.through))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .accessibilityElement(children: .combine)
-    }
-}
-
 #if DEBUG
     #Preview {
         let report = PreviewSupport.plannedStayYearReportModel()
         LocationForecastPanel(
             forecasts: report.forecasts.leadingForecasts(report: report.report),
+            microprintRegions: report.ranking.primary.map(\.region),
             plannedStay: report.forecasts.activePlannedStay,
             editableRegions: [.california, .newYork],
             editAction: { _ in },
             clearAction: {},
         )
         .padding()
+        .whereBroadwayRoot()
     }
 #endif
