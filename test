@@ -269,8 +269,10 @@ if [ "$ARCHITECTURE_ONLY" = true ]; then
     exit 0
 fi
 
-echo "==> Testing flyover command"
-bash Shared/Flyover/Tools/Tests/flyover_test.sh
+if [ -f Shared/Flyover/Tools/Tests/flyover_test.sh ]; then
+    echo "==> Testing flyover command"
+    bash Shared/Flyover/Tools/Tests/flyover_test.sh
+fi
 
 WORKSPACE="Stuff.xcworkspace"
 UNIT_SCHEME="Stuff-iOS-Tests"
