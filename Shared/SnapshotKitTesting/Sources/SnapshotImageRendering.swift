@@ -225,7 +225,8 @@ public func renderSnapshotImage(
     timing: SnapshotCaptureTiming,
 ) async throws -> SnapshotCapture {
     try await SnapshotCaptureLock.withLock {
-        try await renderSnapshotImageLocked(
+        try Task.checkCancellation()
+        return try await renderSnapshotImageLocked(
             of: viewController,
             named: name,
             sizing: sizing,
@@ -333,6 +334,7 @@ private func renderSnapshotImageLocked(
         // effects (a focused field, a presented state) are settled before the
         // accessibility parse and capture below reflect them.
         if let onReadyToSnapshot {
+            try Task.checkCancellation()
             try await throwIfUnsettled(
                 timing.measure(.hook) {
                     await onReadyToSnapshot()
@@ -396,6 +398,7 @@ private func renderSnapshotImageLocked(
             }
         }
 
+        try Task.checkCancellation()
         viewController.view.hideTextInputCursors()
         timing.measure(.drain) { drainInFlightAnimations() }
 

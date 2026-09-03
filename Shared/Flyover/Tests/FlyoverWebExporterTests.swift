@@ -153,6 +153,50 @@
             }
         }
 
+        @Test func cancellationAfterCaptureDoesNotPublishTheImageOrManifest() async throws {
+            let directory = try makeTemporaryDirectory()
+            defer { try? FileManager.default.removeItem(at: directory) }
+            let screen = makeFlyoverTestScreen(.root, title: "Root")
+            let catalog = FlyoverCatalog(groups: [
+                FlyoverGroup(
+                    id: FlyoverGroupID("main"),
+                    title: "Main",
+                    root: .root,
+                    screens: [screen],
+                ),
+            ])
+            let exporter = FlyoverWebExporter(
+                catalog: catalog,
+                applicationID: "test",
+                title: "Test",
+                screenIdentifier: \FlyoverTestScreen.rawValue,
+            )
+
+            let export = Task { @MainActor in
+                try await exporter.export(
+                    to: directory,
+                    profiles: [.phoneLight],
+                    build: build,
+                ) { _ in
+                    withUnsafeCurrentTask { task in task?.cancel() }
+                    return FlyoverCapturedImage(
+                        pngData: Data([1]),
+                        pointSize: CGSize(width: 1, height: 1),
+                        pixelSize: CGSize(width: 1, height: 1),
+                        scale: 1,
+                    )
+                }
+            }
+
+            await #expect(throws: CancellationError.self) {
+                try await export.value
+            }
+            #expect(FileManager.default.fileExists(
+                atPath: directory.appending(path: "manifest.json").path,
+            ) == false)
+            #expect(try pngCount(in: directory) == 0)
+        }
+
         private var build: FlyoverExportBuild {
             FlyoverExportBuild(
                 commit: "abc123",
@@ -210,6 +254,17 @@
                 withIntermediateDirectories: true,
             )
             return directory
+        }
+
+        private func pngCount(in directory: URL) throws -> Int {
+            guard let enumerator = FileManager.default.enumerator(
+                at: directory,
+                includingPropertiesForKeys: nil,
+            ) else {
+                return 0
+            }
+            return enumerator.compactMap { $0 as? URL }
+                .count(where: { $0.pathExtension == "png" })
         }
     }
 

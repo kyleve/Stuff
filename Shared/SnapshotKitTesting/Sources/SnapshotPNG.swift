@@ -1,5 +1,6 @@
 import SnapshotKit
 import SwiftUI
+import TestHostSupport
 import UIKit
 
 /// PNG bytes and dimensions from a hosted capture without a reference compare.
@@ -30,6 +31,7 @@ public func captureSnapshotPNG(
     settle: SnapshotSettle,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
 ) async throws -> SnapshotPNG {
+    try waitFor { hostKeyWindow()?.rootViewController != nil }
     let controller = makeHostingController(for: view, configuration: configuration)
     let timeoutPolicy = try SnapshotSettleTimeoutPolicy.fromEnvironment()
     let capture = try await renderSnapshotCapture(

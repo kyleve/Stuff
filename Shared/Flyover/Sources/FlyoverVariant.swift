@@ -9,7 +9,7 @@ public struct FlyoverVariant {
     let overviewContent: @MainActor () -> AnyView
     let focusedContent: @MainActor () -> AnyView
     #if DEBUG
-        public let exportPolicy: FlyoverExportPolicy
+        public let exportPolicy: FlyoverExportPolicy?
         let exportPolicyResolution: FlyoverExportPolicyResolution
     #endif
 
@@ -54,7 +54,7 @@ public struct FlyoverVariant {
             exportPolicyResolution = FlyoverExportPolicy.resolution(for: snapshotCase)
             exportPolicy = switch exportPolicyResolution {
                 case let .policy(policy): policy
-                case .mixed: .hosted
+                case .mixed: nil
             }
         #endif
     }

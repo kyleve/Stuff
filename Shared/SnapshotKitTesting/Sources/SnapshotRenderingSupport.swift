@@ -91,6 +91,7 @@ func settleForCapture(
             )
         case .immediate:
             await Task.yield()
+            guard Task.isCancelled == false else { return .cancelled }
             CATransaction.performWithoutAnimation(view.layoutIfNeeded)
             return .skipped
     }

@@ -47,6 +47,7 @@ public func assertSnapshots(
         return
     }
     for snapshotCase in snapshots {
+        guard Task.isCancelled == false else { return }
         await assertSnapshots(
             of: snapshotCase.content,
             named: snapshotCase.name,
@@ -119,6 +120,7 @@ public func assertSnapshots(
     let isDiffReportingEnabled = SnapshotDiffReporting.isEnabledByEnvironment
 
     for configuration in configurations {
+        guard Task.isCancelled == false else { return }
         let hostingController = makeHostingController(for: view, configuration: configuration)
         let sizing: SnapshotSizing = switch configuration.device.size {
             case .fixed:

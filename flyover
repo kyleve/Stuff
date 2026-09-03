@@ -63,8 +63,30 @@ add_profile() {
 resolve_path() {
     python3 - "$1" <<'PY'
 import os, sys
-print(os.path.abspath(os.path.expanduser(sys.argv[1])))
+print(os.path.realpath(os.path.abspath(os.path.expanduser(sys.argv[1]))))
 PY
+}
+
+paths_are_same() {
+    python3 - "$1" "$2" <<'PY'
+import os, sys
+first, second = sys.argv[1:]
+if first == second:
+    raise SystemExit(0)
+try:
+    raise SystemExit(0 if os.path.samefile(first, second) else 1)
+except OSError:
+    raise SystemExit(1)
+PY
+}
+
+validate_destination() {
+    if [ -e "$DESTINATION" ] || [ -L "$DESTINATION" ]; then
+        [ -d "$DESTINATION" ] \
+            || error "refusing to replace non-directory '$DESTINATION'"
+        [ -f "$DESTINATION/.flyover-generated" ] \
+            || error "refusing to replace unmarked directory '$DESTINATION'"
+    fi
 }
 
 cleanup() {
@@ -117,23 +139,11 @@ done
 DESTINATION="$(resolve_path "$OUTPUT")"
 HOME_PATH="$(resolve_path "$HOME")"
 WORKSPACE_PATH="$(resolve_path "$ROOT")"
-case "$DESTINATION" in
-    /) error "refusing to replace the filesystem root" ;;
-esac
-[ "$DESTINATION" != "$HOME_PATH" ] || error "refusing to replace the home directory"
-[ "$DESTINATION" != "$WORKSPACE_PATH" ] || error "refusing to replace the workspace root"
-
-if [ -e "$DESTINATION" ] && [ ! -f "$DESTINATION/.flyover-generated" ]; then
-    error "refusing to replace unmarked directory '$DESTINATION'"
-fi
-
-PARENT="$(dirname "$DESTINATION")"
-mkdir -p "$PARENT"
-STAGING="$(mktemp -d "$PARENT/.flyover-staging.XXXXXX")"
-mkdir -p "$STAGING/assets"
-cp "$ROOT/Shared/Flyover/Web/index.html" "$STAGING/index.html"
-cp "$ROOT/Shared/Flyover/Web/assets/app.js" "$STAGING/assets/app.js"
-cp "$ROOT/Shared/Flyover/Web/assets/styles.css" "$STAGING/assets/styles.css"
+paths_are_same "$DESTINATION" / && error "refusing to replace the filesystem root"
+paths_are_same "$DESTINATION" "$HOME_PATH" && error "refusing to replace the home directory"
+paths_are_same "$DESTINATION" "$WORKSPACE_PATH" \
+    && error "refusing to replace the workspace root"
+validate_destination
 
 COMMIT="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
 if [ -n "$(git -C "$ROOT" status --porcelain 2>/dev/null || true)" ]; then
@@ -149,6 +159,15 @@ PROFILE_LIST="$(IFS=,; echo "${PROFILES[*]}")"
 CAPTURE_RUNNER="${FLYOVER_CAPTURE_RUNNER:-$ROOT/test}"
 EXPORT_STARTED_AT=$SECONDS
 
+PARENT="$(dirname "$DESTINATION")"
+mkdir -p "$PARENT"
+STAGING="$(mktemp -d "$PARENT/.flyover-staging.XXXXXX")"
+chmod 0755 "$STAGING"
+mkdir -p "$STAGING/assets"
+cp "$ROOT/Shared/Flyover/Web/index.html" "$STAGING/index.html"
+cp "$ROOT/Shared/Flyover/Web/assets/app.js" "$STAGING/assets/app.js"
+cp "$ROOT/Shared/Flyover/Web/assets/styles.css" "$STAGING/assets/styles.css"
+
 echo "==> Exporting ${#PROFILES[@]} profile(s) to $DESTINATION"
 env \
     FLYOVER_EXPORT_DIRECTORY="$STAGING" \
@@ -160,7 +179,8 @@ env \
     FLYOVER_EXPORT_XCODE_VERSION="$XCODE_VERSION" \
     FLYOVER_EXPORT_SIMULATOR_DEVICE="iPhone 17" \
     FLYOVER_EXPORT_SIMULATOR_OS="27.0" \
-    "$CAPTURE_RUNNER" --only 'WhereUISnapshotTests/WhereFlyoverWebExportTests'
+    "$CAPTURE_RUNNER" --only \
+        'WhereUISnapshotTests/WhereFlyoverWebExportTests/exportsRequestedAtlas()'
 
 python3 - "$STAGING" <<'PY'
 import json, os, pathlib, sys
@@ -188,8 +208,11 @@ if actual != len(images):
 PY
 
 printf '%s\n' 'schemaVersion=1' >"$STAGING/.flyover-generated"
+find "$STAGING" -type d -exec chmod 0755 {} +
+find "$STAGING" -type f -exec chmod 0644 {} +
 
-if [ -e "$DESTINATION" ]; then
+validate_destination
+if [ -e "$DESTINATION" ] || [ -L "$DESTINATION" ]; then
     BACKUP="$PARENT/.flyover-previous.$(basename "$DESTINATION").$$"
     mv "$DESTINATION" "$BACKUP"
 fi

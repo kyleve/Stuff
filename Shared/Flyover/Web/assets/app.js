@@ -16,10 +16,15 @@
         imageKey(image.screenID, image.variantID, image.profileID),
         image,
     ]));
+    const defaultView = "canvas";
+    const defaultProfile = manifest.profiles[0]?.id;
+    const maximumResidentImageCount = 6;
+    const maximumResidentPixelCount = 24_000_000;
+    let inspectorResizeObserver = null;
     const selectedVariants = new Map(manifest.screens.map(screen => [screen.id, screen.variants[0]?.id]));
     const state = {
-        view: "canvas",
-        profile: manifest.profiles[0]?.id,
+        view: defaultView,
+        profile: defaultProfile,
         screen: null,
         zoom: 1,
         group: manifest.groups[0]?.id,
@@ -30,9 +35,17 @@
         panelTrigger: null,
         commandQuery: "",
         pendingCanvasAction: null,
+        pendingCanvasPosition: null,
+        pendingFocusKey: null,
+        inspectorReturnFocusKey: null,
         canvas: {
             initialized: false,
             scrollLeft: 0,
+            scrollTop: 0,
+            viewportWidth: 0,
+            viewportHeight: 0,
+        },
+        list: {
             scrollTop: 0,
         },
         filters: {
@@ -64,6 +77,10 @@
         if (className) value.className = className;
         if (text !== undefined) value.textContent = text;
         return value;
+    }
+
+    function quantity(count, singular) {
+        return count + " " + (count === 1 ? singular : singular + "s");
     }
 
     function icon(name) {
@@ -144,19 +161,25 @@
     }
 
     function parseHash() {
+        const previousScreenID = state.screen;
         const values = new URLSearchParams(location.hash.replace(/^#/, ""));
         const view = values.get("view");
         const profile = values.get("profile");
         const screenID = values.get("screen");
         const variantID = values.get("variant");
-        if (view === "canvas" || view === "list") state.view = view;
-        if (profileByID.has(profile)) state.profile = profile;
+        state.view = view === "canvas" || view === "list" ? view : defaultView;
+        state.profile = profileByID.has(profile) ? profile : defaultProfile;
         if (screenByID.has(screenID)) {
             state.screen = screenID;
             const screen = screenByID.get(screenID);
-            if (screen.variants.some(variant => variant.id === variantID)) selectedVariants.set(screenID, variantID);
+            const selectedVariant = screen.variants.some(variant => variant.id === variantID)
+                ? variantID : screen.variants[0]?.id;
+            selectedVariants.set(screenID, selectedVariant);
         } else {
             state.screen = null;
+            if (previousScreenID) {
+                state.pendingFocusKey = state.inspectorReturnFocusKey || "atlas-screen-" + previousScreenID;
+            }
         }
     }
 
@@ -181,7 +204,7 @@
     function chooseView(view) {
         state.view = view;
         state.panel = null;
-        if (view === "canvas" && !state.canvas.initialized) state.pendingCanvasAction = "fit-group";
+        if (view === "canvas" && !state.canvas.initialized) state.pendingCanvasAction = "fit-initial";
         renderOrNavigate();
     }
 
@@ -203,6 +226,7 @@
     function openScreen(screenID, preserveVariant = false) {
         const screen = screenByID.get(screenID);
         if (!screen) return;
+        if (!state.screen) state.inspectorReturnFocusKey = "atlas-screen-" + screenID;
         if (!preserveVariant) selectedVariants.set(screen.id, screen.variants[0]?.id);
         state.screen = screen.id;
         state.routeFocus = screen.id;
@@ -231,9 +255,10 @@
         return row;
     }
 
-    function profileSelect(className = "") {
+    function profileSelect(className = "", focusKey = "profile") {
         const select = element("select", className);
         select.setAttribute("aria-label", "Capture profile");
+        select.dataset.focusKey = focusKey;
         for (const item of manifest.profiles) {
             const option = element("option", "", item.title);
             option.value = item.id;
@@ -247,14 +272,19 @@
     function appHeader() {
         const header = element("header", "app-header");
         const identity = element("div", "app-identity");
-        identity.append(element("span", "brand-mark", "F"));
+        const brandMark = element("span", "brand-mark", "F");
+        brandMark.setAttribute("aria-hidden", "true");
+        identity.append(brandMark);
         const copy = element("div", "identity-copy");
         copy.append(element("span", "product-label", "Flyover"), element("h1", "", manifest.application.title));
         identity.append(copy);
 
         const actions = element("div", "header-actions");
         const profile = element("label", "header-profile");
-        profile.append(element("span", "visually-hidden", "Capture profile"), profileSelect());
+        profile.append(
+            element("span", "visually-hidden", "Capture profile"),
+            profileSelect("", "header-profile"),
+        );
         actions.append(profile);
 
         const search = iconButton("search", "Search", "header-button search-trigger", true);
@@ -267,7 +297,11 @@
         const build = iconButton("info", "Build details", "header-button build-trigger");
         build.id = "build-trigger";
         build.append(element("code", "commit-label", manifest.build.commit.slice(0, 8)));
-        if (manifest.build.dirty) build.append(element("span", "dirty-dot"));
+        if (manifest.build.dirty) {
+            build.setAttribute("aria-label", "Build details, uncommitted changes");
+            build.title = "Build details, uncommitted changes";
+            build.append(element("span", "dirty-dot"));
+        }
         build.addEventListener("click", () => openPanel("build", build.id));
         actions.append(build);
         header.append(identity, actions);
@@ -283,6 +317,7 @@
         for (const item of [["canvas", "canvas", "Canvas"], ["list", "list", "List"]]) {
             const button = iconButton(item[1], item[2], "segment", true);
             button.setAttribute("aria-pressed", String(state.view === item[0]));
+            button.dataset.focusKey = "view-" + item[0];
             button.addEventListener("click", () => chooseView(item[0]));
             viewTabs.append(button);
         }
@@ -316,6 +351,7 @@
 
         const filters = iconButton("filter", "Filters", "dock-action filter-trigger", true);
         filters.id = "filter-trigger";
+        filters.dataset.focusKey = "filters-control";
         filters.append(element("span", "filter-badge"));
         filters.addEventListener("click", () => openPanel("filters", filters.id));
         dock.append(filters);
@@ -330,6 +366,7 @@
     function variantSelector(screen, updateHistory = false, className = "") {
         const select = element("select", className);
         select.setAttribute("aria-label", "State for " + screen.title);
+        select.dataset.focusKey = (updateHistory ? "inspector-state-" : "atlas-state-") + screen.id;
         for (const variant of screen.variants) {
             const option = element("option", "", variant.title);
             option.value = variant.id;
@@ -349,9 +386,11 @@
         const cue = direction === "outgoing"
             ? (route.kind === "modal" ? "Modal" : "Push")
             : (route.kind === "modal" ? "Presented from" : "Back to");
+        const title = direction === "outgoing" && route.label
+            ? route.label : (destination?.title || destinationID);
         const button = element("button", "route-chip " + route.kind);
         button.type = "button";
-        button.append(icon("route"), element("span", "", cue + " · " + (destination?.title || destinationID)));
+        button.append(icon("route"), element("span", "", cue + " · " + title));
         button.addEventListener("click", event => {
             event.stopPropagation();
             openScreen(destinationID);
@@ -374,9 +413,27 @@
         const image = element("img", className);
         image.loading = eager ? "eager" : "lazy";
         image.decoding = "async";
-        image.src = imagePath(screen);
+        const source = imagePath(screen);
+        if (eager) image.src = source;
+        else image.dataset.src = source;
+        image.dataset.captureExtent = screenVariant(screen)?.captureExtent || "viewport";
         image.alt = screen.title + " — " + (screenVariant(screen)?.title || "Default");
         return image;
+    }
+
+    function captureViewportSize(screen) {
+        if (screen.viewport.kind === "fixed" && screen.viewport.fixedSize) {
+            return screen.viewport.fixedSize;
+        }
+        const profile = profileByID.get(state.profile);
+        if (profile?.device === "tablet") return { width: 834, height: 1194 };
+        if (profile?.orientation === "landscape") return { width: 874, height: 402 };
+        return { width: 402, height: 874 };
+    }
+
+    function captureViewportAspect(screen) {
+        const size = captureViewportSize(screen);
+        return size.width / size.height;
     }
 
     function captureLabel(extent) {
@@ -429,8 +486,10 @@
         for (const item of manifest.canvas.depthBandFrames) {
             const band = element("div", "depth-band");
             band.dataset.groupId = item.groupID;
+            band.dataset.entry = String(item.kind !== "unlinked" && item.depth === 0);
             Object.assign(band.style, rectStyle(item.frame));
-            band.append(element("span", "", item.kind === "unlinked" ? "Unlinked" : "Depth " + item.depth));
+            const title = item.kind === "unlinked" ? "Unlinked" : (item.depth === 0 ? "Entry" : "Depth " + item.depth);
+            band.append(element("span", "", title));
             stage.append(band);
         }
         stage.append(routeCanvas());
@@ -442,13 +501,22 @@
 
         requestAnimationFrame(() => {
             applyZoom();
-            updateSearchVisibility();
-            if (state.pendingCanvasAction === "fit-group") {
+            if (state.pendingCanvasAction === "fit-initial") {
+                state.pendingCanvasAction = null;
+                fitFirstGroup();
+            } else if (state.pendingCanvasAction === "fit-group") {
                 state.pendingCanvasAction = null;
                 fitCurrentGroup("auto");
             } else if (state.pendingCanvasAction === "fit-all") {
                 state.pendingCanvasAction = null;
                 fitAll("auto");
+            } else if (state.pendingCanvasPosition) {
+                const position = state.pendingCanvasPosition;
+                state.pendingCanvasPosition = null;
+                viewport.scrollTo(position);
+                state.canvas.scrollLeft = position.left;
+                state.canvas.scrollTop = position.top;
+                updateCanvasNavigation();
             } else if (!state.canvas.initialized) {
                 fitFirstGroup();
             } else {
@@ -456,7 +524,9 @@
                 updateCanvasNavigation();
             }
             state.canvas.initialized = true;
+            updateCanvasImageResidency();
         });
+        installCanvasPinch(viewport);
         return main;
     }
 
@@ -472,7 +542,6 @@
         card.dataset.screenId = screen.id;
         card.dataset.groupId = screen.groupID;
         card.dataset.hidden = String(!matchesFilters(screen));
-        card.tabIndex = 0;
         Object.assign(card.style, rectStyle(screen.frame));
 
         const header = element("header", "card-header");
@@ -485,7 +554,10 @@
         const imageButton = element("button", "card-image-button");
         imageButton.type = "button";
         imageButton.setAttribute("aria-label", "Inspect " + screen.title);
+        imageButton.dataset.focusKey = "atlas-screen-" + screen.id;
         const device = element("span", "device-preview");
+        device.dataset.captureExtent = variant?.captureExtent || "viewport";
+        device.style.setProperty("--viewport-aspect", captureViewportAspect(screen));
         device.append(screenImage(screen));
         imageButton.append(device);
         imageButton.addEventListener("click", () => openScreen(screen.id, true));
@@ -513,9 +585,6 @@
         card.addEventListener("focusin", () => setRouteFocus(screen.id));
         card.addEventListener("focusout", event => {
             if (!card.contains(event.relatedTarget)) setRouteFocus(null);
-        });
-        card.addEventListener("keydown", event => {
-            if (event.key === "Enter" && event.target === card) openScreen(screen.id, true);
         });
         return card;
     }
@@ -555,12 +624,13 @@
 
     function listView() {
         const main = element("main", "list-view");
+        main.addEventListener("scroll", scheduleListImageResidencyUpdate, { passive: true });
         const intro = element("header", "list-intro");
         const copy = element("div", "");
         copy.append(element("p", "eyebrow", "Captured catalog"));
-        copy.append(element("h2", "", manifest.screens.length + " screens, ready to review"));
-        intro.append(copy, element("p", "list-summary", manifest.groups.length + " groups · "
-            + manifest.routes.length + " routes · " + manifest.profiles.length + " profiles"));
+        copy.append(element("h2", "", quantity(manifest.screens.length, "screen") + ", ready to review"));
+        intro.append(copy, element("p", "list-summary", quantity(manifest.groups.length, "group") + " · "
+            + quantity(manifest.routes.length, "route") + " · " + quantity(manifest.profiles.length, "profile")));
         main.append(intro);
 
         for (const group of manifest.groups) {
@@ -570,7 +640,7 @@
             heading.append(
                 element("span", "group-number", String(group.order + 1).padStart(2, "0")),
                 element("h2", "", group.title),
-                element("span", "group-count", group.screenIDs.length + " screens"),
+                element("span", "group-count", quantity(group.screenIDs.length, "screen")),
             );
             section.append(heading);
             const rows = element("div", "list-rows");
@@ -582,7 +652,10 @@
             main.append(section);
         }
         main.append(emptyResults());
-        requestAnimationFrame(updateSearchVisibility);
+        requestAnimationFrame(() => {
+            main.scrollTop = state.list.scrollTop;
+            updateListImageResidency();
+        });
         return main;
     }
 
@@ -595,7 +668,9 @@
 
         const thumbnail = element("button", "list-thumbnail");
         thumbnail.type = "button";
-        thumbnail.setAttribute("aria-label", "Inspect " + screen.title);
+        thumbnail.setAttribute("aria-label", "Inspect " + screen.title + ", "
+            + screen.incomingRouteIDs.length + " incoming and " + screen.outgoingRouteIDs.length + " outgoing routes");
+        thumbnail.dataset.focusKey = "atlas-screen-" + screen.id;
         thumbnail.append(screenImage(screen));
         thumbnail.addEventListener("click", () => openScreen(screen.id, true));
 
@@ -608,6 +683,8 @@
         } else {
             identity.append(element("p", "secondary", variant?.title || "Default"));
         }
+        identity.append(element("p", "list-route-summary secondary", screen.incomingRouteIDs.length + " in · "
+            + screen.outgoingRouteIDs.length + " out"));
 
         const facts = element("div", "list-facts");
         facts.append(
@@ -617,11 +694,13 @@
         );
 
         const routes = element("div", "list-routes");
-        const quickRouteID = screen.outgoingRouteIDs[0] || screen.incomingRouteIDs[0];
-        const quickRoute = routeByID.get(quickRouteID);
-        if (quickRoute) {
-            const direction = quickRoute.sourceScreenID === screen.id ? "outgoing" : "incoming";
-            routes.append(routeButton(quickRoute, screen, direction));
+        for (const routeID of screen.outgoingRouteIDs) {
+            const route = routeByID.get(routeID);
+            if (route) routes.append(routeButton(route, screen, "outgoing"));
+        }
+        for (const routeID of screen.incomingRouteIDs) {
+            const route = routeByID.get(routeID);
+            if (route) routes.append(routeButton(route, screen, "incoming"));
         }
 
         const inspect = iconButton("right", "Inspect " + screen.title, "list-inspect");
@@ -659,6 +738,7 @@
         raw.append(icon("external"));
         const details = iconButton("info", "Capture details", "inspector-action", true);
         details.id = "details-trigger";
+        details.setAttribute("aria-controls", "inspector-details");
         details.setAttribute("aria-expanded", String(state.inspectorDetails));
         details.addEventListener("click", toggleInspectorDetails);
         const close = iconButton("close", "Close inspector", "inspector-action close-inspector");
@@ -668,14 +748,25 @@
         header.append(heading, actions);
 
         const canvas = element("section", "inspection-canvas");
-        const extentClass = variant.captureExtent === "fullContent"
-            || variant.captureExtent === "fullContent2D" ? " full-content" : "";
+        const extentClass = variant.captureExtent === "fullContent2D"
+            ? " full-content full-content-2d"
+            : (variant.captureExtent === "fullContent" ? " full-content" : "");
         const imageFrame = element("div", "inspector-image " + state.inspectorScale + extentClass);
         imageFrame.id = "inspector-image";
         const device = element("div", "inspector-device");
+        if (extentClass) {
+            device.tabIndex = 0;
+            device.dataset.captureScroller = "";
+            device.setAttribute("role", "region");
+            device.setAttribute("aria-label", screen.title + " scrollable full-content capture");
+        }
         const fullImage = screenImage(screen, "", true);
         if (metadata) {
+            const viewportSize = captureViewportSize(screen);
             device.style.setProperty("--point-width", metadata.pointWidth + "px");
+            device.style.setProperty("--point-height", metadata.pointHeight + "px");
+            device.style.setProperty("--viewport-width", viewportSize.width + "px");
+            device.style.setProperty("--viewport-height", viewportSize.height + "px");
             device.style.setProperty("--aspect-ratio", metadata.pointWidth / metadata.pointHeight);
         }
         device.append(fullImage);
@@ -711,13 +802,17 @@
         dock.setAttribute("aria-label", "Inspector controls");
         const previous = iconButton("left", "Previous screen", "icon-button inspector-previous");
         previous.setAttribute("aria-keyshortcuts", "ArrowLeft [");
-        previous.addEventListener("click", () => openScreen(neighboringScreen(-1)?.id));
+        previous.dataset.focusKey = "inspector-previous";
+        previous.addEventListener("click", () => openScreen(neighboringScreen(-1)?.id, true));
         dock.append(previous, element("span", "dock-separator"));
 
         const stateField = element("label", "inspector-field");
         stateField.append(element("span", "field-label", "State"), variantSelector(screen, true));
         const profileField = element("label", "inspector-field profile-field");
-        profileField.append(element("span", "field-label", "Profile"), profileSelect());
+        profileField.append(
+            element("span", "field-label", "Profile"),
+            profileSelect("", "inspector-profile"),
+        );
         dock.append(stateField, profileField, element("span", "dock-separator"));
 
         const scale = element("div", "segmented-control scale-tabs");
@@ -736,7 +831,8 @@
 
         const next = iconButton("right", "Next screen", "icon-button inspector-next");
         next.setAttribute("aria-keyshortcuts", "ArrowRight ]");
-        next.addEventListener("click", () => openScreen(neighboringScreen(1)?.id));
+        next.dataset.focusKey = "inspector-next";
+        next.addEventListener("click", () => openScreen(neighboringScreen(1)?.id, true));
         dock.append(next);
         return dock;
     }
@@ -785,11 +881,27 @@
         if (trigger) trigger.setAttribute("aria-expanded", String(state.inspectorDetails));
         if (state.inspectorDetails) drawer?.querySelector(".details-close")?.focus();
         else trigger?.focus();
+        updateInspectorDetailsAccessibility();
+        fitInspectorImage();
+    }
+
+    function updateInspectorDetailsAccessibility() {
+        const detailsCoverContent = Boolean(
+            state.inspectorDetails
+                && window.matchMedia?.("(max-width: 760px), (max-height: 520px)")?.matches,
+        );
+        for (const selector of [".inspection-canvas", ".inspector-dock"]) {
+            const content = document.querySelector(selector);
+            if (!content) continue;
+            content.inert = detailsCoverContent;
+            content.setAttribute("aria-hidden", String(detailsCoverContent));
+        }
     }
 
     function updateInspectorScale() {
         const image = document.getElementById("inspector-image");
         if (image) image.className = image.className.replace(/ fit| actual/g, "") + " " + state.inspectorScale;
+        fitInspectorImage();
         for (const button of document.querySelectorAll(".scale-tabs button")) {
             button.setAttribute("aria-pressed", String(
                 (button.textContent === "Fit" && state.inspectorScale === "fit")
@@ -798,7 +910,37 @@
         }
     }
 
+    function fitInspectorImage() {
+        const frame = document.getElementById("inspector-image");
+        const device = frame?.querySelector(".inspector-device");
+        const screen = screenByID.get(state.screen);
+        const variant = screen ? screenVariant(screen) : null;
+        const metadata = screen ? imageMetadata(screen) : null;
+        if (!frame || !device || !metadata || !variant) return;
+        if (state.inspectorScale !== "fit"
+            || variant.captureExtent === "fullContent"
+            || variant.captureExtent === "fullContent2D") {
+            device.style.removeProperty("width");
+            device.style.removeProperty("height");
+            return;
+        }
+        const aspect = metadata.pointWidth / metadata.pointHeight;
+        const width = Math.min(metadata.pointWidth, frame.clientWidth, frame.clientHeight * aspect);
+        device.style.width = Math.max(width, 1) + "px";
+        device.style.height = Math.max(width / aspect, 1) + "px";
+    }
+
+    function observeInspectorSize() {
+        inspectorResizeObserver?.disconnect();
+        inspectorResizeObserver = null;
+        const frame = document.getElementById("inspector-image");
+        if (!frame || typeof ResizeObserver === "undefined") return;
+        inspectorResizeObserver = new ResizeObserver(fitInspectorImage);
+        inspectorResizeObserver.observe(frame);
+    }
+
     function closeInspector() {
+        state.pendingFocusKey = state.inspectorReturnFocusKey;
         state.screen = null;
         state.routeFocus = null;
         state.inspectorDetails = false;
@@ -860,6 +1002,7 @@
         const input = element("input", "");
         input.id = "command-search";
         input.type = "search";
+        input.autofocus = true;
         input.placeholder = "Find a group, screen, state, or route";
         input.autocomplete = "off";
         input.value = state.commandQuery;
@@ -879,7 +1022,6 @@
         input.addEventListener("keydown", event => moveCommandFocus(event, results));
         surface.append(field, results);
         dialog.append(surface);
-        requestAnimationFrame(() => input.focus());
         return dialog;
     }
 
@@ -919,7 +1061,7 @@
         return {
             kind: "Group",
             title: group.title,
-            subtitle: group.screenIDs.length + " screens",
+            subtitle: quantity(group.screenIDs.length, "screen"),
             search: (group.title + " group").toLocaleLowerCase(),
             action: () => {
                 state.group = group.id;
@@ -1030,7 +1172,10 @@
             button.dataset.groupId = group.id;
             button.setAttribute("aria-current", String(group.id === state.group));
             const copy = element("span", "");
-            copy.append(element("strong", "", group.title), element("small", "", group.screenIDs.length + " screens"));
+            copy.append(
+                element("strong", "", group.title),
+                element("small", "", quantity(group.screenIDs.length, "screen")),
+            );
             button.append(element("span", "group-index", String(group.order + 1).padStart(2, "0")), copy, icon("right"));
             button.addEventListener("click", () => {
                 state.group = group.id;
@@ -1052,8 +1197,9 @@
         const svg = document.createElementNS(namespace, "svg");
         svg.id = "mini-map-svg";
         svg.setAttribute("viewBox", "0 0 " + manifest.canvas.size.width + " " + manifest.canvas.size.height);
-        svg.setAttribute("role", "img");
-        svg.setAttribute("aria-label", "Canvas overview. Select a position to move around the atlas.");
+        svg.setAttribute("role", "group");
+        svg.setAttribute("tabindex", "0");
+        svg.setAttribute("aria-label", "Canvas overview. Select a position or use arrow keys to pan the atlas.");
         for (const group of manifest.canvas.groupFrames) {
             const rect = document.createElementNS(namespace, "rect");
             Object.entries(rectAttributes(group.frame)).forEach(([key, value]) => rect.setAttribute(key, value));
@@ -1072,19 +1218,55 @@
         visible.id = "mini-map-viewport";
         visible.setAttribute("class", "mini-viewport");
         svg.append(visible);
-        svg.addEventListener("click", event => {
-            const bounds = svg.getBoundingClientRect();
-            const x = (event.clientX - bounds.left) / bounds.width * manifest.canvas.size.width;
-            const y = (event.clientY - bounds.top) / bounds.height * manifest.canvas.size.height;
-            state.canvas.scrollLeft = x * state.zoom - window.innerWidth / 2;
-            state.canvas.scrollTop = y * state.zoom - window.innerHeight / 2;
-            state.canvas.initialized = true;
-            state.view = "canvas";
-            state.panel = null;
-            renderOrNavigate();
+        svg.addEventListener("click", event => moveFromMiniMap(svg, event.clientX, event.clientY));
+        svg.addEventListener("keydown", event => {
+            const offsets = {
+                ArrowLeft: [-0.4, 0],
+                ArrowRight: [0.4, 0],
+                ArrowUp: [0, -0.4],
+                ArrowDown: [0, 0.4],
+            };
+            const offset = offsets[event.key];
+            if (!offset) return;
+            event.preventDefault();
+            const viewport = document.getElementById("canvas-viewport");
+            const { width, height } = canvasViewportSize(viewport);
+            if (viewport) {
+                viewport.scrollBy({ left: width * offset[0], top: height * offset[1] });
+                scheduleCanvasNavigationUpdate();
+                return;
+            }
+            queueCanvasPosition(
+                state.canvas.scrollLeft + width * offset[0],
+                state.canvas.scrollTop + height * offset[1],
+            );
         });
         wrapper.append(svg);
         return wrapper;
+    }
+
+    function moveFromMiniMap(svg, clientX, clientY) {
+        const matrix = svg.getScreenCTM();
+        if (!matrix) return;
+        const point = new DOMPoint(clientX, clientY).matrixTransform(matrix.inverse());
+        const viewport = document.getElementById("canvas-viewport");
+        const { width, height } = canvasViewportSize(viewport);
+        queueCanvasPosition(point.x * state.zoom - width / 2, point.y * state.zoom - height / 2);
+    }
+
+    function queueCanvasPosition(left, top) {
+        const viewport = document.getElementById("canvas-viewport");
+        const { width: viewportWidth, height: viewportHeight } = canvasViewportSize(viewport);
+        const maximumLeft = Math.max(manifest.canvas.size.width * state.zoom - viewportWidth, 0);
+        const maximumTop = Math.max(manifest.canvas.size.height * state.zoom - viewportHeight, 0);
+        state.pendingCanvasPosition = {
+            left: Math.min(Math.max(left, 0), maximumLeft),
+            top: Math.min(Math.max(top, 0), maximumTop),
+        };
+        state.canvas.initialized = true;
+        state.view = "canvas";
+        state.panel = null;
+        renderOrNavigate();
     }
 
     function rectAttributes(rect) {
@@ -1123,16 +1305,29 @@
         clear.type = "button";
         clear.addEventListener("click", () => {
             state.filters = { group: "all", extent: "all", routes: "all" };
-            state.panel = null;
-            render();
+            showFilteredResults();
         });
         const done = element("button", "primary-button", "Show results");
         done.type = "button";
-        done.addEventListener("click", closePanel);
+        done.addEventListener("click", showFilteredResults);
         footer.append(clear, done);
         surface.append(footer);
         dialog.append(surface);
         return dialog;
+    }
+
+    function showFilteredResults() {
+        const matchingScreens = manifest.screens.filter(matchesFilters);
+        if (state.view === "canvas" && matchingScreens.length > 0) {
+            const currentGroupHasMatch = matchingScreens.some(screen => screen.groupID === state.group);
+            state.group = currentGroupHasMatch ? state.group : matchingScreens[0].groupID;
+            state.pendingCanvasAction = "fit-group";
+        } else if (state.view === "list") {
+            const list = document.querySelector(".list-view");
+            if (list) list.scrollTop = 0;
+            state.list.scrollTop = 0;
+        }
+        closePanel();
     }
 
     function filterSelect(labelText, value, options, onChange) {
@@ -1184,6 +1379,7 @@
         clear.addEventListener("click", () => {
             state.filters = { group: "all", extent: "all", routes: "all" };
             render();
+            requestAnimationFrame(() => document.getElementById("filter-trigger")?.focus());
         });
         empty.append(clear);
         return empty;
@@ -1206,7 +1402,7 @@
         for (const route of document.querySelectorAll(".route")) {
             const sourceVisible = visible.has(route.dataset.sourceScreenId);
             const destinationVisible = visible.has(route.dataset.destinationScreenId);
-            route.dataset.hidden = String(!sourceVisible && !destinationVisible);
+            route.dataset.hidden = String(!sourceVisible || !destinationVisible);
         }
         const count = document.getElementById("result-count");
         if (count) count.textContent = visible.size + " / " + manifest.screens.length;
@@ -1214,6 +1410,8 @@
         if (empty) empty.hidden = visible.size !== 0;
         updateFilterStatus();
         updateRouteFocus();
+        if (state.view === "canvas") updateCanvasImageResidency();
+        else updateListImageResidency();
     }
 
     function updateFilterStatus() {
@@ -1256,11 +1454,170 @@
         }
     }
 
+    function residentScreenIDs(candidates) {
+        const result = new Set();
+        let pixels = 0;
+        for (const candidate of candidates) {
+            if (result.size >= maximumResidentImageCount) break;
+            const metadata = imageMetadata(candidate.screen);
+            const imagePixels = metadata ? metadata.pixelWidth * metadata.pixelHeight : 0;
+            if (result.size > 0 && pixels + imagePixels > maximumResidentPixelCount) continue;
+            result.add(candidate.screen.id);
+            pixels += imagePixels;
+        }
+        return result;
+    }
+
+    function updateCanvasImageResidency() {
+        const viewport = document.getElementById("canvas-viewport");
+        if (!viewport || state.view !== "canvas") return;
+        if (state.screen) {
+            updateResidentImages(".screen-card", new Set());
+            return;
+        }
+        const visibleRect = {
+            left: viewport.scrollLeft / state.zoom,
+            top: viewport.scrollTop / state.zoom,
+            right: (viewport.scrollLeft + viewport.clientWidth) / state.zoom,
+            bottom: (viewport.scrollTop + viewport.clientHeight) / state.zoom,
+        };
+        const center = {
+            x: (visibleRect.left + visibleRect.right) / 2,
+            y: (visibleRect.top + visibleRect.bottom) / 2,
+        };
+        const candidates = manifest.screens
+            .filter(screen => matchesFilters(screen) && rectIntersects(screen.frame, visibleRect))
+            .map(screen => ({
+                screen,
+                distance: squaredDistance(screen.frame.x + screen.frame.width / 2,
+                    screen.frame.y + screen.frame.height / 2, center.x, center.y),
+            }))
+            .sort((lhs, rhs) => lhs.distance - rhs.distance
+                || lhs.screen.frame.y - rhs.screen.frame.y
+                || lhs.screen.frame.x - rhs.screen.frame.x);
+        updateResidentImages(".screen-card", residentScreenIDs(candidates));
+    }
+
+    let listResidencyFrame = null;
+    function scheduleListImageResidencyUpdate() {
+        if (listResidencyFrame !== null) return;
+        listResidencyFrame = requestAnimationFrame(() => {
+            listResidencyFrame = null;
+            updateListImageResidency();
+        });
+    }
+
+    function updateListImageResidency() {
+        const list = document.querySelector(".list-view");
+        if (!list || state.view !== "list") return;
+        if (state.screen) {
+            updateResidentImages(".list-row", new Set());
+            return;
+        }
+        const viewport = list.getBoundingClientRect();
+        const centerY = (viewport.top + viewport.bottom) / 2;
+        const candidates = [];
+        for (const row of document.querySelectorAll(".list-row")) {
+            const screen = screenByID.get(row.dataset.screenId);
+            if (!screen || !matchesFilters(screen)) continue;
+            const frame = row.getBoundingClientRect();
+            if (frame.bottom < viewport.top - 120 || frame.top > viewport.bottom + 120) continue;
+            candidates.push({ screen, distance: Math.abs((frame.top + frame.bottom) / 2 - centerY) });
+        }
+        candidates.sort((lhs, rhs) => lhs.distance - rhs.distance || lhs.screen.screenOrder - rhs.screen.screenOrder);
+        updateResidentImages(".list-row", residentScreenIDs(candidates));
+    }
+
+    function updateResidentImages(containerSelector, residentIDs) {
+        for (const container of document.querySelectorAll(containerSelector)) {
+            const image = container.querySelector("img[data-src]");
+            if (!image) continue;
+            if (residentIDs.has(container.dataset.screenId)) {
+                if (image.getAttribute("src") !== image.dataset.src) image.src = image.dataset.src;
+            } else {
+                image.removeAttribute("src");
+            }
+        }
+    }
+
+    function rectIntersects(frame, visibleRect) {
+        return frame.x < visibleRect.right && frame.x + frame.width > visibleRect.left
+            && frame.y < visibleRect.bottom && frame.y + frame.height > visibleRect.top;
+    }
+
+    function squaredDistance(x1, y1, x2, y2) {
+        const x = x1 - x2;
+        const y = y1 - y2;
+        return x * x + y * y;
+    }
+
+    function installCanvasPinch(viewport) {
+        let gesture = null;
+        viewport.addEventListener("touchstart", event => {
+            if (event.touches.length !== 2) return;
+            const midpoint = touchMidpoint(event.touches);
+            const bounds = viewport.getBoundingClientRect();
+            gesture = {
+                distance: touchDistance(event.touches),
+                zoom: state.zoom,
+                canvasX: (viewport.scrollLeft + midpoint.x - bounds.left) / state.zoom,
+                canvasY: (viewport.scrollTop + midpoint.y - bounds.top) / state.zoom,
+            };
+        }, { passive: true });
+        viewport.addEventListener("touchmove", event => {
+            if (!gesture || event.touches.length !== 2) return;
+            event.preventDefault();
+            const midpoint = touchMidpoint(event.touches);
+            const bounds = viewport.getBoundingClientRect();
+            const nextZoom = Math.max(0.1, Math.min(1.5,
+                gesture.zoom * touchDistance(event.touches) / Math.max(gesture.distance, 1)));
+            state.zoom = nextZoom;
+            applyZoom();
+            viewport.scrollTo({
+                left: gesture.canvasX * nextZoom - (midpoint.x - bounds.left),
+                top: gesture.canvasY * nextZoom - (midpoint.y - bounds.top),
+            });
+            captureCanvasPosition();
+            scheduleCanvasNavigationUpdate();
+        }, { passive: false });
+        const endGesture = event => {
+            if (event.touches.length < 2) gesture = null;
+        };
+        viewport.addEventListener("touchend", endGesture, { passive: true });
+        viewport.addEventListener("touchcancel", endGesture, { passive: true });
+    }
+
+    function touchMidpoint(touches) {
+        return {
+            x: (touches[0].clientX + touches[1].clientX) / 2,
+            y: (touches[0].clientY + touches[1].clientY) / 2,
+        };
+    }
+
+    function touchDistance(touches) {
+        return Math.hypot(
+            touches[0].clientX - touches[1].clientX,
+            touches[0].clientY - touches[1].clientY,
+        );
+    }
+
     function captureCanvasPosition() {
         const viewport = document.getElementById("canvas-viewport");
         if (!viewport) return;
         state.canvas.scrollLeft = viewport.scrollLeft;
         state.canvas.scrollTop = viewport.scrollTop;
+        state.canvas.viewportWidth = viewport.clientWidth;
+        state.canvas.viewportHeight = viewport.clientHeight;
+    }
+
+    function captureListPosition() {
+        const list = document.querySelector(".list-view");
+        if (list) state.list.scrollTop = list.scrollTop;
+    }
+
+    function captureViewPosition() {
+        captureCanvasPosition();
+        captureListPosition();
     }
 
     function applyZoom() {
@@ -1291,6 +1648,7 @@
             });
             captureCanvasPosition();
         }
+        updateCanvasImageResidency();
     }
 
     function fitFrame(frame, behavior = "smooth") {
@@ -1303,7 +1661,8 @@
         applyZoom();
         const left = (frame.x + frame.width / 2) * state.zoom - viewport.clientWidth / 2;
         const top = (frame.y + frame.height / 2) * state.zoom - viewport.clientHeight / 2;
-        viewport.scrollTo({ left, top, behavior });
+        const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+        viewport.scrollTo({ left, top, behavior: prefersReducedMotion ? "auto" : behavior });
         state.canvas.scrollLeft = Math.max(0, left);
         state.canvas.scrollTop = Math.max(0, top);
     }
@@ -1319,8 +1678,19 @@
     }
 
     function fitFirstGroup() {
-        const first = manifest.canvas.groupFrames[0];
-        if (first) fitFrame(first.frame, "auto");
+        const viewport = document.getElementById("canvas-viewport");
+        if (!viewport) return;
+        const initialWidth = manifest.canvas.initialFitSize?.width
+            || manifest.canvas.groupFrames[0]?.frame.width;
+        if (!initialWidth) return;
+        const framingInset = 16;
+        const horizontal = Math.max(viewport.clientWidth - framingInset * 2, 1) / initialWidth;
+        state.zoom = Math.max(0.15, Math.min(1, horizontal));
+        applyZoom();
+        viewport.scrollTo({ left: 0, top: 0, behavior: "auto" });
+        state.canvas.scrollLeft = 0;
+        state.canvas.scrollTop = 0;
+        updateCanvasNavigation();
     }
 
     let canvasNavigationFrame = null;
@@ -1330,6 +1700,7 @@
             canvasNavigationFrame = null;
             captureCanvasPosition();
             updateCanvasNavigation();
+            updateCanvasImageResidency();
         });
     }
 
@@ -1378,15 +1749,49 @@
     function updateMiniMapViewport() {
         const viewport = document.getElementById("canvas-viewport");
         const rect = document.getElementById("mini-map-viewport");
-        if (!viewport || !rect) return;
-        rect.setAttribute("x", viewport.scrollLeft / state.zoom);
-        rect.setAttribute("y", viewport.scrollTop / state.zoom);
-        rect.setAttribute("width", viewport.clientWidth / state.zoom);
-        rect.setAttribute("height", viewport.clientHeight / state.zoom);
+        if (!rect) return;
+        const { width, height } = canvasViewportSize(viewport);
+        const scrollLeft = viewport?.scrollLeft ?? state.canvas.scrollLeft;
+        const scrollTop = viewport?.scrollTop ?? state.canvas.scrollTop;
+        rect.setAttribute("x", scrollLeft / state.zoom);
+        rect.setAttribute("y", scrollTop / state.zoom);
+        rect.setAttribute("width", width / state.zoom);
+        rect.setAttribute("height", height / state.zoom);
+    }
+
+    function canvasViewportSize(viewport) {
+        return {
+            width: viewport?.clientWidth || state.canvas.viewportWidth || window.innerWidth,
+            height: viewport?.clientHeight || state.canvas.viewportHeight || window.innerHeight,
+        };
+    }
+
+    function visibleFocusTarget(focusKey) {
+        if (!focusKey) return null;
+        const target = document.querySelector('[data-focus-key="' + CSS.escape(focusKey) + '"]');
+        if (!target || target.closest('[data-hidden="true"], [aria-hidden="true"]')) return null;
+        const style = window.getComputedStyle(target);
+        return style.display === "none" || style.visibility === "hidden" ? null : target;
     }
 
     function render() {
-        captureCanvasPosition();
+        if (!state.pendingCanvasPosition) captureViewPosition();
+        if (canvasNavigationFrame !== null) {
+            cancelAnimationFrame(canvasNavigationFrame);
+            canvasNavigationFrame = null;
+        }
+        if (listResidencyFrame !== null) {
+            cancelAnimationFrame(listResidencyFrame);
+            listResidencyFrame = null;
+        }
+        inspectorResizeObserver?.disconnect();
+        inspectorResizeObserver = null;
+        const activeElement = document.activeElement;
+        const activeFocusKey = activeElement?.dataset.focusKey;
+        const canRestoreActiveFocus = !state.panel
+            && (!state.screen || activeElement?.closest(".inspector"));
+        const focusKey = state.pendingFocusKey || (canRestoreActiveFocus ? activeFocusKey : null);
+        state.pendingFocusKey = null;
         const app = element("div", "application");
         app.append(appHeader());
         app.append(state.view === "canvas" ? canvasView() : listView());
@@ -1396,7 +1801,12 @@
         const inspection = inspector();
         if (inspection) {
             root.append(inspection);
-            requestAnimationFrame(() => inspection.showModal());
+            requestAnimationFrame(() => {
+                inspection.showModal();
+                updateInspectorDetailsAccessibility();
+                fitInspectorImage();
+                observeInspectorSize();
+            });
         } else {
             const panel = activePanel();
             if (panel) {
@@ -1407,34 +1817,47 @@
                 });
             }
         }
-        requestAnimationFrame(updateSearchVisibility);
+        requestAnimationFrame(() => {
+            updateSearchVisibility();
+            if (focusKey) {
+                (visibleFocusTarget(focusKey) || visibleFocusTarget("filters-control"))?.focus();
+            }
+        });
     }
 
     window.addEventListener("hashchange", () => {
-        captureCanvasPosition();
+        if (!state.pendingCanvasPosition) captureViewPosition();
         parseHash();
         render();
     });
-    window.addEventListener("resize", scheduleCanvasNavigationUpdate);
+    window.addEventListener("resize", () => {
+        if (state.screen) requestAnimationFrame(() => {
+            updateInspectorDetailsAccessibility();
+            fitInspectorImage();
+        });
+        if (state.view === "canvas") scheduleCanvasNavigationUpdate();
+        else scheduleListImageResidencyUpdate();
+    });
     window.addEventListener("keydown", event => {
         const target = event.target;
         const isEditing = target instanceof HTMLInputElement
             || target instanceof HTMLSelectElement
             || target instanceof HTMLTextAreaElement
             || target?.isContentEditable;
+        const isCaptureScroller = target?.closest?.("[data-capture-scroller]");
         const commandSearch = (event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === "k";
         if (commandSearch || (event.key === "/" && !isEditing && !event.metaKey && !event.ctrlKey && !event.altKey)) {
             event.preventDefault();
             if (!state.screen) openPanel("search", "search-trigger");
             return;
         }
-        if (isEditing || event.metaKey || event.ctrlKey || event.altKey || state.panel) return;
+        if (isEditing || isCaptureScroller || event.metaKey || event.ctrlKey || event.altKey || state.panel) return;
         if (state.screen && (event.key === "ArrowLeft" || event.key === "[")) {
             event.preventDefault();
-            openScreen(neighboringScreen(-1)?.id);
+            openScreen(neighboringScreen(-1)?.id, true);
         } else if (state.screen && (event.key === "ArrowRight" || event.key === "]")) {
             event.preventDefault();
-            openScreen(neighboringScreen(1)?.id);
+            openScreen(neighboringScreen(1)?.id, true);
         } else if (state.screen && event.key.toLocaleLowerCase() === "i") {
             event.preventDefault();
             toggleInspectorDetails();

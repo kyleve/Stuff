@@ -113,6 +113,7 @@
                                 reason: error.localizedDescription,
                             )
                         }
+                        try Task.checkCancellation()
                         guard captured.pngData.isEmpty == false else {
                             throw FlyoverExportError.emptyPNG(
                                 screen: prepared.screen.title,
@@ -156,6 +157,7 @@
                 }
             }
 
+            try Task.checkCancellation()
             let manifest = try makeManifest(
                 build: build,
                 profiles: profiles,

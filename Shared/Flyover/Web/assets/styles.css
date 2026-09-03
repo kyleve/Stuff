@@ -3,15 +3,15 @@
     --accent: #3157e8;
     --accent-strong: #2444c4;
     --accent-soft: #e8edff;
-    --modal: #c73adb;
+    --modal: #a12aad;
     --background: #eef0f5;
     --canvas: #e9ebf1;
     --surface: rgba(255, 255, 255, 0.88);
     --surface-solid: #ffffff;
     --surface-muted: #f5f6f9;
     --text: #151721;
-    --secondary: #6f7482;
-    --tertiary: #9ca1ad;
+    --secondary: #5d6270;
+    --tertiary: #686d7b;
     --line: rgba(33, 37, 48, 0.12);
     --line-strong: rgba(33, 37, 48, 0.2);
     --shadow-small: 0 1px 2px rgba(20, 24, 36, 0.08), 0 8px 24px rgba(20, 24, 36, 0.08);
@@ -29,6 +29,7 @@
         --accent: #7891ff;
         --accent-strong: #9eafff;
         --accent-soft: #242b4d;
+        --modal: #e28bee;
         --background: #15161a;
         --canvas: #111216;
         --surface: rgba(38, 39, 45, 0.88);
@@ -36,7 +37,7 @@
         --surface-muted: #1c1d22;
         --text: #f4f4f7;
         --secondary: #a9acb6;
-        --tertiary: #747782;
+        --tertiary: #9a9eaa;
         --line: rgba(255, 255, 255, 0.11);
         --line-strong: rgba(255, 255, 255, 0.2);
         --shadow-small: 0 1px 2px rgba(0, 0, 0, 0.25), 0 10px 30px rgba(0, 0, 0, 0.22);
@@ -440,6 +441,10 @@ kbd,
     pointer-events: none;
 }
 
+.depth-band[data-entry="true"] {
+    border-left: 0;
+}
+
 .depth-band span {
     position: absolute;
     top: 16px;
@@ -555,6 +560,26 @@ kbd,
     width: 100%;
     height: 100%;
     object-fit: contain;
+    transition: opacity 120ms ease;
+}
+
+.device-preview[data-capture-extent="fullContent"],
+.device-preview[data-capture-extent="fullContent2D"] {
+    width: auto;
+    max-width: 100%;
+    aspect-ratio: var(--viewport-aspect);
+    place-items: start center;
+}
+
+.device-preview[data-capture-extent="fullContent"] img,
+.device-preview[data-capture-extent="fullContent2D"] img {
+    width: 100%;
+    height: auto;
+    object-fit: fill;
+}
+
+img[data-src]:not([src]) {
+    opacity: 0;
 }
 
 .card-image-meta {
@@ -940,6 +965,12 @@ kbd,
     object-fit: contain;
 }
 
+.list-thumbnail img[data-capture-extent="fullContent"],
+.list-thumbnail img[data-capture-extent="fullContent2D"] {
+    object-fit: cover;
+    object-position: top center;
+}
+
 .list-identity {
     display: grid;
     gap: 9px;
@@ -984,7 +1015,16 @@ kbd,
 }
 
 .list-routes {
+    display: flex;
+    gap: 6px;
     min-width: 0;
+    overflow-x: auto;
+    padding: 4px 0;
+    scrollbar-width: thin;
+}
+
+.list-route-summary {
+    display: none;
 }
 
 .route-chip {
@@ -1001,6 +1041,7 @@ kbd,
     font-size: 11px;
     font-weight: 650;
     text-align: left;
+    flex: 0 0 auto;
 }
 
 .route-chip span {
@@ -1509,6 +1550,9 @@ a.inspector-action {
 
 .inspector-device {
     --point-width: 402px;
+    --point-height: 874px;
+    --viewport-width: 402px;
+    --viewport-height: 874px;
     --aspect-ratio: 0.46;
     display: grid;
     flex: 0 0 auto;
@@ -1525,14 +1569,21 @@ a.inspector-action {
 }
 
 .inspector-image.fit:not(.full-content) .inspector-device {
-    width: min(var(--point-width), calc((100dvh - 214px) * var(--aspect-ratio)), 100%);
-    aspect-ratio: var(--aspect-ratio);
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
 }
 
 .inspector-image.fit:not(.full-content) img {
     width: 100%;
     height: 100%;
-    object-fit: fill;
+    border-radius: 18px;
+    object-fit: contain;
+    filter: drop-shadow(0 24px 48px rgba(0, 0, 0, 0.42));
 }
 
 .inspector-image.actual {
@@ -1556,6 +1607,17 @@ a.inspector-action {
     max-width: none;
     height: auto;
     max-height: none;
+}
+
+.inspector-image.full-content-2d.fit .inspector-device {
+    width: min(var(--viewport-width), 100%);
+    height: min(var(--viewport-height), 100%);
+    place-items: start;
+}
+
+.inspector-image.full-content-2d.fit img {
+    width: var(--point-width);
+    height: var(--point-height);
 }
 
 .image-caption {
@@ -1943,6 +2005,11 @@ a.inspector-action {
         max-width: 100%;
     }
 
+    .list-route-summary {
+        display: block;
+        font-size: 11px;
+    }
+
     .command-surface {
         width: calc(100vw - 20px);
         max-height: calc(100dvh - 32px);
@@ -2081,6 +2148,82 @@ a.inspector-action {
         border-top: 1px solid rgba(255, 255, 255, 0.12);
         border-left: 0;
         border-radius: 24px 24px 0 0;
+        transform: translateY(100%);
+    }
+
+    .inspector[data-details="true"] .inspector-details {
+        transform: translateY(0);
+    }
+}
+
+@media (pointer: coarse), (max-width: 760px) {
+    .header-profile select,
+    .header-button,
+    .bottom-dock button,
+    .bottom-dock .segment,
+    .bottom-dock .zoom-controls .icon-button,
+    .list-state select,
+    .card-state-select,
+    .list-inspect,
+    .card-inspect,
+    .route-chip,
+    .escape-key,
+    .panel-close,
+    .details-close,
+    .primary-button,
+    .secondary-button,
+    .inspector-action,
+    .inspector-dock button,
+    .inspector-dock .segment,
+    .inspector-dock .inspector-field select {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .header-profile select {
+        height: 44px;
+    }
+}
+
+@media (max-height: 520px) {
+    .inspector-header {
+        top: 6px;
+        right: 8px;
+        left: 8px;
+        min-height: 50px;
+        border-radius: 14px;
+        padding: 5px 7px 5px 12px;
+    }
+
+    .inspection-canvas,
+    .inspector[data-details="true"] .inspection-canvas {
+        margin-right: 0;
+        padding: 64px 12px 70px;
+    }
+
+    .image-caption {
+        display: none;
+    }
+
+    .inspector-dock,
+    .inspector[data-details="true"] .inspector-dock {
+        right: 8px;
+        bottom: max(6px, env(safe-area-inset-bottom));
+        left: 8px;
+        min-height: 54px;
+        max-width: none;
+        margin-left: 0;
+        padding: 4px;
+        transform: none;
+    }
+
+    .inspector-details {
+        z-index: 20;
+        top: 58px;
+        width: min(380px, 100%);
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+        border-left: 0;
+        border-radius: 20px 20px 0 0;
         transform: translateY(100%);
     }
 

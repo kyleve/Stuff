@@ -147,11 +147,11 @@ provides one stable string for each typed screen ID and one capture closure.
 Stable IDs must be nonempty and unique. Variant IDs must also be nonempty and
 unique within a screen. Image paths use generated ordinals, never these IDs.
 
-Every variant has a `FlyoverExportPolicy`. Snapshot-backed variants inherit
-their settle, readiness, and hook behavior. Their frame matrix reduces to one
-capture extent: fixed, intrinsic, full-content, or two-axis full-content. A
-mixed matrix is invalid unless the app supplies an explicit policy. Hosted
-variants default to a fixed viewport.
+Hosted variants have a `FlyoverExportPolicy` with a fixed viewport by default.
+Snapshot-backed variants inherit their settle, readiness, and hook behavior.
+Their frame matrix must resolve to one capture extent: fixed, intrinsic,
+full-content, or two-axis full-content. A mixed matrix has no resolved policy.
+The app must supply an explicit policy before export.
 
 Profiles are additive and keep request order. No profile matrix is generated.
 The built-in IDs are:
@@ -188,6 +188,10 @@ The website opens the first catalog group in canvas mode. A floating control
 dock keeps the canvas visible. The group panel and overview map move between
 groups without recalculating the graph. The canvas keeps its position when a
 state, profile, or panel changes.
+
+Canvas and list views give active image sources to at most six nearby screenshots.
+They target 24 million pixels and always show the nearest screenshot.
+The inspector removes these sources while it shows one full-resolution capture.
 
 Point to or focus a card to emphasize its connected routes. The site dims
 unrelated cards and routes until the focus moves. Filters for groups, capture

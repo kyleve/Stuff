@@ -1,13 +1,11 @@
 import SnapshotKitTesting
 import SwiftUI
-import TestHostSupport
 import Testing
 import UIKit
 
 @MainActor
 struct SnapshotPNGTests {
     @Test func returnsPNGBytesAndPointAndPixelDimensions() async throws {
-        try waitFor { hostKeyWindow() != nil }
         let configuration = SnapshotConfiguration(
             device: SnapshotConfiguration.Frame(
                 name: "probe",
@@ -34,7 +32,6 @@ struct SnapshotPNGTests {
     }
 
     @Test func runsReadinessHooksThroughTheSharedPipeline() async throws {
-        try waitFor { hostKeyWindow() != nil }
         var measurementHookRan = false
         var finalHookRan = false
         let configuration = SnapshotConfiguration(
@@ -61,7 +58,6 @@ struct SnapshotPNGTests {
     }
 
     @Test func capturesFullHeightContent() async throws {
-        try waitFor { hostKeyWindow() != nil }
         let content = ScrollView {
             VStack(spacing: 0) {
                 Color.red.frame(height: 100)
@@ -88,7 +84,6 @@ struct SnapshotPNGTests {
     }
 
     @Test func capturesTwoAxisFullContent() async throws {
-        try waitFor { hostKeyWindow() != nil }
         let content = ScrollView([.horizontal, .vertical]) {
             Color.green.frame(width: 180, height: 160)
         }
@@ -113,7 +108,6 @@ struct SnapshotPNGTests {
     }
 
     @Test func capturesAccessibilityAnnotations() async throws {
-        try waitFor { hostKeyWindow() != nil }
         let configuration = SnapshotConfiguration(
             device: SnapshotConfiguration.Frame(
                 name: "accessibility-probe",
@@ -139,8 +133,73 @@ struct SnapshotPNGTests {
         #expect(png.pointSize.height >= 160)
     }
 
+    @Test func cancelledQueuedCaptureDoesNotRunMeasurementHook() async throws {
+        let probe = QueuedCaptureCancellationProbe()
+        let fixedConfiguration = SnapshotConfiguration(
+            device: SnapshotConfiguration.Frame(
+                name: "queued-cancellation-holder",
+                size: .fixed(CGSize(width: 80, height: 60)),
+            ),
+        )
+        let firstCapture = Task { @MainActor in
+            try await captureSnapshotPNG(
+                of: Color.red,
+                configuration: fixedConfiguration,
+                named: "queued-cancellation-holder",
+                sizing: .fixed,
+                safeAreaInsets: .zero,
+                measurementReadiness: .sameAsCapture,
+                onReadyToMeasure: nil,
+                settle: .immediate,
+                onReadyToSnapshot: {
+                    probe.firstCaptureStarted = true
+                    while probe.canFinishFirstCapture == false {
+                        await Task.yield()
+                    }
+                },
+            )
+        }
+        while probe.firstCaptureStarted == false {
+            await Task.yield()
+        }
+
+        let intrinsicConfiguration = SnapshotConfiguration(
+            device: SnapshotConfiguration.Frame(
+                name: "queued-cancellation-waiter",
+                size: .intrinsic(maxWidth: 80),
+            ),
+        )
+        let queuedCapture = Task { @MainActor in
+            probe.queuedCaptureStarted = true
+            return try await captureSnapshotPNG(
+                of: Color.blue.frame(height: 60).onAppear {
+                    probe.queuedContentAppeared = true
+                },
+                configuration: intrinsicConfiguration,
+                named: "queued-cancellation-waiter",
+                sizing: .intrinsic(width: 80, minimumHeight: 0),
+                safeAreaInsets: .zero,
+                measurementReadiness: .immediate,
+                onReadyToMeasure: { probe.measurementHookRan = true },
+                settle: .immediate,
+                onReadyToSnapshot: nil,
+            )
+        }
+        while probe.queuedCaptureStarted == false {
+            await Task.yield()
+        }
+
+        queuedCapture.cancel()
+        probe.canFinishFirstCapture = true
+        _ = try await firstCapture.value
+        await #expect(throws: CancellationError.self) {
+            try await queuedCapture.value
+        }
+        #expect(probe.measurementHookRan == false)
+        #expect(probe.queuedContentAppeared == false)
+    }
+
     @Test func propagatesSettleFailures() async throws {
-        try waitFor { hostKeyWindow() != nil }
         let configuration = SnapshotConfiguration(
             device: SnapshotConfiguration.Frame(
                 name: "moving-probe",
@@ -168,6 +227,15 @@ struct SnapshotPNGTests {
         #expect(name == "png-api-moving-probe")
         #expect(phase == "content")
     }
+}
+
+@MainActor
+private final class QueuedCaptureCancellationProbe {
+    var firstCaptureStarted = false
+    var canFinishFirstCapture = false
+    var queuedCaptureStarted = false
+    var measurementHookRan = false
+    var queuedContentAppeared = false
 }
 
 private struct NonSettlingPNGView: View {
