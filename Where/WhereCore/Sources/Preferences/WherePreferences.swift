@@ -93,6 +93,31 @@ public final class WherePreferences {
         set { store.set(newValue, forKey: Keys.issueAlertsEnabled.rawValue) }
     }
 
+    /// The user's automatic-backup intent. Recording state gates its effective
+    /// behavior without erasing this choice, so re-enabling recording restores it.
+    public var automaticBackupsEnabled: Bool {
+        get { store.object(forKey: Keys.automaticBackupsEnabled.rawValue) as? Bool ?? true }
+        set { store.set(newValue, forKey: Keys.automaticBackupsEnabled.rawValue) }
+    }
+
+    /// The requested automatic-backup cadence. Defaults to weekly.
+    public var automaticBackupInterval: AutomaticBackupInterval {
+        get {
+            guard let rawValue = store
+                .object(forKey: Keys.automaticBackupInterval.rawValue) as? String
+            else { return .weekly }
+            return AutomaticBackupInterval(rawValue: rawValue) ?? .weekly
+        }
+        set { store.set(newValue.rawValue, forKey: Keys.automaticBackupInterval.rawValue) }
+    }
+
+    /// The last fully written automatic backup. Failed or deferred attempts do
+    /// not advance this timestamp.
+    public var lastAutomaticBackupAt: Date? {
+        get { store.object(forKey: Keys.lastAutomaticBackupAt.rawValue) as? Date }
+        set { store.set(newValue, forKey: Keys.lastAutomaticBackupAt.rawValue) }
+    }
+
     /// GPS border-drift detection threshold in meters. Defaults to 10 km.
     public var driftThresholdMeters: Int {
         get {
@@ -156,6 +181,9 @@ public final class WherePreferences {
         case summaryHour = "where.summaryHour"
         case summaryMinute = "where.summaryMinute"
         case issueAlertsEnabled = "where.issueAlertsEnabled"
+        case automaticBackupsEnabled = "where.automaticBackupsEnabled"
+        case automaticBackupInterval = "where.automaticBackupInterval"
+        case lastAutomaticBackupAt = "where.lastAutomaticBackupAt"
         case driftThresholdMeters = "where.driftThresholdMeters"
         case lastSeenLocationDayCounts = "where.lastSeenLocationDayCounts"
     }

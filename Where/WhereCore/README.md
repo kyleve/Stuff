@@ -8,6 +8,12 @@ CoreLocation — **no SwiftUI or UIKit** — so all of it is unit-testable off-s
 [`RegionKit`](../RegionKit) for coordinate→region lookup and logs through
 [`Periscope`](../../Shared/Periscope) via the `WhereLog` facade.
 
+Automatic backups keep the existing inner backup schema intact, then encrypt
+that ZIP with AES-256-GCM inside a `.wherebackup` envelope. A synchronized
+Keychain recovery key protects the payload; `AutomaticBackupStorage` prefers
+iCloud Drive, falls back to app Documents, and retains the newest three
+recognized automatic files. Manual exports remain plaintext ZIPs.
+
 Everything is reached through one `Sendable` container, **`WhereServices`**,
 which the presentation layer (`WhereUI`) and the widget extension talk to. For
 the domain/presentation layering and the rules this module enforces, see the

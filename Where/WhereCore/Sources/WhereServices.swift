@@ -58,6 +58,9 @@ public struct WhereServices: Sendable {
     public let journal: DayJournal
     /// Backup export / import.
     public let backup: BackupCoordinator
+    /// Encrypted automatic backup orchestration. Nil only in test, preview,
+    /// demo, and App Intents stacks that deliberately have no device storage.
+    public let automaticBackups: AutomaticBackupService?
     /// Data-quality issue detection for the Resolve tab.
     public let resolution: DataIssueScanner
     /// The persistence boundary, retained so `dataChangeUpdates()` can hand out
@@ -117,6 +120,10 @@ public struct WhereServices: Sendable {
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
         importRecoveryPersistence: any BackupImportRecoveryPersisting =
             NoopBackupImportRecoveryPersistence(),
+        backupRecoveryKeys: BackupRecoveryKeyProvider? = nil,
+        automaticBackupStorage: AutomaticBackupStorage? = nil,
+        automaticBackupScheduler: any AutomaticBackupTaskScheduling =
+            NoopAutomaticBackupTaskScheduler(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         let currentDevice = installationContext.currentDevice
@@ -271,6 +278,18 @@ public struct WhereServices: Sendable {
         self.recording = recording
         self.journal = journal
         self.backup = backup
+        if let backupRecoveryKeys, let automaticBackupStorage {
+            automaticBackups = AutomaticBackupService(
+                backup: backup,
+                recoveryKeys: backupRecoveryKeys,
+                storage: automaticBackupStorage,
+                scheduler: automaticBackupScheduler,
+                calendar: aggregator.calendar,
+                now: now,
+            )
+        } else {
+            automaticBackups = nil
+        }
         self.resolution = resolution
         self.store = store
         self.attributor = attributor
@@ -305,6 +324,10 @@ public struct WhereServices: Sendable {
         widgetRefresher: any WidgetTimelineRefreshing,
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
         importRecoveryPersistence: any BackupImportRecoveryPersisting,
+        backupRecoveryKeys: BackupRecoveryKeyProvider? = nil,
+        automaticBackupStorage: AutomaticBackupStorage? = nil,
+        automaticBackupScheduler: any AutomaticBackupTaskScheduling =
+            NoopAutomaticBackupTaskScheduler(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) async throws -> WhereServices {
         let tracked = try await store.trackedRegions()
@@ -328,6 +351,9 @@ public struct WhereServices: Sendable {
             widgetRefresher: widgetRefresher,
             locationOutbox: locationOutbox,
             importRecoveryPersistence: importRecoveryPersistence,
+            backupRecoveryKeys: backupRecoveryKeys,
+            automaticBackupStorage: automaticBackupStorage,
+            automaticBackupScheduler: automaticBackupScheduler,
             now: now,
         )
     }

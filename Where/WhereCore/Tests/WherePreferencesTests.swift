@@ -1,3 +1,4 @@
+import Foundation
 import RegionKit
 import Testing
 @testable import WhereCore
@@ -17,6 +18,9 @@ struct WherePreferencesTests {
         #expect(preferences.summaryEnabled)
         #expect(preferences.summaryTime == .defaultMorning)
         #expect(preferences.issueAlertsEnabled)
+        #expect(preferences.automaticBackupsEnabled)
+        #expect(preferences.automaticBackupInterval == .weekly)
+        #expect(preferences.lastAutomaticBackupAt == nil)
         #expect(preferences.driftThresholdMeters == DriftThreshold.default.rawValue)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == nil)
     }
@@ -42,6 +46,9 @@ struct WherePreferencesTests {
         preferences.summaryEnabled = false
         preferences.summaryTime = ReminderTime(hour: 17, minute: 45)
         preferences.issueAlertsEnabled = false
+        preferences.automaticBackupsEnabled = false
+        preferences.automaticBackupInterval = .monthly
+        preferences.lastAutomaticBackupAt = Date(timeIntervalSince1970: 1_700_000_000)
         preferences.driftThresholdMeters = 25000
         preferences.setLastSeenLocationDayCounts([.california: 100], in: 2026)
 
@@ -54,6 +61,9 @@ struct WherePreferencesTests {
         #expect(preferences.summaryEnabled)
         #expect(preferences.summaryTime == .defaultMorning)
         #expect(preferences.issueAlertsEnabled)
+        #expect(preferences.automaticBackupsEnabled)
+        #expect(preferences.automaticBackupInterval == .weekly)
+        #expect(preferences.lastAutomaticBackupAt == nil)
         #expect(preferences.driftThresholdMeters == DriftThreshold.default.rawValue)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == nil)
     }

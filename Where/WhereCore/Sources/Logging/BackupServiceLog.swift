@@ -29,13 +29,14 @@ enum BackupServiceLog: LogEvent {
         trackedRegionCount: Int,
     )
     case assetMissing(evidenceID: String)
+    case stagingCleanupFailed(description: String)
 
     static let eventName = "BackupService"
 
     var level: LogLevel {
         switch self {
             case .wroteBackup: .info
-            case .assetMissing: .warning
+            case .assetMissing, .stagingCleanupFailed: .warning
         }
     }
 
@@ -51,13 +52,15 @@ enum BackupServiceLog: LogEvent {
                 "Wrote backup with \(sampleCount) samples, \(evidenceCount) evidence, \(manualDayCount) manual days, \(dismissedIssueCount) dismissals, \(trackedRegionCount) tracked regions"
             case let .assetMissing(evidenceID):
                 "Backup asset missing for evidence \(evidenceID); skipping blob"
+            case let .stagingCleanupFailed(description):
+                "Could not remove backup staging directory: \(description)"
         }
     }
 
     var externalID: String? {
         switch self {
             case let .assetMissing(evidenceID): WhereStoreID.evidence(evidenceID)
-            case .wroteBackup: nil
+            case .stagingCleanupFailed, .wroteBackup: nil
         }
     }
 }

@@ -1,7 +1,7 @@
 import Foundation
 import RegionKit
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 /// Covers export/import round-trips and the post-commit lifecycle hook the
 /// coordinator invokes once new data lands.
@@ -601,6 +601,29 @@ struct BackupCoordinatorTests {
         #expect(!FileManager.default.fileExists(atPath: directory.path))
 
         // Idempotent: a second discard (nothing left to reclaim) is a no-op.
+        await harness.coordinator.discardExport()
+    }
+
+    @Test func automaticExportPreservesOutstandingManualShare() async throws {
+        let harness = try Self.makeHarness()
+        try await Self.seed(harness.store)
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("automatic-export-test-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let storage = AutomaticBackupStorage(
+            iCloudRoot: { nil },
+            localRoot: { root.appendingPathComponent("local", isDirectory: true) },
+        )
+        let recoveryKey = try BackupRecoveryKey(data: Data(repeating: 42, count: 32))
+
+        let manual = try await harness.coordinator.exportBackup()
+        _ = try await harness.coordinator.writeAutomaticBackup(
+            recoveryKey: recoveryKey,
+            exportedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            storage: storage,
+        )
+
+        #expect(FileManager.default.fileExists(atPath: manual.path))
         await harness.coordinator.discardExport()
     }
 
