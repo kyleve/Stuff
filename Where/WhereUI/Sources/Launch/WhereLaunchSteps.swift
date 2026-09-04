@@ -143,6 +143,7 @@ struct ReconcileTrackingStep: BudgetedLaunchStep {
 
     func run(_ session: WhereSession, _: LifecycleStepContext) async throws {
         await session.reconcileTracking()
+        await session.runAutomaticBackupIfDue()
     }
 }
 

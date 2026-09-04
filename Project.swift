@@ -59,7 +59,13 @@ let whereAppEntitlements: Entitlements = .dictionary([
     "com.apple.developer.icloud-container-identifiers": .array([
         .string("iCloud.com.stuff.where"),
     ]),
-    "com.apple.developer.icloud-services": .array([.string("CloudKit")]),
+    "com.apple.developer.ubiquity-container-identifiers": .array([
+        .string("iCloud.com.stuff.where"),
+    ]),
+    "com.apple.developer.icloud-services": .array([
+        .string("CloudKit"),
+        .string("CloudDocuments"),
+    ]),
     "com.apple.developer.ubiquity-kvstore-identifier": .string(
         "$(TeamIdentifierPrefix)com.stuff.where",
     ),
@@ -189,7 +195,30 @@ let project = Project(
             infoPlist: .extendingDefault(with: [
                 "UILaunchScreen": .dictionary([:]),
                 "UIApplicationSupportsIndirectInputEvents": .boolean(true),
-                "UIBackgroundModes": .array([.string("remote-notification")]),
+                "UIBackgroundModes": .array([
+                    .string("remote-notification"),
+                    .string("processing"),
+                ]),
+                "BGTaskSchedulerPermittedIdentifiers": .array([
+                    .string("com.stuff.where.automatic-backup"),
+                ]),
+                "NSUbiquitousContainers": .dictionary([
+                    "iCloud.com.stuff.where": .dictionary([
+                        "NSUbiquitousContainerIsDocumentScopePublic": .boolean(true),
+                        "NSUbiquitousContainerName": .string("Where"),
+                        "NSUbiquitousContainerSupportedFolderLevels": .string("Any"),
+                    ]),
+                ]),
+                "UTExportedTypeDeclarations": .array([
+                    .dictionary([
+                        "UTTypeConformsTo": .array([.string("public.zip-archive")]),
+                        "UTTypeDescription": .string("Where Encrypted Backup"),
+                        "UTTypeIdentifier": .string("com.stuff.where.encrypted-backup"),
+                        "UTTypeTagSpecification": .dictionary([
+                            "public.filename-extension": .array([.string("wherebackup")]),
+                        ]),
+                    ]),
+                ]),
                 // Stated explicitly rather than left to Tuist's `1.0` / `1`
                 // defaults, because Settings > About shows them: the version a
                 // user reads off the screen should be one this manifest chose.

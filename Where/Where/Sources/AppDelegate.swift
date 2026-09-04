@@ -87,6 +87,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         return runtime.didFinishLaunching(application: application, options: options)
     }
 
+    func applicationProtectedDataDidBecomeAvailable(_: UIApplication) {
+        runtime.protectedDataDidBecomeAvailable()
+    }
+
     private static var sentryDebugLoggingEnabled: Bool {
         #if DEBUG
             true

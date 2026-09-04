@@ -17,6 +17,8 @@ layering, and the domain rules this target merely starts up.
   target is a Tuist `.app` ([`Project.swift`](../../Project.swift), bundle ID
   `com.stuff.where`), and its Info.plist keys, entitlements, and build settings
   live in that manifest — there is no checked-in plist to edit.
+- Register and submit the automatic-backup `BGProcessingTask` only through the app adapter; bail
+  before driving launch while protected data is unavailable.
 - `Scripts/` holds this target's build-phase scripts, not dev commands (those
   are the repo-root executables). Today that is
   [`stamp-build-info.sh`](Scripts/stamp-build-info.sh), which stamps the commit
