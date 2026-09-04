@@ -31,7 +31,6 @@ struct PlannedPresenceJourneyRow: View {
             : AnyLayout(HStackLayout(alignment: .center, spacing: row.spacing))
         let proportionalHeight = row.baseHeight
             + row.yearScaleHeight * CGFloat(interval.dayCount) / CGFloat(daysInYear)
-        let cardShape = cardPosition.shape(cornerRadius: row.cornerRadius)
 
         HStack(spacing: rail.toCardSpacing) {
             Color.clear
@@ -65,18 +64,10 @@ struct PlannedPresenceJourneyRow: View {
             .padding(.horizontal, row.horizontalPadding)
             .padding(.vertical, row.verticalPadding)
             .background {
-                ZStack {
-                    cardShape
-                        .fill(style.tint.opacity(planned.fillOpacity))
-                    PlannedStayHatch(
-                        color: style.tint,
-                        spacing: planned.hatchSpacing,
-                        lineWidth: planned.hatchLineWidth,
-                        gridOriginX: 0,
-                    )
-                    .opacity(planned.hatchOpacity)
-                    .clipShape(cardShape)
-                }
+                PlannedPresenceJourneyBackground(
+                    position: cardPosition,
+                    tint: style.tint,
+                )
             }
             .overlay {
                 PresenceJourneyCardBorder(

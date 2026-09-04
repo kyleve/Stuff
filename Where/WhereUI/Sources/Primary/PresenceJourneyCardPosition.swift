@@ -37,6 +37,15 @@ enum PresenceJourneyCardPosition {
         }
     }
 
+    var fadesFromRecorded: Bool {
+        switch self {
+            case .standalone, .top:
+                false
+            case .bottom:
+                true
+        }
+    }
+
     private var roundsTop: Bool {
         switch self {
             case .standalone, .top:

@@ -443,6 +443,7 @@ struct WhereStylesheetTests {
         #expect(planned.hatchSpacing == 8)
         #expect(planned.hatchLineWidth == 1)
         #expect(planned.labelOpacity == 0.7)
+        #expect(planned.transitionHeight == 16)
     }
 
     @Test func regionMapStyle() {

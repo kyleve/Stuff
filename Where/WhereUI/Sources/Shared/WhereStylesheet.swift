@@ -1494,6 +1494,7 @@ extension WhereStylesheet {
             var hatchSpacing: CGFloat
             var hatchLineWidth: CGFloat
             var labelOpacity: Double
+            var transitionHeight: CGFloat
         }
 
         static let standard = TimelineStyle(
@@ -1549,6 +1550,7 @@ extension WhereStylesheet {
                 hatchSpacing: 8,
                 hatchLineWidth: 1,
                 labelOpacity: 0.7,
+                transitionHeight: 16,
             ),
         )
     }
