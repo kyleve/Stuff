@@ -79,8 +79,10 @@ struct PlannedPresenceJourneyRow: View {
                 }
             }
             .overlay {
-                cardShape.stroke(
-                    style.tint.opacity(planned.borderOpacity),
+                PresenceJourneyCardBorder(
+                    position: cardPosition,
+                    cornerRadius: row.cornerRadius,
+                    color: style.tint.opacity(planned.borderOpacity),
                     lineWidth: row.borderWidth,
                 )
             }

@@ -26,6 +26,17 @@ enum PresenceJourneyCardPosition {
         }
     }
 
+    var joinedEdge: Edge.Set {
+        switch self {
+            case .standalone:
+                []
+            case .top:
+                .bottom
+            case .bottom:
+                .top
+        }
+    }
+
     private var roundsTop: Bool {
         switch self {
             case .standalone, .top:
