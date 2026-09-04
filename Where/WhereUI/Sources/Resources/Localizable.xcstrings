@@ -3697,6 +3697,50 @@
         }
       }
     },
+    "onboarding.restore.recoveryKey.continue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlock Backup"
+          }
+        }
+      }
+    },
+    "onboarding.restore.recoveryKey.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The synchronized key is missing or does not match. Enter the Base64 recovery key copied from the Data page."
+          }
+        }
+      }
+    },
+    "onboarding.restore.recoveryKey.placeholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recovery key"
+          }
+        }
+      }
+    },
+    "onboarding.restore.recoveryKey.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recovery Key Required"
+          }
+        }
+      }
+    },
     "onboarding.restoreBackup" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5234,6 +5278,63 @@
         }
       }
     },
+    "settings.backup.automatic.enabled" : {
+      "comment" : "Toggle title for automatic encrypted backups.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic Backups"
+          }
+        }
+      }
+    },
+    "settings.backup.automatic.footer" : {
+      "comment" : "Explains why automatic backups matter and how they are protected.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your residency history is critically important. Encrypted backups can restore it if app data is damaged or lost. Where keeps the newest three."
+          }
+        }
+      }
+    },
+    "settings.backup.automatic.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic Backups"
+          }
+        }
+      }
+    },
+    "settings.backup.automatic.interval" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backup Interval"
+          }
+        }
+      }
+    },
+    "settings.backup.automatic.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Available when automatic recording is on"
+          }
+        }
+      }
+    },
     "settings.backup.cleanupRequired" : {
       "comment" : "Settings footer while a committed backup import still needs its post-commit cleanup retried.",
       "extractionState" : "manual",
@@ -5367,6 +5468,127 @@
         }
       }
     },
+    "settings.backup.interval.daily" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily"
+          }
+        }
+      }
+    },
+    "settings.backup.interval.monthly" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Monthly"
+          }
+        }
+      }
+    },
+    "settings.backup.interval.weekly" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weekly"
+          }
+        }
+      }
+    },
+    "settings.backup.list.empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No automatic backups yet"
+          }
+        }
+      }
+    },
+    "settings.backup.list.encrypted" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Encrypted"
+          }
+        }
+      }
+    },
+    "settings.backup.list.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic Backups"
+          }
+        }
+      }
+    },
+    "settings.backup.list.icloudUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud Drive is unavailable. Showing backups stored on this device."
+          }
+        }
+      }
+    },
+    "settings.backup.list.retry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry"
+          }
+        }
+      }
+    },
+    "settings.backup.list.sizeUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Size unavailable"
+          }
+        }
+      }
+    },
+    "settings.backup.location.device" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On This Device"
+          }
+        }
+      }
+    },
+    "settings.backup.location.icloud" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud Drive"
+          }
+        }
+      }
+    },
     "settings.backup.merge" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5374,6 +5596,72 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Merge"
+          }
+        }
+      }
+    },
+    "settings.backup.recovery.copy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Recovery Key"
+          }
+        }
+      }
+    },
+    "settings.backup.recovery.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep this key somewhere safe. It can unlock an encrypted backup if iCloud Keychain is unavailable."
+          }
+        }
+      }
+    },
+    "settings.backup.recovery.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recovery Key"
+          }
+        }
+      }
+    },
+    "settings.backup.recovery.hide" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Recovery Key"
+          }
+        }
+      }
+    },
+    "settings.backup.recovery.show" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Recovery Key"
+          }
+        }
+      }
+    },
+    "settings.backup.recovery.value" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backup recovery key"
           }
         }
       }
@@ -6899,6 +7187,17 @@
         }
       }
     },
+    "settings.keywords.automaticBackups" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "automatic, backup, encrypted, daily, weekly, monthly, iCloud"
+          }
+        }
+      }
+    },
     "settings.keywords.dataResolution" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7016,6 +7315,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "customize, personalization, appearance, color, emoji, symbol, region style, app icon, theme"
+          }
+        }
+      }
+    },
+    "settings.keywords.recoveryKey" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "recovery, key, encryption, show, hide, copy"
           }
         }
       }

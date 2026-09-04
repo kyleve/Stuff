@@ -62,6 +62,26 @@ struct BackupModelTests {
         #expect(backup.backupError == nil)
         #expect(!backup.isShowingBackupError)
     }
+
+    @Test func automaticBackupChoicesMirrorAndPersist() throws {
+        let preferences = WherePreferences(store: InMemoryKeyValueStore())
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: ScriptedLocationSource(),
+        )
+        let backup = BackupModel(services: services, preferences: preferences)
+
+        #expect(backup.automaticBackupsEnabled)
+        #expect(backup.automaticBackupInterval == .weekly)
+
+        backup.setAutomaticBackupsEnabled(false)
+        backup.setAutomaticBackupInterval(.monthly)
+
+        #expect(!backup.automaticBackupsEnabled)
+        #expect(backup.automaticBackupInterval == .monthly)
+        #expect(!preferences.automaticBackupsEnabled)
+        #expect(preferences.automaticBackupInterval == .monthly)
+    }
 }
 
 private struct CleanupFailure: Error {}

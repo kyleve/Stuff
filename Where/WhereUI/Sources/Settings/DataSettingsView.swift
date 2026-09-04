@@ -26,7 +26,10 @@ struct DataSettingsView: View {
                 PrivacyPassportCard()
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
-                BackupSettingsSection(backup: backup)
+                BackupSettingsSection(
+                    backup: backup,
+                    recordingEnabled: session.isAutomaticRecordingEnabled,
+                )
                 dataSection
                 resetSection
             }
@@ -107,12 +110,24 @@ extension DataSettingsView: SettingsSection {
 
     enum Item: SettingsItem {
         case exportBackup
+        case automaticBackups
+        case backupInterval
+        case recoveryKey
+        case copyRecoveryKey
         case eraseYear
         case resetApp
 
         var title: String {
             switch self {
                 case .exportBackup: String(localized: .settingsBackupExport)
+                case .automaticBackups:
+                    String(localized: "settings.backup.automatic.enabled", bundle: .module)
+                case .backupInterval:
+                    String(localized: "settings.backup.automatic.interval", bundle: .module)
+                case .recoveryKey:
+                    String(localized: "settings.backup.recovery.show", bundle: .module)
+                case .copyRecoveryKey:
+                    String(localized: "settings.backup.recovery.copy", bundle: .module)
                 case .eraseYear: String(localized: .settingsEraseYearTitle)
                 case .resetApp: String(localized: .settingsResetErase)
             }
@@ -121,6 +136,16 @@ extension DataSettingsView: SettingsSection {
         var keywords: [String] {
             switch self {
                 case .exportBackup: splitKeywords(String(localized: .settingsKeywordsExport))
+                case .automaticBackups, .backupInterval:
+                    splitKeywords(String(
+                        localized: "settings.keywords.automaticBackups",
+                        bundle: .module,
+                    ))
+                case .recoveryKey, .copyRecoveryKey:
+                    splitKeywords(String(
+                        localized: "settings.keywords.recoveryKey",
+                        bundle: .module,
+                    ))
                 case .eraseYear: splitKeywords(String(localized: .settingsKeywordsEraseYear))
                 case .resetApp: splitKeywords(String(localized: .settingsKeywordsReset))
             }

@@ -28,7 +28,10 @@ struct SettingsView: View {
 
     init(report: YearReportModel) {
         self.report = report
-        _backup = State(initialValue: BackupModel(services: report.services))
+        _backup = State(initialValue: BackupModel(
+            services: report.services,
+            preferences: report.preferences,
+        ))
         _reminders = State(initialValue: RemindersSettingsModel(
             services: report.services,
             preferences: report.preferences,
