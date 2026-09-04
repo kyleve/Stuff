@@ -15,6 +15,7 @@ let package = Package(
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
         .library(name: "LifecycleKitUI", targets: ["LifecycleKitUI"]),
         .library(name: "JournalKit", targets: ["JournalKit"]),
+        .library(name: "KeychainKit", targets: ["KeychainKit"]),
         .library(name: "PeriscopeCore", targets: ["PeriscopeCore"]),
         .library(name: "PeriscopeUI", targets: ["PeriscopeUI"]),
         .library(name: "PeriscopeTools", targets: ["PeriscopeTools"]),
@@ -57,6 +58,7 @@ let package = Package(
         .target(
             name: "LedgerCore",
             dependencies: [
+                .target(name: "KeychainKit"),
                 .target(name: "PeriscopeCore"),
             ],
             path: "Ledger/LedgerCore/Sources",
@@ -78,6 +80,10 @@ let package = Package(
         .target(
             name: "JournalKit",
             path: "Shared/JournalKit/Sources",
+        ),
+        .target(
+            name: "KeychainKit",
+            path: "Shared/KeychainKit/Sources",
         ),
         .target(
             name: "PeriscopeCore",
@@ -162,6 +168,7 @@ let package = Package(
             dependencies: [
                 .target(name: "CreditKit"),
                 .target(name: "JournalKit"),
+                .target(name: "KeychainKit"),
                 .target(name: "PeriscopeCore"),
                 .target(name: "RegionKit"),
                 .product(name: "ZIPFoundation", package: "ZIPFoundation"),

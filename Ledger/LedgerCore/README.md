@@ -46,7 +46,8 @@ auto-token", surfaced as `LoadError.missingCredentials`.
   `github_bugbot`, …) into a friendly `displayName` + `badges` (effort/speed/mode).
 - `UsageSummary`, `UsageEvent`/`UsageEventsPage`, `SpendSnapshot` — the wire + view models
   (cents are integers).
-- `KeychainStore` / `SystemKeychainStore` — a pasted token's storage.
+- `KeychainStore` / `SystemKeychainStore` — a thin string adapter over shared
+  `KeychainKit` for a pasted token's storage.
 - `LedgerSettings` / `LedgerConfiguration` / `LedgerConfigStore` — the persisted
   refresh interval (no secrets).
 - `LoginItemController` — launch-at-login via `SMAppService`.
