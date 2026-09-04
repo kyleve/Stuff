@@ -163,6 +163,17 @@ struct PresenceTimelineList: View {
                     }
                 },
                 whereSnapshot(
+                    name: "ShortPlannedStay",
+                    configurations: .fullContentPhoneLightDark,
+                    measurementReadiness: .immediate,
+                ) {
+                    NavigationStack {
+                        PresenceTimelineList(report: PreviewSupport.plannedStayYearReportModel(
+                            plannedThroughDay: CalendarDay(year: 2026, month: 7, day: 24),
+                        ))
+                    }
+                },
+                whereSnapshot(
                     name: "PlannedStayHidden",
                     configurations: .fullContentPhoneLightDark,
                     measurementReadiness: .immediate,

@@ -1528,6 +1528,11 @@ extension WhereStylesheet {
             var hatchLineWidth: CGFloat
             var labelOpacity: Double
             var transitionHeight: CGFloat
+            var joinedBaseHeight: CGFloat
+            var joinedVerticalPadding: CGFloat
+            var joinedLabelSpacing: CGFloat
+            var joinedCountHorizontalPadding: CGFloat
+            var joinedCountVerticalPadding: CGFloat
         }
 
         static let standard = TimelineStyle(
@@ -1584,6 +1589,11 @@ extension WhereStylesheet {
                 hatchLineWidth: 1,
                 labelOpacity: 0.7,
                 transitionHeight: 16,
+                joinedBaseHeight: 32,
+                joinedVerticalPadding: 8,
+                joinedLabelSpacing: 5,
+                joinedCountHorizontalPadding: 8,
+                joinedCountVerticalPadding: 4,
             ),
         )
     }

@@ -14,7 +14,7 @@ struct PlannedPresenceJourneyBackground: View {
         let shape = position.shape(cornerRadius: row.cornerRadius)
 
         ZStack {
-            if position.fadesFromRecorded {
+            if position.isJoinedContinuation {
                 VStack(spacing: 0) {
                     LinearGradient(
                         colors: [
@@ -41,7 +41,7 @@ struct PlannedPresenceJourneyBackground: View {
             )
             .opacity(planned.hatchOpacity)
             .mask {
-                if position.fadesFromRecorded {
+                if position.isJoinedContinuation {
                     VStack(spacing: 0) {
                         LinearGradient(
                             colors: [.clear, .white],

@@ -37,7 +37,7 @@ enum PresenceJourneyCardPosition {
         }
     }
 
-    var fadesFromRecorded: Bool {
+    var isJoinedContinuation: Bool {
         switch self {
             case .standalone, .top:
                 false

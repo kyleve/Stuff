@@ -343,6 +343,7 @@
             showsEstimatedTimeAndPlanning: Bool = true,
             plannedRegion: Region = .newYork,
             recordedThroughDay: CalendarDay? = nil,
+            plannedThroughDay: CalendarDay = CalendarDay(year: year, month: 8, day: 15),
         ) -> YearReportModel {
             let completeReport = sampleReport()
             var calendar = Calendar(identifier: .gregorian)
@@ -373,7 +374,7 @@
             )
             model.forecasts.setActivePlannedStay(PlannedStay(
                 region: plannedRegion,
-                through: CalendarDay(year: year, month: 8, day: 15),
+                through: plannedThroughDay,
             ))
             return model
         }

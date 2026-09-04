@@ -444,6 +444,11 @@ struct WhereStylesheetTests {
         #expect(planned.hatchLineWidth == 1)
         #expect(planned.labelOpacity == 0.7)
         #expect(planned.transitionHeight == 16)
+        #expect(planned.joinedBaseHeight == 32)
+        #expect(planned.joinedVerticalPadding == 8)
+        #expect(planned.joinedLabelSpacing == 5)
+        #expect(planned.joinedCountHorizontalPadding == 8)
+        #expect(planned.joinedCountVerticalPadding == 4)
     }
 
     @Test func regionMapStyle() {
