@@ -341,12 +341,14 @@
         @MainActor
         public static func plannedStayYearReportModel(
             showsEstimatedTimeAndPlanning: Bool = true,
+            plannedRegion: Region = .newYork,
+            recordedThroughDay: CalendarDay? = nil,
         ) -> YearReportModel {
             let completeReport = sampleReport()
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
             let today = CalendarDay(from: referenceNow, in: calendar)
-            let recordedDays = completeReport.days.filter { $0.day <= today }
+            let recordedDays = completeReport.days.filter { $0.day <= recordedThroughDay ?? today }
             var recordedTotals: [Region: Int] = [:]
             for day in recordedDays {
                 for region in day.regions {
@@ -370,7 +372,7 @@
                 now: { referenceNow },
             )
             model.forecasts.setActivePlannedStay(PlannedStay(
-                region: .newYork,
+                region: plannedRegion,
                 through: CalendarDay(year: year, month: 8, day: 15),
             ))
             return model

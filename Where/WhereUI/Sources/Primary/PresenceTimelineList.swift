@@ -22,6 +22,13 @@ struct PresenceTimelineList: View {
         let plannedInterval = report.showsEstimatedTimeAndPlanning
             ? report.forecasts.plannedInterval(intersecting: report.selectedYear)
             : nil
+        let joinsPlannedStay = if let plannedInterval, let currentStint = stints.last {
+            plannedInterval.region == currentStint.region
+                && CalendarDay(from: currentStint.end, in: report.calendar).adding(days: 1)
+                == plannedInterval.start
+        } else {
+            false
+        }
 
         if stints.isEmpty, plannedInterval == nil {
             ContentUnavailableView {
@@ -54,6 +61,10 @@ struct PresenceTimelineList: View {
                                 isFirst: index == stints.startIndex,
                                 isLast: plannedInterval == nil
                                     && index == stints.index(before: stints.endIndex),
+                                cardPosition: joinsPlannedStay
+                                    && index == stints.index(before: stints.endIndex)
+                                    ? .top
+                                    : .standalone,
                             )
                         }
 
@@ -63,6 +74,7 @@ struct PresenceTimelineList: View {
                                 calendar: report.calendar,
                                 daysInYear: report.daysInSelectedYear,
                                 isFirst: stints.isEmpty,
+                                cardPosition: joinsPlannedStay ? .bottom : .standalone,
                             )
                         }
                     }
@@ -158,6 +170,28 @@ struct PresenceTimelineList: View {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport.plannedStayYearReportModel(
                             showsEstimatedTimeAndPlanning: false,
+                        ))
+                    }
+                },
+                whereSnapshot(
+                    name: "PlannedStayDifferentRegion",
+                    configurations: .fullContentPhoneLightDark,
+                    measurementReadiness: .immediate,
+                ) {
+                    NavigationStack {
+                        PresenceTimelineList(report: PreviewSupport.plannedStayYearReportModel(
+                            plannedRegion: .california,
+                        ))
+                    }
+                },
+                whereSnapshot(
+                    name: "PlannedStayAfterRecordingGap",
+                    configurations: .fullContentPhoneLightDark,
+                    measurementReadiness: .immediate,
+                ) {
+                    NavigationStack {
+                        PresenceTimelineList(report: PreviewSupport.plannedStayYearReportModel(
+                            recordedThroughDay: CalendarDay(year: 2026, month: 7, day: 12),
                         ))
                     }
                 },

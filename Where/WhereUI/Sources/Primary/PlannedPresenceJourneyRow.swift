@@ -8,6 +8,7 @@ struct PlannedPresenceJourneyRow: View {
     let calendar: Calendar
     let daysInYear: Int
     let isFirst: Bool
+    let cardPosition: PresenceJourneyCardPosition
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
@@ -30,7 +31,7 @@ struct PlannedPresenceJourneyRow: View {
             : AnyLayout(HStackLayout(alignment: .center, spacing: row.spacing))
         let proportionalHeight = row.baseHeight
             + row.yearScaleHeight * CGFloat(interval.dayCount) / CGFloat(daysInYear)
-        let cardShape = RoundedRectangle(cornerRadius: row.cornerRadius)
+        let cardShape = cardPosition.shape(cornerRadius: row.cornerRadius)
 
         HStack(spacing: rail.toCardSpacing) {
             Color.clear
@@ -84,7 +85,7 @@ struct PlannedPresenceJourneyRow: View {
                 )
             }
         }
-        .padding(.vertical, row.gap / 2)
+        .padding(cardPosition.gapEdges, row.gap / 2)
         .background(alignment: .leading) {
             PresenceJourneyRail(
                 tint: style.tint.opacity(planned.labelOpacity),
@@ -115,6 +116,7 @@ struct PlannedPresenceJourneyRow: View {
             calendar: Calendar(identifier: .gregorian),
             daysInYear: 365,
             isFirst: false,
+            cardPosition: .standalone,
         )
         .padding()
         .whereBroadwayRoot()
