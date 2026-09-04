@@ -228,6 +228,7 @@ public actor BackupCoordinator {
                     recordingDeviceProfiles: store.recordingDeviceProfiles(),
                     recordingDeviceMetadataChanges: store.recordingDeviceMetadataChanges(),
                     recordingDeviceRemovals: store.recordingDeviceRemovals(),
+                    plannedStayRecords: store.plannedStayRecords(),
                 )
             }
             let evidence = tables.evidence
@@ -263,6 +264,7 @@ public actor BackupCoordinator {
                 recordingDeviceProfiles: tables.recordingDeviceProfiles,
                 recordingDeviceMetadataChanges: tables.recordingDeviceMetadataChanges,
                 recordingDeviceRemovals: tables.recordingDeviceRemovals,
+                plannedStayRecords: tables.plannedStayRecords,
                 blobs: snapshot.blobs,
                 exportedAt: exportedAt ?? Date(),
             )
@@ -336,6 +338,7 @@ public actor BackupCoordinator {
         let recordingDeviceProfiles: [RecordingDeviceProfile]
         let recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange]
         let recordingDeviceRemovals: [RecordingDeviceRemoval]
+        let plannedStayRecords: [PlannedStayRecord]
     }
 
     private struct ExportSnapshot {
@@ -547,6 +550,7 @@ public actor BackupCoordinator {
             + archive.recordingDeviceProfiles.count
             + archive.recordingDeviceMetadataChanges.count
             + archive.recordingDeviceRemovals.count
+            + archive.plannedStayRecords.count
 
         // Decode and validate before touching live recording. Once the archive is known-good,
         // close ingestion before either merge or replace so a streamed sample cannot cross the
@@ -610,6 +614,10 @@ public actor BackupCoordinator {
                     }
                     for dismissal in archive.dismissedIssues {
                         try await store.restoreDismissedIssue(dismissal)
+                        report()
+                    }
+                    for plannedStay in archive.plannedStayRecords {
+                        try await store.restorePlannedStayRecord(plannedStay)
                         report()
                     }
                     for profile in archive.recordingDeviceProfiles {

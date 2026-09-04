@@ -99,6 +99,7 @@ public struct BackupService: Sendable {
         recordingDeviceProfiles: [RecordingDeviceProfile],
         recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange],
         recordingDeviceRemovals: [RecordingDeviceRemoval],
+        plannedStayRecords: [PlannedStayRecord],
         blobs: [UUID: Data],
         exportedAt: Date = Date(),
         archiveName: String? = nil,
@@ -144,6 +145,7 @@ public struct BackupService: Sendable {
                 recordingDeviceProfiles: recordingDeviceProfiles,
                 recordingDeviceMetadataChanges: recordingDeviceMetadataChanges,
                 recordingDeviceRemovals: recordingDeviceRemovals,
+                plannedStayRecords: plannedStayRecords,
                 assets: assetEntries,
             )
             try Self.logger.measure(.encodeManifest) {

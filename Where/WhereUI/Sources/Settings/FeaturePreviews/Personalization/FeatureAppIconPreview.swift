@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// Shows the icon iOS currently has selected, sourced from the same manifest and
@@ -14,7 +15,7 @@ struct FeatureAppIconPreview: View {
             VStack(alignment: .leading, spacing: panelStyle.contentSpacing) {
                 Label(
                     String(localized: .settingsExplorePersonalizationIconTitle),
-                    systemImage: "app.badge",
+                    systemSymbol: .appBadge,
                 )
                 .font(.headline)
 
@@ -34,7 +35,7 @@ struct FeatureAppIconPreview: View {
                 } else {
                     ContentUnavailableView(
                         String(localized: .settingsExplorePersonalizationIconUnavailable),
-                        systemImage: "app.dashed",
+                        systemSymbol: .appDashed,
                     )
                 }
             }

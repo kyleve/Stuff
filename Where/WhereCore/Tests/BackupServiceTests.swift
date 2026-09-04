@@ -121,6 +121,19 @@ struct BackupServiceTests {
         ]
     }
 
+    private static func plannedStayFixtures() -> [PlannedStayRecord] {
+        [
+            PlannedStayRecord(
+                id: UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD")!,
+                value: PlannedStay(
+                    region: .newYork,
+                    through: CalendarDay(year: 2026, month: 9, day: 1),
+                ),
+                updatedAt: exportDate,
+            ),
+        ]
+    }
+
     private static func archive() -> BackupArchive {
         BackupArchive(
             exportedAt: exportDate,
@@ -133,6 +146,7 @@ struct BackupServiceTests {
             recordingDeviceProfiles: recordingDeviceProfileFixtures(),
             recordingDeviceMetadataChanges: [],
             recordingDeviceRemovals: [],
+            plannedStayRecords: [],
             assets: [],
         )
     }
@@ -206,6 +220,7 @@ struct BackupServiceTests {
             recordingDeviceProfiles: recordingDeviceProfiles,
             recordingDeviceMetadataChanges: recordingDeviceMetadataChanges,
             recordingDeviceRemovals: [deviceArchive],
+            plannedStayRecords: Self.plannedStayFixtures(),
             blobs: blobs,
             exportedAt: Self.exportDate,
         )
@@ -226,6 +241,7 @@ struct BackupServiceTests {
         #expect(result.archive.recordingDeviceProfiles == recordingDeviceProfiles)
         #expect(result.archive.recordingDeviceMetadataChanges == recordingDeviceMetadataChanges)
         #expect(result.archive.recordingDeviceRemovals == [deviceArchive])
+        #expect(result.archive.plannedStayRecords == Self.plannedStayFixtures())
         let encodedManifest = try #require(String(
             data: BackupService.makeEncoder().encode(result.archive),
             encoding: .utf8,
@@ -239,12 +255,12 @@ struct BackupServiceTests {
     }
 
     @Test func unsupportedFormatIsRejectedBeforeItsMissingCurrentFieldsAreDecoded() {
-        let legacyManifest = Data(#"{"formatVersion":5}"#.utf8)
+        let legacyManifest = Data(#"{"formatVersion":6}"#.utf8)
 
         do {
             _ = try BackupService.decodeManifest(legacyManifest)
             Issue.record("Expected the legacy backup format to be rejected.")
-        } catch BackupService.BackupError.unsupportedFormatVersion(5) {
+        } catch BackupService.BackupError.unsupportedFormatVersion(6) {
             // Expected: the version envelope was decoded before the strict current shape.
         } catch {
             Issue.record("Unexpected error: \(error)")
@@ -291,6 +307,7 @@ struct BackupServiceTests {
             recordingDeviceProfiles: Self.recordingDeviceProfileFixtures(),
             recordingDeviceMetadataChanges: Self.recordingDeviceMetadataFixtures(),
             recordingDeviceRemovals: [],
+            plannedStayRecords: [],
             assets: [],
         )
         var json = try #require(String(
@@ -321,6 +338,7 @@ struct BackupServiceTests {
             recordingDeviceProfiles: [],
             recordingDeviceMetadataChanges: [],
             recordingDeviceRemovals: [],
+            plannedStayRecords: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -352,6 +370,7 @@ struct BackupServiceTests {
             recordingDeviceProfiles: [],
             recordingDeviceMetadataChanges: [],
             recordingDeviceRemovals: [],
+            plannedStayRecords: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -373,6 +392,7 @@ struct BackupServiceTests {
             recordingDeviceProfiles: [],
             recordingDeviceMetadataChanges: [],
             recordingDeviceRemovals: [],
+            plannedStayRecords: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -391,7 +411,7 @@ struct BackupServiceTests {
                 appearance: RegionAppearance(
                     color: .orange,
                     emoji: "🌴",
-                    symbolName: "sun.max.fill",
+                    symbolName: .sunMaxFill,
                 ),
                 order: 0,
             ),
@@ -406,6 +426,7 @@ struct BackupServiceTests {
             recordingDeviceProfiles: [],
             recordingDeviceMetadataChanges: [],
             recordingDeviceRemovals: [],
+            plannedStayRecords: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -443,6 +464,7 @@ struct BackupServiceTests {
             recordingDeviceProfiles: [],
             recordingDeviceMetadataChanges: [],
             recordingDeviceRemovals: [],
+            plannedStayRecords: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -467,7 +489,7 @@ struct BackupServiceTests {
                     appearance: RegionAppearance(
                         color: .orange,
                         emoji: "🌴",
-                        symbolName: "sun.max.fill",
+                        symbolName: .sunMaxFill,
                     ),
                     order: 0,
                 ),
@@ -476,6 +498,7 @@ struct BackupServiceTests {
             recordingDeviceProfiles: Self.recordingDeviceProfileFixtures(),
             recordingDeviceMetadataChanges: Self.recordingDeviceMetadataFixtures(),
             recordingDeviceRemovals: [],
+            plannedStayRecords: Self.plannedStayFixtures(),
             assets: [BackupAssetEntry(
                 evidenceId: Self.evidenceWithBlobId,
                 filename: "assets/\(Self.evidenceWithBlobId.uuidString)",

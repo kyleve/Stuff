@@ -1,5 +1,6 @@
 import PeriscopeCore
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -19,6 +20,9 @@ struct CalendarContentView: View {
 
     @Environment(\.stylesheet) private var stylesheet
     @State private var monthsLoad: Result<[CalendarMonth], Error>?
+    @State private var plannedStayEditorTarget: PlannedStayEditorTarget?
+    @State private var initiallyPositionedYear: Int?
+    @State private var scrollPosition = ScrollPosition(idType: String.self)
 
     private static let logger = WhereLog.session(CalendarViewLog.self)
 
@@ -29,6 +33,14 @@ struct CalendarContentView: View {
         let evidenceDayKeys: Set<CalendarDay>
         let referenceDay: Date
         let focusedRegion: Region?
+    }
+
+    private struct PlannedStayEditorTarget: Identifiable {
+        let region: Region
+
+        var id: Region {
+            region
+        }
     }
 
     var body: some View {
@@ -55,7 +67,7 @@ struct CalendarContentView: View {
                 ContentUnavailableView {
                     Label(
                         String(localized: .commonLoadErrorTitle),
-                        systemImage: "exclamationmark.icloud",
+                        systemSymbol: .exclamationmarkIcloud,
                     )
                 } description: {
                     Text(error.message)
@@ -64,7 +76,7 @@ struct CalendarContentView: View {
                 ContentUnavailableView {
                     Label(
                         String(localized: .commonLoadErrorTitle),
-                        systemImage: "exclamationmark.icloud",
+                        systemSymbol: .exclamationmarkIcloud,
                     )
                 } description: {
                     Text(String(localized: .calendarUnavailableDescription))
@@ -79,6 +91,13 @@ struct CalendarContentView: View {
         // Log View Mode: reveal an inspect badge for this calendar's events. A
         // no-op in release.
         .debugLogInspectable(WhereLog.session(CalendarViewLog.self))
+        .sheet(item: $plannedStayEditorTarget) { target in
+            PlannedStayEditor(
+                region: target.region,
+                model: report.forecasts,
+                driftThreshold: report.driftThreshold,
+            )
+        }
     }
 
     private func calendarLoadID(report yearReport: YearReport) -> CalendarLoadID {
@@ -105,7 +124,7 @@ struct CalendarContentView: View {
 
     private func calendarLayoutError(_ error: Error) -> some View {
         ContentUnavailableView {
-            Label(String(localized: .commonLoadErrorTitle), systemImage: "exclamationmark.icloud")
+            Label(String(localized: .commonLoadErrorTitle), systemSymbol: .exclamationmarkIcloud)
         } description: {
             Text(String(localized: .calendarUnavailableDescription))
         }
@@ -115,29 +134,111 @@ struct CalendarContentView: View {
     }
 
     private func calendarContent(months: [CalendarMonth]) -> some View {
-        ScrollView {
+        let visibleMonths = shownMonths(months)
+        let initialMonthID = visibleMonths.first(where: \.isCurrentMonth)?.id
+            ?? visibleMonths.last?.id
+
+        return ScrollView {
             LazyVStack(spacing: stylesheet.calendar.monthSpacing) {
-                ForEach(shownMonths(months)) { month in
-                    MonthGridView(month: month, focusedRegion: focusedRegion)
+                ForEach(visibleMonths) { month in
+                    VStack(spacing: stylesheet.calendar.monthSpacing) {
+                        MonthGridView(
+                            month: month,
+                            focusedRegion: focusedRegion,
+                            dateCalendar: report.calendar,
+                            plannedRegion: displayedPlannedRegion(on:),
+                        )
+
+                        // In chronological flow, the estimate belongs immediately
+                        // after the month whose recorded pace it is projecting from.
+                        if showsForecast(after: month) {
+                            LocationForecastPanel(
+                                forecasts: calendarForecasts,
+                                microprintRegions: report.ranking.primary.map(\.region),
+                                plannedStay: report.forecasts.activePlannedStay,
+                                editableRegions: editableForecastRegions,
+                                editAction: { region in
+                                    plannedStayEditorTarget = PlannedStayEditorTarget(
+                                        region: region,
+                                    )
+                                },
+                                clearAction: report.forecasts.clear,
+                            )
+                        }
+                    }
+                    .id(month.id)
                 }
             }
+            .scrollTargetLayout()
             .padding()
+        }
+        .scrollPosition($scrollPosition)
+        .task(id: report.selectedYear) {
+            guard initiallyPositionedYear != report.selectedYear else { return }
+            guard let initialMonthID else { return }
+            scrollPosition.scrollTo(id: initialMonthID, anchor: .bottom)
+            initiallyPositionedYear = report.selectedYear
         }
     }
 
-    /// The months to show, newest first. Future months are omitted; a past year
-    /// has no future months, so it shows the full year from December backward.
+    private func showsForecast(after month: CalendarMonth) -> Bool {
+        report.showsEstimatedTimeAndPlanning
+            && month.isCurrentMonth
+            && !calendarForecasts.isEmpty
+    }
+
+    private var calendarForecasts: [LocationForecast] {
+        if let focusedRegion {
+            return report.forecasts.forecast(for: focusedRegion, report: report.report).map { [$0] }
+                ?? []
+        }
+        return report.ranking.primary.compactMap {
+            report.forecasts.forecast(for: $0.region, report: report.report)
+        }
+    }
+
+    private var editableForecastRegions: [Region] {
+        if let focusedRegion {
+            return report.forecasts.isCurrent(focusedRegion, report: report.report)
+                ? [focusedRegion]
+                : []
+        }
+        return report.ranking.primary.map(\.region)
+    }
+
+    /// A plan belongs on the selected year's calendar and, when this is a
+    /// region-focused calendar, only on that region's destination.
+    private var displayedPlannedStay: PlannedStay? {
+        guard report.showsEstimatedTimeAndPlanning else { return nil }
+        guard let year = report.report?.year else { return nil }
+        guard let stay = report.forecasts.plannedStay(intersecting: year) else { return nil }
+        guard focusedRegion == nil || focusedRegion == stay.region else { return nil }
+        return stay
+    }
+
+    private func displayedPlannedRegion(on day: CalendarDay) -> Region? {
+        guard report.showsEstimatedTimeAndPlanning else { return nil }
+        return report.forecasts.plannedRegion(on: day)
+    }
+
+    /// The months to show in chronological order. Future months are omitted
+    /// unless a planned stay reaches into them; a past year shows the full year.
     private func shownMonths(_ months: [CalendarMonth]) -> [CalendarMonth] {
         guard
             let currentMonthStart = report.calendar
             .dateInterval(of: .month, for: report.referenceDate)?
             .start
         else {
-            return Array(months.reversed())
+            return months
         }
-        return Array(months
-            .filter { $0.startOfMonth <= currentMonthStart }
-            .reversed())
+        let lastShownMonth = displayedPlannedStay.flatMap { stay in
+            report.calendar.date(from: DateComponents(
+                year: stay.through.year,
+                month: stay.through.month,
+                day: 1,
+            ))
+        }.map { max(currentMonthStart, $0) } ?? currentMonthStart
+        return months.filter { $0.startOfMonth <= lastShownMonth }
     }
 }
 
@@ -147,6 +248,8 @@ private struct MonthGridView: View {
     let month: CalendarMonth
     /// The region the calendar is focused on, if any — emphasized in the footer.
     var focusedRegion: Region?
+    let dateCalendar: Calendar
+    let plannedRegion: (CalendarDay) -> Region?
 
     @Environment(\.stylesheet) private var stylesheet
 
@@ -166,9 +269,37 @@ private struct MonthGridView: View {
         RoundedRectangle(cornerRadius: calendar.month.cornerRadius, style: .continuous)
     }
 
+    private var monthName: String {
+        month.startOfMonth.formatted(.dateTime.month(.wide))
+    }
+
+    private var accessibilityValue: String {
+        WhereFormat.calendarMonthAccessibility(
+            regionTotals: month.regionTotals,
+            regionCombinationTotals: month.regionCombinationTotals,
+            needsAttentionDays: month.days.count(where: \.needsAttention),
+            evidenceDays: month.days.count(where: \.hasEvidence),
+            plannedRegionTotals: plannedRegionTotals,
+        )
+    }
+
+    private var plannedRegionTotals: [RegionDayTally] {
+        var counts: [Region: Int] = [:]
+        for day in month.days {
+            if let region = plannedRegion(on: day) {
+                counts[region, default: 0] += 1
+            }
+        }
+        return Region.rankedByDayCount(
+            counts.map { RegionDayTally(region: $0.key, days: $0.value) },
+            days: \.days,
+            region: \.region,
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: calendar.month.sectionSpacing) {
-            Text(month.startOfMonth.formatted(.dateTime.month(.wide)))
+            Text(monthName)
                 .font(.title.weight(.semibold))
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -211,6 +342,9 @@ private struct MonthGridView: View {
                     cardShape.strokeBorder(card.border, lineWidth: card.borderWidth)
                 }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(monthName)
+        .accessibilityValue(accessibilityValue)
     }
 
     /// The stay-pill geometry for the day at `index`: a run is contiguous days
@@ -220,19 +354,27 @@ private struct MonthGridView: View {
     private func bandGeometry(at index: Int) -> DayBandGeometry {
         let days = month.days
         let day = days[index]
-        guard !day.regions.isEmpty else { return .none }
+        let regions = displayedRegions(for: day)
+        guard !regions.isEmpty else { return .none }
 
-        let regionSet = Set(day.regions)
+        let regionSet = Set(regions)
+        let isPlanned = plannedRegion(on: day) != nil
         let column = (month.leadingBlankCount + index) % month.weekdayCount
         let isRowStart = column == 0
         let isRowEnd = column == month.weekdayCount - 1
-        let joinsLeft = index > 0 && Set(days[index - 1].regions) == regionSet
-        let joinsRight = index < days.count - 1 && Set(days[index + 1].regions) == regionSet
+        let joinsLeft = index > 0
+            && Set(displayedRegions(for: days[index - 1])) == regionSet
+            && (plannedRegion(on: days[index - 1]) != nil) == isPlanned
+        let joinsRight = index < days.count - 1
+            && Set(displayedRegions(for: days[index + 1])) == regionSet
+            && (plannedRegion(on: days[index + 1]) != nil) == isPlanned
 
         let band = calendar.regionBand
         let halfGap = calendar.month.gridSpacing / 2
         return DayBandGeometry(
-            regions: day.regions,
+            regions: regions,
+            isPlanned: isPlanned,
+            column: column,
             leadingRadius: joinsLeft ? (isRowStart ? band.continuationRadius : 0) : band
                 .cornerRadius,
             trailingRadius: joinsRight ? (isRowEnd ? band.continuationRadius : 0) : band
@@ -241,6 +383,21 @@ private struct MonthGridView: View {
             extendTrailing: joinsRight && !isRowEnd ? halfGap : 0,
         )
     }
+
+    private func displayedRegions(for day: CalendarDayCell) -> [Region] {
+        var regions = Set(day.regions)
+        if let region = plannedRegion(on: day) {
+            regions.insert(region)
+        }
+        return Region.inCanonicalOrder(regions)
+    }
+
+    private func plannedRegion(on day: CalendarDayCell) -> Region? {
+        let key = CalendarDay(from: day.date, in: dateCalendar)
+        guard let region = plannedRegion(key) else { return nil }
+        guard focusedRegion == nil || focusedRegion == region else { return nil }
+        return region
+    }
 }
 
 /// How to draw a day's slice of the region "stay" pill: which corners round
@@ -248,6 +405,8 @@ private struct MonthGridView: View {
 /// one connected shape. Empty `regions` means no pill.
 private struct DayBandGeometry {
     var regions: [Region]
+    var isPlanned: Bool
+    var column: Int
     var leadingRadius: CGFloat
     var trailingRadius: CGFloat
     var extendLeading: CGFloat
@@ -255,6 +414,8 @@ private struct DayBandGeometry {
 
     static let none = DayBandGeometry(
         regions: [],
+        isPlanned: false,
+        column: 0,
         leadingRadius: 0,
         trailingRadius: 0,
         extendLeading: 0,
@@ -305,13 +466,6 @@ private struct MonthFooter: View {
                 .foregroundStyle(.secondary)
         }
         .opacity(focusedRegion == nil || isFocused ? 1 : calendar.month.unfocusedRowOpacity)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(
-            WhereFormat.regionDaysAccessibility(
-                region: tally.region.localizedName,
-                days: tally.days,
-            ),
-        )
     }
 }
 
@@ -351,7 +505,7 @@ private struct DayCell: View {
                 // over the accent "today" fill and the region dots below.
                 .overlay(alignment: .topTrailing) {
                     if day.hasEvidence {
-                        Image(systemName: "paperclip")
+                        Image(systemSymbol: .paperclip)
                             .font(.system(size: calendar.day.evidenceBadge.iconSize, weight: .bold))
                             .foregroundStyle(Color.accentColor)
                             .padding(calendar.day.evidenceBadge.padding)
@@ -373,15 +527,6 @@ private struct DayCell: View {
         .background { stayPill }
         .frame(minHeight: calendar.day.minHeight)
         .contentShape(Rectangle())
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(
-            WhereFormat.calendarDayAccessibility(
-                date: day.date,
-                regions: day.regions,
-                needsAttention: day.needsAttention,
-                hasEvidence: day.hasEvidence,
-            ),
-        )
     }
 
     /// Region-presence dots beneath the day number (one per region the day
@@ -389,9 +534,9 @@ private struct DayCell: View {
     /// day the dots overlap into a cluster, the rims keeping them distinct.
     /// Empty days keep the row height so the grid baseline is even.
     private var dots: some View {
-        let isCluster = day.regions.count > 1
+        let isCluster = band.regions.count > 1
         return HStack(spacing: isCluster ? -calendar.day.dotOverlap : calendar.day.contentSpacing) {
-            ForEach(day.regions, id: \.self) { region in
+            ForEach(band.regions, id: \.self) { region in
                 Circle()
                     .fill(regionStyles.style(for: region).tint)
                     .frame(width: calendar.day.dotSize, height: calendar.day.dotSize)
@@ -415,14 +560,35 @@ private struct DayCell: View {
     private var stayPill: some View {
         if !band.regions.isEmpty {
             GeometryReader { proxy in
-                UnevenRoundedRectangle(
+                let shape = UnevenRoundedRectangle(
                     topLeadingRadius: band.leadingRadius,
                     bottomLeadingRadius: band.leadingRadius,
                     bottomTrailingRadius: band.trailingRadius,
                     topTrailingRadius: band.trailingRadius,
                 )
-                .fill(pillFill)
-                .opacity(calendar.regionBand.opacity)
+                ZStack {
+                    shape
+                        .fill(pillFill)
+                        .opacity(
+                            band.isPlanned
+                                ? calendar.regionBand.planned.fillOpacity
+                                : calendar.regionBand.opacity,
+                        )
+                    if band.isPlanned {
+                        PlannedStayHatch(
+                            color: band.regions
+                                .first
+                                .map { regionStyles.style(for: $0).tint } ?? .accentColor,
+                            spacing: calendar.regionBand.planned.hatchSpacing,
+                            lineWidth: calendar.regionBand.planned.hatchLineWidth,
+                            gridOriginX: CGFloat(band.column)
+                                * (proxy.size.width + calendar.month.gridSpacing)
+                                - band.extendLeading,
+                        )
+                        .opacity(calendar.regionBand.planned.hatchOpacity)
+                        .clipShape(shape)
+                    }
+                }
                 .frame(
                     width: proxy.size.width + band.extendLeading + band.extendTrailing,
                     height: proxy.size.height,
@@ -461,6 +627,11 @@ private struct DayCell: View {
                     CalendarContentView(report: PreviewSupport.loadedYearReportModel())
                 }
             }
+            whereSnapshot(name: "InitialPosition", configurations: .phoneLightDark) {
+                NavigationStack {
+                    CalendarContentView(report: PreviewSupport.loadedYearReportModel())
+                }
+            }
             whereSnapshot(name: "Empty", configurations: .fullContentPhoneLightDark) {
                 NavigationStack {
                     CalendarContentView(report: PreviewSupport.emptyYearReportModel())
@@ -478,6 +649,32 @@ private struct DayCell: View {
                         focusedRegion: .california,
                         report: PreviewSupport.loadedYearReportModel(),
                     )
+                }
+            }
+            whereSnapshot(name: "FocusedPlannedStay", configurations: .fullContentPhoneLightDark) {
+                NavigationStack {
+                    CalendarContentView(
+                        focusedRegion: .newYork,
+                        report: PreviewSupport.plannedStayYearReportModel(),
+                    )
+                }
+            }
+            whereSnapshot(
+                name: "MultiRegionPlannedStay",
+                configurations: .fullContentPhoneLightDark,
+            ) {
+                NavigationStack {
+                    CalendarContentView(report: PreviewSupport.plannedStayYearReportModel())
+                }
+            }
+            whereSnapshot(
+                name: "PlannedStayHidden",
+                configurations: .fullContentPhoneLightDark,
+            ) {
+                NavigationStack {
+                    CalendarContentView(report: PreviewSupport.plannedStayYearReportModel(
+                        showsEstimatedTimeAndPlanning: false,
+                    ))
                 }
             }
         }

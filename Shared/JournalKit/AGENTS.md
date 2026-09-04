@@ -1,40 +1,20 @@
 # JournalKit – Module Shape
 
-JournalKit is the generic append-only, crash-durable journal: synchronous
-`Data` appends that survive process death, segment rotation under a byte
-budget, and torn-tail-tolerant recovery. See [`README.md`](README.md) for
-the API and durability model.
+JournalKit is a generic append-only, crash-durable journal. It provides synchronous `Data` appends that survive process death, segment rotation under a byte budget, and torn-tail-tolerant recovery. See [`README.md`](README.md) for the API and durability model.
 
-This file complements the root [`AGENTS.md`](../../AGENTS.md), which owns
-the build system, formatting, and global conventions. Read that first.
+Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns the build system, formatting, and global conventions.
 
 ## Scope & dependencies
 
-- **Foundation + os only.** No logging types, no Periscope imports — the
-  journal is payload-agnostic by design (PeriscopeCore layers log semantics
-  on top). Keep it that way.
+- **Use Foundation and os only.** Do not import logging types or Periscope. PeriscopeCore layers log semantics on top. Keep the journal payload-agnostic.
 
 ## Invariants
 
-- **`append` returning means the entry survives process death.** The write
-  reaches the kernel page cache synchronously; `.full` extends coverage to
-  kernel panics via `F_FULLFSYNC`. Nothing may buffer entries in user space.
-- **Recovery never throws over a torn tail.** A crash can cut the file at
-  any byte; recovery yields every wholly-written entry and flags the tear.
-  The truncation fuzz in `JournalRecoveryTests` pins this at every cut
-  point — keep it passing.
-- **A torn write poisons only its own segment.** A partial `write(2)`
-  (disk-full's shape) leaves bytes recovery stops at, so the segment is
-  marked poisoned and the next append rotates to a fresh one — later
-  entries must never land behind a tear.
-- **Drops are whole segments, oldest first,** and always observable
-  (`droppedSegmentCount`, `droppedOlderEntries`) — the newest entries are
-  never sacrificed. A segment that fails to delete stays in the byte
-  accounting (later rotations retry it) and the drop loop moves to the
-  next-oldest, so the budget still wins.
+- **When `append` returns, the entry survives process death.** The write reaches the kernel page cache synchronously. `.full` extends coverage to kernel panics through `F_FULLFSYNC`. Do not buffer entries in user space.
+- **Recovery never throws over a torn tail.** A crash can cut the file at any byte. Recovery yields every wholly-written entry and flags the tear. Keep the truncation fuzz in `JournalRecoveryTests` passing at every cut point.
+- **A torn write poisons only its own segment.** A partial `write(2)` (disk-full's shape) leaves bytes recovery stops at. Mark the segment poisoned. Rotate to a fresh segment on the next append. Later entries must never land behind a tear.
+- **Drop whole segments, oldest first.** Always expose drops (`droppedSegmentCount`, `droppedOlderEntries`). Never sacrifice the newest entries. If a segment fails to delete, keep it in the byte accounting. Later rotations retry it. The drop loop moves to the next-oldest segment so the budget still wins.
 
 ## Testing
 
-Swift Testing in [`Tests/`](Tests), hosted in `StuffTestHost`
-(`JournalKitTests`). Tests journal into per-test temporary directories and
-construct crashed-journal states (truncation, corruption) directly on disk.
+Swift Testing lives in [`Tests/`](Tests), hosted in `StuffTestHost` (`JournalKitTests`). Journal into per-test temporary directories. Construct crashed-journal states (truncation, corruption) directly on disk.

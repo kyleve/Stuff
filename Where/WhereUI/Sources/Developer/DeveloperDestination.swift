@@ -1,5 +1,6 @@
 #if DEBUG
     import Foundation
+    import SFSafeSymbols
 
     /// One typed action exposed by the DEBUG-only developer accordion.
     ///
@@ -20,10 +21,10 @@
             }
         }
 
-        var systemImage: String {
+        var systemSymbol: SFSymbol {
             switch self {
-                case let .tool(tool): tool.systemImage
-                case .flyover: "rectangle.3.group"
+                case let .tool(tool): tool.systemSymbol
+                case .flyover: .rectangle3Group
             }
         }
 
@@ -37,6 +38,7 @@
                 .tool(.openSpans),
                 .flyover,
                 .tool(.regionMap),
+                .tool(.crashTesting),
             ]
         }
     }

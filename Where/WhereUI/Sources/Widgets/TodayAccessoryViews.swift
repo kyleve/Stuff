@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -21,14 +22,19 @@ public struct TodayInlineAccessoryView: View {
     }
 
     public var body: some View {
-        if let first = regions.first {
-            Label(
-                regions.map(\.localizedName).joined(separator: " · "),
-                systemImage: regionStyles.style(for: first).symbolName,
-            )
-        } else {
-            Label(String(localized: .widgetTodayEmpty), systemImage: "location.slash")
+        Group {
+            if let first = regions.first {
+                Label(
+                    regions.map(\.localizedName).joined(separator: " · "),
+                    systemSymbol: regionStyles.style(for: first).symbol,
+                )
+            } else {
+                Label(String(localized: .widgetTodayEmpty), systemSymbol: .locationSlash)
+            }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(WhereFormat.widgetTodayAccessibilityLabel(date: snapshot.day))
+        .accessibilityValue(WhereFormat.widgetTodayAccessibilityValue(regions: regions))
     }
 }
 
@@ -52,11 +58,9 @@ public struct TodayCircularAccessoryView: View {
         ZStack {
             AccessoryWidgetBackground()
             VStack(spacing: 0) {
-                Image(
-                    systemName: regions.first
-                        .map { regionStyles.style(for: $0).symbolName } ?? "location.slash",
-                )
-                .font(.title3)
+                Image(systemSymbol: regions.first
+                    .map { regionStyles.style(for: $0).symbol } ?? .locationSlash)
+                    .font(.title3)
                 if regions.count > 1 {
                     Text(verbatim: "+\(regions.count - 1)")
                         .font(.caption2.weight(.semibold))
@@ -64,12 +68,8 @@ public struct TodayCircularAccessoryView: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityText)
-    }
-
-    private var accessibilityText: String {
-        guard !regions.isEmpty else { return String(localized: .widgetTodayEmpty) }
-        return regions.map(\.localizedName).joined(separator: ", ")
+        .accessibilityLabel(WhereFormat.widgetTodayAccessibilityLabel(date: snapshot.day))
+        .accessibilityValue(WhereFormat.widgetTodayAccessibilityValue(regions: regions))
     }
 }
 
@@ -78,7 +78,8 @@ public struct TodayCircularAccessoryView: View {
         public static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Regions",
-                configurations: .componentLightDark,
+                configurations: .componentLightDark
+                    + SnapshotConfiguration.combinations(snapshotTypes: [.accessibility]),
                 settle: .immediate,
             ) {
                 TodayInlineAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
@@ -99,7 +100,8 @@ public struct TodayCircularAccessoryView: View {
         public static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Regions",
-                configurations: .componentLightDark,
+                configurations: .componentLightDark
+                    + SnapshotConfiguration.combinations(snapshotTypes: [.accessibility]),
                 settle: .immediate,
             ) {
                 TodayCircularAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(

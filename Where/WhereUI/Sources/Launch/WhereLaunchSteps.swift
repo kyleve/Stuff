@@ -10,8 +10,8 @@ import WhereCore
 // everything downstream takes the **non-optional** session as input — a step
 // cannot be scheduled before the thing it needs exists.
 //
-// The trunk begins with the onboarding gate rather than a step, because
-// nothing may be built until the user has chosen a world to work in. That is
+// The trunk first consumes an optional one-shot demo request, then reaches the
+// onboarding gate. Nothing real may be built until the user has chosen a world. That is
 // also the one place the "no step reaches into `WhereModel` for what an
 // earlier node should have set" rule bends: a gate carries no value (it is
 // pass-through by construction), so a choice made *at* the gate — onboarding
@@ -21,6 +21,18 @@ import WhereCore
 //
 // Each step also declares a span `budget` (see `BudgetedLaunchStep`), and
 // the plans compose them `.measured()` so every run is one Periscope span.
+
+/// Consume a one-shot demo request before the onboarding gate can resolve a
+/// real scope. With no request this is a cheap pass-through launch node.
+struct ActivateLaunchDemoStep: BudgetedLaunchStep {
+    let model: WhereModel
+    let id = LaunchStepID.activateDemo
+    let budget: Duration = .seconds(3)
+
+    func run(_: Void, _: LifecycleStepContext) async throws {
+        try await model.activatePendingLaunchDemoIfNeeded()
+    }
+}
 
 /// First-run onboarding and this installation's recording choice.
 /// Rooted at the trunk's head so that an install whose user hasn't chosen yet

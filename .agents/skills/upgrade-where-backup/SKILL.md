@@ -1,12 +1,12 @@
 ---
 name: upgrade-where-backup
-description: Upgrades a Where app backup directory or ZIP with Where/Tools/upgrade-backup.rb, verifies archive integrity and record preservation, and proves the result loads through WhereCore's production BackupService using its opt-in verification test. Use when a user asks to upgrade, migrate, repair, validate, or test-import a legacy Where backup.
+description: Upgrade a Where app backup directory or ZIP with Where/Tools/upgrade-backup.rb. Make sure that archive integrity and record preservation hold. Prove the result loads through WhereCore BackupService. Use when a user asks to upgrade, migrate, repair, validate, or test-import a legacy Where backup.
 ---
 
 # Upgrade a Where backup
 
 Read the root `AGENTS.md`, `Where/AGENTS.md`, and `Where/WhereCore/AGENTS.md`.
-Load the `running-tests` skill because verification must run through `./test`.
+Load the `running-tests` skill. Verification must run through `./test`.
 
 Run the bundled driver from the repository root:
 
@@ -28,7 +28,7 @@ sibling named `<input>-upgraded.zip`. The driver:
 
 Keep every manifest transformation in `Where/Tools/upgrade-backup.rb`. The
 driver only packages input, invokes that authority, and independently verifies
-its output; never duplicate migration rules in the skill.
+its output. Do not duplicate migration rules in the skill.
 
 ## Safety and recovery
 
@@ -37,7 +37,7 @@ its output; never duplicate migration rules in the skill.
   output path. Without it, an existing output is rejected.
 - Expect filesystem approval when the output is outside the workspace.
 - The upgraded ZIP remains available if Swift verification fails. Diagnose the
-  failure; do not represent the backup as verified.
+  failure. Do not represent the backup as verified.
 
 ## Handoff
 

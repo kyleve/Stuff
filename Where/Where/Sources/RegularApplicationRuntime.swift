@@ -18,6 +18,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
     let model: WhereModel
 
     let intentServices = IntentServices()
+    private let widgetPresentationPublisher = WidgetPresentationPublisher()
     private(set) var launcher: LifecycleRunner<WhereSession>!
     private let automaticBackupScheduler: AutomaticBackupBackgroundScheduler
     private let backupRecoveryKeys: BackupRecoveryKeyProvider
@@ -34,23 +35,34 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             #endif
         }()
 
-        private let inspectorModeController: InspectorModeController?
+        private let developerLaunchController: WhereDeveloperLaunchController?
 
-        init(inspectorModeController: InspectorModeController? = nil) {
+        init(
+            preferences: WherePreferences,
+            effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration,
+            applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging,
+            developerLaunchController: WhereDeveloperLaunchController? = nil,
+        ) {
             let automaticBackupScheduler = AutomaticBackupBackgroundScheduler()
             let backupRecoveryKeys = BackupRecoveryKeyProvider.system {
                 await MainActor.run { UIApplication.shared.isProtectedDataAvailable }
             }
             self.automaticBackupScheduler = automaticBackupScheduler
             self.backupRecoveryKeys = backupRecoveryKeys
-            self.inspectorModeController = inspectorModeController
+            self.developerLaunchController = developerLaunchController
             model = Self.makeModel(
                 storeStorage: Self.storeStorage(
                     forCloudKitValidationBuild: Self.isCloudKitValidationBuild,
                 ),
+                preferences: preferences,
+                effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
+                applyRemoteLogging: applyRemoteLogging,
                 automaticBackupScheduler: automaticBackupScheduler,
                 backupRecoveryKeys: backupRecoveryKeys,
             )
+            if let configuration = developerLaunchController?.consumeDemoConfiguration() {
+                model.prepareDemoLaunch(configuration: configuration)
+            }
         }
 
         static func storeStorage(
@@ -59,7 +71,11 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             validatesCloudKit ? .cloudKit : .localOnly
         }
     #else
-        init() {
+        init(
+            preferences: WherePreferences,
+            effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration,
+            applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging,
+        ) {
             let automaticBackupScheduler = AutomaticBackupBackgroundScheduler()
             let backupRecoveryKeys = BackupRecoveryKeyProvider.system {
                 await MainActor.run { UIApplication.shared.isProtectedDataAvailable }
@@ -68,6 +84,9 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             self.backupRecoveryKeys = backupRecoveryKeys
             model = Self.makeModel(
                 storeStorage: .cloudKit,
+                preferences: preferences,
+                effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
+                applyRemoteLogging: applyRemoteLogging,
                 automaticBackupScheduler: automaticBackupScheduler,
                 backupRecoveryKeys: backupRecoveryKeys,
             )
@@ -76,13 +95,16 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
 
     private static func makeModel(
         storeStorage: SwiftDataStore.Storage,
+        preferences: WherePreferences,
+        effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration,
+        applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging,
         automaticBackupScheduler: AutomaticBackupBackgroundScheduler,
         backupRecoveryKeys: BackupRecoveryKeyProvider,
     ) -> WhereModel {
         let installationContextStore = FileInstallationRecordingContextStore()
         let locationOutbox = FileLocationOutbox.applicationSupport()
         return WhereModel(
-            preferences: WherePreferences(store: UserDefaults.standard),
+            preferences: preferences,
             installationContextStore: installationContextStore,
             makeBootstrap: {
                 WhereBootstrap(
@@ -95,6 +117,8 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
                 )
             },
             logSystem: .shared,
+            effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
+            applyRemoteLogging: applyRemoteLogging,
         )
     }
 
@@ -111,9 +135,18 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
 
         WhereLaunch.startAmbientLogging(on: .shared)
         model.onLoggedOut = { [intentServices] in await intentServices.clear() }
+        model.onThemeChanged = { [intentServices, widgetPresentationPublisher] theme in
+            await widgetPresentationPublisher.publish(theme)
+            guard !Task.isCancelled else { return }
+            await intentServices.updateTheme(theme)
+        }
+        model.synchronizeTheme()
         let launcher = WhereLaunch
-            .makeLauncher(model: model, reason: .undetermined) { [intentServices] in
-                await intentServices.install(.forIntents(sharingStoreOf: $0))
+            .makeLauncher(model: model, reason: .undetermined) { [intentServices, model] in
+                await intentServices.install(
+                    .forIntents(sharingStoreOf: $0),
+                    theme: model.theme,
+                )
             }
         self.launcher = launcher
         Task { [weak self] in
@@ -178,7 +211,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             AnyView(RootView(
                 model: model,
                 launcher: launcher,
-                inspectorModeController: inspectorModeController,
+                developerLaunchController: developerLaunchController,
             ))
         #else
             AnyView(RootView(model: model, launcher: launcher))

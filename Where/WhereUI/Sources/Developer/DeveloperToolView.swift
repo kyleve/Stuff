@@ -1,3 +1,4 @@
+import SFSafeSymbols
 #if DEBUG
     import PeriscopeTools
     import SwiftUI
@@ -21,6 +22,9 @@
         var body: some View {
             NavigationStack {
                 switch tool {
+                    case .crashTesting:
+                        DeveloperCrashTestingView()
+
                     case .logs:
                         switch model?.logStoreState {
                             case let .ready(store):
@@ -32,7 +36,7 @@
                             case .opening:
                                 ContentUnavailableView(
                                     String(localized: .developerLoggingOpeningTitle),
-                                    systemImage: tool.systemImage,
+                                    systemSymbol: tool.systemSymbol,
                                     description: Text(String(
                                         localized: .developerLoggingOpeningDescription,
                                     )),
@@ -43,7 +47,7 @@
                             case let .failed(description):
                                 ContentUnavailableView(
                                     String(localized: .developerLoggingFailedTitle),
-                                    systemImage: "exclamationmark.triangle",
+                                    systemSymbol: .exclamationmarkTriangle,
                                     description: Text(description),
                                 )
                                 .navigationTitle(tool.title)
@@ -67,5 +71,9 @@
         DeveloperToolView(tool: .regionMap)
             .environment(PreviewSupport.loadedModel())
             .environment(PreviewSupport.loadedSession())
+    }
+
+    #Preview("Crash testing") {
+        DeveloperToolView(tool: .crashTesting)
     }
 #endif

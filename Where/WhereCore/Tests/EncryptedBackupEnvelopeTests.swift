@@ -13,6 +13,7 @@ struct EncryptedBackupEnvelopeTests {
             recordingDeviceProfiles: [],
             recordingDeviceMetadataChanges: [],
             recordingDeviceRemovals: [],
+            plannedStayRecords: [],
             blobs: [:],
             exportedAt: date,
         )

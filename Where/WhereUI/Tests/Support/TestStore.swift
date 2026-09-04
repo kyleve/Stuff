@@ -4,6 +4,9 @@ import WhereCore
 /// Thrown by `TestStore.setManualDay` when failure injection is enabled.
 struct ManualSaveFailure: Error, Equatable {}
 
+/// Thrown by planned-stay writes when failure injection is enabled.
+struct PlannedStaySaveFailure: Error, Equatable {}
+
 /// Thrown by `TestStore.samples(in:)` when failure injection is enabled, so a
 /// year-report load can be forced to fail.
 struct SampleReadFailure: Error, Equatable {}
@@ -39,6 +42,7 @@ actor TestStore: WhereStore {
     private var recordingDevicesArrival: CheckedContinuation<Void, Never>?
 
     private var shouldFailManualDay = false
+    private var shouldFailPlannedStay = false
     private var shouldFailSamples = false
     private var shouldFailNextRecordingDeviceWrite = false
 
@@ -86,6 +90,10 @@ actor TestStore: WhereStore {
 
     func failManualDays() {
         shouldFailManualDay = true
+    }
+
+    func failPlannedStays() {
+        shouldFailPlannedStay = true
     }
 
     /// Makes `samples(in:)` throw, so a `refresh()`'s year-report load fails and
@@ -270,5 +278,18 @@ actor TestStore: WhereStore {
 
     func restoreDismissedIssue(_ issue: DismissedIssue) async throws {
         try await backing.restoreDismissedIssue(issue)
+    }
+
+    func plannedStayRecords() async throws -> [PlannedStayRecord] {
+        try await backing.plannedStayRecords()
+    }
+
+    func replacePlannedStayRecord(with record: PlannedStayRecord) async throws {
+        if shouldFailPlannedStay { throw PlannedStaySaveFailure() }
+        try await backing.replacePlannedStayRecord(with: record)
+    }
+
+    func restorePlannedStayRecord(_ record: PlannedStayRecord) async throws {
+        try await backing.restorePlannedStayRecord(record)
     }
 }

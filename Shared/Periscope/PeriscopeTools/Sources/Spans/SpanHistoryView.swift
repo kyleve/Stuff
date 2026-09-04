@@ -1,4 +1,5 @@
 import PeriscopeCore
+import SFSafeSymbols
 import SwiftUI
 
 /// Span history: the store's closed spans grouped by kind (`SpanEnded.name`),
@@ -50,7 +51,7 @@ public struct SpanHistoryView: View {
                 }
             }
         } label: {
-            Label("Builds", systemImage: "line.3.horizontal.decrease.circle")
+            Label("Builds", systemSymbol: .line3HorizontalDecreaseCircle)
         }
     }
 
@@ -63,13 +64,13 @@ public struct SpanHistoryView: View {
             case let .failed(reason):
                 ContentUnavailableView(
                     "Spans Unavailable",
-                    systemImage: "exclamationmark.triangle",
+                    systemSymbol: .exclamationmarkTriangle,
                     description: Text(reason),
                 )
             case let .loaded(summaries) where summaries.isEmpty:
                 ContentUnavailableView(
                     "No Spans",
-                    systemImage: "stopwatch",
+                    systemSymbol: .stopwatch,
                     // A narrowed scope with nothing in it is a different fact
                     // from an empty store, and the reader needs to know which.
                     description: Text(model.emptyStateDescription),

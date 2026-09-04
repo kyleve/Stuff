@@ -1,5 +1,6 @@
 import PeriscopeCore
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -58,7 +59,7 @@ struct LoggedDaysView: View {
                     Button {
                         showingAdd = true
                     } label: {
-                        Label(String(localized: .loggedDaysAdd), systemImage: "plus")
+                        Label(String(localized: .loggedDaysAdd), systemSymbol: .plus)
                     }
                     .accessibilityIdentifier("where_add_logged_day_button")
                 }
@@ -113,7 +114,7 @@ struct LoggedDaysView: View {
                 ContentUnavailableView {
                     Label(
                         String(localized: .loggedDaysFailedTitle),
-                        systemImage: "exclamationmark.icloud",
+                        systemSymbol: .exclamationmarkIcloud,
                     )
                 } description: {
                     Text(message)
@@ -150,7 +151,7 @@ struct LoggedDaysView: View {
         ContentUnavailableView {
             Label(
                 String(localized: .loggedDaysNoMatchesTitle),
-                systemImage: "line.3.horizontal.decrease.circle",
+                systemSymbol: .line3HorizontalDecreaseCircle,
             )
         } description: {
             Text(String(localized: .loggedDaysNoMatchesDescription))
@@ -178,7 +179,7 @@ struct LoggedDaysView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label(String(localized: .loggedDaysEmptyTitle), systemImage: "calendar.badge.plus")
+            Label(String(localized: .loggedDaysEmptyTitle), systemSymbol: .calendarBadgePlus)
         } description: {
             Text(String(localized: .loggedDaysEmptyDescription))
         } actions: {
@@ -235,7 +236,7 @@ private struct LoggedDayRow: View {
 
     var body: some View {
         HStack(spacing: stylesheet.spacing.large) {
-            Image(systemName: day.isAuthoritative ? "pencil.circle" : "calendar.badge.plus")
+            Image(systemSymbol: day.isAuthoritative ? .pencilCircle : .calendarBadgePlus)
                 .font(.title3)
                 .foregroundStyle(.tint)
                 .frame(width: stylesheet.size.statusIconWidth)

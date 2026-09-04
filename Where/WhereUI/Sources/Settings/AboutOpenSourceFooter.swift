@@ -5,16 +5,16 @@ import SwiftUI
 struct AboutOpenSourceFooter: View {
     static let projectURL = URL(string: "https://github.com/kyleve/Stuff")!
 
+    @Environment(\.stylesheet) private var stylesheet
     var body: some View {
         Link(destination: Self.projectURL) {
-            PassportCard(
-                title: .settingsAboutSourceTitle,
-                detail: .settingsAboutSourceAction,
-                sealSystemImage: "chevron.left.forwardslash.chevron.right",
-                accessorySystemImage: "arrow.up.right",
-                isInteractive: true,
-                surface: .securityPrint,
-            )
+            StampBanner(
+                systemSymbol: .chevronLeftForwardslashChevronRight,
+                style: stylesheet.openSourceStamp,
+                showsAccessory: true,
+            ) {
+                AboutOpenSourceStampText()
+            }
         }
         .buttonStyle(.plain)
     }
@@ -26,6 +26,7 @@ struct AboutOpenSourceFooter: View {
             AboutOpenSourceFooter()
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets())
         }
         .whereBroadwayRoot()
     }

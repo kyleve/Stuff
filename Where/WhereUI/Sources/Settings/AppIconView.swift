@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 
@@ -108,7 +109,7 @@ struct AppIconView: View {
 
                 HStack(spacing: appIcon.cellLabelSpacing) {
                     if isSelected {
-                        Image(systemName: "checkmark.circle.fill")
+                        Image(systemSymbol: .checkmarkCircleFill)
                             .foregroundStyle(Color.accentColor)
                     }
                     Text(option.displayName)

@@ -1,4 +1,5 @@
 @testable import Flyover
+import SFSafeSymbols
 import SnapshotKit
 import SnapshotKitTesting
 import SwiftUI
@@ -35,6 +36,20 @@ struct FlyoverSnapshotTests {
             configurations: SnapshotConfiguration.combinations(
                 devices: [.iPhoneFullContent],
             ),
+        )
+
+        let fullCanvasModel = FlyoverModel(catalog: catalog)
+        await assertSnapshots(
+            of: FlyoverView(catalog: catalog, model: fullCanvasModel),
+            named: "FlyoverCanvasFullContent",
+            configurations: SnapshotConfiguration.combinations(
+                devices: [.iPadFullContent2D],
+            ),
+            measurementReadiness: .settled,
+            onReadyToMeasure: {
+                await fullCanvasModel.waitUntilVisiblePreviewsAreLoaded()
+            },
+            settle: .settledAtLeast(minDuration: 1.5),
         )
 
         let model = FlyoverModel(catalog: catalog)
@@ -125,7 +140,7 @@ struct FlyoverSnapshotTests {
                     .navigationTitle(title)
                     .toolbar {
                         ToolbarItem(placement: .primaryAction) {
-                            Button("Add", systemImage: "plus", action: {})
+                            Button("Add", systemSymbol: .plus, action: {})
                         }
                     }
                 },
@@ -135,7 +150,7 @@ struct FlyoverSnapshotTests {
                 ) {
                     ContentUnavailableView(
                         "No \(title)",
-                        systemImage: "rectangle.stack",
+                        systemSymbol: .rectangleStack,
                     )
                 },
             ],

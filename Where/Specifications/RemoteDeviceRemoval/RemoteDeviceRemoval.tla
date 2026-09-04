@@ -18,198 +18,157 @@ ASSUME /\ Implementation \in {"broken", "current"}
 Earliest(values) ==
     CHOOSE candidate \in values : \A other \in values : candidate <= other
 
-VARIABLES
-    publishedRemovals,
-    readerRemovals,
-    targetRemovals,
-    publishedAdvisories,
-    readerAdvisories,
-    readerSamples,
-    readerLastOldEvent,
-    readerFirstRemovalCutoff,
-    targetNotification,
-    targetPhase,
-    oldRecording,
-    oldBacklogPresent,
-    activeIdentity,
-    newRecording
+(* --algorithm RemoteDeviceRemovalAlgorithm {
+variables publishedRemovals = {},
+          readerRemovals = {},
+          targetRemovals = {},
+          publishedAdvisories = {},
+          readerAdvisories = {},
+          readerSamples = {},
+          readerLastOldEvent = "none",
+          readerFirstRemovalCutoff = -1,
+          targetNotification = FALSE,
+          targetPhase = "idle",
+          oldRecording = TRUE,
+          oldBacklogPresent = TRUE,
+          activeIdentity = "old",
+          newRecording = FALSE;
 
-vars == <<publishedRemovals, readerRemovals, targetRemovals,
-          publishedAdvisories, readerAdvisories, readerSamples,
-          readerLastOldEvent, readerFirstRemovalCutoff,
-          targetNotification, targetPhase, oldRecording,
-          oldBacklogPresent, activeIdentity, newRecording>>
+define {
+    Quiescent ==
+        /\ publishedRemovals = Cutoffs
+        /\ readerRemovals = Cutoffs
+        /\ targetRemovals = Cutoffs
+        /\ publishedAdvisories = AdvisoryKinds
+        /\ readerAdvisories = AdvisoryKinds
+        /\ readerSamples = Times
+        /\ targetPhase = "retired"
+        /\ activeIdentity = "new"
+        /\ newRecording
+}
 
-Init ==
-    /\ publishedRemovals = {}
-    /\ readerRemovals = {}
-    /\ targetRemovals = {}
-    /\ publishedAdvisories = {}
-    /\ readerAdvisories = {}
-    /\ readerSamples = {}
-    /\ readerLastOldEvent = "none"
-    /\ readerFirstRemovalCutoff = -1
-    /\ targetNotification = FALSE
-    /\ targetPhase = "idle"
-    /\ oldRecording = TRUE
-    /\ oldBacklogPresent = TRUE
-    /\ activeIdentity = "old"
-    /\ newRecording = FALSE
+process (CreateRemoval = "CreateRemoval") {
+CreateRemovalStep:
+    while (TRUE) {
+        with (cutoff \in Cutoffs \ publishedRemovals) {
+            publishedRemovals := publishedRemovals \cup {cutoff};
+        };
+    }
+}
 
-CreateRemoval(cutoff) ==
-    /\ cutoff \in Cutoffs \ publishedRemovals
-    /\ publishedRemovals' = publishedRemovals \cup {cutoff}
-    /\ UNCHANGED <<readerRemovals, targetRemovals,
-                    publishedAdvisories, readerAdvisories, readerSamples,
-                    readerLastOldEvent, readerFirstRemovalCutoff,
-                    targetNotification, targetPhase, oldRecording,
-                    oldBacklogPresent, activeIdentity, newRecording>>
+process (PublishAdvisory = "PublishAdvisory") {
+PublishAdvisoryStep:
+    while (TRUE) {
+        with (kind \in AdvisoryKinds \ publishedAdvisories) {
+            publishedAdvisories := publishedAdvisories \cup {kind};
+        };
+    }
+}
 
-PublishAdvisory(kind) ==
-    /\ kind \in AdvisoryKinds \ publishedAdvisories
-    /\ publishedAdvisories' = publishedAdvisories \cup {kind}
-    /\ UNCHANGED <<publishedRemovals, readerRemovals, targetRemovals,
-                    readerAdvisories, readerSamples, readerLastOldEvent,
-                    readerFirstRemovalCutoff, targetNotification, targetPhase,
-                    oldRecording, oldBacklogPresent, activeIdentity, newRecording>>
+process (DeliverRemovalToReader = "DeliverRemovalToReader") {
+DeliverRemovalToReaderStep:
+    while (TRUE) {
+        with (cutoff \in publishedRemovals \ readerRemovals) {
+            readerRemovals := readerRemovals \cup {cutoff} ||
+            readerLastOldEvent := "removal" ||
+            readerFirstRemovalCutoff := IF readerFirstRemovalCutoff = -1
+                                            THEN cutoff
+                                            ELSE readerFirstRemovalCutoff;
+        };
+    }
+}
 
-DeliverRemovalToReader(cutoff) ==
-    /\ cutoff \in publishedRemovals \ readerRemovals
-    /\ readerRemovals' = readerRemovals \cup {cutoff}
-    /\ readerLastOldEvent' = "removal"
-    /\ readerFirstRemovalCutoff' =
-        IF readerFirstRemovalCutoff = -1 THEN cutoff ELSE readerFirstRemovalCutoff
-    /\ UNCHANGED <<publishedRemovals, targetRemovals,
-                    publishedAdvisories, readerAdvisories, readerSamples,
-                    targetNotification, targetPhase, oldRecording,
-                    oldBacklogPresent, activeIdentity, newRecording>>
+process (DeliverRemovalToTarget = "DeliverRemovalToTarget") {
+DeliverRemovalToTargetStep:
+    while (TRUE) {
+        with (cutoff \in publishedRemovals \ targetRemovals) {
+            targetRemovals := targetRemovals \cup {cutoff} ||
+            targetNotification := IF targetPhase = "retired"
+                                      THEN targetNotification
+                                      ELSE TRUE;
+        };
+    }
+}
 
-DeliverRemovalToTarget(cutoff) ==
-    /\ cutoff \in publishedRemovals \ targetRemovals
-    /\ targetRemovals' = targetRemovals \cup {cutoff}
-    /\ targetNotification' =
-        IF targetPhase = "retired" THEN targetNotification ELSE TRUE
-    /\ UNCHANGED <<publishedRemovals, readerRemovals,
-                    publishedAdvisories, readerAdvisories, readerSamples,
-                    readerLastOldEvent, readerFirstRemovalCutoff, targetPhase,
-                    oldRecording, oldBacklogPresent, activeIdentity, newRecording>>
+process (DeliverAdvisoryToReader = "DeliverAdvisoryToReader") {
+DeliverAdvisoryToReaderStep:
+    while (TRUE) {
+        with (kind \in publishedAdvisories \ readerAdvisories) {
+            readerAdvisories := readerAdvisories \cup {kind} ||
+            readerLastOldEvent := "advisory";
+        };
+    }
+}
 
-DeliverAdvisoryToReader(kind) ==
-    /\ kind \in publishedAdvisories \ readerAdvisories
-    /\ readerAdvisories' = readerAdvisories \cup {kind}
-    /\ readerLastOldEvent' = "advisory"
-    /\ UNCHANGED <<publishedRemovals, readerRemovals, targetRemovals,
-                    publishedAdvisories, readerSamples,
-                    readerFirstRemovalCutoff, targetNotification, targetPhase,
-                    oldRecording, oldBacklogPresent, activeIdentity, newRecording>>
+process (DeliverSampleToReader = "DeliverSampleToReader") {
+DeliverSampleToReaderStep:
+    while (TRUE) {
+        with (timestamp \in Times \ readerSamples) {
+            readerSamples := readerSamples \cup {timestamp};
+        };
+    }
+}
 
-DeliverSampleToReader(timestamp) ==
-    /\ timestamp \in Times \ readerSamples
-    /\ readerSamples' = readerSamples \cup {timestamp}
-    /\ UNCHANGED <<publishedRemovals, readerRemovals, targetRemovals,
-                    publishedAdvisories, readerAdvisories, readerLastOldEvent,
-                    readerFirstRemovalCutoff, targetNotification, targetPhase,
-                    oldRecording, oldBacklogPresent, activeIdentity, newRecording>>
+fair process (BeginTargetObservation = "BeginTargetObservation") {
+BeginTargetObservationStep:
+    while (TRUE) {
+        await targetPhase = "idle" /\ targetNotification;
+        targetPhase := "reading" ||
+        targetNotification := FALSE;
+    }
+}
 
-BeginTargetObservation ==
-    /\ targetPhase = "idle"
-    /\ targetNotification
-    /\ targetPhase' = "reading"
-    /\ targetNotification' = FALSE
-    /\ UNCHANGED <<publishedRemovals, readerRemovals, targetRemovals,
-                    publishedAdvisories, readerAdvisories, readerSamples,
-                    readerLastOldEvent, readerFirstRemovalCutoff,
-                    oldRecording, oldBacklogPresent, activeIdentity, newRecording>>
+fair process (ReadTargetSnapshot = "ReadTargetSnapshot") {
+ReadTargetSnapshotStep:
+    while (TRUE) {
+        await targetPhase = "reading" /\ targetRemovals # {};
+        targetPhase := "revoking";
+    }
+}
 
-ReadTargetSnapshot ==
-    /\ targetPhase = "reading"
-    /\ targetRemovals # {}
-    /\ targetPhase' = "revoking"
-    /\ UNCHANGED <<publishedRemovals, readerRemovals, targetRemovals,
-                    publishedAdvisories, readerAdvisories, readerSamples,
-                    readerLastOldEvent, readerFirstRemovalCutoff,
-                    targetNotification, oldRecording, oldBacklogPresent,
-                    activeIdentity, newRecording>>
+fair process (RevokeOldRecording = "RevokeOldRecording") {
+RevokeOldRecordingStep:
+    while (TRUE) {
+        await targetPhase = "revoking";
+        oldRecording := FALSE ||
+        targetPhase := "clearing";
+    }
+}
 
-RevokeOldRecording ==
-    /\ targetPhase = "revoking"
-    /\ oldRecording' = FALSE
-    /\ targetPhase' = "clearing"
-    /\ UNCHANGED <<publishedRemovals, readerRemovals, targetRemovals,
-                    publishedAdvisories, readerAdvisories, readerSamples,
-                    readerLastOldEvent, readerFirstRemovalCutoff,
-                    targetNotification, oldBacklogPresent,
-                    activeIdentity, newRecording>>
+fair process (DiscardOldBacklog = "DiscardOldBacklog") {
+DiscardOldBacklogStep:
+    while (TRUE) {
+        await targetPhase = "clearing";
+        oldBacklogPresent := FALSE ||
+        targetPhase := "retired";
+    }
+}
 
-DiscardOldBacklog ==
-    /\ targetPhase = "clearing"
-    /\ oldBacklogPresent' = FALSE
-    /\ targetPhase' = "retired"
-    /\ UNCHANGED <<publishedRemovals, readerRemovals, targetRemovals,
-                    publishedAdvisories, readerAdvisories, readerSamples,
-                    readerLastOldEvent, readerFirstRemovalCutoff,
-                    targetNotification, oldRecording, activeIdentity, newRecording>>
+process (RejoinWithNewIdentity = "RejoinWithNewIdentity") {
+RejoinWithNewIdentityStep:
+    while (TRUE) {
+        await targetPhase = "retired" /\ activeIdentity = "old";
+        activeIdentity := "new" ||
+        newRecording := FALSE;
+    }
+}
 
-RejoinWithNewIdentity ==
-    /\ targetPhase = "retired"
-    /\ activeIdentity = "old"
-    /\ activeIdentity' = "new"
-    /\ newRecording' = FALSE
-    /\ UNCHANGED <<publishedRemovals, readerRemovals, targetRemovals,
-                    publishedAdvisories, readerAdvisories, readerSamples,
-                    readerLastOldEvent, readerFirstRemovalCutoff,
-                    targetNotification, targetPhase, oldRecording,
-                    oldBacklogPresent>>
+process (EnableNewIdentity = "EnableNewIdentity") {
+EnableNewIdentityStep:
+    while (TRUE) {
+        await activeIdentity = "new" /\ ~newRecording;
+        newRecording := TRUE;
+    }
+}
 
-EnableNewIdentity ==
-    /\ activeIdentity = "new"
-    /\ ~newRecording
-    /\ newRecording' = TRUE
-    /\ UNCHANGED <<publishedRemovals, readerRemovals, targetRemovals,
-                    publishedAdvisories, readerAdvisories, readerSamples,
-                    readerLastOldEvent, readerFirstRemovalCutoff,
-                    targetNotification, targetPhase, oldRecording,
-                    oldBacklogPresent, activeIdentity>>
-
-Quiescent ==
-    /\ publishedRemovals = Cutoffs
-    /\ readerRemovals = Cutoffs
-    /\ targetRemovals = Cutoffs
-    /\ publishedAdvisories = AdvisoryKinds
-    /\ readerAdvisories = AdvisoryKinds
-    /\ readerSamples = Times
-    /\ targetPhase = "retired"
-    /\ activeIdentity = "new"
-    /\ newRecording
-
-Done ==
-    /\ Quiescent
-    /\ UNCHANGED vars
-
-Next ==
-    \/ \E cutoff \in Cutoffs :
-          CreateRemoval(cutoff)
-          \/ DeliverRemovalToReader(cutoff)
-          \/ DeliverRemovalToTarget(cutoff)
-    \/ \E kind \in AdvisoryKinds :
-          PublishAdvisory(kind)
-          \/ DeliverAdvisoryToReader(kind)
-    \/ \E timestamp \in Times : DeliverSampleToReader(timestamp)
-    \/ BeginTargetObservation
-    \/ ReadTargetSnapshot
-    \/ RevokeOldRecording
-    \/ DiscardOldBacklog
-    \/ RejoinWithNewIdentity
-    \/ EnableNewIdentity
-    \/ Done
-
-Fairness ==
-    /\ WF_vars(BeginTargetObservation)
-    /\ WF_vars(ReadTargetSnapshot)
-    /\ WF_vars(RevokeOldRecording)
-    /\ WF_vars(DiscardOldBacklog)
-
-Spec == Init /\ [][Next]_vars /\ Fairness
+process (Done = "Done") {
+DoneStep:
+    while (TRUE) {
+        await Quiescent;
+        skip;
+    }
+}
+} *)
 
 TypeOK ==
     /\ publishedRemovals \in SUBSET Cutoffs

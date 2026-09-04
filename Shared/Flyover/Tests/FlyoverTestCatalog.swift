@@ -10,9 +10,9 @@ func makeFlyoverTestCatalog() -> FlyoverCatalog<FlyoverTestScreen> {
                 title: "Main",
                 root: .root,
                 screens: [
-                    testScreen(.root, title: "Root"),
-                    testScreen(.pushed, title: "Pushed"),
-                    testScreen(.modal, title: "Modal"),
+                    makeFlyoverTestScreen(.root, title: "Root"),
+                    makeFlyoverTestScreen(.pushed, title: "Pushed"),
+                    makeFlyoverTestScreen(.modal, title: "Modal"),
                 ],
             ),
         ],
@@ -24,7 +24,7 @@ func makeFlyoverTestCatalog() -> FlyoverCatalog<FlyoverTestScreen> {
 }
 
 @MainActor
-private func testScreen(
+func makeFlyoverTestScreen(
     _ id: FlyoverTestScreen,
     title: String,
 ) -> FlyoverScreen<FlyoverTestScreen> {

@@ -8,8 +8,12 @@ let deployment: DeploymentTargets = .iOS("26.0")
 let macDeployment: DeploymentTargets = .macOS("26.0")
 
 /// Local Swift package (see root `Package.swift`) for the library products
-/// (StuffCore, WhereCore, WhereUI, TestHostSupport, the Broadway modules, …).
+/// (WhereCore, WhereUI, TestHostSupport, the Broadway modules, …).
 private let stuffPackage = Package.local(path: .relativeToRoot("."))
+private let sfSafeSymbolsPackage = Package.remote(
+    url: "https://github.com/SFSafeSymbols/SFSafeSymbols",
+    requirement: .upToNextMajor(from: "7.0.0"),
+)
 
 /// Apple Developer Team used to code-sign when building to a device, read from
 /// the `TUIST_DEVELOPMENT_TEAM` environment variable so each developer's team ID
@@ -183,7 +187,7 @@ let project = Project(
         defaultKnownRegions: ["en"],
         developmentRegion: "en",
     ),
-    packages: [stuffPackage],
+    packages: [stuffPackage, sfSafeSymbolsPackage],
     settings: projectSettings,
     targets: [
         .target(
@@ -320,6 +324,7 @@ let project = Project(
             entitlements: whereAppGroupEntitlements,
             dependencies: [
                 .package(product: "PeriscopeCore"),
+                .package(product: "SFSafeSymbols"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
             ],
@@ -382,6 +387,7 @@ let project = Project(
             sources: ["Ledger/Ledger/Sources/**"],
             dependencies: [
                 .package(product: "LedgerCore"),
+                .package(product: "SFSafeSymbols"),
             ],
             // Ledger ships no asset catalog (menu-bar icon is an SF Symbol), so
             // clear the asset-catalog name settings the compiler otherwise
@@ -462,12 +468,6 @@ let project = Project(
                 // so hosted tests can find it via `TestHostSupport.hostKeyWindow()`.
                 .package(product: "TestHostSupport"),
             ],
-        ),
-        unitTests(
-            name: "StuffCoreTests",
-            bundleIdSuffix: "stuffcore",
-            productDependency: "StuffCore",
-            sources: ["Shared/StuffCore/Tests/**"],
         ),
         unitTests(
             name: "CreditKitTests",
@@ -564,6 +564,7 @@ let project = Project(
             bundleIdSuffix: "snapshotkittesting",
             productDependency: "SnapshotKitTesting",
             sources: ["Shared/SnapshotKitTesting/Tests/**"],
+            extraPackageProducts: ["SFSafeSymbols"],
         ),
         unitTests(
             name: "RegionKitTests",
@@ -578,10 +579,10 @@ let project = Project(
             sources: ["Where/WhereCore/Tests/**"],
             extraPackageProducts: ["RegionKit"],
         ),
-        // WhereUITests names LifecycleKit because its test sources exercise those
-        // public types directly. Xcode 27 beta 4 emits WhereUI as a dynamic package
-        // product in this graph, so merely copying WhereUI's transitive framework
-        // does not add it to the test bundle's link command. Everything else arrives
+        // WhereUITests names LifecycleKit and SFSafeSymbols because its test sources
+        // exercise those public types directly. Xcode 27 emits WhereUI as a dynamic package
+        // products in this graph, so merely copying WhereUI's transitive frameworks
+        // does not add them to the test bundle's link command. Everything else arrives
         // through WhereUI; re-listing a statically absorbed product can still split
         // type-keyed lookups in the full multi-bundle scheme.
         // Guard: WhereStylesheetTests.resolvesTraitAwareTokensFromTheBroadwayRoot.
@@ -592,7 +593,7 @@ let project = Project(
             bundleIdSuffix: "whereui",
             productDependency: "WhereUI",
             sources: ["Where/WhereUI/Tests/**"],
-            extraPackageProducts: ["LifecycleKit"],
+            extraPackageProducts: ["LifecycleKit", "SFSafeSymbols"],
         ),
         // WhereIntents depends on WhereUI for its snippet cards, so — exactly like
         // WhereUITests above — this bundle lists no `extraPackageProducts`:
@@ -687,6 +688,7 @@ let project = Project(
             resources: ["Shared/Broadway/BroadwayCatalog/Resources/**"],
             dependencies: [
                 .package(product: "BroadwayUI"),
+                .package(product: "SFSafeSymbols"),
             ],
         ),
         .target(
@@ -758,7 +760,6 @@ let project = Project(
                 "Where",
                 "RegionViewer",
                 "StuffTestHost",
-                "StuffCoreTests",
                 "CreditKitTests",
                 "WhereCrashReportingTests",
                 "LifecycleKitTests",
@@ -784,7 +785,6 @@ let project = Project(
             ]),
             testAction: .targets(
                 [
-                    "StuffCoreTests",
                     "CreditKitTests",
                     "WhereCrashReportingTests",
                     "LifecycleKitTests",
@@ -811,7 +811,6 @@ let project = Project(
             ),
         ),
         testScheme(name: "LedgerCoreTests"),
-        testScheme(name: "StuffCoreTests"),
         testScheme(name: "CreditKitTests"),
         testScheme(name: "WhereCrashReportingTests"),
         testScheme(name: "LifecycleKitTests"),

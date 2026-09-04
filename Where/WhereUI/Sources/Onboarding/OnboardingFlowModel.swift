@@ -10,6 +10,7 @@ import PeriscopeCore
 final class OnboardingFlowModel {
     enum Phase: Hashable {
         case intro
+        case theme
         case pickRegions
         case customize
         case location
@@ -26,6 +27,7 @@ final class OnboardingFlowModel {
     let gate: LifecycleGateHandle
     var phase: Phase
     var page = 0
+    var theme: WhereTheme
     var selection = PrimaryRegionSelectionModel()
     var recordingEnabled: Bool
     var deviceDiscovery = DeviceDiscovery.idle
@@ -44,10 +46,12 @@ final class OnboardingFlowModel {
         gate: LifecycleGateHandle,
         installationContext: InstallationRecordingContext,
         startsAtRecordingChoice: Bool,
+        initialTheme: WhereTheme,
     ) {
         self.gate = gate
         self.installationContext = installationContext
         phase = startsAtRecordingChoice ? .location : .intro
+        theme = initialTheme
         recordingEnabled = installationContext.automaticRecordingEnabled
             ?? installationContext.recommendedRecordingEnabled
     }
@@ -61,8 +65,18 @@ final class OnboardingFlowModel {
             page += 1
         } else {
             discardPendingRestore()
-            phase = .pickRegions
+            phase = .theme
         }
+    }
+
+    func selectTheme(_ newTheme: WhereTheme, using model: WhereModel) {
+        guard newTheme != theme else { return }
+        theme = newTheme
+        model.previewTheme(newTheme)
+    }
+
+    func continueAfterThemeSelection() {
+        phase = restoreSelection.readyImport == nil ? .pickRegions : .location
     }
 
     func discoverRecordingDevices(using model: WhereModel) async {
@@ -199,7 +213,7 @@ final class OnboardingFlowModel {
             return
         }
         restoreSelection.choose(strategy)
-        phase = .location
+        phase = .theme
     }
 
     func discardPendingRestore() {

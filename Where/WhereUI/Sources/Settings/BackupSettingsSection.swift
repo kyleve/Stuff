@@ -1,4 +1,5 @@
 import PeriscopeCore
+import SFSafeSymbols
 #if DEBUG
     import SnapshotKit
 #endif
@@ -58,12 +59,12 @@ struct BackupSettingsSection: View {
                 if backup.backupState == .exporting {
                     backupProgressLabel(
                         String(localized: .settingsBackupExporting),
-                        systemImage: "square.and.arrow.up",
+                        systemSymbol: .squareAndArrowUp,
                     )
                 } else {
                     Label(
                         String(localized: .settingsBackupExport),
-                        systemImage: "square.and.arrow.up",
+                        systemSymbol: .squareAndArrowUp,
                     )
                 }
             }
@@ -112,7 +113,7 @@ struct BackupSettingsSection: View {
             if !recordingEnabled {
                 Label(
                     localized("settings.backup.automatic.unavailable"),
-                    systemImage: "location.slash",
+                    systemSymbol: .locationSlash,
                 )
                 .foregroundStyle(.secondary)
             }
@@ -135,7 +136,7 @@ struct BackupSettingsSection: View {
                 } label: {
                     Label(
                         localized("settings.backup.recovery.copy"),
-                        systemImage: "doc.on.doc",
+                        systemSymbol: .docOnDoc,
                     )
                 }
                 .settingsRow(DataSettingsView.Item.copyRecoveryKey)
@@ -145,7 +146,7 @@ struct BackupSettingsSection: View {
                 } label: {
                     Label(
                         localized("settings.backup.recovery.hide"),
-                        systemImage: "eye.slash",
+                        systemSymbol: .eyeSlash,
                     )
                 }
             } else {
@@ -154,7 +155,7 @@ struct BackupSettingsSection: View {
                 } label: {
                     Label(
                         localized("settings.backup.recovery.show"),
-                        systemImage: "eye",
+                        systemSymbol: .eye,
                     )
                 }
                 .settingsRow(DataSettingsView.Item.recoveryKey)
@@ -204,7 +205,7 @@ struct BackupSettingsSection: View {
     private var iCloudUnavailableWarning: some View {
         Label(
             localized("settings.backup.list.icloudUnavailable"),
-            systemImage: "exclamationmark.icloud",
+            systemSymbol: .exclamationmarkIcloud,
         )
         .foregroundStyle(.secondary)
     }
@@ -221,7 +222,7 @@ struct BackupSettingsSection: View {
             Label {
                 Text(file.exportedAt.formatted(date: .abbreviated, time: .shortened))
             } icon: {
-                Image(systemName: "lock.fill")
+                Image(systemSymbol: .lockFill)
                     .accessibilityLabel(localized("settings.backup.list.encrypted"))
             }
         }
@@ -263,9 +264,11 @@ struct BackupSettingsSection: View {
         )
     }
 
-    private func backupProgressLabel(_ title: String, systemImage: String) -> some View {
+    /// Determinate progress for an in-flight export, driven by
+    /// `backup.backupProgress` as the backup coordinator makes progress.
+    private func backupProgressLabel(_ title: String, systemSymbol: SFSymbol) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label(title, systemImage: systemImage)
+            Label(title, systemSymbol: systemSymbol)
             ProgressView(value: backup.backupProgress)
         }
     }

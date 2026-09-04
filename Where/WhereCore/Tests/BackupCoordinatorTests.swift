@@ -94,6 +94,14 @@ struct BackupCoordinatorTests {
     private static let recordingDeviceID = RecordingDeviceID(
         rawValue: UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE")!,
     )
+    private static let plannedStay = PlannedStayRecord(
+        id: UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!,
+        value: PlannedStay(
+            region: .newYork,
+            through: CalendarDay(year: 2026, month: 9, day: 1),
+        ),
+        updatedAt: Date(timeIntervalSince1970: 1_700_000_000),
+    )
 
     /// Seed every persisted domain directly into a store so backup tests don't
     /// depend on the journal or recording controller.
@@ -107,6 +115,7 @@ struct BackupCoordinatorTests {
                 regions: [.newYork],
             ))
             try await store.restoreDismissedIssue(dismissal)
+            try await store.restorePlannedStayRecord(plannedStay)
             try await store.addRecordingDeviceProfile(RecordingDeviceProfile(
                 id: recordingDeviceID,
                 systemName: "iPad",
@@ -168,6 +177,7 @@ struct BackupCoordinatorTests {
         #expect(try await destination.store.allDismissedIssues() == source.store
             .allDismissedIssues())
         #expect(try await destination.store.allDismissedIssues() == [Self.dismissal])
+        #expect(try await destination.store.plannedStayRecords() == [Self.plannedStay])
         #expect(try await destination.store.recordingDeviceProfiles() == source.store
             .recordingDeviceProfiles())
         #expect(try await destination.store.recordingDeviceMetadataChanges() == source.store
@@ -269,7 +279,7 @@ struct BackupCoordinatorTests {
 
     @Test func importRestoresPickedRegionAppearance() async throws {
         let source = try Self.makeHarness()
-        let caLook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: "sun.max.fill")
+        let caLook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: .sunMaxFill)
         try await source.store.perform {
             try await source.store.setPrimaryRegions([
                 PrimaryRegion(region: .california, appearance: caLook, order: 0),
@@ -292,7 +302,7 @@ struct BackupCoordinatorTests {
     @Test func mergeImportKeepsCustomizedLookWhenArchiveAppearanceIsNil() async throws {
         // The device customized California; the archive tracks it with no picked
         // look. A merge must not clobber the device's look with the archive's nil.
-        let caLook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: "sun.max.fill")
+        let caLook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: .sunMaxFill)
         let source = try Self.makeHarness()
         try await source.store.perform {
             try await source.store.setPrimaryRegions([
@@ -323,9 +333,9 @@ struct BackupCoordinatorTests {
         let archiveCALook = RegionAppearance(
             color: .indigo,
             emoji: "🌉",
-            symbolName: "building.2.fill",
+            symbolName: .building2Fill,
         )
-        let txLook = RegionAppearance(color: .red, emoji: "🤠", symbolName: "star.fill")
+        let txLook = RegionAppearance(color: .red, emoji: "🤠", symbolName: .starFill)
         let source = try Self.makeHarness()
         try await source.store.perform {
             try await source.store.setPrimaryRegions([
@@ -337,7 +347,7 @@ struct BackupCoordinatorTests {
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         let destination = try Self.makeHarness()
-        let deviceCALook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: "sun.max.fill")
+        let deviceCALook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: .sunMaxFill)
         try await destination.store.perform {
             try await destination.store.setPrimaryRegions([
                 PrimaryRegion(region: .california, appearance: deviceCALook, order: 0),
@@ -514,6 +524,7 @@ struct BackupCoordinatorTests {
             recordingDeviceProfiles: [],
             recordingDeviceMetadataChanges: [],
             recordingDeviceRemovals: [],
+            plannedStayRecords: [],
             blobs: [:],
         )
         defer { try? FileManager.default.removeItem(at: secondURL.deletingLastPathComponent()) }

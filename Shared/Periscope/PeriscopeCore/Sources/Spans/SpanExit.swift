@@ -80,7 +80,7 @@ public enum SpanLifetime: Hashable, Codable, Sendable {
 /// What a relaunch does with a span the previous process left open. The
 /// policy is recorded on the `SpanBegan` payload, so the relaunch sweep can
 /// honor it without any in-memory state surviving.
-public enum SpanRelaunchPolicy: String, Codable, Sendable {
+public enum SpanRelaunchPolicy: String, CaseIterable, Codable, Sendable {
     /// The next launch closes it as `.orphaned` — the flow did not survive.
     case endsWithProcess
     /// The next launch leaves it open. (Resuming — re-seeding the open-span

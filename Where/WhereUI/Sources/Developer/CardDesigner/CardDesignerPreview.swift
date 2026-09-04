@@ -35,7 +35,7 @@
         private var previewStyle: RegionStyle {
             let fallback = RegionAppearanceCatalog.defaultAppearance(for: region)
             return RegionStyle(
-                symbolName: fallback.symbolName,
+                symbol: fallback.symbolName.sfSymbol,
                 emoji: fallback.emoji,
                 tint: color.color,
             )

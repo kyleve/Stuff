@@ -237,6 +237,102 @@
         }
       }
     },
+    "calendar.day.planned.accessibility" : {
+      "comment" : "Accessibility label appended to a future calendar day covered by the user's planned stay.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%@, planned"
+          }
+        }
+      }
+    },
+    "calendar.month.combination.accessibility" : {
+      "comment" : "Accessibility value component for the number of days shared by one exact combination of regions. The first argument is a localized day count; the second is a localized region list.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ in %2$@"
+          }
+        }
+      }
+    },
+    "calendar.month.empty.accessibility" : {
+      "comment" : "Accessibility value component for a calendar month with no recorded regional presence.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No days logged"
+          }
+        }
+      }
+    },
+    "calendar.month.evidence.accessibility" : {
+      "comment" : "Accessibility value component for the number of calendar days carrying evidence.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "new",
+                  "value" : "%lld day has evidence"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "new",
+                  "value" : "%lld days have evidence"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "calendar.month.needsAttention.accessibility" : {
+      "comment" : "Accessibility value component for the number of calendar days that still need a location.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "new",
+                  "value" : "%lld day needs a location"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "new",
+                  "value" : "%lld days need a location"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "calendar.month.planned.accessibility" : {
+      "comment" : "Accessibility value component for planned calendar days in a region. The first argument is a localized day count; the second is a localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ planned in %2$@"
+          }
+        }
+      }
+    },
     "calendar.region.title" : {
       "comment" : "Title for the calendar when it's focused on a single region, e.g. \"California · 2026\".",
       "extractionState" : "manual",
@@ -1536,7 +1632,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tune card presentation live and export the result for implementation."
+            "value" : "Tune and export card content, or preview the ranked-card animation."
           }
         }
       }
@@ -2215,6 +2311,18 @@
         }
       }
     },
+    "common.regionDaysEstimated.accessibility" : {
+      "comment" : "VoiceOver summary for a location card showing recorded and estimated annual day counts. The first placeholder is the region name; the second and third are localized day counts.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@ recorded, estimated %3$@"
+          }
+        }
+      }
+    },
     "common.retry" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2305,6 +2413,270 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Exit full screen"
+          }
+        }
+      }
+    },
+    "developer.crash.abortSignal.description" : {
+      "comment" : "Explanation of the abort-signal crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calls abort() to terminate the process with SIGABRT."
+          }
+        }
+      }
+    },
+    "developer.crash.abortSignal.title" : {
+      "comment" : "Title of the abort-signal crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abort Signal"
+          }
+        }
+      }
+    },
+    "developer.crash.arrayBounds.description" : {
+      "comment" : "Explanation of the array-bounds crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reads one element past the end of a Swift array."
+          }
+        }
+      }
+    },
+    "developer.crash.arrayBounds.title" : {
+      "comment" : "Title of the array-bounds crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Array Out of Bounds"
+          }
+        }
+      }
+    },
+    "developer.crash.confirmation.action" : {
+      "comment" : "Destructive confirmation button that immediately crashes the app.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crash Now"
+          }
+        }
+      }
+    },
+    "developer.crash.confirmation.title" : {
+      "comment" : "Title of the confirmation dialog shown before a forced crash.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crash Where?"
+          }
+        }
+      }
+    },
+    "developer.crash.fatalError.description" : {
+      "comment" : "Explanation of the Swift fatalError crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invokes Swift fatalError with a recognizable diagnostic message."
+          }
+        }
+      }
+    },
+    "developer.crash.fatalError.title" : {
+      "comment" : "Title of the Swift fatalError crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Swift Fatal Error"
+          }
+        }
+      }
+    },
+    "developer.crash.invalidMemoryAccess.description" : {
+      "comment" : "Explanation of the invalid-memory-access crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Writes through an invalid pointer to produce a bad-access crash."
+          }
+        }
+      }
+    },
+    "developer.crash.invalidMemoryAccess.title" : {
+      "comment" : "Title of the invalid-memory-access crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid Memory Access"
+          }
+        }
+      }
+    },
+    "developer.crash.objectiveCException.description" : {
+      "comment" : "Explanation of the Objective-C exception crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raises an uncaught NSException with a recognizable reason."
+          }
+        }
+      }
+    },
+    "developer.crash.objectiveCException.title" : {
+      "comment" : "Title of the Objective-C exception crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Objective-C Exception"
+          }
+        }
+      }
+    },
+    "developer.crashTesting.footer" : {
+      "comment" : "Instructions shown below the forced-crash developer controls.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each action terminates Where immediately. Reopen the app after each test so the crash reporter can send the report. A connected debugger may intercept the crash."
+          }
+        }
+      }
+    },
+    "developer.crashTesting.link" : {
+      "comment" : "Label for the button that opens the forced-crash testing screen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crash Testing"
+          }
+        }
+      }
+    },
+    "developer.crashTesting.title" : {
+      "comment" : "Title of the forced-crash testing developer screen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crash Testing"
+          }
+        }
+      }
+    },
+    "developer.demo.cancelScheduled" : {
+      "comment" : "Button that removes a scheduled one-shot demo launch.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Cancel Scheduled Demo"
+          }
+        }
+      }
+    },
+    "developer.demo.cleanBaseline" : {
+      "comment" : "Developer menu status for a scheduled demo with no unresolved issue fixtures.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Clean baseline"
+          }
+        }
+      }
+    },
+    "developer.demo.issues.footer" : {
+      "comment" : "Footer explaining the next-launch demo issue checklist.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Selected issue types appear in Resolve. Clear every option for a clean demo year."
+          }
+        }
+      }
+    },
+    "developer.demo.issues.header" : {
+      "comment" : "Header above the next-launch demo issue checklist.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show in Resolve"
+          }
+        }
+      }
+    },
+    "developer.demo.nextLaunch" : {
+      "comment" : "Developer menu button that configures a one-shot in-memory demo for the next launch.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Demo on Next Launch"
+          }
+        }
+      }
+    },
+    "developer.demo.schedule" : {
+      "comment" : "Confirmation button that schedules the configured demo for the next launch.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Schedule"
+          }
+        }
+      }
+    },
+    "developer.demo.sheetTitle" : {
+      "comment" : "Title of the developer sheet that configures the next demo launch.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Next Launch Demo"
           }
         }
       }
@@ -2983,6 +3355,222 @@
         }
       }
     },
+    "locationCard.estimateLabel" : {
+      "comment" : "Short noun labeling an annual estimate on a primary location card.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimate"
+          }
+        }
+      }
+    },
+    "locationCard.estimatedDays" : {
+      "comment" : "Compact label above a location card progress bar. The placeholder is an already-localized day count, for example '184 days'.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated · %@"
+          }
+        }
+      }
+    },
+    "locationForecast.basis" : {
+      "comment" : "Short explanation below a location forecast. The placeholder is the region's year-to-date day count.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Based on %@ here."
+          }
+        }
+      }
+    },
+    "locationForecast.clearStay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Clear"
+          }
+        }
+      }
+    },
+    "locationForecast.clearingStay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Clearing planned stay"
+          }
+        }
+      }
+    },
+    "locationForecast.collapsed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Collapsed"
+          }
+        }
+      }
+    },
+    "locationForecast.editStay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "I’ll be here through…"
+          }
+        }
+      }
+    },
+    "locationForecast.editor.date" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Here through"
+          }
+        }
+      }
+    },
+    "locationForecast.editor.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The selected day is included in your planned stay. The estimate resumes your year-to-date pace the following day."
+          }
+        }
+      }
+    },
+    "locationForecast.editor.locationChecking" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Checking your current location"
+          }
+        }
+      }
+    },
+    "locationForecast.editor.locationOutside" : {
+      "comment" : "Advisory shown when the device is outside the selected planned-stay region and its configured border-drift threshold. The first placeholder is the region name. The second is a localized distance, for example '1 km'.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your current location is not in %1$@ or within the %2$@ drift threshold. You can still save this plan."
+          }
+        }
+      }
+    },
+    "locationForecast.editor.locationUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your current location is unavailable. You can still save this plan."
+          }
+        }
+      }
+    },
+    "locationForecast.editor.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plan This Stay"
+          }
+        }
+      }
+    },
+    "locationForecast.elapsed" : {
+      "comment" : "Shared elapsed-time context in the annual location forecast header. The placeholder is an already-localized day count, for example '182 days'.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%@ elapsed"
+          }
+        }
+      }
+    },
+    "locationForecast.estimate" : {
+      "comment" : "Annual location forecast sentence. The first placeholder is a region name; the second is an already-localized day count, for example '183 days', and is emphasized.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ might be **%2$@** this year"
+          }
+        }
+      }
+    },
+    "locationForecast.expanded" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Expanded"
+          }
+        }
+      }
+    },
+    "locationForecast.plan" : {
+      "comment" : "Explains the planned-stay input included in an annual location forecast.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Includes staying through %@."
+          }
+        }
+      }
+    },
+    "locationForecast.removePlan" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Remove Plan"
+          }
+        }
+      }
+    },
+    "locationForecast.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated Time"
+          }
+        }
+      }
+    },
     "locations.elsewhere.subtitle" : {
       "comment" : "Subtitle on the Locations tab's Elsewhere entry card: region count.",
       "extractionState" : "manual",
@@ -2991,6 +3579,97 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "^[%lld region](inflect: true)"
+          }
+        }
+      }
+    },
+    "locations.planning.assign" : {
+      "comment" : "Menu action for assigning the planned stay to a primary-card region. The placeholder is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plan a Stay in %@"
+          }
+        }
+      }
+    },
+    "locations.planning.assignSection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plan For"
+          }
+        }
+      }
+    },
+    "locations.planning.currentSection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Current Plan"
+          }
+        }
+      }
+    },
+    "locations.planning.currentValue" : {
+      "comment" : "Accessibility value for the Locations planning toolbar menu. The placeholder is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Current plan: %@"
+          }
+        }
+      }
+    },
+    "locations.planning.edit" : {
+      "comment" : "Menu action for editing the active planned stay. The placeholder is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Edit %@ Plan"
+          }
+        }
+      }
+    },
+    "locations.planning.menu" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plan a Stay"
+          }
+        }
+      }
+    },
+    "locations.planning.noCurrentValue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No current plan"
+          }
+        }
+      }
+    },
+    "locations.planning.removeError.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Couldn’t Remove Plan"
           }
         }
       }
@@ -3788,6 +4467,28 @@
         }
       }
     },
+    "onboarding.theme.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose an appearance for Where. You can change it at any time in Appearance."
+          }
+        }
+      }
+    },
+    "onboarding.theme.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose your theme"
+          }
+        }
+      }
+    },
     "onboarding.tryDemo" : {
       "comment" : "Button on the onboarding intro that enters demo mode: a throwaway, in-memory sample year.",
       "extractionState" : "manual",
@@ -3962,6 +4663,149 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Timeline"
+          }
+        }
+      }
+    },
+    "rankingAnimation.bounce" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spring Bounce"
+          }
+        }
+      }
+    },
+    "rankingAnimation.delay.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The count and card order wait 0.5 seconds, then update together."
+          }
+        }
+      }
+    },
+    "rankingAnimation.duration" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duration"
+          }
+        }
+      }
+    },
+    "rankingAnimation.lateralArc" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passing Arc"
+          }
+        }
+      }
+    },
+    "rankingAnimation.liftScale" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lift Scale"
+          }
+        }
+      }
+    },
+    "rankingAnimation.motion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Motion"
+          }
+        }
+      }
+    },
+    "rankingAnimation.play" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play Next Overtake"
+          }
+        }
+      }
+    },
+    "rankingAnimation.preview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live Preview"
+          }
+        }
+      }
+    },
+    "rankingAnimation.reduceMotion.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reduce Motion is on. The preview uses a fade instead of spatial motion."
+          }
+        }
+      }
+    },
+    "rankingAnimation.rotation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rotation"
+          }
+        }
+      }
+    },
+    "rankingAnimation.settings.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ranking animation motion cards overtake spring passport"
+          }
+        }
+      }
+    },
+    "rankingAnimation.settleScale" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stamp Compression"
+          }
+        }
+      }
+    },
+    "rankingAnimation.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ranking Animation Lab"
           }
         }
       }
@@ -5266,6 +6110,63 @@
         }
       }
     },
+    "settings.appearance.locationForecasts.disableError.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Couldn’t turn off Estimated Time & Planning"
+          }
+        }
+      }
+    },
+    "settings.appearance.locationForecasts.footer" : {
+      "comment" : "Explains the scope of the annual location forecast visibility toggle.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show or hide annual estimates, stay planning, and planned-day visuals across Locations, Calendar, and Timeline. Turning this off also clears your current plan."
+          }
+        }
+      }
+    },
+    "settings.appearance.locationForecasts.toggle" : {
+      "comment" : "Toggle that controls whether annual location forecasts appear on the Locations tab.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated time & planning"
+          }
+        }
+      }
+    },
+    "settings.appearance.theme.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Theme is stored on this device and also styles its home-screen widgets."
+          }
+        }
+      }
+    },
+    "settings.appearance.theme.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Theme"
+          }
+        }
+      }
+    },
     "settings.attachments.row" : {
       "comment" : "Row title for the attachments (evidence) screen in the Settings Data group.",
       "extractionState" : "manual",
@@ -6057,6 +6958,303 @@
         }
       }
     },
+    "settings.diagnostics.applyFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Couldn't apply diagnostic logging"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.applying" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Applying"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.crash.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "crash, fatal, report"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.crashReports" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Share crash reports"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.currentState" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Current until next launch"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.fullMetadata" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Include all log metadata"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.fullMetadata.confirm.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Structured log payloads, complete scopes, tags, ambient state, external IDs, and attachment names may contain personal data. Attachment contents are never sent."
+          }
+        }
+      }
+    },
+    "settings.diagnostics.fullMetadata.confirm.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Include potentially personal metadata?"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.fullMetadata.enable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Include all metadata"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.fullMetadata.warning" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Warning: full log metadata may contain personal data. Attachment contents are never sent."
+          }
+        }
+      }
+    },
+    "settings.diagnostics.level.debug" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Debug (all)"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.level.error" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Error and above"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.level.fault" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Fault only"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.level.info" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Info and above"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.level.notice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Notice and above"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.level.warning" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Warning and above"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.logging.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "logs, diagnostics, remote, severity"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.metadata.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "metadata, payload, personal data, pii"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Off"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.on" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "On"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.relaunchFooter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Crash reporting and session replay changes take effect the next time Where launches."
+          }
+        }
+      }
+    },
+    "settings.diagnostics.remoteFooter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Diagnostic log changes apply immediately. Standard sharing includes only approved operational fields."
+          }
+        }
+      }
+    },
+    "settings.diagnostics.remoteLogging" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Send diagnostic logs"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.replay.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "session replay, screen recording, redaction"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.retry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Retry"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.sessionReplay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Share session replays"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Privacy & Diagnostics"
+          }
+        }
+      }
+    },
     "settings.eraseYear.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6075,6 +7273,281 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Where uses your data here when there’s enough to make these examples relevant. Browsing this screen never changes it."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.elapsed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "182 elapsed calendar days"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.intro" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Suppose July 1 is day 182. New York has counted on 91 of those days—a 50% pace—and you plan to stay there through July 10."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.otherRegions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Those 9 planned days belong only to New York. Every other region adds no planned days and resumes its own pace on July 11."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.pace" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "91 recorded ÷ 182 elapsed = 50% pace"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.planned" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "9 days reserved for New York"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.projection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "174 unreserved days × 50% = 87 projected"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.remaining" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "174 days left after the plan"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.result" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "91 recorded + 9 planned + 87 projected = 187 days"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.timeline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A 365-day timeline with 182 elapsed days, 9 planned days, and 174 unreserved days remaining."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A simple example"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.disabled.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated time and planning are hidden. You can turn them on from Appearance."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.disabled.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated time is off"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.manage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Manage Estimated Time & Planning"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.overview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your estimated time"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.pace.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "After three complete months, Where divides each region’s year-to-date days by all elapsed calendar days. It applies that pace to unreserved days left in the year, then rounds the total to the nearest day."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.pace.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your pace"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.plan.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A plan reserves tomorrow through the selected end date, inclusive. Those days count for the chosen region; every other region’s projection pauses, then each region resumes its own historical pace."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.plan.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plan ahead"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.row" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated Time & Planning"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.tagline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "See where this year’s pace—and your plans—could take you."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated Time & Planning"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.totals.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Each region is calculated independently. A recorded travel day can count toward more than one region, and summaries may omit smaller regions, so displayed estimates may not total 365 days."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.totals.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Why totals vary"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.unavailable.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimates appear for the current year after three complete months and enough recorded history to establish a pace."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.unavailable.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Building your estimate"
           }
         }
       }
@@ -7220,6 +8693,17 @@
         }
       }
     },
+    "settings.keywords.estimatedTimeFeatures" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "estimate, estimated time, forecast, pace, planned stay, planning, overlap, travel days, annual"
+          }
+        }
+      }
+    },
     "settings.keywords.evidenceFeatures" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7293,6 +8777,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "gps, locations, dots, map, cards, glow, constellation"
+          }
+        }
+      }
+    },
+    "settings.keywords.locationForecasts" : {
+      "comment" : "Comma-separated Settings search keywords for the annual location forecast visibility toggle.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "estimate, estimates, estimated time, forecast, forecasts, annual, year"
           }
         }
       }
@@ -7385,6 +8881,17 @@
         }
       }
     },
+    "settings.keywords.theme" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "theme, appearance, style, standard, alternate, glass"
+          }
+        }
+      }
+    },
     "settings.keywords.widgets" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7463,6 +8970,28 @@
         }
       }
     },
+    "settings.privacy.crashReports" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Required technical context about the app and device helps Where's developer find and fix crashes."
+          }
+        }
+      }
+    },
+    "settings.privacy.crashReports.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Crash reports"
+          }
+        }
+      }
+    },
     "settings.privacy.detail" : {
       "comment" : "Detail in the privacy passport card shown at the top of Data and About settings.",
       "extractionState" : "manual",
@@ -7475,6 +9004,193 @@
         }
       }
     },
+    "settings.privacy.fullMetadata" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Extra metadata helps diagnose difficult problems, but it may contain personal data."
+          }
+        }
+      }
+    },
+    "settings.privacy.fullMetadata.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Full log metadata"
+          }
+        }
+      }
+    },
+    "settings.privacy.location" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your location history stays on your devices and in your private iCloud account."
+          }
+        }
+      }
+    },
+    "settings.privacy.logs.debug" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Logs at all levels help Where's developer diagnose app problems."
+          }
+        }
+      }
+    },
+    "settings.privacy.logs.error" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Error- and fault-level logs help Where's developer diagnose app problems."
+          }
+        }
+      }
+    },
+    "settings.privacy.logs.fault" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Fault-level logs help Where's developer diagnose app problems."
+          }
+        }
+      }
+    },
+    "settings.privacy.logs.info" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Info-level logs and above help Where's developer diagnose app problems."
+          }
+        }
+      }
+    },
+    "settings.privacy.logs.notice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Notice-level logs and above help Where's developer diagnose app problems."
+          }
+        }
+      }
+    },
+    "settings.privacy.logs.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Diagnostic logs"
+          }
+        }
+      }
+    },
+    "settings.privacy.logs.warning" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Warning-level logs and above help Where's developer diagnose app problems."
+          }
+        }
+      }
+    },
+    "settings.privacy.noDiagnostics" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Where shares no crash reports, screen replays, or diagnostic logs."
+          }
+        }
+      }
+    },
+    "settings.privacy.noDiagnostics.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No diagnostics shared"
+          }
+        }
+      }
+    },
+    "settings.privacy.sessionReplay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Redacted text and images help Where's developer reproduce interface problems."
+          }
+        }
+      }
+    },
+    "settings.privacy.sessionReplay.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Screen replays"
+          }
+        }
+      }
+    },
+    "settings.privacy.status.notShared" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Not shared"
+          }
+        }
+      }
+    },
+    "settings.privacy.status.shared" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Shared"
+          }
+        }
+      }
+    },
+    "settings.privacy.status.warning" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Warning"
+          }
+        }
+      }
+    },
     "settings.privacy.title" : {
       "comment" : "Headline in the privacy passport card shown at the top of Data and About settings.",
       "extractionState" : "manual",
@@ -7483,6 +9199,42 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Private by design"
+          }
+        }
+      }
+    },
+    "settings.recording.warning.dismiss" : {
+      "comment" : "Button that acknowledges and hides the Settings warning about automatic recording being unavailable.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Dismiss"
+          }
+        }
+      }
+    },
+    "settings.recording.warning.message" : {
+      "comment" : "Settings warning explaining that this phone will not automatically record locations until both controls are enabled.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Automatic Recording is off and Where doesn't have Always location access. This phone won't record your location in the background."
+          }
+        }
+      }
+    },
+    "settings.recording.warning.title" : {
+      "comment" : "Title of the Settings warning about automatic location recording.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Automatic recording needs attention"
           }
         }
       }
@@ -7910,6 +9662,72 @@
         }
       }
     },
+    "theme.alternate.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A second theme, currently matching Standard."
+          }
+        }
+      }
+    },
+    "theme.alternate.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alternate"
+          }
+        }
+      }
+    },
+    "theme.notSelected.value" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not selected"
+          }
+        }
+      }
+    },
+    "theme.selected.value" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selected"
+          }
+        }
+      }
+    },
+    "theme.standard.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where’s familiar Liquid Glass appearance."
+          }
+        }
+      }
+    },
+    "theme.standard.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Standard"
+          }
+        }
+      }
+    },
     "timeline.empty.description" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7932,6 +9750,28 @@
         }
       }
     },
+    "timeline.plannedRow.accessibility" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Planned stay in %1$@, %2$@, %3$@"
+          }
+        }
+      }
+    },
+    "timeline.plannedStay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Planned stay"
+          }
+        }
+      }
+    },
     "timeline.row.accessibility" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7939,6 +9779,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@, %2$@, %3$@"
+          }
+        }
+      }
+    },
+    "widget.today.accessibility.label" : {
+      "comment" : "Accessibility label for a Today widget, including its localized month and day.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Today, %@"
           }
         }
       }

@@ -1,11 +1,20 @@
 import Foundation
 import RegionKit
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
 /// A Liquid Glass card summarizing how many days were spent in one region.
 /// Used prominently on the Primary tab and (more compactly) on Elsewhere.
 struct RegionSummaryCard: View {
+    /// Why the shared card is being rendered. A theme specimen keeps the real
+    /// compact-card surface and hierarchy, but omits the provenance stamp that
+    /// cannot remain legible in the narrow half-column preview.
+    enum RenderPurpose {
+        case content
+        case themeSpecimen
+    }
+
     let regionDays: RegionDays
     var caption: String?
     /// An optional reverse-geocoded "where" teaser (e.g. "Paris, France"),
@@ -18,6 +27,8 @@ struct RegionSummaryCard: View {
     /// resolved ``WhereStylesheet/CardStyle`` and never branches on it again.
     var variant: WhereStylesheet.CardStyle.Variant = .regular
 
+    var renderPurpose: RenderPurpose = .content
+
     /// When `true`, the card's Liquid Glass reacts to touch with the system's
     /// interactive press (scale + illumination), so a tappable card feels
     /// physical without a custom animation. The Primary cards opt in; the
@@ -28,6 +39,10 @@ struct RegionSummaryCard: View {
     /// a fraction of this. Callers pass the selected year's real length
     /// (`YearReportModel.daysInSelectedYear`); the default is only for previews.
     var yearLength = 365
+
+    /// The forecasted total rendered behind recorded progress. Locations cards
+    /// supply it when Estimated Time & Planning is visible; other cards omit it.
+    var estimatedDays: Int?
 
     /// The calendar year being summarized, inked onto the entry stamp. Callers
     /// pass `WhereSession.selectedYear`; the default is only for previews.
@@ -91,6 +106,14 @@ struct RegionSummaryCard: View {
         styleOverride ?? regionStyles.style(for: regionDays.region)
     }
 
+    private var recordedFraction: Double {
+        fraction(for: regionDays.days)
+    }
+
+    private var estimatedFraction: Double? {
+        estimatedDays.map(fraction)
+    }
+
     /// Region ink on light cards; a pale derivative on dark cards that remains
     /// distinct while interactive Liquid Glass illuminates nearby surfaces.
     private var securityPrintTint: Color {
@@ -101,13 +124,13 @@ struct RegionSummaryCard: View {
         RoundedRectangle(cornerRadius: card.cornerRadius, style: .continuous)
     }
 
-    private var fraction: Double {
-        guard yearLength > 0 else { return 0 }
-        return min(1, Double(regionDays.days) / Double(yearLength))
-    }
-
     private var barHeight: CGFloat {
         card.progressBarHeight
+    }
+
+    private func fraction(for days: Int) -> Double {
+        guard yearLength > 0 else { return 0 }
+        return min(1, max(0, Double(days) / Double(yearLength)))
     }
 
     private var regionArtworkLoadID: RegionArtworkLoadID {
@@ -126,6 +149,20 @@ struct RegionSummaryCard: View {
         cardStyles.dayCount
     }
 
+    private var accessibilityLabel: String {
+        guard let estimatedDays else {
+            return WhereFormat.regionDaysAccessibility(
+                region: regionDays.region.localizedName,
+                days: regionDays.days,
+            )
+        }
+        return WhereFormat.regionDaysEstimatedAccessibility(
+            region: regionDays.region.localizedName,
+            recordedDays: regionDays.days,
+            estimatedDays: estimatedDays,
+        )
+    }
+
     /// A circular rubber-stamp "entry" impression: the region glyph and year
     /// ringed by the region name, tilted as if pressed onto the page. The arc
     /// lettering is dropped on the small compact cards where it can't be read.
@@ -133,7 +170,7 @@ struct RegionSummaryCard: View {
         EntryStamp(
             title: regionDays.region.localizedName.uppercased(),
             year: year,
-            symbolName: style.symbolName,
+            symbol: style.symbol,
             tint: securityPrintTint,
             style: card.entryStamp,
             regionPath: regionPaths?.stamp ?? Path(),
@@ -169,10 +206,13 @@ struct RegionSummaryCard: View {
                 !regionPath.isEmpty
             {
                 RegionOutlineSecurityBorder(
-                    path: regionPath,
+                    paths: [regionPath],
                     tint: tint,
                     cornerRadius: card.cornerRadius,
-                    style: regionShape.securityBorder,
+                    inset: regionShape.securityBorder.inset,
+                    glyphSize: regionShape.securityBorder.glyphSize,
+                    spacing: regionShape.securityBorder.spacing,
+                    opacity: regionShape.securityBorder.opacity,
                 )
             }
 
@@ -191,7 +231,7 @@ struct RegionSummaryCard: View {
                     constellationStyle: cardStyles.constellation,
                 )
             } else {
-                Image(systemName: style.symbolName)
+                Image(systemSymbol: style.symbol)
                     .font(.system(size: card.watermarkFontSize))
                     .foregroundStyle(tint.opacity(cardStyles.watermarkOpacity))
                     .rotationEffect(.degrees(-14))
@@ -252,17 +292,19 @@ struct RegionSummaryCard: View {
     }
 
     var body: some View {
+        let regionName = Text(regionDays.region.localizedName)
+            .font(card.regionNameTypography.font)
+            .tracking(card.regionNameTracking)
+            .lineLimit(1)
+            .allowsTightening(true)
+            .minimumScaleFactor(0.7)
+            .foregroundStyle(style.tint)
+            .opacity(cardStyles.nameOpacity)
+
         VStack(alignment: .leading, spacing: card.contentSpacing) {
             HStack(alignment: .top, spacing: stylesheet.spacing.large) {
                 VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-                    Text(regionDays.region.localizedName)
-                        .font(card.regionNameTypography.font)
-                        .tracking(card.regionNameTracking)
-                        .lineLimit(1)
-                        .allowsTightening(true)
-                        .minimumScaleFactor(0.7)
-                        .foregroundStyle(style.tint)
-                        .opacity(cardStyles.nameOpacity)
+                    regionName
                     if let caption {
                         Text(caption)
                             .font(.caption2.weight(.semibold))
@@ -271,7 +313,7 @@ struct RegionSummaryCard: View {
                             .foregroundStyle(.secondary)
                     }
                     if let places {
-                        Label(places, systemImage: "mappin.and.ellipse")
+                        Label(places, systemSymbol: .mappinAndEllipse)
                             .font(.caption2.weight(.medium))
                             .foregroundStyle(style.tint)
                             .lineLimit(1)
@@ -280,17 +322,28 @@ struct RegionSummaryCard: View {
 
                 Spacer(minLength: 0)
 
-                entryStamp
+                if renderPurpose == .content {
+                    entryStamp
+                }
             }
 
-            HStack(alignment: .firstTextBaseline, spacing: stylesheet.spacing.small) {
-                Text(regionDays.days, format: .number)
-                    .font(card.heroNumberTypography.font)
-                    .contentTransition(dayCount.transition(days: regionDays.days))
-                    .foregroundStyle(style.tint)
-                Text(WhereFormat.dayUnit(regionDays.days))
-                    .font(card.dayUnitTypography.font)
-                    .foregroundStyle(.secondary)
+            if let estimatedDays {
+                LocationCardEstimateSticker(
+                    recordedDays: regionDays.days,
+                    estimatedDays: estimatedDays,
+                    regionTint: style.tint,
+                    securityPrintTint: securityPrintTint,
+                    card: card,
+                    style: cardStyles.estimateSticker,
+                    transition: dayCount,
+                )
+            } else {
+                LocationCardDayCount(
+                    days: regionDays.days,
+                    tint: style.tint,
+                    card: card,
+                    transition: dayCount.transition(days: regionDays.days),
+                )
             }
 
             Capsule()
@@ -300,7 +353,16 @@ struct RegionSummaryCard: View {
                     GeometryReader { proxy in
                         Capsule()
                             .fill(style.tint)
-                            .frame(width: proxy.size.width * fraction)
+                            .frame(width: proxy.size.width * recordedFraction)
+                            .background(alignment: .leading) {
+                                if let estimatedFraction {
+                                    Capsule()
+                                        .fill(securityPrintTint.opacity(
+                                            cardStyles.estimatedProgressOpacity,
+                                        ))
+                                        .frame(width: proxy.size.width * estimatedFraction)
+                                }
+                            }
                     }
                 }
                 .frame(height: barHeight)
@@ -310,6 +372,7 @@ struct RegionSummaryCard: View {
         // only inside an animation transaction — and it sweeps the ambient bar,
         // which reads the same count, in the same beat.
         .animation(dayCount.animation, value: regionDays.days)
+        .animation(dayCount.animation, value: estimatedDays)
         .padding(card.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background { stampPaper }
@@ -341,12 +404,7 @@ struct RegionSummaryCard: View {
             y: card.lift.offsetY,
         )
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            WhereFormat.regionDaysAccessibility(
-                region: regionDays.region.localizedName,
-                days: regionDays.days,
-            ),
-        )
+        .accessibilityLabel(accessibilityLabel)
         .task(id: regionArtworkLoadID, loadRegionOutlines)
     }
 }
@@ -382,7 +440,7 @@ struct RegionArtworkLoadID: Equatable {
 private struct EntryStamp: View {
     let title: String
     let year: Int
-    let symbolName: String
+    let symbol: SFSymbol
     let tint: Color
     let style: WhereStylesheet.CardStyle.EntryStamp
     let regionPath: Path
@@ -421,7 +479,7 @@ private struct EntryStamp: View {
                         height: size * style.content.artworkExtent.height,
                     )
                 } else {
-                    Image(systemName: symbolName)
+                    Image(systemSymbol: symbol)
                         .font(style.content.symbolFont.font(for: size))
                 }
                 Text(verbatim: String(year))

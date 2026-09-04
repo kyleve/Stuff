@@ -76,4 +76,28 @@ enum DayJournalLog: LogEvent {
                 nil
         }
     }
+
+    var remoteFields: [RemoteLogField] {
+        switch self {
+            case let .addedManualDay(_, regionCount), let .overrodeDay(_, regionCount):
+                [RemoteLogField(
+                    key: RemoteLogFieldKey("region_count"),
+                    value: .count(regionCount),
+                )]
+            case let .clearedManualDays(dayCount):
+                [RemoteLogField(key: RemoteLogFieldKey("day_count"), value: .count(dayCount))]
+            case let .backfilledManualDays(dayCount, regionCount):
+                [
+                    RemoteLogField(key: RemoteLogFieldKey("day_count"), value: .count(dayCount)),
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("region_count"),
+                        value: .count(regionCount),
+                    ),
+                ]
+            case let .wroteEvidence(_, hasBlob):
+                [RemoteLogField(key: RemoteLogFieldKey("has_blob"), value: .boolean(hasBlob))]
+            case .clearedManualDay, .clearedYear, .erasedAllData:
+                []
+        }
+    }
 }

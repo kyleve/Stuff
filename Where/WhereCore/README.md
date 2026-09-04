@@ -17,7 +17,7 @@ recognized automatic files. Manual exports remain plaintext ZIPs.
 Everything is reached through one `Sendable` container, **`WhereServices`**,
 which the presentation layer (`WhereUI`) and the widget extension talk to. For
 the domain/presentation layering and the rules this module enforces, see the
-feature [`Where/AGENTS.md`](../AGENTS.md); this file is the human-facing tour.
+feature [`Where/AGENTS.md`](../AGENTS.md). This file is the human-facing tour.
 
 ## What you get
 
@@ -28,26 +28,26 @@ one it belongs to rather than to a god-object:
 
 - **`WhereStore`** — the value-type persistence boundary (a protocol; nothing
   crossing it is a SwiftData record). Mutations run inside `perform { … }` (one
-  atomic transaction); callers whose decision was made against a particular
+  atomic transaction). Callers whose decision was made against a particular
   data generation use `perform(expectedDataGenerationID:)`, and multi-table reads use
   `readSnapshot { … }` so a Reset or Replace cannot split one operation across
-  generations; a persistent-history boundary invalidates any external commit
+  generations. A persistent-history boundary invalidates any external commit
   crossing a snapshot even when its remote-change notification arrives later.
   `changes()` emits once per local commit and external import for the Where store
   URL, excluding other stores such as Periscope. `remoteChanges()` uses
   persistent-history transaction authors to emit only the external-import subset,
   so headless notifications and widgets rebuild without duplicating local work.
   `SwiftDataStore.make(storage:)` opens an explicitly selected
-  CloudKit, local-only, or in-memory store; `SwiftDataStore.inMemory()` is the
+  CloudKit, local-only, or in-memory store. `SwiftDataStore.inMemory()` is the
   convenience used by tests and previews. Each
-  process opens its on-disk store **once** and injects it where it's needed —
+  process opens its on-disk store **once** and injects it where it's needed — 
   in the app, the launch's `resolve-scope` step opens it and the App Intents
   stack shares it via `WhereServices.forIntents(sharingStoreOf:)` — so two
   subsystems never race to create/open the same store file. It also
   holds the user's **tracked / primary regions** (`trackedRegions()` /
   `setTrackedRegion(_:id:)`, plus `primaryRegions()` / `setPrimaryRegions(_:)`
   which surface and persist each region's picked `RegionAppearance` — color
-  token, emoji, SF Symbol — and pick order alongside the synced rows) — one row
+  token, emoji, typed `RegionSymbol` — and pick order alongside the synced rows) — one row
   per region, defaulting to the four until the user chooses in the onboarding /
   Settings region picker. Recording identity and synced status are split into
   immutable profiles, append-only nickname events and removal tombstones, and target-owned
@@ -55,28 +55,37 @@ one it belongs to rather than to a god-object:
 - **`WhereDataGeneration`** — the account-wide logical generation that keeps late
   uploads from an offline device from repopulating data after Reset or Replace.
   Each destructive operation appends one immutable node naming every real
-  maximal generation it observed. Reset wins a concurrent Replace; multiple unjoined
+  maximal generation it observed. Reset wins a concurrent Replace. Multiple unjoined
   resets resolve to a deterministic empty UUIDv8 synthetic generation, so neither
   reset branch's rows can reappear before another operation causally joins them. Persisted
-  event ids remain UUIDv4; UUIDv8 is reserved for resolver-derived generations.
+  event ids remain UUIDv4. UUIDv8 is reserved for resolver-derived generations.
 - **`RegionAttribution`** — a live `RegionAttributing` built from the tracked
   regions that rebuilds on `changes()` (a local edit or a remote import), so the
   app + App Intents process attribute against the same synced set. Assemble
   services with `WhereServices.make(...)` (async — it reads the tracked set) in
-  production; the synchronous `WhereServices.init` uses `RegionAttributor.shared`
+  production. The synchronous `WhereServices.init` uses `RegionAttributor.shared`
   (the default four) for tests/previews.
 - **`DayJournal`** — the user-sourced writes: manual-day overlays
   (`addManualDay` / `overrideDay` / `addManualDays`), clears
   (`clearManualDay` / `clearYear` / `eraseAllData`), evidence, and issue
   dismissals. Each write commits, then awaits its reminder reconcile + widget
   publish so the next reader sees a fully-applied change.
+- **`PlannedStayCoordinator`** — the synced, generation-scoped last-writer register behind “I’ll
+  be here through…”. Clears and expiry write tombstones, and annual forecasts consume its current
+  value without coupling projection math to persistence.
+- **`PlannedStayLocationVerifier`** — gets a current location and compares it with the selected
+  region. The configured drift threshold expands the accepted area outside the region boundary.
+  A missing location or missing geometry returns an unavailable result.
 
 - **`DemoDataBuilder`** — writes the dataset the app's demo mode runs on into a
   given `WhereServices`: a plausible current year of living in New York with
   California trips, plus the backfills and corrected attributions a real year
-  has and a few recent days still unlogged, so an empty app has something true
-  to show. Bound to the current year and derived from it, so it stops at today
-  and is the same every time. Every feature is sized against the *elapsed* part
+  has. Its configuration independently includes missing-day, border-drift,
+  abrupt-change, and detected-flight fixtures; unchecked detector categories
+  stay absent. The standard onboarding demo includes missing days. Bound to the
+  current year and derived from it, so it normally stops at today and is the
+  same every time. During the first days of January, its in-memory clock moves
+  forward only far enough to hold the selected fixtures. Every feature is sized against the *elapsed* part
   of the year, so a demo entered in January has the same shape as one entered in
   December.
 
@@ -97,11 +106,14 @@ one it belongs to rather than to a god-object:
   belong to several.
 - **`CalendarDay`** — a Y-M-D value that is the stable identity of a logical day.
   Stored user records and day comparisons key on it so they don't drift onto a
-  different day across a time-zone change; project to a concrete `Date` (grid
+  different day across a time-zone change. Project to a concrete `Date` (grid
   layout, display) only via `startOfDay(in:)`.
 - **`DayAggregator`** — turns samples + manual overlays into those reports,
   carrying the injected `Calendar` (which decides how a `sample.timestamp`
   buckets into a `CalendarDay`).
+- **`PresenceCalendar` / `CalendarMonth`** — lays a report out into month grids
+  and preserves both ranked per-region totals and exact multi-region
+  combination totals for accessible month summaries.
 
 ### Location
 
@@ -110,14 +122,14 @@ one it belongs to rather than to a god-object:
   Passive `sampleStream` plus a best-effort one-shot `requestCurrentLocation()`
   (returns `nil`, never throws, when no fix is available).
 - **`LocationIngestor`** — monitoring, the persist-with-retry queue, and
-  authorization; after each committed sample it reconciles the badge/reminders
+  authorization. After each committed sample it reconciles the badge/reminders
   and republishes the widget snapshot. Every automatic sample is stamped with
   the current installation's `RecordingDeviceID`. Every durable retry entry
   also carries the data generation that authorized it, so a pre-reset fix can be
   discarded but never written into the replacement generation.
 - **`LocationOutbox`** — a backup-excluded, JournalKit-backed sidecar for samples
   SwiftData could not commit. It appends complete bounded queue snapshots, so a
-  crash-torn final write falls back to the preceding intact state; Reset and
+  crash-torn final write falls back to the preceding intact state. Reset and
   Replace durably checkpoint an empty queue before deleting its raw bytes.
 - **`DeviceRecordingController`** — applies this installation's local automatic-recording
   preference and persisted current-On cutoff to its physical `LocationIngestor`, so a late visit
@@ -133,7 +145,7 @@ one it belongs to rather than to a god-object:
 
 - **`DataIssueScanner`** + the `DataIssue` family (missing days, border drift,
   abrupt change, flight days) — the "Resolve" tab's detections and their
-  `IssueResolution` fixes; dismissals persist under a stable, device- and
+  `IssueResolution` fixes. Dismissals persist under a stable, device- and
   timezone-independent `storageKey` (a `CalendarDay` ISO string), so a dismissal
   doesn't reappear after travel. The `FlightDayDetector` reads the per-day GPS
   fixes the scanner puts on `DataIssueInput.daySamples` (timestamped, GPS-only)
@@ -145,16 +157,18 @@ one it belongs to rather than to a god-object:
   badge), `DailySummaryReconciler` (year-to-date recap),
   `DataIssueAlertReconciler` ("issues to resolve").
 - **`WidgetSnapshotPublisher`** — republishes the App Group snapshot the widgets
-  read, with a freshness policy.
+  read, with a freshness policy for the independently aggregated data.
+- **`WidgetPresentationPublisher`** — atomically writes the device-local `WhereTheme`
+  to its own App Group file and reloads WidgetKit without reading or rebuilding widget data.
 - **`BackupCoordinator`** — ZIP export/import via `ZIPFoundation`. Export pins
-  tables and evidence blobs to one generation-consistent snapshot. Merge preserves queued locations
+  tables, planned-stay revisions, and evidence blobs to one generation-consistent snapshot. Merge preserves queued locations
   and the installation-local recording choice. Replace writes the archive into a new child generation,
   retains existing removal tombstones, and preserves the local choice before pending fixes are
   discarded. A prepared
   marker in the backup-excluded installation
-  sidecar pairs with a receipt committed in the same store transaction as the archive;
+  sidecar pairs with a receipt committed in the same store transaction as the archive. 
   recreated services can therefore distinguish rollback from commit and gate further
-  onboarding until cleanup succeeds. Import is onboarding-only; Settings exposes export without
+  onboarding until cleanup succeeds. Import is onboarding-only. Settings exposes export without
   another live-session transaction path. Onboarding acknowledgement records an independent terminal
   sidecar tombstone before clearing recovery, so a cold launch can repair a preference write
   that did not reach disk without offering the same archive again.
@@ -165,9 +179,16 @@ one it belongs to rather than to a god-object:
   `InstallationRecordingContextStoring` keeps the persistence adapter outside
   the domain value.
 - **`WherePreferences`** — persisted user intent (onboarding,
-  reminder / summary schedules, Locations-card GPS-dot visibility) plus the
-  year-keyed Location-card counts used for presentation continuity, behind a
-  `KeyValueStore`. The store has no
+  reminder / summary schedules, presentation theme, and Locations-card GPS-dot and
+  estimated-time/planning visibility) plus the
+  year-keyed Location-card counts and Codable recording-warning generation used for presentation
+  continuity, behind a `KeyValueStore`. It also owns the vendor-neutral
+  `DiagnosticReportingConfiguration`: crash reports default On, replay Off,
+  and remote logs Off in Release / Warning in Debug. `WherePreferences` encodes
+  this configuration directly. Invalid data keeps the channel defaults. Invalid data
+  also turns remote logging Off. Reset removes every reporting key. Release always reduces
+  full-metadata intent to approved fields. `RecordingConfigurationWarningCondition` evaluates the live
+  device authority, recording choice, and authorization tuple in Core. The store has no
   default: production names `UserDefaults.standard` and everything else names
   `InMemoryKeyValueStore()`, so no test or preview can reach the host's real
   defaults by saying nothing. Recording confirmation is deliberately absent:
@@ -178,12 +199,12 @@ one it belongs to rather than to a god-object:
   compiler was invoked (`compilation`: configuration, optimization level,
   compilation mode) — `logSessionAttributes` hands that to a Periscope
   `LogSession` at launch, which is how a stored span duration can be told apart
-  from one measured in an unoptimized build;
+  from one measured in an unoptimized build. 
   `AppAttribution.main` reads the generated attribution report, decoding it once
   per process (`current(bundle:)` for any other bundle). Both return
   `nil`-shaped honesty for a bundle outside the app target, which carries
   neither. (The report's *format* and tooling are
-  [`CreditKit`](../../Shared/CreditKit/README.md)'s; data-source provenance is
+  [`CreditKit`](../../Shared/CreditKit/README.md)'s. data-source provenance is
   [`RegionKit`](../RegionKit/README.md)'s.)
 - **`WhereLog`** — the Periscope logging facade: a `"Where"` root scope with
   grouping scopes (`location`, `reminders`, `backup`, `widgets`, `reporting`, …)
@@ -240,11 +261,11 @@ for await _ in services.dataChangeUpdates() {
 
 ## How it works
 
-A single **read-refresh signal** ties the module together: every write origin —
-a manual edit, a live GPS sample, or a CloudKit import from another device —
+A single **read-refresh signal** ties the module together: every write origin — 
+a manual edit, a live GPS sample, or a CloudKit import from another device — 
 funnels through `WhereStore.perform` (or the remote-import path) and pings
 `changes()`. Readers (the UI's session, the issue scanner) re-derive purely off
-that ping, so nothing goes stale behind a write it didn't initiate; and because
+that ping, so nothing goes stale behind a write it didn't initiate. Because
 writes await their own side effects, a reader on the next ping sees a
 fully-applied change. Generation-pinned snapshots keep a multi-table projection in
 one generation, while expected-generation writes reject work whose assumptions went
@@ -254,24 +275,24 @@ rotates to a Reset child generation, and discards the retry queue only after com
 
 ## Contracts & limitations
 
-- **Values, not records.** Nothing crossing `WhereStore` is a SwiftData object;
-  the DEBUG Inspector runtime opens its own container directly from the same
+- **Values, not records.** Nothing crossing `WhereStore` is a SwiftData object.
+  The DEBUG Inspector runtime opens its own container directly from the same
   schema factory and uses the factory's exact store URL for recovery, without
   constructing `WhereServices`.
-- **Always-location.** Background day tracking needs Always; `requestPermission()`
+- **Always-location.** Background day tracking needs Always. `requestPermission()`
   throws `LocationPermissionDeniedError` on denial / restriction.
-- **Removal is global; recording consent is local.** A synced removal tombstone immediately hides
+- **Removal is global. Recording consent is local.** A synced removal tombstone immediately hides
   the target identity's samples at and after its timestamp and makes that installation stop when
   it next observes the change. Turning recording on or off affects only the installation where
-  the user made the choice. Device check-ins are advisory status, not command acknowledgements;
+  the user made the choice. Device check-ins are advisory status, not command acknowledgements. 
   Apple Lost Mode or remote erase remains the security boundary for a missing device. Account
   Reset also retires an installation registered before its causal reset boundary, even when that
   installation's profile did not reach the resetting device until later.
 - **Destructive operations are logical generations.** Old rows may remain in
   CloudKit as sync/audit history, but ordinary reads select only the resolved
-  generation. Concurrent unjoined resets select a synthetic empty generation; an
+  generation. Concurrent unjoined resets select a synthetic empty generation. An
   incomplete causal generation DAG fails closed instead of mixing old and new state.
-- **Failures surface.** Store methods are `async throws`; errors are logged via
+- **Failures surface.** Store methods are `async throws`. Errors are logged via
   `WhereLog` and left observable — never swallowed into an empty default.
 ## Testing
 

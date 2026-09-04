@@ -1,34 +1,23 @@
 #!/bin/bash
 set -euo pipefail
 
-# CI runs formatting via the workflow's `format` job;
-# this only configures the local pre-commit hook.
-git config core.hooksPath .githooks
+usage() {
+    cat <<'EOF'
+Usage: ./ide [--bootstrap] [--install] [--no-open] [--team-id ID]
 
-# .githooks carries the Git LFS hooks too, and those exit non-zero when the
-# git-lfs binary is missing — so routing Git at them without it turns every
-# checkout, merge, and push into a hard failure. LFS isn't optional here
-# anyway: without it the snapshot reference images (see .gitattributes) arrive
-# as pointer files and every comparison fails. Check-and-instruct rather than
-# install, same as the Xcode check below.
-if ! command -v git-lfs >/dev/null 2>&1; then
-    cat >&2 <<'EOF'
-error: git-lfs is required — the snapshot reference images are stored in Git LFS,
-and the hooks in .githooks fail without it.
+Set up repository tooling and generate the Xcode project.
 
-Install it, then re-run ./ide:
-  brew install git-lfs
+Options:
+  --bootstrap, --setup  Install mise and the repository's pinned tools.
+  -i, --install        Resolve Tuist and Swift package dependencies first.
+  --no-open            Generate without opening Xcode.
+  --team-id ID         Persist the Apple Developer Team ID for this checkout.
+  -h, --help           Show this help without performing setup.
 EOF
-    exit 1
-fi
+}
 
-# Idempotent; sets this repo's lfs clean/smudge filters if they aren't already.
-# --skip-repo leaves the hooks alone, since .githooks is tracked in the repo.
-git lfs install --local --skip-repo >/dev/null
-
-# Gitignored, machine-local mise config that overrides/extends .mise.toml.
-LOCAL_MISE=".mise.local.toml"
-
+# Parse the public interface before consulting Git, LFS, Xcode, or mise. Help
+# and usage errors must be safe in a fresh checkout and from another cwd.
 BOOTSTRAP=false
 INSTALL=false
 OPEN=true
@@ -60,9 +49,49 @@ while [ $# -gt 0 ]; do
                 exit 1
             fi
             ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "error: unknown option '$1'" >&2
+            usage >&2
+            exit 1
+            ;;
     esac
     shift
 done
+
+script_root=$(CDPATH='' cd "$(dirname "$0")" && pwd)
+cd "$script_root"
+
+# CI runs formatting via the workflow's `format` job;
+# this only configures the local pre-commit hook.
+git config core.hooksPath .githooks
+
+# .githooks carries the Git LFS hooks too, and those exit non-zero when the
+# git-lfs binary is missing — so routing Git at them without it turns every
+# checkout, merge, and push into a hard failure. LFS isn't optional here
+# anyway: without it the snapshot reference images (see .gitattributes) arrive
+# as pointer files and every comparison fails. Check-and-instruct rather than
+# install, same as the Xcode check below.
+if ! command -v git-lfs >/dev/null 2>&1; then
+    cat >&2 <<'EOF'
+error: git-lfs is required — the snapshot reference images are stored in Git LFS,
+and the hooks in .githooks fail without it.
+
+Install it, then re-run ./ide:
+  brew install git-lfs
+EOF
+    exit 1
+fi
+
+# Idempotent; sets this repo's lfs clean/smudge filters if they aren't already.
+# --skip-repo leaves the hooks alone, since .githooks is tracked in the repo.
+git lfs install --local --skip-repo >/dev/null
+
+# Gitignored, machine-local mise config that overrides/extends .mise.toml.
+LOCAL_MISE=".mise.local.toml"
 
 # Resolve the mise binary: prefer one already on PATH, otherwise the common
 # install locations (the official installer's $HOME/.local/bin, Homebrew). This
@@ -87,10 +116,12 @@ ensure_mise_activation() {
     case "$shell_name" in
         zsh)
             rc="$HOME/.zshrc"
+            # shellcheck disable=SC2016 # Write this expression literally to the rc file.
             activate_line='eval "$(mise activate zsh)"'
             ;;
         bash)
             rc="$HOME/.bashrc"
+            # shellcheck disable=SC2016 # Write this expression literally to the rc file.
             activate_line='eval "$(mise activate bash)"'
             ;;
         *)

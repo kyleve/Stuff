@@ -1,4 +1,5 @@
 {
+  "source": "pluscal",
   "module": "RemoteDeviceRemoval.tla",
   "cases": [
     {

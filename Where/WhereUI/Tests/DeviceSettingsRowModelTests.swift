@@ -16,7 +16,7 @@ struct DeviceSettingsRowModelTests {
         )
 
         #expect(row.displayName == "Home iPad")
-        #expect(row.systemImage == "ipad")
+        #expect(row.systemSymbol == .ipad)
         #expect(row.isCurrent == false)
         #expect(row.beginNextOperation() == nil)
     }

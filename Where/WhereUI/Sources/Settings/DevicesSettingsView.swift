@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -56,7 +57,7 @@ struct DevicesSettingsView: View {
                         Section {
                             ContentUnavailableView(
                                 String(localized: .settingsDevicesLoadFailed),
-                                systemImage: "exclamationmark.icloud",
+                                systemSymbol: .exclamationmarkIcloud,
                                 description: Text(failure.message),
                             )
                             Button(String(localized: .commonRetry)) {
@@ -67,7 +68,7 @@ struct DevicesSettingsView: View {
                         Section {
                             ContentUnavailableView(
                                 String(localized: .settingsDevicesLoadFailed),
-                                systemImage: "exclamationmark.icloud",
+                                systemSymbol: .exclamationmarkIcloud,
                             )
                             Button(String(localized: .commonRetry)) {
                                 Task { await model.retry() }
@@ -147,6 +148,7 @@ extension DevicesSettingsView: SettingsSection {
     extension DevicesSettingsView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             let session = PreviewSupport.loadedSession()
+            let permissionRequiredSession = PreviewSupport.whenInUseSession()
             whereSnapshot(
                 name: "Default",
                 configurations: .screenDefaults,
@@ -160,6 +162,22 @@ extension DevicesSettingsView: SettingsSection {
                 }
                 .environment(session)
                 .task { await session.start() }
+            }
+            whereSnapshot(
+                name: "PermissionRequiredRecordingOff",
+                configurations: .fullContentPhoneLightDark,
+                onReadyToSnapshot: { await permissionRequiredSession.start() },
+            ) {
+                NavigationStack {
+                    DevicesSettingsView(
+                        session: permissionRequiredSession,
+                        configurations: PreviewSupport.recordingDeviceConfigurations(
+                            automaticRecordingEnabled: false,
+                        ),
+                    )
+                }
+                .environment(permissionRequiredSession)
+                .task { await permissionRequiredSession.start() }
             }
         }
     }

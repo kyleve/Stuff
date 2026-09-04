@@ -61,6 +61,11 @@ public struct WhereServices: Sendable {
     /// Encrypted automatic backup orchestration. Nil only in test, preview,
     /// demo, and App Intents stacks that deliberately have no device storage.
     public let automaticBackups: AutomaticBackupService?
+    /// The single synced “I’ll be here through…” intent used by location
+    /// forecasts.
+    public let plannedStays: PlannedStayCoordinator
+    /// Best-effort current-location verification for the planned-stay editor.
+    public let plannedStayLocation: PlannedStayLocationVerifier
     /// Data-quality issue detection for the Resolve tab.
     public let resolution: DataIssueScanner
     /// The persistence boundary, retained so `dataChangeUpdates()` can hand out
@@ -268,6 +273,15 @@ public struct WhereServices: Sendable {
             changes: store.remoteChanges(),
             reconcile: { await derivedData.reconcile() },
         )
+        let plannedStays = PlannedStayCoordinator(
+            store: store,
+            calendar: aggregator.calendar,
+            now: now,
+        )
+        let plannedStayLocation = PlannedStayLocationVerifier(
+            ingestor: ingestor,
+            attributor: attributor,
+        )
         self.reports = reports
         self.evidence = evidence
         self.reminders = reminders
@@ -290,6 +304,8 @@ public struct WhereServices: Sendable {
         } else {
             automaticBackups = nil
         }
+        self.plannedStays = plannedStays
+        self.plannedStayLocation = plannedStayLocation
         self.resolution = resolution
         self.store = store
         self.attributor = attributor

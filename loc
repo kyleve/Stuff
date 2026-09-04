@@ -1,0 +1,284 @@
+#!/bin/bash
+set -euo pipefail
+
+# loc — count lines of code in this repo via cloc.
+#
+# Uses git-tracked paths only (so build artifacts, Derived/, .build/, and other
+# gitignored dependency trees never enter the count). Scope flags pick which
+# owned areas to include; everything else is passed through to cloc after `--`.
+
+SCOPE=all            # all | prod | test | snapshots | tooling
+AREAS=()             # where | shared | ledger | repo
+INCLUDE_DOCS=false
+INCLUDE_DATA=false
+INCLUDE_STRINGS=false
+SWIFT_ONLY=false
+CLOCS=(--quiet)
+
+ROOT_SCRIPTS=(
+    attribution
+    codex-watchdog
+    flaky
+    icons
+    ide
+    loc
+    profile
+    simulator
+    swiftformat
+    sync-agents
+    test
+    worktree
+    xcstrings
+)
+
+usage() {
+    cat <<'USAGE'
+Usage: ./loc [options] [-- cloc-options...]
+
+Count lines of code with cloc, scoped to this repo's tracked sources. Dependency
+trees (.build/, Derived/, fetched agent skills, and so on) are excluded because
+only git-tracked paths are considered.
+
+Scope (pick one):
+  --all                 Production, tests, snapshot tests, and repo tooling
+                        (default)
+  --prod-only           */Sources/** only
+  --test-only           */Tests/** and */SnapshotTests/** (Swift/Ruby/shell;
+                        never __Snapshots__/ PNG references)
+  --snapshots-only      */SnapshotTests/** Swift only
+  --tooling-only        Root dev scripts, .bumper/, */Tools/**, and manifest
+                        files (Project.swift, Package.swift, Tuist.swift,
+                        BumperBowling.swift)
+
+Area (repeatable; default is every area):
+  --where               Where/**
+  --shared              Shared/**
+  --ledger              Ledger/**
+  --repo                Repo root manifests and dev scripts only
+
+Content:
+  --include-docs        Include Markdown (AGENTS.md, README.md, …)
+  --include-data        Include bundled JSON/GeoJSON data files
+  --include-strings     Include .xcstrings catalogs
+  --swift-only          Count only .swift files
+
+Other:
+  --by-file             Pass --by-file through to cloc
+  --json                Pass --json through to cloc
+  -h, --help            Show this help
+
+Examples:
+  ./loc
+  ./loc --prod-only --where
+  ./loc --test-only --shared
+  ./loc --tooling-only
+  ./loc --prod-only --by-file
+  ./loc -- --by-file-by-lang
+USAGE
+}
+
+matches_area() {
+    local path="$1"
+    if [ "${#AREAS[@]}" -eq 0 ]; then
+        return 0
+    fi
+    local area
+    for area in "${AREAS[@]}"; do
+        case "$area" in
+            where)
+                [[ "$path" == Where/* ]] && return 0
+                ;;
+            shared)
+                [[ "$path" == Shared/* ]] && return 0
+                ;;
+            ledger)
+                [[ "$path" == Ledger/* ]] && return 0
+                ;;
+            repo)
+                case "$path" in
+                    Project.swift | Package.swift | Package.resolved | Tuist.swift | BumperBowling.swift | .github/* | .bumper/*)
+                        return 0
+                        ;;
+                esac
+                local script
+                for script in "${ROOT_SCRIPTS[@]}"; do
+                    [[ "$path" == "$script" ]] && return 0
+                done
+                ;;
+        esac
+    done
+    return 1
+}
+
+is_root_script() {
+    local path="$1"
+    local script
+    for script in "${ROOT_SCRIPTS[@]}"; do
+        [[ "$path" == "$script" ]] && return 0
+    done
+    return 1
+}
+
+is_repo_manifest() {
+    case "$1" in
+        Project.swift | Package.swift | Tuist.swift | BumperBowling.swift | .github/* | .bumper/*)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+is_tooling_path() {
+    local path="$1"
+    is_root_script "$path" && return 0
+    is_repo_manifest "$path" && return 0
+    [[ "$path" == */Tools/* ]] && return 0
+    return 1
+}
+
+is_prod_path() {
+    [[ "$1" == */Sources/* ]]
+}
+
+is_unit_test_path() {
+    [[ "$1" == */Tests/* ]]
+}
+
+is_snapshot_test_path() {
+    [[ "$1" == */SnapshotTests/* && "$1" != */__Snapshots__/* ]]
+}
+
+is_test_path() {
+    is_unit_test_path "$1" || is_snapshot_test_path "$1"
+}
+
+is_data_path() {
+    case "$1" in
+        *.json | *.geojson) return 0 ;;
+    esac
+    return 1
+}
+
+is_doc_path() {
+    [[ "$1" == *.md ]]
+}
+
+is_strings_path() {
+    [[ "$1" == *.xcstrings ]]
+}
+
+is_asset_path() {
+    case "$1" in
+        *.png | *.jpg | *.jpeg | *.webp | *.gif | *.pdf | *.svg | *.xcassets | */__Snapshots__/*)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+matches_scope() {
+    local path="$1"
+    case "$SCOPE" in
+        all)
+            is_prod_path "$path" || is_test_path "$path" || is_tooling_path "$path"
+            ;;
+        prod)
+            is_prod_path "$path"
+            ;;
+        test)
+            is_test_path "$path"
+            ;;
+        snapshots)
+            is_snapshot_test_path "$path"
+            ;;
+        tooling)
+            is_tooling_path "$path"
+            ;;
+        *)
+            echo "error: unknown scope '$SCOPE'" >&2
+            exit 1
+            ;;
+    esac
+}
+
+keep_path() {
+    local path="$1"
+
+    is_asset_path "$path" && return 1
+    $INCLUDE_DOCS || ! is_doc_path "$path" || return 1
+    $INCLUDE_DATA || ! is_data_path "$path" || return 1
+    $INCLUDE_STRINGS || ! is_strings_path "$path" || return 1
+    $SWIFT_ONLY && [[ "$path" != *.swift ]] && return 1
+
+    matches_area "$path" || return 1
+    matches_scope "$path" || return 1
+    return 0
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --all) SCOPE=all ;;
+        --prod-only) SCOPE=prod ;;
+        --test-only) SCOPE="test" ;;
+        --snapshots-only) SCOPE=snapshots ;;
+        --tooling-only) SCOPE=tooling ;;
+        --where) AREAS+=("where") ;;
+        --shared) AREAS+=("shared") ;;
+        --ledger) AREAS+=("ledger") ;;
+        --repo) AREAS+=("repo") ;;
+        --include-docs) INCLUDE_DOCS=true ;;
+        --include-data) INCLUDE_DATA=true ;;
+        --include-strings) INCLUDE_STRINGS=true ;;
+        --swift-only) SWIFT_ONLY=true ;;
+        --by-file) CLOCS+=(--by-file) ;;
+        --json) CLOCS+=(--json) ;;
+        -h | --help)
+            usage
+            exit 0
+            ;;
+        --)
+            shift
+            CLOCS+=("$@")
+            break
+            ;;
+        -*)
+            echo "error: unknown option '$1' (see ./loc --help)" >&2
+            exit 1
+            ;;
+        *)
+            echo "error: unexpected argument '$1' (see ./loc --help)" >&2
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+cd "$(dirname "$0")"
+
+if ! command -v cloc >/dev/null 2>&1; then
+    echo "loc: cloc is not installed (brew install cloc)" >&2
+    exit 1
+fi
+
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    echo "loc: must run inside a git checkout" >&2
+    exit 1
+fi
+
+LIST_FILE="$(mktemp "${TMPDIR:-/tmp}/stuff-loc.XXXXXX")"
+trap 'rm -f "$LIST_FILE"' EXIT
+
+{
+    while IFS= read -r -d '' path; do
+        if keep_path "$path"; then
+            printf '%s\n' "$path"
+        fi
+    done < <(git ls-files -z)
+} >"$LIST_FILE"
+
+if [ ! -s "$LIST_FILE" ]; then
+    echo "loc: no files matched the current filters" >&2
+    exit 1
+fi
+
+cloc --list-file="$LIST_FILE" "${CLOCS[@]}"

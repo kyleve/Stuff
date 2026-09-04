@@ -27,6 +27,9 @@ public enum SnapshotSizing: Sendable {
     /// in the window and settled (so async `.task` loads are included, not a
     /// placeholder), while retaining the requested minimum height.
     case intrinsic(width: CGFloat, minimumHeight: CGFloat)
+    /// Start at a minimum viewport, then expand both dimensions to reveal the
+    /// complete content of its primary viewport-filling scroll view.
+    case fullContent2D(minimumSize: CGSize)
 }
 
 /// A capture failure that callers can report without comparing or recording an
@@ -44,6 +47,17 @@ public enum SnapshotRenderingError: Error, Equatable, Sendable {
     /// Full-content measurement did not reach a stable height within the
     /// bounded fixed-point pass budget.
     case intrinsicHeightDidNotConverge(name: String, measuredHeights: [CGFloat])
+    /// Two-axis full-content measurement did not reach a stable size within
+    /// the bounded fixed-point pass budget.
+    case fullContentSizeDidNotConverge(name: String, measuredSizes: [CGSize])
+    /// A two-axis capture would exceed the renderer's bounded allocation.
+    case fullContentSizeExceedsLimit(
+        name: String,
+        pixelWidth: Int,
+        pixelHeight: Int,
+        maximumPixelDimension: Int,
+        maximumPixelCount: Int,
+    )
 }
 
 extension SnapshotRenderingError: LocalizedError {
@@ -52,13 +66,26 @@ extension SnapshotRenderingError: LocalizedError {
             case let .invalidSettleTimeoutMultiplier(value):
                 return "Invalid SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER \"\(value)\"; use a finite value from 1 through 4."
             case let .measurementHookRequiresIntrinsicSizing(name):
-                return "Snapshot \(name) declares onReadyToMeasure, but fixed sizing has no intrinsic measurement phase."
+                return "Snapshot \(name) declares onReadyToMeasure, but fixed sizing has no measured-content phase."
             case let .measurementReadinessTimedOut(name, budget):
                 return "Snapshot \(name) measurement readiness did not complete within \(budget.formatted())s."
             case let .intrinsicHeightDidNotConverge(name, measuredHeights):
                 let heights = measuredHeights.map { String(format: "%.1f", $0) }
                     .joined(separator: ", ")
                 return "Snapshot \(name) intrinsic height did not converge: \(heights)."
+            case let .fullContentSizeDidNotConverge(name, measuredSizes):
+                let sizes = measuredSizes
+                    .map { "\($0.width.formatted())×\($0.height.formatted())" }
+                    .joined(separator: ", ")
+                return "Snapshot \(name) two-axis full-content size did not converge: \(sizes)."
+            case let .fullContentSizeExceedsLimit(
+            name,
+            pixelWidth,
+            pixelHeight,
+            maximumPixelDimension,
+            maximumPixelCount,
+        ):
+                return "Snapshot \(name) would render at \(pixelWidth)×\(pixelHeight) pixels; two-axis captures are limited to \(maximumPixelDimension) pixels per dimension and \(maximumPixelCount) pixels total."
         }
     }
 }
@@ -82,11 +109,11 @@ extension SnapshotRenderingError: LocalizedError {
 /// has settled and before the accessibility parse / cursor hiding / capture —
 /// the deterministic point to focus a field or trigger a presented state. Its
 /// effects are settled again (with the same `settle` mode) so they're committed
-/// in the image. For `.intrinsic` sizing the content is measured *before* the
-/// hook runs, so a hook must not change the content's ideal size.
-/// `measurementReadiness` controls only the settle before intrinsic sizing; it
+/// in the image. For measured-content sizing the content is measured *before*
+/// the hook runs, so a hook must not change the content's ideal size.
+/// `measurementReadiness` controls only the settle before size resolution; it
 /// never shortens the final capture settle.
-/// `onReadyToMeasure` runs earlier, after an intrinsic probe is hosted and laid
+/// `onReadyToMeasure` runs earlier, after a measurement probe is hosted and laid
 /// out but before that settle and size resolution. It is for deterministic
 /// readiness signals whose completion can change ideal height. The hook is
 /// invalid for `.fixed` sizing, is bounded by the capture's effective settle
@@ -305,16 +332,45 @@ private func renderSnapshotImageLocked(
         }
 
         // Parse accessibility only after the content has settled, so the
-        // annotation reflects the loaded/revealed state (not a placeholder), then
-        // re-lay-out at the size `parseAccessibility` sizes the wrapper to.
+        // annotation reflects the loaded/revealed state (not a placeholder).
+        // A raised settle floor opts accessibility rendering into a preparation
+        // pass. That first pass starts one-time native material work caused by
+        // temporarily inserting the content into AccessibilitySnapshot's
+        // renderer. The annotated output is static during this bounded wait; the
+        // wait gives the content's persistent native state time to finish. The
+        // ordinary settle policies stay single-pass because another insertion can
+        // change scrolling content.
         if let accessibilityViewController =
             captureViewController as? AccessibilitySnapshotViewController
         {
-            timing.measure(.accessibilityParse) {
+            func parseAccessibility() {
                 accessibilityViewController.parseAccessibility()
                 wrappingViewController.view.frame.size = accessibilityViewController.view.frame.size
                 wrappingViewController.view.setNeedsLayout()
                 CATransaction.performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
+            }
+
+            if case .settledAtLeast = settle {
+                timing.measure(.accessibilityParse) {
+                    parseAccessibility()
+                }
+                await reportIfUnsettled(
+                    timing.measure(.settle) {
+                        await settleForCapture(
+                            wrappingViewController.view,
+                            named: name,
+                            settle: settle,
+                            timing: timing,
+                            timeoutPolicy: settleTimeoutPolicy,
+                        )
+                    },
+                    phase: "accessibility preparation",
+                    of: viewController,
+                    named: name,
+                )
+            }
+            timing.measure(.accessibilityParse) {
+                parseAccessibility()
             }
         }
 
@@ -379,14 +435,15 @@ private func removeChildAfterCapture(_ child: UIViewController) {
     child.removeFromParent()
 }
 
-/// For `.intrinsic` sizing, hosts the content at the target width with the full
-/// appearance lifecycle driven (so SwiftUI `.task` loads and finite time-based
-/// reveals run), lets it settle, then measures `sizeThatFits` and pins the frame —
-/// so a content-loading component is sized to its loaded content rather than an
-/// empty placeholder. The result never falls below the requested minimum
-/// height. UIKit-backed SwiftUI containers such as `Form` report their viewport
-/// rather than their ideal height, so a full-width scroll descendant's content
-/// size is used when it is taller. `.fixed` sizing leaves the frame untouched.
+/// For measured-content sizing, hosts the content at the initial viewport with
+/// the full appearance lifecycle driven (so SwiftUI `.task` loads and finite
+/// time-based reveals run), lets it settle, then measures `sizeThatFits` and
+/// pins the frame — so a content-loading component is sized to its loaded
+/// content rather than an empty placeholder. The result never falls below the
+/// requested minimum height. UIKit-backed SwiftUI containers such as `Form`
+/// report their viewport rather than their ideal height, so a full-width scroll
+/// descendant's content size is used when it is taller. `.fixed` sizing leaves
+/// the frame untouched.
 ///
 /// The measurement iterates to a fixed point: a lazy container (`LazyVStack` in
 /// a `ScrollView`) reports an *estimated* content height until its rows
@@ -394,7 +451,9 @@ private func removeChildAfterCapture(_ child: UIViewController) {
 /// single measurement of a full-content scroll capture would cut the year off
 /// mid-October. Growing the frame to each estimate and re-laying-out
 /// materializes more rows and refines the next measurement; non-lazy content is
-/// stable on the first pass, so it measures exactly as before.
+/// stable on the first pass, so it measures exactly as before. Two-axis sizing
+/// follows the same bounded process with one viewport-filling scroll descendant
+/// supplying both dimensions, then validates the rendered pixel allocation.
 ///
 /// The content is hosted through a throwaway wrapper added as a child of the
 /// appeared host root (not a bare subview): only a real appearance transition
@@ -414,16 +473,24 @@ private func resolveContentSize(
     timing: SnapshotCaptureTiming,
     settleTimeoutPolicy: SnapshotSettleTimeoutPolicy,
 ) async throws {
-    guard case let .intrinsic(width, minimumHeight) = sizing else {
-        if onReadyToMeasure != nil {
-            throw SnapshotRenderingError.measurementHookRequiresIntrinsicSizing(name: name)
-        }
-        return
+    let probeSize: CGSize
+    switch sizing {
+        case .fixed:
+            if onReadyToMeasure != nil {
+                throw SnapshotRenderingError.measurementHookRequiresIntrinsicSizing(name: name)
+            }
+            return
+        case let .intrinsic(width, _):
+            probeSize = CGSize(width: width, height: max(window.bounds.height, 1))
+        case let .fullContent2D(minimumSize):
+            probeSize = CGSize(
+                width: max(minimumSize.width, 1),
+                height: max(minimumSize.height, 1),
+            )
     }
 
     let probeWrapper = timing.measure(.intrinsicMeasure) {
-        let probeHeight = max(window.bounds.height, 1)
-        viewController.view.frame = CGRect(x: 0, y: 0, width: width, height: probeHeight)
+        viewController.view.frame = CGRect(origin: .zero, size: probeSize)
 
         let wrapper = SnapshotWrappingViewController(viewController)
         hostChildForCapture(wrapper, in: hostRoot)
@@ -464,12 +531,12 @@ private func resolveContentSize(
                 timeoutPolicy: settleTimeoutPolicy,
             )
         },
-        phase: "intrinsic measurement",
+        phase: "content measurement",
         of: viewController,
         named: name,
     )
 
-    func measureContent() -> CGSize {
+    func measureIntrinsicContent(width: CGFloat, minimumHeight: CGFloat) -> CGSize {
         var measured = viewController.view
             .sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
         measured.width = width
@@ -485,35 +552,166 @@ private func resolveContentSize(
         return measured
     }
 
-    let measurement = timing.measure(.intrinsicMeasure) {
-        var measured = measureContent()
-        var measuredHeights = [measured.height]
-        var didConverge = false
-        for _ in 0 ..< 10 {
-            viewController.view.frame = CGRect(origin: .zero, size: measured)
-            probeWrapper.view.frame.size = measured
-            CATransaction.performWithoutAnimation(probeWrapper.view.layoutIfNeeded)
-            let remeasured = measureContent()
-            measuredHeights.append(remeasured.height)
-            if abs(remeasured.height - measured.height) < 0.5 {
-                measured = remeasured
-                didConverge = true
-                break
+    switch sizing {
+        case .fixed:
+            preconditionFailure("Fixed snapshot sizing must return before measurement.")
+        case let .intrinsic(width, minimumHeight):
+            let measurement = timing.measure(.intrinsicMeasure) {
+                var measured = measureIntrinsicContent(
+                    width: width,
+                    minimumHeight: minimumHeight,
+                )
+                var measuredHeights = [measured.height]
+                var didConverge = false
+                for _ in 0 ..< 10 {
+                    viewController.view.frame = CGRect(origin: .zero, size: measured)
+                    probeWrapper.view.frame.size = measured
+                    CATransaction.performWithoutAnimation(probeWrapper.view.layoutIfNeeded)
+                    let remeasured = measureIntrinsicContent(
+                        width: width,
+                        minimumHeight: minimumHeight,
+                    )
+                    measuredHeights.append(remeasured.height)
+                    if abs(remeasured.height - measured.height) < 0.5 {
+                        measured = remeasured
+                        didConverge = true
+                        break
+                    }
+                    measured = remeasured
+                }
+                return (measured, measuredHeights, didConverge)
             }
-            measured = remeasured
-        }
-        return (measured, measuredHeights, didConverge)
+            guard measurement.2 else {
+                throw SnapshotRenderingError.intrinsicHeightDidNotConverge(
+                    name: name,
+                    measuredHeights: measurement.1,
+                )
+            }
+
+            timing.measure(.intrinsicMeasure) {
+                viewController.view.frame = CGRect(origin: .zero, size: measurement.0)
+                CATransaction.performWithoutAnimation(viewController.view.layoutIfNeeded)
+            }
+        case let .fullContent2D(minimumSize):
+            func measureFullContent(proposedSize: CGSize) -> FullContentMeasurement {
+                var measured = viewController.view.sizeThatFits(CGSize(
+                    width: proposedSize.width,
+                    height: .greatestFiniteMagnitude,
+                ))
+                if !measured.width.isFinite || measured.width <= 0 {
+                    measured.width = 1
+                }
+                if !measured.height.isFinite || measured.height <= 0 {
+                    measured.height = 1
+                }
+
+                let scrollExtent = viewController.view.viewportFillingScrollContentExtent
+                if let scrollExtent {
+                    measured.width = max(measured.width, scrollExtent.requiredSize.width)
+                    measured.height = max(measured.height, scrollExtent.requiredSize.height)
+                }
+                measured.width = max(measured.width, minimumSize.width)
+                measured.height = max(measured.height, minimumSize.height)
+                return FullContentMeasurement(size: measured, scrollView: scrollExtent?.scrollView)
+            }
+
+            var measurement = measureFullContent(proposedSize: probeSize)
+            var measuredSizes = [measurement.size]
+            var didConverge = false
+            for _ in 0 ..< 10 {
+                try validateTwoAxisCaptureSize(
+                    measurement.size,
+                    scale: window.screen.scale,
+                    named: name,
+                )
+                timing.measure(.intrinsicMeasure) {
+                    viewController.view.frame = CGRect(origin: .zero, size: measurement.size)
+                    probeWrapper.view.frame.size = measurement.size
+                    CATransaction.performWithoutAnimation(probeWrapper.view.layoutIfNeeded)
+                }
+                let remeasured = measureFullContent(proposedSize: measurement.size)
+                measuredSizes.append(remeasured.size)
+                if remeasured.size.isApproximatelyEqual(to: measurement.size) {
+                    measurement = remeasured
+                    didConverge = true
+                    break
+                }
+                measurement = remeasured
+            }
+            guard didConverge else {
+                throw SnapshotRenderingError.fullContentSizeDidNotConverge(
+                    name: name,
+                    measuredSizes: measuredSizes,
+                )
+            }
+            try validateTwoAxisCaptureSize(
+                measurement.size,
+                scale: window.screen.scale,
+                named: name,
+            )
+
+            timing.measure(.intrinsicMeasure) {
+                viewController.view.frame = CGRect(origin: .zero, size: measurement.size)
+                CATransaction.performWithoutAnimation(viewController.view.layoutIfNeeded)
+                if let scrollView = measurement.scrollView {
+                    scrollView.setContentOffset(
+                        CGPoint(
+                            x: -scrollView.adjustedContentInset.left,
+                            y: -scrollView.adjustedContentInset.top,
+                        ),
+                        animated: false,
+                    )
+                }
+            }
     }
-    guard measurement.2 else {
-        throw SnapshotRenderingError.intrinsicHeightDidNotConverge(
+}
+
+private let maximumTwoAxisPixelDimension = 32000
+private let maximumTwoAxisPixelCount = 100_000_000
+
+private struct FullContentMeasurement {
+    let size: CGSize
+    let scrollView: UIScrollView?
+}
+
+private struct ScrollContentExtent {
+    let scrollView: UIScrollView
+    let requiredSize: CGSize
+    let viewportArea: CGFloat
+}
+
+private func validateTwoAxisCaptureSize(
+    _ size: CGSize,
+    scale: CGFloat,
+    named name: String,
+) throws {
+    let pixelWidth = boundedPixelDimension(size.width, scale: scale)
+    let pixelHeight = boundedPixelDimension(size.height, scale: scale)
+    let exceedsPixelCount = pixelHeight > 0
+        && pixelWidth > maximumTwoAxisPixelCount / pixelHeight
+    guard pixelWidth <= maximumTwoAxisPixelDimension,
+          pixelHeight <= maximumTwoAxisPixelDimension,
+          !exceedsPixelCount
+    else {
+        throw SnapshotRenderingError.fullContentSizeExceedsLimit(
             name: name,
-            measuredHeights: measurement.1,
+            pixelWidth: pixelWidth,
+            pixelHeight: pixelHeight,
+            maximumPixelDimension: maximumTwoAxisPixelDimension,
+            maximumPixelCount: maximumTwoAxisPixelCount,
         )
     }
+}
 
-    timing.measure(.intrinsicMeasure) {
-        viewController.view.frame = CGRect(origin: .zero, size: measurement.0)
-        CATransaction.performWithoutAnimation(viewController.view.layoutIfNeeded)
+private func boundedPixelDimension(_ points: CGFloat, scale: CGFloat) -> Int {
+    let pixels = ceil(points * scale)
+    guard pixels.isFinite, pixels < CGFloat(Int.max) else { return Int.max }
+    return max(Int(pixels), 1)
+}
+
+extension CGSize {
+    fileprivate func isApproximatelyEqual(to other: CGSize) -> Bool {
+        abs(width - other.width) < 0.5 && abs(height - other.height) < 0.5
     }
 }
 
@@ -541,6 +739,39 @@ extension UIView {
                 return scrollView.contentSize.height + insetHeight + chromeHeight
             }
             .max()
+    }
+
+    /// The complete root size required by the largest viewport-filling scroll
+    /// descendant. One scroll view owns both axes so an outer spatial canvas is
+    /// never combined with the height of an unrelated nested list.
+    fileprivate var viewportFillingScrollContentExtent: ScrollContentExtent? {
+        descendants
+            .compactMap { view -> ScrollContentExtent? in
+                guard let scrollView = view as? UIScrollView else { return nil }
+                let visibleFrame = scrollView.convert(scrollView.bounds, to: self)
+                guard visibleFrame.width >= bounds.width - 1,
+                      visibleFrame.height > 0,
+                      scrollView.contentSize.width.isFinite,
+                      scrollView.contentSize.width > 0,
+                      scrollView.contentSize.height.isFinite,
+                      scrollView.contentSize.height > 0
+                else { return nil }
+
+                let inset = scrollView.adjustedContentInset
+                let chromeWidth = max(bounds.width - visibleFrame.width, 0)
+                let chromeHeight = max(bounds.height - visibleFrame.height, 0)
+                let insetWidth = inset.left + inset.right
+                let insetHeight = inset.top + inset.bottom
+                return ScrollContentExtent(
+                    scrollView: scrollView,
+                    requiredSize: CGSize(
+                        width: scrollView.contentSize.width + insetWidth + chromeWidth,
+                        height: scrollView.contentSize.height + insetHeight + chromeHeight,
+                    ),
+                    viewportArea: visibleFrame.width * visibleFrame.height,
+                )
+            }
+            .max { lhs, rhs in lhs.viewportArea < rhs.viewportArea }
     }
 
     private var descendants: [UIView] {

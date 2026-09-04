@@ -30,7 +30,8 @@ public struct DaysInRegionSnippetIntent: SnippetIntent {
 
     @MainActor
     public func perform() async throws -> some IntentResult & ShowsSnippetView {
-        let services = try await intentServices.current()
+        let context = try await intentServices.currentContext()
+        let services = context.services
         let resolvedYear = year ?? Calendar.whereIntents.component(.year, from: Date())
         // The span covers both reads the card needs — the count and the region
         // looks — since a reload the user is watching waits on both.
@@ -57,6 +58,7 @@ public struct DaysInRegionSnippetIntent: SnippetIntent {
                 region: region,
                 canLogToday: isCurrentYear(resolvedYear),
                 regionStyles: regionStyles,
+                theme: context.theme,
             )
         }
         return .result(view: snippet)
@@ -72,10 +74,11 @@ struct DaysInRegionInteractiveSnippet: View {
     let region: RegionEntity
     let canLogToday: Bool
     let regionStyles: RegionStyleResolver
+    let theme: WhereTheme
 
     var body: some View {
         content
-            .whereBroadwayRoot(regionStyles: regionStyles)
+            .whereBroadwayRoot(theme: theme, regionStyles: regionStyles)
     }
 
     @ViewBuilder private var content: some View {
@@ -87,7 +90,7 @@ struct DaysInRegionInteractiveSnippet: View {
                     Label {
                         Text(IntentStrings.logTodayHere)
                     } icon: {
-                        Image(systemName: "plus.circle.fill")
+                        Image(systemSymbol: .plusCircleFill)
                     }
                     .frame(maxWidth: .infinity)
                 }

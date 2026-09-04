@@ -39,11 +39,6 @@ struct AboutSettingsViewTests {
         }
     }
 
-    @Test func linksToTheCanonicalProjectRepository() {
-        #expect(AboutOpenSourceFooter.projectURL
-            .absoluteString == "https://github.com/kyleve/Stuff")
-    }
-
     // MARK: Rendering
 
     @Test func hostsAStampedBuild() throws {

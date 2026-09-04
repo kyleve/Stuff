@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// A complete developer-mode application surface for browsing and deleting an
@@ -41,7 +42,7 @@ public struct InspectorView: View {
                 Section("Files") {
                     ForEach(model.configuration.fileContainers) { container in
                         NavigationLink(value: Destination.files(container.id)) {
-                            Label(container.title, systemImage: "folder")
+                            Label(container.title, systemSymbol: .folder)
                         }
                     }
                 }
@@ -49,7 +50,7 @@ public struct InspectorView: View {
                 Section("User Defaults") {
                     ForEach(model.configuration.defaultsDomains) { domain in
                         NavigationLink(value: Destination.defaults(domain.id)) {
-                            Label(domain.title, systemImage: "slider.horizontal.3")
+                            Label(domain.title, systemSymbol: .sliderHorizontal3)
                         }
                     }
                 }
@@ -57,14 +58,14 @@ public struct InspectorView: View {
                 Section("SwiftData") {
                     ForEach(model.visibleSwiftDataSources) { source in
                         NavigationLink(value: Destination.swiftData(source.id)) {
-                            Label(source.title, systemImage: "cylinder.split.1x2")
+                            Label(source.title, systemSymbol: .cylinderSplit1x2)
                         }
                     }
                 }
 
                 Section {
                     if let error = modeController.pendingStoreErasureError {
-                        Label(error, systemImage: "exclamationmark.triangle.fill")
+                        Label(error, systemSymbol: .exclamationmarkTriangleFill)
                             .font(.caption)
                             .foregroundStyle(.red)
                     }
@@ -72,20 +73,20 @@ public struct InspectorView: View {
                     if modeController.nextLaunch == .inspector {
                         Button(
                             "Use Regular App on Next Launch",
-                            systemImage: "arrow.uturn.forward",
+                            systemSymbol: .arrowUturnForward,
                         ) {
                             modeController.useRegularApplicationOnNextLaunch()
                         }
                     } else {
                         Label(
                             "Regular app selected",
-                            systemImage: "checkmark.circle.fill",
+                            systemSymbol: .checkmarkCircleFill,
                         )
                         .foregroundStyle(.green)
 
                         Button(
                             "Keep Inspector on Next Launch",
-                            systemImage: "wrench.and.screwdriver",
+                            systemSymbol: .wrenchAndScrewdriver,
                         ) {
                             modeController.enterInspectorOnNextLaunch()
                         }
@@ -141,7 +142,7 @@ public struct InspectorView: View {
             case nil:
                 ContentUnavailableView(
                     "Inspector",
-                    systemImage: "wrench.and.screwdriver",
+                    systemSymbol: .wrenchAndScrewdriver,
                     description: Text("Choose a data source from the sidebar."),
                 )
         }

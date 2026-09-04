@@ -9,7 +9,9 @@ import WhereCore
 /// untracked step); an enum makes each ID a compile-checked symbol and gives
 /// the launch/reset parity tests a single source of truth.
 public enum LaunchStepID: String, Sendable {
-    /// First-run onboarding gate, at the head of the trunk: until the user
+    /// Consume an optional one-shot demo request before onboarding can open a real store.
+    case activateDemo = "activate-demo"
+    /// First-run onboarding gate, after optional demo activation: until the user
     /// chooses a world to work in, nothing downstream runs and no store is
     /// opened. Applies to every launch reason — a headless launch parks here
     /// rather than opening the user's store unseen.
@@ -63,8 +65,9 @@ public enum LaunchStepID: String, Sendable {
 /// is `LifecycleContainer`'s `content` (see `RootView`), handed the
 /// `WhereSession` the trunk produced once the runner reaches `.ready`.
 ///
-/// The trunk begins with the onboarding gate — nothing may be built until the
-/// user has chosen a world to work in — and its value then grows monotonically
+/// The trunk consumes an optional one-shot demo request, then reaches the
+/// onboarding gate — nothing real may be built until the user has chosen a
+/// world to work in — and its value then grows monotonically
 /// by embedding: `ResolveScopeStep` mints the `WhereScope` the app is logged in
 /// to, `StartSessionStep` promotes it to `WhereSession` (which carries the
 /// scope's services non-optionally), and every downstream node takes the session as
@@ -141,7 +144,8 @@ public enum WhereLaunch {
     /// after the trunk — they take the session, return nothing, and never
     /// block `.ready`.
     ///
-    /// Rooting at the gate is what makes the app's store open *lazily*: a user
+    /// Keeping the gate ahead of real scope resolution is what makes the app's store open *lazily*:
+    /// a user
     /// who hasn't onboarded parks here, and nothing downstream — including the
     /// store open — runs until they choose. `onServicesReady` fires from
     /// `start-session` whenever a session is (re)started (see `makeLauncher`);
@@ -157,7 +161,8 @@ public enum WhereLaunch {
         for model: WhereModel,
         onServicesReady: @escaping @MainActor (WhereServices) async -> Void = { _ in },
     ) -> LaunchPlan<LaunchStepID, Void, WhereSession> {
-        LaunchPlan(OnboardingGate(model: model))
+        LaunchPlan(ActivateLaunchDemoStep(model: model).measured())
+            .gate(OnboardingGate(model: model))
             .then(ResolveScopeStep(model: model).measured())
             .then(StartSessionStep(model: model, onServicesReady: onServicesReady).measured())
             .thenKeeping(SyncAuthStep().measured())

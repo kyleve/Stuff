@@ -28,7 +28,7 @@ invalidate the result until this mapping is checked again.
 
 The source entry points represented are `WhereSession.startTracking()`, `stopTracking()`, and
 `setRecordingEnabled(_:)`. Launch, foreground, authorization observation, and CloudKit-change
-reconciliation also enter the controller's exclusive lane, but do not change local consent; the
+reconciliation also enter the controller's exclusive lane, but do not change local consent. the
 model permits them to delay a command without representing their choice-neutral work. Onboarding
 registration happens before an active session can submit these commands and is outside this
 protocol.
@@ -54,7 +54,7 @@ orders emissions and ignores an update whose sequence is no newer than the last 
 
 Weak fairness assumes each configured command is eventually submitted, permission requests return,
 and an admitted Core transition eventually completes. These correspond to the runtime progress
-guarantees needed only for `EventuallySettled`; the safety invariants do not depend on fairness.
+guarantees needed only for `EventuallySettled`. the safety invariants do not depend on fairness.
 
 ## Bounds and exclusions
 

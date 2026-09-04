@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
@@ -22,7 +23,7 @@ struct FeatureEvidenceArchivePreview: View {
             VStack(alignment: .leading, spacing: panelStyle.contentSpacing) {
                 Label(
                     String(localized: .settingsExploreEvidenceArchiveTitle),
-                    systemImage: "archivebox",
+                    systemSymbol: .archivebox,
                 )
                 .font(.headline)
 
@@ -39,7 +40,7 @@ struct FeatureEvidenceArchivePreview: View {
                 if case .failed = content {
                     Label(
                         String(localized: .settingsExploreEvidenceFallback),
-                        systemImage: "exclamationmark.icloud",
+                        systemSymbol: .exclamationmarkIcloud,
                     )
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -66,7 +67,7 @@ struct FeatureEvidenceArchivePreview: View {
     }
 
     private func archiveIcon(_ kind: EvidenceKind) -> some View {
-        Image(systemName: kind.symbolName)
+        Image(systemSymbol: kind.symbol)
             .font(.system(size: 22))
             .foregroundStyle(.indigo)
             .frame(width: 44, height: 44)

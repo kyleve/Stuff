@@ -222,6 +222,8 @@ extension SnapshotSizing {
                 "fixed"
             case .intrinsic:
                 "intrinsic"
+            case .fullContent2D:
+                "fullContent2D"
         }
     }
 }

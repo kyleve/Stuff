@@ -1,4 +1,5 @@
 import LifecycleKit
+import SFSafeSymbols
 import SwiftUI
 
 /// The UI shown when a launch step throws. Describes the failure. Terminal by
@@ -12,7 +13,11 @@ public struct LifecycleFailureView: View {
 
     public var body: some View {
         ContentUnavailableView {
-            Label(.failureLaunchTitle, systemImage: "exclamationmark.triangle")
+            Label {
+                Text(.failureLaunchTitle)
+            } icon: {
+                Image(systemSymbol: .exclamationmarkTriangle)
+            }
         } description: {
             Text(failure.error.localizedDescription)
         }

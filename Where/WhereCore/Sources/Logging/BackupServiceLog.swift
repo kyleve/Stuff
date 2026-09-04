@@ -63,4 +63,40 @@ enum BackupServiceLog: LogEvent {
             case .stagingCleanupFailed, .wroteBackup: nil
         }
     }
+
+    var remoteFields: [RemoteLogField] {
+        switch self {
+            case let .wroteBackup(
+            sampleCount,
+            evidenceCount,
+            manualDayCount,
+            dismissedIssueCount,
+            trackedRegionCount,
+        ):
+                [
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("sample_count"),
+                        value: .count(sampleCount),
+                    ),
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("evidence_count"),
+                        value: .count(evidenceCount),
+                    ),
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("manual_day_count"),
+                        value: .count(manualDayCount),
+                    ),
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("dismissed_issue_count"),
+                        value: .count(dismissedIssueCount),
+                    ),
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("tracked_region_count"),
+                        value: .count(trackedRegionCount),
+                    ),
+                ]
+            case .assetMissing, .stagingCleanupFailed:
+                []
+        }
+    }
 }

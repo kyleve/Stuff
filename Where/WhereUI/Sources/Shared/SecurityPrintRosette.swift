@@ -64,7 +64,7 @@ struct SecurityPrintRosette: View {
 
 #if DEBUG
     #Preview {
-        let rosette = WhereStylesheet.default.passportCard.rosette
+        let rosette = WhereStylesheet.default.privacyPassportCard.rosette
         SecurityPrintRosette(
             tint: .accentColor,
             wobble: rosette.wobble,

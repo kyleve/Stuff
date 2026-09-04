@@ -279,6 +279,21 @@ struct YearReportModelTests {
         #expect(preferences.driftThresholdMeters == DriftThreshold.km25.rawValue)
     }
 
+    @Test func estimatedTimeVisibilityMirrorsAndPersists() async throws {
+        let preferences = makePreferences()
+        preferences.showsEstimatedTimeAndPlanning = false
+        let report = try YearReportModel(
+            services: makeServices(),
+            selectedYear: 2026,
+            preferences: preferences,
+        )
+
+        #expect(report.showsEstimatedTimeAndPlanning == false)
+
+        try await report.setEstimatedTimeAndPlanningEnabled(true)
+        #expect(preferences.showsEstimatedTimeAndPlanning)
+    }
+
     /// The Resolve list keys its scan `.task(id:)` on `dataIssueScanInputs`, so a
     /// drift-threshold change must change that identity — otherwise the list keeps
     /// a stale scan while the badge count moves and the two visibly disagree. The

@@ -6,7 +6,7 @@ components and widget views, and the `@Observable` view models that turn
 of `WhereCore` (domain, persistence, GPS) and `RegionKit` (geometry) — both of
 which stay UI-free — and leans on the Broadway design system for its tokens. The
 app target is a thin shell that builds a model at launch and shows WhereUI's
-`RootView`; the **WhereWidgets** extension reuses WhereUI's views to render a
+`RootView`. The **WhereWidgets** extension reuses WhereUI's views to render a
 published snapshot.
 
 For the module's *rules* — the domain/presentation layering, localization,
@@ -30,43 +30,60 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   widget family on miniature Home Screen and Lock Screen surfaces. A Share &
   Evidence walkthrough also reveals the system Share-sheet extension and links
   into the saved attachment archive. Insights & Accuracy introduces the
-  automatic issue detectors without running them merely to render the gallery.
+  automatic issue detectors without running them merely to render the gallery,
+  while Estimated Time & Planning explains the live annual projection with a
+  worked pace-and-plan calculation, planned stays, and why overlapping travel
+  days do not sum neatly to one year.
   These galleries use a shared marketing header, quiet patterned backdrop, and
   staged entrance that resolves immediately for Reduce Motion and snapshot
   capture. Once the selected report has 14 recorded days, the Siri, Spotlight,
-  widget, and evidence examples use its real regions, counts, and dates; sparse
+  widget, and evidence examples use its real regions, counts, and dates. Sparse
   reports keep the illustrative Siri copy and empty widget state.
-  Backup and destructive data management share one Data drill-in. Both Data and
-  About lead with the same full-width passport-style
-  privacy statement on a passport-navy, tilt-reflective surface: location
-  history stays on the user's devices and in their private iCloud account,
-  never on Where-operated servers. `AboutSettingsView` is the last Settings block —
+  Backup and destructive data management share one Data drill-in. Data is
+  followed by a persisted **Privacy & Diagnostics** screen for crash reports,
+  redacted session replay, remote-log threshold, and Debug-only full metadata.
+  Data, Privacy & Diagnostics, and About lead with the same full-width, flat
+  passport-style privacy statement. It keeps the location promise separate
+  from icon-led rows that explain the purpose and scope of each active reporting
+  channel. On About and Data, each row links to Privacy & Diagnostics with an
+  in-row chevron. The rows are static on the Privacy & Diagnostics screen.
+  These rows come from the process's effective reporting state,
+  so next-launch choices do not rewrite the promise early. `AboutSettingsView`
+  is the last Settings block —
   build identity, the app's generated attribution report (linked libraries and
   development tools as separate sections), and bundled-data provenance, each
-  vended by whoever owns it rather than listed in the view; it renders an
+  vended by whoever owns it rather than listed in the view. It renders an
   explicit "no report" state, since only the app bundle carries one, and ends
-  with a passport-style link to the project's public source on GitHub. `MainTabs`
-  is built from the `WhereSession` the launch's `.ready` carries. The app
-  injects the launch-built model + runner
-  (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
-  the hosted UI test.
-- **Developer tools** — DEBUG-only logging, span, region-map, Flyover, and
-  next-launch Inspector controls. The global launcher's accordion only updates
-  `InspectorModeController`; the current regular runtime continues until the
-  developer relaunches. The Logs destination is always present: before its
+  with a flat, single-ink passport stamp linking to the project's public source
+  on GitHub.
+  `MainTabs` is built from the `WhereSession` the launch's `.ready` carries. Its first
+  visible reveal is covered by the launch splash for the stylesheet's minimum
+  duration even when a headless-ready launch completes foreground promotion
+  between SwiftUI renders. The tabs warm beneath it. Later foreground resumes do
+  not replay it. Leaving before the first reveal keeps that reveal owed. Returning
+  shows the full splash instead of expiring it offscreen. The app injects the
+  launch-built model + runner (`init(model:launcher:)`). A no-arg `init()` builds
+  its own for previews and the hosted UI test.
+- **Developer tools** — DEBUG-only logging, span, region-map, Flyover, forced-crash,
+  and next-launch Inspector/demo controls. The demo sheet selects which Resolve
+  issue categories appear in a one-shot, in-memory launch. Forced crashes cover Swift traps, Objective-C
+  exceptions, abort signals, and invalid memory access so crash reporters can be
+  checked end to end. The global launcher's accordion only updates
+  `WhereDeveloperLaunchController`. The current regular runtime continues until the
+  developer relaunches. The Logs destination is always present. Before its
   durable store is ready it reports whether the open is still running,
   unavailable, or failed with the actual error.
 - **`WhereLaunch`** — the launch, reset, and exit-demo plans themselves. Every
-  step declares how long it should take (`BudgetedLaunchStep`) and joins the
+  step declares a budget (`BudgetedLaunchStep`) and joins the
   plan through `.measured()`, so each run is one Periscope span named after
-  the step (`step(resolve-scope)`) that warns while it overruns its budget —
+  the step (`step(resolve-scope)`) that warns while it overruns its budget — 
   the launch's cost breaks down per step instead of arriving as one slow
   splash. (The onboarding gate is the one unmeasured node: it parks on the
   user.)
 - **`WhereScope`** — what the app is logged in *to*: one open store's
   `WhereServices`, the `WherePreferences` driving it, and the durable log store
   they record into, created whole and never reconfigured. `WhereModel` owns
-  which scope is active; `WhereSession` is built from one, so a logged-in
+  which scope is active. `WhereSession` is built from one, so a logged-in
   surface can't read one world's store against another's preferences. Two
   kinds, both reached through `WhereModel`: the real one opens the app's single
   on-disk store, and `makeDemoScope()` builds a seeded in-memory world that
@@ -91,21 +108,25 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   per-device recording changes, `startTracking()` / `stopTracking()`,
   `refreshWidgetSnapshot()`). It holds no presentation state of its own.
 - **Scope-tiered models** — scene-scoped **`YearReportModel`** (the selected
-  year's `YearReportDetails`, its `LoadState`, and the manual-day edit intents), plus
+  year's `YearReportDetails`, its `LoadState`, manual-day edit intents, and the shared
+  **`LocationForecastModel`** planned-stay mirror and current-location advisory), plus
   view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
   (Settings export progress and failures),
   **`RemindersSettingsModel`** (notification prefs),
+  process-scoped **`DiagnosticReportingSettingsModel`** (saved versus effective
+  launch channels and revisioned live log-policy application),
   **`DevicesSettingsModel`** (installation-local recording choice plus synced names, advisory
   status, and irreversible removal), plus **`OnboardingFlowModel`** (first-run phase, restore,
   demo, and completion orchestration) and **`OnboardingImportRecoveryModel`** (the sidecar/store
   recovery handshake after an interrupted onboarding import), and
-  **`LocationDayCountPresentationModel`** (the last primary-card counts the
-  user saw). The Location model holds saved values until the card surface is
-  visible and unobscured, holds them there for another half second, then
-  advances every changed number in one animated beat, adding one light haptic
-  when any count increased; decreases, first visits, and newly appearing cards
-  stay silent. Each model orchestrates Core services or presentation state;
-  none reimplements Core rules.
+  **`LocationCardsPresentationModel`** (the last primary-card counts and order
+  the user saw). The Location model holds saved values until the card surface
+  is visible and unobscured, holds them there for another half second, then
+  advances every changed number and any live two-card reversal in one animated
+  beat, adding one light haptic. Decreases, first visits, hidden updates, and
+  newly appearing cards stay spatially quiet. Each model orchestrates Core
+  services or presentation state.
+  None reimplements Core rules.
 
 ### Reusable views & styling
 
@@ -117,16 +138,16 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   giving each a look, then verifying this installation's automatic-recording
   choice. The final page opens the real store in a dormant state to inspect recent synced advisory
   status before any services, App Intents, or GPS are active. A phone recommends On only when no
-  other installation recently reported recording; tablets, other devices, and explicit rejoins
+  other installation recently reported recording. Tablets, other devices, and explicit rejoins
   recommend Off. Only an enabled confirmation requests location permission. A restored device can
   inherit the backed-up onboarding flag but not the installation sidecar, so it
-  skips straight to that final page. Finishing logs in to the real scope — the
+  skips straight to that final page. Finishing logs in to the real scope. The
   app promotes that same store into its one real scope — and commits the picks as the tracked-region set +
   appearances before resolving the gate. The intro also offers **Restore from
   a backup**, which skips the manual pick/customize steps, verifies this
   installation's recording choice, then opens the store and imports the backup
   after asking whether to **Merge** (recommended, preserving existing data) or
-  **Replace** (destructive, starting from the backup); and **Explore a demo**,
+  **Replace** (destructive, starting from the backup), and **Explore a demo**,
   which builds a throwaway in-memory world behind a captioned launch splash and
   enters it. Once an onboarding import commits, its summary is retained and
   a two-phase marker remains in the backup-excluded sidecar until onboarding is
@@ -145,25 +166,31 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `RegionsSettingsView` editor.
 - **`DevicesSettingsView`** — Settings’ installation rows for local recording choice, synced
   nicknames, advisory activity/permission status, and irreversible removal. Only the current row
-  can toggle recording; remote rows can be renamed or removed while preserving their earlier
-  history.
+  can toggle recording. Remote rows can be renamed or removed while preserving their earlier
+  history. The current row can open Settings.app to promote location access even while recording is
+  off. Settings badges when the current phone is the expected recorder (no other installation
+  recently reported recording) but has both automatic recording and Always location access disabled.
+  The user can acknowledge that occurrence, and a later recovery then regression starts a new warning
+  generation.
 - **Widget views** — the shared renderers the **WhereWidgets** extension draws
   with: `TodayWidgetView`, `YearTotalsWidgetView`, and the accessory family
   (`TodayInlineAccessoryView`, `TodayCircularAccessoryView`,
-  `YearTotalsRectangularAccessoryView`). Each takes a `WidgetSnapshot`.
-- **`RegionStyle` / `RegionStyleResolver`** — a region's symbol, emoji, and
+  `YearTotalsRectangularAccessoryView`). Each takes a `WidgetSnapshot` and
+  exposes one explicit accessibility label/value pair rather than its visual
+  rows as separate elements.
+- **`RegionStyle` / `RegionStyleResolver`** — a region's typed `SFSymbol`, emoji, and
   tint, shared across cards, calendar dots, and timelines. Views resolve it from
   `@Environment(\.regionStyles)` (`regionStyles.style(for: region)`), seeded by
-  `whereBroadwayRoot(regionStyles:)` — from `WhereSession`'s live resolver in the
-  app, the `WidgetSnapshot` in the widget process, and services in App Intents —
+  `whereBroadwayRoot(theme:regionStyles:)` — from `WhereSession`'s live resolver
+  in the app, the `WidgetSnapshot` in the widget process, and services in App Intents —
   falling back to a deterministic default from `RegionAppearanceCatalog`.
 - **Feature discovery galleries** — Settings markets Siri/Spotlight, widgets,
   evidence, private insights, data accuracy, and personalization with shared
   patterned chrome and Reduce Motion-aware staged reveals. The examples reuse
   already-loaded user data when it is representative and link to the existing
   feature surfaces for any action.
-- **`whereBroadwayRoot()`** — seeds the Broadway design-system context so
-  descendants resolve the `WhereStylesheet` tokens (see [Design
+- **`whereBroadwayRoot()`** — seeds the selected `WhereTheme` and Broadway
+  design-system context so descendants resolve the `WhereStylesheet` tokens (see [Design
   system](#design-system)). Applied by `RootView` and by each widget.
 - **`RegionMapView`** — the developer region-map tool (also hosted standalone by
   the RegionViewer Mac Catalyst app).
@@ -202,7 +229,7 @@ struct WhereApp: App {
 }
 ```
 
-The regular runtime owns the model and launch runner; the DEBUG Inspector
+The regular runtime owns the model and launch runner. The DEBUG Inspector
 runtime supplies an entirely separate root. `RootView` applies
 `whereBroadwayRoot()` itself, so a host doesn't wrap it. For
 a self-contained preview or UI test, the no-arg `RootView()` builds its own
@@ -212,10 +239,10 @@ model and a foreground launch runner.
 
 Appearance tokens — geometry, fonts, colors, motion — live in one place,
 `WhereStylesheet`, a Broadway `BStylesheet` resolved from the environment. Views
-read it with `@Environment(\.stylesheet)`; off the `View` tree (layout helpers,
+read it with `@Environment(\.stylesheet)`. Off the `View` tree (layout helpers,
 tests) code uses `WhereStylesheet.default`. The active sheet is seeded by
 `whereBroadwayRoot()` at the app root and in each Broadway-root-less consumer
-(WhereWidgets); with no root present, resolution falls back to `.default`.
+(WhereWidgets). With no root present, resolution falls back to `.default`.
 The rules for what may and may not live in the sheet are in
 [`AGENTS.md`](AGENTS.md#design-system--wherestylesheet).
 
@@ -231,12 +258,12 @@ across ~30 values.
 
 Group a component's whole appearance into one nested `Equatable` struct
 instead of adding loose properties to the top level. The stored properties
-declared at the top of `WhereStylesheet` are the live list of groups; two are
+declared at the top of `WhereStylesheet` are the live list of groups. Two are
 worth copying as templates: `CardStyles` (a variant axis behind a `subscript`)
 and `CalendarStyle` (nested sub-parts). To add one:
 
 1. Define the struct in a `WhereStylesheet` extension with a doc comment
-   saying which component it styles and any invariants; nest further structs
+   saying which component it styles and any invariants. Nest further structs
    for sub-parts (e.g. `CalendarStyle.MonthStyle`, `AppIconStyle.PanelStyle`).
 2. Give it a `static let standard` holding the fixed geometry, and add a
    stored property on `WhereStylesheet` defaulted to it.
@@ -251,7 +278,7 @@ faces on `Typography`, and animation tokens on `Motion`.
 
 ### Trait-aware tokens
 
-Most tokens are fixed; a slice derives from the `BContext` traits in
+Most tokens are fixed. A slice derives from the `BContext` traits in
 `init(context:)` — read the live set off that initializer. Today it grows
 day-grid tap targets at accessibility Dynamic Type sizes, flattens the card
 glow under Reduce Transparency, and crossfades the cards' day count under
@@ -262,39 +289,67 @@ Reduce Motion.
 `RegionStyle` is data-driven and resolved through the environment: views read
 `@Environment(\.regionStyles)` (a `RegionStyleResolver`) and call
 `regionStyles.style(for: region)`. The resolver is seeded by
-`whereBroadwayRoot(regionStyles:)`: the app passes `WhereSession`'s live
+`whereBroadwayRoot(theme:regionStyles:)`: the app passes `WhereSession`'s live
 resolver (updated on launch + `changes()`), the widget process one built from
-its `WidgetSnapshot`, and App Intents snippets one from their services; the
+its `WidgetSnapshot`, and App Intents snippets one from their services. The
 default empty resolver yields the fallback looks
 (`RegionAppearanceCatalog.defaultAppearance(for:)`) for previews and the
 region-map viewer. The catalog also owns the selectable color/emoji/symbol
 option lists the picker shows.
+
+`WhereTheme` is the device-local presentation identity. Standard and Alternate
+currently resolve through identical Liquid Glass tokens; onboarding previews
+before commit, Appearance Settings persists immediately, and widgets and
+snippets receive the same identity through their cross-process snapshots.
 
 Regular `RegionSummaryCard`s ask the root-owned `RegionOutlinePathCache` for a
 medium SwiftUI path for the large security-print watermark and a small path for
 the seal inside the circular entry stamp. A separate micro path is repeated as
 a tangent-aligned microprint border around the card's inner perimeter. The UI
 cache derives all four resolutions from RegionKit's one cached source outline
-using its stateless simplifier; compact cards retain the simpler symbol
+using its stateless simplifier. Compact cards retain the simpler symbol
 treatment. On the two large Locations cards, raw GPS fixes for the selected
 year are projected through that same geometry and reduced to a clipped,
-static constellation of glowing pinpricks; manually logged days add no invented
+static constellation of glowing pinpricks. Manually logged days add no invented
 points. Settings > Appearance can hide or restore that constellation without
 altering the recorded data. Security-print layers use normal compositing in
-light mode and Screen in dark mode, so the same tinted details darken pale glass
-but lighten dark glass. Reduce Transparency removes the constellation halos
-while retaining the crisp centers.
+light mode. Dark mode mixes the region tint 65% toward white and uses luminosity
+blending, which keeps the ink legible without oversaturating it when interactive
+glass illuminates. Reduce Transparency removes the constellation halos while
+retaining the crisp centers.
 Live tilt is observed only by the sheen overlay, so its 60 Hz updates do not
 invalidate the card's text or Canvas artwork. The card adds no standalone edge
-stroke; its containing Liquid Glass surface owns the subtle outer border so
+stroke. Its containing Liquid Glass surface owns the subtle outer border so
 direct and production rendering do not diverge.
+
+After three complete months, Locations can show a collapsible annual estimate from the recorded pace.
+The user can plan a stay in one of the displayed regions. The shared estimate uses an adaptive
+passport-visa endorsement. A neutral microprint border repeats the silhouettes of the two main
+location cards around the security print and annual seal. Region-tinted rows use a solid and
+hatched rule to distinguish recorded time from the projection.
+A focused region calendar puts the same open endorsement after the current month. The calendar
+shows planned future days with a continuous hatched band. This band is distinct from recorded
+presence. Appearance settings hide every estimate and planning view only after the app clears the
+synchronized plan.
+
+While the Locations cards are visible, a live reversal between the same two
+primary regions holds the previous counts and order through the existing reveal
+delay. The winning card then passes above the other card and settles with the
+count morph and one haptic in the same beat. Initial loads, year changes, hidden
+updates, and a different region entering the primary pair update without the
+spatial flourish. Reduce Motion replaces the pass with a brief fade emphasis.
 
 DEBUG builds include Card Designer Studio under Settings → Appearance. It
 edits a versioned, persisted draft of the regular, compact, and shared card
 presentation, previews both appearances with live tilt, and exports the full
 result—or only its changes from the app defaults—as shareable or clipboard JSON
 and Swift. The draft affects the rest of the app only while “Apply to App” is
-enabled; that switch intentionally resets on every launch.
+enabled. That switch intentionally resets on every launch.
+
+The separate DEBUG Ranking Animation Lab appears directly below Card Designer
+Studio. It replays the production ranked-card coordinator and provides
+session-only controls for the pass motion. It does not modify Card Designer
+drafts, exports, or the app-wide card override.
 
 ## Previews
 
@@ -314,7 +369,7 @@ scanning or a macro that cannot discover navigation across the module.
 
 Opening Flyover asynchronously builds one `WhereScope.demo` and shares its
 seeded in-memory services, preferences, and session across live frames. That
-scope is never activated and never log-routed; the app's current scope remains
+scope is never activated and never log-routed. The app's current scope remains
 untouched. The loader constructs and retains the completed catalog once, so
 host-view updates preserve those frame fixtures and their controls. Synthetic
 `PreviewSupport` states fill the gaps the demo data cannot express cleanly
@@ -325,7 +380,7 @@ can show or hide its Resolve toolbar item—and Reset restores that fixture.
 Overview frames ignore hit testing so embedded navigation containers cannot
 fight the canvas. Leaf screens receive an isolated navigation stack so their
 titles, toolbar items, and destinations render inside the frame rather than
-escaping into the Developer Tools stack; app roots, widgets, and snippets opt
+escaping into the Developer Tools stack. App roots, widgets, and snippets opt
 out. Selecting the inspect button opens the same screen in a full-screen
 interactive viewport. Flyover's appearance, device, Dynamic Type, contrast,
 layout-direction, and bold-text choices are session-only and apply only to
@@ -345,12 +400,12 @@ iPhone/iPad, contrast, right-to-left, VoiceOver annotations) in
 [`SnapshotTests/`](SnapshotTests), with reference images under
 `SnapshotTests/__Snapshots__/` in Git LFS. Each view declares its matrix via a
 `SnapshotProviding` conformance **in its own source file**, shared with its
-`#Preview` cutsheet (`Self.snapshotPreviews`); there is one `FooSnapshotTests`
+`#Preview` cutsheet (`Self.snapshotPreviews`). There is one `FooSnapshotTests`
 suite per view, so each view's references live in their own `__Snapshots__/`
 directory. They build as this module's own `WhereUISnapshotTests` bundle, which
 runs alongside the other modules' image suites in the shared
-`StuffSnapshotTests` scheme and its CI job;
-to re-record after an intentional UI change (see the
+`StuffSnapshotTests` scheme and its CI job.
+To re-record after an intentional UI change (see the
 [SnapshotKitTesting README](../../Shared/SnapshotKitTesting/README.md#recording)
 for the mode values):
 
@@ -358,4 +413,4 @@ for the mode values):
 ./test --snapshots --record failed
 ```
 
-then review and commit the images.
+Then review and commit the images.
