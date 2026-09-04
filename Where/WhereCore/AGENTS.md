@@ -154,7 +154,9 @@ internal shape.
 - **`DemoDataBuilder` seeds through the ordinary write paths** (`DayJournal`,
   `setPrimaryRegions`). No private door into the store. A demo exercises
   the code a real user does. Its data is sized against the *elapsed* year, not
-  the calendar. Fixed sizes made a January demo mostly-unlogged. Guard:
+  the calendar. Configured issue categories must be independently selectable:
+  checked categories appear and unchecked categories do not. Keep any
+  early-year clock adjustment inside the in-memory demo. Guard:
   `DemoDataBuilderTests.holdsItsShapeWhereverInTheYearItIsEntered`.
 - **Impossible states trap. Recoverable ones surface.** `WhereStore` methods
   are `async throws`. A `catch` logs a typed `WhereLog` event (PII-free,

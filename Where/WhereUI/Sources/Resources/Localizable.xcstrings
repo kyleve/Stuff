@@ -2597,6 +2597,90 @@
         }
       }
     },
+    "developer.demo.cancelScheduled" : {
+      "comment" : "Button that removes a scheduled one-shot demo launch.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Cancel Scheduled Demo"
+          }
+        }
+      }
+    },
+    "developer.demo.cleanBaseline" : {
+      "comment" : "Developer menu status for a scheduled demo with no unresolved issue fixtures.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Clean baseline"
+          }
+        }
+      }
+    },
+    "developer.demo.issues.footer" : {
+      "comment" : "Footer explaining the next-launch demo issue checklist.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Selected issue types appear in Resolve. Clear every option for a clean demo year."
+          }
+        }
+      }
+    },
+    "developer.demo.issues.header" : {
+      "comment" : "Header above the next-launch demo issue checklist.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show in Resolve"
+          }
+        }
+      }
+    },
+    "developer.demo.nextLaunch" : {
+      "comment" : "Developer menu button that configures a one-shot in-memory demo for the next launch.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Demo on Next Launch"
+          }
+        }
+      }
+    },
+    "developer.demo.schedule" : {
+      "comment" : "Confirmation button that schedules the configured demo for the next launch.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Schedule"
+          }
+        }
+      }
+    },
+    "developer.demo.sheetTitle" : {
+      "comment" : "Title of the developer sheet that configures the next demo launch.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Next Launch Demo"
+          }
+        }
+      }
+    },
     "developer.dragHandle" : {
       "comment" : "Accessibility label for the handle that drags the floating developer window.",
       "extractionState" : "manual",
@@ -3271,6 +3355,18 @@
         }
       }
     },
+    "locationCard.estimateLabel" : {
+      "comment" : "Short noun labeling an annual estimate on a primary location card.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimate"
+          }
+        }
+      }
+    },
     "locationCard.estimatedDays" : {
       "comment" : "Compact label above a location card progress bar. The placeholder is an already-localized day count, for example '184 days'.",
       "extractionState" : "manual",
@@ -3483,6 +3579,97 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "^[%lld region](inflect: true)"
+          }
+        }
+      }
+    },
+    "locations.planning.assign" : {
+      "comment" : "Menu action for assigning the planned stay to a primary-card region. The placeholder is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plan a Stay in %@"
+          }
+        }
+      }
+    },
+    "locations.planning.assignSection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plan For"
+          }
+        }
+      }
+    },
+    "locations.planning.currentSection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Current Plan"
+          }
+        }
+      }
+    },
+    "locations.planning.currentValue" : {
+      "comment" : "Accessibility value for the Locations planning toolbar menu. The placeholder is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Current plan: %@"
+          }
+        }
+      }
+    },
+    "locations.planning.edit" : {
+      "comment" : "Menu action for editing the active planned stay. The placeholder is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Edit %@ Plan"
+          }
+        }
+      }
+    },
+    "locations.planning.menu" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plan a Stay"
+          }
+        }
+      }
+    },
+    "locations.planning.noCurrentValue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No current plan"
+          }
+        }
+      }
+    },
+    "locations.planning.removeError.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Couldn’t Remove Plan"
           }
         }
       }
@@ -8753,6 +8940,17 @@
         }
       }
     },
+    "settings.regions.manage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Manage Regions"
+          }
+        }
+      }
+    },
     "settings.regions.row" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8760,6 +8958,17 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Primary regions"
+          }
+        }
+      }
+    },
+    "settings.regions.saveError.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Unable to Save Regions"
           }
         }
       }

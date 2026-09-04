@@ -1,35 +1,47 @@
 import RegionKit
 import SwiftUI
 
-/// Repeats one cached micro-fidelity region silhouette around an inset rounded
+/// Repeats cached micro-fidelity region silhouettes around an inset rounded
 /// perimeter, like the microprinted security border on a passport page.
 struct RegionOutlineSecurityBorder: View {
-    let path: Path
+    let paths: [Path]
     let tint: Color
     let cornerRadius: CGFloat
-    let style: WhereStylesheet.CardStyle.RegionShape.SecurityBorder
+    let inset: CGFloat
+    let glyphSize: CGFloat
+    let spacing: CGFloat
+    let opacity: Double
 
     var body: some View {
         Canvas { context, size in
-            let bounds = path.boundingRect
-            guard !path.isEmpty, bounds.width > 0, bounds.height > 0 else { return }
-            let scale = min(
-                style.glyphSize / bounds.width,
-                style.glyphSize / bounds.height,
-            )
+            let artwork = paths.compactMap { path -> Artwork? in
+                let bounds = path.boundingRect
+                guard !path.isEmpty, bounds.width > 0, bounds.height > 0 else { return nil }
+                return Artwork(
+                    path: path,
+                    bounds: bounds,
+                    scale: min(glyphSize / bounds.width, glyphSize / bounds.height),
+                )
+            }
+            guard !artwork.isEmpty else { return }
 
-            for placement in Self.placements(
+            for (index, placement) in Self.placements(
                 in: size,
                 cornerRadius: cornerRadius,
-                inset: style.inset,
-                spacing: style.spacing,
-            ) {
+                inset: inset,
+                spacing: spacing,
+            ).enumerated() {
+                guard let artworkIndex = Self.artworkIndex(
+                    at: index,
+                    artworkCount: artwork.count,
+                ) else { continue }
+                let item = artwork[artworkIndex]
                 var stamp = context
                 stamp.translateBy(x: placement.center.x, y: placement.center.y)
                 stamp.rotate(by: .radians(placement.rotation))
-                stamp.scaleBy(x: scale, y: scale)
-                stamp.translateBy(x: -bounds.midX, y: -bounds.midY)
-                stamp.fill(path, with: .color(tint.opacity(style.opacity)))
+                stamp.scaleBy(x: item.scale, y: item.scale)
+                stamp.translateBy(x: -item.bounds.midX, y: -item.bounds.midY)
+                stamp.fill(item.path, with: .color(tint.opacity(opacity)))
             }
         }
         .allowsHitTesting(false)
@@ -72,6 +84,12 @@ struct RegionOutlineSecurityBorder: View {
             ))
         }
         return placements
+    }
+
+    /// Cycles the supplied artwork in its source order around the perimeter.
+    static func artworkIndex(at placementIndex: Int, artworkCount: Int) -> Int? {
+        guard placementIndex >= 0, artworkCount > 0 else { return nil }
+        return placementIndex % artworkCount
     }
 
     private static func placement(
@@ -177,6 +195,12 @@ struct RegionOutlineSecurityBorder: View {
         let center: CGPoint
         let rotation: Double
     }
+
+    private struct Artwork {
+        let path: Path
+        let bounds: CGRect
+        let scale: CGFloat
+    }
 }
 
 #if DEBUG
@@ -193,10 +217,13 @@ struct RegionOutlineSecurityBorder: View {
             let card = WhereStylesheet.default.card.regular
             if let style = card.regionShape?.securityBorder {
                 RegionOutlineSecurityBorder(
-                    path: path,
+                    paths: [path],
                     tint: .orange,
                     cornerRadius: card.cornerRadius,
-                    style: style,
+                    inset: style.inset,
+                    glyphSize: style.glyphSize,
+                    spacing: style.spacing,
+                    opacity: style.opacity,
                 )
                 .frame(width: 320, height: 180)
                 .background(

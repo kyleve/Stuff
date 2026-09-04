@@ -95,7 +95,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Immediate measurement never shortens final capture settling.** It skips only the intrinsic-sizing probe's settle for synchronously sized fixtures.
 - **The final `.settled` / `.settledAtLeast` policy still runs.** Guards: `AsyncContentCaptureTests`.
 - **A settle phase costs its floor, not its passes.**
-- **Measured 2026-07-28 with `SNAPSHOT_TIMING=1` over 260 references of the time.** The suite holds 466 as of 2026-08-16. Re-measure before acting on the split below.
+- **Measured 2026-07-28 with `SNAPSHOT_TIMING=1` over 260 references of the time.** The suite holds 472 as of 2026-08-30. Re-measure before acting on the split below.
 - **The conclusion (the floor dominates) is what to rely on, not the seconds.**
 - **192 captures sat at 0.25-0.35s — the `minDuration` floor plus a pass or two.** The floor accounts for ~70s of the ~84s of settle time.
 - **The render passes themselves are ~14s across the whole suite.** Making passes cheaper is worth ~11%. Removing floors is worth ~54%.
@@ -118,7 +118,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Quiescence cannot replace the pixel digest.**
 - **`SNAPSHOT_SETTLE` selects `pixel` (default), `quiescence`, or `both`.** Quiescence uses a `beforeWaiting` run-loop observer plus a recursive `needsLayout`/`needsDisplay`/`animationKeys` walk.
 - **`both` runs them together and reports disagreements.**
-- **Run in `both` mode (2026-07-28) over 260 references of the time — 466 as of 2026-08-16.** The counts below are that run's, not current.
+- **Run in `both` mode (2026-07-28) over 260 references of the time — 472 as of 2026-08-30.** The counts below are that run's, not current.
 - **That run had 226 settle phases, 134 with some disagreement.**
 - **8 cases had quiescence declare settled *earlier* than the digest.** Every one was a `Loaded_*` case whose content arrives late.
 - **That is the one dangerous direction.** It would capture a frame no reference recorded.

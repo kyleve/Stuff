@@ -98,6 +98,18 @@ enum WhereFormat {
         String(localized: .locationCardEstimatedDays(dayCount(days)))
     }
 
+    static func locationsPlanningAssign(region: Region) -> String {
+        String(localized: .locationsPlanningAssign(region.localizedName))
+    }
+
+    static func locationsPlanningEdit(region: Region) -> String {
+        String(localized: .locationsPlanningEdit(region.localizedName))
+    }
+
+    static func locationsPlanningCurrentValue(region: Region) -> String {
+        String(localized: .locationsPlanningCurrentValue(region.localizedName))
+    }
+
     static func settingsBackupImportedMessage(
         samples: Int,
         evidence: Int,
@@ -390,6 +402,13 @@ enum WhereFormat {
             case .abruptChange: String(localized: .resolutionSectionAbruptChange)
             case .flightDay: String(localized: .resolutionSectionFlightDay)
         }
+    }
+
+    static func resolutionCategoryList(_ categories: Set<DataIssueCategory>) -> String {
+        DataIssueCategory.allCases
+            .filter(categories.contains)
+            .map(resolutionSectionHeader)
+            .formatted(.list(type: .and))
     }
 
     static func driftRowSubtitle(region: String, distance: String) -> String {

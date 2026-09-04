@@ -16,16 +16,7 @@ struct LocationForecastRow: View {
         let shape = RoundedRectangle(cornerRadius: row.cornerRadius)
 
         VStack(alignment: .leading, spacing: row.contentSpacing) {
-            VStack(alignment: .leading, spacing: row.estimateSpacing) {
-                Text(forecast.region.localizedName)
-                    .font(row.regionFont)
-                    .bold()
-                    .foregroundStyle(tint)
-                Text(WhereFormat.dayCount(forecast.estimatedTotalDays))
-                    .font(row.estimateFont)
-                    .bold()
-                    .monospacedDigit()
-            }
+            LocationForecastEstimateLabel(forecast: forecast, tint: tint)
 
             LocationForecastProgress(forecast: forecast, tint: tint)
 
@@ -51,7 +42,7 @@ struct LocationForecastRow: View {
         .overlay {
             shape.strokeBorder(
                 tint.opacity(style.ink.rowOutlineOpacity),
-                lineWidth: style.surface.insetOutlineWidth,
+                lineWidth: row.outlineWidth,
             )
         }
         .accessibilityElement(children: .ignore)

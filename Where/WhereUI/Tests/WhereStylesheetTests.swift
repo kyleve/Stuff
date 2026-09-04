@@ -202,6 +202,9 @@ struct WhereStylesheetTests {
         #expect(card.dayCount == .standard)
         #expect(card.dayCount.revealDelay == .milliseconds(500))
         #expect(card.dayCount.animation == .easeOut(duration: 0.3))
+        #expect(card.estimateSticker == .standard)
+        #expect(card.estimateSticker.contentOpacity == 0.92)
+        #expect(card.estimateSticker.scale == 0.8)
         #expect(card.constellation == .init(
             gridResolution: 48,
             maximumPointCount: 96,
@@ -309,14 +312,13 @@ struct WhereStylesheetTests {
         let forecast = style.locationForecast
         #expect(forecast.cornerRadius == 22)
         #expect(forecast.padding == 16)
-        #expect(forecast.rowSpacing == 16)
+        #expect(forecast.rowSpacing == 12)
         #expect(forecast.expansionAnimation == .easeInOut(duration: 0.2))
         #expect(forecast.surface == .init(
             outlineWidth: 1.25,
-            inset: 5,
-            insetOutlineWidth: 0.75,
-            insetDashLength: 4,
-            insetDashSpacing: 4,
+            inset: 9,
+            microprintGlyphSize: 7,
+            microprintSpacing: 10,
             rosetteWobble: 5,
             rosetteLineWidth: 0.75,
             primaryRingSpacing: 10,
@@ -326,24 +328,21 @@ struct WhereStylesheetTests {
             shadowOffsetY: 3,
         ))
         #expect(forecast.header == .init(
-            contentSpacing: 12,
+            contentSpacing: 10,
             textSpacing: 2,
             titleFont: .system(.headline, design: .serif),
             elapsedFont: .footnote,
-            minimumHeight: 52,
+            minimumHeight: 50,
         ))
         #expect(forecast.row == .init(
             cornerRadius: 14,
-            padding: 12,
-            contentSpacing: 8,
-            estimateSpacing: 3,
-            regionFont: .system(.headline, design: .serif),
-            estimateFont: .system(.title2, design: .rounded),
+            padding: 10,
+            contentSpacing: 6,
+            estimateSpacing: 2,
+            regionFont: .system(.title3, design: .serif),
+            estimateFont: .system(.headline, design: .rounded),
             detailFont: .footnote,
-            separatorHeight: 1,
-            separatorLineWidth: 1,
-            separatorDashLength: 4,
-            separatorDashSpacing: 5,
+            outlineWidth: 0.75,
         ))
         #expect(forecast.progress == .init(
             height: 8,
@@ -351,15 +350,16 @@ struct WhereStylesheetTests {
             hatchLineWidth: 1,
         ))
         #expect(forecast.controls == .init(
-            sectionSpacing: 10,
-            layoutSpacing: 8,
+            sectionSpacing: 8,
+            layoutSpacing: 6,
             cornerRadius: 12,
-            horizontalPadding: 12,
+            horizontalPadding: 10,
             minimumHeight: 44,
             strokeWidth: 1,
             font: .subheadline,
         ))
         #expect(forecast.ink == .standard)
+        #expect(forecast.ink.microprintOpacity == 0.18)
     }
 
     @Test func appIconStyle() {
@@ -792,6 +792,7 @@ struct WhereStylesheetTests {
         context.traitOverrides.accessibility = BAccessibility(isDarkerSystemColorsEnabled: true)
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.locationForecast.ink == .increasedContrast)
+        #expect(resolved.locationForecast.ink.microprintOpacity == 0.4)
         #expect(resolved.openSourceStamp.ink == .increasedContrast)
         #expect(resolved.plannedStayWarningStamp.ink == .increasedContrast)
     }

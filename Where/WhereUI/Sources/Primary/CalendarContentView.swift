@@ -154,6 +154,7 @@ struct CalendarContentView: View {
                         if showsForecast(after: month) {
                             LocationForecastPanel(
                                 forecasts: calendarForecasts,
+                                microprintRegions: report.ranking.primary.map(\.region),
                                 plannedStay: report.forecasts.activePlannedStay,
                                 editableRegions: editableForecastRegions,
                                 editAction: { region in

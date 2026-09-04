@@ -206,10 +206,13 @@ struct RegionSummaryCard: View {
                 !regionPath.isEmpty
             {
                 RegionOutlineSecurityBorder(
-                    path: regionPath,
+                    paths: [regionPath],
                     tint: tint,
                     cornerRadius: card.cornerRadius,
-                    style: regionShape.securityBorder,
+                    inset: regionShape.securityBorder.inset,
+                    glyphSize: regionShape.securityBorder.glyphSize,
+                    spacing: regionShape.securityBorder.spacing,
+                    opacity: regionShape.securityBorder.opacity,
                 )
             }
 
@@ -289,17 +292,19 @@ struct RegionSummaryCard: View {
     }
 
     var body: some View {
+        let regionName = Text(regionDays.region.localizedName)
+            .font(card.regionNameTypography.font)
+            .tracking(card.regionNameTracking)
+            .lineLimit(1)
+            .allowsTightening(true)
+            .minimumScaleFactor(0.7)
+            .foregroundStyle(style.tint)
+            .opacity(cardStyles.nameOpacity)
+
         VStack(alignment: .leading, spacing: card.contentSpacing) {
             HStack(alignment: .top, spacing: stylesheet.spacing.large) {
                 VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-                    Text(regionDays.region.localizedName)
-                        .font(card.regionNameTypography.font)
-                        .tracking(card.regionNameTracking)
-                        .lineLimit(1)
-                        .allowsTightening(true)
-                        .minimumScaleFactor(0.7)
-                        .foregroundStyle(style.tint)
-                        .opacity(cardStyles.nameOpacity)
+                    regionName
                     if let caption {
                         Text(caption)
                             .font(.caption2.weight(.semibold))
@@ -322,48 +327,46 @@ struct RegionSummaryCard: View {
                 }
             }
 
-            HStack(alignment: .firstTextBaseline, spacing: stylesheet.spacing.small) {
-                Text(regionDays.days, format: .number)
-                    .font(card.heroNumberTypography.font)
-                    .contentTransition(dayCount.transition(days: regionDays.days))
-                    .foregroundStyle(style.tint)
-                Text(WhereFormat.dayUnit(regionDays.days))
-                    .font(card.dayUnitTypography.font)
-                    .foregroundStyle(.secondary)
+            if let estimatedDays {
+                LocationCardEstimateSticker(
+                    recordedDays: regionDays.days,
+                    estimatedDays: estimatedDays,
+                    regionTint: style.tint,
+                    securityPrintTint: securityPrintTint,
+                    card: card,
+                    style: cardStyles.estimateSticker,
+                    transition: dayCount,
+                )
+            } else {
+                LocationCardDayCount(
+                    days: regionDays.days,
+                    tint: style.tint,
+                    card: card,
+                    transition: dayCount.transition(days: regionDays.days),
+                )
             }
 
-            VStack(alignment: .trailing, spacing: stylesheet.spacing.xxSmall) {
-                if let estimatedDays {
-                    Text(WhereFormat.locationCardEstimatedDays(estimatedDays))
-                        .font(.caption.weight(.semibold))
-                        .textCase(.uppercase)
-                        .tracking(0.8)
-                        .foregroundStyle(securityPrintTint)
-                        .contentTransition(dayCount.transition(days: estimatedDays))
-                }
-
-                Capsule()
-                    .fill(.quaternary)
-                    .frame(height: barHeight)
-                    .overlay(alignment: .leading) {
-                        GeometryReader { proxy in
-                            Capsule()
-                                .fill(style.tint)
-                                .frame(width: proxy.size.width * recordedFraction)
-                                .background(alignment: .leading) {
-                                    if let estimatedFraction {
-                                        Capsule()
-                                            .fill(securityPrintTint.opacity(
-                                                cardStyles.estimatedProgressOpacity,
-                                            ))
-                                            .frame(width: proxy.size.width * estimatedFraction)
-                                    }
+            Capsule()
+                .fill(.quaternary)
+                .frame(height: barHeight)
+                .overlay(alignment: .leading) {
+                    GeometryReader { proxy in
+                        Capsule()
+                            .fill(style.tint)
+                            .frame(width: proxy.size.width * recordedFraction)
+                            .background(alignment: .leading) {
+                                if let estimatedFraction {
+                                    Capsule()
+                                        .fill(securityPrintTint.opacity(
+                                            cardStyles.estimatedProgressOpacity,
+                                        ))
+                                        .frame(width: proxy.size.width * estimatedFraction)
                                 }
-                        }
+                            }
                     }
-                    .frame(height: barHeight)
-            }
-            .accessibilityHidden(true)
+                }
+                .frame(height: barHeight)
+                .accessibilityHidden(true)
         }
         // What makes the count's `.contentTransition` run at all — one morphs
         // only inside an animation transaction — and it sweeps the ambient bar,
