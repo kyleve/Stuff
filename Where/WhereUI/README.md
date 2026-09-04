@@ -159,9 +159,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   drain an obsolete outbox. `OnboardingImportRecoveryModel` owns that reconciliation rather than
   the process-wide `WhereModel`. Settings offers export only.
 - **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
-  picker (segmented map/list) and per-region color/emoji/icon customization,
-  backed by `PrimaryRegionSelectionModel`. Reused by onboarding and the Settings
-  `RegionsSettingsView` editor.
+  picker (segmented map/list) and the stepped color/emoji/icon editor for onboarding.
+  `PrimaryRegionSelectionModel` contains their shared state. The `RegionsSettingsView`
+  screen opens on selected regions and edits one appearance at a time. It uses the shared
+  picker for membership changes.
 - **`DevicesSettingsView`** — Settings’ installation rows for local recording choice, synced
   nicknames, advisory activity/permission status, and irreversible removal. Only the current row
   can toggle recording. Remote rows can be renamed or removed while preserving their earlier

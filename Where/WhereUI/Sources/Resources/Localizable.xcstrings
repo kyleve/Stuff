@@ -8940,6 +8940,17 @@
         }
       }
     },
+    "settings.regions.manage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Manage Regions"
+          }
+        }
+      }
+    },
     "settings.regions.row" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8947,6 +8958,17 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Primary regions"
+          }
+        }
+      }
+    },
+    "settings.regions.saveError.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Unable to Save Regions"
           }
         }
       }
