@@ -407,3 +407,209 @@ if grep -R -E 'fetch\(|https?://' "$ROOT/Shared/Flyover/Web" \
     | grep -v 'http://www.w3.org/2000/svg' >/dev/null; then
     fail "the web shell contains a network dependency"
 fi
+
+JSC="/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc"
+[ -x "$JSC" ] || fail "JavaScriptCore is unavailable"
+python3 - "$ROOT/Shared/Flyover/Web/assets/app.js" "$TEMP/residency-test.js" <<'PY'
+import pathlib
+import sys
+import textwrap
+
+source = pathlib.Path(sys.argv[1]).read_text()
+settings_start_marker = '    const targetResidentImageCount = '
+settings_end_marker = '\n    let inspectorResizeObserver'
+start_marker = '    function residentScreenIDs(candidates) {'
+end_marker = '\n\n    function installCanvasPinch(viewport) {'
+fit_start_marker = '    function fitFrame(frame, behavior = "smooth") {'
+fit_end_marker = '\n\n    function fitAll(behavior = "smooth") {'
+settings_start = source.index(settings_start_marker)
+settings_end = source.index(settings_end_marker, settings_start)
+start = source.index(start_marker)
+end = source.index(end_marker, start)
+fit_start = source.index(fit_start_marker)
+fit_end = source.index(fit_end_marker, fit_start)
+settings = textwrap.dedent(source[settings_start:settings_end])
+residency = textwrap.dedent(source[start:end])
+fit_frame = textwrap.dedent(source[fit_start:fit_end])
+test = '''
+%s
+%s
+%s
+
+let document;
+let manifest;
+let state;
+let screenByID;
+const window = {
+    matchMedia: () => ({ matches: true }),
+};
+
+function requestAnimationFrame(callback) {
+    callback();
+    return 1;
+}
+
+function matchesFilters() {
+    return true;
+}
+
+function imageMetadata(screen) {
+    return screen.imageMetadata;
+}
+
+function applyZoom() {}
+
+function candidate(id, isVisible, imagePixels) {
+    return { screen: { id }, isVisible, imagePixels };
+}
+
+function expect(condition, message) {
+    if (!condition) throw new Error(message);
+}
+
+function expectIDs(actual, expected, message) {
+    const actualIDs = Array.from(actual);
+    if (JSON.stringify(actualIDs) !== JSON.stringify(expected)) {
+        throw new Error(message + ': ' + JSON.stringify(actualIDs));
+    }
+}
+
+const visible = Array.from(
+    { length: 20 },
+    (_, index) => candidate('visible-' + index, true, 5_000_000),
+);
+expectIDs(
+    residentScreenIDs(visible),
+    visible.map(item => item.screen.id),
+    'all visible screens must remain resident above both budgets',
+);
+
+const mixed = [
+    ...Array.from({ length: 10 }, (_, index) => candidate('nearby-' + index, false, 1_000_000)),
+    candidate('visible-a', true, 1_000_000),
+    candidate('visible-b', true, 1_000_000),
+];
+expectIDs(
+    residentScreenIDs(mixed),
+    ['visible-a', 'visible-b', 'nearby-0', 'nearby-1', 'nearby-2', 'nearby-3'],
+    'offscreen prefetch must stop at the resident count budget',
+);
+
+const largeNearby = Array.from(
+    { length: 8 },
+    (_, index) => candidate('large-' + index, false, 5_000_000),
+);
+expectIDs(
+    residentScreenIDs(largeNearby),
+    ['large-0', 'large-1', 'large-2', 'large-3'],
+    'offscreen prefetch must stop at the resident pixel budget',
+);
+
+function imageContainer(screenID, initiallyResident = false) {
+    const attributes = new Map();
+    if (initiallyResident) attributes.set('src', screenID + '.png');
+    const image = {
+        dataset: { src: screenID + '.png' },
+        loading: 'lazy',
+        getAttribute: name => attributes.get(name) || null,
+        removeAttribute: name => attributes.delete(name),
+        set src(value) { attributes.set('src', value); },
+        get src() { return attributes.get('src'); },
+    };
+    return {
+        dataset: { screenId: screenID },
+        image,
+        querySelector: () => image,
+    };
+}
+
+const canvasScreens = Array.from({ length: 20 }, (_, index) => ({
+    id: 'canvas-' + index,
+    frame: { x: 10, y: 10, width: 20, height: 20 },
+    imageMetadata: { pixelWidth: 2_500, pixelHeight: 2_000 },
+}));
+const canvasContainers = canvasScreens.map(screen => imageContainer(screen.id));
+const canvasViewport = {
+    clientHeight: 100,
+    clientWidth: 100,
+    scrollLeft: 0,
+    scrollTop: 0,
+};
+manifest = { screens: canvasScreens };
+state = { screen: null, view: 'canvas', zoom: 1 };
+document = {
+    getElementById: id => id === 'canvas-viewport' ? canvasViewport : null,
+    querySelectorAll: selector => selector === '.screen-card' ? canvasContainers : [],
+};
+updateCanvasImageResidency();
+expect(
+    canvasContainers.every(container => container.image.getAttribute('src') !== null),
+    'all 20 visible canvas cards must receive an image source',
+);
+expect(
+    canvasContainers.every(container => container.image.loading === 'eager'),
+    'visible canvas images must load eagerly',
+);
+
+const visibleListScreens = Array.from({ length: 20 }, (_, index) => ({
+    id: 'list-visible-' + index,
+    imageMetadata: { pixelWidth: 2_500, pixelHeight: 2_000 },
+    screenOrder: index,
+}));
+const nearbyListScreens = Array.from({ length: 10 }, (_, index) => ({
+    id: 'list-nearby-' + index,
+    imageMetadata: { pixelWidth: 1_000, pixelHeight: 1_000 },
+    screenOrder: visibleListScreens.length + index,
+}));
+const listRows = [
+    ...visibleListScreens.map(screen => ({
+        ...imageContainer(screen.id),
+        getBoundingClientRect: () => ({ top: 10, bottom: 90 }),
+    })),
+    ...nearbyListScreens.map((screen, index) => ({
+        ...imageContainer(screen.id, true),
+        getBoundingClientRect: () => ({ top: 101 + index, bottom: 111 + index }),
+    })),
+];
+const listViewport = {
+    getBoundingClientRect: () => ({ top: 0, bottom: 100 }),
+};
+screenByID = new Map(
+    [...visibleListScreens, ...nearbyListScreens].map(screen => [screen.id, screen]),
+);
+state = { screen: null, view: 'list' };
+document = {
+    querySelector: selector => selector === '.list-view' ? listViewport : null,
+    querySelectorAll: selector => selector === '.list-row' ? listRows : [],
+};
+updateListImageResidency();
+expect(
+    listRows.slice(0, 20).every(row => row.image.getAttribute('src') !== null),
+    'all 20 visible list rows must receive an image source',
+);
+expect(
+    listRows.slice(20).every(row => row.image.getAttribute('src') === null),
+    'offscreen list preloads must yield when visible rows exceed the targets',
+);
+
+let residencyRefreshCount = 0;
+const fitViewport = {
+    clientHeight: 600,
+    clientWidth: 800,
+    scrollTo: () => {},
+};
+state = { canvas: {}, zoom: 1 };
+document = {
+    getElementById: id => id === 'canvas-viewport' ? fitViewport : null,
+};
+updateCanvasImageResidency = () => { residencyRefreshCount += 1; };
+fitFrame({ x: 0, y: 0, width: 1_600, height: 1_200 }, 'auto');
+expect(
+    residencyRefreshCount === 1,
+    'fitting the canvas must refresh image residency after changing zoom',
+);
+''' % (settings, residency, fit_frame)
+pathlib.Path(sys.argv[2]).write_text(test)
+PY
+"$JSC" "$TEMP/residency-test.js" \
+    || fail "the web thumbnail residency policy is incorrect"

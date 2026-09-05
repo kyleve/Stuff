@@ -18,8 +18,8 @@
     ]));
     const defaultView = "canvas";
     const defaultProfile = manifest.profiles[0]?.id;
-    const maximumResidentImageCount = 6;
-    const maximumResidentPixelCount = 24_000_000;
+    const targetResidentImageCount = 6;
+    const targetResidentPixelCount = 24_000_000;
     let inspectorResizeObserver = null;
     const selectedVariants = new Map(manifest.screens.map(screen => [screen.id, screen.variants[0]?.id]));
     const state = {
@@ -1458,14 +1458,23 @@
         const result = new Set();
         let pixels = 0;
         for (const candidate of candidates) {
-            if (result.size >= maximumResidentImageCount) break;
-            const metadata = imageMetadata(candidate.screen);
-            const imagePixels = metadata ? metadata.pixelWidth * metadata.pixelHeight : 0;
-            if (result.size > 0 && pixels + imagePixels > maximumResidentPixelCount) continue;
+            if (!candidate.isVisible) continue;
             result.add(candidate.screen.id);
-            pixels += imagePixels;
+            pixels += candidate.imagePixels;
+        }
+        for (const candidate of candidates) {
+            if (candidate.isVisible) continue;
+            if (result.size >= targetResidentImageCount) break;
+            if (result.size > 0 && pixels + candidate.imagePixels > targetResidentPixelCount) continue;
+            result.add(candidate.screen.id);
+            pixels += candidate.imagePixels;
         }
         return result;
+    }
+
+    function screenImagePixels(screen) {
+        const metadata = imageMetadata(screen);
+        return metadata ? metadata.pixelWidth * metadata.pixelHeight : 0;
     }
 
     function updateCanvasImageResidency() {
@@ -1489,6 +1498,8 @@
             .filter(screen => matchesFilters(screen) && rectIntersects(screen.frame, visibleRect))
             .map(screen => ({
                 screen,
+                imagePixels: screenImagePixels(screen),
+                isVisible: true,
                 distance: squaredDistance(screen.frame.x + screen.frame.width / 2,
                     screen.frame.y + screen.frame.height / 2, center.x, center.y),
             }))
@@ -1522,7 +1533,12 @@
             if (!screen || !matchesFilters(screen)) continue;
             const frame = row.getBoundingClientRect();
             if (frame.bottom < viewport.top - 120 || frame.top > viewport.bottom + 120) continue;
-            candidates.push({ screen, distance: Math.abs((frame.top + frame.bottom) / 2 - centerY) });
+            candidates.push({
+                screen,
+                imagePixels: screenImagePixels(screen),
+                isVisible: frame.bottom > viewport.top && frame.top < viewport.bottom,
+                distance: Math.abs((frame.top + frame.bottom) / 2 - centerY),
+            });
         }
         candidates.sort((lhs, rhs) => lhs.distance - rhs.distance || lhs.screen.screenOrder - rhs.screen.screenOrder);
         updateResidentImages(".list-row", residentScreenIDs(candidates));
@@ -1533,9 +1549,11 @@
             const image = container.querySelector("img[data-src]");
             if (!image) continue;
             if (residentIDs.has(container.dataset.screenId)) {
+                image.loading = "eager";
                 if (image.getAttribute("src") !== image.dataset.src) image.src = image.dataset.src;
             } else {
                 image.removeAttribute("src");
+                image.loading = "lazy";
             }
         }
     }
@@ -1665,6 +1683,7 @@
         viewport.scrollTo({ left, top, behavior: prefersReducedMotion ? "auto" : behavior });
         state.canvas.scrollLeft = Math.max(0, left);
         state.canvas.scrollTop = Math.max(0, top);
+        updateCanvasImageResidency();
     }
 
     function fitAll(behavior = "smooth") {

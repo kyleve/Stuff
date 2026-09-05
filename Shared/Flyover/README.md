@@ -218,8 +218,10 @@ dock keeps the canvas visible. The group panel and overview map move between
 groups without recalculating the graph. The canvas keeps its position when a
 state, profile, or panel changes.
 
-Canvas and list views give active image sources to at most six nearby screenshots.
-They target 24 million pixels and always show the nearest screenshot.
+Canvas and list views give an active image source to every visible screenshot.
+The list can also preload nearby screenshots. This preload targets six active
+images and 24 million pixels.
+Visible screenshots override both targets.
 The inspector removes these sources while it shows one full-resolution capture.
 
 Point to or focus a card to emphasize its connected routes. The site dims

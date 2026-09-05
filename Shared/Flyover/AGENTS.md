@@ -30,6 +30,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build, format
 - **Type erase only at the heterogeneous content/control registry boundary.**
 - **Validate every stable screen and variant identifier before capture.** Use generated ordinals for image paths.
 - **Serve only a validated generated artifact.** Bind to loopback unless the user selects LAN access.
+- **Load every visible web screenshot.** Apply the residency limits only to offscreen preload candidates.
 - **Preserve snapshot-backed capture intent.** Reject mixed sizing matrices unless the app supplies an explicit export policy.
 - **Fail full-content export when sizing does not converge.** Never publish a viewport fallback.
 
