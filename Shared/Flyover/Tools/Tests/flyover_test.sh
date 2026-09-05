@@ -408,6 +408,64 @@ if grep -R -E 'fetch\(|https?://' "$ROOT/Shared/Flyover/Web" \
     fail "the web shell contains a network dependency"
 fi
 
+python3 - "$ROOT/Shared/Flyover/Web/assets/styles.css" \
+    "$ROOT/Shared/Flyover/Web/assets/app.js" <<'PY'
+import pathlib
+import re
+import sys
+
+styles = pathlib.Path(sys.argv[1]).read_text()
+javascript = pathlib.Path(sys.argv[2]).read_text()
+properties_by_selector = {}
+for selector_group, declaration_group in re.findall(r'([^{}]+)\{([^{}]*)\}', styles):
+    declarations = {}
+    for declaration in declaration_group.split(';'):
+        if ':' not in declaration:
+            continue
+        name, value = declaration.split(':', 1)
+        declarations[name.strip()] = value.strip()
+    for selector in selector_group.split(','):
+        properties_by_selector.setdefault(selector.strip(), {}).update(declarations)
+
+def require_properties(selector, expected):
+    actual = properties_by_selector.get(selector, {})
+    for name, value in expected.items():
+        if actual.get(name) != value:
+            raise SystemExit(f'{selector} must set {name}: {value}')
+
+for selector in ('#app', '#app > dialog'):
+    require_properties(selector, {
+        '-webkit-user-select': 'none',
+        'user-select': 'none',
+    })
+for selector in (
+    '#app input',
+    '#app textarea',
+    '#app [contenteditable="true"]',
+    '#app .selectable-text',
+):
+    require_properties(selector, {
+        '-webkit-user-select': 'text',
+        'user-select': 'text',
+    })
+require_properties('#app img', {'-webkit-user-drag': 'none'})
+
+factory_start = javascript.index('    function screenImage(screen, className = "", eager = false) {')
+factory_end = javascript.index('\n\n    function captureViewportSize(screen) {', factory_start)
+factory = javascript[factory_start:factory_end]
+if 'image.draggable = false;' not in factory:
+    raise SystemExit('screen images must disable native dragging')
+
+for fragment in (
+    'class="error selectable-text"',
+    'element("dd", "selectable-text", value)',
+    'element("h2", "selectable-text", screen.title)',
+    'element("h3", "selectable-text", screen.title)',
+):
+    if fragment not in javascript:
+        raise SystemExit('missing intentional text-selection surface: ' + fragment)
+PY
+
 JSC="/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc"
 [ -x "$JSC" ] || fail "JavaScriptCore is unavailable"
 python3 - "$ROOT/Shared/Flyover/Web/assets/app.js" "$TEMP/residency-test.js" <<'PY'

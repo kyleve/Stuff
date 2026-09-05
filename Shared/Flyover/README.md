@@ -238,6 +238,10 @@ drawer supplies capture data and route links. Full-content images use a
 device-width scroll area. The Fit and 100% controls change the image scale
 without changing the capture.
 
+Atlas controls, labels, and screenshots do not support browser text selection
+or image dragging. Search text, screen titles, error details, and metadata
+values remain selectable.
+
 The browser hash stores the view, screen, state, and profile. Browser Back and
 Forward restore these values. The site also supplies these keyboard controls:
 

@@ -57,6 +57,24 @@ body,
     margin: 0;
 }
 
+#app,
+#app > dialog {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+#app input,
+#app textarea,
+#app [contenteditable="true"],
+#app .selectable-text {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+#app img {
+    -webkit-user-drag: none;
+}
+
 body {
     overflow: hidden;
     background: var(--background);

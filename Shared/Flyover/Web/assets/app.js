@@ -4,7 +4,7 @@
     const root = document.getElementById("app");
     const manifest = window.FLYOVER_MANIFEST;
     if (!manifest || manifest.schemaVersion !== 1) {
-        root.innerHTML = '<main class="error"><p class="eyebrow">Manifest error</p><h1>Flyover cannot open this atlas</h1><p>This site requires manifest schema version 1.</p></main>';
+        root.innerHTML = '<main class="error selectable-text"><p class="eyebrow">Manifest error</p><h1>Flyover cannot open this atlas</h1><p>This site requires manifest schema version 1.</p></main>';
         return;
     }
 
@@ -251,7 +251,7 @@
 
     function metadataRow(label, value) {
         const row = element("div", "metadata-row");
-        row.append(element("dt", "", label), element("dd", "", value));
+        row.append(element("dt", "", label), element("dd", "selectable-text", value));
         return row;
     }
 
@@ -411,6 +411,7 @@
 
     function screenImage(screen, className = "", eager = false) {
         const image = element("img", className);
+        image.draggable = false;
         image.loading = eager ? "eager" : "lazy";
         image.decoding = "async";
         const source = imagePath(screen);
@@ -726,7 +727,7 @@
         heading.append(
             element("p", "eyebrow", (group?.title || "Ungrouped") + " · "
                 + (screenIndex + 1) + " of " + manifest.screens.length),
-            element("h2", "", screen.title),
+            element("h2", "selectable-text", screen.title),
         );
         heading.querySelector("h2").id = "inspector-title";
         const actions = element("div", "inspector-header-actions");
@@ -780,7 +781,10 @@
         drawer.setAttribute("aria-hidden", String(!state.inspectorDetails));
         drawer.inert = !state.inspectorDetails;
         const drawerHeader = element("header", "details-header");
-        drawerHeader.append(element("p", "eyebrow", "Screen details"), element("h3", "", screen.title));
+        drawerHeader.append(
+            element("p", "eyebrow", "Screen details"),
+            element("h3", "selectable-text", screen.title),
+        );
         const drawerClose = iconButton("close", "Close details", "icon-button details-close");
         drawerClose.addEventListener("click", toggleInspectorDetails);
         drawerHeader.append(drawerClose);
