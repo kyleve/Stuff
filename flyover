@@ -8,14 +8,56 @@ PROFILES=()
 STAGING=""
 BACKUP=""
 DESTINATION=""
+COMMAND=""
+PREVIEW_LAN=false
+PREVIEW_PORT=0
 
 usage() {
     cat <<'USAGE'
 Usage:
   ./flyover export [options]
+  ./flyover preview [options]
   ./flyover --help
 
-Export Where's native Flyover catalog as a portable static website.
+Export or preview Where's native Flyover catalog as a static website.
+
+Commands:
+  export            Capture the catalog and write a portable website.
+  preview           Serve an existing export on a local web server.
+
+Export options:
+  --output DIR     Generated website directory (default: .build/flyover/where)
+  --profile NAME   Add a capture profile. Repeat the flag for more profiles.
+                   The default is phone-light.
+
+Preview options:
+  --output DIR     Existing generated directory (default: .build/flyover/where)
+  --port PORT      TCP port. The default selects a free port.
+  --lan            Also serve on this computer's local network interfaces.
+
+General options:
+  -h, --help       Show this help.
+
+Profiles:
+  phone-light, phone-dark, tablet-light, phone-landscape, phone-small,
+  phone-xxxl, phone-ax3, phone-contrast, phone-rtl, phone-bold,
+  phone-voiceover
+
+Examples:
+  ./flyover export
+  ./flyover export --profile phone-light --profile phone-dark
+  ./flyover export --output /tmp/where-flyover --profile tablet-light
+  ./flyover preview
+  ./flyover preview --lan
+  ./flyover preview --output /tmp/where-flyover --lan --port 8080
+USAGE
+}
+
+export_usage() {
+    cat <<'USAGE'
+Usage: ./flyover export [options]
+
+Capture Where's native Flyover catalog as a portable static website.
 
 Options:
   --output DIR     Generated website directory (default: .build/flyover/where)
@@ -32,6 +74,23 @@ Examples:
   ./flyover export
   ./flyover export --profile phone-light --profile phone-dark
   ./flyover export --output /tmp/where-flyover --profile tablet-light
+USAGE
+}
+
+preview_usage() {
+    cat <<'USAGE'
+Usage: ./flyover preview [options]
+
+Serve an existing Flyover export on a local web server.
+
+Options:
+  --output DIR     Existing generated directory (default: .build/flyover/where)
+  --port PORT      TCP port from 0 through 65535. The default 0 selects a free port.
+  --lan            Also bind to local network interfaces and print network URLs.
+  -h, --help       Show this help.
+
+The default server accepts connections from this computer only. LAN preview
+has no authentication or TLS. Press Ctrl-C to stop the server.
 USAGE
 }
 
@@ -84,8 +143,14 @@ validate_destination() {
     if [ -e "$DESTINATION" ] || [ -L "$DESTINATION" ]; then
         [ -d "$DESTINATION" ] \
             || error "refusing to replace non-directory '$DESTINATION'"
-        [ -f "$DESTINATION/.flyover-generated" ] \
+        local marker="$DESTINATION/.flyover-generated" marker_content
+        [ ! -L "$marker" ] \
+            || error "refusing to replace directory with a symbolic-link marker '$DESTINATION'"
+        [ -f "$marker" ] \
             || error "refusing to replace unmarked directory '$DESTINATION'"
+        marker_content="$(< "$marker")"
+        [ "$marker_content" = "schemaVersion=1" ] \
+            || error "refusing to replace directory with an unsupported marker '$DESTINATION'"
     fi
 }
 
@@ -105,6 +170,11 @@ case "${1-}" in
         exit 0
         ;;
     export)
+        COMMAND="export"
+        shift
+        ;;
+    preview)
+        COMMAND="preview"
         shift
         ;;
     "")
@@ -113,6 +183,58 @@ case "${1-}" in
         ;;
     *) error "unknown command '${1-}' (see ./flyover --help)" ;;
 esac
+
+if [ "$COMMAND" = preview ]; then
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --output)
+                shift
+                [ "$#" -gt 0 ] || error "--output requires a directory"
+                OUTPUT="$1"
+                ;;
+            --port)
+                shift
+                [ "$#" -gt 0 ] || error "--port requires a number"
+                PREVIEW_PORT="$1"
+                ;;
+            --lan)
+                PREVIEW_LAN=true
+                ;;
+            -h | --help)
+                preview_usage
+                exit 0
+                ;;
+            *) error "unknown preview option '$1' (see ./flyover preview --help)" ;;
+        esac
+        shift
+    done
+
+    case "$PREVIEW_PORT" in
+        "" | *[!0-9]*) error "--port must be a number from 0 through 65535" ;;
+    esac
+    [ "$PREVIEW_PORT" -le 65535 ] \
+        || error "--port must be a number from 0 through 65535"
+
+    DESTINATION="$(resolve_path "$OUTPUT")"
+    HOME_PATH="$(resolve_path "$HOME")"
+    WORKSPACE_PATH="$(resolve_path "$ROOT")"
+    paths_are_same "$DESTINATION" / && error "refusing to serve the filesystem root"
+    paths_are_same "$DESTINATION" "$HOME_PATH" && error "refusing to serve the home directory"
+    paths_are_same "$DESTINATION" "$WORKSPACE_PATH" \
+        && error "refusing to serve the workspace root"
+
+    PREVIEW_ARGUMENTS=(
+        "$ROOT/Tools/flyover_preview.py"
+        serve
+        "$DESTINATION"
+        --port
+        "$PREVIEW_PORT"
+    )
+    if [ "$PREVIEW_LAN" = true ]; then
+        PREVIEW_ARGUMENTS+=(--lan)
+    fi
+    exec "${FLYOVER_PREVIEW_PYTHON:-python3}" "${PREVIEW_ARGUMENTS[@]}"
+fi
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -127,7 +249,7 @@ while [ "$#" -gt 0 ]; do
             add_profile "$1"
             ;;
         -h | --help)
-            usage
+            export_usage
             exit 0
             ;;
         *) error "unknown option '$1' (see ./flyover --help)" ;;
@@ -182,30 +304,7 @@ env \
     "$CAPTURE_RUNNER" --only \
         'WhereUISnapshotTests/WhereFlyoverWebExportTests/exportsRequestedAtlas()'
 
-python3 - "$STAGING" <<'PY'
-import json, os, pathlib, sys
-root = pathlib.Path(sys.argv[1])
-required = [root / 'index.html', root / 'manifest.json', root / 'manifest.js',
-            root / 'assets' / 'app.js', root / 'assets' / 'styles.css']
-missing = [str(path) for path in required if not path.is_file()]
-if missing:
-    raise SystemExit('flyover: generated artifact is missing: ' + ', '.join(missing))
-manifest = json.loads((root / 'manifest.json').read_text())
-if manifest.get('schemaVersion') != 1:
-    raise SystemExit('flyover: generated manifest does not use schemaVersion 1')
-images = manifest.get('images')
-if not isinstance(images, list):
-    raise SystemExit('flyover: generated manifest has no image list')
-for image in images:
-    relative = pathlib.PurePosixPath(image.get('relativePath', ''))
-    if relative.is_absolute() or '..' in relative.parts:
-        raise SystemExit(f'flyover: unsafe image path in manifest: {relative}')
-    if not (root / pathlib.Path(*relative.parts)).is_file():
-        raise SystemExit(f'flyover: manifest image is missing: {relative}')
-actual = sum(1 for path in (root / 'images').rglob('*.png')) if (root / 'images').is_dir() else 0
-if actual != len(images):
-    raise SystemExit(f'flyover: manifest requires {len(images)} images, found {actual}')
-PY
+python3 "$ROOT/Tools/flyover_preview.py" validate "$STAGING" --without-marker
 
 printf '%s\n' 'schemaVersion=1' >"$STAGING/.flyover-generated"
 find "$STAGING" -type d -exec chmod 0755 {} +

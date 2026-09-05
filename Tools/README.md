@@ -13,6 +13,8 @@ result reporting without requiring Java in its tests. The Xcode-facing root
 commands keep process and simulator orchestration in shell; `xcode_results.py`
 shares xcresult traversal, `snapshot_reports.py` shares capture reports, and
 the command-specific Python modules retain each command's distinct policy.
+`flyover_preview.py` validates generated atlases and serves their allowlisted
+files from a local HTTP server.
 Filesystem-heavy Ruby generators are require-safe so their behavior can be
 exercised against temporary repositories. `SimulatorRegistry` validates exact
 runtime ownership from captured `simctl` JSON and persists private claims

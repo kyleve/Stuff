@@ -177,6 +177,35 @@ directory. The command stages the complete site and replaces only an existing
 directory marked with `.flyover-generated`. A failed capture leaves the last
 successful atlas unchanged.
 
+### Preview the export
+
+Serve the default export on this computer:
+
+```sh
+./flyover preview
+```
+
+The command selects a free port and prints the local URL. Press Control-C to
+stop the server.
+
+Use `--lan` to open the preview to other devices on the local network:
+
+```sh
+./flyover preview --lan
+./flyover preview --output /tmp/where-flyover --lan --port 8080
+```
+
+The command prints one URL for each network address that it finds. The other
+device must be able to reach this computer. A macOS firewall prompt can appear.
+
+WARNING: LAN preview has no authentication or TLS. Any device that can reach
+the computer can view the native screenshots. Stop and restart the preview
+after each export.
+
+For a static host, upload the contents of the generated directory. Put
+`index.html` at the selected host root or subpath. The site needs no build step.
+All site URLs are relative.
+
 The manifest compatibility boundary is `schemaVersion: 1`. It contains the
 application and build identity, profiles, precomputed canvas geometry, groups,
 screens, routes, and image metadata. It contains no local source or account

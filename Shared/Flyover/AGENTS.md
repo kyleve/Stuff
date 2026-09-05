@@ -29,6 +29,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build, format
 - **Register forward push/modal routes only.** Flyover derives Back/Dismiss cues from incoming routes.
 - **Type erase only at the heterogeneous content/control registry boundary.**
 - **Validate every stable screen and variant identifier before capture.** Use generated ordinals for image paths.
+- **Serve only a validated generated artifact.** Bind to loopback unless the user selects LAN access.
 - **Preserve snapshot-backed capture intent.** Reject mixed sizing matrices unless the app supplies an explicit export policy.
 - **Fail full-content export when sizing does not converge.** Never publish a viewport fallback.
 

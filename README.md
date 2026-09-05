@@ -171,7 +171,7 @@ sync-agents         Sync AGENTS.md → CLAUDE.md and .claude/skills/
 simulator           Resolve/create this checkout's simulator, boot it, print its UDID
 worktree            Check or safely fast-forward a checkout against origin/main
 profile             Report build/test hot spots (see `./profile --help`)
-flyover             Export Where's native Flyover catalog as a static QA atlas
+flyover             Export and preview Where's native Flyover catalog as a static QA atlas
 flaky               Detect flaky tests, update FLAKY_TESTS.md (see `./flaky --help`)
 circleci-artifacts   Download every artifact for a CircleCI job
 snapshot-shards      Validate and rebalance snapshot suite assignments
