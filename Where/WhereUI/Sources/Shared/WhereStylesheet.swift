@@ -18,6 +18,7 @@ struct WhereStylesheet: BStylesheet {
     var size = Size()
     var card = CardStyles.standard
     var locationCardStack = LocationCardStackStyle.standard
+    var locationWelcome = LocationWelcomeStyle.standard
     var calendar = CalendarStyle.standard
     var appIcon = AppIconStyle.standard
     var timeline = TimelineStyle.standard
@@ -82,6 +83,7 @@ struct WhereStylesheet: BStylesheet {
         if traits.accessibility.isReduceMotionEnabled {
             card.dayCount = .reducedMotion
             locationCardStack.overtake = .reducedMotion
+            locationWelcome.motion = .reduced
             developerOverlay.menu.motion = .reduced
         }
 
@@ -96,6 +98,83 @@ struct WhereStylesheet: BStylesheet {
     /// The fixed token set: the fallback used off the `View` tree (layout
     /// helpers, tests) and when no Broadway root has seeded a context.
     static let `default` = WhereStylesheet()
+}
+
+// MARK: - Location welcome
+
+extension WhereStylesheet {
+    /// Appearance and motion for the live-region welcome over Locations.
+    struct LocationWelcomeStyle: Equatable {
+        var maxWidth: CGFloat
+        var cornerRadius: CGFloat
+        var padding: CGFloat
+        var contentSpacing: CGFloat
+        var artworkHeight: CGFloat
+        var scrimOpacity: Double
+        var glassTintOpacity: Double
+        var outlineOpacity: Double
+        var outlineWidth: CGFloat
+        var inset: CGFloat
+        var insetDashLength: CGFloat
+        var insetDashSpacing: CGFloat
+        var shadowOpacity: Double
+        var shadowRadius: CGFloat
+        var shadowOffsetY: CGFloat
+        var closeOffset: CGSize
+        var motion: Motion
+
+        struct Motion: Equatable {
+            var animation: Animation
+            var scale: CGFloat
+            var verticalOffset: CGFloat
+            var usesSpatialMotion: Bool
+
+            var transition: AnyTransition {
+                let base: AnyTransition = usesSpatialMotion
+                    ? .scale(scale: scale).combined(with: .offset(y: verticalOffset))
+                    .combined(with: .opacity)
+                    : .opacity
+                return .asymmetric(
+                    insertion: base.animation(animation),
+                    removal: base.animation(animation),
+                )
+            }
+
+            static let standard = Motion(
+                animation: .spring(duration: 0.62, bounce: 0.32),
+                scale: 0.78,
+                verticalOffset: 34,
+                usesSpatialMotion: true,
+            )
+
+            static let reduced = Motion(
+                animation: .easeInOut(duration: 0.18),
+                scale: 1,
+                verticalOffset: 0,
+                usesSpatialMotion: false,
+            )
+        }
+
+        static let standard = LocationWelcomeStyle(
+            maxWidth: 390,
+            cornerRadius: 30,
+            padding: 24,
+            contentSpacing: 16,
+            artworkHeight: 132,
+            scrimOpacity: 0.28,
+            glassTintOpacity: 0.2,
+            outlineOpacity: 0.28,
+            outlineWidth: 1,
+            inset: 9,
+            insetDashLength: 5,
+            insetDashSpacing: 4,
+            shadowOpacity: 0.42,
+            shadowRadius: 30,
+            shadowOffsetY: 16,
+            closeOffset: CGSize(width: 8, height: -8),
+            motion: .standard,
+        )
+    }
 }
 
 // MARK: - Location card stack

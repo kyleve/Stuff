@@ -119,7 +119,8 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   demo, and completion orchestration) and **`OnboardingImportRecoveryModel`** (the sidecar/store
   recovery handshake after an interrupted onboarding import), and
   **`LocationCardsPresentationModel`** (the last primary-card counts and order
-  the user saw). The Location model holds saved values until the card surface
+  the user saw), and **`LocationWelcomeModel`** (the current-region welcome and
+  its persisted acknowledgement). The Location model holds saved values until the card surface
   is visible and unobscured, holds them there for another half second, then
   advances every changed number and any live two-card reversal in one animated
   beat, adding one light haptic. Decreases, first visits, hidden updates, and
@@ -128,6 +129,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   None reimplements Core rules.
 
 ### Reusable views & styling
+
+- **`RegionWelcomeCard`** — a centered Locations overlay that combines a region's emoji,
+  icon, outline, Liquid Glass card treatment, and passport ink. It uses a spring transition
+  and an opacity-only transition when Reduce Motion is enabled.
 
 - **`OnboardingView` / `OnboardingFlowModel`** — the rendered first-run flow and its view-scoped
   observable coordinator, registered for the launch's

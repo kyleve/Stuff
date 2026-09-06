@@ -45,6 +45,27 @@ struct WhereStylesheetTests {
         #expect(style.spacing.xxxLarge == 20)
     }
 
+    @Test func locationWelcomeStyle() {
+        let welcome = style.locationWelcome
+        #expect(welcome.maxWidth == 390)
+        #expect(welcome.cornerRadius == 30)
+        #expect(welcome.padding == 24)
+        #expect(welcome.contentSpacing == 16)
+        #expect(welcome.artworkHeight == 132)
+        #expect(welcome.scrimOpacity == 0.28)
+        #expect(welcome.glassTintOpacity == 0.2)
+        #expect(welcome.outlineOpacity == 0.28)
+        #expect(welcome.outlineWidth == 1)
+        #expect(welcome.inset == 9)
+        #expect(welcome.insetDashLength == 5)
+        #expect(welcome.insetDashSpacing == 4)
+        #expect(welcome.shadowOpacity == 0.42)
+        #expect(welcome.shadowRadius == 30)
+        #expect(welcome.shadowOffsetY == 16)
+        #expect(welcome.closeOffset == CGSize(width: 8, height: -8))
+        #expect(welcome.motion == .standard)
+    }
+
     @Test func regularCardStyle() {
         let card = style.card.regular
         #expect(style.card.estimatedProgressOpacity == 0.3)
@@ -815,6 +836,8 @@ struct WhereStylesheetTests {
         #expect(resolved.locationCardStack.overtake == .reducedMotion)
         #expect(resolved.locationCardStack.overtake.minimumOpacity == 0.82)
         #expect(resolved.locationCardStack.overtake.usesSpatialMotion == false)
+        #expect(resolved.locationWelcome.motion == .reduced)
+        #expect(resolved.locationWelcome.motion.usesSpatialMotion == false)
         #expect(resolved.developerOverlay.menu.motion == .reduced)
         #expect(resolved.developerOverlay.menu.motion.usesSpatialMotion == false)
     }

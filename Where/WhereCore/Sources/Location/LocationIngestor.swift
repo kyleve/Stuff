@@ -324,6 +324,11 @@ public actor LocationIngestor {
         isMonitoring
     }
 
+    /// Whether the current device policy authorizes automatic location samples.
+    public var isRecordingAuthorized: Bool {
+        if case .open = recordingAuthority { true } else { false }
+    }
+
     /// Number of samples currently waiting to be re-persisted. Exposed for
     /// tests; production callers should treat this as opaque.
     public var retryQueueDepth: Int {

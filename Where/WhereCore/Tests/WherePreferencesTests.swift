@@ -26,6 +26,7 @@ struct WherePreferencesTests {
         )
         #expect(preferences.driftThresholdMeters == DriftThreshold.default.rawValue)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == nil)
+        #expect(preferences.lastWelcomedRegion == nil)
     }
 
     @Test(arguments: [
@@ -127,6 +128,16 @@ struct WherePreferencesTests {
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == counts2026)
     }
 
+    @Test func lastWelcomedRegionRoundTripsAndClears() {
+        let preferences = preferences()
+
+        preferences.lastWelcomedRegion = .newYork
+        #expect(preferences.lastWelcomedRegion == .newYork)
+
+        preferences.lastWelcomedRegion = nil
+        #expect(preferences.lastWelcomedRegion == nil)
+    }
+
     @Test func estimatedTimeUsesTheLegacyLocationsVisibilityKey() {
         let store = InMemoryKeyValueStore()
         store.set(false, forKey: "where.showsLocationForecastsOnLocationsTab")
@@ -193,6 +204,7 @@ struct WherePreferencesTests {
         preferences.recordingConfigurationWarningRegistration = recordingWarning
         preferences.driftThresholdMeters = 25000
         preferences.setLastSeenLocationDayCounts([.california: 100], in: 2026)
+        preferences.lastWelcomedRegion = .california
         preferences.diagnosticReportingConfiguration = DiagnosticReportingConfiguration(
             sharesCrashReports: false,
             sharesSessionReplays: true,
@@ -219,6 +231,7 @@ struct WherePreferencesTests {
         )
         #expect(preferences.driftThresholdMeters == DriftThreshold.default.rawValue)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == nil)
+        #expect(preferences.lastWelcomedRegion == nil)
         #expect(
             preferences.diagnosticReportingConfiguration
                 == DiagnosticReportingConfiguration.currentBuildDefaults,

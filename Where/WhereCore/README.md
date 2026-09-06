@@ -70,6 +70,8 @@ one it belongs to rather than to a god-object:
 - **`PlannedStayLocationVerifier`** — gets a current location and compares it with the selected
   region. The configured drift threshold expands the accepted area outside the region boundary.
   A missing location or missing geometry returns an unavailable result.
+- **`CurrentRegionResolver`** — returns the current tracked region only while automatic recording
+  is authorized. It returns `nil` when no live fix exists or the fix is outside tracked regions.
 
 - **`DemoDataBuilder`** — writes the dataset the app's demo mode runs on into a
   given `WhereServices`: a plausible current year of living in New York with
@@ -172,7 +174,7 @@ one it belongs to rather than to a god-object:
 - **`WherePreferences`** — persisted user intent (onboarding,
   reminder / summary schedules, presentation theme, and Locations-card GPS-dot and
   estimated-time/planning visibility) plus the
-  year-keyed Location-card counts and Codable recording-warning generation used for presentation
+  year-keyed Location-card counts, last welcomed region, and recording-warning generation used for presentation
   continuity, behind a `KeyValueStore`. It also owns the vendor-neutral
   `DiagnosticReportingConfiguration`: crash reports default On, replay Off,
   and remote logs Off in Release / Warning in Debug. `WherePreferences` encodes

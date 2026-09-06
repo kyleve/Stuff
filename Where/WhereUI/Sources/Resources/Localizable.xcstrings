@@ -3475,6 +3475,54 @@
         }
       }
     },
+    "locationWelcome.dismiss" : {
+      "comment" : "Accessibility label for the close button on the live-region welcome card.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close welcome"
+          }
+        }
+      }
+    },
+    "locationWelcome.firstTitle" : {
+      "comment" : "Title shown for the first live tracked region. The argument is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welcome to %@"
+          }
+        }
+      }
+    },
+    "locationWelcome.message" : {
+      "comment" : "Explains automatic day counting. The argument is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starting today, days Where records you here will count toward %@."
+          }
+        }
+      }
+    },
+    "locationWelcome.returnTitle" : {
+      "comment" : "Title shown after the user moves to another tracked region. The argument is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welcome back to %@"
+          }
+        }
+      }
+    },
     "locations.elsewhere.subtitle" : {
       "comment" : "Subtitle on the Locations tab's Elsewhere entry card: region count.",
       "extractionState" : "manual",

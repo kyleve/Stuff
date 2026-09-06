@@ -222,6 +222,22 @@ public final class WherePreferences {
         store.set(snapshots, forKey: Keys.lastSeenLocationDayCounts.rawValue)
     }
 
+    /// The last live region whose Locations welcome the user dismissed.
+    public var lastWelcomedRegion: Region? {
+        get {
+            guard let rawValue = store.object(forKey: Keys.lastWelcomedRegion.rawValue) as? String
+            else { return nil }
+            return Region(rawValue: rawValue)
+        }
+        set {
+            if let newValue {
+                store.set(newValue.rawValue, forKey: Keys.lastWelcomedRegion.rawValue)
+            } else {
+                store.removeObject(forKey: Keys.lastWelcomedRegion.rawValue)
+            }
+        }
+    }
+
     /// Clear every persisted preference so the next launch behaves like a fresh
     /// install: onboarding shows again, presentation and notification settings
     /// revert to defaults, and UI continuity snapshots are forgotten.
@@ -253,6 +269,7 @@ public final class WherePreferences {
             "where.recordingConfigurationWarningRegistration"
         case driftThresholdMeters = "where.driftThresholdMeters"
         case lastSeenLocationDayCounts = "where.lastSeenLocationDayCounts"
+        case lastWelcomedRegion = "where.lastWelcomedRegion"
     }
 
     private static var isDebugBuild: Bool {
