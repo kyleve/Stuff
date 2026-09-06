@@ -44,7 +44,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             guard let applicationIdentifier = Bundle.main.bundleIdentifier else {
                 preconditionFailure("Where has no bundle identifier")
             }
-            let modeController = InspectorModeController(
+            let modeController = WhereDeveloperLaunchController(
                 applicationIdentifier: applicationIdentifier,
             )
             runtime = Self.selectRuntime(
@@ -55,11 +55,13 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
                         preferences: preferences,
                         effectiveDiagnosticReportingConfiguration: launchConfiguration,
                         applyRemoteLogging: applyRemoteLogging,
-                        inspectorModeController: modeController,
+                        developerLaunchController: modeController,
                     )
                 },
                 inspector: {
-                    WhereInspectorApplicationRuntime(modeController: modeController)
+                    WhereInspectorApplicationRuntime(
+                        modeController: modeController.inspectorModeController,
+                    )
                 },
             )
         #else
@@ -113,14 +115,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
     #if DEBUG
         static func selectRuntime(
-            modeController: InspectorModeController,
+            modeController: WhereDeveloperLaunchController,
             fileManager: FileManager,
             regular: () -> any WhereApplicationRuntime,
             inspector: () -> any WhereApplicationRuntime,
         ) -> any WhereApplicationRuntime {
-            if !modeController.completePendingStoreErasures(fileManager: fileManager) {
-                modeController.enterInspectorOnNextLaunch()
-            }
+            modeController.completePendingStoreErasures(fileManager: fileManager)
             if modeController.nextLaunch == .inspector {
                 return inspector()
             } else {

@@ -1,5 +1,4 @@
 #if DEBUG
-    import Inspector
     import PeriscopeTools
     import SwiftUI
 
@@ -13,18 +12,19 @@
         let corner: DeveloperOverlayModel.Corner
         let maxHeight: CGFloat
         let onOpenDestination: (DeveloperDestination) -> Void
+        let onConfigureDemo: () -> Void
 
-        @Environment(InspectorModeController.self) private var modeController:
-            InspectorModeController?
+        @Environment(WhereDeveloperLaunchController.self) private var modeController:
+            WhereDeveloperLaunchController?
         @Environment(\.periscopeInspector) private var inspector
         @Environment(\.stylesheet) private var stylesheet
 
         var body: some View {
             let menu = stylesheet.developerOverlay.menu
             let destinations = DeveloperDestination.available
-            let inspectorModeRowCount = modeController == nil ? 0 : 1
+            let launchModeRowCount = modeController == nil ? 0 : 2
             let logModeRowCount = inspector == nil ? 0 : 1
-            let itemCount = destinations.count + inspectorModeRowCount + logModeRowCount
+            let itemCount = destinations.count + launchModeRowCount + logModeRowCount
             let origin: Edge = corner.isTop ? .top : .bottom
 
             ScrollView {
@@ -56,6 +56,18 @@
                                     itemCount: itemCount,
                                 ),
                             )
+
+                        DeveloperDemoModeRow(
+                            controller: modeController,
+                            action: onConfigureDemo,
+                        )
+                        .transition(
+                            menu.motion.transition(
+                                from: origin,
+                                index: destinations.count + 1,
+                                itemCount: itemCount,
+                            ),
+                        )
                     }
 
                     if let inspector, isPresented {
@@ -63,7 +75,7 @@
                             .transition(
                                 menu.motion.transition(
                                     from: origin,
-                                    index: destinations.count + inspectorModeRowCount,
+                                    index: destinations.count + launchModeRowCount,
                                     itemCount: itemCount,
                                 ),
                             )

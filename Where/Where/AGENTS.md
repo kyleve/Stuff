@@ -40,6 +40,8 @@ layering, and the domain rules this target merely starts up.
   `WhereApp` forward through `WhereApplicationRuntime`. Never add mode switches
   to lifecycle callbacks, `RootView`, or feature code. In DEBUG, finish
   Inspector's latched store-family recovery before constructing that runtime.
+  A one-shot demo still selects the regular runtime; activate its in-memory
+  scope before the onboarding gate can resolve a real store.
 - **Release always builds `RegularApplicationRuntime`.** Boot preference reads,
   Inspector configuration, and menu integration stay under `#if DEBUG`.
 - **Wire regular launch in `didFinishLaunching`, not a SwiftUI `.task`.** When

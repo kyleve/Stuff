@@ -254,9 +254,8 @@ extension WhereStylesheet {
         struct Surface: Equatable {
             var outlineWidth: CGFloat
             var inset: CGFloat
-            var insetOutlineWidth: CGFloat
-            var insetDashLength: CGFloat
-            var insetDashSpacing: CGFloat
+            var microprintGlyphSize: CGFloat
+            var microprintSpacing: CGFloat
             var rosetteWobble: CGFloat
             var rosetteLineWidth: CGFloat
             var primaryRingSpacing: CGFloat
@@ -282,10 +281,7 @@ extension WhereStylesheet {
             var regionFont: Font
             var estimateFont: Font
             var detailFont: Font
-            var separatorHeight: CGFloat
-            var separatorLineWidth: CGFloat
-            var separatorDashLength: CGFloat
-            var separatorDashSpacing: CGFloat
+            var outlineWidth: CGFloat
         }
 
         struct Progress: Equatable {
@@ -307,13 +303,12 @@ extension WhereStylesheet {
         struct Ink: Equatable {
             var surfaceWashOpacity: Double
             var surfaceOutlineOpacity: Double
-            var insetOutlineOpacity: Double
+            var microprintOpacity: Double
             var rosettePrimaryOpacity: Double
             var rosetteSecondaryOpacity: Double
             var sealOpacity: Double
             var rowFillOpacity: Double
             var rowOutlineOpacity: Double
-            var separatorOpacity: Double
             var progressTrackOpacity: Double
             var progressEstimateFillOpacity: Double
             var progressHatchOpacity: Double
@@ -323,13 +318,12 @@ extension WhereStylesheet {
             static let standard = Ink(
                 surfaceWashOpacity: 0.035,
                 surfaceOutlineOpacity: 0.22,
-                insetOutlineOpacity: 0.12,
+                microprintOpacity: 0.18,
                 rosettePrimaryOpacity: 0.08,
                 rosetteSecondaryOpacity: 0.045,
                 sealOpacity: 0.72,
                 rowFillOpacity: 0.07,
                 rowOutlineOpacity: 0.24,
-                separatorOpacity: 0.2,
                 progressTrackOpacity: 0.1,
                 progressEstimateFillOpacity: 0.2,
                 progressHatchOpacity: 0.42,
@@ -340,13 +334,12 @@ extension WhereStylesheet {
             static let increasedContrast = Ink(
                 surfaceWashOpacity: 0.065,
                 surfaceOutlineOpacity: 0.5,
-                insetOutlineOpacity: 0.32,
+                microprintOpacity: 0.4,
                 rosettePrimaryOpacity: 0.14,
                 rosetteSecondaryOpacity: 0.09,
                 sealOpacity: 1,
                 rowFillOpacity: 0.12,
                 rowOutlineOpacity: 0.55,
-                separatorOpacity: 0.5,
                 progressTrackOpacity: 0.2,
                 progressEstimateFillOpacity: 0.32,
                 progressHatchOpacity: 0.68,
@@ -358,14 +351,13 @@ extension WhereStylesheet {
         static let standard = LocationForecastStyle(
             cornerRadius: 22,
             padding: 16,
-            rowSpacing: 16,
+            rowSpacing: 12,
             expansionAnimation: .easeInOut(duration: 0.2),
             surface: Surface(
                 outlineWidth: 1.25,
-                inset: 5,
-                insetOutlineWidth: 0.75,
-                insetDashLength: 4,
-                insetDashSpacing: 4,
+                inset: 9,
+                microprintGlyphSize: 7,
+                microprintSpacing: 10,
                 rosetteWobble: 5,
                 rosetteLineWidth: 0.75,
                 primaryRingSpacing: 10,
@@ -375,24 +367,21 @@ extension WhereStylesheet {
                 shadowOffsetY: 3,
             ),
             header: Header(
-                contentSpacing: 12,
+                contentSpacing: 10,
                 textSpacing: 2,
                 titleFont: .system(.headline, design: .serif),
                 elapsedFont: .footnote,
-                minimumHeight: 52,
+                minimumHeight: 50,
             ),
             row: Row(
                 cornerRadius: 14,
-                padding: 12,
-                contentSpacing: 8,
-                estimateSpacing: 3,
-                regionFont: .system(.headline, design: .serif),
-                estimateFont: .system(.title2, design: .rounded),
+                padding: 10,
+                contentSpacing: 6,
+                estimateSpacing: 2,
+                regionFont: .system(.title3, design: .serif),
+                estimateFont: .system(.headline, design: .rounded),
                 detailFont: .footnote,
-                separatorHeight: 1,
-                separatorLineWidth: 1,
-                separatorDashLength: 4,
-                separatorDashSpacing: 5,
+                outlineWidth: 0.75,
             ),
             progress: Progress(
                 height: 8,
@@ -400,10 +389,10 @@ extension WhereStylesheet {
                 hatchLineWidth: 1,
             ),
             controls: Controls(
-                sectionSpacing: 10,
-                layoutSpacing: 8,
+                sectionSpacing: 8,
+                layoutSpacing: 6,
                 cornerRadius: 12,
-                horizontalPadding: 12,
+                horizontalPadding: 10,
                 minimumHeight: 44,
                 strokeWidth: 1,
                 font: .subheadline,
@@ -867,6 +856,8 @@ extension WhereStylesheet {
         var nameOpacity: Double
         /// Opacity of the estimated progress rendered behind recorded days.
         var estimatedProgressOpacity: Double = 0.3
+        /// Visa-style endorsement for an annual estimate on a primary card.
+        var estimateSticker = EstimateSticker.standard
         /// Fill opacities of the two security-print rosettes.
         var rosetteFill: RosetteFill
         /// How the region tint is prepared for decorative security printing.
@@ -896,6 +887,48 @@ extension WhereStylesheet {
                 coreWhiteMix: 0.72,
                 haloRadius: 6,
                 haloOpacity: 0.32,
+            )
+        }
+
+        struct EstimateSticker: Equatable {
+            var labelTypography: CardStyle.Typography
+            var valueTypography: CardStyle.Typography
+            var contentOpacity: Double
+            var scale: CGFloat
+            var cornerRadius: CGFloat
+            var horizontalPadding: CGFloat
+            var verticalPadding: CGFloat
+            var rotationDegrees: Double
+            var fillOpacity: Double
+            var outlineOpacity: Double
+            var outlineWidth: CGFloat
+            var innerInset: CGFloat
+            var innerOutlineWidth: CGFloat
+            var innerDash: [CGFloat]
+
+            static let standard = EstimateSticker(
+                labelTypography: .init(
+                    size: .semantic(.caption),
+                    weight: .semibold,
+                    design: .default,
+                ),
+                valueTypography: .init(
+                    size: .semantic(.headline),
+                    weight: .semibold,
+                    design: .default,
+                ),
+                contentOpacity: 0.92,
+                scale: 0.8,
+                cornerRadius: 8,
+                horizontalPadding: 10,
+                verticalPadding: 7,
+                rotationDegrees: -2,
+                fillOpacity: 0.08,
+                outlineOpacity: 0.58,
+                outlineWidth: 1,
+                innerInset: 3,
+                innerOutlineWidth: 1,
+                innerDash: [3, 2],
             )
         }
 
@@ -1573,6 +1606,12 @@ extension WhereStylesheet {
             var hatchSpacing: CGFloat
             var hatchLineWidth: CGFloat
             var labelOpacity: Double
+            var transitionHeight: CGFloat
+            var joinedBaseHeight: CGFloat
+            var joinedVerticalPadding: CGFloat
+            var joinedLabelSpacing: CGFloat
+            var joinedCountHorizontalPadding: CGFloat
+            var joinedCountVerticalPadding: CGFloat
         }
 
         static let standard = TimelineStyle(
@@ -1628,6 +1667,12 @@ extension WhereStylesheet {
                 hatchSpacing: 8,
                 hatchLineWidth: 1,
                 labelOpacity: 0.7,
+                transitionHeight: 16,
+                joinedBaseHeight: 32,
+                joinedVerticalPadding: 8,
+                joinedLabelSpacing: 5,
+                joinedCountHorizontalPadding: 8,
+                joinedCountVerticalPadding: 4,
             ),
         )
     }

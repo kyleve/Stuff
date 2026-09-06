@@ -6,6 +6,7 @@ import UIKit
 @testable import Where
 import WhereCore
 import WhereCrashReporting
+import WhereUI
 
 @MainActor
 struct WhereAppTests {
@@ -81,7 +82,7 @@ struct WhereAppTests {
         @Test func selectingInspectorConstructsOnlyInspectorRuntime() throws {
             let fixture = try ModeFixture()
             defer { fixture.cleanup() }
-            fixture.controller.enterInspectorOnNextLaunch()
+            fixture.controller.scheduleInspector()
             var regularCount = 0
             var inspectorCount = 0
 
@@ -126,6 +127,22 @@ struct WhereAppTests {
             #expect(inspectorCount == 0)
         }
 
+        @Test func constructingRegularRuntimeConsumesDemoRequestOnce() throws {
+            let fixture = try ModeFixture()
+            defer { fixture.cleanup() }
+            fixture.controller.scheduleDemo(.allIssues)
+
+            _ = RegularApplicationRuntime(
+                preferences: WherePreferences(store: InMemoryKeyValueStore()),
+                effectiveDiagnosticReportingConfiguration: .defaults(isDebugBuild: true),
+                applyRemoteLogging: { _, _ in },
+                developerLaunchController: fixture.controller,
+            )
+
+            #expect(fixture.controller.nextLaunch == .regularApplication)
+            #expect(fixture.controller.consumeDemoConfiguration() == nil)
+        }
+
         @Test func pendingStoreRecoveryCompletesBeforeRuntimeConstruction() async throws {
             let fixture = try ModeFixture()
             defer { fixture.cleanup() }
@@ -151,7 +168,7 @@ struct WhereAppTests {
             try Data("stale journal".utf8).write(
                 to: recoveryStorageURL.appending(path: "segment"),
             )
-            try fixture.controller.scheduleStoreFamilyErasure(
+            try fixture.controller.inspectorModeController.scheduleStoreFamilyErasure(
                 storeURL: storeURL,
                 storageRootURL: rootURL,
                 recoveryStorageURLs: [recoveryStorageURL],
@@ -212,7 +229,7 @@ struct WhereAppTests {
             defer { try? FileManager.default.removeItem(at: outsideRootURL) }
             let storeURL = outsideRootURL.appending(path: "Periscope.store")
             try Data("store".utf8).write(to: storeURL)
-            try fixture.controller.scheduleStoreFamilyErasure(
+            try fixture.controller.inspectorModeController.scheduleStoreFamilyErasure(
                 storeURL: storeURL,
                 storageRootURL: storageRootURL,
                 recoveryStorageURLs: [],
@@ -236,7 +253,7 @@ struct WhereAppTests {
             #expect(regularCount == 0)
             #expect(inspectorCount == 1)
             #expect(fixture.controller.nextLaunch == .inspector)
-            #expect(fixture.controller.pendingStoreErasureError != nil)
+            #expect(fixture.controller.inspectorModeController.pendingStoreErasureError != nil)
         }
 
         @Test func inspectorConfigurationNamesAppInspectionResources() throws {
@@ -339,12 +356,15 @@ private struct ReportingControllerSpy: WhereReportingController {
     private struct ModeFixture {
         let suiteName: String
         let defaults: UserDefaults
-        let controller: InspectorModeController
+        let controller: WhereDeveloperLaunchController
 
         init() throws {
             suiteName = "where.app-runtime.\(UUID().uuidString)"
             defaults = try #require(UserDefaults(suiteName: suiteName))
-            controller = InspectorModeController(userDefaults: defaults)
+            controller = WhereDeveloperLaunchController(
+                userDefaults: defaults,
+                inspectorModeController: InspectorModeController(userDefaults: defaults),
+            )
         }
 
         func cleanup() {

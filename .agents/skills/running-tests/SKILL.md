@@ -119,8 +119,12 @@ Raw one-off `xcodebuild` (rare):
 ## Environment
 
 - **macOS + Xcode required** for `./test`.
-- **Linux cloud agents** — `./swiftformat --lint` and `./sync-agents` only. No
-  simulator or test runs. Full validation matches CI on macOS.
+- **Linux cloud agents** — no simulator, no `./test`, no Swift toolchain. What
+  does run: `./swiftformat --lint`, `./shellcheck`, `./attribution --check`,
+  `mise exec -- ./sync-agents`, and the retained Python tool tests
+  (`python3 -m unittest discover -s Tools/Tests -p 'test_*.py'`). See the Linux
+  table in the root [`AGENTS.md`](../../../AGENTS.md#what-works-on-linux) for the
+  three macOS-coupled carve-outs among those.
 
 ## Full macOS validation (matches CI)
 
