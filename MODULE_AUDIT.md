@@ -1,10 +1,10 @@
 # Swift Module Audit Report
 
-Read-only review of all **20 SPM library targets**, **7 Tuist app/extension targets**, **26 test bundles**, the repo-owned **Bumper Bowling** architecture rules, and the retained Python/Ruby tooling layer (694 source / 368 test / 47 image-snapshot Swift files across shipped targets, plus 2 unwired prototype sources). No production code was changed.
+Read-only review of all **20 SPM library targets**, **7 Tuist app/extension targets**, **25 test bundles**, the repo-owned **Bumper Bowling** architecture rules, and the retained Python/Ruby tooling layer (700 source / 369 test / 49 image-snapshot Swift files across shipped targets, plus 2 unwired prototype sources). No production code was changed.
 
-**Date:** August 30, 2026  
-**Method:** Read-only verification of every open finding in all 12 `TODOs.md` files against current source, module-by-module, with each citation re-derived; file, reference-image, and suite-count refresh; new-surface review of the 11 commits since the last audit; and a pass over the tree against the repo's own written rules. Unlike every prior edition, this pass also **executed** the Linux-capable half of CI's `format` job — `./swiftformat --lint`, `./shellcheck`, `./attribution --check`, and both retained-tool test suites — plus `./snapshot-shards check`, which is how its one new finding was discovered rather than read. Two further candidate findings were raised and rejected against source; both are recorded below. Unlike every prior edition, this pass also **executed** the Linux-capable half of CI's `format` job — `./swiftformat --lint`, `./shellcheck`, `./attribution --check`, and both retained-tool test suites — plus `./snapshot-shards check`, which is how its one new finding was discovered rather than read. Two further candidate findings were raised and rejected against source; both are recorded below.  
-**Prior audit:** August 16, 2026 (677 source / 361 test), merged as PR #282. **This is a two-week window, not one** — the previous audit landed on `main`, so its numbers are the real baseline, but no audit ran on August 23.
+**Date:** September 6, 2026  
+**Method:** Read-only verification of every open finding in all 12 `TODOs.md` files against current source, module-by-module, with each citation re-derived; file, reference-image, and suite-count refresh; new-surface review of the 4 commits since the last audit; and a pass over the window's new code against the repo's own written rules. Executed on this pass: `./swiftformat --lint`, `./shellcheck`, `./attribution --check`, both retained-tool test suites, and `./snapshot-shards check` — the last of which confirmed by running it that the window's two new snapshot suites landed on the intake shard exactly as the sharding design intends. Several candidate findings from the new surface were raised and rejected against source; the load-bearing rejections are recorded below.  
+**Prior audit:** August 30, 2026, merged as PR #299. A one-week window of 4 commits — the smallest since this report began.
 
 > **This report carries no actionable items.** Every finding it describes is filed
 > in a `TODOs.md`; the root [`TODOs.md`](TODOs.md) owns the item format and says
@@ -17,16 +17,15 @@ Read-only review of all **20 SPM library targets**, **7 Tuist app/extension targ
 
 ## Executive summary
 
-**Two items closed, one filed, and one closure came from a direction the backlog did not predict.** After a window in which nothing closed at all, PR #289 resolved the Locations ranking-reorder P2 — and resolved it by building something larger than the item asked for. The item proposed wrapping the card `ForEach` in an `.animation(_:value:)`; what shipped is an explicit interpolated layout, a keyframe-driven stack, and a single reconciliation that now releases counts, order, flourish, persistence, and haptics together. PR #300 closed the StuffCore tautological-test P2 the simpler way the backlog had been pointing at for weeks — by deleting the empty module rather than growing it — which also removed the twelfth area `TODOs.md`. That is the useful signal in this pass: what moved was moved by feature work and a small refactor landing on `main`, not by anyone reading the backlog.
+**The quietest window yet — and the loudest week for the audit's own error ledger.** Four PRs landed: a DEBUG next-launch demo mode (#301), a visa-sticker redesign of the Locations card estimates (#302), a Settings region editor (#305), and a snapshot-pipeline test made deterministic (#303). Nothing closed a backlog item outright, but #305 shrank the largest counted item in the backlog — the Settings screens with no image coverage — from five to four by giving the rewritten `RegionsSettingsView` a `SnapshotProviding` conformance and a ten-reference suite on arrival. That is the third window out of four in which backlog movement came from feature work touching the cited code rather than from anyone reading the list.
 
 What the pass found, in order of how much it should change your reading of the backlog:
 
-- **The audit ran real checks for the first time, and one failed.** PR #283 made ShellCheck and the retained Python/Ruby tool suites steps in CI's `format` job — the first CI gates in this repo that need neither Xcode nor a Swift toolchain. Running them here surfaced a test that can only pass on macOS: it asserts bash's `126` exit status for an unlaunchable command, where Linux reports `127`. CI cannot report this, because CI only runs on macOS. Filed as one item with four halves — three more macOS assumptions turned up beside it, all from the same cause.
-- **Two candidate findings were rejected, and rejecting them is the point.** A hand-rolled Reduce Motion read in the new Ranking Animation Lab looked like a violation of the `@MotionIsStatic` rule; it is not, because that rule is scoped to motion that never settles, and nothing in the lab plays without a tap. An `assertionFailure` in the new card-reconciliation modifier looked like swallowed error handling; it is the arm the repo's own rule prescribes, on a path `Task.sleep` cannot actually reach. Both are recorded here so the next pass does not re-file them.
-- **A published count was wrong in a way the backlog had been repeating for five audits.** The `SnapshotProviding` item claimed three Settings drill-ins lacked image coverage and that they were "the only" ones. Enumerating every `*View.swift` with a `#Preview` and cross-checking against `SettingsView.destination(for:)` found **five**, and ten further views outside Settings. Corrected in place, with the method written down so it can be re-derived rather than carried.
-- **The snapshot job is now parallel, and the warning against parallelizing it is still missing.** PR #276 shards snapshots across four CircleCI containers by suite. That is the safe axis. The in-container axis is the unsafe one, and the paragraph explaining why never travelled from GitHub Actions. A reader now arrives at a job that visibly *is* parallelized with nothing marking the line. The filed item was sharpened rather than merely re-dated.
-- **`./test` shrank by 219 lines by moving its logic out rather than losing it.** The four Scripts PRs lifted report parsing and bundle selection into importable, directly tested Python under `Tools/`. That retires the "fragile embedded parser" premise of a standing P2 — the parser is now covered by name — leaving only the design question the item was really asking.
-- **The renderer is pinned now.** PR #297 introduced `.xcode-build-version` (`27A5252f`), gated in both `./test` and the CircleCI runner check. A snapshot suite whose references depend on one toolchain finally says which one.
+- **Five of the previous audit's published numbers were wrong at its own date.** Re-deriving every count from the tree (rather than diffing forward from the report) found: WhereUI held 276 sources and 102 test files on August 30, published as 274 and 101; the repo-wide totals were 695/368, published as 694/368 with a module table summing to 693; the test-bundle count was 25 — PR #300's StuffCore removal had already taken `Stuff-iOS-Tests` to 20 targets — published as "26, unchanged" with "21 in Stuff-iOS-Tests"; the settle-floor item's "37 addressable configurations, re-derived and unchanged" missed the Ranking Animation Lab's 2, so the real figure was 39 then and is 39 now; and the report's own Method line shipped with a sentence duplicated wholesale. None of these changes a priority, but four of the five had been *re-derived* by the prior pass and still came out wrong — the recount discipline is necessary but evidently not sufficient when the recount trusts the previous edition's scope.
+- **A stale count five windows old surfaced only because a subagent counted rather than confirmed.** The `WhereShortcuts` polish item has said "registers five" since it was filed; the file has registered four since PR #230 retired the recent-activity shortcut in mid-August. Every intervening pass verified the item's *claim* (LogTripIntent unregistered — true) without re-deriving its *counts*. Corrected in place.
+- **PR #301's demo mode is the window's model citizen, verified rather than assumed.** The next-launch latch copies the Inspector runtime's DI pattern (a dedicated `UserDefaults` suite, mutual exclusivity, one-shot consumption before the onboarding gate), the demo scope stays fully in-memory, Spotlight indexing is skipped, the new sheet arrived with snapshot coverage and localized DEBUG copy, and the module docs were updated in the same change and match the code. The pass raised and rejected five false-alarm candidates against it (recorded below) and filed two small real ones: its snapshot case captures a scrolling `Form` at a fixed device frame against the full-content rule, and the `OnboardingGate` doc comment still says the gate roots the trunk that the demo step now heads.
+- **PR #302 orphaned a formatter.** The sticker redesign builds the estimate from `WhereFormat.dayCount` plus a catalog label, leaving `WhereFormat.locationCardEstimatedDays`, its `"Estimated · %@"` key, and its test with no production caller — dead-but-tested API that reads as live. Filed.
+- **The sharding design's first live exercise worked.** `./snapshot-shards check` reports 49 suites with the intake shard at 3 — the two new suites (`DeveloperDemoLaunchSheetSnapshotTests`, `RegionsSettingsViewSnapshotTests`) were picked up by intake rather than silently going unrun, which is precisely the behavior the intake shard exists to provide. First time this pass could verify it by execution rather than by reading the plan.
 
 ---
 
@@ -36,7 +35,7 @@ Pointers only — each one's evidence and suggested fix live in the linked file.
 
 | # | Module | Issue | Filed in |
 |---|--------|-------|----------|
-| 1 | Bumper Bowling | `where.gregorian_calendar` matches only an explicit `Calendar` base, so it reports none of the 12 implicit `.current` sites — and its own mutation test only feeds it the explicit form, which is why it has now survived five audits | [`TODOs.md`](TODOs.md) P0 |
+| 1 | Bumper Bowling | `where.gregorian_calendar` matches only an explicit `Calendar` base, so it reports none of the 12 implicit `.current` sites — and its own mutation test only feeds it the explicit form, which is why it has now survived six audits | [`TODOs.md`](TODOs.md) P0 |
 | 2 | WhereCore | `DailySummaryReconciler.reconcile()` is absent from the post-day-change fan-out — the daily notification body stays stale until a foreground re-`configure` | [`Where/TODOs.md`](Where/TODOs.md) P0 |
 | 3 | PeriscopeCore | Records emitted before the store attaches reach neither the store nor the journal — the durable log has a hole at every launch | [`Shared/Periscope/TODOs.md`](Shared/Periscope/TODOs.md) P0 |
 | 4 | WhereUI | `CalendarDay.displayDate` resolves through `Calendar.current`; four production sites remain, and every day label flows through them | [`Where/TODOs.md`](Where/TODOs.md) P1 |
@@ -47,31 +46,29 @@ Pointers only — each one's evidence and suggested fix live in the linked file.
 | 9 | SnapshotKit | A case's content is built once and re-hosted for every configuration, while both the type's doc comment *and* its `AGENTS.md` tell authors each access is independent | [`Shared/SnapshotKit/TODOs.md`](Shared/SnapshotKit/TODOs.md) P1 |
 | 10 | Bumper Bowling | `duplicate_ownership` and `declared_dependency_cycle` have no mutation test, so neither has been shown to fail on a violating tree | [`TODOs.md`](TODOs.md) P1 |
 
+The nearest dated deadline in the backlog is external: the `kve-stuff` benchmark organization's paid plan downgrades on **September 9, 2026** — three days after this audit — and its deletion item is a root P1.
+
 ---
 
 ## Cross-cutting themes
 
 The synthesis across items that no single item shows.
 
-### Running the checks found what reading the code could not
+### The audit's error ledger is now its own dataset, and it has a shape
 
-Every prior edition of this report said "nothing in this report was executed". This one ran five of the `format` job's checks plus `./snapshot-shards check`, and the single new finding came out of the one that failed. It is not a subtle defect — a test asserts exit status `126` where this machine produces `127` — but no amount of reading would have produced it, because both numbers look equally plausible in source and the difference lives in bash's behaviour, not in the repo. The general shape is worth keeping: PR #283 created the repo's first CI gates that need neither Xcode nor a Swift toolchain, which means a class of check moved from "unverifiable from Linux" to "verifiable from Linux" without anyone updating the docs that said otherwise. Both the root `AGENTS.md` Linux table and the `running-tests` skill claimed Linux could run SwiftFormat and `sync-agents` and nothing else; both are corrected in this pass. The rule this suggests: when a gate stops depending on a platform, the platform-capability docs are part of the change.
+Six editions in, every pass has corrected numbers the previous one published, and this pass corrected five (see the executive summary). The errors are not random: every one is an *undercount or a stale carry* in a figure whose claim ("re-derived", "unchanged") asserted freshness. The two prior enumerations of addressable settle-floor configurations both re-derived the same 37 and both missed the same case, because re-derivation used the previous edition's *list of places to look* rather than a scope query; the bundle count said "unchanged" in the same edition whose own summary described the PR that changed it. The correction that works is the one the `SnapshotProviding` item adopted two windows ago — record the derivation *procedure* in the item, not the result — and this pass extended it to the settle-floor split (the item now says why the lab case belongs in scope) and the bundle count (derived from the scheme's `testAction` list, quoted in the item's evidence). A number without its derivation is a claim; a number with one is a check.
 
-### Rejecting a finding is as much of a result as filing one
+### Proximity to the code closes items that priority does not
 
-Two things in the new surface looked wrong and were not. The Ranking Animation Lab reads `\.accessibilityReduceMotion` directly rather than through the shared `@MotionIsStatic` wrapper, which reads as a rule violation until you notice the rule is scoped to *continuous or looping* motion needing a static end-state, and that the lab's overtake is finite and plays only on a tap — so nothing is in motion during a capture and the capture flag has nothing to freeze. The new `LocationCardsReconciliationModifier` catches non-cancellation errors into `assertionFailure` with no log, which reads as swallowed failure until you notice that `Task.sleep` and `Task.checkCancellation` throw only `CancellationError`, making that arm the impossible-state case the repo's own rule assigns to `assertionFailure`. Both are cheap to file and expensive to un-file: a wrong item in a `TODOs.md` reads as established, and the next pass inherits it. Naming them here costs two paragraphs and saves that.
+`RegionsSettingsView` had been one of the "screens with no image coverage" since the item was filed; PR #305 rewrote the screen for product reasons and the coverage arrived as a side effect of the module's own convention ("a new screen declares `SnapshotProviding` on arrival") being applied to what was effectively a new screen. The same mechanism closed the ranking-reorder P2 in the previous window and the `LocationsView` matrix gap before that. The three-of-four-windows pattern strengthens the standing suggestion: the backlog's leverage point is surfacing an area's open items *when a team is about to work in that area*, because the convention machinery then does the closing for free. The corollary also held this window: the areas nothing touched (Periscope, Broadway, Ledger, JournalKit, LifecycleKit, Inspector, Flyover) moved by exactly zero items.
 
-### The backlog's counted claims are unreliable in a specific, correctable way
+### A quiet window localizes drift, and the drift map matches the diff map
 
-The `SnapshotProviding` item is the sharpest case this repo has produced. It named three uncovered Settings screens and asserted they were the only ones; the tree has five, and the two it missed — `EvidenceListView` behind Settings > Attachments and `RegionsSettingsView` behind Settings > Regions — were reachable the whole time. The item survived five audits because each pass re-checked *the three it named* and found them still true, which is a different question from the one the item claims to answer. The correction is not a bigger number: it is that the item now records **how** the number was derived (list every `*View.swift` with a `#Preview` and no conformance, then intersect with `SettingsView.destination(for:)`), so the next pass re-runs a procedure instead of re-confirming a list. Elsewhere the same window found the reference count at 472 against 466 in two `AGENTS.md` bullets, Flyover's test files at 14 against 12, and `./test` at 722 lines against 941. Four of five audits have now published this theme; the difference here is that one item stopped carrying a count and started carrying a method.
+Every citation that moved this pass moved inside a file the window's four PRs rewrote — `WhereLaunch`/`WhereLaunchSteps` under the demo step, `LocationsView`/`WhereFormat`/`WhereFormatTests` under the sticker redesign, `SettingsView` under the region editor — plus two standing errors that predate the window (the WhereIntents doc cites that pointed past the end of both files, and the CreditKit generator's path). Items citing untouched files verified byte-for-byte, all the way down to line numbers in 1,235-line files. That is the strongest evidence yet that the weekly cadence is right-sized: a one-week window makes citation drift a mechanical, diff-guided fix rather than the bulk of the work it was in the two-week August 9 edition.
 
-### A feature team closes what a backlog reader does not
+### DEBUG surfaces are held to production conventions, and it shows in both directions
 
-The one closure in this window came from PR #289, which set out to animate the Locations ranking and, in passing, satisfied a P2 that had sat open since July. It is the second time in three windows that the closure came from feature work landing on top of a filed item rather than from anyone working the list — the previous one was PR #187 accidentally supplying the `LocationsView` snapshot cases a matrix item had asked for. Read alongside the reverse case from two weeks ago, where a new store copied a defect filed against its sibling twenty lines away, the pattern is consistent: proximity to the code beats priority in the file. That argues for the same thing in both directions — surface the open items for the module a team is *about to work in*, because that is when they get closed and when their absence gets copied.
-
-### Shape now travels with the thing it constrains
-
-Three mechanisms landed this window that each pin a previously implicit assumption, and all three shipped their own enforcement rather than a note. `.xcode-build-version` pins the snapshot renderer to `27A5252f` and is checked by `./test` before it starts a simulator and again by the CircleCI runner validation. `./snapshot-shards` owns the suite-to-container assignment and *verifies after the fact* that each worker ran exactly its assignment. The retained-tool layer moved shell-embedded Python into importable modules and covered each by name. The contrast with the standing CI-docs item is stark: the one piece of shape that did **not** travel — the reasoning for keeping the snapshot suite serial inside a container — is the one that has now been missing through two migrations of the job it constrains.
+The window's entire feature surface is developer tooling or DEBUG-adjacent, and the conventions held anyway: the demo sheet's copy is localized (the WhereUI standard for DEBUG UI, unlike the shared Flyover/Inspector tools' deliberate English), the launch controller is injected rather than global, the lab and sheet ship image coverage. The two real findings the window produced are also convention findings on DEBUG code — a fixed frame on a scrolling `Form`, a stale doc comment — which is the system working: the rules are cheap to apply at authoring time and expensive to retrofit, so a repo that applies them to its throwaway surfaces keeps them enforceable on its shipping ones.
 
 ---
 
@@ -81,27 +78,19 @@ What each module was checked for and found clean, plus the trade-offs this pass 
 
 ### Repository tooling — dev scripts, retained Python/Ruby, CI
 
-The busiest area of the window by a wide margin: four Scripts PRs (#283, #284, #287, #288) plus #276's shard planner. **18 root commands** now (16 at the last audit — `shellcheck` and `snapshot-shards` are new), over a retained layer of 7 Python modules and 5 Ruby modules with 22 test files under `Tools/Tests`.
+Nothing shipped. **18 root commands**, `./test` at 722 lines, 7 Python + 5 Ruby retained modules with 21 test files under `Tools/Tests`.
 
-**Verified OK, by running it:** `./swiftformat --lint` reports 0 of 1,116 files needing formatting; `./shellcheck` is silent across every tracked shell file; `./attribution --check` reports the report up to date at 12 credits — up from 11 because PR #283 pinned ShellCheck as a development tool *and* re-ran the generator in the same change, which is exactly the discipline the attribution rule exists to enforce. Every retained Python and Ruby module has a matching test file; spot-checking three found real fixture-shaped assertions rather than placeholders.
+**Verified OK, by running it:** `./swiftformat --lint` reports 0 of 1,125 files needing formatting; `./shellcheck` is silent; `./attribution --check` reports the report up to date at 12 credits; `./snapshot-shards check` validates the plan at 49 suites (13/15/18 planned + 3 intake). The retained-tool suites reproduce exactly the failure signature the root P1 documents — 1 of 64 Python and 12+1 of 75 Ruby cases fail on macOS assumptions, not on the commands under test — so the filed item is still an accurate description of the gate's Linux behavior, and no *new* platform assumption appeared.
 
-**New this pass:** the retained-tool gate passes only on macOS — one hardcoded shell exit status and one hermetic `PATH` that assumes a system Ruby — and running it leaves untracked `__pycache__/` directories, which `.gitignore` does not cover. Filed as one item with three halves.
-
-**One more thing the run turned up, and it is the tidiest illustration of the cause:** `./sync-agents` is `#!/usr/bin/env ruby` and fails on a bare Linux shell with ``/usr/bin/env: 'ruby': No such file or directory``, because `.cursor/install.sh` puts mise on `PATH` but not its shims. Its sibling `./attribution` is a bash wrapper that reaches the pinned Ruby through `mise exec --` (`attribution:75-78`) and works fine. Two Ruby-implemented commands, one documented as working on Linux, and only one of them arranged to. Folded into the same filed item, which now has four halves and one root cause.
-
-**Accepted:** `./test` is 722 lines, down from 941, having shed its report parsing and bundle selection to `Tools/`. The affected-bundle parser still infers declaration boundaries from indent level, but it is now importable and covered by name, which retires the argument the standing P2 was built on.
-
-**Files:** 18 root commands · 7 Python / 5 Ruby retained modules · 22 tool test files · Open: [`TODOs.md`](TODOs.md)
+**Files:** 18 root commands · 7 Python / 5 Ruby retained modules · 21 tool test files · Open: [`TODOs.md`](TODOs.md)
 
 ---
 
 ### Bumper Bowling — architecture lint
 
-Covers **Where production sources only** (`BumperBowling.swift:15-23`). CI hard-gates it through `./test --architecture-only` (`.github/workflows/ci.yml:72-73`, reaching `config`/`test`/`lint` through `test:253-261`), and the CircleCI iOS jobs pass `--skip-architecture` so it does not run twice.
+Nothing shipped. Covers **Where production sources only** (`BumperBowling.swift:15-23`); CI hard-gates it through `./test --architecture-only` (`.github/workflows/ci.yml:72-73`), and CircleCI passes `--skip-architecture` so it does not run twice.
 
-**Verified OK:** all ten `where.*` rules appear in `.bumper/RULES.md`, and each has a mutation test — eleven test functions for ten rules, since `where.checked_concurrency_boundaries` gets one per escape hatch. `component_boundary` and `forbidden_import` are mutation-tested.
-
-**Not covered, by design:** everything under `Shared/`, all of `Ledger/`, test bundles, and `Where/Specifications/`. Worth knowing when reading a green lint as a whole-repo signal.
+**Verified OK:** still ten `where.*` rules, each in `.bumper/RULES.md`, with eleven mutation-test functions; `component_boundary` and `forbidden_import` mutation-tested. The two graph assertions without mutation tests are unchanged and filed.
 
 **Files:** 4 rule/test sources · RULES.md ✓ · Open: [`TODOs.md`](TODOs.md)
 
@@ -109,9 +98,11 @@ Covers **Where production sources only** (`BumperBowling.swift:15-23`). CI hard-
 
 ### WhereCore
 
-**Verified OK:** the window's one new source, `PlannedStayLocationVerifier.swift`, arrived with its namesake test, takes every argument explicitly rather than defaulting them, and models its advisory outcome as one enum rather than parallel optionals — so for the first time in four audits the namesake-test debt held flat (60 uncovered) while the module grew. No new `try?`, empty `catch`, or `Calendar.current` in the changed surface.
+Two files touched (#301): `DataIssue.swift` gained the `DataIssueCategory` raw values the demo latch persists, and `DemoDataBuilder` gained a `Configuration` whose synthetic clock advances only the demo world.
 
-**Standing:** three fan-out and lifecycle items have now survived every pass since July 26 — the summary reconcile, `setPrimaryRegions`, and the hard-deleting untrack. All three were re-confirmed against current source rather than assumed, and this pass corrected two citations that had drifted by roughly 70 lines inside `SwiftDataStore` and one in `reset()`.
+**Verified OK:** the new configuration surface models issue selection as a `Set` of a typed enum rather than parallel flags; the raw values feed only the DEBUG developer latch, not any backup or CloudKit path; `DemoDataBuilderTests` covers the full 16-combination category matrix at two clock positions. A convenience `init(now:calendar:)` forwarding to `.standard` was weighed against the no-parameter-defaults rule and accepted — it is an explicit overload on demo fixture code, not a silent default on a store API.
+
+**Standing:** the three fan-out and lifecycle items (summary reconcile, `setPrimaryRegions`, hard-deleting untrack) have now survived every pass since July 26, re-confirmed against current source with no drift — WhereCore's citations, down to `SwiftDataStore.swift:1844-1875`, verified exactly.
 
 **Files:** 128 source / 83 test · README ✓ · AGENTS ✓ · Open: [`Where/TODOs.md`](Where/TODOs.md)
 
@@ -119,33 +110,31 @@ Covers **Where production sources only** (`BumperBowling.swift:15-23`). CI hard-
 
 ### WhereUI
 
-Again the busiest module: +16 sources across the endorsement redesign (#292), the ranking-overtake animation (#289), and the planned-stay warning (#286).
+The whole window landed here: +5 sources (the demo launch trio, the two sticker views), +1 test file, +2 snapshot suites, +12 references, across #301/#302/#305.
 
-**Verified OK:** `Calendar.current` is still confined to four helper defaults and eight DEBUG fixtures, with the five `calendar.timeZone = .current` sites correctly *not* counted, and the new forecasting code holding the line (`LocationForecastProgress.swift:65` builds an explicit Gregorian calendar); no raw SF Symbol strings; production copy resolves through catalog symbols; the new accessibility work is correct rather than defective — `LocationForecastRow` composes an explicit label over ignored children, and `StampBanner`'s unlabeled `.combine` reads as one localized sentence.
+**Verified OK:** no `Calendar.current` in any new code (the count holds at 4 production + 8 DEBUG-fixture sites, with the five `calendar.timeZone = .current` sites still correctly excluded); no raw SF Symbol strings; all new catalog keys are manual entries; `RegionsSettingsView`'s two catches log typed events and keep the draft open (an improvement over the flow it replaced, which dismissed on error); the new launch controller follows the Inspector DI pattern and is consumed exactly once before the onboarding gate, pinned by `WhereLaunchTests.requestedDemoActivatesBeforeOnboardingAndOpensNoRealStore`.
 
-**Closed:** the Locations ranking-reorder P2, by PR #289. The `matchedTransitionSource` conflict the item flagged was real and is now a written rule keeping the ranking layout out of the calendar zoom namespace.
+**Narrowed:** the Settings image-coverage item (five screens → four, PR #305) and the namesake-test item (`scrolledForYear` no longer exists; `LocationNamer` remains).
 
-**Corrected here:** the `SnapshotProviding` gap is five Settings-reachable screens, not three, plus ten further views with a bare `#Preview`.
+**Filed:** the demo sheet's fixed-frame `Form` snapshot, the orphaned estimate formatter, the stale `OnboardingGate` comment.
 
-**Accepted, and documented as such:** the overtake transition has no intermediate-frame coverage. A settled snapshot cannot prove a transition, so `WhereUI/AGENTS.md` prescribes playing two overtakes in the lab by hand after any ranking-motion change. That is a deliberate manual step, not a filed gap.
+**Accepted:** `WhereSession` held at exactly 636 lines for a fourth consecutive window — stable, but not being worked down.
 
-**Files:** 274 source / 101 test / 44 image-snapshot · README ✓ · AGENTS ✓ · Open: [`Where/TODOs.md`](Where/TODOs.md)
+**Files:** 281 source / 103 test / 46 image-snapshot · README ✓ · AGENTS ✓ · Open: [`Where/TODOs.md`](Where/TODOs.md)
 
 ---
 
 ### WhereCrashReporting
 
-Nothing shipped this window. **Files:** 3 source / 2 test · README ✓ · AGENTS ✓ · Open: nothing filed
+Nothing shipped. **Files:** 3 source / 2 test · README ✓ · AGENTS ✓ · Open: nothing filed
 
 ---
 
 ### PeriscopeCore, PeriscopeUI, PeriscopeTools
 
-Nothing shipped. All 19 items still open, citations refreshed.
+Nothing shipped. All 20 items still open; every key citation verified, one drifted (`PeriscopeToolsSnapshotTests` wiring is `Project.swift:627-633`).
 
-**Verified OK:** the Broadway dependency still stops at PeriscopeTools; no test touches `Periscope.shared`; the hosting-smoke debt **held at 20 tests across 10 files** for a second consecutive audit, so it has stopped growing without being worked down; `PeriscopeViewerSnapshotTests` is still the only file in the module's image bundle, at 2 references.
-
-**Corrected here:** three citations in the span-record P0 and the relaunch P0. `StoredLogEvent` carries `spanID` and `spanExitMode` but not `spanRelaunchPolicy`, which lives only on `SDLogEvent` and the journal entry; the warning the relaunch item cited at `LogSpan.swift:643` is `end(for:)`'s "without a matching begin", not a relaunch-path warning; and the journal-ingest deletes are at `:61` and `:71`, not `:42-44`.
+**Verified OK:** the hosting-smoke debt held at **20 tests across 10 files for a third consecutive audit** — every cited site re-confirmed individually; `PeriscopeViewerSnapshotTests` is still the only file in the module's image bundle (2 references); `Periscope.swift` and `PeriscopeStore.swift` held at 935 and 1,235 lines; `StoredLogEvent` still carries `spanID` and `spanExitMode` but not `spanRelaunchPolicy`, exactly as the span-record item's 2026-08-09 correction states.
 
 **Files:** PeriscopeCore 38/33 · PeriscopeUI 1/2 · PeriscopeTools 27/27 (+1 image source, 2 references) · README ✓ · AGENTS ✓ · Open: [`Shared/Periscope/TODOs.md`](Shared/Periscope/TODOs.md)
 
@@ -153,11 +142,7 @@ Nothing shipped. All 19 items still open, citations refreshed.
 
 ### Flyover
 
-Nothing shipped, after two feature PRs in the previous window.
-
-**Corrected here:** the standing coverage item said twelve test files; there are **fourteen**. It undercounted `FlyoverContentLoadCoordinatorTests` and `FlyoverConnectorGeometryTests`, both of which the item's own body credits by name — a count and a body disagreeing inside one bullet.
-
-**Accepted, with a note:** references held at 5 and the single `canvasAndList` image case is unchanged, so the module's engine-proven/surface-unpinned split is stable rather than widening for a third window.
+Nothing shipped for a second consecutive window (PR #301's `WhereFlyoverWorld` change is a WhereUI integration file, not this module). Counts re-confirmed: 14 test files, 5 references, one image case.
 
 **Files:** 54 source / 14 test / 1 image source, 5 references · README ✓ · AGENTS ✓ · Open: [`Shared/Flyover/TODOs.md`](Shared/Flyover/TODOs.md)
 
@@ -165,9 +150,7 @@ Nothing shipped, after two feature PRs in the previous window.
 
 ### Inspector
 
-Nothing shipped; all four items open, citations hold exactly.
-
-**Verified OK:** the `withKnownIssue` quarantine on the dark SwiftData capture is still one of exactly **two** in the whole repo (the other guards WhereUI's Elsewhere inflection bug) — re-counted rather than assumed. The bundle still produces four references from one case.
+Nothing shipped; all four items open, citations hold exactly. The `withKnownIssue` quarantine on the dark SwiftData capture is still one of exactly **two** in the repo (the other guards WhereUI's Elsewhere inflection bug, whose test moved to `WhereFormatTests.swift:98` this window).
 
 **Files:** 23 source / 14 test / 1 image source, 4 references · README ✓ · AGENTS ✓ · Open: [`Shared/Inspector/TODOs.md`](Shared/Inspector/TODOs.md)
 
@@ -175,11 +158,11 @@ Nothing shipped; all four items open, citations hold exactly.
 
 ### SnapshotKit & SnapshotKitTesting
 
-PR #290 stabilized raised-floor accessibility captures and added `AccessibilitySnapshotViewControllerTests` for the window-attachment timing; PR #297 re-recorded the suite against Xcode 27 beta 6 and introduced the `.xcode-build-version` pin.
+PR #303 replaced the async-capture regression's wall-clock-delayed placeholder with settle-pass accounting — the test now proves the final settle loop ran by counting passes through the non-emitting `SnapshotCaptureTiming` payload instead of racing a 100 ms task against the pixel loop. That is the module's own documented philosophy ("pixel stability cannot become a readiness signal") applied to its own test, and it closes nothing in the backlog because nothing had filed it.
 
-**Verified OK:** the framework halves stay split as documented; each image bundle lists only `SnapshotKitTesting` in `extraPackageProducts`; the reporting channels still separate `report(...)`/`emit()` from `line(...)`, so no test can fabricate a row into `--review` or `--timings`; the raised-floor double-parse invariant matches the code that now implements it.
+**Verified OK:** the framework halves stay split; the reporting channels still separate `report(...)`/`emit()` from `line(...)`; the content-built-once contradiction (item 9 above) is byte-for-byte unchanged in the code, the doc comment, and the `AGENTS.md` bullet.
 
-**Corrected here:** the reference count (472 — `AGENTS.md` carried 466 in two bullets, both now refreshed) and four drifted citations in the pipeline items, including `rejectsNonConvergingBoundedScrollMeasurement`, which moved by roughly 95 lines. The 37-configuration settle-floor split was re-derived and is unchanged; the item now also records where the 10-per-case and 2-per-case figures come from, so the next pass can re-derive rather than trust them.
+**Corrected here:** the settle-floor split is **39** addressable configurations, not the 37 two prior passes published — both missed the Ranking Animation Lab's 2 (present since PR #289) — and the dated reference counts in `AGENTS.md` were refreshed to 484 as of this audit.
 
 **Files:** SnapshotKit 8/3 · SnapshotKitTesting 16/16 · README ✓ · AGENTS ✓ · Open: [`Shared/SnapshotKit/TODOs.md`](Shared/SnapshotKit/TODOs.md), [`Shared/SnapshotKitTesting/TODOs.md`](Shared/SnapshotKitTesting/TODOs.md)
 
@@ -195,7 +178,7 @@ Nothing shipped. The single P2 stands, citations unchanged.
 
 ### Broadway (BroadwayCore, BroadwayUI, BroadwayCatalog)
 
-Nothing shipped. All eight items still open, two citations corrected (`BStylesheets.swift:91`, and the empty catalog test bundle is listed twice in `Project.swift`).
+Nothing shipped. All eight items still open; the two `Project.swift` citations drifted (target block now `:660-669`, scheme listings `:748`/`:771`) because targets above them were removed with StuffCore, not because anything Broadway changed.
 
 **Files:** BroadwayCore 17/10 · BroadwayUI 6/4 · BroadwayCatalog 2/1 · README ✓ · AGENTS ✓ · Open: [`Shared/Broadway/TODOs.md`](Shared/Broadway/TODOs.md)
 
@@ -203,9 +186,7 @@ Nothing shipped. All eight items still open, two citations corrected (`BStyleshe
 
 ### Ledger, LedgerCore
 
-Nothing shipped for a third consecutive window; all three P2s unchanged.
-
-**Verified OK:** still 13 test files over 16 sources, still the three named files without a namesake test, and `Ledger-macOS-Tests` still builds the app while running only `LedgerCoreTests`. The module remains outside Bumper's scope and outside `./test`'s reach — the second of which is filed as a root P2, whose line-count evidence this pass had to revise downward twice.
+Nothing shipped for a **fourth** consecutive window (`git diff 13b136d5..HEAD -- Ledger/` is empty); all three P2s unchanged, with two citations refreshed (`LedgerServices.swift:303-308`, scheme at `Project.swift:712-717`).
 
 **Files:** LedgerCore 16/14 · Ledger 8/0 · README ✓ · AGENTS ✓ (leaf modules; the **group** folder is missing both — filed) · Open: [`Ledger/TODOs.md`](Ledger/TODOs.md)
 
@@ -213,7 +194,7 @@ Nothing shipped for a third consecutive window; all three P2s unchanged.
 
 ### RegionKit & RegionViewer
 
-Nothing shipped; the doc claims PR #172 corrected remain correct.
+Nothing shipped; citations hold, including the honestly-stated GeoJSON coverage gap.
 
 **Files:** RegionKit 15/10 · RegionViewer 1/0 · README ✓ · AGENTS ✓ · Open: [`Where/TODOs.md`](Where/TODOs.md)
 
@@ -221,11 +202,11 @@ Nothing shipped; the doc claims PR #172 corrected remain correct.
 
 ### WhereIntents, WhereWidgets, WhereShareExtension, Where app
 
-Nothing shipped.
+The Where app took #301's runtime-selection change: `AppDelegate` now consults `WhereDeveloperLaunchController` (which wraps the Inspector controller) instead of the Inspector controller directly, and Spotlight indexing is skipped in demo mode.
 
-**Verified OK:** the `IntentServices` handoff still has no self-creating fallback.
+**Verified OK:** runtime selection still happens exactly once at process initialization; Inspector recovery remains authoritative over a conflicting demo request (`completePendingStoreErasures` re-schedules Inspector on failure); the `IntentServices` handoff still has no self-creating fallback.
 
-**Accepted:** all four parts of the `convention(WhereIntents)` polish item are still open, verified individually rather than as a group.
+**Corrected here:** the WhereIntents polish item's doc citations pointed past the end of both rewritten files (`AGENTS.md` is 90 lines; the item cited `:95-108`), and `WhereShortcuts` has registered four shortcuts, not five, since PR #230 — a count no pass had re-derived in five audits.
 
 **Files:** WhereIntents 15/9 · WhereWidgets 7/0 · WhereShareExtension 5/0 · Where 8/4 · README ✓ · AGENTS ✓ · Open: [`Where/TODOs.md`](Where/TODOs.md)
 
@@ -233,9 +214,9 @@ Nothing shipped.
 
 ### CreditKit, JournalKit, TestHostSupport, StuffTestHost
 
-**CreditKit:** `./attribution --check` passes at **12** credits, now including ShellCheck as a pinned development tool. **Files:** 2/3 · Open: [`Shared/CreditKit/TODOs.md`](Shared/CreditKit/TODOs.md)
+**CreditKit:** `./attribution --check` passes at **12** credits. The one open item's path citation was wrong — the generator lives at `Shared/CreditKit/Tools/generate-attribution.rb`, not root `Tools/` — corrected. **Files:** 2/3 · Open: [`Shared/CreditKit/TODOs.md`](Shared/CreditKit/TODOs.md)
 
-**JournalKit:** nothing shipped. Both test items still open. **Files:** 2/3 · Open: [`Shared/JournalKit/TODOs.md`](Shared/JournalKit/TODOs.md)
+**JournalKit:** nothing shipped. Both test items still open at their exact lines. **Files:** 2/3 · Open: [`Shared/JournalKit/TODOs.md`](Shared/JournalKit/TODOs.md)
 
 **TestHostSupport:** dependency-free UIKit helpers, no bundle by design. **Files:** 1/0 · nothing open
 
@@ -245,12 +226,11 @@ Nothing shipped.
 
 ## Limitations
 
-- **Mostly static, but no longer entirely.** The cloud agent runs Linux with no Swift toolchain, so no `tuist test`, no simulator, no `./test --architecture-only`, and no `./xcstrings --lint`. What *was* executed for this report: `./swiftformat --lint`, `./shellcheck`, `./attribution --check`, the retained Python tool tests, the retained Ruby tool tests, and `./snapshot-shards check`. Everything else here is read from source.
-- **The two retained-tool failures this pass observed are the finding, not noise.** The Python suite failed one of 64 tests, and the Ruby suite reported 12 failures and one error across 75 runs, in both cases on macOS assumptions rather than on the commands under test. Both are filed; neither indicates a broken command.
+- **Mostly static, partly executed.** The cloud agent runs Linux with no Swift toolchain, so no `tuist test`, no simulator, no `./test --architecture-only`, and no `./xcstrings --lint`. What *was* executed for this report: `./swiftformat --lint`, `./shellcheck`, `./attribution --check`, the retained Python tool tests, the retained Ruby tool tests, and `./snapshot-shards check`. Everything else here is read from source.
+- **The retained-tool failures observed (1 of 64 Python, 12+1 of 75 Ruby) match the filed root P1 exactly** — macOS assumptions, not broken commands. If those counts ever change, check for a new platform assumption or a real regression before reporting either.
 - **The "the Gregorian rule finds nothing" conclusion rests on CI being green**, not on running the lint here. The mechanism (the rule's filter plus its one-sided mutation test) is read from source and is sufficient on its own; the green gate is corroboration.
-- **No snapshot pixels were inspected.** Reference counts come from file enumeration and Git LFS pointers, never from decoded images. Whether PR #297's re-recording against Xcode 27 beta 6 preserved or re-baked any of the four open broken-snapshot defects is unanswerable here; a macOS `./test --review` would settle it.
-- **Runtime-dependent items are unconfirmed by design**: the launch-time notification prompt, Flyover's log routing, multi-process journal coordination, the CloudKit import-readiness race, Spotlight indexing, whether Bitdrift receives anything on a device, and Ledger's live API and Keychain paths. Each says so in its own entry.
-- **The new-surface review was a rule-by-rule read, not a proof.** The window's 17 net new Swift sources were checked against the repo's written rules one by one; the ranking-overtake transition in particular cannot be verified without running it, which is what `WhereUI/AGENTS.md` says to do by hand.
+- **No snapshot pixels were inspected.** Reference counts come from file enumeration and Git LFS pointers. Whether PR #302's re-recorded `locations.Loaded_iPad.png` still bakes the inflection markup is highly likely (the broken hop is untouched) but unverifiable here; a macOS `./test --review` would settle it.
+- **Runtime-dependent items are unconfirmed by design**: the launch-time notification prompt, Flyover's log routing, multi-process journal coordination, the CloudKit import-readiness race, the demo mode's end-to-end cold launch beyond what its unit tests prove, and Ledger's live API and Keychain paths. Each says so in its own entry.
 - **No item counts by severity.** They could not be reconciled against the backlog in earlier revisions and remain deliberately omitted rather than estimated.
 - `Shared/Periscope/Prototypes/JournalBenchmark` (2 sources) is wired into no target and is excluded from every count here.
 
@@ -278,7 +258,7 @@ Nothing shipped.
 | PeriscopeTools | `Shared/Periscope/PeriscopeTools/` | 27 | 27 | 1 | ✓ | ✓ |
 | RegionKit | `Where/RegionKit/` | 15 | 10 | — | ✓ | ✓ |
 | WhereCore | `Where/WhereCore/` | 128 | 83 | — | ✓ | ✓ |
-| WhereUI | `Where/WhereUI/` | 274 | 101 | 44 | ✓ | ✓ |
+| WhereUI | `Where/WhereUI/` | 281 | 103 | 46 | ✓ | ✓ |
 | WhereIntents | `Where/WhereIntents/` | 15 | 9 | — | ✓ | ✓ |
 | WhereCrashReporting | `Where/WhereCrashReporting/` | 3 | 2 | — | ✓ | ✓ |
 | LedgerCore | `Ledger/LedgerCore/` | 16 | 14 | — | ✓ | ✓ |
@@ -295,26 +275,23 @@ Nothing shipped.
 | StuffTestHost | `Shared/StuffTestHost/` | 2 | 0 | ✓ | ✓ |
 | BroadwayCatalog | `Shared/Broadway/BroadwayCatalog/` | 2 | 1 | ✓ | ✓ |
 
-**Totals:** 694 source · 368 test · 47 image-snapshot Swift files across shipped targets (plus 4 Bumper rule/test sources and 2 unwired prototype sources). **472** LFS-backed reference images (461 WhereUI, 5 Flyover, 4 Inspector, 2 PeriscopeTools) across **47** snapshot suites. **26** test bundles: 22 unit (21 in `Stuff-iOS-Tests`, plus `LedgerCoreTests` in `Ledger-macOS-Tests`) and 4 image (`StuffSnapshotTests`) — every one is a member of a CI scheme.
+**Totals:** 700 source · 369 test · 49 image-snapshot Swift files across shipped targets (plus 4 Bumper rule/test sources and 2 unwired prototype sources). **484** LFS-backed reference images (473 WhereUI, 5 Flyover, 4 Inspector, 2 PeriscopeTools) across **49** snapshot suites (48 suite files plus the cross-boundary flag probe). **25** test bundles: 21 unit (20 in `Stuff-iOS-Tests` — the scheme's `testAction` list — plus `LedgerCoreTests` in `Ledger-macOS-Tests`) and 4 image (`StuffSnapshotTests`) — every one is a member of a CI scheme. The August 30 edition published 26/22/21 for these; that was already wrong at its date (PR #300 had removed `StuffCoreTests`), so the bundle change belongs to the *previous* window, not this one.
 
-**Group-folder docs:** every one of the 28 module folders above carries its `README.md` + `AGENTS.md` pair. At the *group* level, `Shared/Broadway/` and `Shared/Periscope/` carry the required pair; `Where/` has `AGENTS.md` but **no `README.md`**, and `Ledger/` has **neither** — both filed in the root [`TODOs.md`](TODOs.md).
+**Group-folder docs:** every one of the 27 module folders above carries its `README.md` + `AGENTS.md` pair. At the *group* level, `Shared/Broadway/` and `Shared/Periscope/` carry the required pair; `Where/` has `AGENTS.md` but **no `README.md`**, and `Ledger/` has **neither** — both filed in the root [`TODOs.md`](TODOs.md).
 
 ---
 
-## Changes since August 16, 2026 audit
+## Changes since August 30, 2026 audit
 
-| Area | August 16 state | August 30 state |
-|------|-----------------|-----------------|
-| File count | 677 source / 361 test | **694 / 368** (WhereUI 258 → 274, WhereCore 127 → 128) |
-| Backlog movement | 0 closed, 5 filed | **2 closed, 1 filed** — #289 closed the Locations ranking-reorder P2; #300 closed the StuffCore tautological-test P2 by removing the module; one new item covers four macOS-coupled edges in the retained-tool layer |
-| Dev scripts | 16 | **18** — `shellcheck` (#283) and `snapshot-shards` (#276) |
-| CI `format` job | 4 checking steps | **6** — ShellCheck and the retained Python/Ruby tool suites joined (#283) |
-| CI iOS topology | One `test-ios` job, one serial `snapshot` job | **Build once, attach everywhere** — `build-ios-tests` hands products to `test-ios` and a `parallelism: 4` `snapshot` job sharded by suite (#276) |
-| Snapshot renderer | Unpinned | **`.xcode-build-version` = `27A5252f`** (#297), gated in `test:449-452` and validated on the CircleCI runner |
-| CI opt-out | None | **`NO-CI` in a PR title** skips both systems; main pushes and manual full-gate runs are unaffected (#294) |
-| Retained tooling | Report policy and bundle selection embedded in `./test` (941 lines) | **7 Python + 5 Ruby modules, 22 test files** under `Tools/`; `./test` down to **722** lines (#283/#284/#287/#288) |
-| Image suites | 4 bundles, 466 references | **4 bundles, 472 references, 47 suites** — WhereUI 455 → 461, re-recorded whole for Xcode 27 beta 6 (#297) |
-| Attribution | 11 credits | **12** — ShellCheck, pinned and credited in the same PR that added it |
-| Formal specs | 10 TLA+ specifications | **10**, unchanged |
-| Test bundles | 26 | **26**, unchanged |
-| Backlog | 13 `TODOs.md` | **12** — StuffCore's area file went with the module (#300); no new area needed one |
+| Area | August 30 state (as published / as corrected) | September 6 state |
+|------|-----------------------------------------------|-------------------|
+| File count | published 694 / 368; **really 695 / 368** (WhereUI 276/102, not 274/101) | **700 / 369** — +5 WhereUI sources (#301, #302), +1 test file |
+| Backlog movement | 2 closed, 1 filed | **0 closed, 2 narrowed, 3 filed** — #305 shrank the Settings-coverage item to four screens; the `scrolledForYear` half of a test item is obsolete; the demo-sheet frame, orphaned formatter, and stale gate comment are new P2s |
+| Test bundles | published "26, unchanged"; **really 25** (StuffCoreTests went with #300) | **25**, genuinely unchanged this window |
+| Image suites | 4 bundles, 472 references, 47 suites | **4 bundles, 484 references, 49 suites** — `DeveloperDemoLaunchSheetSnapshotTests` (#301) and `RegionsSettingsViewSnapshotTests` (#305), both on the intake shard, verified by running `./snapshot-shards check` (13/15/18/3) |
+| Settle-floor split | published "37 addressable, re-derived and unchanged"; **really 39** (Ranking Animation Lab missed twice) | **39**, item now records why the lab is in scope |
+| DEBUG boot modes | Inspector only | **Inspector + one-shot demo** (#301) — `WhereDeveloperLaunchController` wraps `InspectorModeController`, mutually exclusive, consumed before the onboarding gate |
+| Where launch trunk | `resolve-scope` first | **`ActivateLaunchDemoStep` first** (#301) — the onboarding gate is second; its doc comment still says "head" (filed) |
+| Locations card estimates | Text line under the count | **Visa-sticker endorsement** (#302); 12 references re-recorded; the old formatter is now orphaned (filed) |
+| Settings regions flow | Full onboarding picker reused | **Overview + per-region editor** (#305), with snapshot coverage on arrival |
+| Backlog files | 12 `TODOs.md` | **12**, unchanged |
