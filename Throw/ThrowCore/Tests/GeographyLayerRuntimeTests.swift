@@ -148,7 +148,7 @@ struct GeographyLayerRuntimeTests {
         let frame = try await runtime.frame(for: GeographyLayerInput())
 
         #expect(frame.layerID == .geography)
-        #expect(frame.geographicLines.count == 38483)
+        #expect(frame.geographicLines.count == 40179)
         #expect(Set(frame.geographicLines.map(\.kind)) == Set(GeographyLineKind.allCases))
         #expect(
             Set(frame.geographicLines.map(\.detailLevel)) == Set(GeographyDetailLevel.allCases),

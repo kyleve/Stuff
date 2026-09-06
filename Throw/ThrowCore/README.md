@@ -22,6 +22,8 @@ important boundaries are:
 - `ProjectionExperienceCatalog.standard` and `LayerCatalog.standard`, which
   define fixed View and layer membership at compile time;
 - `AircraftObservationSource`, the provider-neutral one-shot feed contract;
+- `TransitScheduleSource` and `TransitObservationSource`, the provider-neutral
+  static and realtime transit contracts;
 - `AircraftSourceOperationServing`, the provider-neutral setup and usage
   boundary used by presentation code;
 - HTTP, preference, credential, location, and clock protocols, with live and
@@ -64,12 +66,13 @@ outward so provider coordinates on the local filter boundary are not omitted.
 
 ## Composition
 
-`ThrowSession+Composition.swift` creates the live stores, source graph, poller,
-and session once. ThrowUI's shared session drives the poller according to
-foreground, quiet, and output demand. Version-two preferences separate global,
-playlist, and Air & Space state. The codec migrates version-one data under the
-existing storage key. Validated preference aggregates stay intact through the
-session boundary. Raw values exist only at editing and codec boundaries.
+`ThrowSession+Composition.swift` creates the live stores, source graphs,
+pollers, runtimes, and session once. ThrowUI's shared session drives the
+pollers according to foreground, quiet, output demand, and View state.
+Version-four preferences separate global, playlist, Air & Space, and Transit
+state. The codec migrates version-one, version-two, and version-three data under
+the existing storage key. Validated preference aggregates stay intact through
+the session boundary. Raw values exist only at editing and codec boundaries.
 Keychain credential IDs do not change.
 
 Setup is one typed lifecycle value. Its configured case requires a validated
@@ -78,8 +81,8 @@ state from the stable version-one and version-two fields.
 
 The process starts one Periscope store and attaches it to Throw's typed log.
 The durable-logging starter is also the session failure logger. It sends failures
-to OSLog while this store opens. It also
-retains each exact typed record and its error attachment. The handoff writes
+to OSLog while this store opens. It retains each exact typed record and its
+error attachment. The handoff writes
 these records to the store once before new session records use the attached sink.
 The store keeps at most 100 days and 50,000 events. A store error leaves OSLog
 active and produces a typed error event. A history-prune error does not make
@@ -106,13 +109,14 @@ construction exists only in DEBUG Testing SPI.
 `ProjectionExperienceInput` also pairs each experience with its supported projection modes.
 Transit can accept only a Map viewport. Geography visibility belongs to Map
 inputs, so it cannot be requested in True Sky.
-`ProjectionExperienceID` is the closed display and persistence identity. It
-includes planned Transit. `RunnableProjectionExperienceID` is the smaller
-release runtime identity. It includes only Air & Space. The standard catalog
-owns the relationship between these types. Its public descriptors can be read,
-but production code cannot construct another catalog. Test catalogs are
-available only through the DEBUG Testing SPI. Playlist entries and mutations
-require runnable identities, so planned Transit cannot enter a release playlist.
+`ProjectionExperienceID` is the closed display and persistence identity.
+`RunnableProjectionExperienceID` is the closed release runtime identity for
+Air & Space and Transit. The standard catalog owns the relationship between
+these types. Its public descriptors can be read, but production code cannot
+construct another catalog. Test catalogs are available only through the DEBUG
+Testing SPI. Playlist entries and mutations require runnable identities.
+The Transit radius accepts whole nautical-mile values from 2 through 8 NM.
+The default radius is 5 NM.
 
 `ProjectionMarkLayerKind` and `ProjectionLineLayerKind` bind each semantic
 element or style family to its projected payload. `ProjectedLayerFrame` keeps
@@ -128,10 +132,10 @@ The worker converts `ProjectionExperienceInput` into one closed
 accepts that value and returns the matching `ProjectedExperienceFrame`.
 Each present Transit network produces one required projected frame. That frame
 stores the semantic source revision, so the prepared value cannot omit it.
-ThrowUI erases the closed output once in
-`ProjectionFrame.swift`, at the renderer boundary.
+ThrowUI erases the closed output once in `ProjectionFrame.swift`, at the
+renderer boundary.
 
-Line styles are typed, so Geography and future transit routes use one
+Line styles are typed, so Geography and Transit routes use one
 projection path. `ProjectionEngine.lineFrame` records the semantic source
 revision and full projection context in each static-line frame. The engine
 rejects a prepared frame from another source revision or projection context.
@@ -152,6 +156,23 @@ delayed state read cannot replace a newer stream publication.
 The polling clock can finish a wait or report cancellation. It cannot leave a
 dead poll task in a retrying state through another error.
 
+The NYC transit adapter reads the official MTA supplemented GTFS archive and
+eight GTFS Realtime partitions. SwiftProtobuf decodes the standard feed and the
+NYCT extension. ZIPFoundation reads the static archive. The static parser
+rejects duplicate identities, malformed CSV rows, invalid shapes, and broken
+references.
+
+The Transit estimator matches an exact trip ID first. If that ID is absent, it
+matches the route, direction, and remaining stop sequence. It places each train
+on the matching GTFS shape between its previous and next stops. Consecutive
+updates increase position confidence. The semantic frame keeps schedule-inferred
+and feed-tracked positions distinct.
+
+The Transit runtime polls all partitions concurrently every 30 seconds. A
+partition failure does not remove data from successful partitions. Failed
+partition marks remain steady for 90 seconds and fade for the next 30 seconds.
+The runtime refreshes the cached schedule each hour.
+
 The Flights runtime compares consecutive positions for each aircraft.
 Valid provider track and speed remain authoritative.
 Observed positions supply motion when provider values are missing or clearly inconsistent.
@@ -170,7 +191,9 @@ official URL, release, file member, and SHA-256 digest.
 
 The generator filters features, removes names, splits antimeridian paths, and
 simplifies linework. It then quantizes coordinates and assigns wide, standard,
-or local visibility. The committed archive lets every app build stay offline.
+local, or neighborhood visibility. Source-resolution Census coastline replaces
+broader coastline tiers at neighborhood scale. The committed archive lets every
+app build stay offline.
 Raw source archives stay outside the tracked tree.
 
 `Tools/generate-aircraft-types.rb` creates the bundled ICAO type lookup from a
@@ -220,6 +243,9 @@ and aggregate retention counts.
 Route enrichment sends broadcast callsigns to ADSBDB. It never sends aircraft
 or observer positions, persists route history, or logs route request or
 response values.
+The MTA requests contain no observer or Map-center coordinate. Throw stores the
+downloaded static schedule in the cache. It does not persist realtime runs,
+train identities, stop predictions, or position history.
 
 ## Testing
 

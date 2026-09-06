@@ -5,13 +5,13 @@
     "coordinateScale": 10000,
     "maximumSegmentNauticalMiles": 10,
     "maximumPathCount": 100000,
-    "maximumCoordinateCount": 2000000,
+    "maximumCoordinateCount": 2500000,
     "maximumOutputBytes": 33554432,
     "expectedOutput": {
-      "sha256": "4ee1ddb6e676fa2130d783106800271ac01427136bff4109a506444ecd88e536",
-      "encodedBytes": 15843872,
-      "pathCount": 38483,
-      "coordinateCount": 1462742
+      "sha256": "3fe4694a17e5ae449f5f1b53d3c79d4539f4f37d1adeea892b427020425bbbd0",
+      "encodedBytes": 21883044,
+      "pathCount": 40179,
+      "coordinateCount": 2455484
     }
   },
   "sources": [
@@ -45,6 +45,25 @@
   ],
   "inputs": [
     {
+      "id": "census-coastline",
+      "sourceID": "census-tiger-line-2025",
+      "format": "shapefile",
+      "archive": {
+        "file": "tl_2025_us_coastline.zip",
+        "url": "https://www2.census.gov/geo/tiger/TIGER2025/COASTLINE/tl_2025_us_coastline.zip",
+        "sha256": "c88e68274b72e7cfded0bb0846c8c78f2c078e5f361973792a84c67b0975459c",
+        "members": {
+          "shp": "tl_2025_us_coastline.shp",
+          "dbf": "tl_2025_us_coastline.dbf"
+        }
+      },
+      "kind": "coastline",
+      "detailLevel": "neighborhood",
+      "priority": 700,
+      "deduplicationGroup": "coastline",
+      "simplificationNauticalMiles": 0.005
+    },
+    {
       "id": "natural-earth-coastline",
       "sourceID": "natural-earth-vector-5-1-2",
       "format": "shapefile",
@@ -73,7 +92,7 @@
       },
       "priority": 200,
       "deduplicationGroup": "coastline",
-      "simplificationNauticalMiles": 0.02
+      "simplificationNauticalMiles": 0.005
     },
     {
       "id": "natural-earth-lakes",
@@ -104,7 +123,7 @@
       },
       "priority": 200,
       "deduplicationGroup": "lake",
-      "simplificationNauticalMiles": 0.03
+      "simplificationNauticalMiles": 0.005
     },
     {
       "id": "natural-earth-rivers",
@@ -135,7 +154,7 @@
       },
       "priority": 200,
       "deduplicationGroup": "river",
-      "simplificationNauticalMiles": 0.05
+      "simplificationNauticalMiles": 0.005
     },
     {
       "id": "natural-earth-national-boundaries",
@@ -173,7 +192,7 @@
       "priority": 300,
       "deduplicationGroup": "boundary",
       "mergeConnectedPaths": true,
-      "simplificationNauticalMiles": 0.05
+      "simplificationNauticalMiles": 0.005
     },
     {
       "id": "natural-earth-regional-boundaries",
@@ -210,7 +229,7 @@
       "priority": 200,
       "deduplicationGroup": "boundary",
       "mergeConnectedPaths": true,
-      "simplificationNauticalMiles": 0.05
+      "simplificationNauticalMiles": 0.005
     },
     {
       "id": "census-state-boundaries",
@@ -231,7 +250,7 @@
       "detailLevel": "wide",
       "priority": 500,
       "deduplicationGroup": "boundary",
-      "simplificationNauticalMiles": 0.03
+      "simplificationNauticalMiles": 0.005
     },
     {
       "id": "census-county-boundaries",
@@ -262,7 +281,7 @@
       },
       "priority": 400,
       "deduplicationGroup": "boundary",
-      "simplificationNauticalMiles": 0.05
+      "simplificationNauticalMiles": 0.005
     },
     {
       "id": "census-primary-roads",
@@ -293,7 +312,7 @@
       },
       "priority": 600,
       "deduplicationGroup": "road",
-      "simplificationNauticalMiles": 0.05
+      "simplificationNauticalMiles": 0.005
     }
   ]
 }

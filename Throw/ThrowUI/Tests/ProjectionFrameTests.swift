@@ -37,13 +37,22 @@ struct ProjectionFrameTests {
 
     @Test func transitPresentationErasesOnlyItsFixedLayersInRenderOrder() throws {
         let geography = geographyLineCollection(id: 1, kind: .coastline)
-        let network = transitLineCollection(id: 2)
-        let vehicle = try transitVehicleMark(rawID: "vehicle")
+        let network = try transitLineCollection(id: 2)
+        let vehicleID = try #require(TransitVehicleID(rawValue: "vehicle"))
+        let vehicle = try transitVehicleMark(id: vehicleID)
+        let stopID = try TransitStopMarkID(
+            stopID: #require(TransitStopID(
+                agencyID: .mtaNewYorkCityTransit,
+                rawValue: "A01",
+            )),
+            context: "next-stop",
+        )
+        let stop = try transitStopMark(id: stopID)
         let frame = present(.transit(TransitProjectedFrame(
             generatedAt: testDate,
             geography: .testing(lines: geography),
             network: .testing(lines: network),
-            vehicles: ProjectedLayerFrame(marks: [vehicle]),
+            vehicles: ProjectedLayerFrame(marks: [vehicle, stop]),
         )))
 
         #expect(frame.experienceID == .transit)
@@ -52,8 +61,9 @@ struct ProjectionFrameTests {
         #expect(frame.layers.map(\.content) == [
             .geography(geography),
             .transitNetwork(network),
-            .transitVehicles([vehicle]),
+            .transitVehicles([vehicle, stop]),
         ])
+        #expect(frame.marks.map(\.id) == [.transitVehicle(vehicleID), .transitStop(stopID)])
     }
 
     @Test func trueSkyPresentationCannotAcquireGeography() throws {
@@ -115,7 +125,9 @@ struct ProjectionFrameTests {
 
     @Test func productionReplacementRejectsAFrameFromAnotherPresentationCase() throws {
         let aircraft = try aircraftMark(rawID: "aircraft")
-        let vehicle = try transitVehicleMark(rawID: "vehicle")
+        let vehicle = try transitVehicleMark(
+            id: #require(TransitVehicleID(rawValue: "vehicle")),
+        )
         let frame = present(.airAndSpace(.map(AirAndSpaceMapProjectedFrame(
             generatedAt: testDate,
             geography: nil,
@@ -177,11 +189,17 @@ struct ProjectionFrameTests {
 
     private func transitLineCollection(
         id: UInt64,
-    ) -> ProjectedLineCollection<TransitNetworkLineStyle> {
-        ProjectedLineCollection.testing(
+    ) throws -> ProjectedLineCollection<TransitNetworkLineStyle> {
+        try ProjectedLineCollection.testing(
             id: ProjectionLineRevisionID.testing(rawValue: id),
             segments: [ProjectedLineSegment(
-                style: .route,
+                style: TransitNetworkLineStyle(
+                    routeID: #require(TransitRouteID(
+                        agencyID: .mtaNewYorkCityTransit,
+                        rawValue: "A",
+                    )),
+                    color: #require(TransitColor(hex: "0039A6")),
+                ),
                 start: ProjectionPoint(x: 0.1, y: 0.2),
                 end: ProjectionPoint(x: 0.8, y: 0.9),
                 startsNewSubpath: true,
@@ -202,10 +220,26 @@ struct ProjectionFrameTests {
     }
 
     private func transitVehicleMark(
-        rawID: String,
+        id: TransitVehicleID,
     ) throws -> ProjectedMark<TransitVehicleMarkElement> {
-        try projectedMark(element: TransitVehicleMarkElement(
-            id: #require(TransitVehicleID(rawValue: rawID)),
+        try projectedMark(element: .vehicle(
+            id: id,
+            descriptor: TransitVehicleGlyphDescriptor(
+                routeLabel: "A",
+                color: #require(TransitColor(hex: "0039A6")),
+                confidence: .feedTracked,
+            ),
+        ))
+    }
+
+    private func transitStopMark(
+        id: TransitStopMarkID,
+    ) throws -> ProjectedMark<TransitVehicleMarkElement> {
+        try projectedMark(element: .stop(
+            id: id,
+            descriptor: TransitStopGlyphDescriptor(
+                color: #require(TransitColor(hex: "0039A6")),
+            ),
         ))
     }
 

@@ -3,7 +3,6 @@ import ThrowCore
 
 extension ThrowSession {
     public var activeExperienceHealth: FeedHealth {
-        if feedHealth == .quiet { return .quiet }
         guard let activeExperienceID else { return .idle }
         return health(for: activeExperienceID)
     }
@@ -155,26 +154,30 @@ extension ThrowSession {
         switch action {
             case let .activate(lease, _):
                 let id = lease.experienceID
+                guard projectionPreferenceInvalidation == nil else { return }
                 switch lease.runnableExperienceID {
                     case .airAndSpace:
-                        guard projectionPreferenceInvalidation == nil else { return }
                         guard airAndSpaceActivation.activate(lease) else { return }
-                        if projectionPresentationStaging?.preparedProjection.experienceID == id {
-                            revokeStagedProjection()
-                        }
-                        if isReconcilingDemand == false {
-                            scheduleDemandReconciliation()
-                        }
+                    case .transit:
+                        guard transitActivation.activate(lease) else { return }
                     #if DEBUG
                         case .testing:
                             assertionFailure("A test-only experience has no production runtime")
                     #endif
+                }
+                if projectionPresentationStaging?.preparedProjection.experienceID == id {
+                    revokeStagedProjection()
+                }
+                if isReconcilingDemand == false {
+                    scheduleDemandReconciliation()
                 }
             case let .deactivate(lease):
                 let id = lease.experienceID
                 switch lease.runnableExperienceID {
                     case .airAndSpace:
                         guard airAndSpaceActivation.deactivate(lease) else { return }
+                    case .transit:
+                        guard transitActivation.deactivate(lease) else { return }
                     #if DEBUG
                         case .testing:
                             break
@@ -187,6 +190,11 @@ extension ThrowSession {
                 switch lease.runnableExperienceID {
                     case .airAndSpace:
                         await airAndSpaceRuntime.deactivate(
+                            lease: lease,
+                            reporting: isQuietNow ? .quiet : .idle,
+                        )
+                    case .transit:
+                        await transitRuntime.deactivate(
                             lease: lease,
                             reporting: isQuietNow ? .quiet : .idle,
                         )
@@ -220,24 +228,41 @@ extension ThrowSession {
             ),
         )
         guard projectionPreferenceInvalidation == nil else { return }
-        let authoritativeLease = await experienceCoordinator.activationLease(for: .airAndSpace)
+        let authoritativeAirAndSpaceLease = await experienceCoordinator.activationLease(
+            for: .airAndSpace,
+        )
+        let authoritativeTransitLease = await experienceCoordinator.activationLease(for: .transit)
         guard projectionPreferenceInvalidation == nil else { return }
-        airAndSpaceActivation.synchronize(with: authoritativeLease)
+        airAndSpaceActivation.synchronize(with: authoritativeAirAndSpaceLease)
+        transitActivation.synchronize(with: authoritativeTransitLease)
     }
 
     private var configuredExperienceIDs: Set<RunnableProjectionExperienceID> {
-        setupState.configuredExperienceIDs
+        var ids = setupState.configuredExperienceIDs
+        if transitPreferences.isConfigured { ids.insert(.transit) }
+        return ids
     }
 
     func configureExperienceCoordinator(with playlist: ProjectionPlaylist) async {
         playlistConfigurationTask?.cancel()
         playlistConfigurationTask = nil
+        let previousActiveExperienceID = activeExperienceID
         let configuration = nextPlaylistConfiguration(for: playlist)
         await experienceCoordinator.configure(configuration)
         let state = await experienceCoordinator.currentState()
-        applyExperienceCoordinatorState(state)
-        let authoritativeLease = await experienceCoordinator.activationLease(for: .airAndSpace)
-        airAndSpaceActivation.synchronize(with: authoritativeLease)
+        if state.activeExperienceID == previousActiveExperienceID {
+            applyExperienceCoordinatorState(state)
+        } else {
+            stopRenderer()
+            revokeStagedProjection()
+            replaceProjectionPresentationWithPlaceholder(coordinator: state)
+        }
+        let authoritativeAirAndSpaceLease = await experienceCoordinator.activationLease(
+            for: .airAndSpace,
+        )
+        let authoritativeTransitLease = await experienceCoordinator.activationLease(for: .transit)
+        airAndSpaceActivation.synchronize(with: authoritativeAirAndSpaceLease)
+        transitActivation.synchronize(with: authoritativeTransitLease)
     }
 
     private func replaceProjectionPlaylist(
@@ -453,7 +478,6 @@ extension ThrowSession {
             coordinator.activeExperienceID,
             preferenceProducer: preferenceProducer,
         )
-        feedHealth = experienceHealth[lease.experienceID] ?? .idle
         return true
     }
 
@@ -466,7 +490,12 @@ extension ThrowSession {
         let bufferedUpdate = transition.bufferedTargetUpdate
         projectionPresentationStaging = nil
         if let bufferedUpdate {
-            await publishVisibleAirAndSpaceUpdate(bufferedUpdate)
+            switch bufferedUpdate {
+                case let .airAndSpace(update):
+                    await publishVisibleAirAndSpaceUpdate(update)
+                case let .transit(update):
+                    await publishVisibleTransitUpdate(update)
+            }
         } else {
             restartRenderer()
         }

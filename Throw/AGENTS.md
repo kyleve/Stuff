@@ -25,6 +25,10 @@ WhereCore, RegionKit, or LifecycleKit into this feature.
   `RunnableProjectionExperienceID` to playlist and runtime commands.
 - Keep aircraft provider implementations in ThrowCore. ThrowUI uses the
   provider-neutral operation service and domain results.
+- Keep transit provider adapters in ThrowCore. Keep each city behind the typed
+  schedule and observation protocols. Never add agency checks to the renderer.
+- Keep exactly one Transit runtime. It can poll only while Transit is active or
+  prewarming. Treat each realtime partition as an independent failure domain.
 - Keep one experience coordinator for all scenes. Only the active and
   prewarming experience runtimes may run at the same time.
 - Exchange complete experience frames only while the projection is black.

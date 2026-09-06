@@ -2,14 +2,14 @@ import Testing
 @testable import ThrowCore
 
 struct ProjectionExperienceTests {
-    @Test func standardCatalogExposesOnlyAirAndSpaceForRuntimeSelection() {
+    @Test func standardCatalogExposesBothProductionRuntimes() {
         let runnableIDs = ProjectionExperienceCatalog.standard.descriptors
             .compactMap(\.availability.runnableExperienceID)
 
-        #expect(runnableIDs == [.airAndSpace])
+        #expect(runnableIDs == [.airAndSpace, .transit])
     }
 
-    @Test func standardCatalogDefinesAirAndSpaceAndPlannedTransit() throws {
+    @Test func standardCatalogDefinesRunnableAirAndSpaceAndTransit() throws {
         let catalog = ProjectionExperienceCatalog.standard
 
         #expect(catalog.descriptors.map(\.id) == [.airAndSpace, .transit])
@@ -20,13 +20,13 @@ struct ProjectionExperienceTests {
         #expect(airAndSpace.visibleContentKind == .aircraft)
 
         let transit = try #require(catalog[.transit])
-        #expect(transit.availability == .planned(.transit))
+        #expect(transit.availability == .runnable(.transit))
         #expect(transit.supportedModes == [.map])
         #expect(transit.layerIDs == [.geography, .transitNetwork, .transitVehicles])
         #expect(transit.visibleContentKind == .vehicles)
         #expect(Set(airAndSpace.layerIDs).contains(.geography))
         #expect(Set(transit.layerIDs).contains(.geography))
         #expect(catalog.runnableExperienceID(for: .airAndSpace) == .airAndSpace)
-        #expect(catalog.runnableExperienceID(for: .transit) == nil)
+        #expect(catalog.runnableExperienceID(for: .transit) == .transit)
     }
 }

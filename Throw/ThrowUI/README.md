@@ -28,18 +28,19 @@ output demand but do not contribute controller foreground presence.
 
 `ThrowSession` is a `@MainActor` observable facade over injected stores and
 focused actors. `AirAndSpaceRuntime` owns aircraft polling, semantic Flights
-frames, motion, and route enrichment. `ProjectionExperienceCoordinator` owns
-selection, one rotation clock, prewarming, and lifecycle reconciliation. Its
-validated runtime state keeps the active identity inside the current playlist,
-including when startup replaces the empty default with saved settings. Every
-scene observes the same coordinator and active experience.
+frames, motion, and route enrichment. `TransitRuntime` owns the static schedule,
+partitioned realtime state, and train estimates.
+`ProjectionExperienceCoordinator` owns selection, one rotation clock,
+prewarming, and lifecycle reconciliation. Its validated runtime state keeps the
+active identity inside the current playlist. This invariant also applies when
+startup replaces the empty default with saved settings. Every scene observes
+the same coordinator and active experience.
 
 Playlist entries, selection commands, dwell mutations, and activation leases
-carry `RunnableProjectionExperienceID`. Release code can spell only Air &
-Space. Display state converts this identity to `ProjectionExperienceID`, which
-can also represent planned Transit. Runtime activation switches exhaustively on
-the runnable identity. Adding another runnable View therefore requires a new
-activation implementation.
+carry `RunnableProjectionExperienceID`. Release code can spell Air & Space and
+Transit. Display state converts either identity to `ProjectionExperienceID`.
+Runtime activation switches exhaustively on the runnable identity. A new
+runnable View requires a new activation implementation.
 
 Cold launch has one exhaustive process state. Loading carries no setup.
 Onboarding carries `ThrowOnboardingSetup`, and ready carries
@@ -72,8 +73,8 @@ Views show localized recovery text, while typed session logs attach the
 underlying error. The UI does not store or render raw error descriptions.
 
 `ThrowSession+Composition.swift` is the only live construction boundary. It
-creates the stores, durable-logging starter, aircraft source graph, poller, and
-session once. Previews and tests use the fixture path in that same file.
+creates the stores, durable-logging starter, source graphs, runtimes, and session
+once. Previews and tests use the fixture path in that same file.
 Source and observer-location projections are getter-only. Session commands
 persist and invalidate these values before they publish a replacement.
 
@@ -151,10 +152,11 @@ sole renderer. It iterates the ordered layers in an immutable renderer
 Flights. The projector is decorative. Preview exposes the active experience
 name, health, and one status summary.
 
-The session stores validated `ThrowGlobalPreferences` and
-`AirAndSpacePreferences` values. Its scalar properties are read-only display
-projections. Settings keep raw control drafts locally and publish only complete,
-validated replacements. An invalid draft cannot change polling or persistence.
+The session stores validated `ThrowGlobalPreferences`,
+`AirAndSpacePreferences`, and `TransitPreferences` values. Its scalar properties
+are read-only display projections. Settings keep raw control drafts locally and
+publish only complete, validated replacements. An invalid draft cannot change
+polling or persistence.
 Immediate source and location commits derive from one complete preference
 snapshot. If another scene changes typed preferences during the write, the
 session derives and persists the combined snapshot again. The final snapshot
@@ -251,8 +253,18 @@ The controller calls experiences “Views.” Root settings keep location,
 calibration, master intensity, quiet hours, and About global. The Views screen
 owns playlist order, dwell values, rotation, health, and experience setup. Air
 & Space owns its source, mode, Map centers, layers, labels, marks, accents,
-activity cues, and Geography intensity. Transit stays disabled until a provider
-is implemented.
+activity cues, and Geography intensity. Transit owns its city, Map center,
+viewport, train labels, mark size, network intensity, and Geography intensity.
+The Transit viewport supports whole nautical-mile radii from 2 through 8 NM.
+
+The NYC Subway settings screen downloads and tests static and realtime MTA data
+before it adds Transit to the playlist. This preference update has one commit
+point. A storage error restores the prior configuration and playlist.
+
+The transit renderer draws dim route-colored network lines and brighter
+route-colored train circles. Each circle contains its route name. Destination
+or next-stop labels add a contextual station mark. Schedule-inferred trains use
+less opacity than trains tracked across feed updates.
 
 ## Limitations
 

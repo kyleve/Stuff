@@ -7,6 +7,35 @@ import Foundation
 
 /// Off-main-actor projection, label layout, correction easing, and mode morphing.
 actor ProjectionFrameWorker {
+    private struct ResetGeneration: Equatable {
+        static let initial = ResetGeneration(rawValue: 0)
+
+        private let rawValue: UInt64
+
+        func successor() -> Self {
+            precondition(rawValue < UInt64.max, "A projection worker reset must not overflow")
+            return Self(rawValue: rawValue + 1)
+        }
+    }
+
+    /// Proves that neither the whole worker nor one experience reset while a request was suspended.
+    private struct ResetTombstone: Equatable {
+        let worker: ResetGeneration
+        let experience: ResetGeneration
+    }
+
+    private struct RequestCursor {
+        let revision: ProjectionFrameRequest.Revision
+        let generatedAt: Date
+
+        func permits(_ request: ProjectionFrameRequest) -> Bool {
+            if request.revision.rawValue != revision.rawValue {
+                return request.revision.rawValue > revision.rawValue
+            }
+            return request.generatedAt >= generatedAt
+        }
+    }
+
     private struct ExperienceState {
         var labelResolver = ProjectionLabelCollisionResolver()
         var previousFrame: ProjectionFrame?
@@ -17,6 +46,7 @@ actor ProjectionFrameWorker {
         var targetHistory = ProjectionTargetHistory()
         var motionDiagnostics = ProjectionMotionDiagnosticsAccumulator()
         var presentationState = PresentationState()
+        var requestCursor: RequestCursor?
     }
 
     private let engine = ProjectionEngine()
@@ -39,6 +69,8 @@ actor ProjectionFrameWorker {
     private var transitNetworkProjectionCache =
         StaticLineProjectionCache<TransitNetworkLayerKind>()
     private var experienceStates: [ProjectionExperienceID: ExperienceState] = [:]
+    private var workerResetGeneration = ResetGeneration.initial
+    private var experienceResetGenerations: [ProjectionExperienceID: ResetGeneration] = [:]
 
     init(
         geographyRuntime: GeographyLayerRuntime,
@@ -152,6 +184,7 @@ actor ProjectionFrameWorker {
     ) async throws -> ProjectionFrameWorkerOutput {
         try Task.checkCancellation()
         let experienceID = request.experienceID
+        let resetTombstone = currentResetTombstone(for: experienceID)
         let geographyEnabled = request.requestsGeography
         let viewport = request.viewport
         let observer = request.context.observer
@@ -159,10 +192,8 @@ actor ProjectionFrameWorker {
         let calibration = request.context.calibration
         let generatedAt = request.generatedAt
         let reduceMotion = request.context.reduceMotion
-        var experienceState = experienceStates[experienceID] ?? ExperienceState()
         let flightsLayerFrame = request.flightsFrame
         let markRevisions = request.markRevisions
-        let observationChanged = experienceState.lastMarkRevisions != markRevisions
         let geographyResult: GeographyProjectionResult
         do {
             geographyResult = try await projectedGeography(
@@ -182,6 +213,14 @@ actor ProjectionFrameWorker {
             geographyResult = .unavailable
         }
         try Task.checkCancellation()
+        guard resetTombstone == currentResetTombstone(for: experienceID) else {
+            throw CancellationError()
+        }
+        var experienceState = experienceStates[experienceID] ?? ExperienceState()
+        guard experienceState.requestCursor?.permits(request) ?? true else {
+            throw CancellationError()
+        }
+        let observationChanged = experienceState.lastMarkRevisions != markRevisions
         let target: ProjectionFrame
         switch request {
             case let .airAndSpace(request):
@@ -276,6 +315,10 @@ actor ProjectionFrameWorker {
         try Task.checkCancellation()
         experienceState.previousFrame = frame
         experienceState.lastMarkRevisions = markRevisions
+        experienceState.requestCursor = RequestCursor(
+            revision: request.revision,
+            generatedAt: generatedAt,
+        )
         let effects = experienceState.presentationState.effects(
             layerFrame: flightsLayerFrame,
             projectedFrame: frame,
@@ -396,11 +439,11 @@ actor ProjectionFrameWorker {
                     )
                 case .transitNetwork:
                     let lines = try layerFrame.lines.map { line in
-                        guard line.style.isTransitRoute else {
+                        guard let style = line.style.transitRouteStyle else {
                             preconditionFailure("A Transit test layer must use Transit styles")
                         }
                         return try ProjectionPolyline<TransitNetworkLineStyle>(
-                            style: .route,
+                            style: style,
                             detailLevel: line.detailLevel,
                             bounds: line.bounds,
                             coordinates: line.coordinates,
@@ -502,11 +545,23 @@ actor ProjectionFrameWorker {
     }
 
     func reset() {
+        workerResetGeneration = workerResetGeneration.successor()
         experienceStates = [:]
     }
 
     func reset(experienceID: ProjectionExperienceID) {
+        let generation = experienceResetGenerations[experienceID] ?? .initial
+        experienceResetGenerations[experienceID] = generation.successor()
         experienceStates.removeValue(forKey: experienceID)
+    }
+
+    private func currentResetTombstone(
+        for experienceID: ProjectionExperienceID,
+    ) -> ResetTombstone {
+        ResetTombstone(
+            worker: workerResetGeneration,
+            experience: experienceResetGenerations[experienceID] ?? .initial,
+        )
     }
 
     func experienceBecameInactive(_ id: ProjectionExperienceID, at date: Date) {
@@ -1153,7 +1208,7 @@ extension ProjectionFrameWorker {
                                 progress: pulseProgress,
                             ),
                         )
-                    case .star, .satellite, .transitVehicle:
+                    case .star, .satellite, .transitVehicle, .transitStop:
                         break
                 }
             }

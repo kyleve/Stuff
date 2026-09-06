@@ -46,10 +46,9 @@ Preview runs the same projection renderer on the device.
 
 ## Projection Views
 
-“View” is the user-facing name for a `ProjectionExperience`. Air & Space is the
-first enabled View. It contains Geography, Flights, and the planned Stars and
-Satellites layers. Transit is planned for nearby moving buses, trains, and
-ferries. This change does not include a live transit provider.
+“View” is the user-facing name for a `ProjectionExperience`. Air & Space contains
+Geography, Flights, and the planned Stars and Satellites layers. Transit first
+supports New York City subway trains.
 
 One playlist controls every projector, full-screen output, and Preview. Each
 View has a dwell duration. Automatic rotation starts only when two Views are
@@ -58,11 +57,31 @@ View visible until the new View has fresh data and a complete prepared frame.
 Both values must belong to the same activation. The surface fades to black,
 exchanges atomically, and fades back in. Two Views never share one frame.
 
-Air & Space is the only configurable View in this release. Automatic rotation
-therefore remains dormant. Transit stays in the display and preference formats
-as a planned View. It has no runnable identity, so release code cannot add it to
-the playlist or send it to the coordinator. A future runtime must add a new
-runnable identity and update the exhaustive activation switch.
+You can configure Air & Space and NYC Subway together. Then Throw can rotate
+between the two Views. Each View keeps its own Map center, viewport, labels,
+mark size, and context intensity.
+
+## NYC Subway
+
+The NYC Subway View uses the official supplemented GTFS schedule from the MTA.
+It polls the eight official GTFS Realtime feed partitions every 30 seconds.
+The schedule defines routes, stops, trip patterns, and route shapes. The
+realtime feeds provide assigned train runs and predicted stop times.
+
+The MTA feeds do not provide a continuous position for each train. Throw
+estimates each train position along its scheduled shape. A train becomes more
+certain after consecutive feed updates show its movement through stops.
+
+Throw downloads the schedule during setup and stores it in the local cache.
+It refreshes the schedule each hour while the View runs. A valid empty realtime
+response completes activation. If one partition fails, the other partitions
+continue to update. The failed partition keeps its last train positions for
+90 seconds. Then it fades them for 30 seconds.
+
+Transit data uses a provider-neutral schedule and observation boundary. An
+additional city can supply its own GTFS adapters without changing the Transit
+projection layers. The first release does not include San Francisco data,
+buses, ferries, service alerts, or accessibility status.
 
 ## Aircraft sources
 

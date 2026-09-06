@@ -440,7 +440,7 @@ extension ThrowSession {
             resolvePostLaunchFailure(.projectionPreparation)
         }
         if let staging = projectionPresentationStaging, staging.isTransitioning {
-            projectionPresentationStaging = staging.buffering(update)
+            projectionPresentationStaging = staging.buffering(.airAndSpace(update))
             return
         }
         await publishVisibleAirAndSpaceUpdate(update)
@@ -490,7 +490,12 @@ extension ThrowSession {
         )
         demandGeneration = demandGeneration.successor()
         demandTask?.cancel()
-        let activationLease = airAndSpaceActivation.activeLease
+        let activationLease: ProjectionActivationLease? = switch change {
+            case .observerLocation, .aircraftSource:
+                airAndSpaceActivation.activeLease
+            case .transitConfiguration:
+                transitActivation.activeLease
+        }
         projectionContextGeneration = projectionContextGeneration.successor()
         let invalidation = ProjectionPreferenceInvalidation(
             change: change,
@@ -500,7 +505,16 @@ extension ThrowSession {
         projectionPreferenceInvalidation = invalidation
         revokeStagedProjection()
         if let activationLease {
-            _ = airAndSpaceActivation.deactivate(activationLease)
+            switch activationLease.runnableExperienceID {
+                case .airAndSpace:
+                    _ = airAndSpaceActivation.deactivate(activationLease)
+                case .transit:
+                    _ = transitActivation.deactivate(activationLease)
+                #if DEBUG
+                    case .testing:
+                        assertionFailure("A test experience cannot own preference invalidation")
+                #endif
+            }
         }
         if change == .observerLocation {
             clearProjectionStateSynchronously()
@@ -513,6 +527,22 @@ extension ThrowSession {
     func finishProjectionPreferenceInvalidation(
         _ invalidation: ProjectionPreferenceInvalidation,
     ) async -> ProjectionActivationLeaseRenewal? {
+        if invalidation.change == .transitConfiguration {
+            if let activationLease = invalidation.activationLease {
+                precondition(activationLease.runnableExperienceID == .transit)
+                await transitRuntime.deactivate(lease: activationLease, reporting: .idle)
+            }
+            guard projectionPreferenceInvalidation == invalidation else {
+                assertionFailure("A Transit preference invalidation changed during deactivation")
+                return nil
+            }
+            await projectionWorker.reset(experienceID: .transit)
+            guard projectionPreferenceInvalidation == invalidation else {
+                assertionFailure("A Transit preference invalidation changed during reset")
+                return nil
+            }
+            return nil
+        }
         let renewal: ProjectionActivationLeaseRenewal?
         if let activationLease = invalidation.activationLease {
             let leaseRenewal = await experienceCoordinator.renewActivationLease(activationLease)
@@ -595,30 +625,44 @@ extension ThrowSession {
         expireTemporaryWakeIfNeeded()
         scheduleQuietBoundary()
         let quiet = isQuietNow
-        let preReconcileLease = airAndSpaceActivation.activeLease
+        let preReconcileAirAndSpaceLease = airAndSpaceActivation.activeLease
+        let preReconcileTransitLease = transitActivation.activeLease
         await reconcileExperienceDemand(isQuiet: quiet)
         guard generation == demandGeneration else { return }
-        let authoritativeLease = airAndSpaceActivation.activeLease
+        let authoritativeAirAndSpaceLease = airAndSpaceActivation.activeLease
+        let authoritativeTransitLease = transitActivation.activeLease
+        await reconcileTransitDemand(
+            preReconcileLease: preReconcileTransitLease,
+            authoritativeLease: authoritativeTransitLease,
+            generation: generation,
+            reporting: quiet ? .quiet : .idle,
+        )
+        guard generation == demandGeneration else { return }
+
         let hasEnabledLayer = flightsEnabled || (geographyEnabled && projectionMode == .map)
-        guard launchState.isOperational, hasEnabledLayer, let activationLease = authoritativeLease
+        guard launchState.isOperational,
+              hasEnabledLayer,
+              let activationLease = authoritativeAirAndSpaceLease
         else {
             cancelProjectionSessionLocationAcquisition(restoringPreviousHealth: true)
-            if let authoritativeLease {
+            if let authoritativeAirAndSpaceLease {
                 await suspendAirAndSpacePolling(
-                    lease: authoritativeLease,
+                    lease: authoritativeAirAndSpaceLease,
                     generation: generation,
                     reporting: quiet ? .quiet : .idle,
                 )
-            } else if let preReconcileLease {
+            } else if let preReconcileAirAndSpaceLease {
                 await deactivateAirAndSpace(
-                    lease: preReconcileLease,
+                    lease: preReconcileAirAndSpaceLease,
                     reporting: quiet ? .quiet : .idle,
                 )
             }
             guard generation == demandGeneration else { return }
-            await clearProjectionState(restartsGeography: true)
-            guard generation == demandGeneration else { return }
-            feedHealth = quiet ? .quiet : .idle
+            if activeExperienceID == .airAndSpace {
+                await clearProjectionState(restartsGeography: true)
+                guard generation == demandGeneration else { return }
+                feedHealth = quiet ? .quiet : .idle
+            }
             return
         }
 
@@ -742,30 +786,30 @@ extension ThrowSession {
         projectionInputRevision = projectionInputRevision.successor()
         renderGeneration &+= 1
         let generation = renderGeneration
+        let contextGeneration = projectionContextGeneration
         renderTask?.cancel()
         guard projectionPresentationStaging?.isTransitioning != true,
               projectionPreferenceInvalidation == nil,
-              activeExperienceID == .airAndSpace,
               outputDemands.isEmpty == false,
               hasForegroundControllerScene,
               isCalibrating == false,
               isQuietNow == false,
-              pendingAirAndSpaceFrame.flights != nil ||
-              (geographyEnabled && projectionMode == .map),
               confirmedLocation != nil,
-              let activationLease = airAndSpaceActivation.activeLease
+              let activationLease = activeProjectionLease,
+              let experienceFrame = pendingProjectionFrame(for: activationLease),
+              hasRenderableContent(experienceFrame)
         else {
             return
         }
-        renderTask = Task(name: "Throw projection 30Hz") { [weak self] in
+        renderTask = Task(name: "Throw projection renderer") { [weak self] in
             guard let self else { return }
             let clock = ContinuousClock()
             var schedule = ProjectionFrameSchedule(startingAt: clock.now)
             while Task.isCancelled == false {
                 do {
-                    let experienceFrame = ProjectionExperienceFrame.airAndSpace(
-                        pendingAirAndSpaceFrame,
-                    )
+                    guard let experienceFrame = pendingProjectionFrame(
+                        for: activationLease,
+                    ) else { return }
                     let output = try await projectedOutput(
                         for: experienceFrame,
                         generatedAt: dateProvider.now(),
@@ -776,21 +820,26 @@ extension ThrowSession {
                     #if DEBUG
                         await beforePublishingProjectionForTesting?()
                     #endif
-                    guard generation == renderGeneration else { return }
-                    guard publishCurrentAirAndSpaceOutput(
+                    guard generation == renderGeneration,
+                          contextGeneration == projectionContextGeneration
+                    else { return }
+                    guard publishCurrentProjectionOutput(
                         output,
                         activationLease: activationLease,
+                        contextGeneration: contextGeneration,
                     ) else {
                         return
                     }
                     resolvePostLaunchFailure(.projectionRendering)
                     await updateVisibleCount(
-                        output.frame.visibleAircraftCount,
-                        experienceID: output.frame.experienceID,
+                        for: output,
                         activationLease: activationLease,
                     )
-                    guard generation == renderGeneration else { return }
-                    if pendingAirAndSpaceFrame.flights == nil {
+                    guard generation == renderGeneration,
+                          contextGeneration == projectionContextGeneration,
+                          let currentFrame = pendingProjectionFrame(for: activationLease)
+                    else { return }
+                    guard requiresContinuousRendering(currentFrame) else {
                         renderTask = nil
                         return
                     }
@@ -799,13 +848,79 @@ extension ThrowSession {
                 } catch is CancellationError {
                     return
                 } catch {
-                    guard generation == renderGeneration else { return }
+                    guard generation == renderGeneration,
+                          contextGeneration == projectionContextGeneration,
+                          isCurrentProjectionLease(activationLease)
+                    else { return }
                     recordPostLaunchFailure(.projectionRendering, error: error)
-                    feedHealth = .failed(.decoding)
+                    publishExperienceHealth(.failed(.decoding), for: activationLease.experienceID)
                     renderTask = nil
                     return
                 }
             }
+        }
+    }
+
+    private var activeProjectionLease: ProjectionActivationLease? {
+        switch activeExperienceID {
+            case .airAndSpace:
+                airAndSpaceActivation.activeLease
+            case .transit:
+                transitActivation.activeLease
+            case nil:
+                nil
+            #if DEBUG
+                case .testing:
+                    nil
+            #endif
+        }
+    }
+
+    private func isCurrentProjectionLease(_ lease: ProjectionActivationLease) -> Bool {
+        guard activeExperienceID == lease.experienceID else { return false }
+        switch lease.runnableExperienceID {
+            case .airAndSpace:
+                return airAndSpaceActivation.activeLease == lease
+            case .transit:
+                return transitActivation.activeLease == lease
+            #if DEBUG
+                case .testing:
+                    return false
+            #endif
+        }
+    }
+
+    private func pendingProjectionFrame(
+        for lease: ProjectionActivationLease,
+    ) -> ProjectionExperienceFrame? {
+        guard isCurrentProjectionLease(lease) else { return nil }
+        switch lease.runnableExperienceID {
+            case .airAndSpace:
+                return .airAndSpace(pendingAirAndSpaceFrame)
+            case .transit:
+                return .transit(pendingTransitFrame)
+            #if DEBUG
+                case .testing:
+                    return nil
+            #endif
+        }
+    }
+
+    private func hasRenderableContent(_ frame: ProjectionExperienceFrame) -> Bool {
+        switch frame {
+            case let .airAndSpace(frame):
+                frame.flights != nil || (geographyEnabled && projectionMode == .map)
+            case let .transit(frame):
+                frame.network != nil || frame.vehicles != nil || transitGeographyEnabled
+        }
+    }
+
+    private func requiresContinuousRendering(_ frame: ProjectionExperienceFrame) -> Bool {
+        switch frame {
+            case let .airAndSpace(frame):
+                frame.flights != nil
+            case let .transit(frame):
+                frame.vehicles?.marks.contains(where: { $0.transitMotion != nil }) == true
         }
     }
 
@@ -835,7 +950,9 @@ extension ThrowSession {
         }
         let context = ProjectionFrameRequest.Context(
             observer: confirmedLocation.position,
-            mapCenter: activeMapCenter,
+            mapCenter: experienceFrame.experienceID == .transit
+                ? transitPreferences.mapCenter
+                : activeMapCenter,
             calibration: projectionCalibration,
             reduceMotion: reduceMotion,
             loggingOperation: loggingOperation,
@@ -859,14 +976,16 @@ extension ThrowSession {
     }
 
     @discardableResult
-    private func publishCurrentAirAndSpaceOutput(
+    private func publishCurrentProjectionOutput(
         _ output: ProjectionFrameWorkerOutput,
         activationLease: ProjectionActivationLease,
+        contextGeneration: ProjectionContextGeneration,
     ) -> Bool {
-        guard case .airAndSpace = output,
-              activationLease == airAndSpaceActivation.activeLease,
+        guard contextGeneration == projectionContextGeneration,
+              output.experienceID == activationLease.experienceID,
+              let experienceFrame = pendingProjectionFrame(for: activationLease),
               let currentRequest = try? projectionRequest(
-                  for: .airAndSpace(pendingAirAndSpaceFrame),
+                  for: experienceFrame,
                   generatedAt: output.request.generatedAt,
                   revision: projectionInputRevision,
                   loggingOperation: .projectionRendering,
@@ -918,14 +1037,14 @@ extension ThrowSession {
                 ))
             case let .transit(frame):
                 let enabledFrame = TransitExperienceFrame(
-                    geography: geographyEnabled ? frame.geography : nil,
+                    geography: transitGeographyEnabled ? frame.geography : nil,
                     network: frame.network,
                     vehicles: frame.vehicles,
                 )
                 return .transit(TransitProjectionInput(
                     frame: enabledFrame,
-                    viewport: airAndSpacePreferences.mapViewport,
-                    geography: geographyEnabled ? .visible : .hidden,
+                    viewport: transitPreferences.mapViewport,
+                    geography: transitGeographyEnabled ? .visible : .hidden,
                 ))
         }
     }
@@ -965,7 +1084,7 @@ extension ThrowSession {
     }
 
     func rebuildCurrentLayerFrame() {
-        guard let currentSnapshot else { return }
+        guard currentSnapshot != nil else { return }
         Task(name: "Throw rebuild flight labels") { [weak self] in
             guard let self else { return }
             await airAndSpaceRuntime.refreshPresentation(labelMode: labelMode)
@@ -973,15 +1092,26 @@ extension ThrowSession {
     }
 
     func updateVisibleCount(
-        _ count: Int,
-        experienceID: ProjectionExperienceID,
+        for output: ProjectionFrameWorkerOutput,
         activationLease: ProjectionActivationLease,
     ) async {
-        guard experienceID == activationLease.experienceID else { return }
-        await airAndSpaceRuntime.updateVisibleContentCount(
-            count,
-            lease: activationLease,
-        )
+        guard output.experienceID == activationLease.experienceID else { return }
+        switch output {
+            case let .airAndSpace(output):
+                await airAndSpaceRuntime.updateVisibleContentCount(
+                    output.render.frame.visibleAircraftCount,
+                    lease: activationLease,
+                )
+            case let .transit(output):
+                let count = output.render.frame.marks.count { mark in
+                    if case .transitVehicle = mark.glyph { true } else { false }
+                }
+                await transitRuntime.updateVisibleContentCount(count, lease: activationLease)
+            #if DEBUG
+                case .testing:
+                    break
+            #endif
+        }
     }
 
     func sourceValidationDraft(
@@ -1109,6 +1239,7 @@ extension ThrowSession {
 enum ProjectionPreferenceChange: Equatable {
     case observerLocation
     case aircraftSource
+    case transitConfiguration
 }
 
 /// The runtime work that finishes after a preference-backed context publishes.

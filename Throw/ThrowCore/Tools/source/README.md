@@ -69,6 +69,7 @@ paths for the current Map radius:
 | `wide` | 240 NM |
 | `standard` | 80 NM |
 | `local` | 20 NM |
+| `neighborhood` | 8 NM |
 
 Natural Earth features use their `min_zoom` and `scalerank` values. Wide data
 has `min_zoom` at most 5 and `scalerank` at most 4. Standard data has
@@ -81,9 +82,13 @@ boundaries are local.
 Interstate primary roads (`RTTYP=I`) are wide. Other S1100 primary roads are
 standard. The generator does not store road names or identifiers.
 
-The simplification tolerances are 0.02 NM for coastlines and 0.03 NM for
-lakes. All boundaries, rivers, and primary roads use 0.05 NM. Densification
-limits every output segment to 10 NM.
+The generator simplifies all linework to 0.005 NM. This keeps deviations below
+approximately one screen pixel at the smallest Transit Map radius on common
+projector resolutions. Densification limits every output segment to 10 NM.
+
+The nationwide Census TIGER coastline supplies the `neighborhood` tier. When
+it intersects an 8 NM-or-smaller viewport, it replaces the broader coastline
+tiers for that viewport. Other line kinds remain additive across detail tiers.
 
 ## Priority and duplicate geometry
 

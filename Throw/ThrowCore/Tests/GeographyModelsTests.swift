@@ -7,6 +7,7 @@ struct GeographyModelsTests {
             DetailVisibilityCase(level: .wide, limit: 240),
             DetailVisibilityCase(level: .standard, limit: 80),
             DetailVisibilityCase(level: .local, limit: 20),
+            DetailVisibilityCase(level: .neighborhood, limit: 8),
         ],
     )
     func detailLevelUsesAnInclusiveExplicitRadiusLimit(testCase: DetailVisibilityCase) throws {
