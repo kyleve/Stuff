@@ -40,16 +40,6 @@ struct RegionWelcomeCard: View {
                 PassportSeal(systemSymbol: regionStyle.symbol, tint: regionStyle.tint)
             }
 
-            if let artwork = stylesheet.card.regular.regionShape {
-                RegionOutlineArtwork(
-                    path: regionPath,
-                    tint: regionStyle.tint,
-                    style: artwork.watermark,
-                )
-                .frame(maxWidth: .infinity)
-                .frame(height: welcome.artworkHeight)
-            }
-
             VStack(spacing: stylesheet.spacing.medium) {
                 Text(title)
                     .font(.title2.bold())
@@ -70,24 +60,39 @@ struct RegionWelcomeCard: View {
         .frame(maxWidth: welcome.maxWidth)
         .background {
             ZStack {
-                SecurityPrintRosette(
-                    tint: regionStyle.tint,
-                    wobble: stylesheet.card.regular.rosette.wobble,
-                    lineWidth: stylesheet.card.regular.rosette.lineWidth,
-                    primaryRingSpacing: stylesheet.card.regular.rosette.primaryRingSpacing,
-                    secondaryRingSpacing: stylesheet.card.regular.rosette.secondaryRingSpacing,
-                    primaryOpacity: stylesheet.card.rosetteFill.primary,
-                    secondaryOpacity: stylesheet.card.rosetteFill.secondary,
-                )
                 shape.fill(.clear)
+                    .glassEffect(
+                        .regular.tint(regionStyle.tint.opacity(welcome.glassTintOpacity)),
+                        in: shape,
+                    )
+
+                shape.fill(.background)
+                    .opacity(welcome.paperOpacity)
+
+                ZStack {
+                    SecurityPrintRosette(
+                        tint: regionStyle.tint,
+                        wobble: stylesheet.card.regular.rosette.wobble,
+                        lineWidth: stylesheet.card.regular.rosette.lineWidth,
+                        primaryRingSpacing: stylesheet.card.regular.rosette.primaryRingSpacing,
+                        secondaryRingSpacing: stylesheet.card.regular.rosette.secondaryRingSpacing,
+                        primaryOpacity: stylesheet.card.rosetteFill.primary,
+                        secondaryOpacity: stylesheet.card.rosetteFill.secondary,
+                    )
+
+                    if let artwork = stylesheet.card.regular.regionShape {
+                        RegionOutlineArtwork(
+                            path: regionPath,
+                            tint: regionStyle.tint,
+                            style: artwork.watermark,
+                        )
+                    }
+                }
+                .blendMode(stylesheet.card.securityPrint.backgroundBlendMode)
             }
             .clipShape(shape)
             .allowsHitTesting(false)
         }
-        .glassEffect(
-            .regular.tint(regionStyle.tint.opacity(welcome.glassTintOpacity)),
-            in: shape,
-        )
         .overlay {
             ZStack {
                 shape.strokeBorder(
@@ -111,10 +116,38 @@ struct RegionWelcomeCard: View {
                 action: dismissAction,
             )
             .labelStyle(.iconOnly)
+            .font(.system(size: 17, weight: .semibold))
             .frame(width: 44, height: 44)
-            .background(.regularMaterial, in: Circle())
+            .background {
+                Circle()
+                    .fill(.background)
+                    .opacity(welcome.paperOpacity)
+            }
+            .buttonStyle(.plain)
+            .glassEffect(
+                .regular.tint(regionStyle.tint.opacity(welcome.close.tintOpacity))
+                    .interactive(),
+                in: Circle(),
+            )
+            .overlay {
+                Circle().strokeBorder(
+                    regionStyle.tint.opacity(welcome.close.outlineOpacity),
+                    lineWidth: welcome.outlineWidth,
+                )
+                .allowsHitTesting(false)
+            }
             .contentShape(Circle())
-            .offset(welcome.closeOffset)
+            .shadow(
+                color: regionStyle.tint.opacity(welcome.close.glow.opacity),
+                radius: welcome.close.glow.radius,
+                y: welcome.close.glow.offsetY,
+            )
+            .shadow(
+                color: .black.opacity(welcome.close.lift.opacity),
+                radius: welcome.close.lift.radius,
+                y: welcome.close.lift.offsetY,
+            )
+            .offset(welcome.close.offset)
         }
         .shadow(
             color: regionStyle.tint.opacity(welcome.shadowOpacity),

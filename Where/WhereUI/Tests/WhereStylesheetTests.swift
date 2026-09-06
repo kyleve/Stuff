@@ -51,7 +51,7 @@ struct WhereStylesheetTests {
         #expect(welcome.cornerRadius == 30)
         #expect(welcome.padding == 24)
         #expect(welcome.contentSpacing == 16)
-        #expect(welcome.artworkHeight == 132)
+        #expect(welcome.paperOpacity == 0.92)
         #expect(welcome.scrimOpacity == 0.28)
         #expect(welcome.glassTintOpacity == 0.2)
         #expect(welcome.outlineOpacity == 0.28)
@@ -62,7 +62,11 @@ struct WhereStylesheetTests {
         #expect(welcome.shadowOpacity == 0.42)
         #expect(welcome.shadowRadius == 30)
         #expect(welcome.shadowOffsetY == 16)
-        #expect(welcome.closeOffset == CGSize(width: 8, height: -8))
+        #expect(welcome.close.offset == CGSize(width: 8, height: -8))
+        #expect(welcome.close.tintOpacity == 0.24)
+        #expect(welcome.close.outlineOpacity == 0.38)
+        #expect(welcome.close.glow == .init(opacity: 0.28, radius: 8))
+        #expect(welcome.close.lift == .init(opacity: 0.22, radius: 5, offsetY: 3))
         #expect(welcome.motion == .standard)
     }
 

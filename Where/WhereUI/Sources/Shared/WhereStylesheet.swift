@@ -109,7 +109,7 @@ extension WhereStylesheet {
         var cornerRadius: CGFloat
         var padding: CGFloat
         var contentSpacing: CGFloat
-        var artworkHeight: CGFloat
+        var paperOpacity: Double
         var scrimOpacity: Double
         var glassTintOpacity: Double
         var outlineOpacity: Double
@@ -120,8 +120,22 @@ extension WhereStylesheet {
         var shadowOpacity: Double
         var shadowRadius: CGFloat
         var shadowOffsetY: CGFloat
-        var closeOffset: CGSize
+        var close: Close
         var motion: Motion
+
+        struct Close: Equatable {
+            var offset: CGSize
+            var tintOpacity: Double
+            var outlineOpacity: Double
+            var glow: Shadow
+            var lift: Shadow
+
+            struct Shadow: Equatable {
+                var opacity: Double
+                var radius: CGFloat
+                var offsetY: CGFloat = 0
+            }
+        }
 
         struct Motion: Equatable {
             var animation: Animation
@@ -160,7 +174,7 @@ extension WhereStylesheet {
             cornerRadius: 30,
             padding: 24,
             contentSpacing: 16,
-            artworkHeight: 132,
+            paperOpacity: 0.92,
             scrimOpacity: 0.28,
             glassTintOpacity: 0.2,
             outlineOpacity: 0.28,
@@ -171,7 +185,13 @@ extension WhereStylesheet {
             shadowOpacity: 0.42,
             shadowRadius: 30,
             shadowOffsetY: 16,
-            closeOffset: CGSize(width: 8, height: -8),
+            close: Close(
+                offset: CGSize(width: 8, height: -8),
+                tintOpacity: 0.24,
+                outlineOpacity: 0.38,
+                glow: .init(opacity: 0.28, radius: 8),
+                lift: .init(opacity: 0.22, radius: 5, offsetY: 3),
+            ),
             motion: .standard,
         )
     }
