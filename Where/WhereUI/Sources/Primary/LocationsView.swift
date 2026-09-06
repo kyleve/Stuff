@@ -47,6 +47,11 @@ struct LocationsView: View {
             && !planning.isShowingError
     }
 
+    private var welcomePlanStayAction: ((Region) -> Void)? {
+        guard report.showsEstimatedTimeAndPlanning else { return nil }
+        return planStayFromWelcome
+    }
+
     init(report: YearReportModel) {
         self.init(
             report: report,
@@ -105,6 +110,7 @@ struct LocationsView: View {
                 LocationWelcomeOverlay(
                     presentation: presentation,
                     dismissAction: welcome.dismiss,
+                    planStayAction: welcomePlanStayAction,
                 )
                 .transition(stylesheet.locationWelcome.motion.transition)
             }
@@ -291,6 +297,14 @@ struct LocationsView: View {
 
     private func editPlannedStay(_ region: Region) {
         plannedStayEditorTarget = PlannedStayEditorTarget(region: region)
+    }
+
+    private func planStayFromWelcome(_ region: Region) {
+        withAnimation(stylesheet.locationWelcome.motion.animation) {
+            welcome.dismiss()
+        } completion: {
+            editPlannedStay(region)
+        }
     }
 
     private func clearPlannedStay() {

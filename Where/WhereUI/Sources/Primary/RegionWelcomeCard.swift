@@ -6,6 +6,7 @@ import SwiftUI
 struct RegionWelcomeCard: View {
     let presentation: LocationWelcomeModel.Presentation
     let dismissAction: () -> Void
+    let planStayAction: ((Region) -> Void)?
 
     @State private var regionPath = Path()
     @Environment(\.stylesheet) private var stylesheet
@@ -31,7 +32,7 @@ struct RegionWelcomeCard: View {
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: welcome.cornerRadius)
-        VStack(spacing: welcome.contentSpacing) {
+        VStack(alignment: .leading, spacing: welcome.contentSpacing) {
             HStack {
                 Text(regionStyle.emoji)
                     .font(.largeTitle)
@@ -40,21 +41,35 @@ struct RegionWelcomeCard: View {
                 PassportSeal(systemSymbol: regionStyle.symbol, tint: regionStyle.tint)
             }
 
-            VStack(spacing: stylesheet.spacing.medium) {
+            VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
                 Text(title)
                     .font(.title2.bold())
                     .fontDesign(.serif)
-                    .multilineTextAlignment(.center)
+                    .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(String(localized: .locationWelcomeMessage(
                     presentation.region.localizedName,
                 )))
                 .font(.body)
                 .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+                .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
             }
             .accessibilityElement(children: .combine)
+
+            if planStayAction != nil {
+                Button(
+                    String(localized: .locationForecastEditStay),
+                    systemSymbol: .calendarBadgeClock,
+                    action: planStay,
+                )
+                .buttonStyle(LocationForecastEndorsementButtonStyle(
+                    tint: regionStyle.tint,
+                    expands: true,
+                    controls: stylesheet.locationForecast.controls,
+                    ink: stylesheet.locationForecast.ink,
+                ))
+            }
         }
         .padding(welcome.padding)
         .frame(maxWidth: welcome.maxWidth)
@@ -94,19 +109,10 @@ struct RegionWelcomeCard: View {
             .allowsHitTesting(false)
         }
         .overlay {
-            ZStack {
-                shape.strokeBorder(
-                    regionStyle.tint.opacity(welcome.outlineOpacity),
-                    lineWidth: welcome.outlineWidth,
-                )
-                shape.inset(by: welcome.inset).strokeBorder(
-                    regionStyle.tint.opacity(welcome.outlineOpacity),
-                    style: StrokeStyle(
-                        lineWidth: welcome.outlineWidth,
-                        dash: [welcome.insetDashLength, welcome.insetDashSpacing],
-                    ),
-                )
-            }
+            shape.strokeBorder(
+                regionStyle.tint.opacity(welcome.outlineOpacity),
+                lineWidth: welcome.outlineWidth,
+            )
             .allowsHitTesting(false)
         }
         .overlay(alignment: .topTrailing) {
@@ -129,13 +135,6 @@ struct RegionWelcomeCard: View {
                     .interactive(),
                 in: Circle(),
             )
-            .overlay {
-                Circle().strokeBorder(
-                    regionStyle.tint.opacity(welcome.close.outlineOpacity),
-                    lineWidth: welcome.outlineWidth,
-                )
-                .allowsHitTesting(false)
-            }
             .contentShape(Circle())
             .shadow(
                 color: regionStyle.tint.opacity(welcome.close.glow.opacity),
@@ -150,9 +149,14 @@ struct RegionWelcomeCard: View {
             .offset(welcome.close.offset)
         }
         .shadow(
-            color: regionStyle.tint.opacity(welcome.shadowOpacity),
-            radius: welcome.shadowRadius,
-            y: welcome.shadowOffsetY,
+            color: regionStyle.tint.opacity(welcome.glow.opacity),
+            radius: welcome.glow.radius,
+            y: welcome.glow.offsetY,
+        )
+        .shadow(
+            color: .black.opacity(welcome.lift.opacity),
+            radius: welcome.lift.radius,
+            y: welcome.lift.offsetY,
         )
         .task(id: presentation.region) {
             guard let regionOutlinePathCache else { return }
@@ -164,6 +168,10 @@ struct RegionWelcomeCard: View {
             regionPath = loaded
         }
     }
+
+    private func planStay() {
+        planStayAction?(presentation.region)
+    }
 }
 
 #if DEBUG
@@ -171,6 +179,7 @@ struct RegionWelcomeCard: View {
         RegionWelcomeCard(
             presentation: .init(region: .california, greeting: .returnVisit),
             dismissAction: {},
+            planStayAction: { _ in },
         )
         .padding(32)
         .whereBroadwayRoot()

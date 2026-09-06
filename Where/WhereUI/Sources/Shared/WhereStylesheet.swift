@@ -114,27 +114,22 @@ extension WhereStylesheet {
         var glassTintOpacity: Double
         var outlineOpacity: Double
         var outlineWidth: CGFloat
-        var inset: CGFloat
-        var insetDashLength: CGFloat
-        var insetDashSpacing: CGFloat
-        var shadowOpacity: Double
-        var shadowRadius: CGFloat
-        var shadowOffsetY: CGFloat
+        var glow: Shadow
+        var lift: Shadow
         var close: Close
         var motion: Motion
+
+        struct Shadow: Equatable {
+            var opacity: Double
+            var radius: CGFloat
+            var offsetY: CGFloat = 0
+        }
 
         struct Close: Equatable {
             var offset: CGSize
             var tintOpacity: Double
-            var outlineOpacity: Double
             var glow: Shadow
             var lift: Shadow
-
-            struct Shadow: Equatable {
-                var opacity: Double
-                var radius: CGFloat
-                var offsetY: CGFloat = 0
-            }
         }
 
         struct Motion: Equatable {
@@ -179,16 +174,11 @@ extension WhereStylesheet {
             glassTintOpacity: 0.2,
             outlineOpacity: 0.28,
             outlineWidth: 1,
-            inset: 9,
-            insetDashLength: 5,
-            insetDashSpacing: 4,
-            shadowOpacity: 0.42,
-            shadowRadius: 30,
-            shadowOffsetY: 16,
+            glow: Shadow(opacity: 0.16, radius: 22),
+            lift: Shadow(opacity: 0.18, radius: 12, offsetY: 6),
             close: Close(
                 offset: CGSize(width: 8, height: -8),
                 tintOpacity: 0.24,
-                outlineOpacity: 0.38,
                 glow: .init(opacity: 0.28, radius: 8),
                 lift: .init(opacity: 0.22, radius: 5, offsetY: 3),
             ),

@@ -1,3 +1,4 @@
+import RegionKit
 import SwiftUI
 import UIKit
 
@@ -5,6 +6,7 @@ import UIKit
 struct LocationWelcomeOverlay: View {
     let presentation: LocationWelcomeModel.Presentation
     let dismissAction: () -> Void
+    let planStayAction: ((Region) -> Void)?
 
     @AccessibilityFocusState private var isCardFocused: Bool
     @Environment(\.stylesheet) private var stylesheet
@@ -21,6 +23,7 @@ struct LocationWelcomeOverlay: View {
                     RegionWelcomeCard(
                         presentation: presentation,
                         dismissAction: dismissAction,
+                        planStayAction: planStayAction,
                     )
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, stylesheet.spacing.xxxLarge)
@@ -48,6 +51,7 @@ struct LocationWelcomeOverlay: View {
         LocationWelcomeOverlay(
             presentation: .init(region: .california, greeting: .first),
             dismissAction: {},
+            planStayAction: { _ in },
         )
         .whereBroadwayRoot()
     }
