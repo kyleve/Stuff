@@ -8,6 +8,7 @@ struct PlannedPresenceJourneyRow: View {
     let calendar: Calendar
     let daysInYear: Int
     let isFirst: Bool
+    let cardPosition: PresenceJourneyCardPosition
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
@@ -25,66 +26,34 @@ struct PlannedPresenceJourneyRow: View {
             end: end,
             calendar: calendar,
         )
-        let countLayout = row.stacksDayCount
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: row.labelSpacing))
-            : AnyLayout(HStackLayout(alignment: .center, spacing: row.spacing))
-        let proportionalHeight = row.baseHeight
-            + row.yearScaleHeight * CGFloat(interval.dayCount) / CGFloat(daysInYear)
-        let cardShape = RoundedRectangle(cornerRadius: row.cornerRadius)
-
         HStack(spacing: rail.toCardSpacing) {
             Color.clear
                 .frame(width: rail.nodeSize)
 
-            countLayout {
-                VStack(alignment: .leading, spacing: row.labelSpacing) {
-                    Text(interval.region.localizedName)
-                        .font(.headline)
-                    Text(dateRange)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Text(String(localized: .timelinePlannedStay))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .opacity(planned.labelOpacity)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                Text(WhereFormat.dayCount(interval.dayCount))
-                    .font(.subheadline.bold())
-                    .monospacedDigit()
-                    .padding(.horizontal, row.countHorizontalPadding)
-                    .padding(.vertical, row.countVerticalPadding)
-                    .background {
-                        Capsule()
-                            .fill(style.tint.opacity(row.countFillOpacity / 2))
-                    }
-            }
-            .frame(minHeight: proportionalHeight)
-            .padding(.horizontal, row.horizontalPadding)
-            .padding(.vertical, row.verticalPadding)
+            PlannedPresenceJourneyCardContent(
+                regionName: interval.region.localizedName,
+                dateRange: dateRange,
+                dayCount: interval.dayCount,
+                daysInYear: daysInYear,
+                position: cardPosition,
+                tint: style.tint,
+            )
             .background {
-                ZStack {
-                    cardShape
-                        .fill(style.tint.opacity(planned.fillOpacity))
-                    PlannedStayHatch(
-                        color: style.tint,
-                        spacing: planned.hatchSpacing,
-                        lineWidth: planned.hatchLineWidth,
-                        gridOriginX: 0,
-                    )
-                    .opacity(planned.hatchOpacity)
-                    .clipShape(cardShape)
-                }
+                PlannedPresenceJourneyBackground(
+                    position: cardPosition,
+                    tint: style.tint,
+                )
             }
             .overlay {
-                cardShape.stroke(
-                    style.tint.opacity(planned.borderOpacity),
+                PresenceJourneyCardBorder(
+                    position: cardPosition,
+                    cornerRadius: row.cornerRadius,
+                    color: style.tint.opacity(planned.borderOpacity),
                     lineWidth: row.borderWidth,
                 )
             }
         }
-        .padding(.vertical, row.gap / 2)
+        .padding(cardPosition.gapEdges, row.gap / 2)
         .background(alignment: .leading) {
             PresenceJourneyRail(
                 tint: style.tint.opacity(planned.labelOpacity),
@@ -106,16 +75,30 @@ struct PlannedPresenceJourneyRow: View {
 
 #if DEBUG
     #Preview {
-        PlannedPresenceJourneyRow(
-            interval: LocationForecastModel.PlannedInterval(
-                region: .newYork,
-                start: CalendarDay(year: 2026, month: 7, day: 16),
-                end: CalendarDay(year: 2026, month: 8, day: 15),
-            ),
-            calendar: Calendar(identifier: .gregorian),
-            daysInYear: 365,
-            isFirst: false,
-        )
+        VStack(spacing: 0) {
+            PlannedPresenceJourneyRow(
+                interval: LocationForecastModel.PlannedInterval(
+                    region: .newYork,
+                    start: CalendarDay(year: 2026, month: 7, day: 16),
+                    end: CalendarDay(year: 2026, month: 8, day: 15),
+                ),
+                calendar: Calendar(identifier: .gregorian),
+                daysInYear: 365,
+                isFirst: false,
+                cardPosition: .standalone,
+            )
+            PlannedPresenceJourneyRow(
+                interval: LocationForecastModel.PlannedInterval(
+                    region: .newYork,
+                    start: CalendarDay(year: 2026, month: 7, day: 16),
+                    end: CalendarDay(year: 2026, month: 7, day: 24),
+                ),
+                calendar: Calendar(identifier: .gregorian),
+                daysInYear: 365,
+                isFirst: false,
+                cardPosition: .bottom,
+            )
+        }
         .padding()
         .whereBroadwayRoot()
     }
