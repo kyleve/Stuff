@@ -1,0 +1,972 @@
+import Foundation
+import Testing
+@_spi(Testing) @testable import ThrowCore
+@testable import ThrowUI
+
+struct ProjectionExperienceCoordinatorTests {
+    private let start = Date(timeIntervalSince1970: 1_800_000_000)
+
+    @Test func inactiveSessionTrackerRejectsQueuedEqualActivation() {
+        let original = ProjectionActivationLease(
+            experienceID: .airAndSpace,
+            generation: .init(rawValue: 7),
+        )
+        let replacement = ProjectionActivationLease(
+            experienceID: .airAndSpace,
+            generation: .init(rawValue: 8),
+        )
+        var tracker = ProjectionActivationLeaseTracker(experienceID: .airAndSpace)
+
+        let activatedOriginal = tracker.activate(original)
+        #expect(activatedOriginal)
+        let deactivatedOriginal = tracker.deactivate(original)
+        #expect(deactivatedOriginal)
+        let reactivatedOriginal = tracker.activate(original)
+        #expect(reactivatedOriginal == false)
+        let activatedReplacement = tracker.activate(replacement)
+        #expect(activatedReplacement)
+        tracker.synchronize(with: nil)
+        #expect(tracker.activeLease == nil)
+        let reactivatedReplacement = tracker.activate(replacement)
+        #expect(reactivatedReplacement == false)
+        let deactivatedReplacement = tracker.deactivate(replacement)
+        #expect(deactivatedReplacement)
+    }
+
+    @Test func configuringAPlaylistAfterEmptyStateAdoptsItsSelection() async throws {
+        let coordinator = ProjectionExperienceCoordinator(
+            playlist: ThrowPreferences.defaultValue.playlist,
+            clock: ManualProjectionRotationClock(now: start),
+        )
+        let playlist = try singleExperiencePlaylist(dwellDuration: .defaultValue)
+
+        await coordinator.configure(ProjectionPlaylistConfiguration(
+            playlist: playlist,
+            revision: .init(rawValue: 1),
+        ))
+
+        let state = await coordinator.currentState()
+        #expect(state.activeExperienceID == .airAndSpace)
+        #expect(state.nextExperienceID == nil)
+    }
+
+    @Test func olderPlaylistConfigurationCannotReplaceANewerRevision() async throws {
+        let coordinator = ProjectionExperienceCoordinator(
+            playlist: ThrowPreferences.defaultValue.playlist,
+            clock: ManualProjectionRotationClock(now: start),
+        )
+        let olderPlaylist = try singleExperiencePlaylist(
+            dwellDuration: ProjectionDwellDuration(seconds: 300),
+        )
+        let newerPlaylist = try singleExperiencePlaylist(
+            dwellDuration: ProjectionDwellDuration(seconds: 600),
+        )
+
+        await coordinator.configure(ProjectionPlaylistConfiguration(
+            playlist: newerPlaylist,
+            revision: .init(rawValue: 2),
+        ))
+        await coordinator.configure(ProjectionPlaylistConfiguration(
+            playlist: olderPlaylist,
+            revision: .init(rawValue: 1),
+        ))
+
+        #expect(await coordinator.currentPlaylist() == newerPlaylist)
+    }
+
+    @Test func queuesEveryLifecycleCommandUntilTheRuntimeConsumesIt() async throws {
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: singleExperiencePlaylist(dwellDuration: .defaultValue),
+            clock: ManualProjectionRotationClock(now: start),
+        )
+
+        for _ in 0 ..< 40 {
+            await coordinator.reconcile(demand: projectingDemand)
+            await coordinator.reconcile(demand: disconnectedDemand)
+        }
+
+        #expect(await coordinator.runningExperienceIDsForTesting().isEmpty)
+    }
+
+    @Test func exactActiveRenewalRetiresAndRemintsInOneCoordinatorTurn() async throws {
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: singleExperiencePlaylist(dwellDuration: .defaultValue),
+            clock: ManualProjectionRotationClock(now: start),
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let original = try activation(#require(await actions.next()))
+
+        let renewal = await coordinator.renewActivationLease(original.lease)
+
+        let deactivation = try #require(await actions.next())
+        let replacement = try activation(#require(await actions.next()))
+        #expect(deactivation == .deactivate(lease: original.lease))
+        #expect(renewal == .replaced(from: original.lease, to: replacement.lease))
+        #expect(replacement.generation > original.generation)
+        #expect(replacement.role == .active)
+        #expect(await coordinator.activationLease(for: .airAndSpace) == replacement.lease)
+
+        let staleRenewal = await coordinator.renewActivationLease(original.lease)
+        #expect(staleRenewal == .superseded(
+            expected: original.lease,
+            current: replacement.lease,
+        ))
+    }
+
+    @Test func renewingTransitionTargetRetiresItAndRejectsOldCallbacks() async throws {
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: ManualProjectionRotationClock(now: start),
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+        await coordinator.select(.testing(.transit))
+        let target = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: target.id, generation: target.generation)
+        #expect(try #require(await actions.next()) == .beginTransition(
+            from: active.lease.runnableExperienceID,
+            to: target.lease,
+        ))
+
+        let renewal = await coordinator.renewActivationLease(target.lease)
+
+        #expect(renewal == .retired(lease: target.lease))
+        #expect(try #require(await actions.next()) == .deactivate(lease: target.lease))
+        #expect(await coordinator.commitTransition(to: target.lease) == false)
+        await coordinator.completeTransition(to: target.lease)
+        let state = await coordinator.currentState()
+        #expect(state.activeExperienceID == active.id)
+        #expect(state.requestedExperienceID == nil)
+        #expect(await coordinator.activationLease(
+            for: target.lease.runnableExperienceID,
+        ) == nil)
+    }
+
+    @Test func renewingPrewarmRetiresItAndRejectsOldCallbacks() async throws {
+        let clock = ManualProjectionRotationClock(now: start)
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: clock,
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+        await clock.waitForSleeperCount(1)
+        await clock.advance(by: 105)
+        let target = try activation(#require(await actions.next()))
+        #expect(target.role == .prewarming)
+
+        let renewal = await coordinator.renewActivationLease(target.lease)
+
+        #expect(renewal == .retired(lease: target.lease))
+        #expect(try #require(await actions.next()) == .deactivate(lease: target.lease))
+        await coordinator.reportRuntimeUpdate(
+            lease: target.lease,
+            successfulLease: target.lease,
+            health: .healthy(lastUpdate: start, visibleContentCount: 1),
+        )
+        #expect(await coordinator.reportRuntimePrepared(target.lease) == false)
+        let state = await coordinator.currentState()
+        #expect(state.activeExperienceID == active.id)
+        #expect(state.requestedExperienceID == nil)
+        #expect(state.prewarmingExperienceID == nil)
+        #expect(state.healthByExperience[target.id] == .idle)
+        #expect(await coordinator.activationLease(
+            for: target.lease.runnableExperienceID,
+        ) == nil)
+    }
+
+    @Test func renewingCommittedTargetRemintsItAndInvalidatesOldCompletion() async throws {
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: ManualProjectionRotationClock(now: start),
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+        await coordinator.select(.testing(.transit))
+        let target = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: target.id, generation: target.generation)
+        _ = try #require(await actions.next())
+        #expect(await coordinator.commitTransition(to: target.lease))
+        #expect(try #require(await actions.next()) == .deactivate(lease: active.lease))
+
+        let renewal = await coordinator.renewActivationLease(target.lease)
+        let targetDeactivation = try #require(await actions.next())
+        let replacement = try activation(#require(await actions.next()))
+
+        #expect(targetDeactivation == .deactivate(lease: target.lease))
+        #expect(renewal == .replaced(from: target.lease, to: replacement.lease))
+        await coordinator.completeTransition(to: target.lease)
+        let state = await coordinator.currentState()
+        #expect(state.activeExperienceID == target.id)
+        #expect(state.requestedExperienceID == nil)
+        #expect(await coordinator.activationLease(
+            for: target.lease.runnableExperienceID,
+        ) == replacement.lease)
+    }
+
+    @Test func cancelledDwellStartCannotPublishAfterItsClockReadResumes() async throws {
+        let clock = ManualProjectionRotationClock(now: start)
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: clock,
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await clock.suspendNextNowCall()
+
+        let updateTask = Task {
+            await coordinator.reportRuntimeUpdate(
+                lease: active.lease,
+                successfulLease: active.lease,
+                health: .healthy(lastUpdate: start, visibleContentCount: 0),
+            )
+        }
+        await clock.waitForNowCallToSuspend()
+        await coordinator.reconcile(demand: disconnectedDemand)
+        #expect(try #require(await actions.next()) == .deactivate(lease: active.lease))
+        await clock.resumeSuspendedNowCall()
+        await updateTask.value
+
+        let state = await coordinator.currentState()
+        #expect(state.dwellEndsAt == nil)
+        #expect(await coordinator.runningExperienceIDsForTesting().isEmpty)
+    }
+
+    @Test func pauseIsIgnoredWithoutProjectionDemand() async throws {
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: ManualProjectionRotationClock(now: start),
+        )
+
+        await coordinator.pause()
+
+        #expect(await (coordinator.currentState()).isPaused == false)
+    }
+
+    @Test func prewarmsAtFifteenSecondsAndSwitchesOnlyAfterFreshSuccess() async throws {
+        let clock = ManualProjectionRotationClock(now: start)
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: clock,
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        #expect(active.id == .airAndSpace)
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+        await clock.waitForSleeperCount(1)
+
+        await clock.advance(by: 105)
+        let prewarm = try activation(#require(await actions.next()))
+        #expect(prewarm.id == .transit)
+        #expect(prewarm.role == .prewarming)
+        #expect(await coordinator.runningExperienceIDsForTesting() == [.airAndSpace, .transit])
+        await reportSuccess(coordinator, id: prewarm.id, generation: prewarm.generation)
+        #expect(await (coordinator.currentState()).activeExperienceID == .airAndSpace)
+
+        await clock.waitForSleeperCount(2)
+        await clock.advance(by: 15)
+        let transition = try #require(await actions.next())
+        #expect(
+            transition == .beginTransition(
+                from: .airAndSpace,
+                to: prewarm.lease,
+            ),
+        )
+        #expect(await (coordinator.currentState()).activeExperienceID == .airAndSpace)
+
+        #expect(await coordinator.commitTransition(to: prewarm.lease))
+        #expect(try #require(await actions.next()) == .deactivate(lease: active.lease))
+        #expect(await (coordinator.currentState()).activeExperienceID == .transit)
+        #expect(await (coordinator.currentState()).dwellEndsAt == nil)
+        await coordinator.completeTransition(to: prewarm.lease)
+        #expect(await (coordinator.currentState()).dwellEndsAt != nil)
+    }
+
+    @Test func delayedSuccessWithinGraceTransitionsWithoutBlankingCurrent() async throws {
+        let clock = ManualProjectionRotationClock(now: start)
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: clock,
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+        await clock.waitForSleeperCount(1)
+        await clock.advance(by: 105)
+        let target = try activation(#require(await actions.next()))
+        await clock.waitForSleeperCount(2)
+        await clock.advance(by: 15)
+
+        #expect(await (coordinator.currentState()).activeExperienceID == .airAndSpace)
+        await reportSuccess(coordinator, id: target.id, generation: target.generation)
+        #expect(
+            try #require(await actions.next()) == .beginTransition(
+                from: .airAndSpace,
+                to: target.lease,
+            ),
+        )
+    }
+
+    @Test func successfulTargetWaitsForItsProjectedFrameBeforeTransitioning() async throws {
+        let clock = ManualProjectionRotationClock(now: start)
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: clock,
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+        await coordinator.select(.testing(.transit))
+        let target = try activation(#require(await actions.next()))
+
+        await coordinator.reportRuntimeUpdate(
+            lease: target.lease,
+            successfulLease: target.lease,
+            health: .healthy(lastUpdate: start, visibleContentCount: 0),
+        )
+
+        #expect(await (coordinator.currentState()).requestedExperienceID == .transit)
+        #expect(await coordinator.reportRuntimePrepared(target.lease))
+        #expect(
+            try #require(await actions.next()) == .beginTransition(
+                from: .airAndSpace,
+                to: target.lease,
+            ),
+        )
+    }
+
+    @Test func contextInvalidationCancelsAPreparedTransitionWithoutSelectionFailure() async throws {
+        let clock = ManualProjectionRotationClock(now: start)
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: clock,
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+        await coordinator.select(.testing(.transit))
+        let target = try activation(#require(await actions.next()))
+        await coordinator.reportRuntimeUpdate(
+            lease: target.lease,
+            successfulLease: target.lease,
+            health: .healthy(lastUpdate: start, visibleContentCount: 0),
+        )
+        #expect(await coordinator.reportRuntimePrepared(target.lease))
+        #expect(try #require(await actions.next()) == .beginTransition(
+            from: .airAndSpace,
+            to: target.lease,
+        ))
+
+        await coordinator.invalidatePreparedTransition(lease: target.lease)
+
+        #expect(try #require(await actions.next()) == .deactivate(lease: target.lease))
+        let state = await coordinator.currentState()
+        #expect(state.activeExperienceID == .airAndSpace)
+        #expect(state.requestedExperienceID == nil)
+        #expect(state.manualSelectionFailure == nil)
+    }
+
+    @Test func cancelledPreparationCannotCommitAfterItsClockReadResumes() async throws {
+        let clock = ManualProjectionRotationClock(now: start)
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: clock,
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+        await coordinator.select(.testing(.transit))
+        let target = try activation(#require(await actions.next()))
+        await coordinator.reportRuntimeUpdate(
+            lease: target.lease,
+            successfulLease: target.lease,
+            health: .healthy(lastUpdate: start, visibleContentCount: 0),
+        )
+        await clock.suspendNextNowCall()
+
+        let preparationTask = Task {
+            await coordinator.reportRuntimePrepared(target.lease)
+        }
+        await clock.waitForNowCallToSuspend()
+        await coordinator.reconcile(demand: disconnectedDemand)
+        #expect(try #require(await actions.next()) == .deactivate(lease: target.lease))
+        #expect(try #require(await actions.next()) == .deactivate(lease: active.lease))
+        await clock.resumeSuspendedNowCall()
+
+        #expect(await preparationTask.value == false)
+        #expect(await (coordinator.currentState()).activeExperienceID == .airAndSpace)
+    }
+
+    @Test func readinessTimeoutKeepsCurrentAndStartsAFreshDwell() async throws {
+        let clock = ManualProjectionRotationClock(now: start)
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: clock,
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+        await clock.waitForSleeperCount(1)
+        await clock.advance(by: 105)
+        let target = try activation(#require(await actions.next()))
+        await clock.waitForSleeperCount(2)
+        await clock.advance(by: 15)
+        await clock.waitForSleeperCount(1)
+        await clock.advance(by: 30)
+
+        #expect(try #require(await actions.next()) == .deactivate(lease: target.lease))
+        await clock.waitForSleeperCount(1)
+        let state = await coordinator.currentState()
+        #expect(state.activeExperienceID == .airAndSpace)
+        #expect(state.requestedExperienceID == nil)
+        #expect(state.dwellEndsAt != nil)
+    }
+
+    @Test func manualSelectionRequiresFreshGenerationAndReportsFailure() async throws {
+        let clock = ManualProjectionRotationClock(now: start)
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: clock,
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+
+        await coordinator.select(.testing(.transit))
+        let target = try activation(#require(await actions.next()))
+        await coordinator.reportRuntimeUpdate(
+            lease: target.lease,
+            successfulLease: nil,
+            health: .failed(.sourceNotValidated),
+        )
+        #expect(try #require(await actions.next()) == .deactivate(lease: target.lease))
+        let failed = await coordinator.currentState()
+        #expect(failed.activeExperienceID == .airAndSpace)
+        #expect(failed.manualSelectionFailure == .sourceNotValidated)
+
+        await coordinator.select(.testing(.transit))
+        let replacement = try activation(#require(await actions.next()))
+        await reportSuccess(
+            coordinator,
+            id: replacement.id,
+            generation: target.generation,
+        )
+        #expect(await (coordinator.currentState()).requestedExperienceID == .transit)
+        await reportSuccess(
+            coordinator,
+            id: replacement.id,
+            generation: replacement.generation,
+        )
+        #expect(
+            try #require(await actions.next()) == .beginTransition(
+                from: .airAndSpace,
+                to: replacement.lease,
+            ),
+        )
+    }
+
+    @Test func staleRuntimeFailureCannotRejectANewerRequestAfterClockReadResumes() async throws {
+        let clock = ManualProjectionRotationClock(now: start)
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: clock,
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+
+        await coordinator.select(.testing(.transit))
+        let staleTarget = try activation(#require(await actions.next()))
+        await clock.suspendNextNowCall()
+        let failureTask = Task {
+            await coordinator.reportRuntimeUpdate(
+                lease: staleTarget.lease,
+                successfulLease: nil,
+                health: .failed(.transport),
+            )
+        }
+        await clock.waitForNowCallToSuspend()
+
+        await coordinator.select(.testing(.transit))
+        #expect(try #require(await actions.next()) == .deactivate(lease: staleTarget.lease))
+        let replacement = try activation(#require(await actions.next()))
+        #expect(replacement.generation > staleTarget.generation)
+        await clock.resumeSuspendedNowCall()
+        await failureTask.value
+
+        let state = await coordinator.currentState()
+        #expect(state.requestedExperienceID == .transit)
+        #expect(state.manualSelectionFailure == nil)
+        #expect(await coordinator.runningExperienceIDsForTesting() == [.airAndSpace, .transit])
+        await reportSuccess(
+            coordinator,
+            id: replacement.id,
+            generation: replacement.generation,
+        )
+        #expect(
+            try #require(await actions.next()) == .beginTransition(
+                from: .airAndSpace,
+                to: replacement.lease,
+            ),
+        )
+    }
+
+    @Test func manualSelectionTimesOutWithoutBlankingTheActiveExperience() async throws {
+        let clock = ManualProjectionRotationClock(now: start)
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: clock,
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+
+        await coordinator.select(.testing(.transit))
+        let target = try activation(#require(await actions.next()))
+        await clock.waitForSleeperCount(1)
+        await clock.advance(by: 30)
+
+        #expect(try #require(await actions.next()) == .deactivate(lease: target.lease))
+        let state = await coordinator.currentState()
+        #expect(state.activeExperienceID == .airAndSpace)
+        #expect(state.requestedExperienceID == nil)
+        #expect(state.manualSelectionFailure == .transport)
+        #expect(await coordinator.runningExperienceIDsForTesting() == [.airAndSpace])
+    }
+
+    @Test func pauseAndLifecycleChangesCancelPrewarmingAndResetDwell() async throws {
+        let clock = ManualProjectionRotationClock(now: start)
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: clock,
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+        await clock.waitForSleeperCount(1)
+        await clock.advance(by: 105)
+        let target = try activation(#require(await actions.next()))
+
+        await coordinator.pause()
+        #expect(try #require(await actions.next()) == .deactivate(lease: target.lease))
+        #expect(await (coordinator.currentState()).isPaused)
+        #expect(await (coordinator.currentState()).dwellEndsAt == nil)
+
+        await coordinator.resume()
+        #expect(await (coordinator.currentState()).dwellEndsAt != nil)
+        await coordinator.reconcile(
+            demand: ProjectionExperienceDemand(
+                hasOutput: false,
+                isForeground: true,
+                isQuiet: false,
+                isCalibrating: false,
+            ),
+        )
+        #expect(try #require(await actions.next()) == .deactivate(lease: active.lease))
+        let disconnected = await coordinator.currentState()
+        #expect(disconnected.isPaused == false)
+        #expect(disconnected.dwellEndsAt == nil)
+    }
+
+    @Test func backgroundQuietAndCalibrationStopEveryRuntimeAndTimer() async throws {
+        let suspendedDemands = [
+            ProjectionExperienceDemand(
+                hasOutput: true,
+                isForeground: false,
+                isQuiet: false,
+                isCalibrating: false,
+            ),
+            ProjectionExperienceDemand(
+                hasOutput: true,
+                isForeground: true,
+                isQuiet: true,
+                isCalibrating: false,
+            ),
+            ProjectionExperienceDemand(
+                hasOutput: true,
+                isForeground: true,
+                isQuiet: false,
+                isCalibrating: true,
+            ),
+        ]
+
+        for demand in suspendedDemands {
+            let clock = ManualProjectionRotationClock(now: start)
+            let coordinator = try ProjectionExperienceCoordinator(
+                playlist: rotatingPlaylist(),
+                clock: clock,
+            )
+            var actions = await coordinator.actions().makeAsyncIterator()
+            await coordinator.reconcile(demand: projectingDemand)
+            let active = try activation(#require(await actions.next()))
+            await reportSuccess(coordinator, id: active.id, generation: active.generation)
+
+            await coordinator.reconcile(demand: demand)
+
+            #expect(try #require(await actions.next()) == .deactivate(lease: active.lease))
+            #expect(await coordinator.runningExperienceIDsForTesting().isEmpty)
+            let state = await coordinator.currentState()
+            #expect(state.dwellEndsAt == nil)
+            #expect(state.prewarmingExperienceID == nil)
+        }
+    }
+
+    @Test func terminalPrewarmFailureSkipsToTheNextCandidateWithoutBlanking() async throws {
+        let thirdID = try #require(
+            ProjectionExperienceID(testingRawValue: "third-snapshot-experience"),
+        )
+        let clock = ManualProjectionRotationClock(now: start)
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(thirdExperienceID: thirdID),
+            clock: clock,
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+        await clock.waitForSleeperCount(1)
+        await clock.advance(by: 105)
+        let failedTarget = try activation(#require(await actions.next()))
+
+        await coordinator.reportRuntimeUpdate(
+            lease: failedTarget.lease,
+            successfulLease: nil,
+            health: .failed(.transport),
+        )
+
+        #expect(try #require(await actions.next()) == .deactivate(lease: failedTarget.lease))
+        let replacement = try activation(#require(await actions.next()))
+        #expect(replacement.id == thirdID)
+        #expect(replacement.role == .prewarming)
+        let state = await coordinator.currentState()
+        #expect(state.activeExperienceID == .airAndSpace)
+        #expect(state.prewarmingExperienceID == thirdID)
+        #expect(await coordinator.runningExperienceIDsForTesting() == [.airAndSpace, thirdID])
+    }
+
+    @Test func disablingRotationCancelsAnInFlightPrewarm() async throws {
+        let clock = ManualProjectionRotationClock(now: start)
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: clock,
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+        await clock.waitForSleeperCount(1)
+        await clock.advance(by: 105)
+        let target = try activation(#require(await actions.next()))
+
+        let rotationDisabled = try twoExperiencePlaylist(automaticRotationEnabled: false)
+        await coordinator.configure(ProjectionPlaylistConfiguration(
+            playlist: rotationDisabled,
+            revision: .init(rawValue: 1),
+        ))
+
+        #expect(try #require(await actions.next()) == .deactivate(lease: target.lease))
+        let state = await coordinator.currentState()
+        #expect(state.requestedExperienceID == nil)
+        #expect(state.prewarmingExperienceID == nil)
+        #expect(state.dwellEndsAt == nil)
+        #expect(await coordinator.runningExperienceIDsForTesting() == [.airAndSpace])
+    }
+
+    private var projectingDemand: ProjectionExperienceDemand {
+        ProjectionExperienceDemand(
+            hasOutput: true,
+            isForeground: true,
+            isQuiet: false,
+            isCalibrating: false,
+        )
+    }
+
+    private var disconnectedDemand: ProjectionExperienceDemand {
+        ProjectionExperienceDemand(
+            hasOutput: false,
+            isForeground: true,
+            isQuiet: false,
+            isCalibrating: false,
+        )
+    }
+
+    private func rotatingPlaylist() throws -> ProjectionPlaylist {
+        try twoExperiencePlaylist(automaticRotationEnabled: true)
+    }
+
+    private func singleExperiencePlaylist(
+        dwellDuration: ProjectionDwellDuration,
+    ) throws -> ProjectionPlaylist {
+        try ProjectionPlaylist(
+            entries: [
+                ProjectionPlaylistEntry(
+                    runnableExperienceID: .airAndSpace,
+                    dwellDuration: dwellDuration,
+                ),
+            ],
+            automaticRotationEnabled: false,
+            selectedExperienceID: .airAndSpace,
+            configuredExperienceIDs: [.airAndSpace],
+            catalog: .standard,
+        )
+    }
+
+    private func twoExperiencePlaylist(
+        automaticRotationEnabled: Bool,
+    ) throws -> ProjectionPlaylist {
+        let catalog = ProjectionExperienceCatalog(
+            testingDescriptors: [
+                ProjectionExperienceDescriptor(
+                    testingAvailability: .runnable(.airAndSpace),
+                    supportedModes: [.map, .trueSky],
+                    layerIDs: [.geography, .flights],
+                    visibleContentKind: .aircraft,
+                    zOrder: 0,
+                ),
+                ProjectionExperienceDescriptor(
+                    testingAvailability: .runnable(.testing(.transit)),
+                    supportedModes: [.map],
+                    layerIDs: [.geography, .transitNetwork, .transitVehicles],
+                    visibleContentKind: .vehicles,
+                    zOrder: 10,
+                ),
+            ],
+            layerCatalog: .standard,
+        )
+        return try ProjectionPlaylist(
+            entries: [
+                ProjectionPlaylistEntry(
+                    runnableExperienceID: .airAndSpace,
+                    dwellDuration: .defaultValue,
+                ),
+                ProjectionPlaylistEntry(
+                    runnableExperienceID: .testing(.transit),
+                    dwellDuration: .defaultValue,
+                ),
+            ],
+            automaticRotationEnabled: automaticRotationEnabled,
+            selectedExperienceID: .airAndSpace,
+            configuredExperienceIDs: [.airAndSpace, .testing(.transit)],
+            catalog: catalog,
+        )
+    }
+
+    private func rotatingPlaylist(
+        thirdExperienceID: ProjectionExperienceID,
+    ) throws -> ProjectionPlaylist {
+        let catalog = ProjectionExperienceCatalog(
+            testingDescriptors: [
+                ProjectionExperienceDescriptor(
+                    testingAvailability: .runnable(.airAndSpace),
+                    supportedModes: [.map, .trueSky],
+                    layerIDs: [.geography, .flights],
+                    visibleContentKind: .aircraft,
+                    zOrder: 0,
+                ),
+                ProjectionExperienceDescriptor(
+                    testingAvailability: .runnable(.testing(.transit)),
+                    supportedModes: [.map],
+                    layerIDs: [.geography, .transitNetwork, .transitVehicles],
+                    visibleContentKind: .vehicles,
+                    zOrder: 10,
+                ),
+                ProjectionExperienceDescriptor(
+                    testingAvailability: .runnable(.testing(thirdExperienceID)),
+                    supportedModes: [.map],
+                    layerIDs: [.geography],
+                    visibleContentKind: .objects,
+                    zOrder: 20,
+                ),
+            ],
+            layerCatalog: .standard,
+        )
+        let entries: [ProjectionPlaylistEntry] = [
+            .airAndSpace,
+            .testing(.transit),
+            .testing(thirdExperienceID),
+        ]
+        .map {
+            ProjectionPlaylistEntry(
+                runnableExperienceID: $0,
+                dwellDuration: .defaultValue,
+            )
+        }
+        return try ProjectionPlaylist(
+            entries: entries,
+            automaticRotationEnabled: true,
+            selectedExperienceID: .airAndSpace,
+            configuredExperienceIDs: Set(entries.map(\.runnableExperienceID)),
+            catalog: catalog,
+        )
+    }
+
+    private func reportSuccess(
+        _ coordinator: ProjectionExperienceCoordinator,
+        id: ProjectionExperienceID,
+        generation: ProjectionActivationLease.Generation,
+    ) async {
+        let runnableID: RunnableProjectionExperienceID = switch id {
+            case .airAndSpace: .airAndSpace
+            case .transit: .testing(.transit)
+            case .testing: .testing(.testing)
+        }
+        let lease = ProjectionActivationLease(
+            experienceID: runnableID,
+            generation: generation,
+        )
+        await coordinator.reportRuntimeUpdate(
+            lease: lease,
+            successfulLease: lease,
+            health: .healthy(lastUpdate: start, visibleContentCount: 0),
+        )
+        _ = await coordinator.reportRuntimePrepared(lease)
+    }
+
+    private func activation(
+        _ action: ProjectionExperienceCoordinatorAction,
+    ) throws
+        -> (
+            lease: ProjectionActivationLease,
+            id: ProjectionExperienceID,
+            generation: ProjectionActivationLease.Generation,
+            role: ProjectionExperienceActivationRole
+        )
+    {
+        guard case let .activate(lease, role) = action else {
+            Issue.record("Expected an activation action")
+            throw TestFailure.unexpectedAction
+        }
+        return (lease, lease.experienceID, lease.generation, role)
+    }
+
+    private enum TestFailure: Error {
+        case unexpectedAction
+    }
+}
+
+private actor ManualProjectionRotationClock: ProjectionRotationClock {
+    private struct Sleeper {
+        let deadline: Date
+        let continuation: CheckedContinuation<Void, any Error>
+    }
+
+    private var current: Date
+    private var sleepers: [UUID: Sleeper] = [:]
+    private var countWaiters: [Int: [CheckedContinuation<Void, Never>]] = [:]
+    private var suspendsNextNowCall = false
+    private var suspendedNowCall: CheckedContinuation<Date, Never>?
+    private var nowSuspensionWaiters: [CheckedContinuation<Void, Never>] = []
+
+    init(now: Date) {
+        current = now
+    }
+
+    func now() async -> Date {
+        guard suspendsNextNowCall else { return current }
+        suspendsNextNowCall = false
+        return await withCheckedContinuation { continuation in
+            precondition(suspendedNowCall == nil, "Only one clock read can suspend at a time")
+            suspendedNowCall = continuation
+            let waiters = nowSuspensionWaiters
+            nowSuspensionWaiters.removeAll()
+            for waiter in waiters {
+                waiter.resume()
+            }
+        }
+    }
+
+    func suspendNextNowCall() {
+        precondition(suspendedNowCall == nil, "A clock read is already suspended")
+        suspendsNextNowCall = true
+    }
+
+    func waitForNowCallToSuspend() async {
+        guard suspendedNowCall == nil else { return }
+        await withCheckedContinuation { continuation in
+            nowSuspensionWaiters.append(continuation)
+        }
+    }
+
+    func resumeSuspendedNowCall() {
+        guard let suspendedNowCall else {
+            Issue.record("Expected a suspended clock read")
+            return
+        }
+        self.suspendedNowCall = nil
+        suspendedNowCall.resume(returning: current)
+    }
+
+    func sleep(for duration: Duration) async throws {
+        let id = UUID()
+        let deadline = current.addingTimeInterval(duration.timeInterval)
+        try await withTaskCancellationHandler(operation: {
+            try await withCheckedThrowingContinuation {
+                (continuation: CheckedContinuation<Void, any Error>) in
+                if Task.isCancelled {
+                    continuation.resume(throwing: CancellationError())
+                } else {
+                    sleepers[id] = Sleeper(deadline: deadline, continuation: continuation)
+                    resumeCountWaiters()
+                }
+            }
+        }, onCancel: {
+            Task { await self.cancel(id: id) }
+        })
+    }
+
+    func advance(by seconds: TimeInterval) {
+        current = current.addingTimeInterval(seconds)
+        let ready = sleepers.filter { $0.value.deadline <= current }
+        for (id, sleeper) in ready {
+            sleepers.removeValue(forKey: id)
+            sleeper.continuation.resume()
+        }
+        resumeCountWaiters()
+    }
+
+    func waitForSleeperCount(_ count: Int) async {
+        guard sleepers.count != count else { return }
+        await withCheckedContinuation { continuation in
+            countWaiters[count, default: []].append(continuation)
+        }
+    }
+
+    private func cancel(id: UUID) {
+        sleepers.removeValue(forKey: id)?.continuation.resume(throwing: CancellationError())
+        resumeCountWaiters()
+    }
+
+    private func resumeCountWaiters() {
+        let waiters = countWaiters.removeValue(forKey: sleepers.count) ?? []
+        for waiter in waiters {
+            waiter.resume()
+        }
+    }
+}
+
+extension Duration {
+    fileprivate var timeInterval: TimeInterval {
+        let components = components
+        return TimeInterval(components.seconds) +
+            TimeInterval(components.attoseconds) / 1_000_000_000_000_000_000
+    }
+}

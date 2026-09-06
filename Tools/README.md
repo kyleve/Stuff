@@ -8,11 +8,15 @@ parsing and reporting policy live here.
 
 The existing CircleCI artifact, JUnit, and snapshot-shard helpers remain Python
 because they are already integrated and directly tested. `tla_check.py`
-similarly owns TLA+ manifest validation, isolated translation, TLC argv, and
-result reporting without requiring Java in its tests. The Xcode-facing root
-commands keep process and simulator orchestration in shell; `xcode_results.py`
-shares xcresult traversal, `snapshot_reports.py` shares capture reports, and
-the command-specific Python modules retain each command's distinct policy.
+discovers specs under `Specifications` in each top-level feature directory. It
+rejects duplicate concern folder names across features. It also owns manifest
+validation, isolated translation, TLC arguments, and result reporting. Its
+tests do not require Java.
+
+The Xcode-facing root commands keep process and simulator orchestration in
+shell. `xcode_results.py` shares xcresult traversal.
+`snapshot_reports.py` shares capture reports. Each command-specific Python
+module retains its distinct policy.
 Filesystem-heavy Ruby generators are require-safe so their behavior can be
 exercised against temporary repositories. `SimulatorRegistry` validates exact
 runtime ownership from captured `simctl` JSON and persists private claims

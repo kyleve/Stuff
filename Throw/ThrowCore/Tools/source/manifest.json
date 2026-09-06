@@ -1,0 +1,299 @@
+{
+  "manifestVersion": 1,
+  "archive": {
+    "version": 2,
+    "coordinateScale": 10000,
+    "maximumSegmentNauticalMiles": 10,
+    "maximumPathCount": 100000,
+    "maximumCoordinateCount": 2000000,
+    "maximumOutputBytes": 33554432,
+    "expectedOutput": {
+      "sha256": "4ee1ddb6e676fa2130d783106800271ac01427136bff4109a506444ecd88e536",
+      "encodedBytes": 15843872,
+      "pathCount": 38483,
+      "coordinateCount": 1462742
+    }
+  },
+  "sources": [
+    {
+      "id": "natural-earth-vector-5-1-2",
+      "name": "Natural Earth Vector",
+      "release": "5.1.2 collection",
+      "scale": "1:10m",
+      "homepageURL": "https://www.naturalearthdata.com/",
+      "termsURL": "https://www.naturalearthdata.com/about/terms-of-use/",
+      "credit": "Made with Natural Earth."
+    },
+    {
+      "id": "census-cartographic-boundaries-2025",
+      "name": "U.S. Census Bureau Cartographic Boundary Files",
+      "release": "2025",
+      "scale": "1:500k",
+      "homepageURL": "https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.2025.html",
+      "termsURL": "https://www2.census.gov/geo/pdfs/maps-data/data/tiger/tgrshp2025/TGRSHP2025_TechDoc_Ch1.pdf",
+      "credit": "U.S. Census Bureau"
+    },
+    {
+      "id": "census-tiger-line-2025",
+      "name": "U.S. Census Bureau TIGER/Line Shapefiles",
+      "release": "2025",
+      "scale": "source resolution",
+      "homepageURL": "https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.2025.html",
+      "termsURL": "https://www2.census.gov/geo/pdfs/maps-data/data/tiger/tgrshp2025/TGRSHP2025_TechDoc_Ch1.pdf",
+      "credit": "U.S. Census Bureau"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "natural-earth-coastline",
+      "sourceID": "natural-earth-vector-5-1-2",
+      "format": "shapefile",
+      "archive": {
+        "file": "ne_10m_coastline.zip",
+        "url": "https://naturalearth.s3.amazonaws.com/5.1.2/10m_physical/ne_10m_coastline.zip",
+        "sha256": "bfa04cdbcbef07ef90dfca1dabb48062eca29900a113df0f389303e255484017",
+        "members": {
+          "shp": "ne_10m_coastline.shp",
+          "dbf": "ne_10m_coastline.dbf"
+        }
+      },
+      "kind": "coastline",
+      "detailLevel": {
+        "strategy": "natural-earth",
+        "minimumZoomProperty": "min_zoom",
+        "scaleRankProperty": "scalerank",
+        "wide": {
+          "maximumMinimumZoom": 5,
+          "maximumScaleRank": 4
+        },
+        "standard": {
+          "maximumMinimumZoom": 8,
+          "maximumScaleRank": 8
+        }
+      },
+      "priority": 200,
+      "deduplicationGroup": "coastline",
+      "simplificationNauticalMiles": 0.02
+    },
+    {
+      "id": "natural-earth-lakes",
+      "sourceID": "natural-earth-vector-5-1-2",
+      "format": "shapefile",
+      "archive": {
+        "file": "ne_10m_lakes.zip",
+        "url": "https://naturalearth.s3.amazonaws.com/5.1.2/10m_physical/ne_10m_lakes.zip",
+        "sha256": "0803a06f9c3cb4671d89b68c48b142aad9366ba40f665245e12a913fbc61722a",
+        "members": {
+          "shp": "ne_10m_lakes.shp",
+          "dbf": "ne_10m_lakes.dbf"
+        }
+      },
+      "kind": "lake",
+      "detailLevel": {
+        "strategy": "natural-earth",
+        "minimumZoomProperty": "min_zoom",
+        "scaleRankProperty": "scalerank",
+        "wide": {
+          "maximumMinimumZoom": 5,
+          "maximumScaleRank": 4
+        },
+        "standard": {
+          "maximumMinimumZoom": 8,
+          "maximumScaleRank": 8
+        }
+      },
+      "priority": 200,
+      "deduplicationGroup": "lake",
+      "simplificationNauticalMiles": 0.03
+    },
+    {
+      "id": "natural-earth-rivers",
+      "sourceID": "natural-earth-vector-5-1-2",
+      "format": "shapefile",
+      "archive": {
+        "file": "ne_10m_rivers_lake_centerlines.zip",
+        "url": "https://naturalearth.s3.amazonaws.com/5.1.2/10m_physical/ne_10m_rivers_lake_centerlines.zip",
+        "sha256": "ded71b01870855ccfe19b51f2ec14c9bb48fae23c0e9f3c11974d426433b5c38",
+        "members": {
+          "shp": "ne_10m_rivers_lake_centerlines.shp",
+          "dbf": "ne_10m_rivers_lake_centerlines.dbf"
+        }
+      },
+      "kind": "river",
+      "detailLevel": {
+        "strategy": "natural-earth",
+        "minimumZoomProperty": "min_zoom",
+        "scaleRankProperty": "scalerank",
+        "wide": {
+          "maximumMinimumZoom": 5,
+          "maximumScaleRank": 4
+        },
+        "standard": {
+          "maximumMinimumZoom": 8,
+          "maximumScaleRank": 8
+        }
+      },
+      "priority": 200,
+      "deduplicationGroup": "river",
+      "simplificationNauticalMiles": 0.05
+    },
+    {
+      "id": "natural-earth-national-boundaries",
+      "sourceID": "natural-earth-vector-5-1-2",
+      "format": "shapefile",
+      "archive": {
+        "file": "ne_10m_admin_0_boundary_lines_land.zip",
+        "url": "https://naturalearth.s3.amazonaws.com/5.1.2/10m_cultural/ne_10m_admin_0_boundary_lines_land.zip",
+        "sha256": "16ead035f539c8b6c23650c5845d86ad3556553e7456bdf9b4730210f26aacbe",
+        "members": {
+          "shp": "ne_10m_admin_0_boundary_lines_land.shp",
+          "dbf": "ne_10m_admin_0_boundary_lines_land.dbf"
+        }
+      },
+      "kind": {
+        "property": "FEATURECLA",
+        "values": {
+          "International boundary (verify)": "national-boundary"
+        },
+        "default": "disputed-boundary"
+      },
+      "detailLevel": {
+        "strategy": "natural-earth",
+        "minimumZoomProperty": "MIN_ZOOM",
+        "scaleRankProperty": "SCALERANK",
+        "wide": {
+          "maximumMinimumZoom": 5,
+          "maximumScaleRank": 4
+        },
+        "standard": {
+          "maximumMinimumZoom": 8,
+          "maximumScaleRank": 8
+        }
+      },
+      "priority": 300,
+      "deduplicationGroup": "boundary",
+      "mergeConnectedPaths": true,
+      "simplificationNauticalMiles": 0.05
+    },
+    {
+      "id": "natural-earth-regional-boundaries",
+      "sourceID": "natural-earth-vector-5-1-2",
+      "format": "shapefile",
+      "archive": {
+        "file": "ne_10m_admin_1_states_provinces_lines.zip",
+        "url": "https://naturalearth.s3.amazonaws.com/5.1.2/10m_cultural/ne_10m_admin_1_states_provinces_lines.zip",
+        "sha256": "86acd56ce6c0e47f5fa79725591533b5766f26d6ed1437b086f2b8d4028fe456",
+        "members": {
+          "shp": "ne_10m_admin_1_states_provinces_lines.shp",
+          "dbf": "ne_10m_admin_1_states_provinces_lines.dbf"
+        }
+      },
+      "excludeProperties": {
+        "ADM0_A3": [
+          "USA"
+        ]
+      },
+      "kind": "regional-boundary",
+      "detailLevel": {
+        "strategy": "natural-earth",
+        "minimumZoomProperty": "MIN_ZOOM",
+        "scaleRankProperty": "SCALERANK",
+        "wide": {
+          "maximumMinimumZoom": 5,
+          "maximumScaleRank": 4
+        },
+        "standard": {
+          "maximumMinimumZoom": 8,
+          "maximumScaleRank": 8
+        }
+      },
+      "priority": 200,
+      "deduplicationGroup": "boundary",
+      "mergeConnectedPaths": true,
+      "simplificationNauticalMiles": 0.05
+    },
+    {
+      "id": "census-state-boundaries",
+      "sourceID": "census-cartographic-boundaries-2025",
+      "format": "shapefile",
+      "archive": {
+        "file": "cb_2025_us_state_500k.zip",
+        "url": "https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_state_500k.zip",
+        "sha256": "9cbfe171dad1555e11770c981d8f4db9e687a65c86f5bdae684eeb487e2e9b80",
+        "members": {
+          "shp": "cb_2025_us_state_500k.shp",
+          "dbf": "cb_2025_us_state_500k.dbf"
+        }
+      },
+      "boundaryMode": "shared-edges",
+      "deduplicationMode": "segment",
+      "kind": "regional-boundary",
+      "detailLevel": "wide",
+      "priority": 500,
+      "deduplicationGroup": "boundary",
+      "simplificationNauticalMiles": 0.03
+    },
+    {
+      "id": "census-county-boundaries",
+      "sourceID": "census-cartographic-boundaries-2025",
+      "format": "shapefile",
+      "archive": {
+        "file": "cb_2025_us_county_500k.zip",
+        "url": "https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_500k.zip",
+        "sha256": "aa976c00b181939755d0da757f4c7c2dc0103c3b3b4530fb2a91c2bb62fc777c",
+        "members": {
+          "shp": "cb_2025_us_county_500k.shp",
+          "dbf": "cb_2025_us_county_500k.dbf"
+        }
+      },
+      "boundaryMode": "shared-edges",
+      "deduplicationMode": "segment",
+      "kind": "county-boundary",
+      "detailLevel": {
+        "strategy": "numeric-property",
+        "property": "ALAND",
+        "rules": [
+          {
+            "minimum": 5000000000,
+            "value": "standard"
+          }
+        ],
+        "default": "local"
+      },
+      "priority": 400,
+      "deduplicationGroup": "boundary",
+      "simplificationNauticalMiles": 0.05
+    },
+    {
+      "id": "census-primary-roads",
+      "sourceID": "census-tiger-line-2025",
+      "format": "shapefile",
+      "archive": {
+        "file": "tl_2025_us_primaryroads.zip",
+        "url": "https://www2.census.gov/geo/tiger/TIGER2025/PRIMARYROADS/tl_2025_us_primaryroads.zip",
+        "sha256": "400453e97b9e6693dfecb7362ce7a6cf260d27050f7d84d2a024ba0710b94c07",
+        "members": {
+          "shp": "tl_2025_us_primaryroads.shp",
+          "dbf": "tl_2025_us_primaryroads.dbf"
+        }
+      },
+      "includeProperties": {
+        "MTFCC": [
+          "S1100"
+        ]
+      },
+      "kind": "primary-road",
+      "detailLevel": {
+        "strategy": "property",
+        "property": "RTTYP",
+        "values": {
+          "I": "wide"
+        },
+        "default": "standard"
+      },
+      "priority": 600,
+      "deduplicationGroup": "road",
+      "simplificationNauticalMiles": 0.05
+    }
+  ]
+}

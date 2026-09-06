@@ -54,11 +54,11 @@ tests](#running-tests)). `./icons`, `./attribution`, and `./simulator` own state
 easy to corrupt by hand. `./simulator` owns a per-checkout device (see the
 [`running-tests`](.agents/skills/running-tests/SKILL.md) skill).
 
-Retained Python and Ruby implementations are importable and directly tested
-under `Tools/Tests`; shell around them is limited to public argument handling,
-bootstrap, and process orchestration. In particular,
-`tla-check` owns discovery and the pinned TLC download while
-`Tools/tla_check.py` owns manifest validation, TLC argv, and result policy.
+Retained Python and Ruby implementations are importable. Direct tests live
+under `Tools/Tests`. Shell wrappers only handle public arguments, bootstrap,
+and process orchestration. In particular, `tla-check` owns the public command
+and the pinned TLC download. `Tools/tla_check.py` owns cross-feature discovery,
+manifest validation, TLC arguments, and result policy.
 
 ### Managing app icons
 
@@ -121,12 +121,12 @@ own tests can't do this job. A test bundle can't read `Package.swift`.
 
 ## Architecture lint
 
-Bumper Bowling enforces the production Where module graph and selected
-source-level invariants. The entry point is
+Bumper Bowling enforces the production Where and Throw module graphs and
+selected source-level invariants. The entry point is
 [`BumperBowling.swift`](BumperBowling.swift). Repository-owned shapes and rules
 live in [`.bumper/Sources`](.bumper/Sources). [`.bumper/RULES.md`](.bumper/RULES.md) is the rule catalog.
 
-Run `./test --architecture-only` after changing a Where dependency,
+Run `./test --architecture-only` after changing a Where or Throw dependency,
 composition root, or documented concurrency boundary. This command validates
 the configuration, tests the rules, and runs the lint. Keep the relevant
 `AGENTS.md`, the executable rule, its catalog entry, and its mutation test in
@@ -212,10 +212,12 @@ Measured symbol-coalescing detail and the correction history: PR #145.
 
 Platforms and minimum OS live in [`Project.swift`](Project.swift). The iOS
 targets and the native-macOS **Ledger** app are there. That is why the package declares
-both platforms. To get the app onto a connected iPhone without the Xcode UI, use
-[`./Where/install`](Where/install). That command is macOS-only. It needs a signing team
-configured once via `./ide --team-id` (see
-[`Where/AGENTS.md`](Where/AGENTS.md#installing-to-a-device)). Its `--dry-run`
+both platforms. Use [`./Where/install`](Where/install) or
+[`./Throw/install`](Throw/install) to install an iOS app without the Xcode UI.
+Both commands are macOS-only. Each command needs a signing team configured once
+with `./ide --team-id`. Read the device-install section for
+[`Where`](Where/AGENTS.md#installing-to-a-device) or
+[`Throw`](Throw/AGENTS.md#installing-to-a-device). The `--dry-run` option
 resolves the exact physical device without generating, building, installing,
 or launching.
 [`./Ledger/install`](Ledger/install) is the equivalent for Ledger. It builds a

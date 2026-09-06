@@ -24,6 +24,7 @@ functions returned expected values.
 | `simulator` | macOS/Xcode | simctl, registry | owned simulators | Never deletes an unowned or wrong-runtime device |
 | `icons` | mise Ruby | catalogs, manifest | tracked assets | All-or-nothing mutation |
 | `Where/install` | macOS/Xcode/device | signing and device inventory | physical device | Dry run performs no build/install/launch |
+| `Throw/install` | macOS/Xcode/device | signing and device inventory | physical device | Dry run performs no build/install/launch |
 | `Ledger/install` | macOS/Xcode | built/installed apps | `/Applications/Ledger.app` | Exact-process and transactional replacement |
 | `tla-check` | macOS/Linux-compatible tooling | manifests/specs | retained run artifacts | Pinned tools and honest pass/fail policy |
 
@@ -136,11 +137,15 @@ A mixture is never accepted.
 
 ### Installers
 
-For `Where/install`, cover unset teams and malformed mise configuration;
-empty, malformed, and schema-shifted `devicectl` JSON; mixed device families;
-no, exact, and ambiguous matches; unusual names; confirmation EOF; list,
-build, install, and launch failures; and a dry-run transcript with no project
-generation, build, install, or launch.
+For `Where/install` and `Throw/install`, cover:
+
+- Unset teams and malformed mise configuration.
+- Empty, malformed, and schema-shifted `devicectl` JSON.
+- Mixed device families.
+- No, exact, and ambiguous matches.
+- Unusual device names and confirmation EOF.
+- List, build, install, and launch failures.
+- A dry-run transcript with no project generation, build, install, or launch.
 
 For `Ledger/install`, cover missing, wrong-ID, symlinked, and malformed app
 bundles; exact and similarly named processes; graceful and forced termination;
@@ -153,12 +158,13 @@ paths unless a real operation is explicitly approved.
 
 ### TLA and generators
 
-Cover manifest path traversal, missing modules and configurations, duplicate
-cases, unknown expectations, TLC checksum mismatch, interrupted download,
-missing Java or mise, translator and TLC statuses, absent expected-failure
-text, source changes during execution, concurrent first-time cache population,
-byte-identical region and attribution output, and output permission and disk
-write failures.
+Cover cross-feature discovery and duplicate spec folder names. Cover manifest
+path traversal, missing modules and configurations, duplicate cases, and
+unknown expectations. Cover TLC checksum mismatch, interrupted downloads,
+missing Java or mise, and translator and TLC statuses. Cover absent expected-
+failure text, source changes, and concurrent first-time cache population.
+Cover byte-identical generator output, output permissions, and disk-write
+failures.
 
 ## Mutation review
 
@@ -188,6 +194,7 @@ After fixture tests pass, run the smallest real operations:
 - `./flaky --suite-runs 1 --iterations 2 --no-update`
 - Icon add and remove dry runs.
 - `./Where/install --dry-run`
+- `./Throw/install --dry-run`
 - `./Ledger/install --dry-run --no-open`
 
 Then run the repository's full macOS gate:

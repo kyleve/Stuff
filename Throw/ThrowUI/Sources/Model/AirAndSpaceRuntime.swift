@@ -1,0 +1,817 @@
+import Foundation
+import ThrowCore
+
+protocol FlightsLayerRunning: Sendable {
+    func frame(
+        for input: FlightsLayerInput,
+    ) async throws -> ProjectionLayerFrame<FlightsLayerKind>
+
+    func reset() async
+}
+
+extension FlightsLayerRuntime: FlightsLayerRunning {}
+
+/// A runtime-minted capability for one physical polling attempt.
+/// It cannot be reused after the runtime starts a replacement attempt.
+struct AirAndSpacePhysicalPollingLease: Equatable {
+    fileprivate let experienceLease: ProjectionActivationLease
+    fileprivate let lifecycleGeneration: UInt64
+}
+
+/// The accepted physical polling identity and request signature.
+struct AirAndSpaceActivePhysicalPolling: Equatable {
+    let lease: AirAndSpacePhysicalPollingLease
+    let signature: PollingSignature
+}
+
+/// The closed physical-polling state visible outside the runtime actor.
+enum AirAndSpacePhysicalPollingState: Equatable {
+    case stopped
+    case activating(AirAndSpacePhysicalPollingLease)
+    case active(AirAndSpaceActivePhysicalPolling)
+
+    var lease: AirAndSpacePhysicalPollingLease? {
+        switch self {
+            case .stopped: nil
+            case let .activating(lease): lease
+            case let .active(active): active.lease
+        }
+    }
+
+    var acceptedSignature: PollingSignature? {
+        guard case let .active(active) = self else { return nil }
+        return active.signature
+    }
+}
+
+/// One immutable snapshot of the Air & Space runtime's actor-isolated state.
+struct AirAndSpaceRuntimeUpdate {
+    enum SemanticPreparationState: Equatable {
+        case ready
+        case failed
+    }
+
+    let activationLease: ProjectionActivationLease?
+    let successfulActivationLease: ProjectionActivationLease?
+    let health: FeedHealth
+    let flightsFrame: ProjectionLayerFrame<FlightsLayerKind>?
+    let snapshot: AircraftSnapshot?
+    let physicalPolling: AirAndSpacePhysicalPollingState
+    let semanticPreparationState: SemanticPreparationState
+
+    var activePollingSignature: PollingSignature? {
+        physicalPolling.acceptedSignature
+    }
+
+    var physicalPollingLease: AirAndSpacePhysicalPollingLease? {
+        physicalPolling.lease
+    }
+
+    var experienceFrame: ProjectionExperienceFrame {
+        .airAndSpace(AirAndSpaceExperienceFrame(
+            geography: nil,
+            flights: flightsFrame,
+            stars: nil,
+            satellites: nil,
+        ))
+    }
+}
+
+enum AirAndSpaceRuntimeActivationResult {
+    case accepted(AirAndSpaceRuntimeUpdate)
+    case superseded(current: AirAndSpaceRuntimeUpdate)
+}
+
+/// The exhaustive result of applying a generation-bound physical stop.
+enum AirAndSpaceRuntimePollingSuspensionResult {
+    case stopped(AirAndSpaceRuntimeUpdate)
+    case alreadyStopped(current: AirAndSpaceRuntimeUpdate)
+    case superseded(current: AirAndSpaceRuntimeUpdate)
+}
+
+/// Owns aircraft polling, semantic frame construction, motion state, and route enrichment.
+actor AirAndSpaceRuntime {
+    private enum AcceptedPollingPublication {
+        case inactive
+        case active(AircraftPollingState)
+    }
+
+    /// Keeps physical polling state separate from the experience lease.
+    /// An active poller owns one signature, token, and ordered publication cursor.
+    private enum PhysicalPollingLifecycle {
+        struct Activating {
+            let lease: AirAndSpacePhysicalPollingLease
+            let signature: PollingSignature
+        }
+
+        struct Active {
+            let lease: AirAndSpacePhysicalPollingLease
+            let signature: PollingSignature
+            let token: AircraftPollingActivationToken
+            let latestRevision: AircraftPollingActiveUpdate.Revision?
+        }
+
+        case stopped(hasAppliedInactive: Bool)
+        case activating(Activating)
+        case active(Active)
+
+        var acceptedSignature: PollingSignature? {
+            guard case let .active(active) = self else { return nil }
+            return active.signature
+        }
+
+        var lease: AirAndSpacePhysicalPollingLease? {
+            switch self {
+                case .stopped: nil
+                case let .activating(activating): activating.lease
+                case let .active(active): active.lease
+            }
+        }
+
+        var expectedToken: AircraftPollingActivationToken? {
+            guard case let .active(active) = self else { return nil }
+            return active.token
+        }
+
+        var updateState: AirAndSpacePhysicalPollingState {
+            switch self {
+                case .stopped:
+                    .stopped
+                case let .activating(activating):
+                    .activating(activating.lease)
+                case let .active(active):
+                    .active(AirAndSpaceActivePhysicalPolling(
+                        lease: active.lease,
+                        signature: active.signature,
+                    ))
+            }
+        }
+
+        mutating func beginActivation(
+            lease: AirAndSpacePhysicalPollingLease,
+            signature: PollingSignature,
+        ) {
+            self = .activating(Activating(lease: lease, signature: signature))
+        }
+
+        mutating func completeActivation(
+            lease: AirAndSpacePhysicalPollingLease,
+            token: AircraftPollingActivationToken,
+        ) -> Bool {
+            guard case let .activating(activating) = self,
+                  activating.lease == lease
+            else { return false }
+            self = .active(Active(
+                lease: lease,
+                signature: activating.signature,
+                token: token,
+                latestRevision: nil,
+            ))
+            return true
+        }
+
+        mutating func stop() {
+            self = .stopped(hasAppliedInactive: false)
+        }
+
+        mutating func accept(
+            _ update: AircraftPollingUpdate,
+        ) -> AcceptedPollingPublication? {
+            switch (self, update) {
+                case let (.stopped(hasAppliedInactive), .inactive):
+                    guard hasAppliedInactive == false else { return nil }
+                    self = .stopped(hasAppliedInactive: true)
+                    return .inactive
+                case let (.active(active), .active(activeUpdate)):
+                    guard activeUpdate.token == active.token,
+                          active.latestRevision.map({ activeUpdate.revision > $0 }) ?? true
+                    else { return nil }
+                    self = .active(Active(
+                        lease: active.lease,
+                        signature: active.signature,
+                        token: active.token,
+                        latestRevision: activeUpdate.revision,
+                    ))
+                    return .active(activeUpdate.state)
+                case (.stopped, .active), (.activating, _), (.active, .inactive):
+                    return nil
+            }
+        }
+    }
+
+    private enum ActivationLifecycle {
+        case idle
+        case active(ProjectionActivationLease)
+        case inactive(latestGeneration: ProjectionActivationLease.Generation)
+
+        var activeLease: ProjectionActivationLease? {
+            guard case let .active(lease) = self else { return nil }
+            return lease
+        }
+
+        mutating func activate(_ lease: ProjectionActivationLease) -> Bool {
+            switch self {
+                case .idle:
+                    self = .active(lease)
+                    return true
+                case let .active(currentLease):
+                    guard lease.generation >= currentLease.generation else { return false }
+                    self = .active(lease)
+                    return true
+                case let .inactive(latestGeneration):
+                    guard lease.generation > latestGeneration else { return false }
+                    self = .active(lease)
+                    return true
+            }
+        }
+
+        /// Retires an active lease when the command is at least as new.
+        mutating func deactivate(upThrough lease: ProjectionActivationLease) -> Bool {
+            switch self {
+                case .idle:
+                    self = .inactive(latestGeneration: lease.generation)
+                    return false
+                case let .active(activeLease):
+                    guard lease.generation >= activeLease.generation else { return false }
+                    self = .inactive(latestGeneration: lease.generation)
+                    return true
+                case let .inactive(latestGeneration):
+                    guard lease.generation >= latestGeneration else { return false }
+                    self = .inactive(latestGeneration: lease.generation)
+                    return false
+            }
+        }
+    }
+
+    /// Orders the session's physical-polling intent independently of its
+    /// coordinator-issued experience lease.
+    private enum PollingDemandLifecycle {
+        case none
+        case polling(ProjectionDemandGeneration)
+        case stopped(ProjectionDemandGeneration)
+
+        mutating func activate(_ generation: ProjectionDemandGeneration) -> Bool {
+            switch self {
+                case .none:
+                    self = .polling(generation)
+                    return true
+                case let .polling(currentGeneration):
+                    guard generation >= currentGeneration else { return false }
+                    self = .polling(generation)
+                    return true
+                case let .stopped(currentGeneration):
+                    guard generation > currentGeneration else { return false }
+                    self = .polling(generation)
+                    return true
+            }
+        }
+
+        mutating func stop(_ generation: ProjectionDemandGeneration) -> Bool {
+            switch self {
+                case .none:
+                    self = .stopped(generation)
+                    return true
+                case let .polling(currentGeneration), let .stopped(currentGeneration):
+                    guard generation >= currentGeneration else { return false }
+                    self = .stopped(generation)
+                    return true
+            }
+        }
+
+        mutating func stopCurrent() {
+            guard case let .polling(generation) = self else { return }
+            self = .stopped(generation)
+        }
+    }
+
+    private let pollingCoordinator: AircraftPollingCoordinator
+    private let flightsRuntime: any FlightsLayerRunning
+    private let routeResolver: FlightRouteResolver
+    private let routeLogger: any FlightRouteLogging
+    private let dateProvider: any DateProvider
+    private let sessionFailureLogger: any ThrowSessionFailureLogging
+    private let updatesStream: AsyncStream<AirAndSpaceRuntimeUpdate>
+    private let continuation: AsyncStream<AirAndSpaceRuntimeUpdate>.Continuation
+
+    private var observationTask: Task<Void, Never>?
+    private var routeTask: Task<Void, Never>?
+    private var physicalPollingLifecycle =
+        PhysicalPollingLifecycle.stopped(hasAppliedInactive: false)
+    #if DEBUG
+        private var lastObservedPollingUpdate: AircraftPollingUpdate?
+    #endif
+    private var activationLifecycle = ActivationLifecycle.idle
+    private var pollingDemandLifecycle = PollingDemandLifecycle.none
+    private var successfulActivationLease: ProjectionActivationLease?
+    private var lifecycleGeneration: UInt64 = 0
+    private var stateGeneration: UInt64 = 0
+    private var routeGeneration: UInt64 = 0
+    private var labelMode: FlightLabelMode = .adaptive
+    private var currentSnapshot: AircraftSnapshot?
+    private var currentLayerFrame: ProjectionLayerFrame<FlightsLayerKind>?
+    private var currentAvailability: MarkAvailability = .current
+    private var health: FeedHealth = .idle
+    private var inactiveHealth: FeedHealth = .idle
+    private var semanticPreparationState: AirAndSpaceRuntimeUpdate.SemanticPreparationState = .ready
+
+    init(
+        pollingCoordinator: AircraftPollingCoordinator,
+        flightsRuntime: any FlightsLayerRunning,
+        routeResolver: FlightRouteResolver,
+        routeLogger: any FlightRouteLogging,
+        dateProvider: any DateProvider,
+        sessionFailureLogger: any ThrowSessionFailureLogging,
+    ) {
+        self.pollingCoordinator = pollingCoordinator
+        self.flightsRuntime = flightsRuntime
+        self.routeResolver = routeResolver
+        self.routeLogger = routeLogger
+        self.dateProvider = dateProvider
+        self.sessionFailureLogger = sessionFailureLogger
+        let pair = AsyncStream.makeStream(
+            of: AirAndSpaceRuntimeUpdate.self,
+            bufferingPolicy: .bufferingNewest(1),
+        )
+        updatesStream = pair.stream
+        continuation = pair.continuation
+    }
+
+    deinit {
+        observationTask?.cancel()
+        routeTask?.cancel()
+        continuation.finish()
+    }
+
+    func stateUpdates() -> AsyncStream<AirAndSpaceRuntimeUpdate> {
+        startObservingIfNeeded()
+        publish()
+        return updatesStream
+    }
+
+    func currentUpdate() -> AirAndSpaceRuntimeUpdate {
+        updateValue()
+    }
+
+    func activate(
+        configuration: AircraftSourceConfiguration,
+        query: AircraftQuery,
+        labelMode: FlightLabelMode,
+        lease: ProjectionActivationLease,
+        demandGeneration: ProjectionDemandGeneration,
+    ) async -> AirAndSpaceRuntimeActivationResult {
+        guard lease.experienceID == .airAndSpace else {
+            assertionFailure("Air & Space received another experience's activation lease")
+            return .superseded(current: updateValue())
+        }
+        let previousLease = activationLifecycle.activeLease
+        var nextActivationLifecycle = activationLifecycle
+        var nextPollingDemandLifecycle = pollingDemandLifecycle
+        guard nextActivationLifecycle.activate(lease),
+              nextPollingDemandLifecycle.activate(demandGeneration)
+        else {
+            return .superseded(current: updateValue())
+        }
+        activationLifecycle = nextActivationLifecycle
+        pollingDemandLifecycle = nextPollingDemandLifecycle
+        startObservingIfNeeded()
+        let signature = PollingSignature(configuration: configuration, query: query)
+        let activationChanged = previousLease != lease
+        let sourceChanged = physicalPollingLifecycle.acceptedSignature?.configuration !=
+            configuration
+        let queryChanged = physicalPollingLifecycle.acceptedSignature?.query != query
+        let pollingActivationMissing = physicalPollingLifecycle.expectedToken == nil
+        let labelsChanged = self.labelMode != labelMode
+        self.labelMode = labelMode
+
+        if activationChanged || sourceChanged || queryChanged || pollingActivationMissing {
+            lifecycleGeneration &+= 1
+            let lifecycleGeneration = lifecycleGeneration
+            let physicalPollingLease = AirAndSpacePhysicalPollingLease(
+                experienceLease: lease,
+                lifecycleGeneration: lifecycleGeneration,
+            )
+            stateGeneration &+= 1
+            successfulActivationLease = nil
+            physicalPollingLifecycle.beginActivation(
+                lease: physicalPollingLease,
+                signature: signature,
+            )
+            cancelRouteEnrichment()
+            currentSnapshot = nil
+            currentLayerFrame = nil
+            currentAvailability = .current
+            semanticPreparationState = .ready
+            health = .loading
+            if activationChanged || sourceChanged {
+                await flightsRuntime.reset()
+                guard lifecycleGeneration == self.lifecycleGeneration else {
+                    return .superseded(current: updateValue())
+                }
+            }
+            publish()
+            let pollingActivation = await pollingCoordinator.activate(
+                configuration: configuration,
+                query: query,
+                quiet: false,
+            )
+            guard lifecycleGeneration == self.lifecycleGeneration,
+                  activationLifecycle.activeLease == lease,
+                  let pollingActivation,
+                  physicalPollingLifecycle.completeActivation(
+                      lease: physicalPollingLease,
+                      token: pollingActivation,
+                  )
+            else { return .superseded(current: updateValue()) }
+            publish()
+            let currentPollingUpdate = await pollingCoordinator.currentUpdate()
+            await apply(currentPollingUpdate)
+            guard lifecycleGeneration == self.lifecycleGeneration,
+                  activationLifecycle.activeLease == lease,
+                  physicalPollingLifecycle.acceptedSignature == signature,
+                  physicalPollingLifecycle.expectedToken == pollingActivation
+            else { return .superseded(current: updateValue()) }
+            return .accepted(updateValue())
+        }
+
+        if labelsChanged {
+            await rebuildCurrentLayerFrame()
+        }
+        guard activationLifecycle.activeLease == lease,
+              physicalPollingLifecycle.acceptedSignature == signature,
+              physicalPollingLifecycle.expectedToken != nil
+        else { return .superseded(current: updateValue()) }
+        return .accepted(updateValue())
+    }
+
+    /// Stops physical polling without retiring the active experience lease.
+    func suspendPolling(
+        lease: ProjectionActivationLease,
+        demandGeneration: ProjectionDemandGeneration,
+        reporting health: FeedHealth,
+    ) async -> AirAndSpaceRuntimePollingSuspensionResult {
+        guard lease.experienceID == .airAndSpace else {
+            assertionFailure("Air & Space received another experience's polling suspension")
+            return .superseded(current: updateValue())
+        }
+        var nextActivationLifecycle = activationLifecycle
+        var nextPollingDemandLifecycle = pollingDemandLifecycle
+        guard nextActivationLifecycle.activate(lease),
+              nextPollingDemandLifecycle.stop(demandGeneration)
+        else {
+            return .superseded(current: updateValue())
+        }
+        activationLifecycle = nextActivationLifecycle
+        pollingDemandLifecycle = nextPollingDemandLifecycle
+        guard physicalPollingLifecycle.lease != nil else {
+            inactiveHealth = health
+            self.health = health
+            publish()
+            return .alreadyStopped(current: updateValue())
+        }
+        guard await stopPhysicalPolling(reporting: health) else {
+            return .superseded(current: updateValue())
+        }
+        return .stopped(updateValue())
+    }
+
+    func deactivate(
+        lease: ProjectionActivationLease,
+        reporting health: FeedHealth,
+    ) async {
+        guard lease.experienceID == .airAndSpace else {
+            assertionFailure("Air & Space received another experience's deactivation lease")
+            return
+        }
+        guard activationLifecycle.deactivate(upThrough: lease) else { return }
+        pollingDemandLifecycle.stopCurrent()
+        _ = await stopPhysicalPolling(reporting: health)
+    }
+
+    private func stopPhysicalPolling(reporting health: FeedHealth) async -> Bool {
+        lifecycleGeneration &+= 1
+        let lifecycleGeneration = lifecycleGeneration
+        stateGeneration &+= 1
+        successfulActivationLease = nil
+        physicalPollingLifecycle.stop()
+        inactiveHealth = health
+        clearSemanticState()
+        semanticPreparationState = .ready
+        await pollingCoordinator.deactivate()
+        guard lifecycleGeneration == self.lifecycleGeneration else { return false }
+        await flightsRuntime.reset()
+        guard lifecycleGeneration == self.lifecycleGeneration else { return false }
+        self.health = health
+        publish()
+        return true
+    }
+
+    func refreshPresentation(labelMode: FlightLabelMode) async {
+        guard self.labelMode != labelMode else { return }
+        self.labelMode = labelMode
+        await rebuildCurrentLayerFrame()
+    }
+
+    func updateVisibleContentCount(_ count: Int, lease: ProjectionActivationLease) {
+        guard activationLifecycle.activeLease == lease else { return }
+        switch health {
+            case let .healthy(lastUpdate, oldCount) where oldCount != count:
+                health = .healthy(lastUpdate: lastUpdate, visibleContentCount: count)
+                publish()
+            case let .retrying(lastUpdate, nextRetry, failure, oldCount) where oldCount != count:
+                health = .retrying(
+                    lastUpdate: lastUpdate,
+                    nextRetry: nextRetry,
+                    failure: failure,
+                    visibleContentCount: count,
+                )
+                publish()
+            case .idle, .loading, .healthy, .retrying, .failed, .quiet:
+                break
+        }
+    }
+
+    #if DEBUG
+        func activeSourceKindForTesting() -> AircraftSourceKind? {
+            physicalPollingLifecycle.acceptedSignature?.configuration.kind
+        }
+
+        func activePollingActivationForTesting() -> AircraftPollingActivationToken? {
+            physicalPollingLifecycle.expectedToken
+        }
+
+        func lastObservedPollingUpdateForTesting() -> AircraftPollingUpdate? {
+            lastObservedPollingUpdate
+        }
+
+        func currentPollingUpdateForTesting() async -> AircraftPollingUpdate {
+            await pollingCoordinator.currentUpdate()
+        }
+
+        func applyPollingUpdateForTesting(_ update: AircraftPollingUpdate) async {
+            await apply(update)
+        }
+    #endif
+
+    private func startObservingIfNeeded() {
+        guard observationTask == nil else { return }
+        observationTask = Task(name: "Throw observe Air & Space polling") {
+            [pollingCoordinator, weak self] in
+            let updates = await pollingCoordinator.stateUpdates()
+            for await update in updates {
+                guard Task.isCancelled == false else { return }
+                await self?.apply(update)
+            }
+        }
+    }
+
+    private func apply(_ update: AircraftPollingUpdate) async {
+        #if DEBUG
+            lastObservedPollingUpdate = update
+        #endif
+        guard let acceptedPublication = physicalPollingLifecycle.accept(update) else { return }
+        let state: AircraftPollingState
+        switch acceptedPublication {
+            case .inactive:
+                stateGeneration &+= 1
+                health = inactiveHealth
+                publish()
+                return
+            case let .active(activeState):
+                state = activeState
+        }
+
+        stateGeneration &+= 1
+        let generation = stateGeneration
+        switch state {
+            case .loading:
+                health = .loading
+                publish()
+            case let .healthy(snapshot, _):
+                do {
+                    let layer = try await makeLayerFrame(snapshot, availability: .current)
+                    guard generation == stateGeneration else { return }
+                    currentSnapshot = snapshot
+                    currentAvailability = .current
+                    currentLayerFrame = layer
+                    semanticPreparationState = .ready
+                    successfulActivationLease = activationLifecycle.activeLease
+                    health = .healthy(
+                        lastUpdate: snapshot.fetchedAt,
+                        visibleContentCount: health.visibleContentCount,
+                    )
+                    publish()
+                    scheduleRouteEnrichment(for: snapshot)
+                } catch is CancellationError {
+                    return
+                } catch {
+                    guard generation == stateGeneration else { return }
+                    sessionFailureLogger.recordPostLaunchFailure(
+                        at: .projectionPreparation,
+                        error: error,
+                    )
+                    semanticPreparationState = .failed
+                    health = .failed(.decoding)
+                    publish()
+                }
+            case let .retrying(lastGoodSnapshot, failure, failureStartedAt, nextRetryAt):
+                if let lastGoodSnapshot {
+                    let availability = MarkAvailability.retrying(since: failureStartedAt)
+                    do {
+                        let layer = try await makeLayerFrame(
+                            lastGoodSnapshot,
+                            availability: availability,
+                        )
+                        guard generation == stateGeneration else { return }
+                        currentSnapshot = lastGoodSnapshot
+                        currentAvailability = availability
+                        currentLayerFrame = layer
+                        semanticPreparationState = .ready
+                        health = .retrying(
+                            lastUpdate: lastGoodSnapshot.fetchedAt,
+                            nextRetry: nextRetryAt,
+                            failure: failure.presentationCategory,
+                            visibleContentCount: health.visibleContentCount,
+                        )
+                        publish()
+                        scheduleRouteEnrichment(for: lastGoodSnapshot)
+                    } catch is CancellationError {
+                        return
+                    } catch {
+                        guard generation == stateGeneration else { return }
+                        sessionFailureLogger.recordPostLaunchFailure(
+                            at: .projectionPreparation,
+                            error: error,
+                        )
+                        semanticPreparationState = .failed
+                        health = .failed(.decoding)
+                        publish()
+                    }
+                } else {
+                    clearSemanticState()
+                    health = .retrying(
+                        lastUpdate: nil,
+                        nextRetry: nextRetryAt,
+                        failure: failure.presentationCategory,
+                        visibleContentCount: 0,
+                    )
+                    publish()
+                }
+            case let .failed(failure):
+                clearSemanticState()
+                health = .failed(failure.presentationCategory)
+                publish()
+            case .quiet:
+                clearSemanticState()
+                health = .quiet
+                publish()
+        }
+    }
+
+    private func makeLayerFrame(
+        _ snapshot: AircraftSnapshot,
+        availability: MarkAvailability,
+    ) async throws -> ProjectionLayerFrame<FlightsLayerKind> {
+        guard let observer = physicalPollingLifecycle.acceptedSignature?.query.observer else {
+            throw ThrowValidationError.invalidPreferencePayload
+        }
+        let routeResults: [FlightCallsign: FlightRouteResult] = if snapshot.source ==
+            .flightradar24
+        {
+            [:]
+        } else {
+            await routeResolver.cachedResults(
+                for: snapshot.observations,
+                at: dateProvider.now(),
+            )
+        }
+        return try await flightsRuntime.frame(
+            for: FlightsLayerInput(
+                snapshot: snapshot,
+                observer: observer,
+                labelMode: labelMode,
+                routeResults: routeResults,
+                availability: availability,
+            ),
+        )
+    }
+
+    private func rebuildCurrentLayerFrame() async {
+        guard let currentSnapshot else { return }
+        stateGeneration &+= 1
+        let generation = stateGeneration
+        do {
+            let layer = try await makeLayerFrame(
+                currentSnapshot,
+                availability: currentAvailability,
+            )
+            guard generation == stateGeneration else { return }
+            currentLayerFrame = layer
+            semanticPreparationState = .ready
+            publish()
+        } catch is CancellationError {
+            return
+        } catch {
+            guard generation == stateGeneration else { return }
+            sessionFailureLogger.recordPostLaunchFailure(
+                at: .projectionPreparation,
+                error: error,
+            )
+            semanticPreparationState = .failed
+            health = .failed(.decoding)
+            publish()
+        }
+    }
+
+    private func scheduleRouteEnrichment(for snapshot: AircraftSnapshot) {
+        guard snapshot.source != .flightradar24 else {
+            cancelRouteEnrichment()
+            return
+        }
+        guard routeTask == nil else { return }
+        routeGeneration &+= 1
+        let generation = routeGeneration
+        routeTask = Task(name: "Throw resolve Air & Space routes") { [weak self] in
+            guard let self else { return }
+            await resolveRoutes(for: snapshot, generation: generation)
+        }
+    }
+
+    private func resolveRoutes(for snapshot: AircraftSnapshot, generation: UInt64) async {
+        do {
+            let result = try await routeResolver.resolveMissing(
+                for: snapshot.observations,
+                at: dateProvider.now(),
+            )
+            try Task.checkCancellation()
+            guard generation == routeGeneration else { return }
+            routeTask = nil
+            let continuesEnrichment: Bool
+            switch result {
+                case .noRequestNeeded, .coolingDown:
+                    continuesEnrichment = false
+                case let .completed(_, hasMoreRequests):
+                    routeLogger.record(FlightRouteLogEvent(outcome: .succeeded))
+                    await rebuildCurrentLayerFrame()
+                    continuesEnrichment = hasMoreRequests
+            }
+            if let currentSnapshot,
+               continuesEnrichment || currentSnapshot.fetchedAt != snapshot.fetchedAt
+            {
+                scheduleRouteEnrichment(for: currentSnapshot)
+            }
+        } catch is CancellationError {
+            guard generation == routeGeneration else { return }
+            routeTask = nil
+        } catch let error as FlightRouteLookupError {
+            guard generation == routeGeneration else { return }
+            routeTask = nil
+            routeLogger.record(FlightRouteLogEvent(outcome: routeOutcome(for: error)))
+            if let currentSnapshot, currentSnapshot.fetchedAt != snapshot.fetchedAt {
+                scheduleRouteEnrichment(for: currentSnapshot)
+            }
+        } catch {
+            guard generation == routeGeneration else { return }
+            routeTask = nil
+            routeLogger.record(FlightRouteLogEvent(outcome: .decodingFailed))
+        }
+    }
+
+    private func cancelRouteEnrichment() {
+        routeGeneration &+= 1
+        routeTask?.cancel()
+        routeTask = nil
+    }
+
+    private func clearSemanticState() {
+        cancelRouteEnrichment()
+        currentSnapshot = nil
+        currentLayerFrame = nil
+        currentAvailability = .current
+    }
+
+    private func routeOutcome(
+        for error: FlightRouteLookupError,
+    ) -> FlightRouteLogEvent.Outcome {
+        switch error {
+            case .provider: .providerFailed
+            case .transport: .transportFailed
+            case .decoding: .decodingFailed
+        }
+    }
+
+    private func publish() {
+        continuation.yield(updateValue())
+    }
+
+    private func updateValue() -> AirAndSpaceRuntimeUpdate {
+        AirAndSpaceRuntimeUpdate(
+            activationLease: activationLifecycle.activeLease,
+            successfulActivationLease: successfulActivationLease,
+            health: health,
+            flightsFrame: currentLayerFrame,
+            snapshot: currentSnapshot,
+            physicalPolling: physicalPollingLifecycle.updateState,
+            semanticPreparationState: semanticPreparationState,
+        )
+    }
+}

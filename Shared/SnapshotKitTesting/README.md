@@ -137,6 +137,8 @@ is, the largest single-channel delta, and the bounding box of the change. Read
 the **max delta** first — it is what separates a broken render from
 sub-visible drift, and pixel count does not. The worst genuine defect found so
 far touched fewer pixels than the noisiest harmless difference in the suite.
+The review path uses the comparison library's filename sanitization, so case
+names with spaces or punctuation resolve to their committed reference images.
 
 Failure messages also print the reference and failed-capture file URLs. To get a
 ready-to-run [Kaleidoscope](https://kaleidoscope.app) command instead, forward

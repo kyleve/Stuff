@@ -10,6 +10,11 @@ require "tmpdir"
 class TlaCheckCommandTest < Minitest::Test
   REPOSITORY = File.expand_path("../..", __dir__)
   EXPECTED_SHA256 = "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88"
+  PYTHON = if RUBY_PLATFORM.match?(/darwin/)
+             `/usr/bin/xcrun --find python3`.strip
+           else
+             `command -v python3`.strip
+           end
 
   def test_interrupted_download_preserves_curl_status_and_removes_partial_file
     with_fixture do |fixture|
@@ -69,6 +74,70 @@ class TlaCheckCommandTest < Minitest::Test
     end
   end
 
+  def test_lists_where_and_throw_specs_in_stable_name_order
+    with_fixture do |fixture|
+      write_spec(fixture.root, feature: "Throw", name: "AircraftLifecycle")
+
+      stdout, stderr, status = fixture.run("--list")
+
+      assert status.success?, stderr
+      assert_equal "AircraftLifecycle\nExample\n", stdout
+      assert_empty stderr
+      refute_path_exists fixture.jar
+      assert_empty fixture.python_calls
+    end
+  end
+
+  def test_runs_a_selected_throw_spec_by_its_compatible_folder_name
+    with_fixture do |fixture|
+      write_spec(fixture.root, feature: "Throw", name: "ThrowLifecycle")
+
+      stdout, stderr, status = fixture.run("ThrowLifecycle")
+
+      assert status.success?, stderr
+      assert_includes stdout, "==> ThrowLifecycle"
+      assert_empty stderr
+      assert_equal 1, fixture.python_calls.length
+      assert_includes fixture.python_calls.first, "/Throw/Specifications/ThrowLifecycle/manifest.json"
+    end
+  end
+
+  def test_unknown_or_invalid_specs_fail_before_the_tlc_download
+    with_fixture do |fixture|
+      _stdout, stderr, status = fixture.run("Missing")
+
+      assert_equal 1, status.exitstatus
+      assert_includes stderr, "unknown spec 'Missing'"
+      refute_path_exists fixture.jar
+      assert_empty fixture.python_calls
+
+      invalid = write_spec(fixture.root, feature: "Throw", name: "Invalid")
+      FileUtils.rm(invalid / "Current.cfg")
+      _stdout, stderr, status = fixture.run("Invalid")
+
+      assert_equal 1, status.exitstatus
+      assert_includes stderr, "Current.cfg"
+      assert_includes stderr, "not found"
+      refute_path_exists fixture.jar
+      assert_empty fixture.python_calls
+    end
+  end
+
+  def test_rejects_duplicate_folder_names_across_features
+    with_fixture do |fixture|
+      write_spec(fixture.root, feature: "Throw", name: "Example")
+
+      _stdout, stderr, status = fixture.run("--list")
+
+      assert_equal 1, status.exitstatus
+      assert_includes stderr, "duplicate TLA+ spec folder name"
+      assert_includes stderr, "Throw/Specifications/Example/manifest.json"
+      assert_includes stderr, "Where/Specifications/Example/manifest.json"
+      refute_path_exists fixture.jar
+      assert_empty fixture.python_calls
+    end
+  end
+
   private
 
   Fixture = Struct.new(:root, :command, :outside, :jar, :log, :bin, keyword_init: true) do
@@ -77,6 +146,7 @@ class TlaCheckCommandTest < Minitest::Test
         "HOME" => (root / "home").to_s,
         "LC_ALL" => "C",
         "PATH" => "#{bin}:/usr/bin:/bin",
+        "REAL_PYTHON" => TlaCheckCommandTest::PYTHON,
         "TMPDIR" => (root / "temporary files").to_s,
         "TOOL_LOG" => log.to_s,
         "FAKE_SHA256" => TlaCheckCommandTest::EXPECTED_SHA256,
@@ -127,19 +197,20 @@ class TlaCheckCommandTest < Minitest::Test
     end
   end
 
-  def write_spec(root)
-    spec = root / "Where" / "Specifications" / "Example"
+  def write_spec(root, feature: "Where", name: "Example")
+    spec = root / feature / "Specifications" / name
     FileUtils.mkdir_p(spec)
-    File.write(spec / "Example.tla", "---- MODULE Example ----\n")
+    File.write(spec / "#{name}.tla", "---- MODULE #{name} ----\n")
     File.write(spec / "Current.cfg", "SPECIFICATION Spec\n")
     File.write(
       spec / "manifest.json",
       JSON.generate(
         "source" => "tla",
-        "module" => "Example.tla",
+        "module" => "#{name}.tla",
         "cases" => [{ "name" => "current", "config" => "Current.cfg", "expect" => "pass" }],
       ),
     )
+    spec
   end
 
   def write_fake_tools(bin)
@@ -164,6 +235,9 @@ class TlaCheckCommandTest < Minitest::Test
     BASH
     write_executable(bin / "python3", <<~'BASH')
       #!/bin/bash
+      if [ "${2:-}" = "discover" ] || [ "${2:-}" = "resolve" ]; then
+        exec "$REAL_PYTHON" "$@"
+      fi
       printf 'python %s\n' "$*" >>"$TOOL_LOG"
       exit 0
     BASH

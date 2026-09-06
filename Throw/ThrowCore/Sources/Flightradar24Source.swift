@@ -1,0 +1,421 @@
+import Foundation
+
+enum Flightradar24DecodingError: Error, Equatable {
+    case invalidEnvelope
+}
+
+/// Reads FR24 live positions and preserves routes from the matching position record.
+struct Flightradar24Decoder {
+    init() {}
+
+    func decode(_ data: Data, fetchedAt: Date) throws -> AircraftSnapshot {
+        let envelope: Envelope
+        do {
+            envelope = try JSONDecoder().decode(Envelope.self, from: data)
+        } catch {
+            throw Flightradar24DecodingError.invalidEnvelope
+        }
+
+        var observations: [AircraftObservation] = []
+        var observationIndexByID: [AircraftID: Int] = [:]
+        var routeResults: [AircraftID: FlightRouteResult] = [:]
+        var malformedRecordCount = 0
+        var missingPositionRecordCount = 0
+        observations.reserveCapacity(envelope.data.count)
+
+        for lossyRecord in envelope.data {
+            try Task.checkCancellation()
+            guard let record = lossyRecord.value else {
+                malformedRecordCount += 1
+                continue
+            }
+            guard let latitude = record.lat, let longitude = record.lon else {
+                missingPositionRecordCount += 1
+                continue
+            }
+            do {
+                let coordinate = try GeoCoordinate(latitude: latitude, longitude: longitude)
+                let identity: AircraftID? = if let hex = record.hex?.trimmedNonempty {
+                    AircraftID(kind: .icao, rawValue: hex)
+                } else {
+                    AircraftID(kind: .providerMarkedNonICAO, rawValue: record.fr24ID)
+                }
+                guard let identity else {
+                    malformedRecordCount += 1
+                    continue
+                }
+                let observedAt = record.timestamp.flatMap(Self.timestamp) ?? fetchedAt
+                let observation = try AircraftObservation(
+                    id: identity,
+                    coordinate: coordinate,
+                    geometricAltitude: nil,
+                    barometricAltitude: record.alt.map { try Altitude(feet: $0) },
+                    airborneState: Self.airborneState(altitudeFeet: record.alt),
+                    groundTrack: record.track.map { try Bearing(degrees: $0) },
+                    trueHeading: nil,
+                    magneticHeading: nil,
+                    groundSpeedKnots: record.groundSpeed,
+                    verticalRateFeetPerMinute: record.verticalSpeed,
+                    callsign: record.flight?.trimmedNonempty ?? record.callsign?.trimmedNonempty,
+                    registration: record.registration,
+                    aircraftType: record.aircraftType
+                        .flatMap(AircraftTypeDesignator.init(rawValue:)),
+                    emitterCategory: nil,
+                    airlineDesignator: Self.airlineDesignator(record),
+                    messageObservedAt: observedAt,
+                    positionObservedAt: observedAt,
+                    fetchedAt: fetchedAt,
+                    metadata: AircraftObservationMetadata(
+                        source: .flightradar24,
+                        positionSource: record.source,
+                        messageCount: nil,
+                    ),
+                )
+                let routeResult = Self.route(record).map(FlightRouteResult.route) ?? .unavailable
+                if let existingIndex = observationIndexByID[identity] {
+                    if AircraftSnapshot.prefers(observation, over: observations[existingIndex]) {
+                        observations[existingIndex] = observation
+                        routeResults[identity] = routeResult
+                    }
+                } else {
+                    observationIndexByID[identity] = observations.count
+                    observations.append(observation)
+                    routeResults[identity] = routeResult
+                }
+            } catch {
+                malformedRecordCount += 1
+            }
+        }
+        if observations.isEmpty, malformedRecordCount + missingPositionRecordCount > 0 {
+            throw Flightradar24DecodingError.invalidEnvelope
+        }
+        return AircraftSnapshot(
+            source: .flightradar24,
+            fetchedAt: fetchedAt,
+            observations: observations,
+            routeResultsByAircraft: routeResults,
+            successfulHTTPStatus: nil,
+            decodingDiagnostics: AircraftSnapshotDecodingDiagnostics(
+                malformedRecordCount: malformedRecordCount,
+                missingPositionRecordCount: missingPositionRecordCount,
+            ),
+        )
+    }
+
+    private static func airborneState(altitudeFeet: Double?) -> AircraftAirborneState {
+        guard let altitudeFeet else { return .unknown }
+        return altitudeFeet <= 0 ? .ground : .airborne
+    }
+
+    private static func route(_ record: Record) -> FlightRoute? {
+        guard let origin = AirportCode(rawValue: record.originIATA?.trimmedNonempty
+            ?? record.originICAO?.trimmedNonempty ?? ""),
+            let destination = AirportCode(rawValue: record.destinationIATA?.trimmedNonempty
+                ?? record.destinationICAO?.trimmedNonempty ?? ""),
+            origin != destination
+        else { return nil }
+        return FlightRoute(origin: origin, destination: destination)
+    }
+
+    private static func airlineDesignator(_ record: Record) -> AirlineICAODesignator? {
+        for providerValue in [record.paintedAs, record.operatingAs] {
+            if let providerValue,
+               let designator = AirlineICAODesignator(rawValue: providerValue)
+            {
+                return designator
+            }
+        }
+
+        guard let radioCallsign = record.callsign?.trimmedNonempty,
+              radioCallsign.count >= 3
+        else { return nil }
+        return AirlineICAODesignator(rawValue: String(radioCallsign.prefix(3)))
+    }
+
+    private static func timestamp(_ value: String) -> Date? {
+        ISO8601DateFormatter().date(from: value)
+    }
+}
+
+/// Keeps FR24 JSON decoding and exact geographic filtering off the polling actor.
+actor Flightradar24DecodingWorker {
+    private let decoder: Flightradar24Decoder
+
+    init(decoder: Flightradar24Decoder) {
+        self.decoder = decoder
+    }
+
+    func decode(
+        _ data: Data,
+        fetchedAt: Date,
+        query: AircraftQuery,
+    ) throws -> AircraftSnapshot {
+        try Task.checkCancellation()
+        let decoded = try decoder.decode(data, fetchedAt: fetchedAt)
+        try Task.checkCancellation()
+        let observations = try CloudAircraftQuery.postFilter(decoded.observations, for: query)
+        let includedIDs = Set(observations.map(\.id))
+        try Task.checkCancellation()
+        return AircraftSnapshot(
+            source: .flightradar24,
+            fetchedAt: fetchedAt,
+            observations: observations,
+            routeResultsByAircraft: decoded.routeResultsByAircraft.filter {
+                includedIDs.contains($0.key)
+            },
+            successfulHTTPStatus: nil,
+            decodingDiagnostics: decoded.decodingDiagnostics,
+        )
+    }
+}
+
+struct Flightradar24Source: AircraftObservationSource, CustomStringConvertible,
+    CustomDebugStringConvertible
+{
+    static let baseURL = URL(string: "https://fr24api.flightradar24.com/api")!
+
+    private let transport: any HTTPTransport
+    private let decodingWorker: Flightradar24DecodingWorker
+    private let requestFactory: Flightradar24RequestFactory
+    private let dateProvider: any DateProvider
+
+    init(
+        transport: any HTTPTransport,
+        decoder: Flightradar24Decoder,
+        credential: AircraftCredential,
+        dateProvider: any DateProvider,
+    ) {
+        self.transport = transport
+        decodingWorker = Flightradar24DecodingWorker(decoder: decoder)
+        requestFactory = Flightradar24RequestFactory(
+            baseURL: Self.baseURL,
+            credential: credential,
+        )
+        self.dateProvider = dateProvider
+    }
+
+    var description: String {
+        "<Flightradar24Source credential=<redacted>>"
+    }
+
+    var debugDescription: String {
+        description
+    }
+
+    func snapshot(for query: AircraftQuery) async throws -> AircraftSnapshot {
+        try await snapshot(for: query, plan: requestFactory.livePositionPlan(for: query))
+    }
+
+    func credentialTestSnapshot(observer: ObserverPosition) async throws
+        -> AircraftSnapshot
+    {
+        let query = try AircraftQuery(
+            observer: observer,
+            center: observer.coordinate,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 5))),
+            includeGroundAircraft: false,
+        )
+        return try await snapshot(
+            for: query,
+            plan: requestFactory.positionPlan(
+                for: query,
+                radius: NauticalMiles(value: 5),
+            ),
+        )
+    }
+
+    func usage(period: Flightradar24UsagePeriod) async throws
+        -> Flightradar24UsageReport
+    {
+        do {
+            let response = try await transport.response(
+                for: requestFactory.usageRequest(period: period),
+            )
+            let receivedAt = dateProvider.now()
+            try SourceHTTPValidation.validate(
+                response,
+                source: .flightradar24,
+                receivedAt: receivedAt,
+            )
+            return try Flightradar24UsageDecoder.decode(response.data, period: period)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let AircraftSourceFailure.quotaReached(retryAfterSeconds) {
+            throw Flightradar24UsageError.rateLimited(
+                retryAfterSeconds: retryAfterSeconds,
+            )
+        } catch let failure as AircraftSourceFailure {
+            throw failure
+        } catch let failure as HTTPTransportFailure {
+            throw AircraftSourceFailure.transport(failure.category)
+        } catch {
+            throw AircraftSourceFailure.decoding
+        }
+    }
+
+    private func snapshot(
+        for query: AircraftQuery,
+        plan: Flightradar24PositionRequestPlan,
+    ) async throws -> AircraftSnapshot {
+        switch plan {
+            case let .single(request):
+                return try await snapshot(for: query, request: request)
+            case let .antimeridian(westernHemisphere, easternHemisphere):
+                let western = try await snapshot(for: query, request: westernHemisphere)
+                try Task.checkCancellation()
+                let eastern = try await snapshot(for: query, request: easternHemisphere)
+                return Self.merge(western: western, eastern: eastern)
+        }
+    }
+
+    private func snapshot(
+        for query: AircraftQuery,
+        request: HTTPRequest,
+    ) async throws -> AircraftSnapshot {
+        do {
+            let response = try await transport.response(for: request)
+            let fetchedAt = dateProvider.now()
+            try SourceHTTPValidation.validate(
+                response,
+                source: .flightradar24,
+                receivedAt: fetchedAt,
+            )
+            let decoded = try await decodingWorker.decode(
+                response.data,
+                fetchedAt: fetchedAt,
+                query: query,
+            )
+            return AircraftSnapshot(
+                source: .flightradar24,
+                fetchedAt: fetchedAt,
+                observations: decoded.observations,
+                routeResultsByAircraft: decoded.routeResultsByAircraft,
+                successfulHTTPStatus: response.statusCode,
+                decodingDiagnostics: decoded.decodingDiagnostics,
+            )
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let failure as AircraftSourceFailure {
+            throw failure
+        } catch let failure as HTTPTransportFailure {
+            throw AircraftSourceFailure.transport(failure.category)
+        } catch {
+            throw AircraftSourceFailure.decoding
+        }
+    }
+
+    private static func merge(
+        western: AircraftSnapshot,
+        eastern: AircraftSnapshot,
+    ) -> AircraftSnapshot {
+        precondition(western.source == .flightradar24)
+        precondition(eastern.source == .flightradar24)
+
+        struct Candidate {
+            let observation: AircraftObservation
+            let routeResult: FlightRouteResult?
+        }
+
+        var candidates: [Candidate] = []
+        var candidateIndexByID: [AircraftID: Int] = [:]
+        func merge(_ snapshot: AircraftSnapshot) {
+            for observation in snapshot.observations {
+                let candidate = Candidate(
+                    observation: observation,
+                    routeResult: snapshot.routeResultsByAircraft[observation.id],
+                )
+                if let index = candidateIndexByID[observation.id] {
+                    if AircraftSnapshot.prefers(
+                        observation,
+                        over: candidates[index].observation,
+                    ) {
+                        candidates[index] = candidate
+                    }
+                } else {
+                    candidateIndexByID[observation.id] = candidates.count
+                    candidates.append(candidate)
+                }
+            }
+        }
+        merge(western)
+        merge(eastern)
+
+        var routeResults: [AircraftID: FlightRouteResult] = [:]
+        for candidate in candidates {
+            if let routeResult = candidate.routeResult {
+                routeResults[candidate.observation.id] = routeResult
+            }
+        }
+        let successfulHTTPStatus = western.successfulHTTPStatus == eastern.successfulHTTPStatus
+            ? western.successfulHTTPStatus
+            : nil
+        return AircraftSnapshot(
+            source: .flightradar24,
+            fetchedAt: max(western.fetchedAt, eastern.fetchedAt),
+            observations: candidates.map(\.observation),
+            routeResultsByAircraft: routeResults,
+            successfulHTTPStatus: successfulHTTPStatus,
+            decodingDiagnostics: western.decodingDiagnostics.adding(
+                eastern.decodingDiagnostics,
+            ),
+        )
+    }
+}
+
+private struct Envelope: Decodable {
+    let data: [LossyRecord]
+}
+
+/// Consumes a malformed provider row without rejecting valid neighbors.
+private struct LossyRecord: Decodable {
+    let value: Record?
+
+    init(from decoder: any Decoder) throws {
+        value = try? Record(from: decoder)
+    }
+}
+
+private struct Record: Decodable {
+    let fr24ID: String
+    let flight: String?
+    let callsign: String?
+    let lat: Double?
+    let lon: Double?
+    let track: Double?
+    let alt: Double?
+    let groundSpeed: Double?
+    let verticalSpeed: Double?
+    let timestamp: String?
+    let source: String?
+    let hex: String?
+    let aircraftType: String?
+    let registration: String?
+    let paintedAs: String?
+    let operatingAs: String?
+    let originIATA: String?
+    let originICAO: String?
+    let destinationIATA: String?
+    let destinationICAO: String?
+
+    enum CodingKeys: String, CodingKey {
+        case fr24ID = "fr24_id"
+        case flight, callsign, lat, lon, track, alt, timestamp, source, hex
+        case groundSpeed = "gspeed"
+        case verticalSpeed = "vspeed"
+        case aircraftType = "type"
+        case registration = "reg"
+        case paintedAs = "painted_as"
+        case operatingAs = "operating_as"
+        case originIATA = "orig_iata"
+        case originICAO = "orig_icao"
+        case destinationIATA = "dest_iata"
+        case destinationICAO = "dest_icao"
+    }
+}
+
+extension String {
+    fileprivate var trimmedNonempty: String? {
+        let value = trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? nil : value
+    }
+}

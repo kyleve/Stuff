@@ -1,0 +1,261 @@
+# ThrowUI
+
+ThrowUI is Throw's SwiftUI presentation layer. It renders the controller,
+setup and settings flows, calibration pattern, and the shared black projection
+surface used by connected displays, full-screen fallback, and Preview.
+
+## Quick start
+
+Create one live `ThrowSession` at the application composition root, then pass
+that same instance to every controller and output scene:
+
+```swift
+let session = ThrowSession.live()
+session.startLaunch()
+
+ThrowRootView(session: session)
+ThrowProjectionRootView(session: session, presentation: .externalDisplay)
+```
+
+Scenes tell the session when an output begins and ends demanding projection
+through `projectionOutputConnected(_:)` and
+`projectionOutputDisconnected(_:)`. The app target remains responsible for
+scene ownership and the idle timer. Its process runtime also injects whether
+at least one controller scene is foreground. External-display scenes contribute
+output demand but do not contribute controller foreground presence.
+
+## Architecture
+
+`ThrowSession` is a `@MainActor` observable facade over injected stores and
+focused actors. `AirAndSpaceRuntime` owns aircraft polling, semantic Flights
+frames, motion, and route enrichment. `ProjectionExperienceCoordinator` owns
+selection, one rotation clock, prewarming, and lifecycle reconciliation. Its
+validated runtime state keeps the active identity inside the current playlist,
+including when startup replaces the empty default with saved settings. Every
+scene observes the same coordinator and active experience.
+
+Playlist entries, selection commands, dwell mutations, and activation leases
+carry `RunnableProjectionExperienceID`. Release code can spell only Air &
+Space. Display state converts this identity to `ProjectionExperienceID`, which
+can also represent planned Transit. Runtime activation switches exhaustively on
+the runnable identity. Adding another runnable View therefore requires a new
+activation implementation.
+
+Cold launch has one exhaustive process state. Loading carries no setup.
+Onboarding carries `ThrowOnboardingSetup`, and ready carries
+`ThrowConfiguredSetup`. A failed state identifies preference or credential
+access. A missing credential is loaded data, not a storage error.
+
+The session retains one launch task. All callers join that task, and caller
+cancellation does not cancel it. The task loads preferences and both credential
+states before it publishes onboarding or ready. It never replaces a load error
+with default preferences.
+
+Launch also starts one independent durable-logging task. Its typed state
+distinguishes unavailable fixtures, opening, ready, and failed storage. A log
+store failure does not fail the product launch because OSLog remains active.
+
+One process-owned logging starter also owns the session failure logger.
+It records failures in OSLog while the store opens.
+It retains each typed event and error attachment. The store handoff persists
+each retained record once before later session events use the attached sink.
+Cold-launch failure views show localized recovery text. Typed session logs keep
+the failed boundary and attach the underlying storage error for diagnostics.
+
+Software attribution has one typed load state. An empty report remains loaded.
+A manifest error shows an unavailable state. Diagnostics receive the underlying
+error only after the durable logging starter begins its work.
+
+Post-launch failures use one typed ledger with one entry per operation owner.
+An operation success clears only its entry. Other failures remain visible.
+Views show localized recovery text, while typed session logs attach the
+underlying error. The UI does not store or render raw error descriptions.
+
+`ThrowSession+Composition.swift` is the only live construction boundary. It
+creates the stores, durable-logging starter, aircraft source graph, poller, and
+session once. Previews and tests use the fixture path in that same file.
+Source and observer-location projections are getter-only. Session commands
+persist and invalidate these values before they publish a replacement.
+
+The coordinator issues one `ProjectionActivationLease` for each View activation.
+The lease carries both the View identity and its monotonic generation through
+activation, deactivation, prepared-frame, and visible-count work. The runtime
+accepts teardown only for its active lease, so a queued disconnect cannot stop a
+replacement activation. Runtime-local counters invalidate work across suspension
+without minting coordinator identities. Location refreshes also recheck their
+generation after the last accumulator read. Playlist configurations carry
+monotonic session revisions. The coordinator rejects an older value that arrives
+late.
+The coordinator exposes a lease only while its runtime is running. Thus, a direct
+session read cannot restore a lease after its deactivation command completes.
+Before a source or observer replacement drains the runtime, the session renews
+the exact running lease. The coordinator retires the old lease and cancels its
+request or transition state. If the active View remains permitted, the same
+actor turn mints a successor from the coordinator's global generation sequence.
+The session synchronizes the coordinator's optional lease while its invalidation
+gate is active. A missing lease clears the local active state. An equal delayed
+activation cannot revive a retired generation.
+The Air & Space runtime stores each deactivation generation as a tombstone.
+A newer teardown retires older work. An older teardown cannot stop a newer lease.
+Core binds each physical polling update to a coordinator-minted token. The
+runtime clears its expected token before a reset. It accepts only the exact new
+token and reads the current update after activation. The runtime also accepts
+only increasing revisions within that token. Thus, an early update is not lost,
+an old poll cannot satisfy a replacement activation, and a delayed read cannot
+replace newer stream state.
+The runtime publishes its polling signature only after Core accepts the physical
+activation. The session reads that accepted lease and signature instead of
+storing a mirror.
+Geography-only output keeps the coordinator and runtime experience lease active
+while it suspends physical polling. Each reconciliation carries a typed,
+monotonic demand generation. A stop records its generation even when no physical
+attempt exists. An activation after that stop must carry a newer generation.
+The reconciled coordinator lease remains the experience authority. A disabled
+layer or non-operational launch suspends only physical polling. An absent
+coordinator lease causes exact full deactivation of the pre-reconcile lease.
+The runtime publishes stopped, activating, and active polling as one closed
+state. A stop clears the accepted signature, Core token, snapshot, and frame
+before it drains Core. Re-enabling Flights uses the same experience lease. It
+mints a new physical lease and Core token. A stale command or publication cannot
+affect the replacement poller. Full runtime deactivation still retires and
+tombstones the experience lease.
+Each leased production projection stores the full lease that produced it. A
+cleared placeholder keeps that lease without rebuilding it from parallel
+identity and generation fields. A source or observer replacement blocks local
+reactivation while the old runtime drains. The renderer stops before the
+replacement becomes visible.
+Each replacement also advances one typed projection-context generation. The
+session revokes staged output and restores an active fade in the same operation.
+The session publishes visible output as one closed `ProjectionPresentationState`.
+Its Air & Space and Transit cases bind coordinator identity to matching typed output.
+Each rendered case stores its semantic frame, activation generation, renderer frame, effects,
+observer point, Geography health, and complete projection context. Public accessors
+derive from that value. Output count derives from the output-demand set.
+
+Coordinator intents use a lossless command stream. Each timer path rechecks
+its playlist revision, active identity, demand, and runtime generation after a
+clock read. Pause has no effect without projection demand.
+
+Connection tests and provider usage reports go through the injected
+`AircraftSourceOperationServing` boundary. ThrowUI does not construct or
+downcast concrete provider sources.
+Each tested source candidate retains its closed Core validation draft. A local
+source cannot carry a replacement credential into the apply transaction.
+Onboarding stores source selection, testing, success, failure, and any staged
+credential in one state. A success keeps the exact draft that the test used.
+
+Views render session state and send intents back to it. They never access
+UserDefaults, Keychain, location, or the network. `ProjectionSurface` is the
+sole renderer. It iterates the ordered layers in an immutable renderer
+`ProjectionFrame`. It does not enumerate a global catalog or special-case
+Flights. The projector is decorative. Preview exposes the active experience
+name, health, and one status summary.
+
+The session stores validated `ThrowGlobalPreferences` and
+`AirAndSpacePreferences` values. Its scalar properties are read-only display
+projections. Settings keep raw control drafts locally and publish only complete,
+validated replacements. An invalid draft cannot change polling or persistence.
+Immediate source and location commits derive from one complete preference
+snapshot. If another scene changes typed preferences during the write, the
+session derives and persists the combined snapshot again. The final snapshot
+comparison and publication do not suspend.
+After a source or location mutation commits, a later retry failure cannot reverse it.
+The session publishes newer edits and queues them for another save.
+One persistence state owns save activity, asynchronous producer admission,
+typed producer leases, deferred failures, and flush waiters. Final background
+closes admission before it starts a flush. The flush waits for admitted
+producers and their saves. Cancellation removes only its typed flush waiter. It
+does not change producer or save activity. Coordinator state callbacks only
+update presentation. Selection commands and transition actions need a producer
+lease before they can update the persisted playlist. The app runtime retains
+the final-background flush under its UIKit execution lease.
+Onboarding uses the same aggregates and keeps calibration preview state separate.
+Quiet-wake actions pass a `TemporaryQuietWake` value through the session
+boundary. Unsupported minute counts cannot enter the runtime.
+
+The worker keeps independent animation, collision, correction, and acquisition
+state for each experience. Its static-line projections use a bounded cache of
+recent layer, center, viewport, and calibration keys. Prewarming binds a
+complete typed request to one activation and projection-context generation. A
+successful response is not ready until that exact pair has a prepared frame.
+One closed staging value owns preparation, fade-out, and fade-in. The session
+checks the context after coordinator preparation and again at black. A switch
+commits the coordinator and that prepared projection in one assignment. The
+staging value buffers newer target output until fade-in completes. Reduce Motion
+keeps this fade but removes experience movement.
+
+The production worker accepts one typed `ProjectionFrameRequest`. This request
+stores its semantic input, revision, observer, map center, calibration, and motion setting.
+Core projects static lines, then creates one closed
+`PreparedProjectionExperienceInput`. Each cached static-line frame retains its
+semantic revision and projection context. A present Transit network requires a
+projected frame in the prepared input. `ProjectionEngine` rejects stale or
+mismatched prepared lines and returns the matching `ProjectedExperienceFrame`.
+This value fixes each experience's valid projected layers and modes.
+`ProjectionFrame.swift` erases it once into closed renderer storage for Air &
+Space Map, Air & Space True Sky, Transit, or DEBUG tests. Production animation
+can update presentation fields only. It cannot replace a mark's element family.
+The update boundary rejects a source or line frame from another presentation
+case before it transforms any layer.
+Before publication, the session compares the result with its current complete request.
+A semantic or context change invalidates the old result. The surface reads one
+visible projection value per render pass. Test-only raw worker entry points are
+absent from release builds.
+
+In Map mode, the surface draws cached geography before aircraft. Lines use
+constant screen-space widths and a separate restrained intensity. Roads and
+county boundaries remain dimmer than coastlines and major boundaries. True Sky
+and quiet output remain free of geography.
+
+Map settings store one fixed center for each coarse observer region. The map,
+geography cache, and aircraft query use this center. Activity classification
+and True Sky continue to use the observer location. The projection shows a dim
+observer ring when the observer is inside the visible Map.
+
+Aircraft activity cues use geometry and luminance without replacing airline
+accents. The projection worker tracks acquisition rings, cue transitions,
+airport-anchor fades, and completion pulses in memory. Reduce Motion removes
+rings, pulses, scale changes, and moving corrections. Static phase geometry
+and opacity changes remain.
+
+The renderer uses fixed 30 Hz deadlines and skips elapsed slots after slow work.
+Feed corrections preserve the previous projected velocity while their position residual decreases.
+The correction reaches the new predicted path in 750 milliseconds.
+Aggregate diagnostics record cadence, sample age, projected speed, correction distance, and snapshot overlap.
+
+Map mode draws contextual airport centers and the longest open runway below
+aircraft labels. True Sky draws aircraft cues without airport geometry.
+Each source resolves route availability. FR24 resolves it in the position
+response. The ADS-B sources resolve it through enrichment. Aircraft without an
+origin and destination render at 35% opacity. Pending and failed lookups stay
+primary. Callsign-only labels use the smaller detail typography reserved for
+the callsign below a resolved route. These labels also use smaller collision
+bounds.
+
+The FR24 source settings page reads the saved token's 24-hour usage report.
+The session caches this report for one minute to obey the provider's rate limit.
+The page shows reported totals and cadence estimates. It does not treat these
+values as an account balance. A usage-report rate limit is not shown as a
+flight-position quota failure. A malformed usage report is scoped to this
+estimate instead of implying that the live feed failed.
+
+Source and credential changes have one commit point. Throw prepares Keychain
+and preference writes before it drains the live source. A storage failure keeps
+the prior source, credential state, feed health, and projection active.
+
+Appearance is resolved through `ThrowStylesheet` at `throwBroadwayRoot()`.
+Preview and snapshot fixtures use memory-only dependencies and deterministic
+frames.
+
+The controller calls experiences “Views.” Root settings keep location,
+calibration, master intensity, quiet hours, and About global. The Views screen
+owns playlist order, dwell values, rotation, health, and experience setup. Air
+& Space owns its source, mode, Map centers, layers, labels, marks, accents,
+activity cues, and Geography intensity. Transit stays disabled until a provider
+is implemented.
+
+## Limitations
+
+Throw's projection is ambient and non-safety-critical. The True Sky mode maps
+direction and elevation to a dome; it does not optically register the image to
+a particular eye point. Keystone and focus remain projector responsibilities.

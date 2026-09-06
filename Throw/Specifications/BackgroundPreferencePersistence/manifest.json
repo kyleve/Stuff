@@ -1,0 +1,46 @@
+{
+  "source": "tla",
+  "module": "BackgroundPreferencePersistence.tla",
+  "cases": [
+    {
+      "name": "broken-untracked-quiescence",
+      "config": "BrokenUntrackedQuiescence.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant QuiescentFlushSafety is violated."
+    },
+    {
+      "name": "broken-untracked-post-barrier",
+      "config": "BrokenUntrackedPostBarrier.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoWorkAfterCompletedFlush is violated."
+    },
+    {
+      "name": "broken-uncancelled-waiter",
+      "config": "BrokenUncancelledWaiter.cfg",
+      "expect": "fail",
+      "outputContains": "Temporal properties were violated."
+    },
+    {
+      "name": "persistence-reachability",
+      "config": "ReachPersistence.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant PersistenceCoverageNotReached is violated."
+    },
+    {
+      "name": "lifecycle-reachability",
+      "config": "ReachLifecycle.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant LifecycleCoverageNotReached is violated."
+    },
+    {
+      "name": "current-small",
+      "config": "CurrentSmall.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-repeated",
+      "config": "CurrentRepeated.cfg",
+      "expect": "pass"
+    }
+  ]
+}
