@@ -39,6 +39,8 @@ Layering, localization, preview, and testing conventions live in the feature
   through any failure (`WhereLaunchTests`).
 - Keep backup import onboarding-only. Settings exports archives and presents automatic-backup
   status but never starts or resumes an import (`BackupModelTests`).
+- Invalidate pending recovery-key reveals when the Data page hides its key.
+  A late response must not reveal it again (`BackupModelTests`).
 - Keep diagnostic reporting's saved, process-effective, applying, and failed
   states distinct. Crash and replay choices stay pending until relaunch.
   Remote-log revisions apply live. A runtime failure invalidates in-flight

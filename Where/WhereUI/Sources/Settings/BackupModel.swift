@@ -58,6 +58,7 @@ public final class BackupModel {
     private let services: WhereServices
     private let preferences: WherePreferences?
     @ObservationIgnored private var changesTask: Task<Void, Never>?
+    @ObservationIgnored private var recoveryKeyRequest = UUID()
     #if DEBUG
         private var freezesPreviewState = false
     #endif
@@ -153,6 +154,7 @@ public final class BackupModel {
 
     public func runIfDue(recordingEnabled: Bool) async {
         guard let automaticBackups = services.automaticBackups, let preferences else { return }
+        let generation = preferences.resetGeneration
         do {
             let result = try await automaticBackups.runIfDue(configuration: .init(
                 isEnabled: preferences.automaticBackupsEnabled,
@@ -161,7 +163,7 @@ public final class BackupModel {
                 lastSuccessfulBackupAt: preferences.lastAutomaticBackupAt,
             ))
             if case let .completed(exportedAt) = result {
-                preferences.lastAutomaticBackupAt = exportedAt
+                preferences.recordAutomaticBackupSuccess(at: exportedAt, generation: generation)
             }
         } catch {
             presentBackupError(error)
@@ -183,14 +185,20 @@ public final class BackupModel {
 
     public func revealRecoveryKey() async {
         guard let automaticBackups = services.automaticBackups else { return }
+        let request = UUID()
+        recoveryKeyRequest = request
         do {
-            revealedRecoveryKey = try await automaticBackups.recoveryKey()
+            let key = try await automaticBackups.recoveryKey()
+            guard recoveryKeyRequest == request, !Task.isCancelled else { return }
+            revealedRecoveryKey = key
         } catch {
+            guard recoveryKeyRequest == request, !Task.isCancelled else { return }
             presentBackupError(error)
         }
     }
 
     public func hideRecoveryKey() {
+        recoveryKeyRequest = UUID()
         revealedRecoveryKey = nil
     }
 

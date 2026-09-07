@@ -1,4 +1,5 @@
 import Foundation
+@_spi(Testing) import KeychainKit
 import Testing
 @_spi(Testing) import WhereCore
 @testable import WhereUI
@@ -6,6 +7,30 @@ import Testing
 /// Exercises `BackupModel`'s Settings-only export bridge and error presentation.
 @MainActor
 struct BackupModelTests {
+    @Test func hidingWhileKeyAccessIsPendingDiscardsTheLateResult() async throws {
+        let gate = BackupKeyAccessGate()
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: ScriptedLocationSource(),
+            backupRecoveryKeys: BackupRecoveryKeyProvider(
+                store: InMemoryKeychainStore(),
+                isProtectedDataAvailable: { await gate.wait() },
+            ),
+            automaticBackupStorage: AutomaticBackupStorage(
+                iCloudRoot: { nil },
+                localRoot: { URL.temporaryDirectory.appendingPathComponent(UUID().uuidString) },
+            ),
+        )
+        let model = BackupModel(services: services)
+        let request = Task { await model.revealRecoveryKey() }
+        await gate.waitForArrival()
+        model.hideRecoveryKey()
+        await gate.release()
+        await request.value
+        #expect(model.revealedRecoveryKey == nil)
+        #expect(model.backupError == nil)
+    }
+
     private func date(year: Int, month: Int, day: Int) -> Date {
         Calendar.current.date(
             from: DateComponents(year: year, month: month, day: day, hour: 12),

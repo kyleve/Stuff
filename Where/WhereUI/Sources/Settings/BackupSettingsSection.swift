@@ -322,16 +322,32 @@ struct BackupSettingsSection: View {
                         ),
                     )
                 },
-                whereSnapshot(
-                    name: "RevealedKey",
-                    configurations: .fullContentPhoneLightDark,
-                ) {
-                    snapshotForm(
-                        recordingEnabled: true,
-                        recoveryKey: "VGhpcy1pcy1hLXNhbXBsZS1yZWNvdmVyeS1rZXku",
-                    )
-                },
+                revealedKeySnapshot,
             ]
+        }
+
+        private static var revealedKeySnapshot: SnapshotCase {
+            let model = PreviewSupport.backupModel()
+            let prepare: @MainActor () -> Void = {
+                model.configurePreview(
+                    catalogState: .loaded(AutomaticBackupCatalog(
+                        files: [],
+                        isICloudUnavailable: false,
+                    )),
+                    recoveryKey: "VGhpcy1pcy1hLXNhbXBsZS1yZWNvdmVyeS1rZXku",
+                )
+            }
+            prepare()
+            return whereSnapshot(
+                name: "RevealedKey",
+                configurations: .fullContentPhoneLightDark,
+                // Rehosting invokes the production disappearance handler.
+                // Seed the revealed fixture before both sizing and capture.
+                onReadyToMeasure: prepare,
+                onReadyToSnapshot: prepare,
+            ) {
+                snapshotForm(model: model, recordingEnabled: true)
+            }
         }
 
         private static var snapshotFiles: [AutomaticBackupFile] {
@@ -359,14 +375,17 @@ struct BackupSettingsSection: View {
                 files: [],
                 isICloudUnavailable: false,
             ),
-            recoveryKey: String? = nil,
         ) -> some View {
             let model = PreviewSupport.backupModel()
             model.configurePreview(
                 catalogState: .loaded(catalog),
-                recoveryKey: recoveryKey,
+                recoveryKey: nil,
             )
-            return NavigationStack {
+            return snapshotForm(model: model, recordingEnabled: recordingEnabled)
+        }
+
+        private static func snapshotForm(model: BackupModel, recordingEnabled: Bool) -> some View {
+            NavigationStack {
                 Form {
                     BackupSettingsSection(
                         backup: model,

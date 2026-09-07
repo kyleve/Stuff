@@ -6518,7 +6518,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep this key somewhere safe. It can unlock an encrypted backup if iCloud Keychain is unavailable."
+            "value" : "Recovery keys sync through iCloud Keychain. This key unlocks backups made by this device. Keep a safe copy from each recording device."
           }
         }
       }

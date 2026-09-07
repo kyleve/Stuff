@@ -157,9 +157,11 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   that onboarding marker before handing services to App Intents or registering
   the recording device, so Replace cleanup finishes before GPS can reopen or
   drain an obsolete outbox. `OnboardingImportRecoveryModel` owns that reconciliation rather than
-  the process-wide `WhereModel`. Encrypted `.wherebackup` files first try the synchronized key and
+  the process-wide `WhereModel`. Encrypted `.wherebackup` files select the synchronized key by envelope identifier and
   prompt for the copied recovery key if needed. Settings offers manual export plus automatic-backup
   cadence, recovery-key, and read-only catalog controls; restore remains onboarding-only.
+  Hiding the recovery key also invalidates pending reveals, so a late Keychain
+  response cannot expose the key after the page closes or the scene becomes inactive.
 - **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
   picker (segmented map/list) and per-region color/emoji/icon customization,
   backed by `PrimaryRegionSelectionModel`. Reused by onboarding and the Settings
@@ -405,6 +407,11 @@ suite per view, so each view's references live in their own `__Snapshots__/`
 directory. They build as this module's own `WhereUISnapshotTests` bundle, which
 runs alongside the other modules' image suites in the shared
 `StuffSnapshotTests` scheme and its CI job.
+
+The `whereSnapshot` helper supplies the Broadway root and forwards readiness
+hooks. Prepare size-changing state with `onReadyToMeasure`. Use
+`onReadyToSnapshot` to restore that same state after capture rehosts the view.
+
 To re-record after an intentional UI change (see the
 [SnapshotKitTesting README](../../Shared/SnapshotKitTesting/README.md#recording)
 for the mode values):
