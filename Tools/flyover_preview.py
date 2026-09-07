@@ -5,13 +5,16 @@ from __future__ import annotations
 import argparse
 import ipaddress
 import json
+import signal
 import socket
 import sys
+import threading
+from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path, PurePosixPath
-from typing import Callable, Iterable, TextIO
+from typing import Callable, Iterable, Iterator, TextIO
 from urllib.parse import unquote, urlsplit
 
 
@@ -250,6 +253,50 @@ class FlyoverRequestHandler(SimpleHTTPRequestHandler):
 ServerFactory = Callable[..., ThreadingHTTPServer]
 
 
+@contextmanager
+def _serve_until_interrupted(server: ThreadingHTTPServer) -> Iterator[None]:
+    """Serve on a worker until the main process receives Ctrl-C."""
+    stop_requested = threading.Event()
+    serving_finished = threading.Event()
+    serving_errors: list[BaseException] = []
+
+    def request_shutdown(_signal_number: int, _frame: object) -> None:
+        stop_requested.set()
+
+    def serve_forever() -> None:
+        try:
+            server.serve_forever()
+        except BaseException as error:
+            serving_errors.append(error)
+        finally:
+            serving_finished.set()
+            stop_requested.set()
+
+    server_thread = threading.Thread(
+        target=serve_forever,
+        name="flyover-preview-server",
+        daemon=True,
+    )
+    previous_handler = signal.signal(signal.SIGINT, request_shutdown)
+    thread_started = False
+    try:
+        server_thread.start()
+        thread_started = True
+        yield
+        stop_requested.wait()
+    finally:
+        try:
+            if thread_started and not serving_finished.is_set():
+                server.shutdown()
+            if thread_started:
+                server_thread.join()
+        finally:
+            signal.signal(signal.SIGINT, previous_handler)
+
+    if serving_errors:
+        raise serving_errors[0]
+
+
 def serve(
     directory: Path,
     *,
@@ -273,7 +320,7 @@ def serve(
             f"could not start the preview server on {host}:{port}: {error}"
         ) from error
 
-    with server:
+    with server, _serve_until_interrupted(server):
         selected_port = int(server.server_address[1])
         print(f"Flyover preview: {artifact.root}", file=output)
         print(f"Local:   http://127.0.0.1:{selected_port}/", file=output)
@@ -288,10 +335,6 @@ def serve(
                 )
             print("Warning: LAN preview has no authentication or TLS.", file=output)
         print("Press Ctrl-C to stop.", file=output, flush=True)
-        try:
-            server.serve_forever()
-        except KeyboardInterrupt:
-            pass
 
 
 def _parser() -> argparse.ArgumentParser:

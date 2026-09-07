@@ -1,8 +1,10 @@
 import importlib.util
 import io
 import json
+import signal
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 
@@ -219,6 +221,92 @@ class FlyoverPreviewTests(unittest.TestCase):
                     "Press Ctrl-C to stop.",
                 ],
             )
+
+    def test_ctrl_c_stops_preview_and_restores_signal_handler(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self.fixture(Path(temporary))
+            shutdown_called = threading.Event()
+            servers = []
+
+            class InterruptingOutput(io.StringIO):
+                def __init__(self):
+                    super().__init__()
+                    self.did_interrupt = False
+
+                def flush(self):
+                    super().flush()
+                    if not self.did_interrupt:
+                        self.did_interrupt = True
+                        signal.raise_signal(signal.SIGINT)
+
+            class FakeServer:
+                server_address = ("127.0.0.1", 53142)
+
+                def __init__(self, *_):
+                    self.serving_thread = None
+                    self.shutdown_thread = None
+                    servers.append(self)
+
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *_):
+                    return None
+
+                def serve_forever(self):
+                    self.serving_thread = threading.current_thread()
+                    if not shutdown_called.wait(timeout=5):
+                        raise AssertionError("preview shutdown was not requested")
+
+                def shutdown(self):
+                    self.shutdown_thread = threading.current_thread()
+                    shutdown_called.set()
+
+            previous_handler = signal.getsignal(signal.SIGINT)
+
+            flyover_preview.serve(
+                root,
+                lan=False,
+                port=0,
+                output=InterruptingOutput(),
+                server_factory=FakeServer,
+            )
+
+            self.assertTrue(shutdown_called.is_set())
+            self.assertIsNot(servers[0].serving_thread, servers[0].shutdown_thread)
+            self.assertEqual(signal.getsignal(signal.SIGINT), previous_handler)
+
+    def test_server_failure_is_rethrown_and_restores_signal_handler(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self.fixture(Path(temporary))
+
+            class FakeServer:
+                server_address = ("127.0.0.1", 53142)
+
+                def __init__(self, *_):
+                    pass
+
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *_):
+                    return None
+
+                def serve_forever(self):
+                    raise RuntimeError("server failed")
+
+            previous_handler = signal.getsignal(signal.SIGINT)
+
+            with self.assertRaisesRegex(RuntimeError, "server failed"):
+                flyover_preview.serve(
+                    root,
+                    lan=False,
+                    port=0,
+                    output=io.StringIO(),
+                    server_factory=FakeServer,
+                )
+
+            self.assertEqual(signal.getsignal(signal.SIGINT), previous_handler)
 
     def test_lan_preview_prints_each_network_url_and_warning(self):
         with tempfile.TemporaryDirectory() as temporary:
