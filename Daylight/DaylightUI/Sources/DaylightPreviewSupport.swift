@@ -133,6 +133,10 @@
     }
 
     actor PreviewAccount: MastodonManaging {
+        func configurationIssue() -> String? {
+            nil
+        }
+
         var settings = MastodonSettings.initial
         func configuration() -> MastodonSettings {
             settings

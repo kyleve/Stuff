@@ -29,6 +29,7 @@ struct MastodonSettingsView: View {
                     Button(.settingsSave) { Task { await model.savePublishing() } }
                 }
             }
+            if let issue = model.publishingIssue { Section { Text(issue) } }
             if let notice = model.notice { Section { Text(notice) } }
         }.navigationTitle(Text(.mastodonTitle))
     }

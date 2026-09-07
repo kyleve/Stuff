@@ -18,11 +18,12 @@ struct DaylightApp: App {
             let store = try CaptureStore(root: root)
             let camera = CameraService()
             let photos = PhotosLibrary()
-            let mastodon = try MastodonDestination(
+            let mastodon = MastodonDestination(
                 settingsURL: root.appendingPathComponent("mastodon.json"),
                 transport: URLSessionTransport(),
                 credentials: KeychainMastodonCredentials(),
                 now: { Date() },
+                uptime: { ProcessInfo.processInfo.systemUptime },
             )
             let logging = Periscope(
                 configuration: .init(),

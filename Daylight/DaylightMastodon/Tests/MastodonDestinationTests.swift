@@ -16,11 +16,12 @@ struct MastodonDestinationTests {
             status: 200,
             retryAfter: nil,
         )])
-        let destination = try MastodonDestination(
+        let destination = MastodonDestination(
             settingsURL: folder.appendingPathComponent("settings.json"),
             transport: transport,
             credentials: MemoryCredentials(),
             now: { Date(timeIntervalSince1970: 0) },
+            uptime: { 0 },
         )
         let configuration = try await destination.connect(
             server: "https://example.com",
@@ -57,11 +58,12 @@ struct MastodonDestinationTests {
             status: 200,
             retryAfter: nil,
         ) })
-        let destination = try MastodonDestination(
+        let destination = MastodonDestination(
             settingsURL: folder.appendingPathComponent("settings.json"),
             transport: transport,
             credentials: MemoryCredentials(),
             now: { Date(timeIntervalSince1970: 0) },
+            uptime: { 0 },
         )
         _ = try await destination.connect(server: "https://example.com", token: "secret")
         try await destination.update(
@@ -178,5 +180,61 @@ struct MastodonDestinationTests {
         ), token: "different-secret"))
         await #expect(throws: PublishingFailure.self) { try await fixture.deliver(fixture.input()) }
         #expect(await fixture.transport.requests.count == 1)
+    }
+}
+
+extension MastodonDestinationTests {
+    @Test func rechecksExpiryAfterMediaRequest() async throws {
+        let fixture = try MastodonHarness(responses: [
+            MastodonHarness.instance,
+            MastodonHarness.uploaded,
+            MastodonHarness.processed,
+        ])
+        defer { do { try fixture.clean() } catch { Issue.record(error) } }
+        try await fixture.connect()
+        let input = try fixture.input()
+        await #expect(throws: URLError.self) { try await fixture.deliver(input) }
+        fixture.clock.advance(3490)
+        await fixture.transport.replaceResponses([
+            MastodonHarness.processed,
+            MastodonHarness.posted,
+        ]) { request in
+            if request.url?.path == "/api/v1/media/42" { fixture.clock.advance(200) }
+        }
+        await #expect(throws: PublishingFailure.self) { try await fixture.deliver(input) }
+        #expect(await fixture.transport.requests
+            .count(where: { $0.url?.path == "/api/v1/statuses" }) == 1)
+    }
+
+    @Test func corruptConfigurationRemainsDisabledAndCanReconnectWithoutLosingEvidence(
+    ) async throws {
+        let fixture = try MastodonHarness(responses: [])
+        defer { do { try fixture.clean() } catch { Issue.record(error) } }
+        let url = fixture.root.appendingPathComponent("broken.json")
+        let damaged = Data("invalid settings".utf8)
+        try damaged.write(to: url)
+        let destination = MastodonDestination(
+            settingsURL: url,
+            transport: fixture.transport,
+            credentials: fixture.credentials,
+            now: { fixture.clock.now },
+            uptime: { fixture.clock.uptime },
+        )
+        #expect(await destination.configurationIssue() != nil)
+        #expect(await destination.isEnabled() == false)
+        await #expect(throws: MastodonError.self) { try await destination.update(
+            enabled: true,
+            visibility: .public,
+            caption: "caption",
+        ) }
+        _ = try await destination.connect(server: "https://example.com", token: "secret")
+        #expect(await destination.configurationIssue() == nil)
+        #expect(await destination.isEnabled() == false)
+        let backups = try FileManager.default.contentsOfDirectory(
+            at: fixture.root,
+            includingPropertiesForKeys: nil,
+        ).filter { $0.lastPathComponent.hasPrefix("mastodon-invalid-") }
+        #expect(backups.count == 1)
+        #expect(try Data(contentsOf: #require(backups.first)) == damaged)
     }
 }

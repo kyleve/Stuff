@@ -7,11 +7,20 @@ import Synchronization
 actor ScriptedHTTPTransport: HTTPTransport {
     var responses: [HTTPResponse]
     var requests: [URLRequest] = []
+    private var onRequest: (@Sendable (URLRequest) -> Void)?
+    func replaceResponses(
+        _ values: [HTTPResponse],
+        onRequest: @escaping @Sendable (URLRequest) -> Void,
+    ) {
+        responses = values; self.onRequest = onRequest
+    }
+
     init(_ responses: [HTTPResponse]) {
         self.responses = responses
     }
 
     func send(_ request: URLRequest) throws -> HTTPResponse {
+        onRequest?(request)
         requests.append(request)
         guard !responses.isEmpty else { throw URLError(.cannotConnectToHost) }
         return responses.removeFirst()
@@ -49,11 +58,12 @@ struct MastodonHarness {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         transport =
             ScriptedHTTPTransport([Self.response(#"{"id":"123","acct":"camera"}"#)] + responses)
-        destination = try MastodonDestination(
+        destination = MastodonDestination(
             settingsURL: root.appendingPathComponent("settings.json"),
             transport: transport,
             credentials: credentials,
             now: { [clock] in clock.now },
+            uptime: { [clock] in clock.uptime },
         )
     }
 
@@ -110,11 +120,21 @@ struct MastodonHarness {
 
 final class MastodonTestClock: Sendable {
     private let date = Mutex(Date(timeIntervalSince1970: 10000))
+    private let elapsed = Mutex(10000.0)
+    var uptime: TimeInterval {
+        elapsed.withLock { $0 }
+    }
+
+    func adjustWallClock(_ seconds: TimeInterval) {
+        date.withLock { $0 = $0.addingTimeInterval(seconds) }
+    }
+
     var now: Date {
         date.withLock { $0 }
     }
 
     func advance(_ seconds: TimeInterval) {
         date.withLock { $0 = $0.addingTimeInterval(seconds) }
+        elapsed.withLock { $0 += seconds }
     }
 }

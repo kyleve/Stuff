@@ -18,6 +18,7 @@ public final class DaylightModel {
     public private(set) var nextCapture: Date?
     public private(set) var lenses: [CaptureSettings.Camera.Lens] = [.main]
     public private(set) var previewImage: UIImage?
+    public private(set) var publishingIssue: String?
     public private(set) var notice: String?
     public private(set) var ready = false
     public private(set) var working = false
@@ -76,6 +77,7 @@ public final class DaylightModel {
             settings = try await engine.load()
             if try await engine.armedIntent() { mode = .armed }
             account = await mastodon.configuration()
+            publishingIssue = await mastodon.configurationIssue()
             server = account.connection?.server.absoluteString ?? ""
             lenses = await camera.availableLenses()
             try await engine.plan()
@@ -133,7 +135,10 @@ public final class DaylightModel {
         working = true; defer { working = false }
         do {
             account = try await mastodon
-                .connect(server: server, token: token); token = ""; notice = nil
+                .connect(
+                    server: server,
+                    token: token,
+                ); token = ""; notice = nil; publishingIssue = nil
         } catch { notice = error.localizedDescription }
     }
 

@@ -8,7 +8,20 @@ public actor MastodonDestination: PublishingDestination, MastodonManaging {
     private let transport: any HTTPTransport
     private let credentials: any MastodonCredentials
     private let settingsURL: URL
-    private var settings: MastodonSettings
+    private enum ConfigurationState {
+        case ready(MastodonSettings)
+        case failed(String)
+    }
+
+    private var configurationState: ConfigurationState
+    private var settings: MastodonSettings {
+        switch configurationState {
+            case let .ready(value): value
+            case .failed: .initial
+        }
+    }
+
+    private let uptime: @Sendable () -> TimeInterval
     private let now: @Sendable () -> Date
     private struct Account: Decodable { let id: String; let acct: String }
     private struct Media: Decodable { let id: String; let url: URL? }
@@ -35,6 +48,7 @@ public actor MastodonDestination: PublishingDestination, MastodonManaging {
         let visibility: MastodonSettings.Visibility
         var mediaID: String?
         var firstSubmission: Date?
+        var submissionClock: SubmissionClock?
     }
 
     public init(
@@ -42,16 +56,27 @@ public actor MastodonDestination: PublishingDestination, MastodonManaging {
         transport: any HTTPTransport,
         credentials: any MastodonCredentials,
         now: @escaping @Sendable () -> Date,
-    ) throws {
+        uptime: @escaping @Sendable () -> TimeInterval,
+    ) {
         self.settingsURL = settingsURL; self.transport = transport; self
             .credentials = credentials; self.now = now
-        if FileManager.default.fileExists(atPath: settingsURL.path) {
-            settings = try JSONDecoder().decode(
-                MastodonSettings.self,
-                from: Data(contentsOf: settingsURL),
-            )
-        } else { settings = .initial }
-        guard settings.version == 1 else { throw MastodonError.invalidResponse }
+        self.uptime = uptime
+        do {
+            let value: MastodonSettings = if FileManager.default
+                .fileExists(atPath: settingsURL.path)
+            {
+                try JSONDecoder().decode(MastodonSettings.self, from: Data(contentsOf: settingsURL))
+            } else { .initial }
+            guard value.version == 1 else { throw MastodonError.invalidResponse }
+            configurationState = .ready(value)
+        } catch {
+            configurationState = .failed(error.localizedDescription)
+        }
+    }
+
+    public func configurationIssue() -> String? {
+        if case let .failed(message) = configurationState { return message }
+        return nil
     }
 
     public func configuration() -> MastodonSettings {
@@ -99,6 +124,7 @@ public actor MastodonDestination: PublishingDestination, MastodonManaging {
         visibility: MastodonSettings.Visibility,
         caption: String,
     ) throws {
+        guard case .ready = configurationState else { throw MastodonError.invalidResponse }
         guard !enabled || settings.connection != nil else { throw MastodonError.missingCredentials }
         var updated = settings
         updated.enabled = enabled; updated.visibility = visibility; updated.caption = caption
@@ -106,8 +132,15 @@ public actor MastodonDestination: PublishingDestination, MastodonManaging {
     }
 
     private func persist(_ value: MastodonSettings) throws {
+        if case .failed = configurationState,
+           FileManager.default.fileExists(atPath: settingsURL.path)
+        {
+            let backup = settingsURL.deletingLastPathComponent()
+                .appendingPathComponent("mastodon-invalid-\(UUID().uuidString).json")
+            try FileManager.default.copyItem(at: settingsURL, to: backup)
+        }
         try JSONEncoder().encode(value).write(to: settingsURL, options: .atomic)
-        settings = value
+        configurationState = .ready(value)
     }
 
     public func deliver(
@@ -161,12 +194,7 @@ public actor MastodonDestination: PublishingDestination, MastodonManaging {
             )
             try await saveCheckpoint(JSONEncoder().encode(progress))
         }
-        if let first = progress.firstSubmission, now().timeIntervalSince(first) >= 3500 {
-            throw PublishingFailure
-                .needsAttention(
-                    "The previous post may have succeeded. Check Mastodon before retrying; its duplicate protection has expired.",
-                )
-        }
+        try validateSubmission(progress)
         if progress.mediaID == nil {
             let instanceData = try await request(
                 server: connection.server,
@@ -251,7 +279,9 @@ public actor MastodonDestination: PublishingDestination, MastodonManaging {
             )
         }
         if progress.firstSubmission == nil {
-            progress.firstSubmission = now()
+            let date = now()
+            progress.firstSubmission = date
+            progress.submissionClock = SubmissionClock(date: date, uptime: uptime())
             try await saveCheckpoint(JSONEncoder().encode(progress))
         }
         struct Post: Encodable {
@@ -262,6 +292,8 @@ public actor MastodonDestination: PublishingDestination, MastodonManaging {
             media_ids: [mediaID],
             visibility: progress.visibility.rawValue,
         ))
+        try Task.checkCancellation()
+        try validateSubmission(progress)
         let data = try await request(
             server: connection.server,
             path: "api/v1/statuses",
@@ -273,6 +305,17 @@ public actor MastodonDestination: PublishingDestination, MastodonManaging {
         )
         let status = try JSONDecoder().decode(Status.self, from: data)
         return PublishingReceipt(remoteID: status.id, url: status.url)
+    }
+
+    private func validateSubmission(_ progress: Checkpoint) throws {
+        guard progress.firstSubmission != nil else { return }
+        guard let clock = progress.submissionClock else {
+            throw PublishingFailure
+                .needsAttention(
+                    "Check Mastodon before retrying this older submission; its elapsed time cannot be verified.",
+                )
+        }
+        try clock.validate(date: now(), uptime: uptime())
     }
 
     private func request(
