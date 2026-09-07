@@ -28,8 +28,8 @@ struct RegionEntityTests {
         let store = try SwiftDataStore.inMemory()
         let texas = try #require(Region(rawValue: "us-TX"))
         try await store.perform {
-            try await store.setTrackedRegion(true, id: Region.california.rawValue)
-            try await store.setTrackedRegion(true, id: texas.rawValue)
+            try await store.setTrackedRegion(true, region: .california)
+            try await store.setTrackedRegion(true, region: texas)
         }
         let entities = try await RegionEntity
             .tracked(from: IntentTestSupport.services(store: store))

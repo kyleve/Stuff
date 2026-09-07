@@ -61,7 +61,7 @@ public struct CalendarDay: Hashable, Sendable, Codable, Comparable, CustomString
     }
 
     /// The first instant of this day in `calendar` — the start-of-day `Date` for
-    /// grid layout and store range queries. Falls back to the epoch only for a
+    /// grid layout and store range queries. Falls back to the generation only for a
     /// calendar that can't resolve the components (an impossible state we assert
     /// on in debug rather than paper over).
     public func startOfDay(in calendar: Calendar) -> Date {

@@ -1,5 +1,6 @@
 import Foundation
 import PeriscopeCore
+import SFSafeSymbols
 import SwiftUI
 
 /// Everything about one stored event: metadata, message, scope path, tags,
@@ -82,7 +83,7 @@ struct LogEventDetailView: View {
                         case let .unreadable(byteCount):
                             Label(
                                 "Unreadable payload (\(byteCount) bytes)",
-                                systemImage: "exclamationmark.triangle",
+                                systemSymbol: .exclamationmarkTriangle,
                             )
                             .foregroundStyle(.secondary)
                     }
@@ -104,7 +105,7 @@ struct LogEventDetailView: View {
                 } label: {
                     Label(
                         "Trace",
-                        systemImage: "point.bottomleft.forward.to.point.topright.scurvepath",
+                        systemSymbol: .pointBottomleftForwardToPointToprightScurvepath,
                     )
                 }
             }
@@ -145,7 +146,7 @@ struct LogEventDetailView: View {
             case nil:
                 ProgressView()
             case let .failure(error):
-                Label(String(describing: error), systemImage: "exclamationmark.triangle")
+                Label(String(describing: error), systemSymbol: .exclamationmarkTriangle)
                     .foregroundStyle(.secondary)
             case .success(nil):
                 Text("No longer stored")
@@ -166,7 +167,7 @@ struct LogEventDetailView: View {
             case nil:
                 ProgressView()
             case let .failure(error):
-                Label(String(describing: error), systemImage: "exclamationmark.triangle")
+                Label(String(describing: error), systemSymbol: .exclamationmarkTriangle)
                     .foregroundStyle(.secondary)
             case let .success(loaded):
                 ForEach(Array(loaded.enumerated()), id: \.offset) { _, attachment in

@@ -84,10 +84,16 @@ func settleForCapture(
     named name: String,
     settle: SnapshotSettle,
     timing: SnapshotCaptureTiming,
+    timeoutPolicy: SnapshotSettleTimeoutPolicy,
 ) async -> SettleOutcome {
     switch settle {
         case .settled:
-            return await settleContent(view, named: name, timing: timing)
+            return await settleContent(
+                view,
+                named: name,
+                maxDuration: timeoutPolicy.maximumDuration(for: settle),
+                timing: timing,
+            )
         case let .settledAtLeast(minDuration):
             // Keep the hang budget for never-quiescing content above the raised
             // floor, so the minimum is always honored.
@@ -95,7 +101,7 @@ func settleForCapture(
                 view,
                 named: name,
                 minDuration: minDuration,
-                maxDuration: max(2.5, minDuration + 2.5),
+                maxDuration: timeoutPolicy.maximumDuration(for: settle),
                 timing: timing,
             )
         case .immediate:

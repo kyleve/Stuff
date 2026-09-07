@@ -5,6 +5,8 @@ import Testing
 import UIKit
 @testable import Where
 import WhereCore
+import WhereCrashReporting
+import WhereUI
 
 @MainActor
 struct WhereAppTests {
@@ -24,11 +26,63 @@ struct WhereAppTests {
         #expect(runtime.rootCount == 1)
     }
 
+    @Test func delegateStartsEveryReportingControllerBeforeItsRuntime() {
+        var events: [String] = []
+        let runtime = RuntimeSpy()
+        runtime.onLaunch = { events.append("runtime") }
+        let delegate = AppDelegate(
+            runtime: runtime,
+            reportingControllers: [
+                ReportingControllerSpy { events.append("first-reporter") },
+                ReportingControllerSpy { events.append("second-reporter") },
+            ],
+        )
+
+        _ = delegate.application(
+            UIApplication.shared,
+            didFinishLaunchingWithOptions: nil,
+        )
+
+        #expect(events == ["first-reporter", "second-reporter", "runtime"])
+    }
+
     #if DEBUG
+        @Test func ordinaryDebugBuildUsesLocalOnlyStorageAcrossRelaunches() {
+            #expect(
+                RegularApplicationRuntime.storeStorage(forCloudKitValidationBuild: false)
+                    == .localOnly,
+            )
+        }
+
+        @Test func cloudKitValidationBuildUsesCloudKitStorageAcrossRelaunches() {
+            #expect(
+                RegularApplicationRuntime.storeStorage(forCloudKitValidationBuild: true)
+                    == .cloudKit,
+            )
+        }
+
+        @Test func regularRuntimeUsesTheProcessReportingPreferencesForItsModel() {
+            let preferences = WherePreferences(store: InMemoryKeyValueStore())
+            let effective = DiagnosticReportingConfiguration.defaults(isDebugBuild: true)
+            let runtime = RegularApplicationRuntime(
+                preferences: preferences,
+                effectiveDiagnosticReportingConfiguration: effective,
+                applyRemoteLogging: { _, _ in },
+            )
+
+            preferences.hasOnboarded = true
+            runtime.model.diagnosticReporting.sharesCrashReports = false
+            runtime.model.diagnosticReporting.sharesSessionReplays = true
+
+            #expect(runtime.model.hasOnboarded)
+            #expect(preferences.diagnosticReportingConfiguration.sharesCrashReports == false)
+            #expect(preferences.diagnosticReportingConfiguration.sharesSessionReplays)
+        }
+
         @Test func selectingInspectorConstructsOnlyInspectorRuntime() throws {
             let fixture = try ModeFixture()
             defer { fixture.cleanup() }
-            fixture.controller.enterInspectorOnNextLaunch()
+            fixture.controller.scheduleInspector()
             var regularCount = 0
             var inspectorCount = 0
 
@@ -73,6 +127,22 @@ struct WhereAppTests {
             #expect(inspectorCount == 0)
         }
 
+        @Test func constructingRegularRuntimeConsumesDemoRequestOnce() throws {
+            let fixture = try ModeFixture()
+            defer { fixture.cleanup() }
+            fixture.controller.scheduleDemo(.allIssues)
+
+            _ = RegularApplicationRuntime(
+                preferences: WherePreferences(store: InMemoryKeyValueStore()),
+                effectiveDiagnosticReportingConfiguration: .defaults(isDebugBuild: true),
+                applyRemoteLogging: { _, _ in },
+                developerLaunchController: fixture.controller,
+            )
+
+            #expect(fixture.controller.nextLaunch == .regularApplication)
+            #expect(fixture.controller.consumeDemoConfiguration() == nil)
+        }
+
         @Test func pendingStoreRecoveryCompletesBeforeRuntimeConstruction() async throws {
             let fixture = try ModeFixture()
             defer { fixture.cleanup() }
@@ -98,7 +168,7 @@ struct WhereAppTests {
             try Data("stale journal".utf8).write(
                 to: recoveryStorageURL.appending(path: "segment"),
             )
-            try fixture.controller.scheduleStoreFamilyErasure(
+            try fixture.controller.inspectorModeController.scheduleStoreFamilyErasure(
                 storeURL: storeURL,
                 storageRootURL: rootURL,
                 recoveryStorageURLs: [recoveryStorageURL],
@@ -159,7 +229,7 @@ struct WhereAppTests {
             defer { try? FileManager.default.removeItem(at: outsideRootURL) }
             let storeURL = outsideRootURL.appending(path: "Periscope.store")
             try Data("store".utf8).write(to: storeURL)
-            try fixture.controller.scheduleStoreFamilyErasure(
+            try fixture.controller.inspectorModeController.scheduleStoreFamilyErasure(
                 storeURL: storeURL,
                 storageRootURL: storageRootURL,
                 recoveryStorageURLs: [],
@@ -183,7 +253,7 @@ struct WhereAppTests {
             #expect(regularCount == 0)
             #expect(inspectorCount == 1)
             #expect(fixture.controller.nextLaunch == .inspector)
-            #expect(fixture.controller.pendingStoreErasureError != nil)
+            #expect(fixture.controller.inspectorModeController.pendingStoreErasureError != nil)
         }
 
         @Test func inspectorConfigurationNamesAppInspectionResources() throws {
@@ -255,12 +325,14 @@ struct WhereAppTests {
 private final class RuntimeSpy: WhereApplicationRuntime {
     private(set) var launchCount = 0
     private(set) var rootCount = 0
+    var onLaunch: () -> Void = {}
 
     func didFinishLaunching(
         application _: UIApplication,
         options _: [UIApplication.LaunchOptionsKey: Any]?,
     ) -> Bool {
         launchCount += 1
+        onLaunch()
         return true
     }
 
@@ -270,17 +342,29 @@ private final class RuntimeSpy: WhereApplicationRuntime {
     }
 }
 
+@MainActor
+private struct ReportingControllerSpy: WhereReportingController {
+    let onStart: () -> Void
+
+    func start() {
+        onStart()
+    }
+}
+
 #if DEBUG
     @MainActor
     private struct ModeFixture {
         let suiteName: String
         let defaults: UserDefaults
-        let controller: InspectorModeController
+        let controller: WhereDeveloperLaunchController
 
         init() throws {
             suiteName = "where.app-runtime.\(UUID().uuidString)"
             defaults = try #require(UserDefaults(suiteName: suiteName))
-            controller = InspectorModeController(userDefaults: defaults)
+            controller = WhereDeveloperLaunchController(
+                userDefaults: defaults,
+                inspectorModeController: InspectorModeController(userDefaults: defaults),
+            )
         }
 
         func cleanup() {

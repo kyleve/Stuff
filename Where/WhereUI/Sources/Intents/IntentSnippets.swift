@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
@@ -142,7 +143,7 @@ public struct RegionsSnippetView: View {
 
     private var emptyState: some View {
         HStack(spacing: stylesheet.spacing.small) {
-            Image(systemName: "location.slash")
+            Image(systemSymbol: .locationSlash)
                 .foregroundStyle(.tertiary)
                 .accessibilityHidden(true)
             Text(String(localized: .widgetTodayEmpty))

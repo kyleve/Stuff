@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
@@ -18,7 +19,7 @@ struct YearSelector: View {
                     Task { await report.select(year: year) }
                 } label: {
                     if year == report.selectedYear {
-                        Label { Text(yearText(year)) } icon: { Image(systemName: "checkmark") }
+                        Label { Text(yearText(year)) } icon: { Image(systemSymbol: .checkmark) }
                     } else {
                         Text(yearText(year))
                     }

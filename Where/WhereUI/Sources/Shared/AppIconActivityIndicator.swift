@@ -4,8 +4,7 @@ import SwiftUI
 /// gentle breathing pulse and a soft brand-tinted glow. A quieter cousin of the
 /// launch splash's pulsing hero (`LaunchSplashView`): smaller, with a shallower
 /// scale pulse, a softer glow, and none of the radar sweep — tuned for an
-/// in-app wait such as generating the recent-activity summary rather than a
-/// full-screen launch.
+/// in-app wait rather than a full-screen launch.
 ///
 /// Honors Reduce Motion: the pulse pins to a static frame. Snapshot captures
 /// pin it the same way (see ``MotionIsStatic``).

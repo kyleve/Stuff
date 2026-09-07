@@ -1,4 +1,5 @@
 import PeriscopeCore
+import SFSafeSymbols
 import SwiftUI
 
 /// The scope-tree browser: the store's `LogScope` hierarchy — the same tree
@@ -38,13 +39,13 @@ public struct LogHierarchyView: View {
             case let .failed(reason):
                 ContentUnavailableView(
                     "Hierarchy Unavailable",
-                    systemImage: "exclamationmark.triangle",
+                    systemSymbol: .exclamationmarkTriangle,
                     description: Text(reason),
                 )
             case let .loaded(forest) where forest.isEmpty:
                 ContentUnavailableView(
                     "No Scopes",
-                    systemImage: "point.3.connected.trianglepath.dotted",
+                    systemSymbol: .point3ConnectedTrianglepathDotted,
                     description: Text("No log scopes have been defined yet."),
                 )
             case let .loaded(forest):

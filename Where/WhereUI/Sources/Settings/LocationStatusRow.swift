@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
@@ -12,7 +13,7 @@ struct LocationStatusRow: View {
 
     var body: some View {
         HStack(spacing: stylesheet.spacing.large) {
-            Image(systemName: presentation.symbol)
+            Image(systemSymbol: presentation.symbol)
                 .font(.title3)
                 .foregroundStyle(presentation.tint)
                 .frame(width: stylesheet.size.statusIconWidth)
@@ -31,7 +32,7 @@ struct LocationStatusRow: View {
     }
 
     private struct Presentation {
-        let symbol: String
+        let symbol: SFSymbol
         let tint: Color
         let title: String
     }
@@ -40,19 +41,19 @@ struct LocationStatusRow: View {
         // Active tracking trumps the raw status: it's the happy path.
         let title = Self.statusTitle(status: status, isTracking: isTracking)
         if isTracking {
-            return Presentation(symbol: "location.fill", tint: .green, title: title)
+            return Presentation(symbol: .locationFill, tint: .green, title: title)
         }
         switch status {
             case .always:
-                return Presentation(symbol: "location.fill", tint: .green, title: title)
+                return Presentation(symbol: .locationFill, tint: .green, title: title)
             case .whenInUse:
-                return Presentation(symbol: "location", tint: .orange, title: title)
+                return Presentation(symbol: .location, tint: .orange, title: title)
             case .notDetermined:
-                return Presentation(symbol: "location.slash", tint: .secondary, title: title)
+                return Presentation(symbol: .locationSlash, tint: .secondary, title: title)
             case .denied:
-                return Presentation(symbol: "location.slash.fill", tint: .red, title: title)
+                return Presentation(symbol: .locationSlashFill, tint: .red, title: title)
             case .restricted:
-                return Presentation(symbol: "lock.fill", tint: .red, title: title)
+                return Presentation(symbol: .lockFill, tint: .red, title: title)
         }
     }
 

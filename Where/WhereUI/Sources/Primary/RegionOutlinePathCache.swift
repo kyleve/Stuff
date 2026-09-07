@@ -1,6 +1,7 @@
 import Foundation
 import RegionKit
 import SwiftUI
+import WhereCore
 
 /// UI-owned cache of projected region paths at the four rendering fidelities
 /// Where needs. RegionKit owns/caches source geometry and provides the stateless
@@ -66,6 +67,27 @@ actor RegionOutlinePathCache {
         return built
     }
 
+    /// Projects raw fixes into the same local coordinate space as every cached
+    /// path. Selection remains UI policy and is applied by the card after this
+    /// method returns; user locations are never retained by this shared cache.
+    func projectedPoints(
+        for region: Region,
+        points: [RegionDayPoint],
+    ) async -> [RegionLocationConstellationLayout.Point] {
+        guard points.isEmpty == false else { return [] }
+        let outlines = await RegionGeometryCatalog.outlines(for: region)
+        guard
+            Task.isCancelled == false,
+            let projection = RegionArtworkProjection(outlines: outlines)
+        else { return [] }
+        return points.map {
+            RegionLocationConstellationLayout.Point(
+                position: projection.point(for: $0.coordinate),
+                horizontalAccuracy: $0.horizontalAccuracy,
+            )
+        }
+    }
+
     /// Projects every polygon into one reusable path. Two move-only elements
     /// pin `boundingRect` to the full geometry at every resolution; they draw
     /// nothing, but prevent simplification from subtly changing placement.
@@ -73,56 +95,10 @@ actor RegionOutlinePathCache {
         from outlines: [RegionOutline],
         framedBy fullOutlines: [RegionOutline],
     ) -> Path {
-        guard let projection = Projection(outlines: fullOutlines) else { return Path() }
-
-        var path = Path()
-        path.move(to: projection.minimum)
-        path.move(to: projection.maximum)
-        for outline in outlines {
-            guard let first = outline.coordinates.first else { continue }
-            path.move(to: projection.point(for: first))
-            for coordinate in outline.coordinates.dropFirst() {
-                path.addLine(to: projection.point(for: coordinate))
-            }
-            path.closeSubpath()
+        guard let projection = RegionArtworkProjection(outlines: fullOutlines) else {
+            return Path()
         }
-        return path
-    }
-
-    private struct Projection {
-        let centerLongitude: Double
-        let midLatitude: Double
-        let longitudeCorrection: Double
-        let minimum: CGPoint
-        let maximum: CGPoint
-
-        init?(outlines: [RegionOutline]) {
-            guard
-                let box = BoundingBox.enclosing(outlines),
-                let longitudeSpan = LongitudeSpan.enclosing(
-                    outlines.lazy.flatMap { outline in
-                        outline.coordinates.lazy.map(\.longitude)
-                    },
-                )
-            else { return nil }
-
-            centerLongitude = longitudeSpan.center
-            midLatitude = (box.minLatitude + box.maxLatitude) / 2
-            longitudeCorrection = max(cos(midLatitude * .pi / 180), 0.1)
-            let halfWidth = longitudeSpan.degrees * longitudeCorrection / 2
-            let halfHeight = (box.maxLatitude - box.minLatitude) / 2
-            minimum = CGPoint(x: -halfWidth, y: -halfHeight)
-            maximum = CGPoint(x: halfWidth, y: halfHeight)
-        }
-
-        func point(for coordinate: Coordinate) -> CGPoint {
-            let longitudeDelta = (coordinate.longitude - centerLongitude + 540)
-                .truncatingRemainder(dividingBy: 360) - 180
-            return CGPoint(
-                x: longitudeDelta * longitudeCorrection,
-                y: midLatitude - coordinate.latitude,
-            )
-        }
+        return projection.path(from: outlines)
     }
 }
 

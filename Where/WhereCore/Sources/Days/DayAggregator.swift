@@ -53,17 +53,40 @@ public struct DayAggregator: Sendable {
         samples: [LocationSample],
         attributor: any RegionAttributing,
     ) -> [RegionDayLocations] {
-        var byDay: [CalendarDay: [RegionDayPoint]] = [:]
-        for sample in samples where attributor.region(at: sample.coordinate) == region {
+        locations(in: [region], samples: samples, attributor: attributor)[region] ?? []
+    }
+
+    /// Group samples for several regions in one attribution pass.
+    ///
+    /// This is the year-card counterpart to ``locations(in:samples:attributor:)``:
+    /// callers that need more than one region avoid walking and attributing the
+    /// same year's samples once per card. Regions with no matching samples are
+    /// omitted from the result.
+    public func locations(
+        in regions: Set<Region>,
+        samples: [LocationSample],
+        attributor: any RegionAttributing,
+    ) -> [Region: [RegionDayLocations]] {
+        guard regions.isEmpty == false else { return [:] }
+
+        var pointsByRegionAndDay: [Region: [CalendarDay: [RegionDayPoint]]] = [:]
+        for sample in samples {
+            let region = attributor.region(at: sample.coordinate)
+            guard regions.contains(region) else { continue }
             let day = CalendarDay(from: sample.timestamp, in: calendar)
-            byDay[day, default: []].append(RegionDayPoint(
-                coordinate: sample.coordinate,
-                horizontalAccuracy: sample.horizontalAccuracy,
-            ))
+            pointsByRegionAndDay[region, default: [:]][day, default: []].append(
+                RegionDayPoint(
+                    coordinate: sample.coordinate,
+                    horizontalAccuracy: sample.horizontalAccuracy,
+                ),
+            )
         }
-        return byDay
-            .map { RegionDayLocations(day: $0.key, points: $0.value) }
-            .sorted { $0.day < $1.day }
+
+        return pointsByRegionAndDay.mapValues { byDay in
+            byDay
+                .map { RegionDayLocations(day: $0.key, points: $0.value) }
+                .sorted { $0.day < $1.day }
+        }
     }
 
     /// Group the recorded points that fell on `day` by the region they

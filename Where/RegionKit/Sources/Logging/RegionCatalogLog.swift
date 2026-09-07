@@ -38,4 +38,16 @@ enum RegionCatalogLog: LogEvent {
                 "Failed to decode bundled regions.json: \(description)"
         }
     }
+
+    var remoteFields: [RemoteLogField] {
+        switch self {
+            case let .loaded(regionCount):
+                [RemoteLogField(
+                    key: RemoteLogFieldKey("region_count"),
+                    value: .count(regionCount),
+                )]
+            case .missingManifest, .decodeFailed:
+                []
+        }
+    }
 }

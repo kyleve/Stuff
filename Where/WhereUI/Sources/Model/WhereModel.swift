@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 import PeriscopeCore
-import WhereCore
+@_spi(Testing) import WhereCore
 
 /// The long-lived, app-level model: the onboarding gate, the persisted
 /// preferences, which `WhereScope` the app is logged in to, and the optional
@@ -87,6 +87,20 @@ public final class WhereModel {
     /// `endSession()` on reset and rebuilt when the launch re-drives.
     public private(set) var session: WhereSession?
 
+    private enum LaunchDemoState {
+        case inactive
+        case pending(DemoDataBuilder.Configuration)
+        case building
+    }
+
+    private var launchDemoState = LaunchDemoState.inactive
+
+    /// Whether the cold-launch splash is currently building a requested demo.
+    var isBuildingLaunchDemo: Bool {
+        if case .building = launchDemoState { return true }
+        return false
+    }
+
     /// Observable bring-up state for the active scope's durable log store.
     public private(set) var logStoreState = LogStoreState.unavailable
 
@@ -115,11 +129,26 @@ public final class WhereModel {
     /// holding it eagerly doesn't cost the logged-out window anything.
     let preferences: WherePreferences
 
+    /// Process reporting state stays real even while the active data scope is a demo.
+    public let diagnosticReporting: DiagnosticReportingSettingsModel
+
+    /// The active presentation theme. Onboarding can preview this value in
+    /// memory before committing; Appearance Settings persists immediately.
+    public private(set) var theme: WhereTheme
+
+    /// The one device-local recording context store composed for this process.
+    /// It owns the non-backed-up installation sidecar and is shared with every
+    /// bootstrap this model creates, so onboarding and service assembly cannot
+    /// resolve different identities.
+    private let installationContextStore: any InstallationRecordingContextStoring
+    private let onboardingImportRecovery: OnboardingImportRecoveryModel
+
     /// Makes the bootstrap a logged-out state carries. A factory rather than
     /// a stored instance, because a bootstrap is spent by the login it serves:
     /// logging out needs a fresh one for the next login, and holding the used
     /// one would keep a consumed location source alive beside the live scope.
-    private let makeBootstrap: @MainActor () -> any WhereScopeAssembling
+    private let makeBootstrap:
+        @MainActor (any InstallationRecordingContextStoring) -> any WhereScopeAssembling
 
     /// Called when the app logs out of a scope — a reset, or entering or
     /// leaving demo mode — so the composition root can release whatever it
@@ -130,6 +159,11 @@ public final class WhereModel {
     /// opens a second container over the same file. Set once, at the app's
     /// composition root; the default no-op covers previews and tests.
     public var onLoggedOut: @MainActor () async -> Void = {}
+
+    /// Keeps widgets and App Intents synchronized with Appearance Settings.
+    public var onThemeChanged: @MainActor (WhereTheme) async -> Void = { _ in }
+
+    @ObservationIgnored private var themeChangeTask: Task<Void, Never>?
 
     /// The logging system every scope this model creates records into. Carried
     /// rather than reached for: the app hands down `Periscope.shared` from its
@@ -143,10 +177,10 @@ public final class WhereModel {
     /// the app; a preview/test can pin it via the services init.
     let initialSelectedYear: Int
 
-    /// Preview/test seam: a report `MainTabs` seeds its `YearReportModel` with, so a
-    /// `#Preview` renders populated content without a live store. Nil in the app
-    /// (the scene loads from the store once it appears).
-    let initialReport: YearReport?
+    /// Preview/test seam: the complete value `MainTabs` seeds its
+    /// `YearReportModel` with, so a `#Preview` renders populated content without
+    /// a live store. Nil in the app (the scene loads once it appears).
+    let initialYearDetails: YearReportDetails?
 
     private static let logger = WhereLog.root(WhereModelLog.self)
 
@@ -158,11 +192,138 @@ public final class WhereModel {
         set { preferences.hasOnboarded = newValue }
     }
 
-    /// Mark first-run onboarding complete. Called by `OnboardingView` once the
-    /// user finishes the intro (after the permission prompt resolves).
+    /// The context onboarding renders. A newly proposed value is kept in memory
+    /// until the user confirms it, so entering demo mode leaves no sidecar.
+    public var installationRecordingContext: InstallationRecordingContext {
+        installationContextStore.onboardingContext
+    }
+
+    /// Confirmation lives beside the non-backed-up installation identity, not
+    /// in backed-up preferences. Restoring onto a new device therefore makes
+    /// this false even when `hasOnboarded` arrived in the backup.
+    public var hasConfirmedRecordingChoice: Bool {
+        installationRecordingContext.automaticRecordingEnabled != nil
+    }
+
+    /// Derive an advisory local default from synced device status while the app remains logged out.
+    func discoverRecordingRecommendation(
+        for context: InstallationRecordingContext,
+    ) async throws
+        -> RecordingOnboardingRecommendation
+    {
+        if context.isRejoining {
+            return RecordingOnboardingRecommendation(
+                isEnabled: false,
+                recentRecordingDevice: nil,
+            )
+        }
+        guard case let .loggedOut(bootstrap) = scopeState else {
+            let devices = try await activeScope?.services.recording.devices() ?? []
+            return RecordingOnboardingRecommendation(
+                for: context.currentDevice,
+                devices: devices.map(\.device),
+                now: now(),
+            )
+        }
+        return try await RecordingOnboardingRecommendation(
+            for: context.currentDevice,
+            devices: bootstrap.discoverRecordingDevices(),
+            now: now(),
+        )
+    }
+
+    /// Whether the sidecar says onboarding crossed or may have crossed an import commit. The
+    /// launch gate uses this one narrow exception to open the store before offering Restore.
+    var hasInterruptedOnboardingImport: Bool {
+        onboardingImportRecovery.hasInterruptedImport
+    }
+
+    /// Reassert the backed-up preference from the sidecar's terminal import authority. The
+    /// sidecar write is the durable boundary because `UserDefaults` can return from its setter
+    /// before the preference reaches disk.
+    func repairOnboardingFromCompletedImportIfNeeded() {
+        onboardingImportRecovery.repairCompletedImportIfNeeded(
+            hasOnboarded: hasOnboarded,
+            completeOnboarding: completeOnboarding,
+        )
+    }
+
+    /// Resolve any onboarding import transaction left across a process death before launch
+    /// exposes this scope to App Intents or starts recording.
+    func preflightPendingImportRecovery(in scope: WhereScope) async throws {
+        try await onboardingImportRecovery.preflightPendingImport(
+            in: scope,
+            completeOnboarding: completeOnboarding,
+        )
+    }
+
+    /// Persist this installation's explicit onboarding choice, including a changed retry.
+    @discardableResult
+    public func confirmInitialRecordingChoice(
+        isEnabled: Bool,
+    ) throws -> InstallationRecordingContext {
+        let context = try installationContextStore.resolve()
+        if let existing = context.automaticRecordingEnabled {
+            if existing != isEnabled {
+                try installationContextStore.setAutomaticRecordingEnabled(isEnabled)
+            }
+            return try installationContextStore.resolve()
+        }
+        return try installationContextStore.confirmInitialRecording(isEnabled: isEnabled)
+    }
+
+    /// Mark the first-run app flow complete after its scope and selections have
+    /// been committed. Recording confirmation is persisted separately first.
     public func completeOnboarding() {
+        preferences.theme = theme
+        publishThemeChange(theme)
         hasOnboarded = true
         Self.logger { .onboardingCompleted }
+    }
+
+    /// Preview a theme without writing device preferences.
+    public func previewTheme(_ newTheme: WhereTheme) {
+        // RootView observes `theme` and passes it to `whereBroadwayRoot`, so
+        // this assignment immediately re-resolves the live presentation tree.
+        guard newTheme != theme else { return }
+        theme = newTheme
+    }
+
+    /// Select and immediately persist a theme outside onboarding.
+    public func selectTheme(_ newTheme: WhereTheme) {
+        guard newTheme != theme || preferences.theme != newTheme else { return }
+        theme = newTheme
+        preferences.theme = newTheme
+        publishThemeChange(newTheme)
+    }
+
+    /// Reassert the persisted device theme to app extensions at process launch.
+    public func synchronizeTheme() {
+        publishThemeChange(theme)
+    }
+
+    private func publishThemeChange(_ theme: WhereTheme) {
+        themeChangeTask?.cancel()
+        themeChangeTask = Task { [weak self] in
+            guard let self, !Task.isCancelled else { return }
+            await onThemeChanged(theme)
+        }
+    }
+
+    /// Reconcile a cold-launch onboarding import before the Restore UI can be presented.
+    /// Returns whether ordinary onboarding is still required.
+    func recoverInterruptedOnboardingImport() async -> Bool {
+        await onboardingImportRecovery.recoverInterruptedImport(
+            requiresOnboarding: activeScope == nil
+                && (!hasOnboarded || !hasConfirmedRecordingChoice),
+            resolveScope: resolveScope,
+            endSession: endSession,
+            completeOnboarding: completeOnboarding,
+        )
+    }
+
+    func takeInterruptedOnboardingImportError() -> (any Error)? {
+        onboardingImportRecovery.takeInterruptedImportError()
     }
 
     public static var currentYear: Int {
@@ -175,33 +336,53 @@ public final class WhereModel {
     /// until something asks for a scope.
     ///
     /// - Parameters:
-    ///   - makeBootstrap: makes the assembler a login builds its scope from.
-    ///     Called once per logged-out state, so a test can hand back the same
-    ///     instance and count what was asked of it. Deliberately has no
-    ///     default, for the same reason `logSystem` doesn't: a test that
-    ///     omitted it would open the app's real durable log store on the next
-    ///     login — which in a test host neither succeeds nor fails quickly.
+    ///   - installationContextStore: one non-backed-up installation context,
+    ///     shared with every bootstrap created for this model.
+    ///   - makeBootstrap: makes the assembler a login builds from that same
+    ///     context store. Called once per logged-out state, so a test can hand
+    ///     back the same instance and count what was asked of it. Deliberately
+    ///     has no default, for the same reason `logSystem` doesn't: a test that
+    ///     omitted it would open the app's real durable stores on the next
+    ///     login.
     ///   - logSystem: the logging system this model's scopes record into.
     ///     Deliberately has no default: the app passes `Periscope.shared`, and
     ///     a test that omitted it would silently attach its sinks to the
     ///     process-wide pipeline.
     public init(
         preferences: WherePreferences,
-        makeBootstrap: @escaping @MainActor () -> any WhereScopeAssembling,
+        installationContextStore: any InstallationRecordingContextStoring,
+        makeBootstrap: @escaping @MainActor (
+            any InstallationRecordingContextStoring,
+        ) -> any WhereScopeAssembling,
         logSystem: Periscope,
+        effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration? = nil,
+        applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging = {
+            _, _ in
+        },
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.preferences = preferences
+        diagnosticReporting = DiagnosticReportingSettingsModel(
+            preferences: preferences,
+            effectiveConfiguration: effectiveDiagnosticReportingConfiguration
+                ?? preferences.diagnosticReportingConfiguration,
+            applyRemoteLogging: applyRemoteLogging,
+        )
+        theme = preferences.theme
+        self.installationContextStore = installationContextStore
+        onboardingImportRecovery = OnboardingImportRecoveryModel(
+            installationContextStore: installationContextStore,
+        )
         self.makeBootstrap = makeBootstrap
         self.logSystem = logSystem
         self.now = now
-        scopeState = .loggedOut(bootstrap: makeBootstrap())
+        scopeState = .loggedOut(bootstrap: makeBootstrap(installationContextStore))
         initialSelectedYear = WhereModel.currentYear
-        initialReport = nil
+        initialYearDetails = nil
     }
 
-    /// Preview/test seam: inject already-built services (and optionally a
-    /// preloaded report) so SwiftUI previews and unit tests skip the live
+    /// Preview/test seam: inject already-built services (and optionally
+    /// preloaded year details) so SwiftUI previews and unit tests skip the live
     /// SwiftData + CoreLocation wiring. Activates a scope over them and builds
     /// the session up front, so the launch's `resolve-scope` step is a no-op and
     /// the model's `session` is ready to drive immediately.
@@ -211,12 +392,19 @@ public final class WhereModel {
     /// can drive the whole cycle without touching disk.
     public init(
         services: WhereServices,
-        report: YearReport? = nil,
+        details: YearReportDetails? = nil,
         selectedYear: Int = WhereModel.currentYear,
         preferences: WherePreferences,
         logSystem: Periscope,
+        effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration? = nil,
+        applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging = {
+            _, _ in
+        },
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
+        let installationContextStore = InMemoryInstallationRecordingContextStore(
+            context: .testing,
+        )
         let scope = WhereScope.fake(
             services: services,
             preferences: preferences,
@@ -224,12 +412,27 @@ public final class WhereModel {
         )
         scopeState = .real(scope)
         self.preferences = preferences
-        makeBootstrap = { InjectedServicesAssembler(services: services) }
+        diagnosticReporting = DiagnosticReportingSettingsModel(
+            preferences: preferences,
+            effectiveConfiguration: effectiveDiagnosticReportingConfiguration
+                ?? preferences.diagnosticReportingConfiguration,
+            applyRemoteLogging: applyRemoteLogging,
+        )
+        theme = preferences.theme
+        self.installationContextStore = installationContextStore
+        onboardingImportRecovery = OnboardingImportRecoveryModel(
+            installationContextStore: installationContextStore,
+        )
+        makeBootstrap = { _ in InjectedServicesAssembler(services: services) }
         self.logSystem = logSystem
         self.now = now
         initialSelectedYear = selectedYear
-        initialReport = report
-        session = WhereSession(scope: scope, now: now)
+        initialYearDetails = details
+        session = WhereSession(
+            scope: scope,
+            installationContextStore: installationContextStore,
+            now: now,
+        )
     }
 
     /// Record a log store on the active scope for the developer surface to
@@ -308,6 +511,22 @@ public final class WhereModel {
 
     // MARK: - Demo mode
 
+    /// Hand a persisted next-launch request into this process's launch plan.
+    /// The activation step consumes it once, including across in-process relaunches.
+    public func prepareDemoLaunch(configuration: DemoDataBuilder.Configuration) {
+        launchDemoState = .pending(configuration)
+    }
+
+    /// Activate the process-local next-launch request before onboarding can open
+    /// the real store. A failed build still consumes the one-shot request.
+    func activatePendingLaunchDemoIfNeeded() async throws {
+        guard case let .pending(configuration) = launchDemoState else { return }
+        launchDemoState = .building
+        defer { launchDemoState = .inactive }
+        let scope = try await makeDemoScope(configuration: configuration)
+        await activateDemo(scope)
+    }
+
     /// Build a throwaway demo world — an in-memory store seeded with a
     /// plausible year — over this model's clock and logging system. Slow (it
     /// seeds a year), so the caller shows something while it runs.
@@ -316,7 +535,18 @@ public final class WhereModel {
     /// scope *before* committing to it: a build that fails leaves the user on
     /// the intro with nothing changed.
     public func makeDemoScope() async throws -> WhereScope {
-        try await WhereScope.demo(now: now, logSystem: logSystem)
+        try await makeDemoScope(configuration: .standard)
+    }
+
+    /// Build a throwaway demo world with the requested Resolve workflows.
+    public func makeDemoScope(
+        configuration: DemoDataBuilder.Configuration,
+    ) async throws -> WhereScope {
+        try await WhereScope.demo(
+            now: now,
+            logSystem: logSystem,
+            configuration: configuration,
+        )
     }
 
     /// Log in to a demo world, releasing whatever scope was active first.
@@ -361,17 +591,27 @@ public final class WhereModel {
     /// session here over the retained (now-erased) scope.
     func startSession(scope: WhereScope) -> WhereSession {
         if let session { return session }
-        let session = WhereSession(scope: scope, now: now)
+        let session = WhereSession(
+            scope: scope,
+            installationContextStore: scope.kind == .real ? installationContextStore : nil,
+            now: scope.sessionNow ?? now,
+        )
         self.session = session
         Self.logger { .startedSession(year: initialSelectedYear) }
         return session
     }
 
     /// Drop the logged-in session and release the scope. Run by the reset
-    /// teardown after `eraseAllData()`: the relaunch parks on the onboarding
-    /// gate again (the teardown cleared `hasOnboarded`), and logging back in
-    /// builds a fresh scope over a newly-opened store.
+    /// teardown after `eraseAllData()` and when onboarding abandons a failed
+    /// restore attempt: the next login builds a fresh scope over a newly-opened
+    /// store and the installation context current at that attempt.
     public func endSession() async {
+        await logOut()
+        Self.logger { .endedSession }
+    }
+
+    func rejoinInstallation() async throws {
+        _ = try installationContextStore.rejoin()
         await logOut()
         Self.logger { .endedSession }
     }
@@ -387,24 +627,39 @@ public final class WhereModel {
     private func logOut() async {
         await activeScope?.stopLogRouting()
         session = nil
-        scopeState = .loggedOut(bootstrap: makeBootstrap())
+        scopeState = .loggedOut(bootstrap: makeBootstrap(installationContextStore))
         logStoreState = .unavailable
         await onLoggedOut()
     }
 
     // MARK: - Reset / erase all
 
-    /// Clear every persisted preference so the next launch behaves like a fresh
-    /// install: onboarding shows again (`hasOnboarded` gone), background
-    /// tracking returns to its default intent, and the reminder/summary
-    /// schedules revert to their defaults. The preferences half of the
-    /// reset/erase teardown.
+    /// Clear the device-local installation context and every persisted
+    /// preference so the next launch behaves like a fresh install: onboarding
+    /// shows again, recording gets a new identity and explicit choice, and the
+    /// reminder/summary schedules revert to their defaults.
     ///
     /// `WherePreferences.reset()` removes the keys (rather than writing
     /// `false`/`0`) so the default-valued getters report first-install state
     /// again; the re-driven launch's fresh session reads those defaults back.
-    public func resetPreferences() {
+    public func resetPreferences() throws {
+        do {
+            try installationContextStore.reset()
+        } catch let error as WhereServices.ResetCleanupError {
+            // The old installation identity is already retired. Finish the logical reset even
+            // though deleting its tombstone still needs a retry, so a relaunch cannot combine a
+            // fresh unconfirmed identity with stale "already onboarded" preferences.
+            preferences.reset()
+            diagnosticReporting.preferencesDidReset()
+            theme = preferences.theme
+            publishThemeChange(theme)
+            Self.logger { .resetPreferences }
+            throw error
+        }
         preferences.reset()
+        diagnosticReporting.preferencesDidReset()
+        theme = preferences.theme
+        publishThemeChange(theme)
         Self.logger { .resetPreferences }
     }
 }
@@ -424,6 +679,10 @@ private struct InjectedServicesAssembler: WhereScopeAssembling {
 
     func makeServices() async throws -> WhereServices {
         services
+    }
+
+    func discoverRecordingDevices() async throws -> [RecordingDevice] {
+        []
     }
 
     /// No durable logging: a preview or test must leave nothing on disk and no

@@ -10,8 +10,9 @@ set -euo pipefail
 # dependency, whereas a re-run picks it up wherever it landed.
 #
 # Each app declares its own sources in an attribution-sources.json; the generic
-# reporting lives in CreditKit. Re-run after adding or bumping a package, or
-# after `./sync-agents --update` moves a pinned skill, and commit the result.
+# reporting lives in CreditKit. Re-run after adding or bumping a package, after
+# `./sync-agents --update` moves a pinned skill, or after changing
+# `.agents/development-tools.json`, and commit the result.
 #
 # Needs network and an authenticated `gh` (notices are read at the pinned
 # revision, so the text shipped is the one governing the code actually in use).

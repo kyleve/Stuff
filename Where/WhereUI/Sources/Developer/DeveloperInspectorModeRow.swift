@@ -1,5 +1,5 @@
 #if DEBUG
-    import Inspector
+    import SFSafeSymbols
     import SwiftUI
 
     /// The accordion's next-launch Inspector control.
@@ -8,7 +8,7 @@
     /// runtime. A selected state stays visible as the row's subtitle and makes
     /// the same control the cancellation action.
     struct DeveloperInspectorModeRow: View {
-        @Bindable var controller: InspectorModeController
+        @Bindable var controller: WhereDeveloperLaunchController
 
         @Environment(\.stylesheet) private var stylesheet
 
@@ -26,7 +26,7 @@
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 } icon: {
-                    Image(systemName: systemImage)
+                    Image(systemSymbol: systemSymbol)
                         .frame(width: menu.iconWidth)
                 }
                 .padding(.horizontal, menu.horizontalPadding)
@@ -44,24 +44,24 @@
 
         private var title: String {
             switch controller.nextLaunch {
-                case .regularApplication:
+                case .regularApplication, .demo:
                     String(localized: .developerEnterInspectorNextLaunch)
                 case .inspector:
                     String(localized: .developerCancelInspectorNextLaunch)
             }
         }
 
-        private var systemImage: String {
+        private var systemSymbol: SFSymbol {
             switch controller.nextLaunch {
-                case .regularApplication: "wrench.and.screwdriver"
-                case .inspector: "xmark.circle"
+                case .regularApplication, .demo: .wrenchAndScrewdriver
+                case .inspector: .xmarkCircle
             }
         }
 
         private func toggleNextLaunch() {
             switch controller.nextLaunch {
-                case .regularApplication:
-                    controller.enterInspectorOnNextLaunch()
+                case .regularApplication, .demo:
+                    controller.scheduleInspector()
                 case .inspector:
                     controller.useRegularApplicationOnNextLaunch()
             }

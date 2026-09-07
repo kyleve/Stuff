@@ -29,14 +29,16 @@ public struct RegionOnDateIntent: AppIntent {
 
     @MainActor
     public func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
-        let services = try await intentServices.current()
+        let context = try await intentServices.currentContext()
+        let services = context.services
         let regions = try await measureIntent(.regionOnDate) {
             try await WhereIntentReader(services: services).regions(on: date)
         }
         let ordered = orderedRegions(regions)
         return .result(
             dialog: IntentDialog("\(IntentStrings.regionsOnDate(date, regions: ordered))"),
-            view: RegionsSnippetView.onDate(date, regions: ordered).whereBroadwayRoot(),
+            view: RegionsSnippetView.onDate(date, regions: ordered)
+                .whereBroadwayRoot(theme: context.theme),
         )
     }
 }

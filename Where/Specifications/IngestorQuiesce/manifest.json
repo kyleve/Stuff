@@ -1,0 +1,17 @@
+{
+  "source": "pluscal",
+  "module": "IngestorQuiesce.tla",
+  "cases": [
+    {
+      "name": "broken",
+      "config": "Broken.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoPersistAfterQuiesceDone is violated."
+    },
+    {
+      "name": "current",
+      "config": "Current.cfg",
+      "expect": "pass"
+    }
+  ]
+}

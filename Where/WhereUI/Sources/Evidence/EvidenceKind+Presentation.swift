@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import WhereCore
 
 /// Presentation helpers for `EvidenceKind`: the SF Symbol and localized display
@@ -8,17 +9,17 @@ import WhereCore
 extension EvidenceKind {
     /// SF Symbol that visually stands in for this kind in list rows and the
     /// kind picker.
-    public var symbolName: String {
+    public var symbol: SFSymbol {
         switch self {
-            case .planeTicket: "airplane"
-            case .boardingPass: "ticket"
-            case .hotelReceipt: "bed.double"
-            case .carRental: "car"
-            case .rideshare: "car.side"
-            case .photo: "photo"
-            case .document: "doc"
-            case .email: "envelope"
-            case .other: "paperclip"
+            case .planeTicket: .airplane
+            case .boardingPass: .ticket
+            case .hotelReceipt: .bedDouble
+            case .carRental: .car
+            case .rideshare: .carSide
+            case .photo: .photo
+            case .document: .doc
+            case .email: .envelope
+            case .other: .paperclip
         }
     }
 

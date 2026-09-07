@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// Local controls repeated beneath a focused, interactive screen.
@@ -20,7 +21,7 @@ struct FlyoverFocusedControls<ScreenID: Hashable>: View {
                     customControls
                 }
 
-                Button("Reset", systemImage: "arrow.counterclockwise") {
+                Button("Reset", systemSymbol: .arrowCounterclockwise) {
                     model.reset(screen)
                 }
             }

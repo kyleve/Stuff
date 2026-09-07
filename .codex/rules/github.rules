@@ -1,0 +1,16 @@
+# The GitHub CLI authenticates through macOS Keychain, which is unavailable
+# inside the workspace sandbox. This repository is trusted to use the complete
+# CLI outside that sandbox rather than maintaining a brittle subcommand list.
+prefix_rule(
+    pattern = ["gh"],
+    decision = "allow",
+    match = [
+        "gh auth status",
+        "gh pr view 222",
+        "gh run view 31345555418 --log-failed",
+        "gh api repos/kyleve/Stuff/actions/runs/31345555418/artifacts",
+    ],
+    not_match = [
+        "git status --short",
+    ],
+)

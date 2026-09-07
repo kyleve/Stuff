@@ -3,7 +3,7 @@ import LifecycleKit
 @_spi(Testing) import PeriscopeCore
 import RegionKit
 import Testing
-@_spi(Testing) import WhereCore
+@_spi(Demo) @_spi(Testing) import WhereCore
 import WhereUI
 
 private struct WaitTimeout: Error {}
@@ -36,7 +36,8 @@ struct DemoModeTests {
         return (
             WhereModel(
                 preferences: preferences,
-                makeBootstrap: { bootstrap },
+                installationContextStore: makeInstallationRecordingContextStore(),
+                makeBootstrap: { _ in bootstrap },
                 logSystem: logSystem,
             ),
             bootstrap,
@@ -65,9 +66,13 @@ struct DemoModeTests {
         let regions = report.days.flatMap(\.regions)
         #expect(Set(regions) == [.newYork, .california])
 
-        // Onboarded and tracking, so the demo opens on the logged-in app.
+        // Onboarded and carrying the demo installation identity, so it opens on
+        // the logged-in app and Core owns its recording choice.
         #expect(scope.preferences.hasOnboarded)
-        #expect(scope.preferences.wantsTracking)
+        #expect(
+            scope.services.recording.currentDevice
+                == InstallationRecordingContext.demo.currentDevice,
+        )
 
         // Its log store is in memory, like everything else it owns — held but
         // not yet routed into, since the scope hasn't been activated.
@@ -253,7 +258,8 @@ struct DemoModeTests {
         let bootstrap = try ScriptedBootstrap(services: makeServices(), logStore: realLogStore)
         let model = WhereModel(
             preferences: makePreferences(),
-            makeBootstrap: { bootstrap },
+            installationContextStore: makeInstallationRecordingContextStore(),
+            makeBootstrap: { _ in bootstrap },
             logSystem: logSystem,
         )
 
@@ -303,7 +309,8 @@ struct DemoModeTests {
         let bootstrap = try ScriptedBootstrap(services: makeServices(), logStore: realLogStore)
         let model = WhereModel(
             preferences: makePreferences(),
-            makeBootstrap: { bootstrap },
+            installationContextStore: makeInstallationRecordingContextStore(),
+            makeBootstrap: { _ in bootstrap },
             logSystem: logSystem,
         )
         bootstrap.gateLogStore()
@@ -335,7 +342,8 @@ struct DemoModeTests {
         let bootstrap = try ScriptedBootstrap(services: makeServices())
         let model = WhereModel(
             preferences: makePreferences(),
-            makeBootstrap: { bootstrap },
+            installationContextStore: makeInstallationRecordingContextStore(),
+            makeBootstrap: { _ in bootstrap },
             logSystem: logSystem,
         )
         let abandoned = try await model.makeDemoScope()

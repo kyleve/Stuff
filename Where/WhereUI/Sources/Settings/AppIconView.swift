@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 
@@ -108,7 +109,7 @@ struct AppIconView: View {
 
                 HStack(spacing: appIcon.cellLabelSpacing) {
                     if isSelected {
-                        Image(systemName: "checkmark.circle.fill")
+                        Image(systemSymbol: .checkmarkCircleFill)
                             .foregroundStyle(Color.accentColor)
                     }
                     Text(option.displayName)
@@ -309,7 +310,11 @@ struct AppIconImage: View {
 #if DEBUG
     extension AppIconView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .screenDefaults, settle: .immediate) {
+            whereSnapshot(
+                name: "Default",
+                configurations: .fullContentScreenDefaults,
+                settle: .immediate,
+            ) {
                 NavigationStack { AppIconView(model: .preview()) }
             }
         }

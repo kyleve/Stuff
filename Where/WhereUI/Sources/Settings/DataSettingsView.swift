@@ -1,9 +1,11 @@
 import LifecycleKitUI
+import SFSafeSymbols
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Settings drill-in for backup and data management: export or restore the
-/// database, erase the selected year's data, or reset the entire app.
+/// Settings drill-in for Where's privacy promise and data management: export or
+/// restore the database, erase the selected year's data, or reset the entire app.
 struct DataSettingsView: View {
     let report: YearReportModel
     let backup: BackupModel
@@ -22,6 +24,12 @@ struct DataSettingsView: View {
     var body: some View {
         SettingsFocusScope(focus: focus) {
             Form {
+                PrivacyPassportCard(presentation: PrivacyPassportPresentation(
+                    configuration: model.diagnosticReporting.effectiveConfiguration,
+                ), disclosureInteraction: .linkToSettings)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets())
                 BackupSettingsSection(backup: backup)
                 dataSection
                 resetSection
@@ -40,7 +48,7 @@ struct DataSettingsView: View {
             Button(role: .destructive) {
                 showClearConfirmation = true
             } label: {
-                Label(eraseTitle, systemImage: "trash")
+                Label(eraseTitle, systemSymbol: .trash)
             }
             .settingsRow(Item.eraseYear)
             .confirmationDialog(
@@ -71,7 +79,7 @@ struct DataSettingsView: View {
             Button(role: .destructive) {
                 showResetConfirmation = true
             } label: {
-                Label(String(localized: .settingsResetErase), systemImage: "arrow.counterclockwise")
+                Label(String(localized: .settingsResetErase), systemSymbol: .arrowCounterclockwise)
             }
             .settingsRow(Item.resetApp)
             .confirmationDialog(
@@ -103,14 +111,12 @@ extension DataSettingsView: SettingsSection {
 
     enum Item: SettingsItem {
         case exportBackup
-        case importBackup
         case eraseYear
         case resetApp
 
         var title: String {
             switch self {
                 case .exportBackup: String(localized: .settingsBackupExport)
-                case .importBackup: String(localized: .settingsBackupImport)
                 case .eraseYear: String(localized: .settingsEraseYearTitle)
                 case .resetApp: String(localized: .settingsResetErase)
             }
@@ -119,7 +125,6 @@ extension DataSettingsView: SettingsSection {
         var keywords: [String] {
             switch self {
                 case .exportBackup: splitKeywords(String(localized: .settingsKeywordsExport))
-                case .importBackup: splitKeywords(String(localized: .settingsKeywordsImport))
                 case .eraseYear: splitKeywords(String(localized: .settingsKeywordsEraseYear))
                 case .resetApp: splitKeywords(String(localized: .settingsKeywordsReset))
             }
@@ -128,16 +133,26 @@ extension DataSettingsView: SettingsSection {
 }
 
 #if DEBUG
-    #Preview {
-        NavigationStack {
-            DataSettingsView(
-                report: PreviewSupport.loadedYearReportModel(),
-                backup: PreviewSupport.backupModel(),
-            )
-            .environment(PreviewSupport.loadedModel())
-            .environment(PreviewSupport.loadedSession())
+    extension DataSettingsView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "Default",
+                configurations: .fullContentScreenDefaults,
+            ) {
+                NavigationStack {
+                    DataSettingsView(
+                        report: PreviewSupport.loadedYearReportModel(),
+                        backup: PreviewSupport.backupModel(),
+                    )
+                    .environment(PreviewSupport.loadedModel())
+                    .environment(PreviewSupport.loadedSession())
+                }
+            }
         }
-        .whereBroadwayRoot()
+    }
+
+    #Preview {
+        DataSettingsView.snapshotPreviews
     }
 #endif
 

@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// A typed control rendered below a Flyover screen.
@@ -73,11 +74,11 @@ public struct FlyoverControl {
     public static func action(
         id: some Hashable,
         title: String,
-        systemImage: String,
+        systemSymbol: SFSymbol,
         action: @escaping @MainActor () -> Void,
     ) -> FlyoverControl {
         FlyoverControl(id: id) {
-            Button(title, systemImage: systemImage, action: action)
+            Button(title, systemSymbol: systemSymbol, action: action)
         }
     }
 }

@@ -44,6 +44,10 @@ final class ScriptedBootstrap: WhereScopeAssembling {
         return services
     }
 
+    func discoverRecordingDevices() async throws -> [RecordingDevice] {
+        []
+    }
+
     func makeLogStore() async throws -> PeriscopeStore? {
         if isLogStoreGated {
             await withCheckedContinuation { logStoreGate = $0 }
@@ -77,6 +81,10 @@ final class FailingBootstrap: WhereScopeAssembling {
         throw AssemblyFailure()
     }
 
+    func discoverRecordingDevices() async throws -> [RecordingDevice] {
+        []
+    }
+
     func makeLogStore() async throws -> PeriscopeStore? {
         nil
     }
@@ -105,6 +113,10 @@ final class FailingLogStoreBootstrap: WhereScopeAssembling {
         services
     }
 
+    func discoverRecordingDevices() async throws -> [RecordingDevice] {
+        []
+    }
+
     func makeLogStore() async throws -> PeriscopeStore? {
         throw StoreFailure()
     }
@@ -121,6 +133,10 @@ final class UnusedBootstrap: WhereScopeAssembling {
     func makeServices() async throws -> WhereServices {
         Issue.record("A suite that shouldn't log in asked for services")
         throw Unexpected()
+    }
+
+    func discoverRecordingDevices() async throws -> [RecordingDevice] {
+        []
     }
 
     func makeLogStore() async throws -> PeriscopeStore? {

@@ -14,6 +14,9 @@ public struct ReportReader: Sendable {
     let store: any WhereStore
     let aggregator: DayAggregator
     let attributor: any RegionAttributing
+    private var history: LocationHistoryReader {
+        LocationHistoryReader(store: store)
+    }
 
     /// The half-open date interval covering `year` in the aggregator's calendar.
     func yearInterval(year: Int) -> DateInterval {
@@ -33,15 +36,54 @@ public struct ReportReader: Sendable {
     /// is visibly waiting.
     public func yearReport(for year: Int) async throws -> YearReport {
         try await Self.logger.measure(.yearReport, budget: .seconds(1)) {
-            let interval = aggregator.yearInterval(year: year)
-            let samples = try await store.samples(in: interval)
-            let manuals = try await store.manualDays(in: dayRange(for: year))
-            return aggregator.report(
-                for: year,
-                samples: samples,
-                manualDays: manuals,
-                attributor: attributor,
-            )
+            try await store.readSnapshot {
+                let interval = aggregator.yearInterval(year: year)
+                let samples = try await history.samples(in: interval)
+                let manuals = try await store.manualDays(in: dayRange(for: year))
+                return aggregator.report(
+                    for: year,
+                    samples: samples,
+                    manualDays: manuals,
+                    attributor: attributor,
+                )
+            }
+        }
+    }
+
+    /// Read a year's aggregate report and its primary-region recorded locations
+    /// from the same samples snapshot. A new fix can leave `report` equal while
+    /// changing `primaryRegionLocations`, so presentation models keep the full
+    /// value as their refresh identity rather than inventing a change counter.
+    public func yearReportDetails(
+        for year: Int,
+        primaryRegionCount: Int,
+    ) async throws -> YearReportDetails {
+        try await Self.logger.measure(.yearReportDetails, budget: .seconds(1)) {
+            try await store.readSnapshot {
+                let samples = try await history.samples(
+                    in: aggregator.yearInterval(year: year),
+                )
+                let manuals = try await store.manualDays(in: dayRange(for: year))
+                let report = aggregator.report(
+                    for: year,
+                    samples: samples,
+                    manualDays: manuals,
+                    attributor: attributor,
+                )
+                let primaryRegions = Set(Region.primaryRegions(
+                    in: report.totals,
+                    count: primaryRegionCount,
+                ))
+                let locations = aggregator.locations(
+                    in: primaryRegions,
+                    samples: samples,
+                    attributor: attributor,
+                )
+                return YearReportDetails(
+                    report: report,
+                    primaryRegionLocations: locations,
+                )
+            }
         }
     }
 
@@ -53,27 +95,31 @@ public struct ReportReader: Sendable {
     /// raw); the `DaySamples` grouping is itself deferred until a detector asks.
     public func dataIssueReads(for year: Int) async throws -> DataIssueReads {
         try await Self.logger.measure(.dataIssueReads, budget: .seconds(2)) {
-            let samples = try await store.samples(in: aggregator.yearInterval(year: year))
-            let manuals = try await store.manualDays(in: dayRange(for: year))
-            let report = aggregator.report(
-                for: year,
-                samples: samples,
-                manualDays: manuals,
-                attributor: attributor,
-            )
-            let otherLocations = aggregator.locations(
-                in: .other,
-                samples: samples,
-                attributor: attributor,
-            )
-            let otherDayCoordinates = Dictionary(
-                uniqueKeysWithValues: otherLocations.map { ($0.day, $0.points.map(\.coordinate)) },
-            )
-            return DataIssueReads(
-                report: report,
-                otherDayCoordinates: otherDayCoordinates,
-                daySamples: DaySamples(samples: samples, calendar: aggregator.calendar),
-            )
+            try await store.readSnapshot {
+                let samples = try await history.samples(in: aggregator.yearInterval(year: year))
+                let manuals = try await store.manualDays(in: dayRange(for: year))
+                let report = aggregator.report(
+                    for: year,
+                    samples: samples,
+                    manualDays: manuals,
+                    attributor: attributor,
+                )
+                let otherLocations = aggregator.locations(
+                    in: .other,
+                    samples: samples,
+                    attributor: attributor,
+                )
+                let otherDayCoordinates = Dictionary(
+                    uniqueKeysWithValues: otherLocations.map {
+                        ($0.day, $0.points.map(\.coordinate))
+                    },
+                )
+                return DataIssueReads(
+                    report: report,
+                    otherDayCoordinates: otherDayCoordinates,
+                    daySamples: DaySamples(samples: samples, calendar: aggregator.calendar),
+                )
+            }
         }
     }
 
@@ -90,10 +136,21 @@ public struct ReportReader: Sendable {
     /// day, so the Elsewhere drill-in can map and name where you actually were.
     /// Manual overlays don't contribute coordinates (see `DayAggregator`).
     public func locations(in region: Region, year: Int) async throws -> [RegionDayLocations] {
+        try await locations(in: [region], year: year)[region] ?? []
+    }
+
+    /// The raw coordinates recorded inside several regions during `year`,
+    /// grouped by region and day. Reads and attributes the year's samples once,
+    /// so a surface such as Locations can populate several pieces of artwork
+    /// without repeating the store read for every region.
+    public func locations(
+        in regions: Set<Region>,
+        year: Int,
+    ) async throws -> [Region: [RegionDayLocations]] {
         try await Self.logger.measure(.regionLocations, budget: .seconds(1)) {
             let interval = aggregator.yearInterval(year: year)
-            let samples = try await store.samples(in: interval)
-            return aggregator.locations(in: region, samples: samples, attributor: attributor)
+            let samples = try await history.samples(in: interval)
+            return aggregator.locations(in: regions, samples: samples, attributor: attributor)
         }
     }
 
@@ -108,7 +165,7 @@ public struct ReportReader: Sendable {
             guard let end = aggregator.calendar.date(byAdding: .day, value: 1, to: start) else {
                 return [:]
             }
-            let samples = try await store.samples(in: DateInterval(start: start, end: end))
+            let samples = try await history.samples(in: DateInterval(start: start, end: end))
             return aggregator.pointsByRegion(onDay: day, samples: samples, attributor: attributor)
         }
     }
@@ -119,7 +176,7 @@ public struct ReportReader: Sendable {
     public func representativeCoordinates(for year: Int) async throws -> [Region: Coordinate] {
         try await Self.logger.measure(.representativeCoordinates, budget: .seconds(1)) {
             let interval = aggregator.yearInterval(year: year)
-            let samples = try await store.samples(in: interval)
+            let samples = try await history.samples(in: interval)
             return aggregator.representativeCoordinates(samples: samples, attributor: attributor)
         }
     }

@@ -126,7 +126,7 @@ public final class PrimaryRegionSelectionModel {
         drafts[region] = appearance
     }
 
-    public func setSymbol(_ symbolName: String, for region: Region) {
+    public func setSymbol(_ symbolName: RegionSymbol, for region: Region) {
         var appearance = appearance(for: region)
         appearance.symbolName = symbolName
         drafts[region] = appearance

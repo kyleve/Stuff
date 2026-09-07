@@ -1,4 +1,5 @@
 import PeriscopeCore
+import SFSafeSymbols
 import SwiftUI
 
 /// The span tree: the store's completed (and still-open) spans paired and
@@ -41,13 +42,13 @@ public struct SpanTreeView: View {
             case let .failed(reason):
                 ContentUnavailableView(
                     "Spans Unavailable",
-                    systemImage: "exclamationmark.triangle",
+                    systemSymbol: .exclamationmarkTriangle,
                     description: Text(reason),
                 )
             case let .loaded(tree) where tree.isEmpty:
                 ContentUnavailableView(
                     "No Spans",
-                    systemImage: "stopwatch",
+                    systemSymbol: .stopwatch,
                     description: Text("No measured spans have been recorded yet."),
                 )
             case let .loaded(tree):

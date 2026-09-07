@@ -1,0 +1,4 @@
+interface:
+  display_name: "Building UI"
+  short_description: "Build consistent, accessible repository UI"
+  default_prompt: "Use $building-ui to build or review this repository UI change."

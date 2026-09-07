@@ -3,9 +3,17 @@ import ProjectDescription
 let destinations: Destinations = [.iPhone, .iPad]
 let deployment: DeploymentTargets = .iOS("26.0")
 
+/// The Ledger menu bar app is the only native-macOS target; everything else
+/// stays on the shared iOS destinations above.
+let macDeployment: DeploymentTargets = .macOS("26.0")
+
 /// Local Swift package (see root `Package.swift`) for the library products
-/// (StuffCore, WhereCore, WhereUI, TestHostSupport, the Broadway modules, …).
+/// (WhereCore, WhereUI, TestHostSupport, the Broadway modules, …).
 private let stuffPackage = Package.local(path: .relativeToRoot("."))
+private let sfSafeSymbolsPackage = Package.remote(
+    url: "https://github.com/SFSafeSymbols/SFSafeSymbols",
+    requirement: .upToNextMajor(from: "7.0.0"),
+)
 
 /// Apple Developer Team used to code-sign when building to a device, read from
 /// the `TUIST_DEVELOPMENT_TEAM` environment variable so each developer's team ID
@@ -40,6 +48,25 @@ private let projectSettings: Settings = .settings(
 /// snapshot JSON.
 let whereAppGroupEntitlements: Entitlements = .dictionary([
     "com.apple.security.application-groups": .array([.string("group.com.stuff.where")]),
+])
+
+/// The app additionally owns the CloudKit container that mirrors its
+/// SwiftData store. Extensions deliberately keep the App Group-only
+/// entitlement above: they write the shared local store and let the app's
+/// CloudKit-backed container publish those changes when it next opens.
+let whereAppEntitlements: Entitlements = .dictionary([
+    // Xcode replaces this development placeholder with the environment from
+    // the selected provisioning profile. Keeping the entitlement in the
+    // target is what makes automatic signing request Push Notifications.
+    "aps-environment": .string("development"),
+    "com.apple.security.application-groups": .array([.string("group.com.stuff.where")]),
+    "com.apple.developer.icloud-container-identifiers": .array([
+        .string("iCloud.com.stuff.where"),
+    ]),
+    "com.apple.developer.icloud-services": .array([.string("CloudKit")]),
+    "com.apple.developer.ubiquity-kvstore-identifier": .string(
+        "$(TeamIdentifierPrefix)com.stuff.where",
+    ),
 ])
 
 /// The environment the LFS reference images were recorded on, and the single
@@ -154,7 +181,7 @@ let project = Project(
         defaultKnownRegions: ["en"],
         developmentRegion: "en",
     ),
-    packages: [stuffPackage],
+    packages: [stuffPackage, sfSafeSymbolsPackage],
     settings: projectSettings,
     targets: [
         .target(
@@ -166,6 +193,7 @@ let project = Project(
             infoPlist: .extendingDefault(with: [
                 "UILaunchScreen": .dictionary([:]),
                 "UIApplicationSupportsIndirectInputEvents": .boolean(true),
+                "UIBackgroundModes": .array([.string("remote-notification")]),
                 // Stated explicitly rather than left to Tuist's `1.0` / `1`
                 // defaults, because Settings > About shows them: the version a
                 // user reads off the screen should be one this manifest chose.
@@ -180,7 +208,7 @@ let project = Project(
             ]),
             sources: ["Where/Where/Sources/**"],
             resources: ["Where/Where/Resources/**"],
-            entitlements: whereAppGroupEntitlements,
+            entitlements: whereAppEntitlements,
             // Writes `WhereGitSHA` / `WhereGitStatus` into the built Info.plist
             // for Settings > About. A *post* script so it lands after "Process
             // Info.plist" and before signing, and `basedOnDependencyAnalysis:
@@ -195,6 +223,7 @@ let project = Project(
             dependencies: [
                 .package(product: "LifecycleKit"),
                 .package(product: "RegionKit"),
+                .package(product: "WhereCrashReporting"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
                 .package(product: "WhereIntents"),
@@ -266,6 +295,7 @@ let project = Project(
             entitlements: whereAppGroupEntitlements,
             dependencies: [
                 .package(product: "PeriscopeCore"),
+                .package(product: "SFSafeSymbols"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
             ],
@@ -300,6 +330,57 @@ let project = Project(
                 "ASSETCATALOG_COMPILER_APPICON_NAME": "",
                 "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "",
             ]),
+        ),
+        .target(
+            name: "Ledger",
+            destinations: [.mac],
+            product: .app,
+            bundleId: "com.stuff.ledger",
+            deploymentTargets: macDeployment,
+            // Full custom plist (not `.extendingDefault`) so the macOS defaults
+            // can't sneak in a `NSMainStoryboardFile` — Ledger is a pure
+            // SwiftUI/AppKit menu-bar app. `LSUIElement` keeps it out of the
+            // Dock and app switcher; it lives in the menu bar only.
+            infoPlist: .dictionary([
+                "CFBundleDevelopmentRegion": .string("en"),
+                "CFBundleExecutable": .string("$(EXECUTABLE_NAME)"),
+                "CFBundleIdentifier": .string("$(PRODUCT_BUNDLE_IDENTIFIER)"),
+                "CFBundleInfoDictionaryVersion": .string("6.0"),
+                "CFBundleName": .string("$(PRODUCT_NAME)"),
+                "CFBundlePackageType": .string("APPL"),
+                "CFBundleShortVersionString": .string("1.0"),
+                "CFBundleVersion": .string("1"),
+                "LSApplicationCategoryType": .string("public.app-category.developer-tools"),
+                "LSMinimumSystemVersion": .string("$(MACOSX_DEPLOYMENT_TARGET)"),
+                "LSUIElement": .boolean(true),
+                "NSPrincipalClass": .string("NSApplication"),
+            ]),
+            sources: ["Ledger/Ledger/Sources/**"],
+            dependencies: [
+                .package(product: "LedgerCore"),
+                .package(product: "SFSafeSymbols"),
+            ],
+            // Ledger ships no asset catalog (menu-bar icon is an SF Symbol), so
+            // clear the asset-catalog name settings the compiler otherwise
+            // looks for.
+            settings: .settings(base: [
+                "ASSETCATALOG_COMPILER_APPICON_NAME": "",
+                "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "",
+            ]),
+        ),
+        .target(
+            name: "LedgerCoreTests",
+            // Hostless macOS unit tests — the `unitTests` helper above is
+            // iOS-only (it hosts bundles in StuffTestHost), so this target is
+            // declared directly.
+            destinations: [.mac],
+            product: .unitTests,
+            bundleId: "com.stuff.ledgercore.tests",
+            deploymentTargets: macDeployment,
+            sources: ["Ledger/LedgerCore/Tests/**"],
+            dependencies: [
+                .package(product: "LedgerCore"),
+            ],
         ),
         .target(
             name: "WhereTests",
@@ -360,16 +441,16 @@ let project = Project(
             ],
         ),
         unitTests(
-            name: "StuffCoreTests",
-            bundleIdSuffix: "stuffcore",
-            productDependency: "StuffCore",
-            sources: ["Shared/StuffCore/Tests/**"],
-        ),
-        unitTests(
             name: "CreditKitTests",
             bundleIdSuffix: "creditkit",
             productDependency: "CreditKit",
             sources: ["Shared/CreditKit/Tests/**"],
+        ),
+        unitTests(
+            name: "WhereCrashReportingTests",
+            bundleIdSuffix: "wherecrashreporting",
+            productDependency: "WhereCrashReporting",
+            sources: ["Where/WhereCrashReporting/Tests/**"],
         ),
         unitTests(
             name: "LifecycleKitTests",
@@ -461,6 +542,7 @@ let project = Project(
             bundleIdSuffix: "snapshotkittesting",
             productDependency: "SnapshotKitTesting",
             sources: ["Shared/SnapshotKitTesting/Tests/**"],
+            extraPackageProducts: ["SFSafeSymbols"],
         ),
         unitTests(
             name: "RegionKitTests",
@@ -475,12 +557,12 @@ let project = Project(
             sources: ["Where/WhereCore/Tests/**"],
             extraPackageProducts: ["RegionKit"],
         ),
-        // WhereUITests deliberately lists no `extraPackageProducts`: everything it
-        // needs (Broadway, LifecycleKit/LifecycleKitUI, Periscope, Inspector,
-        // RegionKit + its GeoJSON bundle) arrives statically through WhereUI, and
-        // re-listing one lands a second copy in this image, silently breaking
-        // type-keyed lookups — only in the full multi-bundle scheme, never in an
-        // isolated `tuist test WhereUITests` run.
+        // WhereUITests names LifecycleKit and SFSafeSymbols because its test sources
+        // exercise those public types directly. Xcode 27 emits WhereUI as a dynamic package
+        // products in this graph, so merely copying WhereUI's transitive frameworks
+        // does not add them to the test bundle's link command. Everything else arrives
+        // through WhereUI; re-listing a statically absorbed product can still split
+        // type-keyed lookups in the full multi-bundle scheme.
         // Guard: WhereStylesheetTests.resolvesTraitAwareTokensFromTheBroadwayRoot.
         // See "Never double-link a product WhereUI already carries" in the root
         // AGENTS.md; mechanism: PR #145.
@@ -489,6 +571,7 @@ let project = Project(
             bundleIdSuffix: "whereui",
             productDependency: "WhereUI",
             sources: ["Where/WhereUI/Tests/**"],
+            extraPackageProducts: ["LifecycleKit", "SFSafeSymbols"],
         ),
         // WhereIntents depends on WhereUI for its snippet cards, so — exactly like
         // WhereUITests above — this bundle lists no `extraPackageProducts`:
@@ -591,6 +674,7 @@ let project = Project(
             resources: ["Shared/Broadway/BroadwayCatalog/Resources/**"],
             dependencies: [
                 .package(product: "BroadwayUI"),
+                .package(product: "SFSafeSymbols"),
             ],
         ),
         .target(
@@ -636,6 +720,22 @@ let project = Project(
             buildAction: .buildAction(targets: ["RegionViewer"]),
             runAction: .runAction(executable: "RegionViewer"),
         ),
+        .scheme(
+            name: "Ledger",
+            shared: true,
+            buildAction: .buildAction(targets: ["Ledger"]),
+            runAction: .runAction(executable: "Ledger"),
+        ),
+        // The workspace mixes iOS targets and the macOS-only Ledger targets, so
+        // CI drives two platform-scoped schemes — no single xcodebuild
+        // destination can build both. The macOS-only Ledger scheme runs in its
+        // own `test-macos` CI job (see .github/workflows/ci.yml).
+        .scheme(
+            name: "Ledger-macOS-Tests",
+            shared: true,
+            buildAction: .buildAction(targets: ["Ledger", "LedgerCoreTests"]),
+            testAction: .targets(["LedgerCoreTests"]),
+        ),
         // CI scheme. Rather than the autogenerated `Stuff-Workspace` scheme,
         // CI drives this explicit aggregate of every buildable/testable target
         // (see .github/workflows/ci.yml).
@@ -646,8 +746,8 @@ let project = Project(
                 "Where",
                 "RegionViewer",
                 "StuffTestHost",
-                "StuffCoreTests",
                 "CreditKitTests",
+                "WhereCrashReportingTests",
                 "LifecycleKitTests",
                 "LifecycleKitUITests",
                 "JournalKitTests",
@@ -672,8 +772,8 @@ let project = Project(
             ]),
             testAction: .targets(
                 [
-                    "StuffCoreTests",
                     "CreditKitTests",
+                    "WhereCrashReportingTests",
                     "LifecycleKitTests",
                     "LifecycleKitUITests",
                     "JournalKitTests",
@@ -698,8 +798,9 @@ let project = Project(
                 arguments: .arguments(environmentVariables: packageResourceEnvironment),
             ),
         ),
-        testScheme(name: "StuffCoreTests"),
+        testScheme(name: "LedgerCoreTests"),
         testScheme(name: "CreditKitTests"),
+        testScheme(name: "WhereCrashReportingTests"),
         testScheme(name: "LifecycleKitTests"),
         testScheme(name: "LifecycleKitUITests"),
         testScheme(name: "JournalKitTests"),

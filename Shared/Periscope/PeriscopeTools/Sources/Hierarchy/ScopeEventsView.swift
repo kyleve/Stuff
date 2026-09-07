@@ -1,4 +1,5 @@
 import PeriscopeCore
+import SFSafeSymbols
 import SwiftUI
 
 /// The events in one scope's subtree, newest first — the drill-in from the
@@ -58,13 +59,13 @@ struct ScopeEventsView: View {
             case let .failed(reason):
                 ContentUnavailableView(
                     "Logs Unavailable",
-                    systemImage: "exclamationmark.triangle",
+                    systemSymbol: .exclamationmarkTriangle,
                     description: Text(reason),
                 )
             case let .loaded(events) where events.isEmpty:
                 ContentUnavailableView(
                     "No Events",
-                    systemImage: "doc.text.magnifyingglass",
+                    systemSymbol: .docTextMagnifyingglass,
                     description: Text("Nothing has been logged in this scope's subtree."),
                 )
             case let .loaded(events):

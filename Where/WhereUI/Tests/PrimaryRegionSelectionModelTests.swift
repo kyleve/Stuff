@@ -56,16 +56,16 @@ struct PrimaryRegionSelectionModelTests {
 
         model.setColor(.mint, for: .california)
         model.setEmoji("🌊", for: .california)
-        model.setSymbol("water.waves", for: .california)
+        model.setSymbol(.waterWaves, for: .california)
         let edited = model.appearance(for: .california)
         #expect(edited.color == .mint)
         #expect(edited.emoji == "🌊")
-        #expect(edited.symbolName == "water.waves")
+        #expect(edited.symbolName == .waterWaves)
     }
 
     @Test func seedsFromExistingPrimaryRegions() throws {
         let tx = try region("us-TX")
-        let look = RegionAppearance(color: .orange, emoji: "🤠", symbolName: "star.fill")
+        let look = RegionAppearance(color: .orange, emoji: "🤠", symbolName: .starFill)
         let model = PrimaryRegionSelectionModel(existing: [
             PrimaryRegion(region: .california, appearance: nil, order: 0),
             PrimaryRegion(region: tx, appearance: look, order: 1),
@@ -126,6 +126,27 @@ struct PrimaryRegionSelectionModelTests {
         #expect(primary.map(\.region) == [.california])
         #expect(primary.first?.appearance?.emoji == "🌴")
         #expect(try await session.services.trackedRegions() == [.california])
+    }
+
+    @Test func editingOneAppearancePreservesOtherRegionsAndOrder() async throws {
+        let session = PreviewSupport.loadedSession()
+        let california = RegionAppearance(color: .orange, emoji: "🌴", symbolName: .sunMaxFill)
+        let newYork = RegionAppearance(color: .indigo, emoji: "🗽", symbolName: .building2Fill)
+        try await session.services.setPrimaryRegions([
+            PrimaryRegion(region: .california, appearance: california, order: 0),
+            PrimaryRegion(region: .newYork, appearance: newYork, order: 1),
+        ])
+
+        let existing = try await session.services.primaryRegions()
+        let model = PrimaryRegionSelectionModel(existing: existing)
+        model.setEmoji("🌉", for: .california)
+        try await model.commit(using: session)
+
+        let saved = try await session.services.primaryRegions()
+        #expect(saved.map(\.region) == [.california, .newYork])
+        #expect(saved[0].appearance?.emoji == "🌉")
+        #expect(saved[0].appearance?.color == california.color)
+        #expect(saved[1].appearance == newYork)
     }
 
     @Test func editingTheDefaultSetConvergesToUSOnly() async throws {

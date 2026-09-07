@@ -42,4 +42,16 @@ enum WidgetSnapshotPublisherLog: LogEvent {
             case .buildFailed: nil
         }
     }
+
+    var remoteFields: [RemoteLogField] {
+        switch self {
+            case let .published(_, regionCount):
+                [RemoteLogField(
+                    key: RemoteLogFieldKey("region_count"),
+                    value: .count(regionCount),
+                )]
+            case .buildFailed:
+                []
+        }
+    }
 }

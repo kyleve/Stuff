@@ -1,4 +1,5 @@
 import LifecycleKit
+import Observation
 import SwiftUI
 import Testing
 
@@ -30,6 +31,26 @@ struct ProbeView: View {
     var body: some View {
         mark()
         return Color.clear.frame(width: 1, height: 1)
+    }
+}
+
+/// Drives a presentation-visibility input from hosted tests without depending
+/// on the test host application's real scene lifecycle.
+@MainActor @Observable
+final class PresentationVisibilityFixture {
+    var isVisible: Bool
+
+    init(_ isVisible: Bool) {
+        self.isVisible = isVisible
+    }
+}
+
+struct PresentationVisibilityOverride<Content: View>: View {
+    let fixture: PresentationVisibilityFixture
+    @ViewBuilder let content: (Bool) -> Content
+
+    var body: some View {
+        content(fixture.isVisible)
     }
 }
 

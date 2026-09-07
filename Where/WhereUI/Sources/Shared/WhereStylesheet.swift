@@ -2,6 +2,7 @@ import BroadwayCore
 import BroadwayUI
 import CoreGraphics
 import SwiftUI
+import WhereCore
 
 /// The Where app's design tokens, resolved as a Broadway ``BStylesheet``.
 ///
@@ -12,9 +13,12 @@ import SwiftUI
 /// `@Environment(\.stylesheet)` (seeded by `.broadwayRoot` at the app root);
 /// callers off the `View` tree (layout helpers, tests) use ``default``.
 struct WhereStylesheet: BStylesheet {
+    var theme = WhereTheme.standard
     var spacing = Spacing()
     var size = Size()
     var card = CardStyles.standard
+    var locationCardStack = LocationCardStackStyle.standard
+    var locationWelcome = LocationWelcomeStyle.standard
     var calendar = CalendarStyle.standard
     var appIcon = AppIconStyle.standard
     var timeline = TimelineStyle.standard
@@ -22,11 +26,17 @@ struct WhereStylesheet: BStylesheet {
     var regionPicker = RegionPickerStyle.standard
     var evidence = EvidenceStyle.standard
     var elsewhereCard = ElsewhereCardStyle.standard
+    var locationForecast = LocationForecastStyle.standard
     var palette = Palette.standard
     var motion = Motion.standard
     var launch = LaunchStyle.standard
     var typography = Typography.standard
     var settings = SettingsStyle.standard
+    var featureDiscovery = FeatureDiscoveryStyle.standard
+    var passportSeal = PassportSealStyle.standard
+    var privacyPassportCard = PrivacyPassportCardStyle.standard
+    var openSourceStamp = StampBannerStyle.openSource
+    var plannedStayWarningStamp = StampBannerStyle.plannedStayWarning
     var developerOverlay = DeveloperOverlayStyle.standard
 
     init() {}
@@ -36,10 +46,21 @@ struct WhereStylesheet: BStylesheet {
         // of tokens that should react to the current traits. Everything else
         // stays constant, so a default/system context reproduces `default`.
         let traits = context.traits
+        theme = context.themes[WhereTheme.self]
 
         // Grow day-grid tap targets at accessibility Dynamic Type sizes.
         if traits.contentSizeCategory.isAccessibilitySize {
             calendar.day.minHeight = 56
+            timeline.overview.pinsToViewport = false
+            timeline.row.stacksDayCount = true
+            featureDiscovery.siri.bubble.indent = 0
+        }
+
+        // Give every region a consistently labeled ribbon band when tint
+        // alone is not an acceptable differentiator.
+        if traits.accessibility.shouldDifferentiateWithoutColor {
+            timeline.overview.pinsToViewport = false
+            timeline.ribbon.separatesRegions = true
         }
 
         // Reduce Transparency flattens the cards: drop the decorative rim-glow
@@ -47,12 +68,22 @@ struct WhereStylesheet: BStylesheet {
         if traits.accessibility.isReduceTransparencyEnabled {
             card.regular.glow.radius = 0
             card.compact.glow.radius = 0
+            card.constellation.haloOpacity = 0
+            privacyPassportCard.disclosure.fillOpacity = 0.16
+        }
+
+        if traits.accessibility.isDarkerSystemColorsEnabled {
+            locationForecast.ink = .increasedContrast
+            openSourceStamp.ink = .increasedContrast
+            plannedStayWarningStamp.ink = .increasedContrast
         }
 
         // Reduce Motion stops the cards' day count rolling its digits; it
         // crossfades to the new number instead.
         if traits.accessibility.isReduceMotionEnabled {
             card.dayCount = .reducedMotion
+            locationCardStack.overtake = .reducedMotion
+            locationWelcome.motion = .reduced
             developerOverlay.menu.motion = .reduced
         }
 
@@ -60,12 +91,362 @@ struct WhereStylesheet: BStylesheet {
         // dark glass without changing its hue or saturation on touch.
         if traits.mode == .dark {
             card.securityPrint = .dark
+            featureDiscovery.siri.accent = Color(white: 0.42)
         }
     }
 
     /// The fixed token set: the fallback used off the `View` tree (layout
     /// helpers, tests) and when no Broadway root has seeded a context.
     static let `default` = WhereStylesheet()
+}
+
+// MARK: - Location welcome
+
+extension WhereStylesheet {
+    /// Appearance and motion for the live-region welcome over Locations.
+    struct LocationWelcomeStyle: Equatable {
+        var maxWidth: CGFloat
+        var cornerRadius: CGFloat
+        var padding: CGFloat
+        var contentSpacing: CGFloat
+        var paperOpacity: Double
+        var scrimOpacity: Double
+        var glassTintOpacity: Double
+        var glow: Shadow
+        var lift: Shadow
+        var close: Close
+        var motion: Motion
+
+        struct Shadow: Equatable {
+            var opacity: Double
+            var radius: CGFloat
+            var offsetY: CGFloat = 0
+        }
+
+        struct Close: Equatable {
+            var offset: CGSize
+            var tintOpacity: Double
+            var glow: Shadow
+            var lift: Shadow
+        }
+
+        struct Motion: Equatable {
+            var arrival: Movement
+            var departure: Movement
+            var scrimAnimation: Animation
+            var usesSpatialMotion: Bool
+
+            struct Movement: Equatable {
+                var animation: Animation
+                var scale: CGFloat
+                var rotationDegrees: Double
+                var verticalOffset: CGFloat
+
+                var transition: AnyTransition {
+                    .modifier(
+                        active: LocationWelcomeTransitionModifier(
+                            scale: scale,
+                            rotationDegrees: rotationDegrees,
+                            verticalOffset: verticalOffset,
+                        ),
+                        identity: LocationWelcomeTransitionModifier(
+                            scale: 1,
+                            rotationDegrees: 0,
+                            verticalOffset: 0,
+                        ),
+                    )
+                    .combined(with: .opacity)
+                }
+            }
+
+            var transition: AnyTransition {
+                .asymmetric(
+                    insertion: (usesSpatialMotion ? arrival.transition : .opacity)
+                        .animation(arrival.animation),
+                    removal: (usesSpatialMotion ? departure.transition : .opacity)
+                        .animation(departure.animation),
+                )
+            }
+
+            static let standard = Motion(
+                arrival: Movement(
+                    animation: .spring(duration: 0.3, bounce: 0.28),
+                    scale: 1.28,
+                    rotationDegrees: -9,
+                    verticalOffset: -24,
+                ),
+                departure: Movement(
+                    animation: .easeOut(duration: 0.16),
+                    scale: 1.045,
+                    rotationDegrees: 3,
+                    verticalOffset: -10,
+                ),
+                scrimAnimation: .easeOut(duration: 0.16),
+                usesSpatialMotion: true,
+            )
+
+            static let reduced = Motion(
+                arrival: Movement(
+                    animation: .easeInOut(duration: 0.16),
+                    scale: 1,
+                    rotationDegrees: 0,
+                    verticalOffset: 0,
+                ),
+                departure: Movement(
+                    animation: .easeInOut(duration: 0.16),
+                    scale: 1,
+                    rotationDegrees: 0,
+                    verticalOffset: 0,
+                ),
+                scrimAnimation: .easeInOut(duration: 0.16),
+                usesSpatialMotion: false,
+            )
+        }
+
+        static let standard = LocationWelcomeStyle(
+            maxWidth: 390,
+            cornerRadius: 30,
+            padding: 24,
+            contentSpacing: 16,
+            paperOpacity: 0.92,
+            scrimOpacity: 0.28,
+            glassTintOpacity: 0.2,
+            glow: Shadow(opacity: 0.16, radius: 22),
+            lift: Shadow(opacity: 0.18, radius: 12, offsetY: 6),
+            close: Close(
+                offset: CGSize(width: 8, height: -8),
+                tintOpacity: 0.24,
+                glow: .init(opacity: 0.28, radius: 8),
+                lift: .init(opacity: 0.22, radius: 5, offsetY: 3),
+            ),
+            motion: .standard,
+        )
+    }
+}
+
+// MARK: - Location card stack
+
+extension WhereStylesheet {
+    /// Motion owned by the ranked Locations-card container. Card appearance
+    /// remains in ``CardStyles``; this style describes how complete cards move
+    /// when the same two regions reverse rank while the surface is visible.
+    struct LocationCardStackStyle: Equatable {
+        var overtake: OvertakeMotion
+
+        /// The winner's lift, passing arc, and rubber-stamp settle. The stored
+        /// primitives keep the DEBUG lab directly tunable.
+        struct OvertakeMotion: Equatable {
+            var duration: Double
+            var bounce: Double
+            var lateralArc: CGFloat
+            var liftScale: CGFloat
+            var rotationDegrees: Double
+            var settleScale: CGFloat
+            var minimumOpacity: Double
+            var usesSpatialMotion: Bool
+
+            static let durationRange = 0.3 ... 1.2
+            static let bounceRange = 0.0 ... 0.5
+            static let lateralArcRange: ClosedRange<CGFloat> = 0 ... 48
+            static let liftScaleRange: ClosedRange<CGFloat> = 1 ... 1.08
+            static let rotationRange = 0.0 ... 6.0
+            static let settleScaleRange: ClosedRange<CGFloat> = 0.92 ... 1
+
+            static let standard = OvertakeMotion(
+                duration: 0.72,
+                bounce: 0.18,
+                lateralArc: 18,
+                liftScale: 1.03,
+                rotationDegrees: 1.5,
+                settleScale: 0.975,
+                minimumOpacity: 1,
+                usesSpatialMotion: true,
+            )
+
+            /// Reduce Motion keeps the delayed data reveal but removes travel,
+            /// scale, and rotation. A brief fade still emphasizes the new lead.
+            static let reducedMotion = OvertakeMotion(
+                duration: 0.2,
+                bounce: 0,
+                lateralArc: 0,
+                liftScale: 1,
+                rotationDegrees: 0,
+                settleScale: 1,
+                minimumOpacity: 0.82,
+                usesSpatialMotion: false,
+            )
+        }
+
+        static let standard = LocationCardStackStyle(overtake: .standard)
+    }
+}
+
+// MARK: - Location forecast
+
+extension WhereStylesheet {
+    /// Passport-visa appearance for the annual estimate shared by Locations,
+    /// calendars, and Estimated Time feature discovery.
+    struct LocationForecastStyle: Equatable {
+        var cornerRadius: CGFloat
+        var padding: CGFloat
+        var rowSpacing: CGFloat
+        var expansionAnimation: Animation
+        var surface: Surface
+        var header: Header
+        var row: Row
+        var progress: Progress
+        var controls: Controls
+        var ink: Ink
+
+        struct Surface: Equatable {
+            var outlineWidth: CGFloat
+            var inset: CGFloat
+            var microprintGlyphSize: CGFloat
+            var microprintSpacing: CGFloat
+            var rosetteWobble: CGFloat
+            var rosetteLineWidth: CGFloat
+            var primaryRingSpacing: CGFloat
+            var secondaryRingSpacing: CGFloat
+            var shadowColor: Color
+            var shadowRadius: CGFloat
+            var shadowOffsetY: CGFloat
+        }
+
+        struct Header: Equatable {
+            var contentSpacing: CGFloat
+            var textSpacing: CGFloat
+            var titleFont: Font
+            var elapsedFont: Font
+            var minimumHeight: CGFloat
+        }
+
+        struct Row: Equatable {
+            var cornerRadius: CGFloat
+            var padding: CGFloat
+            var contentSpacing: CGFloat
+            var estimateSpacing: CGFloat
+            var regionFont: Font
+            var estimateFont: Font
+            var detailFont: Font
+            var outlineWidth: CGFloat
+        }
+
+        struct Progress: Equatable {
+            var height: CGFloat
+            var hatchSpacing: CGFloat
+            var hatchLineWidth: CGFloat
+        }
+
+        struct Controls: Equatable {
+            var sectionSpacing: CGFloat
+            var layoutSpacing: CGFloat
+            var cornerRadius: CGFloat
+            var horizontalPadding: CGFloat
+            var minimumHeight: CGFloat
+            var strokeWidth: CGFloat
+            var font: Font
+        }
+
+        struct Ink: Equatable {
+            var surfaceWashOpacity: Double
+            var surfaceOutlineOpacity: Double
+            var microprintOpacity: Double
+            var rosettePrimaryOpacity: Double
+            var rosetteSecondaryOpacity: Double
+            var sealOpacity: Double
+            var rowFillOpacity: Double
+            var rowOutlineOpacity: Double
+            var progressTrackOpacity: Double
+            var progressEstimateFillOpacity: Double
+            var progressHatchOpacity: Double
+            var controlFillOpacity: Double
+            var controlStrokeOpacity: Double
+
+            static let standard = Ink(
+                surfaceWashOpacity: 0.035,
+                surfaceOutlineOpacity: 0.22,
+                microprintOpacity: 0.18,
+                rosettePrimaryOpacity: 0.08,
+                rosetteSecondaryOpacity: 0.045,
+                sealOpacity: 0.72,
+                rowFillOpacity: 0.07,
+                rowOutlineOpacity: 0.24,
+                progressTrackOpacity: 0.1,
+                progressEstimateFillOpacity: 0.2,
+                progressHatchOpacity: 0.42,
+                controlFillOpacity: 0.06,
+                controlStrokeOpacity: 0.24,
+            )
+
+            static let increasedContrast = Ink(
+                surfaceWashOpacity: 0.065,
+                surfaceOutlineOpacity: 0.5,
+                microprintOpacity: 0.4,
+                rosettePrimaryOpacity: 0.14,
+                rosetteSecondaryOpacity: 0.09,
+                sealOpacity: 1,
+                rowFillOpacity: 0.12,
+                rowOutlineOpacity: 0.55,
+                progressTrackOpacity: 0.2,
+                progressEstimateFillOpacity: 0.32,
+                progressHatchOpacity: 0.68,
+                controlFillOpacity: 0.12,
+                controlStrokeOpacity: 0.56,
+            )
+        }
+
+        static let standard = LocationForecastStyle(
+            cornerRadius: 22,
+            padding: 16,
+            rowSpacing: 12,
+            expansionAnimation: .easeInOut(duration: 0.2),
+            surface: Surface(
+                outlineWidth: 1.25,
+                inset: 9,
+                microprintGlyphSize: 7,
+                microprintSpacing: 10,
+                rosetteWobble: 5,
+                rosetteLineWidth: 0.75,
+                primaryRingSpacing: 10,
+                secondaryRingSpacing: 16,
+                shadowColor: Color.black.opacity(0.08),
+                shadowRadius: 10,
+                shadowOffsetY: 3,
+            ),
+            header: Header(
+                contentSpacing: 10,
+                textSpacing: 2,
+                titleFont: .system(.headline, design: .serif),
+                elapsedFont: .footnote,
+                minimumHeight: 50,
+            ),
+            row: Row(
+                cornerRadius: 14,
+                padding: 10,
+                contentSpacing: 6,
+                estimateSpacing: 2,
+                regionFont: .system(.title3, design: .serif),
+                estimateFont: .system(.headline, design: .rounded),
+                detailFont: .footnote,
+                outlineWidth: 0.75,
+            ),
+            progress: Progress(
+                height: 8,
+                hatchSpacing: 6,
+                hatchLineWidth: 1,
+            ),
+            controls: Controls(
+                sectionSpacing: 8,
+                layoutSpacing: 6,
+                cornerRadius: 12,
+                horizontalPadding: 10,
+                minimumHeight: 44,
+                strokeWidth: 1,
+                font: .subheadline,
+            ),
+            ink: .standard,
+        )
+    }
 }
 
 extension WhereStylesheet {
@@ -520,6 +901,10 @@ extension WhereStylesheet {
         var glassTintOpacity: Double
         /// Opacity of the region-name header.
         var nameOpacity: Double
+        /// Opacity of the estimated progress rendered behind recorded days.
+        var estimatedProgressOpacity: Double = 0.3
+        /// Visa-style endorsement for an annual estimate on a primary card.
+        var estimateSticker = EstimateSticker.standard
         /// Fill opacities of the two security-print rosettes.
         var rosetteFill: RosetteFill
         /// How the region tint is prepared for decorative security printing.
@@ -527,6 +912,72 @@ extension WhereStylesheet {
         /// How the day count changes while the card is on screen; resolves to
         /// ``DayCountStyle/reducedMotion`` under Reduce Motion.
         var dayCount: DayCountStyle
+        /// Static GPS pinpricks plotted inside the regular card's region
+        /// watermark. Point selection and drawing geometry travel together so
+        /// accessibility slicing cannot leave half a glow treatment behind.
+        var constellation: Constellation
+
+        struct Constellation: Equatable {
+            var gridResolution: Int
+            var maximumPointCount: Int
+            var coreDiameter: CGFloat
+            var coreOpacity: Double
+            var coreWhiteMix: Double
+            var haloRadius: CGFloat
+            var haloOpacity: Double
+
+            static let standard = Constellation(
+                gridResolution: 48,
+                maximumPointCount: 96,
+                coreDiameter: 2.5,
+                coreOpacity: 0.92,
+                coreWhiteMix: 0.72,
+                haloRadius: 6,
+                haloOpacity: 0.32,
+            )
+        }
+
+        struct EstimateSticker: Equatable {
+            var labelTypography: CardStyle.Typography
+            var valueTypography: CardStyle.Typography
+            var contentOpacity: Double
+            var scale: CGFloat
+            var cornerRadius: CGFloat
+            var horizontalPadding: CGFloat
+            var verticalPadding: CGFloat
+            var rotationDegrees: Double
+            var fillOpacity: Double
+            var outlineOpacity: Double
+            var outlineWidth: CGFloat
+            var innerInset: CGFloat
+            var innerOutlineWidth: CGFloat
+            var innerDash: [CGFloat]
+
+            static let standard = EstimateSticker(
+                labelTypography: .init(
+                    size: .semantic(.caption),
+                    weight: .semibold,
+                    design: .default,
+                ),
+                valueTypography: .init(
+                    size: .semantic(.headline),
+                    weight: .semibold,
+                    design: .default,
+                ),
+                contentOpacity: 0.92,
+                scale: 0.8,
+                cornerRadius: 8,
+                horizontalPadding: 10,
+                verticalPadding: 7,
+                rotationDegrees: -2,
+                fillOpacity: 0.08,
+                outlineOpacity: 0.58,
+                outlineWidth: 1,
+                innerInset: 3,
+                innerOutlineWidth: 1,
+                innerDash: [3, 2],
+            )
+        }
 
         /// Fill opacity of the bold and faint security-print rosettes.
         struct RosetteFill: Equatable {
@@ -573,6 +1024,9 @@ extension WhereStylesheet {
         /// fade). The animation also sweeps the ambient bar, which reads the same
         /// count, in the same beat.
         struct DayCountStyle: Equatable {
+            /// How long the visible card surface holds its previous count before
+            /// the animation and its coordinated haptic begin.
+            var revealDelay: Duration
             /// Which way the count changes.
             var morph: Morph
             /// The animation that runs it.
@@ -597,6 +1051,7 @@ extension WhereStylesheet {
             }
 
             static let standard = DayCountStyle(
+                revealDelay: .milliseconds(500),
                 morph: .rollingDigits,
                 // Long enough for the digits to read as rolling, short enough
                 // that a card tapped mid-roll doesn't feel held up.
@@ -605,6 +1060,7 @@ extension WhereStylesheet {
 
             /// The Reduce-Motion pairing.
             static let reducedMotion = DayCountStyle(
+                revealDelay: .milliseconds(500),
                 morph: .crossFade,
                 animation: .easeInOut(duration: 0.2),
             )
@@ -732,6 +1188,7 @@ extension WhereStylesheet {
             rosetteFill: RosetteFill(primary: 0.12, secondary: 0.08),
             securityPrint: .standard,
             dayCount: .standard,
+            constellation: .standard,
         )
     }
 }
@@ -847,6 +1304,16 @@ extension WhereStylesheet {
             /// Padding between the day content (number + dots) and the pill's
             /// top/bottom edges, so the pill doesn't butt against the dots.
             var verticalInset: CGFloat
+            /// Lower-opacity fill plus a diagonal pattern for future days the
+            /// user has planned but not yet recorded.
+            var planned: Planned
+
+            struct Planned: Equatable {
+                var fillOpacity: Double
+                var hatchOpacity: Double
+                var hatchSpacing: CGFloat
+                var hatchLineWidth: CGFloat
+            }
         }
 
         /// The paperclip badge in a day cell's top-trailing corner marking a day
@@ -897,6 +1364,12 @@ extension WhereStylesheet {
                 cornerRadius: 14,
                 continuationRadius: 3,
                 verticalInset: 4,
+                planned: RegionBand.Planned(
+                    fillOpacity: 0.07,
+                    hatchOpacity: 0.32,
+                    hatchSpacing: 6,
+                    hatchLineWidth: 1,
+                ),
             ),
             day: DayStyle(
                 minHeight: 44,
@@ -1105,28 +1578,149 @@ extension WhereStylesheet {
 // MARK: - Timeline
 
 extension WhereStylesheet {
-    /// Style for the presence timeline's stint rows (`PresenceTimelineList`): the
-    /// leading region-tinted accent bar and the row's internal spacing.
+    /// Style for the presence timeline's calendar-proportional overview ribbon
+    /// and the connected journey rows below it.
     struct TimelineStyle: Equatable {
-        /// Spacing between a row's elements (accent, emoji, labels, count).
-        var rowSpacing: CGFloat
-        /// The leading accent bar's dimensions.
-        var accentWidth: CGFloat
-        var accentHeight: CGFloat
-        /// Spacing within a row's name/date label stack.
-        var labelSpacing: CGFloat
-        /// Minimum spacing before the trailing day count.
-        var trailingMinSpacing: CGFloat
-        /// Vertical padding around a row.
-        var rowVerticalPadding: CGFloat
+        var overview: Overview
+        var ribbon: Ribbon
+        var rail: Rail
+        var row: Row
+        var planned: Planned
+
+        struct Overview: Equatable {
+            var spacing: CGFloat
+            var padding: CGFloat
+            var cornerRadius: CGFloat
+            var background: Color
+            var border: Color
+            var borderWidth: CGFloat
+            var yearFont: Font
+            /// Keep the compact overview visible while the journey scrolls.
+            var pinsToViewport: Bool
+        }
+
+        struct Ribbon: Equatable {
+            var monthLabelSpacing: CGFloat
+            var height: CGFloat
+            var track: Color
+            var border: Color
+            var borderWidth: CGFloat
+            var regionSpacing: CGFloat
+            var regionLabelSpacing: CGFloat
+            /// Split the overview into labeled region bands instead of
+            /// relying on tint to distinguish a combined track.
+            var separatesRegions: Bool
+        }
+
+        /// The route, marker, and space between the marker and row card.
+        struct Rail: Equatable {
+            var lineWidth: CGFloat
+            var toCardSpacing: CGFloat
+            var nodeSize: CGFloat
+            var nodeEmojiFont: Font
+            var nodeFillOpacity: Double
+            var nodeStrokeWidth: CGFloat
+        }
+
+        /// Spacing and surface treatment within each journey row.
+        struct Row: Equatable {
+            var spacing: CGFloat
+            var labelSpacing: CGFloat
+            var gap: CGFloat
+            /// Every row reserves room for its content, then adds this full-year
+            /// scale multiplied by `stintDays / daysInYear`.
+            var baseHeight: CGFloat
+            var yearScaleHeight: CGFloat
+            var horizontalPadding: CGFloat
+            var verticalPadding: CGFloat
+            var cornerRadius: CGFloat
+            var fillOpacity: Double
+            var borderOpacity: Double
+            var borderWidth: CGFloat
+            var countHorizontalPadding: CGFloat
+            var countVerticalPadding: CGFloat
+            var countFillOpacity: Double
+            /// Accessibility Dynamic Type stacks the count beneath the labels.
+            var stacksDayCount: Bool
+        }
+
+        /// The future planned-stay treatment appended after recorded journey
+        /// rows. Its lighter fill and hatch distinguish intent from history.
+        struct Planned: Equatable {
+            var fillOpacity: Double
+            var borderOpacity: Double
+            var hatchOpacity: Double
+            var hatchSpacing: CGFloat
+            var hatchLineWidth: CGFloat
+            var labelOpacity: Double
+            var transitionHeight: CGFloat
+            var joinedBaseHeight: CGFloat
+            var joinedVerticalPadding: CGFloat
+            var joinedLabelSpacing: CGFloat
+            var joinedCountHorizontalPadding: CGFloat
+            var joinedCountVerticalPadding: CGFloat
+        }
 
         static let standard = TimelineStyle(
-            rowSpacing: 12,
-            accentWidth: 4,
-            accentHeight: 34,
-            labelSpacing: 2,
-            trailingMinSpacing: 8,
-            rowVerticalPadding: 4,
+            overview: Overview(
+                spacing: 12,
+                padding: 16,
+                cornerRadius: 24,
+                background: Color.primary.opacity(0.035),
+                border: Color.primary.opacity(0.1),
+                borderWidth: 1,
+                yearFont: .system(.title2, design: .serif).bold(),
+                pinsToViewport: true,
+            ),
+            ribbon: Ribbon(
+                monthLabelSpacing: 6,
+                height: 18,
+                track: Color.primary.opacity(0.07),
+                border: Color.primary.opacity(0.12),
+                borderWidth: 1,
+                regionSpacing: 8,
+                regionLabelSpacing: 4,
+                separatesRegions: false,
+            ),
+            rail: Rail(
+                lineWidth: 4,
+                toCardSpacing: 10,
+                nodeSize: 42,
+                nodeEmojiFont: .system(size: 20),
+                nodeFillOpacity: 0.18,
+                nodeStrokeWidth: 2,
+            ),
+            row: Row(
+                spacing: 12,
+                labelSpacing: 3,
+                gap: 8,
+                baseHeight: 64,
+                yearScaleHeight: 320,
+                horizontalPadding: 14,
+                verticalPadding: 12,
+                cornerRadius: 18,
+                fillOpacity: 0.09,
+                borderOpacity: 0.24,
+                borderWidth: 1,
+                countHorizontalPadding: 10,
+                countVerticalPadding: 6,
+                countFillOpacity: 0.16,
+                stacksDayCount: false,
+            ),
+            planned: Planned(
+                fillOpacity: 0.035,
+                borderOpacity: 0.14,
+                hatchOpacity: 0.16,
+                hatchSpacing: 8,
+                hatchLineWidth: 1,
+                labelOpacity: 0.7,
+                transitionHeight: 16,
+                joinedBaseHeight: 32,
+                joinedVerticalPadding: 8,
+                joinedLabelSpacing: 5,
+                joinedCountHorizontalPadding: 8,
+                joinedCountVerticalPadding: 4,
+            ),
         )
     }
 }
@@ -1192,11 +1786,49 @@ extension WhereStylesheet {
         var reducedReveal: Animation
         /// One-shot fade for incidental appearance (e.g. the launch caption).
         var captionFade: Animation
+        /// The reusable staged entrance used by marketing-style screens.
+        var staggeredReveal: StaggeredReveal
+
+        struct StaggeredReveal: Equatable {
+            var animation: Animation
+            var verticalOffset: CGFloat
+            var delay: TimeInterval
+
+            func presentation(
+                isRevealed: Bool,
+                motionIsStatic: Bool,
+                order: Int,
+            ) -> Presentation {
+                guard !motionIsStatic else { return .visible }
+                return Presentation(
+                    opacity: isRevealed ? 1 : 0,
+                    verticalOffset: isRevealed ? 0 : verticalOffset,
+                    animation: animation.delay(Double(max(0, order)) * delay),
+                )
+            }
+
+            struct Presentation: Equatable {
+                var opacity: Double
+                var verticalOffset: CGFloat
+                var animation: Animation?
+
+                static let visible = Presentation(
+                    opacity: 1,
+                    verticalOffset: 0,
+                    animation: nil,
+                )
+            }
+        }
 
         static let standard = Motion(
             reveal: .easeIn(duration: 0.16),
             reducedReveal: .easeInOut(duration: 0.2),
             captionFade: .easeOut(duration: 0.3),
+            staggeredReveal: StaggeredReveal(
+                animation: .easeOut(duration: 0.35),
+                verticalOffset: 16,
+                delay: 0.08,
+            ),
         )
     }
 }
@@ -1252,6 +1884,409 @@ extension WhereStylesheet {
             flashAnimation: .easeInOut(duration: 0.4),
             flashDuration: .seconds(1),
             scrollSettleDelay: .milliseconds(350),
+        )
+    }
+}
+
+// MARK: - Feature discovery
+
+extension WhereStylesheet {
+    /// Appearance for the Siri conversation cards and the miniature widget
+    /// surfaces in Settings' feature explorer.
+    struct FeatureDiscoveryStyle: Equatable {
+        var marketingHeader: MarketingHeader
+        var marketingPanel: MarketingPanel
+        var backgroundPattern: BackgroundPattern
+        var estimatedTime: EstimatedTime
+        var siri: Siri
+        var widgets: Widgets
+
+        struct MarketingHeader: Equatable {
+            var badgeSize: CGFloat
+            var symbolPointSize: CGFloat
+            var badgeTintOpacity: Double
+            var contentMaxWidth: CGFloat
+            var spacing: CGFloat
+            var verticalPadding: CGFloat
+        }
+
+        struct MarketingPanel: Equatable {
+            var cornerRadius: CGFloat
+            var maxWidth: CGFloat
+            var padding: CGFloat
+            var contentSpacing: CGFloat
+            var rowVerticalInset: CGFloat
+        }
+
+        struct BackgroundPattern: Equatable {
+            var contourSpacing: CGFloat
+            var primaryDistortion: CGFloat
+            var secondaryDistortion: CGFloat
+            var horizontalScale: CGFloat
+            var centerXRatio: CGFloat
+            var centerYRatio: CGFloat
+            var phaseStep: CGFloat
+            var lineWidth: CGFloat
+            var opacity: Double
+        }
+
+        struct EstimatedTime: Equatable {
+            var timelineHeight: CGFloat
+            var timelineSpacing: CGFloat
+            var calculationSpacing: CGFloat
+            var segmentCornerRadius: CGFloat
+            var legendDotSize: CGFloat
+        }
+
+        struct Siri: Equatable {
+            var card: Card
+            var bubble: Bubble
+            var speakerIcon: SpeakerIcon
+            var accent: Color
+
+            struct Card: Equatable {
+                var cornerRadius: CGFloat
+                var maxWidth: CGFloat
+                var padding: CGFloat
+                var spacing: CGFloat
+                var rowVerticalInset: CGFloat
+            }
+
+            struct Bubble: Equatable {
+                var cornerRadius: CGFloat
+                var horizontalPadding: CGFloat
+                var verticalPadding: CGFloat
+                var indent: CGFloat
+            }
+
+            struct SpeakerIcon: Equatable {
+                var containerSize: CGFloat
+                var symbolPointSize: CGFloat
+            }
+        }
+
+        struct Widgets: Equatable {
+            var device: Device
+            var frame: Frame
+            var wallpapers: Wallpapers
+            var lockWidgetHeight: CGFloat
+
+            struct Device: Equatable {
+                var cornerRadius: CGFloat
+                var contentMaxWidth: CGFloat
+                var regularContentWidth: CGFloat
+                var dynamicTypeLimit: DynamicTypeSize
+                var padding: CGFloat
+                var spacing: CGFloat
+            }
+
+            struct Frame: Equatable {
+                var cornerRadius: CGFloat
+                var padding: CGFloat
+            }
+
+            struct Wallpapers: Equatable {
+                var home: Gradient
+                var lock: Gradient
+
+                struct Gradient: Equatable {
+                    var top: Color
+                    var bottom: Color
+                }
+            }
+
+            func contentWidth(in containerWidth: CGFloat) -> CGFloat {
+                let availableWidth = max(0, containerWidth - device.padding * 2)
+                if availableWidth > device.contentMaxWidth {
+                    return device.regularContentWidth
+                }
+                return min(availableWidth, device.contentMaxWidth)
+            }
+        }
+
+        static let standard = FeatureDiscoveryStyle(
+            marketingHeader: MarketingHeader(
+                badgeSize: 76,
+                symbolPointSize: 34,
+                badgeTintOpacity: 0.14,
+                contentMaxWidth: 560,
+                spacing: 14,
+                verticalPadding: 24,
+            ),
+            marketingPanel: MarketingPanel(
+                cornerRadius: 20,
+                maxWidth: 680,
+                padding: 16,
+                contentSpacing: 12,
+                rowVerticalInset: 6,
+            ),
+            backgroundPattern: BackgroundPattern(
+                contourSpacing: 30,
+                primaryDistortion: 13,
+                secondaryDistortion: 6,
+                horizontalScale: 1.22,
+                centerXRatio: 0.18,
+                centerYRatio: 0.46,
+                phaseStep: 0.31,
+                lineWidth: 0.9,
+                opacity: 0.12,
+            ),
+            estimatedTime: EstimatedTime(
+                timelineHeight: 18,
+                timelineSpacing: 3,
+                calculationSpacing: 8,
+                segmentCornerRadius: 5,
+                legendDotSize: 10,
+            ),
+            siri: Siri(
+                card: Siri.Card(
+                    cornerRadius: 20,
+                    maxWidth: 680,
+                    padding: 16,
+                    spacing: 12,
+                    rowVerticalInset: 6,
+                ),
+                bubble: Siri.Bubble(
+                    cornerRadius: 16,
+                    horizontalPadding: 12,
+                    verticalPadding: 10,
+                    indent: 34,
+                ),
+                speakerIcon: Siri.SpeakerIcon(
+                    containerSize: 28,
+                    symbolPointSize: 12,
+                ),
+                accent: Color(white: 0.28),
+            ),
+            widgets: Widgets(
+                device: Widgets.Device(
+                    cornerRadius: 28,
+                    contentMaxWidth: 560,
+                    regularContentWidth: 320,
+                    dynamicTypeLimit: .xLarge,
+                    padding: 14,
+                    spacing: 12,
+                ),
+                frame: Widgets.Frame(
+                    cornerRadius: 18,
+                    padding: 12,
+                ),
+                wallpapers: Widgets.Wallpapers(
+                    home: Widgets.Wallpapers.Gradient(top: .indigo, bottom: .cyan),
+                    lock: Widgets.Wallpapers.Gradient(top: .purple, bottom: .blue),
+                ),
+                lockWidgetHeight: 76,
+            ),
+        )
+    }
+}
+
+// MARK: - Settings passport artwork
+
+extension WhereStylesheet {
+    /// Geometry shared only by the repeated passport seal artwork.
+    struct PassportSealStyle: Equatable {
+        var size: CGFloat
+        var rotationDegrees: Double
+        var outerLineWidth: CGFloat
+        var innerLineWidth: CGFloat
+        var innerInset: CGFloat
+        var dashLength: CGFloat
+        var dashSpacing: CGFloat
+        var symbolFont: Font
+
+        static let standard = PassportSealStyle(
+            size: 52,
+            rotationDegrees: -8,
+            outerLineWidth: 2,
+            innerLineWidth: 1,
+            innerInset: 7,
+            dashLength: 3,
+            dashSpacing: 3,
+            symbolFont: .title3,
+        )
+    }
+
+    /// Appearance for the reflective privacy statement in Settings.
+    struct PrivacyPassportCardStyle: Equatable {
+        var cornerRadius: CGFloat
+        var padding: CGFloat
+        var sectionSpacing: CGFloat
+        var headerSpacing: CGFloat
+        var titleFont: Font
+        var detailFont: Font
+        var rosette: Rosette
+        var reflectiveSurface: ReflectiveSurface
+        var disclosure: Disclosure
+        var outlineOpacity: Double
+        var outlineWidth: CGFloat
+
+        struct Rosette: Equatable {
+            var wobble: CGFloat
+            var lineWidth: CGFloat
+            var primaryRingSpacing: CGFloat
+            var secondaryRingSpacing: CGFloat
+            var primaryOpacity: Double
+            var secondaryOpacity: Double
+        }
+
+        struct ReflectiveSurface: Equatable {
+            var backgroundTop: Color
+            var backgroundBottom: Color
+            var accent: Color
+            var intensity: Double
+            var staticGlintIntensity: Double
+            var staticPose: Pose
+
+            struct Pose: Equatable {
+                var roll: Double
+                var pitch: Double
+            }
+        }
+
+        struct Disclosure: Equatable {
+            var rowSpacing: CGFloat
+            var cornerRadius: CGFloat
+            var padding: CGFloat
+            var contentSpacing: CGFloat
+            var textSpacing: CGFloat
+            var iconSize: CGFloat
+            var symbolFont: Font
+            var titleFont: Font
+            var detailFont: Font
+            var statusFont: Font
+            var statusHorizontalPadding: CGFloat
+            var statusVerticalPadding: CGFloat
+            var fillOpacity: Double
+            var strokeOpacity: Double
+            var strokeWidth: CGFloat
+            var statusFillOpacity: Double
+        }
+
+        static let standard = PrivacyPassportCardStyle(
+            cornerRadius: 20,
+            padding: 16,
+            sectionSpacing: 12,
+            headerSpacing: 12,
+            titleFont: .headline,
+            detailFont: .subheadline,
+            rosette: Rosette(
+                wobble: 5,
+                lineWidth: 0.75,
+                primaryRingSpacing: 10,
+                secondaryRingSpacing: 16,
+                primaryOpacity: 0.1,
+                secondaryOpacity: 0.06,
+            ),
+            reflectiveSurface: ReflectiveSurface(
+                backgroundTop: Color(red: 0.08, green: 0.18, blue: 0.34),
+                backgroundBottom: Color(red: 0.02, green: 0.07, blue: 0.16),
+                accent: Color(red: 0.88, green: 0.72, blue: 0.32),
+                intensity: 0.28,
+                staticGlintIntensity: 0.28,
+                staticPose: .init(roll: 0.3, pitch: -0.15),
+            ),
+            disclosure: Disclosure(
+                rowSpacing: 8,
+                cornerRadius: 12,
+                padding: 10,
+                contentSpacing: 10,
+                textSpacing: 3,
+                iconSize: 32,
+                symbolFont: .subheadline,
+                titleFont: .subheadline,
+                detailFont: .footnote,
+                statusFont: .footnote,
+                statusHorizontalPadding: 8,
+                statusVerticalPadding: 4,
+                fillOpacity: 0.08,
+                strokeOpacity: 0.18,
+                strokeWidth: 0.75,
+                statusFillOpacity: 0.14,
+            ),
+            outlineOpacity: 0.32,
+            outlineWidth: 1,
+        )
+    }
+
+    /// Appearance for a flat, single-ink stamp banner.
+    struct StampBannerStyle: Equatable {
+        var tint: Color
+        var padding: CGFloat
+        var contentSpacing: CGFloat
+        var titleFont: Font
+        var detailFont: Font
+        var outlineWidth: CGFloat
+        var rosette: Rosette
+        var ink: Ink
+
+        struct Rosette: Equatable {
+            var wobble: CGFloat
+            var lineWidth: CGFloat
+            var primaryRingSpacing: CGFloat
+            var secondaryRingSpacing: CGFloat
+        }
+
+        struct Ink: Equatable {
+            var outlineOpacity: Double
+            var primaryRosetteOpacity: Double
+            var secondaryRosetteOpacity: Double
+            var sealOpacity: Double
+            var titleOpacity: Double
+            var detailOpacity: Double
+            var accessoryOpacity: Double
+
+            static let standard = Ink(
+                outlineOpacity: 0.72,
+                primaryRosetteOpacity: 0.1,
+                secondaryRosetteOpacity: 0.06,
+                sealOpacity: 0.9,
+                titleOpacity: 1,
+                detailOpacity: 0.68,
+                accessoryOpacity: 0.86,
+            )
+
+            static let increasedContrast = Ink(
+                outlineOpacity: 1,
+                primaryRosetteOpacity: 0.16,
+                secondaryRosetteOpacity: 0.1,
+                sealOpacity: 1,
+                titleOpacity: 1,
+                detailOpacity: 0.9,
+                accessoryOpacity: 1,
+            )
+        }
+
+        static let openSource = StampBannerStyle(
+            tint: .accentColor,
+            padding: 16,
+            contentSpacing: 12,
+            titleFont: .headline,
+            detailFont: .subheadline,
+            outlineWidth: 1.5,
+            rosette: Rosette(
+                wobble: 5,
+                lineWidth: 0.75,
+                primaryRingSpacing: 10,
+                secondaryRingSpacing: 16,
+            ),
+            ink: .standard,
+        )
+
+        static let plannedStayWarning = StampBannerStyle(
+            tint: .orange,
+            padding: 16,
+            contentSpacing: 12,
+            titleFont: .headline,
+            detailFont: .subheadline,
+            outlineWidth: 1.5,
+            rosette: Rosette(
+                wobble: 5,
+                lineWidth: 0.75,
+                primaryRingSpacing: 10,
+                secondaryRingSpacing: 16,
+            ),
+            ink: .standard,
         )
     }
 }
@@ -1318,12 +2353,18 @@ extension WhereStylesheet {
 // MARK: - Themes
 
 /// The Where app's Broadway themes, seeded at the root by `whereBroadwayRoot()`.
-/// Empty for now — `WhereStylesheet` derives from traits, not themes — and the
-/// home for app-level palette/typography themes as the design system grows.
+/// Carries the selected presentation identity independently from system traits.
+/// Both identities currently resolve through the same tokens.
 enum WhereThemes {
-    static var current: BThemes {
-        BThemes()
+    static func current(theme: WhereTheme) -> BThemes {
+        var themes = BThemes()
+        themes[WhereTheme.self] = theme
+        return themes
     }
+}
+
+extension WhereTheme: BTheme {
+    public static let defaultValue = WhereTheme.standard
 }
 
 // MARK: - Root
@@ -1352,9 +2393,10 @@ extension View {
     /// The root also owns and injects the region-outline `Path` cache so cards
     /// share render artifacts without a process-global UI singleton.
     public func whereBroadwayRoot(
+        theme: WhereTheme = .standard,
         regionStyles: RegionStyleResolver = .default,
     ) -> some View {
-        modifier(WhereBroadwayRootModifier(regionStyles: regionStyles))
+        modifier(WhereBroadwayRootModifier(theme: theme, regionStyles: regionStyles))
     }
 }
 
@@ -1362,12 +2404,13 @@ extension View {
 /// Broadway/design context. Keeping the path cache here shares it across cards
 /// without introducing a process-global UI singleton.
 private struct WhereBroadwayRootModifier: ViewModifier {
+    let theme: WhereTheme
     let regionStyles: RegionStyleResolver
     @State private var regionOutlinePathCache = RegionOutlinePathCache()
 
     func body(content: Content) -> some View {
         content
-            .broadwayRoot(themes: WhereThemes.current)
+            .broadwayRoot(themes: WhereThemes.current(theme: theme))
             .environment(\.regionStyles, regionStyles)
             .environment(\.regionOutlinePathCache, regionOutlinePathCache)
     }

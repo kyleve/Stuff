@@ -1,11 +1,12 @@
 import BroadwayUI
+import SFSafeSymbols
 import SwiftUI
 
 struct ContentView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
-                Image(systemName: "theatermasks.fill")
+                Image(systemSymbol: .theatermasksFill)
                     .font(.system(size: 64))
 
                 Text("Broadway Catalog")

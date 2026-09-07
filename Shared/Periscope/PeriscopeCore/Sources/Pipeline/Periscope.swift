@@ -130,6 +130,10 @@ public final class Periscope: LogRecorder, Sendable {
             "\(count) log event(s) dropped before delivery"
         }
 
+        public var remoteFields: [RemoteLogField] {
+            [RemoteLogField(key: RemoteLogFieldKey("count"), value: .count(count))]
+        }
+
         public init(count: Int) {
             self.count = count
         }

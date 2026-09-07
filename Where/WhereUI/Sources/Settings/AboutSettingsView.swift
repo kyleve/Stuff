@@ -4,9 +4,9 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Settings drill-in for what the app *is* rather than what it does: which build
-/// is running, the third-party work it is built with, and where its bundled
-/// region boundaries came from.
+/// Settings drill-in for what the app *is* rather than what it does: its privacy
+/// promise, which build is running, the third-party work it is built with, and
+/// where its bundled region boundaries came from.
 ///
 /// Every fact here is vended by whoever owns it — `BuildInfo` and the generated
 /// attribution report from `WhereCore`, `RegionDataSource` from `RegionKit` — so
@@ -21,10 +21,10 @@ struct AboutSettingsView: View {
     var focus: SettingsFocus?
 
     @Environment(\.stylesheet) private var stylesheet
-
     private let buildInfo: BuildInfo
     private let attribution: AttributionManifest?
     private let dataSources: [RegionDataSource]
+    private let diagnosticReportingConfiguration: DiagnosticReportingConfiguration
 
     /// Defaults read the live values; the parameters exist so previews and tests
     /// can render a stamped build and a populated report, neither of which a
@@ -34,20 +34,33 @@ struct AboutSettingsView: View {
         buildInfo: BuildInfo = .current(bundle: .main),
         attribution: AttributionManifest? = AppAttribution.main,
         dataSources: [RegionDataSource] = RegionDataSource.all,
+        diagnosticReportingConfiguration: DiagnosticReportingConfiguration =
+            .currentBuildDefaults,
     ) {
         self.focus = focus
         self.buildInfo = buildInfo
         self.attribution = attribution
         self.dataSources = dataSources
+        self.diagnosticReportingConfiguration = diagnosticReportingConfiguration
     }
 
     var body: some View {
         SettingsFocusScope(focus: focus) {
             Form {
+                PrivacyPassportCard(presentation: PrivacyPassportPresentation(
+                    configuration: diagnosticReportingConfiguration,
+                ), disclosureInteraction: .linkToSettings)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets())
                 versionSection
                 dependenciesSection
                 developmentToolsSection
                 dataSourcesSection
+                AboutOpenSourceFooter()
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets())
             }
         }
         .navigationTitle(String(localized: .settingsAboutHeader))
@@ -230,7 +243,15 @@ extension AboutSettingsView: SettingsSection {
         /// and attributed, so the interesting cases are what each missing piece
         /// renders as.
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .screenDefaults) {
+            whereSnapshot(
+                name: "Default",
+                configurations: .fullContentScreenDefaults,
+                measurementReadiness: .immediate,
+                // The navigation bar's scroll-edge shadow adapts after the
+                // form reaches its full-content height. Wait through that
+                // otherwise quiet transition before accessibility annotation.
+                settle: .settledAtLeast(minDuration: 0.75),
+            ) {
                 NavigationStack {
                     AboutSettingsView(
                         focus: nil,
@@ -238,8 +259,13 @@ extension AboutSettingsView: SettingsSection {
                         attribution: PreviewSupport.sampleAttribution(),
                     )
                 }
+                .environment(PreviewSupport.loadedModel())
             }
-            whereSnapshot(name: "DirtyTree", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "DirtyTree",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 NavigationStack {
                     AboutSettingsView(
                         focus: nil,
@@ -247,8 +273,13 @@ extension AboutSettingsView: SettingsSection {
                         attribution: PreviewSupport.sampleAttribution(),
                     )
                 }
+                .environment(PreviewSupport.loadedModel())
             }
-            whereSnapshot(name: "Unattributed", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "Unattributed",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 // What a bundle outside the app target shows: honest unknowns and
                 // an explicit "no report" rather than blank rows and empty sections.
                 NavigationStack {
@@ -258,8 +289,13 @@ extension AboutSettingsView: SettingsSection {
                         attribution: nil,
                     )
                 }
+                .environment(PreviewSupport.loadedModel())
             }
-            whereSnapshot(name: "LibrariesOnly", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "LibrariesOnly",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 // A real report that credits nothing of one kind. Pinned as an
                 // image because the failure mode is purely visual: a header and
                 // footer over no rows, promising a list that isn't there.
@@ -271,6 +307,7 @@ extension AboutSettingsView: SettingsSection {
                         attribution: AttributionManifest(credits: libraries),
                     )
                 }
+                .environment(PreviewSupport.loadedModel())
             }
         }
     }

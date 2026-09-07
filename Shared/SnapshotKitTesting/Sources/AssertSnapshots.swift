@@ -14,7 +14,7 @@ import UIKit
 ///
 /// `async` because the render pipeline must suspend for SwiftUI `.task`-driven
 /// content to load before capture — see
-/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:settle:onReadyToSnapshot:)``.
+/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:measurementReadiness:onReadyToMeasure:settle:onReadyToSnapshot:)``.
 @MainActor
 public func assertSnapshots(
     of provider: (some SnapshotProviding).Type,
@@ -26,6 +26,12 @@ public func assertSnapshots(
     column: UInt = #column,
 ) async {
     guard simulatorMatchesSnapshotExpectations() else { return }
+    do {
+        _ = try SnapshotSettleTimeoutPolicy.fromEnvironment()
+    } catch {
+        Issue.record(error)
+        return
+    }
     let snapshots = provider.snapshots
     let duplicates = duplicateSnapshotIdentifiers(in: snapshots)
     guard duplicates.isEmpty else {
@@ -45,6 +51,8 @@ public func assertSnapshots(
             of: snapshotCase.content,
             named: snapshotCase.name,
             configurations: snapshotCase.configurations,
+            measurementReadiness: snapshotCase.measurementReadiness,
+            onReadyToMeasure: snapshotCase.onReadyToMeasure,
             settle: snapshotCase.settle,
             onReadyToSnapshot: snapshotCase.onReadyToSnapshot,
             record: record,
@@ -64,6 +72,8 @@ public func assertSnapshots(
     of view: some View,
     named name: String,
     configurations: [SnapshotConfiguration],
+    measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
+    onReadyToMeasure: (@MainActor () async -> Void)? = nil,
     settle: SnapshotSettle = .settled,
     onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
     record: SnapshotTestingConfiguration.Record? = nil,
@@ -97,6 +107,13 @@ public func assertSnapshots(
     // default plain output.
     let resolvedRecord = record ?? environmentRecordMode()
     let resolvedDiffTool = environmentDiffTool()
+    let settleTimeoutPolicy: SnapshotSettleTimeoutPolicy
+    do {
+        settleTimeoutPolicy = try .fromEnvironment()
+    } catch {
+        Issue.record(error)
+        return
+    }
     // Read once per call rather than per configuration: the environment can't
     // change mid-run, and the pixel walk is the cost worth gating, not this.
     let isDiffReportingEnabled = SnapshotDiffReporting.isEnabledByEnvironment
@@ -107,29 +124,51 @@ public func assertSnapshots(
             case .fixed:
                 .fixed
             case let .intrinsic(maxWidth):
-                .intrinsic(width: maxWidth ?? UIScreen.main.bounds.width)
-            case let .fullContent(width):
+                .intrinsic(
+                    width: maxWidth ?? UIScreen.main.bounds.width,
+                    minimumHeight: 0,
+                )
+            case let .fullContent(width, minimumHeight):
                 // Same measured-height pipeline as `.intrinsic`: a `ScrollView`
                 // measured under the unbounded proposal reports its content
                 // height (guarded by `LargeViewCaptureTests`), so the capture
                 // renders the whole scrollable content.
-                .intrinsic(width: width)
+                .intrinsic(
+                    width: width,
+                    minimumHeight: minimumHeight ?? 0,
+                )
+            case let .fullContent2D(minimumSize):
+                .fullContent2D(minimumSize: minimumSize)
         }
         let identifier = fullSnapshotIdentifier(caseName: name, configuration: configuration)
         let timing = SnapshotCaptureTiming(
             identifier: identifier,
             isEnabled: SnapshotCaptureTiming.isEnabledByEnvironment,
-        )
-        let capture = await renderSnapshotCapture(
-            of: hostingController,
-            named: identifier,
             sizing: sizing,
-            safeAreaInsets: configuration.device.safeAreaInsets.uiEdgeInsets,
-            isAccessibility: configuration.snapshotType == .accessibility,
-            settle: settle,
-            onReadyToSnapshot: onReadyToSnapshot,
-            timing: timing,
+            measurementReadiness: measurementReadiness,
+            captureSettle: settle,
         )
+        let capture: SnapshotCapture
+        do {
+            capture = try await renderSnapshotCapture(
+                of: hostingController,
+                named: identifier,
+                sizing: sizing,
+                safeAreaInsets: configuration.device.safeAreaInsets.uiEdgeInsets,
+                isAccessibility: configuration.snapshotType == .accessibility,
+                measurementReadiness: measurementReadiness,
+                onReadyToMeasure: onReadyToMeasure,
+                settle: settle,
+                onReadyToSnapshot: onReadyToSnapshot,
+                settleTimeoutPolicy: settleTimeoutPolicy,
+                timing: timing,
+            )
+        } catch is CancellationError {
+            return
+        } catch {
+            Issue.record(error)
+            continue
+        }
         // Before the verdict, so a reviewer gets the shape of the delta on the
         // same run that reports the failure. Reads the reference from disk; the
         // byte-equality check short-circuits when the capture is deterministic.
@@ -311,8 +350,11 @@ private func makeHostingController(
         case let .intrinsic(maxWidth):
             let width = maxWidth ?? UIScreen.main.bounds.width
             hostingController.view.frame = CGRect(x: 0, y: 0, width: width, height: 1)
-        case let .fullContent(width):
-            hostingController.view.frame = CGRect(x: 0, y: 0, width: width, height: 1)
+        case let .fullContent(width, minimumHeight):
+            let height = minimumHeight ?? 1
+            hostingController.view.frame = CGRect(x: 0, y: 0, width: width, height: height)
+        case let .fullContent2D(minimumSize):
+            hostingController.view.frame = CGRect(origin: .zero, size: minimumSize)
     }
 
     return hostingController

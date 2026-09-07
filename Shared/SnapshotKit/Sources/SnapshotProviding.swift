@@ -21,8 +21,8 @@ public protocol SnapshotProviding {
 
 extension SnapshotProviding {
     /// A scrollable cutsheet of every case's non-accessibility variants, for an
-    /// Xcode `#Preview`. Accessibility captures are excluded (they need the
-    /// test-only VoiceOver parser).
+    /// Xcode `#Preview`. Accessibility captures are excluded because their
+    /// annotation renderer belongs to the test-only `SnapshotKitTesting` product.
     @MainActor public static var snapshotPreviews: some View {
         SnapshotCutsheet(cases: snapshots)
     }

@@ -58,8 +58,8 @@ public actor WidgetSnapshotPublisher {
     /// Recompute and publish the snapshot from whatever the store currently
     /// holds, without needing a mutation first, but skip the rebuild when a
     /// current-day snapshot was published recently. A new day, a snapshot older
-    /// than `maxAge`, or nothing published yet (cold launch) all fall through to
-    /// a full rebuild.
+    /// than `maxAge`, or nothing published yet (cold launch) all fall through
+    /// to a full rebuild.
     public func refreshIfStale() async {
         if let last = lastPublished {
             let today = calendar.startOfDay(for: now())
@@ -87,6 +87,22 @@ public actor WidgetSnapshotPublisher {
                         regionCount: snapshot.dayRegions.count,
                     )
                 }
+            } catch let error as RecordingPersistenceError {
+                // Generation/policy gaps mean a destructive CloudKit change may already be known
+                // even
+                // though its complete rows have not arrived. Keeping the last good snapshot would
+                // continue exposing history the user erased, so publish an honest empty value
+                // until a later remote-change reconcile can build the new generation.
+                let date = now()
+                let snapshot = WidgetSnapshot(
+                    day: calendar.startOfDay(for: date),
+                    year: CalendarDay(from: date, in: calendar).year,
+                    dayRegions: [],
+                    totals: [:],
+                )
+                await widgetRefresher.publish(snapshot)
+                lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: date)
+                Self.logger { .buildFailed(description: error.localizedDescription) }
             } catch {
                 Self.logger { .buildFailed(description: error.localizedDescription) }
             }

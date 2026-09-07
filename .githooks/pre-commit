@@ -15,10 +15,6 @@ if [ -z "$MISE" ]; then
     echo "pre-commit: mise not found — run ./ide --bootstrap to set up this machine." >&2
     exit 1
 fi
-# Shim so the `mise …` call sites below resolve to the found binary regardless
-# of PATH. Defined after find_mise runs, so it can't shadow the real lookup.
-mise() { "$MISE" "$@"; }
-
 # Format staged Swift files in-place, then re-stage them.
 # Note: this formats working-tree content, not the staged blob.
 # Partially-staged files will be fully re-staged after formatting.
@@ -27,7 +23,7 @@ staged=$(git diff --cached --name-only --diff-filter=ACMR -- '*.swift')
 
 if [ -n "$staged" ]; then
     git diff --cached --name-only --diff-filter=ACMR -z -- '*.swift' \
-      | xargs -0 mise exec -- swiftformat
+      | xargs -0 "$MISE" exec -- swiftformat
 
     git diff --cached --name-only --diff-filter=ACMR -z -- '*.swift' \
       | xargs -0 git add
@@ -35,4 +31,4 @@ fi
 
 # Sync AGENTS.md + .agents/skills → CLAUDE.md + .claude/skills.
 # Run under mise so the pinned Ruby is used regardless of shell activation.
-mise exec -- ./sync-agents --git-add
+"$MISE" exec -- ./sync-agents --git-add

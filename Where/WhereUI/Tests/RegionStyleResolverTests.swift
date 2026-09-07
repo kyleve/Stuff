@@ -7,12 +7,12 @@ import Testing
 /// to the deterministic default look for regions the user hasn't customized.
 struct RegionStyleResolverTests {
     @Test func pickedAppearanceWinsOverFallback() {
-        let look = RegionAppearance(color: .pink, emoji: "🎸", symbolName: "star.fill")
+        let look = RegionAppearance(color: .pink, emoji: "🎸", symbolName: .starFill)
         let resolver = RegionStyleResolver(appearances: [.california: look])
 
         let california = resolver.style(for: .california)
         #expect(california.emoji == "🎸")
-        #expect(california.symbolName == "star.fill")
+        #expect(california.symbol == .starFill)
         #expect(california.tint == RegionColorToken.pink.color)
     }
 
@@ -21,11 +21,11 @@ struct RegionStyleResolverTests {
         let expected = RegionStyle.fallbackStyle(for: .newYork)
         let resolved = resolver.style(for: .newYork)
         #expect(resolved.emoji == expected.emoji)
-        #expect(resolved.symbolName == expected.symbolName)
+        #expect(resolved.symbol == expected.symbol)
     }
 
     @Test func buildsFromPrimaryRegionsKeepingOnlyResolvedLooks() {
-        let look = RegionAppearance(color: .teal, emoji: "🌊", symbolName: "water.waves")
+        let look = RegionAppearance(color: .teal, emoji: "🌊", symbolName: .waterWaves)
         let resolver = RegionStyleResolver(primaryRegions: [
             PrimaryRegion(region: .california, appearance: look, order: 0),
             PrimaryRegion(region: .newYork, appearance: nil, order: 1),
@@ -40,7 +40,7 @@ struct RegionStyleResolverTests {
     @Test func defaultResolverIsAllFallback() {
         let resolver = RegionStyleResolver.default
         let expected = RegionStyle.fallbackStyle(for: .california)
-        #expect(resolver.style(for: .california).symbolName == expected.symbolName)
+        #expect(resolver.style(for: .california).symbol == expected.symbol)
     }
 
     @Test func defaultAppearanceMatchesSharedCatalog() {
@@ -49,6 +49,6 @@ struct RegionStyleResolverTests {
         let expected = RegionAppearanceCatalog.defaultAppearance(for: .california)
         let fallback = RegionStyle.fallbackStyle(for: .california)
         #expect(fallback.emoji == expected.emoji)
-        #expect(fallback.symbolName == expected.symbolName)
+        #expect(fallback.symbol == expected.symbolName.sfSymbol)
     }
 }

@@ -1,6 +1,7 @@
 import Observation
 import PeriscopeCore
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -166,7 +167,7 @@ struct ManualDayView: View {
             Button(role: .destructive) {
                 showDeleteConfirmation = true
             } label: {
-                Label(String(localized: .loggedDaysDelete), systemImage: "trash")
+                Label(String(localized: .loggedDaysDelete), systemSymbol: .trash)
             }
             .disabled(pending != nil)
         } footer: {
@@ -512,7 +513,7 @@ extension ManualDayView {
         }
 
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Add", configurations: .screenDefaults) {
+            whereSnapshot(name: "Add", configurations: .fullContentScreenDefaults) {
                 NavigationStack {
                     ManualDayView(
                         report: PreviewSupport.loadedYearReportModel(),
@@ -521,7 +522,7 @@ extension ManualDayView {
                     )
                 }
             }
-            whereSnapshot(name: "AddWithCancel", configurations: .phoneLightDark) {
+            whereSnapshot(name: "AddWithCancel", configurations: .fullContentPhoneLightDark) {
                 NavigationStack {
                     ManualDayView(
                         report: PreviewSupport.loadedYearReportModel(),
@@ -530,7 +531,7 @@ extension ManualDayView {
                     )
                 }
             }
-            whereSnapshot(name: "EditPlain", configurations: .phoneLightDark) {
+            whereSnapshot(name: "EditPlain", configurations: .fullContentPhoneLightDark) {
                 NavigationStack {
                     ManualDayView(
                         report: PreviewSupport.loadedYearReportModel(),
@@ -543,7 +544,7 @@ extension ManualDayView {
                     )
                 }
             }
-            whereSnapshot(name: "EditAuthoritative", configurations: .phoneLightDark) {
+            whereSnapshot(name: "EditAuthoritative", configurations: .fullContentPhoneLightDark) {
                 NavigationStack {
                     ManualDayView(
                         report: PreviewSupport.loadedYearReportModel(),

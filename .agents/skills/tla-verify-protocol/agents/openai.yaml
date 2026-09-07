@@ -1,7 +1,7 @@
 interface:
-  display_name: "Verify Protocol with TLA+"
-  short_description: "Model-check coordination protocols with TLC"
-  default_prompt: "Use $tla-verify-protocol to model-check this queue teardown protocol and map the result back to its implementation."
+  display_name: "Verify Protocol with PlusCal"
+  short_description: "Model-check protocols with PlusCal and TLC"
+  default_prompt: "Use $tla-verify-protocol to model-check this queue teardown protocol with PlusCal and map the result back to its implementation."
 
 policy:
   allow_implicit_invocation: false

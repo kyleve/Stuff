@@ -19,7 +19,7 @@ struct PeriscopeViewerSnapshotTests {
             of: viewer,
             named: "PeriscopeViewer",
             configurations: SnapshotConfiguration.combinations(
-                devices: [.iPhone],
+                devices: [.iPhoneFullContent],
                 colorSchemes: [.light, .dark],
             ),
         )

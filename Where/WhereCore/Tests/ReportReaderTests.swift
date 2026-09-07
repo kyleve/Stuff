@@ -41,6 +41,42 @@ struct ReportReaderTests {
         #expect(report.totals == [.california: 1, .newYork: 1])
     }
 
+    @Test func yearReportAppliesDeviceRecordingCutoffs() async throws {
+        let (reader, store) = try Self.makeReader()
+        let deviceID = try RecordingDeviceID(
+            rawValue: #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")),
+        )
+        try await store.perform {
+            try await store.add(sample: LocationSample(
+                timestamp: WhereCoreTestSupport.iso("2026-01-10T12:00:00-08:00"),
+                coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+                horizontalAccuracy: 0,
+                source: .gpsVisit,
+                recordingDeviceID: deviceID,
+            ))
+            try await store.add(sample: LocationSample(
+                timestamp: WhereCoreTestSupport.iso("2026-01-12T12:00:00-08:00"),
+                coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
+                horizontalAccuracy: 0,
+                source: .gpsVisit,
+                recordingDeviceID: deviceID,
+            ))
+            try await store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
+                id: .init(
+                    rawValue: UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!,
+                ),
+                deviceID: deviceID,
+                removedAt: WhereCoreTestSupport.iso("2026-01-11T00:00:00-08:00"),
+                removedByDeviceID: deviceID,
+            ))
+        }
+
+        let report = try await reader.yearReport(for: 2026)
+
+        #expect(report.days.count == 1)
+        #expect(report.totals == [.california: 1])
+    }
+
     @Test func manualDaysReturnsOnlyTheRequestedYear() async throws {
         let (reader, store) = try Self.makeReader()
         try await store.perform {
@@ -79,6 +115,106 @@ struct ReportReaderTests {
 
         let representative = try await reader.representativeCoordinates(for: 2026)
         #expect(representative[.california] != nil)
+    }
+
+    @Test func locationsReadSeveralRegionsAndOnlyTheRequestedYear() async throws {
+        let (reader, store) = try Self.makeReader()
+        try await store.perform {
+            try await store.add(sample: LocationSample(
+                timestamp: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"),
+                coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+                horizontalAccuracy: 15,
+                source: .gpsSignificantChange,
+            ))
+            try await store.add(sample: LocationSample(
+                timestamp: WhereCoreTestSupport.iso("2026-04-15T12:00:00-04:00"),
+                coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
+                horizontalAccuracy: 25,
+                source: .gpsSignificantChange,
+            ))
+            try await store.add(sample: LocationSample(
+                timestamp: WhereCoreTestSupport.iso("2025-04-15T12:00:00-04:00"),
+                coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
+                horizontalAccuracy: 35,
+                source: .gpsSignificantChange,
+            ))
+        }
+
+        let locations = try await reader.locations(
+            in: [.california, .newYork],
+            year: 2026,
+        )
+
+        #expect(locations[.california]?.flatMap(\.points).map(\.horizontalAccuracy) == [15])
+        #expect(locations[.newYork]?.flatMap(\.points).map(\.horizontalAccuracy) == [25])
+    }
+
+    @Test func yearReportDetailsKeepsRawFixesThatDoNotChangeTheReport() async throws {
+        let (reader, store) = try Self.makeReader()
+        let first = LocationSample(
+            timestamp: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"),
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 15,
+            source: .gpsSignificantChange,
+        )
+        let second = LocationSample(
+            timestamp: WhereCoreTestSupport.iso("2026-03-15T13:00:00-07:00"),
+            coordinate: Coordinate(latitude: 37.7751, longitude: -122.4196),
+            horizontalAccuracy: 8,
+            source: .gpsSignificantChange,
+        )
+        try await store.perform {
+            try await store.add(sample: first)
+        }
+        let before = try await reader.yearReportDetails(for: 2026, primaryRegionCount: 2)
+
+        try await store.perform {
+            try await store.add(sample: second)
+        }
+        let after = try await reader.yearReportDetails(for: 2026, primaryRegionCount: 2)
+
+        #expect(after.report == before.report)
+        #expect(before.primaryRegionLocations[.california]?.flatMap(\.points).count == 1)
+        #expect(after.primaryRegionLocations[.california]?.flatMap(\.points).count == 2)
+        #expect(after != before)
+    }
+
+    @Test func yearReportDetailsAppliesDeviceRecordingCutoffs() async throws {
+        let (reader, store) = try Self.makeReader()
+        let deviceID = try RecordingDeviceID(
+            rawValue: #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")),
+        )
+        try await store.perform {
+            try await store.add(sample: LocationSample(
+                timestamp: WhereCoreTestSupport.iso("2026-01-10T12:00:00-08:00"),
+                coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+                horizontalAccuracy: 10,
+                source: .gpsVisit,
+                recordingDeviceID: deviceID,
+            ))
+            try await store.add(sample: LocationSample(
+                timestamp: WhereCoreTestSupport.iso("2026-01-12T12:00:00-08:00"),
+                coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
+                horizontalAccuracy: 20,
+                source: .gpsVisit,
+                recordingDeviceID: deviceID,
+            ))
+            try await store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
+                id: .init(
+                    rawValue: #require(UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")),
+                ),
+                deviceID: deviceID,
+                removedAt: WhereCoreTestSupport.iso("2026-01-11T00:00:00-08:00"),
+                removedByDeviceID: deviceID,
+            ))
+        }
+
+        let details = try await reader.yearReportDetails(for: 2026, primaryRegionCount: 2)
+
+        #expect(details.report.days.count == 1)
+        #expect(details.report.totals == [.california: 1])
+        #expect(details.primaryRegionLocations[.california]?.flatMap(\.points).count == 1)
+        #expect(details.primaryRegionLocations[.newYork] == nil)
     }
 
     /// The scan's one-read bundle: `report`, `.other` day coordinates, and the

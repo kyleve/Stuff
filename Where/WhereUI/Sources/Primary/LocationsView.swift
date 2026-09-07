@@ -1,17 +1,24 @@
 import PeriscopeCore
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
 
 /// Locations tab: the regions you spend the most days in for the selected year,
 /// shown as prominent Liquid Glass cards, with the Elsewhere summary folded in
-/// at the bottom (only when there are secondary regions) and a Resolve button
-/// that appears — badged — only while there are data issues to fix.
+/// at the bottom (only when there are secondary regions), plus toolbar actions
+/// for planned stays and any data issues that need resolution.
 struct LocationsView: View {
     let report: YearReportModel
 
     @State private var showingResolution = false
+    @State private var plannedStayEditorTarget: PlannedStayEditorTarget?
+    @State private var isLocationsSurfaceVisible = false
+    @State private var isCardSurfaceVisible = false
+    @State private var cardPresentation: LocationCardsPresentationModel
+    @State private var welcome: LocationWelcomeModel
+    @State private var planning = LocationsPlanningModel()
 
     /// Drives the region cards' tilt-reactive light sheen. Started/stopped
     /// with the view's lifecycle; a no-op on hardware without device motion.
@@ -25,16 +32,64 @@ struct LocationsView: View {
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
 
+    private var isCardSurfaceUncovered: Bool {
+        isCardSurfaceVisible
+            && !showingResolution
+            && plannedStayEditorTarget == nil
+            && !planning.isShowingError
+            && welcomePresentation == nil
+    }
+
+    private var isWelcomeLookupActive: Bool {
+        report.showsLocationWelcome
+            && isLocationsSurfaceVisible
+            && !showingResolution
+            && plannedStayEditorTarget == nil
+            && !planning.isShowingError
+    }
+
+    private var welcomePresentation: LocationWelcomeModel.Presentation? {
+        guard report.showsLocationWelcome else { return nil }
+        return welcome.presentation
+    }
+
+    private var welcomePlanStayAction: ((Region) -> Void)? {
+        guard report.showsEstimatedTimeAndPlanning else { return nil }
+        return planStayFromWelcome
+    }
+
+    init(report: YearReportModel) {
+        self.init(
+            report: report,
+            welcome: LocationWelcomeModel(
+                services: report.services,
+                preferences: report.preferences,
+            ),
+        )
+    }
+
+    init(report: YearReportModel, welcome: LocationWelcomeModel) {
+        self.report = report
+        _welcome = State(initialValue: welcome)
+        _cardPresentation = State(initialValue: LocationCardsPresentationModel(
+            preferences: report.preferences,
+            year: report.selectedYear,
+        ))
+    }
+
     var body: some View {
+        @Bindable var planning = planning
+
         NavigationStack {
             screen
                 .navigationBarTitleDisplayMode(.inline)
+                .onAppear { isLocationsSurfaceVisible = true }
+                .onDisappear { isLocationsSurfaceVisible = false }
                 .toolbar {
-                    // Resolve is a toolbar action here rather than its own tab:
-                    // it appears (badged with the count) only while there are
-                    // data issues to fix, and opens the resolution list.
-                    if report.dataIssueCount > 0 {
-                        ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        // Resolve stays immediately left of the stable planning
+                        // affordance and appears only while issues need attention.
+                        if report.dataIssueCount > 0 {
                             Button {
                                 showingResolution = true
                             } label: {
@@ -42,13 +97,51 @@ struct LocationsView: View {
                             }
                             .accessibilityIdentifier("where_resolution_button")
                         }
+
+                        if showsPlanningMenu {
+                            LocationsPlanningMenu(
+                                primaryRegions: primaryRegions,
+                                plannedStay: report.forecasts.activePlannedStay,
+                                isClearing: planning.isClearing,
+                                editAction: editPlannedStay,
+                                clearAction: clearPlannedStay,
+                            )
+                        }
                     }
                 }
+        }
+        .accessibilityHidden(welcomePresentation != nil)
+        .overlay {
+            LocationWelcomeOverlay(
+                presentation: welcomePresentation,
+                dismissAction: welcome.dismiss,
+                planStayAction: welcomePlanStayAction,
+            )
+        }
+        .task(id: isWelcomeLookupActive) {
+            guard isWelcomeLookupActive else { return }
+            await welcome.resolve()
         }
         .onAppear { tilt.start() }
         .onDisappear { tilt.stop() }
         .sheet(isPresented: $showingResolution) {
             ResolutionView(report: report)
+        }
+        .sheet(item: $plannedStayEditorTarget) { target in
+            PlannedStayEditor(
+                region: target.region,
+                model: report.forecasts,
+                driftThreshold: report.driftThreshold,
+            )
+        }
+        .alert(
+            String(localized: .locationsPlanningRemoveErrorTitle),
+            isPresented: $planning.isShowingError,
+            presenting: planning.presentedFailure,
+        ) { _ in
+            Button(String(localized: .commonOk), role: .cancel) {}
+        } message: { message in
+            Text(message)
         }
         // Log View Mode: reveal an inspect badge for the year-report events
         // backing this screen. A no-op in release.
@@ -64,7 +157,7 @@ struct LocationsView: View {
                 ContentUnavailableView {
                     Label(
                         String(localized: .commonLoadErrorTitle),
-                        systemImage: "exclamationmark.icloud",
+                        systemSymbol: .exclamationmarkIcloud,
                     )
                 } description: {
                     Text(error.message)
@@ -86,13 +179,19 @@ struct LocationsView: View {
     }
 
     private var content: some View {
+        let presentedCards = cardPresentation.presented(report.ranking.primary)
+
         // `.defaultScrollAnchor(.center)` vertically centers a short list (one or
         // two cards) rather than pinning it to the top, while a longer list still
         // scrolls from the top.
-        ScrollView {
-            GlassEffectContainer(spacing: stylesheet.spacing.xxLarge) {
-                VStack(spacing: stylesheet.spacing.xxLarge) {
-                    ForEach(report.ranking.primary) { item in
+        return ScrollView {
+            VStack(spacing: stylesheet.spacing.xxLarge) {
+                LocationCardRankingStack(
+                    spacing: stylesheet.spacing.xxLarge,
+                    presentation: cardPresentation,
+                    motion: stylesheet.locationCardStack.overtake,
+                ) {
+                    ForEach(presentedCards) { item in
                         NavigationLink {
                             calendarDestination(item.region)
                         } label: {
@@ -100,8 +199,13 @@ struct LocationsView: View {
                                 regionDays: item,
                                 interactive: true,
                                 yearLength: report.daysInSelectedYear,
+                                estimatedDays: estimatedDays(for: item.region),
                                 year: report.selectedYear,
                                 tilt: tilt,
+                                recordedPoints: report.primaryRegionLocations?
+                                    .pointsByRegion[item.region] ?? [],
+                                showsRecordedPoints: report.showsRecordedLocationDots,
+                                recordedPointsID: report.primaryRegionLocations?.id,
                             )
                         }
                         // Plain so the card's interactive Liquid Glass owns
@@ -137,18 +241,24 @@ struct LocationsView: View {
                                 )
                         }
                         .accessibilityHint(String(localized: .primaryCardCalendarHint))
+                        .locationCardOvertakeEffect(
+                            region: item.region,
+                            presentation: cardPresentation,
+                            motion: stylesheet.locationCardStack.overtake,
+                        )
+                        .locationCardRankingRegion(item.region)
                     }
+                }
 
-                    // Fold Elsewhere in at the bottom — only when there's
-                    // something in it — as an entry card into the full list.
-                    if !report.ranking.secondary.isEmpty {
-                        NavigationLink {
-                            ElsewhereView(report: report)
-                        } label: {
-                            ElsewhereSummaryCard(regionCount: report.ranking.secondary.count)
-                        }
-                        .buttonStyle(.plain)
+                // Fold Elsewhere in at the bottom — only when there's
+                // something in it — as an entry card into the full list.
+                if !report.ranking.secondary.isEmpty {
+                    NavigationLink {
+                        ElsewhereView(report: report)
+                    } label: {
+                        ElsewhereSummaryCard(regionCount: report.ranking.secondary.count)
                     }
+                    .buttonStyle(.plain)
                 }
             }
             .padding()
@@ -156,7 +266,61 @@ struct LocationsView: View {
         }
         .defaultScrollAnchor(.center)
         .scrollBounceBehavior(.basedOnSize)
+        // The card normally stays clipped to the scrolling viewport. Reveal
+        // overflow only while the authored arc, scale, and rotation need it.
+        .scrollClipDisabled(cardPresentation.isSpatialOvertakeActive)
         .accessibilityIdentifier("where_root_title")
+        .onAppear { isCardSurfaceVisible = true }
+        .onDisappear { isCardSurfaceVisible = false }
+        // Count, order, flourish, persistence, and haptic all share this one
+        // visibility-aware delayed reconciliation.
+        .reconcilesLocationCards(
+            current: report.ranking.primary,
+            year: report.selectedYear,
+            isVisible: isCardSurfaceUncovered,
+            presentation: cardPresentation,
+            motion: stylesheet.locationCardStack.overtake,
+        )
+    }
+
+    private var primaryRegions: [Region] {
+        report.ranking.primary.map(\.region).filter { $0 != .other }
+    }
+
+    private var showsPlanningMenu: Bool {
+        report.showsEstimatedTimeAndPlanning
+            && (!primaryRegions.isEmpty || report.forecasts.activePlannedStay != nil)
+    }
+
+    private func estimatedDays(for region: Region) -> Int? {
+        guard report.showsEstimatedTimeAndPlanning else { return nil }
+        return report.forecasts.forecast(for: region, report: report.report)?.estimatedTotalDays
+    }
+
+    private func editPlannedStay(_ region: Region) {
+        plannedStayEditorTarget = PlannedStayEditorTarget(region: region)
+    }
+
+    private func planStayFromWelcome(_ region: Region) {
+        withAnimation(stylesheet.locationWelcome.motion.departure.animation) {
+            welcome.dismiss()
+        } completion: {
+            editPlannedStay(region)
+        }
+    }
+
+    private func clearPlannedStay() {
+        Task {
+            await planning.clear(using: report.forecasts.clear)
+        }
+    }
+
+    private struct PlannedStayEditorTarget: Identifiable {
+        let region: Region
+
+        var id: Region {
+            region
+        }
     }
 
     /// The region's calendar, pushed as a nested view. It's the zoom
@@ -173,7 +337,7 @@ struct LocationsView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label(WhereFormat.primaryEmptyTitle(year: report.selectedYear), systemImage: "map")
+            Label(WhereFormat.primaryEmptyTitle(year: report.selectedYear), systemSymbol: .map)
         } description: {
             Text(String(localized: .primaryEmptyDescription))
         }
@@ -181,7 +345,7 @@ struct LocationsView: View {
 
     private var elsewhereOnlyState: some View {
         ContentUnavailableView {
-            Label(String(localized: .primaryElsewhereOnlyTitle), systemImage: "globe.americas")
+            Label(String(localized: .primaryElsewhereOnlyTitle), systemSymbol: .globeAmericas)
         } description: {
             Text(WhereFormat.primaryElsewhereOnlyDescription(count: report.trackedDayCount))
         } actions: {
@@ -206,7 +370,7 @@ private struct ResolveToolbarLabel: View {
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        Image(systemName: "checklist")
+        Image(systemSymbol: .checklist)
             .overlay(alignment: .topTrailing) {
                 Text(count, format: .number)
                     .font(.caption2.weight(.bold))
@@ -230,20 +394,88 @@ private struct ResolveToolbarLabel: View {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Loaded",
-                configurations: .screenDefaults,
+                configurations: .fullContentScreenDefaults,
+                measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: PreviewSupport.loadedYearReportModel())
             }
-            whereSnapshot(name: "Empty", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "PlannedStay",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                LocationsView(report: PreviewSupport.plannedStayYearReportModel())
+            }
+            whereSnapshot(
+                name: "ForecastsHidden",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                LocationsView(report: forecastsHiddenReport())
+            }
+            whereSnapshot(
+                name: "Empty",
+                configurations: .phoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 LocationsView(report: PreviewSupport.emptyYearReportModel())
             }
-            whereSnapshot(name: "MissingDays", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "MissingDays",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 LocationsView(report: PreviewSupport.missingDaysYearReportModel())
             }
-            whereSnapshot(name: "ElsewhereOnly", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "ElsewhereOnly",
+                configurations: .phoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 LocationsView(report: PreviewSupport.elsewhereOnlyYearReportModel())
             }
+            whereSnapshot(
+                name: "DotsHidden",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                LocationsView(
+                    report: PreviewSupport.loadedYearReportModelWithLocationDotsHidden(),
+                )
+            }
+            whereSnapshot(
+                name: "WelcomeFirst",
+                configurations: .phoneLightDark + [
+                    SnapshotConfiguration(dynamicType: .accessibility5, device: .iPhone),
+                ],
+                measurementReadiness: .immediate,
+            ) {
+                welcomeSnapshot(greeting: .first)
+            }
+            whereSnapshot(
+                name: "WelcomeBack",
+                configurations: .phoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                welcomeSnapshot(greeting: .returnVisit)
+            }
+        }
+
+        private static func forecastsHiddenReport() -> YearReportModel {
+            PreviewSupport.loadedYearReportModelWithEstimatedTimeHidden()
+        }
+
+        private static func welcomeSnapshot(
+            greeting: LocationWelcomeModel.Presentation.Greeting,
+        ) -> some View {
+            let report = PreviewSupport.loadedYearReportModel()
+            let welcome = LocationWelcomeModel(
+                services: report.services,
+                preferences: report.preferences,
+            )
+            welcome.presentForTesting(region: .california, greeting: greeting)
+            return LocationsView(report: report, welcome: welcome)
         }
     }
 

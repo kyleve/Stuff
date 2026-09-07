@@ -18,7 +18,7 @@
                 if let context {
                     DeveloperOverlay(model: context.overlayModel)
                         .environment(context.model)
-                        .environment(context.modeController as InspectorModeController?)
+                        .environment(context.modeController as WhereDeveloperLaunchController?)
                         .environment(\.periscopeInspector, context.inspector)
                 } else {
                     ProgressView()
@@ -47,13 +47,16 @@
             }
         }
 
-        private func makeModeController() -> InspectorModeController {
+        private func makeModeController() -> WhereDeveloperLaunchController {
             let suiteName = "where.developer-overlay.preview.inspector"
             guard let defaults = UserDefaults(suiteName: suiteName) else {
                 preconditionFailure("Unable to open Inspector preview defaults")
             }
             defaults.removePersistentDomain(forName: suiteName)
-            return InspectorModeController(userDefaults: defaults)
+            return WhereDeveloperLaunchController(
+                userDefaults: defaults,
+                inspectorModeController: InspectorModeController(userDefaults: defaults),
+            )
         }
     }
 

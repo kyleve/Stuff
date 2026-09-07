@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftData
 import SwiftUI
 
@@ -71,7 +72,7 @@ struct RelationshipView: View {
         } else {
             ContentUnavailableView(
                 "No Related Rows",
-                systemImage: "tray",
+                systemSymbol: .tray,
                 description: Text("This relationship is empty."),
             )
         }
@@ -108,7 +109,7 @@ private struct RelatedRowLabel: View {
                 }
             }
             Spacer()
-            Image(systemName: "chevron.right")
+            Image(systemSymbol: .chevronRight)
                 .font(.caption.bold())
                 .foregroundStyle(.tertiary)
         }

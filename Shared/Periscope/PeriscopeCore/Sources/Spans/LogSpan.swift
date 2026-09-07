@@ -47,6 +47,20 @@ public struct SpanBegan: LogEvent {
         "▶ \(name)"
     }
 
+    public var remoteFields: [RemoteLogField] {
+        var fields = [RemoteLogField(
+            key: RemoteLogFieldKey("relaunch_policy"),
+            value: .category(RemoteLogCategory(relaunchPolicy)),
+        )]
+        if case let .bounded(budget) = lifetime {
+            fields.append(RemoteLogField(
+                key: RemoteLogFieldKey("budget_ms"),
+                value: .durationMilliseconds(budget.milliseconds),
+            ))
+        }
+        return fields
+    }
+
     public init(
         spanID: SpanID,
         name: String,
@@ -94,6 +108,20 @@ public struct SpanEnded: LogEvent {
             text += " (\(duration.formatted()))"
         }
         return text
+    }
+
+    public var remoteFields: [RemoteLogField] {
+        var fields = [RemoteLogField(
+            key: RemoteLogFieldKey("exit"),
+            value: .category(RemoteLogCategory(exit.mode)),
+        )]
+        if let duration {
+            fields.append(RemoteLogField(
+                key: RemoteLogFieldKey("duration_ms"),
+                value: .durationMilliseconds(duration.milliseconds),
+            ))
+        }
+        return fields
     }
 
     public init(spanID: SpanID, name: String, duration: Duration?, exit: SpanExit) {
@@ -167,10 +195,25 @@ public struct SpanOverdue: LogEvent {
         "⏰ \(name) still running past its \(budget.formatted()) budget"
     }
 
+    public var remoteFields: [RemoteLogField] {
+        [RemoteLogField(
+            key: RemoteLogFieldKey("budget_ms"),
+            value: .durationMilliseconds(budget.milliseconds),
+        )]
+    }
+
     public init(spanID: SpanID, name: String, budget: Duration) {
         self.spanID = spanID
         self.name = name
         self.budget = budget
+    }
+}
+
+extension Duration {
+    fileprivate var milliseconds: Double {
+        let components = components
+        return Double(components.seconds) * 1000
+            + Double(components.attoseconds) / 1_000_000_000_000_000
     }
 }
 

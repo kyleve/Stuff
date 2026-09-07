@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -31,7 +32,7 @@ struct FlightDayDetailView: View {
             } else {
                 ContentUnavailableView(
                     String(localized: .commonLoadErrorTitle),
-                    systemImage: "exclamationmark.triangle",
+                    systemSymbol: .exclamationmarkTriangle,
                 )
             }
         }
@@ -172,7 +173,7 @@ struct FlightDayDetailView: View {
         /// raw samples, so the recorded-points map stays out of the tree and the
         /// capture is deterministic.
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .screenDefaults) {
+            whereSnapshot(name: "Default", configurations: .fullContentScreenDefaults) {
                 NavigationStack {
                     FlightDayDetailView(
                         issue: FlightDayIssue(

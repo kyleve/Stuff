@@ -99,6 +99,8 @@ struct DayJournalTests {
             issueAlerts: issueAlerts,
             issueScanner: scanner,
             widgets: widgets,
+            currentDeviceID: CurrentRecordingDevice.preview.id,
+            now: now,
         )
         return Harness(
             journal: journal,
@@ -109,16 +111,17 @@ struct DayJournalTests {
         )
     }
 
-    @Test func ingestPersistsAndPublishesOnce() async throws {
+    @Test func ingestPersistsAndFansOutOnce() async throws {
         let h = try Self.makeHarness(now: { WhereCoreTestSupport.iso("2026-03-15T20:00:00-07:00") })
         try await h.journal.ingest(sample(at: "2026-03-15T12:00:00-07:00"))
 
         let report = try await h.reader.yearReport(for: 2026)
         #expect(report.totals == [.california: 1])
+        #expect(await h.reminders.reconcileCount == 1)
         #expect(await h.widgets.publishCount == 1)
     }
 
-    @Test func bulkIngestPersistsEverySampleAndPublishesOnce() async throws {
+    @Test func bulkIngestPersistsEverySampleAndFansOutOnce() async throws {
         let h = try Self.makeHarness()
         try await h.journal.ingest([
             sample(at: "2026-01-10T12:00:00-08:00"),
@@ -133,6 +136,7 @@ struct DayJournalTests {
 
         let report = try await h.reader.yearReport(for: 2026)
         #expect(report.totals == [.california: 2, .newYork: 1])
+        #expect(await h.reminders.reconcileCount == 1)
         #expect(await h.widgets.publishCount == 1)
     }
 
@@ -253,7 +257,7 @@ struct DayJournalTests {
         try await h.journal.clearYear(2026)
 
         #expect(try await h.reader.yearReport(for: 2026).days.isEmpty)
-        #expect(await h.reminders.reconcileCount == 1)
+        #expect(await h.reminders.reconcileCount == 2)
     }
 
     @Test func eraseAllDataWipesEveryYearAndReconciles() async throws {
@@ -266,7 +270,7 @@ struct DayJournalTests {
         for year in [2024, 2025, 2026] {
             #expect(try await h.reader.yearReport(for: year).days.isEmpty)
         }
-        #expect(await h.reminders.reconcileCount == 1)
+        #expect(await h.reminders.reconcileCount == 4)
     }
 
     @Test func evidenceRoundTrips() async throws {

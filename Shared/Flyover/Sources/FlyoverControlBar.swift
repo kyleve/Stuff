@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// Session-only controls that change the presentation traits of every frame.
@@ -17,7 +18,7 @@ struct FlyoverControlBar<ScreenID: Hashable>: View {
                 FlyoverAppearanceMenu(model: model)
                 Button(
                     "Reset All",
-                    systemImage: "arrow.counterclockwise",
+                    systemSymbol: .arrowCounterclockwise,
                     action: resetAll,
                 )
             }

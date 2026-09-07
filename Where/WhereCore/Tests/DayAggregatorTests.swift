@@ -213,6 +213,45 @@ struct DayAggregatorTests {
         #expect(locations[0].points.first?.horizontalAccuracy == 65)
     }
 
+    @Test func locationsGroupSeveralRequestedRegionsInOneProjection() {
+        let samples = [
+            makeSample(
+                at: "2026-05-02T09:00:00-07:00",
+                lat: 34.0522,
+                lng: -118.2437,
+                accuracy: 25,
+            ),
+            makeSample(
+                at: "2026-05-01T09:00:00-07:00",
+                lat: 37.7749,
+                lng: -122.4194,
+                accuracy: 15,
+            ),
+            makeSample(
+                at: "2026-05-01T20:00:00-04:00",
+                lat: 40.7128,
+                lng: -74.0060,
+                accuracy: 35,
+            ),
+            makeSample(at: "2026-05-01T12:00:00-04:00", lat: 43.6532, lng: -79.3832),
+        ]
+
+        let locations = aggregator.locations(
+            in: [.california, .newYork],
+            samples: samples,
+            attributor: attributor,
+        )
+
+        #expect(Set(locations.keys) == [.california, .newYork])
+        #expect(locations[.california]?.map(\.day) == [
+            CalendarDay(year: 2026, month: 5, day: 1),
+            CalendarDay(year: 2026, month: 5, day: 2),
+        ])
+        #expect(locations[.california]?.flatMap(\.points).map(\.horizontalAccuracy) == [15, 25])
+        #expect(locations[.newYork]?.flatMap(\.points).map(\.horizontalAccuracy) == [35])
+        #expect(locations[.canada] == nil)
+    }
+
     @Test func representativeCoordinatePicksTheMostSampledCellPerRegion() {
         let samples = [
             // San Francisco ×3 — the dominant California cell.

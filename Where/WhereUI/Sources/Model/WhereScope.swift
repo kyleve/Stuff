@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import PeriscopeCore
 import RegionKit
-import WhereCore
+@_spi(Demo) import WhereCore
 
 /// Everything the app is logged in *to*: the service layer over one open
 /// store, the preferences whose intent that layer is driven by, and the
@@ -121,6 +121,10 @@ public final class WhereScope {
     /// session is built from the scope.
     let kind: Kind
 
+    /// A synthetic clock used only by a demo whose requested fixtures need
+    /// more calendar days than have elapsed in the real current year.
+    let sessionNow: (@Sendable () -> Date)?
+
     /// Which world a scope represents.
     enum Kind {
         /// The user's real, persisted world.
@@ -147,6 +151,7 @@ public final class WhereScope {
             services: services,
             preferences: preferences,
             logSystem: logSystem,
+            sessionNow: nil,
         )
         scope.logRouting = .idle(store: nil)
         return scope
@@ -157,11 +162,13 @@ public final class WhereScope {
         services: WhereServices,
         preferences: WherePreferences,
         logSystem: Periscope,
+        sessionNow: (@Sendable () -> Date)?,
     ) {
         self.kind = kind
         self.services = services
         self.preferences = preferences
         self.logSystem = logSystem
+        self.sessionNow = sessionNow
     }
 
     /// The user's real, persisted world: the app's **one** on-disk store (see
@@ -183,6 +190,7 @@ public final class WhereScope {
             services: bootstrap.makeServices(),
             preferences: preferences,
             logSystem: logSystem,
+            sessionNow: nil,
         )
         scope.openDurableLogStore(
             from: bootstrap,
@@ -211,11 +219,14 @@ public final class WhereScope {
     static func demo(
         now: @escaping @Sendable () -> Date,
         logSystem: Periscope,
+        configuration: DemoDataBuilder.Configuration,
     ) async throws -> WhereScope {
         let aggregator = DayAggregator()
+        let referenceDate = configuration.referenceDate(from: now(), calendar: aggregator.calendar)
+        let demoNow: @Sendable () -> Date = { referenceDate }
         let locationSource = ScriptedLocationSource(authorizationStatus: .always)
         locationSource.setNextRequestedLocation(LocationSample(
-            timestamp: now(),
+            timestamp: referenceDate,
             coordinate: DemoDataBuilder.homeCoordinate,
             horizontalAccuracy: 12,
             source: .gpsVisit,
@@ -232,6 +243,7 @@ public final class WhereScope {
         let services = try await WhereServices.make(
             store: store,
             locationSource: locationSource,
+            installationContext: .demo,
             aggregator: aggregator,
             // Authorized, like the location source is: the demo presents a user
             // who has granted everything, so the alerts screen shows its real
@@ -243,24 +255,29 @@ public final class WhereScope {
             issueAlertScheduler: NoopDataIssueAlertScheduler(authorized: true),
             widgetRefresher: NoopWidgetTimelineRefresher(),
             locationOutbox: NoOpLocationOutbox(),
-            now: now,
+            importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
+            now: demoNow,
         )
-        try await DemoDataBuilder(now: now(), calendar: aggregator.calendar)
-            .seed(into: services)
+        try await DemoDataBuilder(
+            now: referenceDate,
+            calendar: aggregator.calendar,
+            configuration: configuration,
+        )
+        .seed(into: services)
 
         let preferences = WherePreferences(store: InMemoryKeyValueStore())
-        // Onboarded and tracking, so the demo opens on the logged-in app with
-        // live tracking shown rather than on a first-run prompt. These are the
-        // demo's own preferences: the user's real ones are untouched, which is
-        // what makes quitting mid-demo return to onboarding.
+        // Onboarded, so the demo opens on the logged-in app rather than on a
+        // first-run prompt. Recording starts from the demo installation context.
+        // These are the demo's own preferences: the user's real ones are untouched,
+        // which is what makes quitting mid-demo return to onboarding.
         preferences.hasOnboarded = true
-        preferences.wantsTracking = true
 
         let scope = WhereScope(
             kind: .demo,
             services: services,
             preferences: preferences,
             logSystem: logSystem,
+            sessionNow: demoNow,
         )
         // Handed over, not yet routed into: activating the scope starts that
         // (see `WhereModel.activateDemo`), so a demo world built but never

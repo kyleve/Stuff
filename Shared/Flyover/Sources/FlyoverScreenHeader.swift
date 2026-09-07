@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// The title and focus action at the top of a Flyover overview card.
@@ -12,7 +13,7 @@ struct FlyoverScreenHeader<ScreenID: Hashable>: View {
                 .font(stylesheet.screen.header.font)
                 .lineLimit(1)
             Spacer()
-            Button("Inspect \(screen.title)", systemImage: "arrow.up.left.and.arrow.down.right") {
+            Button("Inspect \(screen.title)", systemSymbol: .arrowUpLeftAndArrowDownRight) {
                 model.focus(screen)
             }
             .labelStyle(.iconOnly)

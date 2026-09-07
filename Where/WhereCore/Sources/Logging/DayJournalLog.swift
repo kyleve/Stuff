@@ -26,9 +26,9 @@ enum DayJournalLog: LogEvent {
         /// scanner, then recount the badge and the issue notification.
         case reconcileIssueState
         /// ``reconcileIssueState`` plus the widget republish, for writes that
-        /// changed day data. Nests the former, so the difference between the two
+        /// changed persisted day data. Nests the former, so the difference between the two
         /// spans is what WidgetKit cost.
-        case reconcileAfterDayChange
+        case reconcileAfterDayDataChange
     }
 
     case addedManualDay(day: String, regionCount: Int)
@@ -74,6 +74,30 @@ enum DayJournalLog: LogEvent {
                 WhereStoreID.evidence(id)
             case .clearedManualDays, .backfilledManualDays, .erasedAllData:
                 nil
+        }
+    }
+
+    var remoteFields: [RemoteLogField] {
+        switch self {
+            case let .addedManualDay(_, regionCount), let .overrodeDay(_, regionCount):
+                [RemoteLogField(
+                    key: RemoteLogFieldKey("region_count"),
+                    value: .count(regionCount),
+                )]
+            case let .clearedManualDays(dayCount):
+                [RemoteLogField(key: RemoteLogFieldKey("day_count"), value: .count(dayCount))]
+            case let .backfilledManualDays(dayCount, regionCount):
+                [
+                    RemoteLogField(key: RemoteLogFieldKey("day_count"), value: .count(dayCount)),
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("region_count"),
+                        value: .count(regionCount),
+                    ),
+                ]
+            case let .wroteEvidence(_, hasBlob):
+                [RemoteLogField(key: RemoteLogFieldKey("has_blob"), value: .boolean(hasBlob))]
+            case .clearedManualDay, .clearedYear, .erasedAllData:
+                []
         }
     }
 }

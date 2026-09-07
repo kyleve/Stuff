@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 import UIKit
 
@@ -60,7 +61,7 @@ struct EntityTableView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(
                     "Delete All Rows",
-                    systemImage: "trash",
+                    systemSymbol: .trash,
                     role: .destructive,
                 ) {
                     isConfirmingDeleteAll = true
@@ -135,13 +136,13 @@ struct EntityTableView: View {
         if entity.columns.isEmpty {
             ContentUnavailableView(
                 "No Columns",
-                systemImage: "rectangle.split.3x1",
+                systemSymbol: .rectangleSplit3x1,
                 description: Text("This entity exposes no inspectable attributes."),
             )
         } else if rows.isEmpty {
             ContentUnavailableView(
                 "No Rows",
-                systemImage: "tray",
+                systemSymbol: .tray,
                 description: Text("This entity has no saved rows."),
             )
         } else {

@@ -14,24 +14,88 @@ import WhereUI
 /// runner that make up the shipping application.
 @MainActor
 final class RegularApplicationRuntime: WhereApplicationRuntime {
-    let model = WhereModel(
-        preferences: WherePreferences(store: UserDefaults.standard),
-        makeBootstrap: { WhereBootstrap() },
-        logSystem: .shared,
-    )
+    let model: WhereModel
 
     let intentServices = IntentServices()
+    private let widgetPresentationPublisher = WidgetPresentationPublisher()
     private(set) var launcher: LifecycleRunner<WhereSession>!
 
     #if DEBUG
-        private let inspectorModeController: InspectorModeController?
+        /// Compiled into Debug device builds created by `Where/install --cloudkit`, so every
+        /// foreground, background, and CloudKit-push relaunch uses the same store mode.
+        static let isCloudKitValidationBuild: Bool = {
+            #if WHERE_CLOUDKIT_VALIDATION
+                true
+            #else
+                false
+            #endif
+        }()
 
-        init(inspectorModeController: InspectorModeController? = nil) {
-            self.inspectorModeController = inspectorModeController
+        private let developerLaunchController: WhereDeveloperLaunchController?
+
+        init(
+            preferences: WherePreferences,
+            effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration,
+            applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging,
+            developerLaunchController: WhereDeveloperLaunchController? = nil,
+        ) {
+            self.developerLaunchController = developerLaunchController
+            model = Self.makeModel(
+                storeStorage: Self.storeStorage(
+                    forCloudKitValidationBuild: Self.isCloudKitValidationBuild,
+                ),
+                preferences: preferences,
+                effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
+                applyRemoteLogging: applyRemoteLogging,
+            )
+            if let configuration = developerLaunchController?.consumeDemoConfiguration() {
+                model.prepareDemoLaunch(configuration: configuration)
+            }
+        }
+
+        static func storeStorage(
+            forCloudKitValidationBuild validatesCloudKit: Bool,
+        ) -> SwiftDataStore.Storage {
+            validatesCloudKit ? .cloudKit : .localOnly
         }
     #else
-        init() {}
+        init(
+            preferences: WherePreferences,
+            effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration,
+            applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging,
+        ) {
+            model = Self.makeModel(
+                storeStorage: .cloudKit,
+                preferences: preferences,
+                effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
+                applyRemoteLogging: applyRemoteLogging,
+            )
+        }
     #endif
+
+    private static func makeModel(
+        storeStorage: SwiftDataStore.Storage,
+        preferences: WherePreferences,
+        effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration,
+        applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging,
+    ) -> WhereModel {
+        let installationContextStore = FileInstallationRecordingContextStore()
+        let locationOutbox = FileLocationOutbox.applicationSupport()
+        return WhereModel(
+            preferences: preferences,
+            installationContextStore: installationContextStore,
+            makeBootstrap: {
+                WhereBootstrap(
+                    installationContextStore: $0,
+                    storeStorage: storeStorage,
+                    locationOutbox: locationOutbox,
+                )
+            },
+            logSystem: .shared,
+            effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
+            applyRemoteLogging: applyRemoteLogging,
+        )
+    }
 
     func didFinishLaunching(
         application _: UIApplication,
@@ -42,9 +106,18 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
 
         WhereLaunch.startAmbientLogging(on: .shared)
         model.onLoggedOut = { [intentServices] in await intentServices.clear() }
+        model.onThemeChanged = { [intentServices, widgetPresentationPublisher] theme in
+            await widgetPresentationPublisher.publish(theme)
+            guard !Task.isCancelled else { return }
+            await intentServices.updateTheme(theme)
+        }
+        model.synchronizeTheme()
         let launcher = WhereLaunch
-            .makeLauncher(model: model, reason: .undetermined) { [intentServices] in
-                await intentServices.install(.forIntents(sharingStoreOf: $0))
+            .makeLauncher(model: model, reason: .undetermined) { [intentServices, model] in
+                await intentServices.install(
+                    .forIntents(sharingStoreOf: $0),
+                    theme: model.theme,
+                )
             }
         self.launcher = launcher
         Task { [launcher, model, intentServices] in
@@ -60,7 +133,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             AnyView(RootView(
                 model: model,
                 launcher: launcher,
-                inspectorModeController: inspectorModeController,
+                developerLaunchController: developerLaunchController,
             ))
         #else
             AnyView(RootView(model: model, launcher: launcher))

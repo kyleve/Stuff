@@ -210,6 +210,68 @@ struct PresenceCalendarTests {
         ])
     }
 
+    @Test func regionCombinationTotalsCountExactSetsInStableOrder() throws {
+        let days = [
+            DayPresence(
+                date: day(2026, 6, 1),
+                in: calendar,
+                regions: [.newYork, .california],
+            ),
+            DayPresence(
+                date: day(2026, 6, 2),
+                in: calendar,
+                regions: [.california, .newYork],
+            ),
+            DayPresence(
+                date: day(2026, 6, 3),
+                in: calendar,
+                regions: [.canada, .california],
+            ),
+            DayPresence(
+                date: day(2026, 6, 4),
+                in: calendar,
+                regions: [.california, .newYork, .canada],
+            ),
+            DayPresence(date: day(2026, 6, 5), in: calendar, regions: [.california]),
+        ]
+
+        let months = try PresenceCalendar.months(
+            from: report(days),
+            calendar: calendar,
+            referenceDate: referenceDate(2026, 6, 15),
+        )
+
+        #expect(months[5].regionCombinationTotals == [
+            RegionCombinationDayTally(regions: [.california, .newYork], days: 2),
+            RegionCombinationDayTally(
+                regions: [.california, .newYork, .canada],
+                days: 1,
+            ),
+            RegionCombinationDayTally(regions: [.california, .canada], days: 1),
+        ])
+    }
+
+    @Test func regionCombinationTotalsAreUnaffectedByFocus() throws {
+        let days = [
+            DayPresence(
+                date: day(2026, 6, 1),
+                in: calendar,
+                regions: [.california, .newYork],
+            ),
+        ]
+
+        let months = try PresenceCalendar.months(
+            from: report(days),
+            calendar: calendar,
+            referenceDate: referenceDate(2026, 6, 15),
+            focusedRegion: .california,
+        )
+
+        #expect(months[5].regionCombinationTotals == [
+            RegionCombinationDayTally(regions: [.california, .newYork], days: 1),
+        ])
+    }
+
     @Test func regionTotalsAreUnaffectedByFocus() throws {
         let days = [
             DayPresence(date: day(2026, 6, 1), in: calendar, regions: [.california]),

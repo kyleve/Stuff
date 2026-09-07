@@ -1,4 +1,5 @@
 import PeriscopeCore
+import SFSafeSymbols
 import SwiftUI
 
 /// The log tracer: starting from one event (typically an error), shows the
@@ -59,7 +60,7 @@ public struct LogTraceView: View {
             case .loading:
                 ProgressView()
             case let .failed(reason):
-                Label(reason, systemImage: "exclamationmark.triangle")
+                Label(reason, systemSymbol: .exclamationmarkTriangle)
                     .foregroundStyle(.secondary)
             case let .loaded(trail) where trail.isEmpty:
                 Text("No earlier events in this event's scopes.")

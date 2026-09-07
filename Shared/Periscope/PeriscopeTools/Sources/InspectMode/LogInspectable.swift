@@ -1,4 +1,5 @@
 import PeriscopeCore
+import SFSafeSymbols
 import SwiftUI
 
 extension View {
@@ -33,7 +34,7 @@ struct LogInspectableModifier: ViewModifier {
     func body(content: Content) -> some View {
         content.overlay(alignment: .topTrailing) {
             if let inspector, inspector.isEnabled {
-                Button("Inspect Logs", systemImage: "waveform.badge.magnifyingglass") {
+                Button("Inspect Logs", systemSymbol: .waveformBadgeMagnifyingglass) {
                     isPresentingEvents = true
                 }
                 .labelStyle(.iconOnly)
@@ -116,13 +117,13 @@ struct LogInspectorView: View {
             case let .failed(reason):
                 ContentUnavailableView(
                     "Logs Unavailable",
-                    systemImage: "exclamationmark.triangle",
+                    systemSymbol: .exclamationmarkTriangle,
                     description: Text(reason),
                 )
             case let .loaded(events) where events.isEmpty:
                 ContentUnavailableView(
                     "No Events",
-                    systemImage: "doc.text.magnifyingglass",
+                    systemSymbol: .docTextMagnifyingglass,
                     description: Text("Nothing has been logged in this element's scopes."),
                 )
             case let .loaded(events):

@@ -36,6 +36,49 @@ struct SnapshotConfigurationTests {
         #expect([SnapshotConfiguration].screenDefaults.count == 10)
     }
 
+    @Test func fullContentScreenDefaultsCoverBothDeviceWidths() {
+        let configs = [SnapshotConfiguration].fullContentScreenDefaults
+        #expect(configs.count == 10)
+        #expect(Set(configs.map(\.device.name)) == ["iPhone", "iPad"])
+        #expect(configs.allSatisfy { configuration in
+            switch configuration.device.size {
+                case .fullContent: true
+                case .fixed, .intrinsic, .fullContent2D: false
+            }
+        })
+    }
+
+    @Test func fullContentDeviceFramesRetainViewportMinimums() {
+        #expect(SnapshotConfiguration.Frame.iPhoneFullContent.size == .fullContent(
+            width: 402,
+            minimumHeight: 874,
+        ))
+        #expect(SnapshotConfiguration.Frame.iPadFullContent.size == .fullContent(
+            width: 834,
+            minimumHeight: 1194,
+        ))
+
+        let custom = SnapshotConfiguration.Frame.fullContent(name: "custom", width: 500)
+        #expect(custom.size == .fullContent(width: 500, minimumHeight: nil))
+    }
+
+    @Test func twoAxisFullContentFramesRetainViewportMinimums() {
+        #expect(SnapshotConfiguration.Frame.iPhoneFullContent2D.size == .fullContent2D(
+            minimumSize: CGSize(width: 402, height: 874),
+        ))
+        #expect(SnapshotConfiguration.Frame.iPadFullContent2D.size == .fullContent2D(
+            minimumSize: CGSize(width: 834, height: 1194),
+        ))
+
+        let custom = SnapshotConfiguration.Frame.fullContent2D(
+            name: "spatial",
+            minimumSize: CGSize(width: 500, height: 600),
+        )
+        #expect(custom.size == .fullContent2D(
+            minimumSize: CGSize(width: 500, height: 600),
+        ))
+    }
+
     @Test func baselineIdentifierIsEmpty() {
         #expect(SnapshotConfiguration().identifier.isEmpty)
     }

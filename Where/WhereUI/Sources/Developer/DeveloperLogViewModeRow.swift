@@ -1,3 +1,4 @@
+import SFSafeSymbols
 #if DEBUG
     import PeriscopeTools
     import SwiftUI
@@ -22,7 +23,7 @@
                             .foregroundStyle(.secondary)
                     }
                 } icon: {
-                    Image(systemName: "viewfinder")
+                    Image(systemSymbol: .viewfinder)
                         .frame(width: menu.iconWidth)
                 }
             }

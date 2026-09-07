@@ -116,6 +116,23 @@ rule() { printf '%s\n' "========================================================
 echo "==> Regenerating project (tuist generate --no-open)"
 mise exec -- tuist generate --no-open >/dev/null
 
+# Xcode does not expand the scheme's $(BUILT_PRODUCTS_DIR) environment value
+# for command-line test runs. Resolve the concrete package-resource location,
+# matching ./test and ./profile, so Bundle.module works in every test process.
+TEST_RUN_ENV=()
+BUILT_PRODUCTS_DIR="$(xcodebuild -showBuildSettings \
+    -workspace "$WORKSPACE" \
+    -scheme "$SCHEME" \
+    -destination "$DESTINATION" \
+    -derivedDataPath "$DERIVED" 2>/dev/null \
+    | awk -F' = ' '/ BUILT_PRODUCTS_DIR = /{print $2; exit}')"
+if [ -n "$BUILT_PRODUCTS_DIR" ]; then
+    TEST_RUN_ENV+=("TEST_RUNNER_PACKAGE_RESOURCE_BUNDLE_PATH=$BUILT_PRODUCTS_DIR")
+else
+    echo "warning: could not resolve BUILT_PRODUCTS_DIR; package resource" \
+        "bundle lookups will fall back to the linker's placement" >&2
+fi
+
 echo "==> Building for testing ($SCHEME) on $DEVICE / iOS $OS"
 set +e
 xcodebuild build-for-testing \
@@ -145,12 +162,14 @@ for i in $(seq 1 "$SUITE_RUNS"); do
     # Test failures are the whole point here, so don't let a non-zero exit abort
     # the loop — we read the truth out of the .xcresult regardless.
     set +e
-    xcodebuild test-without-building \
+    env ${TEST_RUN_ENV[@]+"${TEST_RUN_ENV[@]}"} \
+        xcodebuild test-without-building \
         -workspace "$WORKSPACE" \
         -scheme "$SCHEME" \
         -destination "$DESTINATION" \
         -derivedDataPath "$DERIVED" \
         -resultBundlePath "$rb" \
+        -collect-test-diagnostics never \
         >"$log" 2>&1
     set -e
     xcrun xcresulttool get test-results tests --path "$rb" >"$SUITE_DIR/run_$i.json" 2>>"$log" \
@@ -161,66 +180,8 @@ echo
 echo "==> Analyzing suite runs"
 # Build the suspect set (tests that failed in >=1 suite run) and per-test suite
 # counts. Best-effort parse: warn and continue if the xcresult schema shifts.
-SUITE_DIR="$SUITE_DIR" SUITE_RUNS="$SUITE_RUNS" SUSPECTS="$SUSPECTS" \
-SUITE_COUNTS="$SUITE_COUNTS" python3 - <<'PY'
-import glob, json, os, sys
-
-
-def walk(node, bundle, suites, cases):
-    nt = node.get('nodeType')
-    if nt == 'Unit test bundle':
-        bundle = node.get('name', bundle)
-    elif nt == 'Test Suite':
-        suites = suites + [node.get('name', '')]
-    if nt == 'Test Case':
-        ident = node.get('nodeIdentifier')
-        if not ident:
-            # Fall back to the suite chain + case name when there's no stable id.
-            parts = [s for s in suites if s] + [node.get('name', '?')]
-            ident = '/'.join(parts)
-        only = ident if (bundle in (None, '?') or ident.startswith(bundle + '/')) \
-            else f"{bundle}/{ident}"
-        cases.append((only, bundle, node.get('name', '?'),
-                      (node.get('result') or '').lower()))
-    for child in node.get('children', []):
-        walk(child, bundle, suites, cases)
-
-
-def main():
-    suite_dir = os.environ['SUITE_DIR']
-    stats = {}  # only-testing id -> {bundle, name, fails, seen}
-    files = sorted(glob.glob(os.path.join(suite_dir, 'run_*.json')))
-    if not files:
-        print("warning: no suite result files to analyze", file=sys.stderr)
-    for f in files:
-        try:
-            data = json.load(open(f))
-        except Exception as exc:
-            print(f"warning: couldn't read {f} ({exc})", file=sys.stderr)
-            continue
-        cases = []
-        for n in data.get('testNodes', []):
-            walk(n, '?', [], cases)
-        for only, bundle, name, result in cases:
-            rec = stats.setdefault(
-                only, {'bundle': bundle, 'name': name, 'fails': 0, 'seen': 0})
-            rec['seen'] += 1
-            if result == 'failed':
-                rec['fails'] += 1
-
-    suspects = sorted(k for k, v in stats.items() if v['fails'] > 0)
-    with open(os.environ['SUSPECTS'], 'w') as fh:
-        for s in suspects:
-            fh.write(s + '\n')
-    with open(os.environ['SUITE_COUNTS'], 'w') as fh:
-        json.dump(stats, fh)
-
-    print(f"  {len(stats)} distinct tests seen across the suite runs")
-    print(f"  {len(suspects)} suspect(s) failed at least once")
-
-
-main()
-PY
+python3 Tools/flaky_results.py analyze-suite \
+    --suite-dir "$SUITE_DIR" --suspects "$SUSPECTS" --counts "$SUITE_COUNTS"
 
 # `grep -c` prints 0 *and* exits non-zero on no match, which would trip the
 # `|| ...` fallback into appending a second count; count non-blank lines with
@@ -244,7 +205,8 @@ if [ "$SUSPECT_COUNT" -gt 0 ]; then
         echo "  - [$i/$SUSPECT_COUNT] $id"
         printf '%s\n' "$id" >"$TIGHT_DIR/tight_$i.id"
         set +e
-        xcodebuild test-without-building \
+        env ${TEST_RUN_ENV[@]+"${TEST_RUN_ENV[@]}"} \
+            xcodebuild test-without-building \
             -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
             -destination "$DESTINATION" \
@@ -253,6 +215,7 @@ if [ "$SUSPECT_COUNT" -gt 0 ]; then
             -test-iterations "$ITERATIONS" \
             -test-repetition-relaunch-enabled "$RELAUNCH" \
             -resultBundlePath "$rb" \
+            -collect-test-diagnostics never \
             >"$log" 2>&1
         set -e
         xcrun xcresulttool get test-results tests --path "$rb" \
@@ -272,167 +235,13 @@ echo
 rule
 echo "FLAKY TEST REPORT"
 rule
-SUITE_COUNTS="$SUITE_COUNTS" TIGHT_DIR="$TIGHT_DIR" SUITE_RUNS="$SUITE_RUNS" \
-ITERATIONS="$ITERATIONS" TOP="$TOP" UPDATE="$UPDATE" DEVICE="$DEVICE" OS="$OS" \
-RELAUNCH="$RELAUNCH" python3 - <<'PY'
-import glob, json, os, re, sys
-from datetime import datetime, timezone
-
-
-def collect_case_results(node, out):
-    """Append the lowercased result of every Test Case leaf under `node`."""
-    if node.get('nodeType') == 'Test Case':
-        out.append((node.get('result') or '').lower())
-    for child in node.get('children', []):
-        collect_case_results(child, out)
-
-
-def tight_counts(idx, tight_dir):
-    """Return (failures, total) for one tight-loop run.
-
-    Prefer the per-iteration case nodes (each repetition shows up as its own
-    Test Case), and fall back to the summary's pass/fail totals if the tree
-    collapsed the repetitions into a single node.
-    """
-    results = []
-    tests_json = os.path.join(tight_dir, f'tight_{idx}.tests.json')
-    if os.path.exists(tests_json):
-        try:
-            data = json.load(open(tests_json))
-            for n in data.get('testNodes', []):
-                collect_case_results(n, results)
-        except Exception as exc:
-            print(f"warning: couldn't read {tests_json} ({exc})", file=sys.stderr)
-    if len(results) >= 2:
-        return sum(1 for r in results if r == 'failed'), len(results)
-
-    summary_json = os.path.join(tight_dir, f'tight_{idx}.summary.json')
-    if os.path.exists(summary_json):
-        try:
-            s = json.load(open(summary_json))
-            failed = int(s.get('failedTests') or 0)
-            passed = int(s.get('passedTests') or 0)
-            total = failed + passed
-            if total > 0:
-                return failed, total
-        except Exception as exc:
-            print(f"warning: couldn't read {summary_json} ({exc})", file=sys.stderr)
-
-    # Single case node with no usable summary: report what little we saw.
-    if results:
-        return sum(1 for r in results if r == 'failed'), len(results)
-    return 0, 0
-
-
-def main():
-    suite_runs = int(os.environ['SUITE_RUNS'])
-    iterations = int(os.environ['ITERATIONS'])
-    top = int(os.environ['TOP'])
-    tight_dir = os.environ['TIGHT_DIR']
-
-    try:
-        suite = json.load(open(os.environ['SUITE_COUNTS']))
-    except Exception as exc:
-        print(f"warning: couldn't read suite counts ({exc})", file=sys.stderr)
-        suite = {}
-
-    # Map each tight-loop run back to its test id.
-    tight = {}  # id -> (fails, total)
-    for idf in glob.glob(os.path.join(tight_dir, 'tight_*.id')):
-        m = re.search(r'tight_(\d+)\.id$', idf)
-        if not m:
-            continue
-        tid = open(idf).read().strip()
-        tight[tid] = tight_counts(m.group(1), tight_dir)
-
-    rows = []
-    for tid, rec in suite.items():
-        k = rec['fails']            # suite failures
-        seen = rec['seen']          # suite runs that actually executed this test
-        j, t = tight.get(tid, (0, 0))  # tight-loop failures / total
-        combined_fail = k + j
-        combined_pass = (seen - k) + (t - j)
-        # Flaky == genuinely non-deterministic: it both passed and failed.
-        if combined_fail <= 0 or combined_pass <= 0:
-            continue
-        suite_rate = k / suite_runs if suite_runs else 0.0
-        rates = [suite_rate]
-        if t > 0:
-            rates.append(j / t)
-        flake_rate = sum(rates) / len(rates)
-        rows.append({
-            'id': tid,
-            'bundle': rec['bundle'],
-            'name': rec['name'],
-            'suite_fail': k,
-            'suite_runs': suite_runs,
-            'tight_fail': j,
-            'tight_total': t,
-            'flake_rate': flake_rate,
-        })
-
-    rows.sort(key=lambda r: (-r['flake_rate'], -r['suite_fail'], r['id']))
-    shown = rows[:top]
-
-    def tight_cell(r):
-        return f"{r['tight_fail']}/{r['tight_total']}" if r['tight_total'] else "n/a"
-
-    if shown:
-        print(f"{len(rows)} flaky test(s) detected"
-              + (f" (showing top {top})" if len(rows) > top else "") + ":")
-        print()
-        for r in shown:
-            print(f"  {r['flake_rate'] * 100:5.1f}%  suite {r['suite_fail']}/{r['suite_runs']}"
-                  f"  tight {tight_cell(r)}  {r['id']}")
-    else:
-        print("No flaky tests detected.")
-
-    if os.environ['UPDATE'] != 'true':
-        return
-
-    now = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-    lines = []
-    lines.append("# Flaky tests")
-    lines.append("")
-    lines.append("<!-- Generated by ./flaky — do not hand-edit. Re-run ./flaky to refresh. -->")
-    lines.append("")
-    lines.append(f"_Last run: {now} · suite runs: {suite_runs} · tight-loop "
-                 f"iterations: {iterations} · relaunch: {os.environ['RELAUNCH']} · "
-                 f"destination: {os.environ['DEVICE']} / iOS {os.environ['OS']}._")
-    lines.append("")
-    lines.append("A test is listed here only when it produced **both** passes and "
-                 "failures across the")
-    lines.append("suite runs and the per-test tight loop — i.e. it is genuinely "
-                 "non-deterministic.")
-    lines.append("Tests that always pass, or that always fail (broken, not flaky), "
-                 "are omitted.")
-    lines.append("The flake rate averages the suite failure rate and the tight-loop "
-                 "failure rate.")
-    lines.append("")
-    lines.append("## Detected flaky tests")
-    lines.append("")
-    if shown:
-        lines.append("| Test | Bundle | Suite fails | Tight-loop fails | Flake rate |")
-        lines.append("|------|--------|-------------|------------------|------------|")
-        for r in shown:
-            lines.append(
-                f"| `{r['id']}` | {r['bundle']} | {r['suite_fail']}/{r['suite_runs']} "
-                f"| {tight_cell(r)} | {r['flake_rate'] * 100:.0f}% |")
-        if len(rows) > top:
-            lines.append("")
-            lines.append(f"_(+{len(rows) - top} more not shown; raise `--top` to list them.)_")
-    else:
-        lines.append("None detected in the latest run.")
-    lines.append("")
-
-    with open("FLAKY_TESTS.md", "w") as fh:
-        fh.write("\n".join(lines))
-    print()
-    print("Wrote FLAKY_TESTS.md")
-
-
-main()
-PY
+report_args=()
+[ "$UPDATE" = true ] && report_args+=(--update)
+python3 Tools/flaky_results.py report \
+    --counts "$SUITE_COUNTS" --tight-dir "$TIGHT_DIR" \
+    --suite-runs "$SUITE_RUNS" --iterations "$ITERATIONS" --top "$TOP" \
+    --device "$DEVICE" --os "$OS" --relaunch "$RELAUNCH" \
+    ${report_args[@]+"${report_args[@]}"}
 
 echo
 echo "Logs and result bundles: $WORKDIR"

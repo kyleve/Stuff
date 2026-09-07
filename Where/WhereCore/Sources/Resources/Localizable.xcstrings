@@ -1,6 +1,39 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "backup.error.committedCleanup.merge" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The backup was imported, but Where could not finish recording cleanup. Recording remains off. Close and reopen Where to finish safely; do not import the backup again."
+          }
+        }
+      }
+    },
+    "backup.error.committedCleanup.replace" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The backup was restored, but Where could not remove pending location fixes. Recording remains off. Close and reopen Where to finish safely; do not restore the backup again."
+          }
+        }
+      }
+    },
+    "backup.error.invalidRecordingData" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This backup contains invalid recording-device data and can't be imported."
+          }
+        }
+      }
+    },
     "backup.error.manifestMissing" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8,6 +41,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This file isn't a Where backup (no manifest was found)."
+          }
+        }
+      }
+    },
+    "backup.error.recoveryRequired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where must finish cleanup from the previous backup before another backup can be imported."
           }
         }
       }
@@ -53,6 +97,149 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Issues to resolve"
+          }
+        }
+      }
+    },
+    "dataReset.error.committedCleanup" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your synced data was erased, but pending location fixes could not be removed. Recording remains off. Close and reopen Where, then retry reset."
+          }
+        }
+      }
+    },
+    "recording.error.conflictingImmutableRecord" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A synced recording event conflicts with one already stored."
+          }
+        }
+      }
+    },
+    "recording.error.corruptPolicyHistory" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A synced recording-setting event is incomplete or invalid."
+          }
+        }
+      }
+    },
+    "recording.error.currentDeviceNotRegistered" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device has not finished registering for automatic recording."
+          }
+        }
+      }
+    },
+    "recording.error.currentDevicePolicyUnknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device's recording setting has not finished syncing."
+          }
+        }
+      }
+    },
+    "recording.error.dataGenerationChanged" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The account data changed while this operation was in progress. Please try again."
+          }
+        }
+      }
+    },
+    "recording.error.dataGenerationRevisionExhausted" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The account data history cannot accept another generation."
+          }
+        }
+      }
+    },
+    "recording.error.deviceNotFound" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This recording device is no longer available."
+          }
+        }
+      }
+    },
+    "recording.error.devicePolicyUnknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This recording device's setting has not finished syncing."
+          }
+        }
+      }
+    },
+    "recording.error.incompleteDataGenerationHistory" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The account data generation has not finished syncing."
+          }
+        }
+      }
+    },
+    "recording.error.incompletePolicyHistory" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device's recording-setting history has not finished syncing."
+          }
+        }
+      }
+    },
+    "recording.error.revisionExhausted" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device's recording history cannot accept another change."
+          }
+        }
+      }
+    },
+    "recording.error.rewriteInProgress" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Another recording-data reset or import is already in progress."
           }
         }
       }

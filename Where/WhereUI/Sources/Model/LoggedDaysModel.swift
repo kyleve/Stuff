@@ -27,6 +27,12 @@ public final class LoggedDaysModel {
     private let services: WhereServices
     private static let logger = WhereLog.root(LoggedDaysModelLog.self)
 
+    #if DEBUG
+        /// A preview-declared state is already the final fixture; observing its
+        /// empty backing store would replace it as soon as the view appears.
+        private var isPreviewStatePinned = false
+    #endif
+
     init(services: WhereServices) {
         self.services = services
     }
@@ -36,6 +42,9 @@ public final class LoggedDaysModel {
     /// or anywhere (the single read-refresh signal, `dataChangeUpdates()`). Runs
     /// until the calling `.task` is cancelled (the sheet closes).
     public func observe(year: Int) async {
+        #if DEBUG
+            guard isPreviewStatePinned == false else { return }
+        #endif
         await load(for: year)
         for await _ in services.dataChangeUpdates() {
             await load(for: year)
@@ -70,6 +79,7 @@ public final class LoggedDaysModel {
         /// Force a state for previews/tests without touching the store.
         func previewLoad(_ state: LoadState) {
             loadState = state
+            isPreviewStatePinned = true
         }
     #endif
 }

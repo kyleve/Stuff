@@ -11,6 +11,7 @@
                         .tool(.openSpans),
                         .flyover,
                         .tool(.regionMap),
+                        .tool(.crashTesting),
                     ],
             )
         }

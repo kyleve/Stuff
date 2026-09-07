@@ -1,5 +1,6 @@
 #if DEBUG
     import Foundation
+    import SFSafeSymbols
 
     /// A destination launched from the DEBUG-only developer overlay.
     ///
@@ -7,6 +8,7 @@
     /// through floating/full-screen transitions without retaining a parallel
     /// collection of labels, icons, or route flags.
     enum DeveloperTool: Hashable, Identifiable {
+        case crashTesting
         case logs
         case openSpans
         case regionMap
@@ -17,6 +19,8 @@
 
         var title: String {
             switch self {
+                case .crashTesting:
+                    String(localized: .developerCrashTestingLink)
                 case .logs:
                     String(localized: .developerLogsLink)
                 case .openSpans:
@@ -26,11 +30,12 @@
             }
         }
 
-        var systemImage: String {
+        var systemSymbol: SFSymbol {
             switch self {
-                case .logs: "ladybug"
-                case .openSpans: "timer"
-                case .regionMap: "map"
+                case .crashTesting: .exclamationmarkTriangleFill
+                case .logs: .ladybug
+                case .openSpans: .timer
+                case .regionMap: .map
             }
         }
     }

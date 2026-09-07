@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -50,7 +51,9 @@ public struct TodayWidgetView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(WhereFormat.widgetTodayAccessibilityLabel(date: snapshot.day))
+        .accessibilityValue(WhereFormat.widgetTodayAccessibilityValue(regions: regions))
     }
 
     /// The common case — one region so far today — gets the full passport
@@ -92,7 +95,7 @@ public struct TodayWidgetView: View {
 
     private var emptyContent: some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
-            Image(systemName: "location.slash")
+            Image(systemSymbol: .locationSlash)
                 .font(.title3)
                 .foregroundStyle(.tertiary)
                 .accessibilityHidden(true)

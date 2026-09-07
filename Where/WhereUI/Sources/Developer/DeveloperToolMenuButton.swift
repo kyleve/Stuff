@@ -11,7 +11,7 @@
         var body: some View {
             let menu = stylesheet.developerOverlay.menu
             Button(action: action) {
-                Label(destination.title, systemImage: destination.systemImage)
+                Label(destination.title, systemSymbol: destination.systemSymbol)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, menu.horizontalPadding)
                     .padding(.vertical, menu.verticalPadding)

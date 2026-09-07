@@ -3,7 +3,7 @@ import LifecycleKitUI
 import PeriscopeUI
 import SnapshotKit
 import SwiftUI
-import WhereCore
+@_spi(Testing) import WhereCore
 #if DEBUG
     import Inspector
     import PeriscopeCore
@@ -16,9 +16,11 @@ import WhereCore
 /// `LifecycleContainer` renders the splash / onboarding UI while the
 /// `LifecycleRunner` runs, then the `TabView` (the real "logged-in" UI — the
 /// launch *destination*, not a step) once it reaches `.ready`, built from the
-/// session the launch's trunk produced. The model is built at launch (so
-/// CoreLocation is wired for background relaunch) and shared down through the
-/// environment.
+/// session the launch's trunk produced. The first visible ready reveal is
+/// always covered by the splash minimum, including after a headless launch
+/// whose foreground drive coalesces between renders. The model is built at
+/// launch (so CoreLocation is wired for background relaunch) and shared down
+/// through the environment.
 public struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -52,7 +54,11 @@ public struct RootView: View {
     #endif
     private let launcher: LifecycleRunner<WhereSession>
     #if DEBUG
-        private let inspectorModeController: InspectorModeController?
+        private let developerLaunchController: WhereDeveloperLaunchController?
+        /// Hosted snapshots have no active SwiftUI scene even though their
+        /// controller is on screen. Production leaves this nil and follows the
+        /// real scene phase; the testing SPI can explicitly model visibility.
+        private let presentationVisibilityOverride: Bool?
     #endif
 
     // Inject the app-owned model + runner built at launch. The app uses this.
@@ -60,11 +66,24 @@ public struct RootView: View {
         public init(
             model: WhereModel,
             launcher: LifecycleRunner<WhereSession>,
-            inspectorModeController: InspectorModeController? = nil,
+            developerLaunchController: WhereDeveloperLaunchController? = nil,
         ) {
             _model = State(initialValue: model)
             self.launcher = launcher
-            self.inspectorModeController = inspectorModeController
+            self.developerLaunchController = developerLaunchController
+            presentationVisibilityOverride = nil
+        }
+
+        @_spi(Testing)
+        public init(
+            model: WhereModel,
+            launcher: LifecycleRunner<WhereSession>,
+            presentationVisibilityOverride: Bool,
+        ) {
+            _model = State(initialValue: model)
+            self.launcher = launcher
+            developerLaunchController = nil
+            self.presentationVisibilityOverride = presentationVisibilityOverride
         }
     #else
         public init(
@@ -83,15 +102,26 @@ public struct RootView: View {
         // Mirrors the app root's wiring (see `AppDelegate`). Nothing here
         // attaches a sink unless a scope is actually resolved, which a preview
         // or the hosted UI test never gets to.
+        let installationContextStore = InMemoryInstallationRecordingContextStore(
+            context: .testing,
+        )
         let model = WhereModel(
             preferences: WherePreferences(store: UserDefaults.standard),
-            makeBootstrap: { WhereBootstrap() },
+            installationContextStore: installationContextStore,
+            makeBootstrap: {
+                WhereBootstrap(
+                    installationContextStore: $0,
+                    storeStorage: .inMemory,
+                    locationOutbox: NoOpLocationOutbox(),
+                )
+            },
             logSystem: .shared,
         )
         _model = State(initialValue: model)
         launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         #if DEBUG
-            inspectorModeController = nil
+            developerLaunchController = nil
+            presentationVisibilityOverride = nil
         #endif
     }
 
@@ -102,14 +132,29 @@ public struct RootView: View {
                 transition: revealTransition,
                 animation: revealAnimation,
                 minimumSplashDuration: stylesheet.launch.minimumSplashDuration,
-                splash: { _ in LaunchSplashView() },
-                failure: { LifecycleFailureView(failure: $0) },
+                isPresentationVisible: isLifecyclePresentationVisible,
+                splash: { _ in
+                    if model.isBuildingLaunchDemo {
+                        LaunchSplashView(caption: .work(
+                            title: String(localized: .demoBuildingTitle),
+                            subtitle: String(localized: .demoBuildingSubtitle),
+                        ))
+                    } else {
+                        LaunchSplashView()
+                    }
+                },
+                failure: { WhereLifecycleFailureView(failure: $0) },
                 gates: {
-                    // The gate roots the trunk, so there is no session (and no
-                    // open store) behind it yet — onboarding builds the scope
-                    // it commits regions with, through the model.
+                    // The gate precedes every world-building step, so there is
+                    // no session (and no open store) behind it yet — onboarding
+                    // builds the scope it commits regions with, through the model.
                     GateView(for: OnboardingGate.self) { handle, _ in
-                        OnboardingView(gate: handle)
+                        OnboardingView(
+                            gate: handle,
+                            installationContext: model.installationRecordingContext,
+                            startsAtRecordingChoice: model.hasOnboarded,
+                            initialTheme: model.theme,
+                        )
                     }
                 },
             ) { session in
@@ -120,12 +165,16 @@ public struct RootView: View {
                 // monotonic `id` (never reused within the process) rather than
                 // its address, so a rebuilt session can't collide with a freed
                 // one and skip the rebuild.
-                MainTabs(
-                    session: session,
-                    initialReport: model.initialReport,
-                    selectedYear: model.initialSelectedYear,
-                )
-                .id(session.id)
+                if session.isCurrentDeviceRemoved {
+                    RemovedDeviceView(model: model, session: session)
+                } else {
+                    MainTabs(
+                        session: session,
+                        initialDetails: model.initialYearDetails,
+                        selectedYear: model.initialSelectedYear,
+                    )
+                    .id(session.id)
+                }
             }
             // Extend the app content's safe area by the floating HUD's footprint so
             // scroll views behind the non-modal window inset and their last rows
@@ -167,7 +216,7 @@ public struct RootView: View {
             // reads it optionally — it can appear before login.
             .environment(model.session)
         #if DEBUG
-            .environment(inspectorModeController)
+            .environment(developerLaunchController)
             .environment(\.cardDesignerModel, cardDesigner)
             .environment(
                 \.cardDesignerConfiguration,
@@ -218,7 +267,10 @@ public struct RootView: View {
             // styles (`\.regionStyles`) so cards/calendar/onboarding render the
             // user's picked looks. `.default` before the session exists (splash) and
             // reactive after, since reading `session.regionStyles` tracks it.
-            .whereBroadwayRoot(regionStyles: model.session?.regionStyles ?? .default)
+            .whereBroadwayRoot(
+                theme: model.theme,
+                regionStyles: model.session?.regionStyles ?? .default,
+            )
     }
 
     /// How the launch splash gives way to the app once the runner is `.ready`:
@@ -237,6 +289,14 @@ public struct RootView: View {
 
     private var revealAnimation: Animation {
         reduceMotion ? stylesheet.motion.reducedReveal : stylesheet.motion.reveal
+    }
+
+    private var isLifecyclePresentationVisible: Bool {
+        #if DEBUG
+            presentationVisibilityOverride ?? (scenePhase == .active)
+        #else
+            scenePhase == .active
+        #endif
     }
 
     #if DEBUG
@@ -281,13 +341,34 @@ public struct RootView: View {
         public static var snapshots: [SnapshotCase] {
             let model = PreviewSupport.loadedModel()
             let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+            let recordingWarningModel = PreviewSupport.recordingConfigurationWarningAppModel()
+            let recordingWarningLauncher = WhereLaunch.makeLauncher(
+                model: recordingWarningModel,
+                reason: .userForeground,
+            )
             whereSnapshot(
                 name: "LoggedIn",
-                configurations: .phoneLightDark,
+                configurations: .fullContentPhoneLightDark,
                 settle: .settledAtLeast(minDuration: 1.5),
                 onReadyToSnapshot: { await launcher.run() },
             ) {
-                RootView(model: model, launcher: launcher)
+                RootView(
+                    model: model,
+                    launcher: launcher,
+                    presentationVisibilityOverride: true,
+                )
+            }
+            whereSnapshot(
+                name: "RecordingConfigurationWarning",
+                configurations: .fullContentPhoneLightDark,
+                settle: .settledAtLeast(minDuration: 1.5),
+                onReadyToSnapshot: { await recordingWarningLauncher.run() },
+            ) {
+                RootView(
+                    model: recordingWarningModel,
+                    launcher: recordingWarningLauncher,
+                    presentationVisibilityOverride: true,
+                )
             }
         }
     }

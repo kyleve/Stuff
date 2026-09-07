@@ -64,6 +64,25 @@ public struct RegionDayTally: Hashable, Sendable, Identifiable {
     }
 }
 
+/// How many distinct days shared one exact multi-region combination in a
+/// single month. Regions are stored in canonical catalog order; single-region
+/// days stay in ``RegionDayTally`` and never appear here.
+public struct RegionCombinationDayTally: Hashable, Sendable, Identifiable {
+    public let regions: [Region]
+    public let days: Int
+
+    public var id: [Region] {
+        regions
+    }
+
+    public init(regions: Set<Region>, days: Int) {
+        precondition(regions.count > 1, "A region combination requires at least two regions.")
+        precondition(days > 0, "A region combination day count must be positive.")
+        self.regions = Region.inCanonicalOrder(regions)
+        self.days = days
+    }
+}
+
 /// A single month laid out for a grid: leading blank cells (so day 1 lands on
 /// the right weekday column) followed by every day in the month.
 public struct CalendarMonth: Hashable, Sendable, Identifiable {
@@ -79,6 +98,9 @@ public struct CalendarMonth: Hashable, Sendable, Identifiable {
     /// (ties broken by `Region.allCases` order). Always reflects every region
     /// present that month, regardless of any focus filter applied to `days`.
     public let regionTotals: [RegionDayTally]
+    /// Exact multi-region combinations for the month, counted from full day
+    /// presence before any focused-calendar filtering is applied.
+    public let regionCombinationTotals: [RegionCombinationDayTally]
 
     public var id: String {
         "\(year)-\(month)"
@@ -94,6 +116,7 @@ public struct CalendarMonth: Hashable, Sendable, Identifiable {
         isCurrentMonth: Bool,
         days: [CalendarDayCell],
         regionTotals: [RegionDayTally],
+        regionCombinationTotals: [RegionCombinationDayTally],
     ) {
         self.year = year
         self.month = month
@@ -104,6 +127,7 @@ public struct CalendarMonth: Hashable, Sendable, Identifiable {
         self.isCurrentMonth = isCurrentMonth
         self.days = days
         self.regionTotals = regionTotals
+        self.regionCombinationTotals = regionCombinationTotals
     }
 }
 
@@ -196,6 +220,7 @@ public enum PresenceCalendar {
         var days: [CalendarDayCell] = []
         days.reserveCapacity(numberOfDays)
         var dayCountsByRegion: [Region: Int] = [:]
+        var dayCountsByRegionCombination: [Set<Region>: Int] = [:]
         for dayOfMonth in 1 ... numberOfDays {
             guard
                 let date = calendar.date(
@@ -214,6 +239,9 @@ public enum PresenceCalendar {
             let presentRegions = regionsByDay[calendarDay] ?? []
             for region in presentRegions {
                 dayCountsByRegion[region, default: 0] += 1
+            }
+            if presentRegions.count > 1 {
+                dayCountsByRegionCombination[presentRegions, default: 0] += 1
             }
             // Dots reflect the focus filter; the footer (regionTotals) keeps
             // counting every region present that day.
@@ -235,6 +263,17 @@ public enum PresenceCalendar {
             days: \.days,
             region: \.region,
         )
+        let regionCombinationTotals = dayCountsByRegionCombination
+            .map { RegionCombinationDayTally(regions: $0.key, days: $0.value) }
+            .sorted { lhs, rhs in
+                if lhs.days != rhs.days {
+                    return lhs.days > rhs.days
+                }
+                return lhs.regions.lexicographicallyPrecedes(rhs.regions) { lhs, rhs in
+                    Region.declarationOrder[lhs, default: 0]
+                        < Region.declarationOrder[rhs, default: 0]
+                }
+            }
 
         return CalendarMonth(
             year: year,
@@ -246,6 +285,7 @@ public enum PresenceCalendar {
             isCurrentMonth: isCurrentMonth,
             days: days,
             regionTotals: regionTotals,
+            regionCombinationTotals: regionCombinationTotals,
         )
     }
 

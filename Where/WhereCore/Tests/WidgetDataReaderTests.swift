@@ -41,7 +41,7 @@ struct WidgetDataReaderTests {
 
     @Test func snapshotCarriesPickedRegionAppearances() async throws {
         let (reader, store) = try Self.makeReader()
-        let caLook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: "sun.max.fill")
+        let caLook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: .sunMaxFill)
         try await store.perform {
             try await store.setPrimaryRegions([
                 PrimaryRegion(region: .california, appearance: caLook, order: 0),
@@ -57,7 +57,7 @@ struct WidgetDataReaderTests {
     }
 
     @Test func snapshotAppearancesSurviveCodableRoundTrip() throws {
-        let look = RegionAppearance(color: .indigo, emoji: "🗽", symbolName: "building.2.fill")
+        let look = RegionAppearance(color: .indigo, emoji: "🗽", symbolName: .building2Fill)
         let snapshot = WidgetSnapshot(
             day: WhereCoreTestSupport.iso("2026-03-15T00:00:00-07:00"),
             year: 2026,

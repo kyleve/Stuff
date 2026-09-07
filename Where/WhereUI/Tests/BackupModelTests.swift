@@ -3,9 +3,7 @@ import Testing
 @_spi(Testing) import WhereCore
 @testable import WhereUI
 
-/// Exercises `BackupModel`'s export/import bridging: a successful round-trip
-/// across two independent stores, and the failure path that surfaces
-/// `backupError` without leaving the model stuck "working".
+/// Exercises `BackupModel`'s Settings-only export bridge and error presentation.
 @MainActor
 struct BackupModelTests {
     private func date(year: Int, month: Int, day: Int) -> Date {
@@ -34,64 +32,36 @@ struct BackupModelTests {
         )
     }
 
-    @Test func exportThenImportRoundTripsThroughTheModel() async throws {
-        let sourceStore = try SwiftDataStore.inMemory()
-        let source = WhereServices(store: sourceStore, locationSource: ScriptedLocationSource())
-        try await seed(source)
-        let sourceBackup = BackupModel(services: source)
+    @Test func exportBuildsAnArchiveThroughTheModel() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let services = WhereServices(store: store, locationSource: ScriptedLocationSource())
+        try await seed(services)
+        let backup = BackupModel(services: services)
 
-        let url = try #require(await sourceBackup.exportBackup())
+        let url = try #require(await backup.exportBackup())
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
-        #expect(sourceBackup.backupState == .idle)
-        #expect(sourceBackup.backupError == nil)
 
-        let destinationStore = try SwiftDataStore.inMemory()
-        let destination = WhereServices(
-            store: destinationStore,
-            locationSource: ScriptedLocationSource(),
-        )
-        let destinationBackup = BackupModel(services: destination)
-
-        let summary = try #require(
-            await destinationBackup.importBackup(from: url, strategy: .merge),
-        )
-        #expect(summary.evidenceCount == 1)
-        #expect(summary.manualDayCount == 1)
-        #expect(summary.dismissedIssueCount == 1)
-        #expect(destinationBackup.backupState == .idle)
-
-        // The success summary is also exposed on the model (not just returned),
-        // so the confirmation alert survives the backup screen being popped
-        // mid-import. Dismissing (isShowingImportSuccess = false) clears it.
-        #expect(destinationBackup.lastImportSummary?.evidenceCount == summary.evidenceCount)
-        #expect(destinationBackup.isShowingImportSuccess)
-        destinationBackup.isShowingImportSuccess = false
-        #expect(destinationBackup.lastImportSummary == nil)
-        #expect(!destinationBackup.isShowingImportSuccess)
-
-        #expect(try await destinationStore.allEvidence() == sourceStore.allEvidence())
-        #expect(try await destinationStore.allManualDays() == sourceStore.allManualDays())
-        #expect(
-            try await destinationStore.dismissedIssueIDs() == sourceStore.dismissedIssueIDs(),
-        )
+        #expect(backup.backupState == .idle)
+        #expect(backup.backupError == nil)
+        let archive = try BackupService().readArchive(at: url).archive
+        #expect(archive.evidence.count == 1)
+        #expect(archive.manualDays.count == 1)
+        #expect(archive.dismissedIssues.count == 1)
     }
 
-    @Test func importingABogusFileSetsBackupError() async throws {
+    @Test func presentedErrorDrivesAndClearsTheAlert() throws {
         let store = try SwiftDataStore.inMemory()
         let services = WhereServices(store: store, locationSource: ScriptedLocationSource())
         let backup = BackupModel(services: services)
 
-        let bogus = FileManager.default.temporaryDirectory
-            .appendingPathComponent("\(UUID().uuidString).zip")
-        try Data("not a backup".utf8).write(to: bogus)
-        defer { try? FileManager.default.removeItem(at: bogus) }
-
-        let summary = await backup.importBackup(from: bogus, strategy: .replace)
-        #expect(summary == nil)
+        backup.presentBackupError(CleanupFailure())
         #expect(backup.backupError != nil)
-        #expect(backup.backupState == .idle)
-        // A failed import must not surface a success confirmation.
-        #expect(backup.lastImportSummary == nil)
-        #expect(!backup.isShowingImportSuccess)
+        #expect(backup.isShowingBackupError)
+
+        backup.isShowingBackupError = false
+        #expect(backup.backupError == nil)
+        #expect(!backup.isShowingBackupError)
     }
 }
+
+private struct CleanupFailure: Error {}

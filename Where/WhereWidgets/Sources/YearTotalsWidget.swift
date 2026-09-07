@@ -18,6 +18,7 @@ struct YearTotalsWidget: Widget {
                 // no other Broadway root), plus the region looks the snapshot
                 // carries so `\.regionStyles` renders the user's picks.
                 .whereBroadwayRoot(
+                    theme: entry.theme,
                     regionStyles: RegionStyleResolver(appearances: entry.snapshot.appearances),
                 )
         }

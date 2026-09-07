@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// Variant selection, reset, and app-provided controls for one Flyover screen.
@@ -31,13 +32,13 @@ struct FlyoverScreenControls<ScreenID: Hashable>: View {
                 }
 
                 if model.previewedScreenID == screen.id {
-                    Button("Pause Preview", systemImage: "pause.fill") {
+                    Button("Pause Preview", systemSymbol: .pauseFill) {
                         model.pausePreview()
                     }
                     .buttonStyle(.borderless)
                 }
 
-                Button("Reset Frame", systemImage: "arrow.counterclockwise") {
+                Button("Reset Frame", systemSymbol: .arrowCounterclockwise) {
                     model.reset(screen)
                 }
                 .buttonStyle(.borderless)

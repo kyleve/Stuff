@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
@@ -45,7 +46,7 @@ struct EvidenceListView: View {
                     Button {
                         showingAdd = true
                     } label: {
-                        Label(String(localized: .evidenceAdd), systemImage: "plus")
+                        Label(String(localized: .evidenceAdd), systemSymbol: .plus)
                     }
                     .accessibilityIdentifier("where_add_evidence_button")
                 }
@@ -82,7 +83,7 @@ struct EvidenceListView: View {
                 ContentUnavailableView {
                     Label(
                         String(localized: .evidenceFailedTitle),
-                        systemImage: "exclamationmark.icloud",
+                        systemSymbol: .exclamationmarkIcloud,
                     )
                 } description: {
                     Text(message)
@@ -105,7 +106,7 @@ struct EvidenceListView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label(String(localized: .evidenceEmptyTitle), systemImage: "paperclip")
+            Label(String(localized: .evidenceEmptyTitle), systemSymbol: .paperclip)
         } description: {
             Text(String(localized: .evidenceEmptyDescription))
         } actions: {
@@ -144,7 +145,7 @@ private struct EvidenceRow: View {
 
     var body: some View {
         HStack(spacing: stylesheet.spacing.large) {
-            Image(systemName: evidence.kind.symbolName)
+            Image(systemSymbol: evidence.kind.symbol)
                 .font(.title3)
                 .foregroundStyle(.tint)
                 .frame(width: stylesheet.size.statusIconWidth)

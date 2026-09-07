@@ -37,7 +37,7 @@ struct InspectorSnapshotTests {
             of: swiftDataView,
             named: "SwiftData",
             configurations: SnapshotConfiguration.combinations(
-                devices: [.iPhone],
+                devices: [.iPhoneFullContent],
                 colorSchemes: [.light],
             ),
         )
@@ -66,7 +66,7 @@ struct InspectorSnapshotTests {
                 of: swiftDataView,
                 named: "SwiftData",
                 configurations: SnapshotConfiguration.combinations(
-                    devices: [.iPhone],
+                    devices: [.iPhoneFullContent],
                     colorSchemes: [.dark],
                 ),
             )
@@ -119,7 +119,7 @@ struct InspectorSnapshotTests {
             of: rootView,
             named: "Root",
             configurations: SnapshotConfiguration.combinations(
-                devices: [.iPhone],
+                devices: [.iPhoneFullContent],
                 colorSchemes: [.light, .dark],
             ),
         )

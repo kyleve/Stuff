@@ -155,6 +155,58 @@ struct DemoDataBuilderTests {
         #expect(firstReport.days == secondReport.days)
     }
 
+    @Test(arguments: [
+        "2026-01-01T09:30:00Z",
+        "2026-10-12T09:30:00Z",
+    ])
+    func configuredIssueCategoriesAreExact(iso: String) async throws {
+        let requestedDate = WhereCoreTestSupport.iso(iso)
+        let categories = DataIssueCategory.allCases
+        for mask in 0 ..< (1 << categories.count) {
+            let selected = Set(categories.enumerated().compactMap { index, category in
+                mask & (1 << index) == 0 ? nil : category
+            })
+            let configuration = DemoDataBuilder.Configuration(issueCategories: selected)
+            let referenceDate = configuration.referenceDate(
+                from: requestedDate,
+                calendar: calendar,
+            )
+            let services = try makeServices(now: referenceDate)
+            try await DemoDataBuilder(
+                now: referenceDate,
+                calendar: calendar,
+                configuration: configuration,
+            ).seed(into: services)
+
+            let issues = try await services.resolution.issues(
+                year: 2026,
+                primaryRegions: [.newYork, .california],
+                driftThresholdMeters: DriftThreshold.default.meters,
+                force: true,
+            )
+            #expect(Set(issues.map(\.category)) == selected, "Configuration mask \(mask)")
+        }
+    }
+
+    @Test func demoReferenceDateAdvancesOnlyAsFarAsItsFixturesNeed() {
+        let januaryFirst = WhereCoreTestSupport.iso("2026-01-01T09:30:00Z")
+
+        #expect(
+            DemoDataBuilder.Configuration(issueCategories: [])
+                .referenceDate(from: januaryFirst, calendar: calendar) == januaryFirst,
+        )
+        #expect(
+            calendar.ordinality(
+                of: .day,
+                in: .year,
+                for: DemoDataBuilder.Configuration.allIssues.referenceDate(
+                    from: januaryFirst,
+                    calendar: calendar,
+                ),
+            ) == 5,
+        )
+    }
+
     /// The shape has to survive being entered at any point in the year, which
     /// is the bug this pins: with fixed-size trips and gaps, a January demo was
     /// more than half unlogged and a February one counted more California days

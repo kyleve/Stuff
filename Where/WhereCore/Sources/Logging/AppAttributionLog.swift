@@ -36,4 +36,16 @@ enum AppAttributionLog: LogEvent {
                 "Failed to decode bundled attribution report: \(description)"
         }
     }
+
+    var remoteFields: [RemoteLogField] {
+        switch self {
+            case let .loaded(creditCount):
+                [RemoteLogField(
+                    key: RemoteLogFieldKey("credit_count"),
+                    value: .count(creditCount),
+                )]
+            case .noReport, .decodeFailed:
+                []
+        }
+    }
 }

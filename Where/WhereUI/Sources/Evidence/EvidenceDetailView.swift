@@ -1,4 +1,5 @@
 import PeriscopeCore
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
@@ -45,12 +46,12 @@ struct EvidenceDetailView: View {
     private var header: some View {
         let evidence = model.evidence
         return VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
-            Label(evidence.kind.displayName, systemImage: evidence.kind.symbolName)
+            Label(evidence.kind.displayName, systemSymbol: evidence.kind.symbol)
                 .font(.title3.weight(.semibold))
             Text(evidence.capturedAt.formatted(date: .complete, time: .shortened))
                 .foregroundStyle(.secondary)
             if let region = evidence.region {
-                Label(region.localizedName, systemImage: "mappin.and.ellipse")
+                Label(region.localizedName, systemSymbol: .mappinAndEllipse)
                     .foregroundStyle(.secondary)
             }
             if let note = evidence.note, !note.isEmpty {
@@ -81,7 +82,7 @@ struct EvidenceDetailView: View {
                 ContentUnavailableView {
                     Label(
                         String(localized: .evidenceFailedTitle),
-                        systemImage: "exclamationmark.icloud",
+                        systemSymbol: .exclamationmarkIcloud,
                     )
                 } description: {
                     Text(message)
@@ -91,7 +92,7 @@ struct EvidenceDetailView: View {
 
     private var noAttachment: some View {
         ContentUnavailableView {
-            Label(String(localized: .evidenceDetailNoAttachment), systemImage: "doc")
+            Label(String(localized: .evidenceDetailNoAttachment), systemSymbol: .doc)
         } description: {
             Text(String(localized: .evidenceDetailNoPreviewDescription))
         }

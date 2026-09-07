@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
@@ -11,12 +12,12 @@ import WhereCore
 /// tint from a palette) for everything else, so any of the 50+ available
 /// regions renders sensibly without a bespoke entry.
 public struct RegionStyle: Sendable {
-    public let symbolName: String
+    public let symbol: SFSymbol
     public let emoji: String
     public let tint: Color
 
-    public init(symbolName: String, emoji: String, tint: Color) {
-        self.symbolName = symbolName
+    public init(symbol: SFSymbol, emoji: String, tint: Color) {
+        self.symbol = symbol
         self.emoji = emoji
         self.tint = tint
     }
@@ -24,7 +25,7 @@ public struct RegionStyle: Sendable {
     /// Build a style from a user-picked ``RegionAppearance`` (token → color).
     public init(_ appearance: RegionAppearance) {
         self.init(
-            symbolName: appearance.symbolName,
+            symbol: appearance.symbolName.sfSymbol,
             emoji: appearance.emoji,
             tint: appearance.color.color,
         )

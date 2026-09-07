@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// Device and orientation controls for device-sized Flyover screens.
@@ -5,7 +6,7 @@ struct FlyoverViewportMenu<ScreenID: Hashable>: View {
     @Bindable var model: FlyoverModel<ScreenID>
 
     var body: some View {
-        Menu("Viewport", systemImage: "rectangle.on.rectangle") {
+        Menu {
             Picker("Device", selection: $model.device) {
                 ForEach(FlyoverDevice.allCases) { device in
                     Text(device.title)
@@ -18,6 +19,8 @@ struct FlyoverViewportMenu<ScreenID: Hashable>: View {
                         .tag(orientation)
                 }
             }
+        } label: {
+            Label("Viewport", systemSymbol: .rectangleOnRectangle)
         }
     }
 }

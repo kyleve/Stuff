@@ -1,5 +1,6 @@
 import PeriscopeCore
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -55,7 +56,7 @@ struct ElsewhereView: View {
                 ContentUnavailableView {
                     Label(
                         String(localized: .commonLoadErrorTitle),
-                        systemImage: "exclamationmark.icloud",
+                        systemSymbol: .exclamationmarkIcloud,
                     )
                 } description: {
                     Text(error.message)
@@ -103,7 +104,7 @@ struct ElsewhereView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label(String(localized: .secondaryEmptyTitle), systemImage: "globe.americas")
+            Label(String(localized: .secondaryEmptyTitle), systemSymbol: .globeAmericas)
         } description: {
             Text(String(localized: .secondaryEmptyDescription))
         }
@@ -118,7 +119,7 @@ struct ElsewhereView: View {
 #if DEBUG
     extension ElsewhereView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Loaded", configurations: .screenDefaults) {
+            whereSnapshot(name: "Loaded", configurations: .fullContentScreenDefaults) {
                 NavigationStack {
                     ElsewhereView(report: PreviewSupport.loadedYearReportModel())
                 }

@@ -1,0 +1,69 @@
+#!/bin/bash
+set -euo pipefail
+
+# sf-symbols — reject stringly typed SF Symbol references in Swift source.
+# WhereShortcuts.swift is the sole exception: AppShortcut's metadata macro
+# requires `systemImageName` to be a compile-time string literal and rejects
+# even `SFSymbol.rawValue`.
+
+cd "$(dirname "$0")"
+
+usage() {
+    cat <<'USAGE'
+Usage: ./sf-symbols --lint
+
+Checks Swift source for raw SF Symbol initializers and exits 1 when any are
+found. Where/Where/Sources/WhereShortcuts.swift is exempt only from the
+AppShortcut systemImageName rule because that API requires literals.
+USAGE
+}
+
+if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+    usage
+    exit 0
+fi
+
+if [ "$#" -ne 1 ] || [ "$1" != "--lint" ]; then
+    usage
+    exit 2
+fi
+
+common_args=(
+    --line-number
+    --with-filename
+    --glob '*.swift'
+    --glob '!.build/**'
+    --glob '!Derived/**'
+)
+
+failed=false
+
+check() {
+    local message="$1"
+    local pattern="$2"
+    shift 2
+
+    local matches
+    matches=$(rg "${common_args[@]}" "$@" "$pattern" . || true)
+    if [ -n "$matches" ]; then
+        printf '%s\n' "$matches"
+        printf '  error: %s\n' "$message"
+        failed=true
+    fi
+}
+
+check 'use Image(systemSymbol:)' '\bImage\s*\(\s*systemName\s*:'
+check 'use UIImage(systemSymbol:)' '\bUIImage\s*\(\s*systemName\s*:'
+check 'use NSImage(systemSymbol:accessibilityDescription:)' '\bNSImage\s*\(\s*systemSymbolName\s*:'
+check 'use the systemSymbol overload' '\bsystemImage\s*:\s*"'
+check \
+    'use a typed SFSymbol' \
+    '\bsystemImageName\s*:\s*"' \
+    --glob '!Where/Where/Sources/WhereShortcuts.swift'
+check 'do not create unchecked SFSymbol values' '\bSFSymbol\s*\(\s*rawValue\s*:'
+
+if $failed; then
+    exit 1
+fi
+
+echo 'SF Symbol lint passed'

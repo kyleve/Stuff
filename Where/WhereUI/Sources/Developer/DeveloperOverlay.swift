@@ -31,6 +31,7 @@
         @State private var dragOffset: CGSize = .zero
         @State private var isDraggingButton = false
         @State private var isPresentingFlyover = false
+        @State private var isPresentingDemoConfiguration = false
         /// The collapsed button's rendered size, measured rather than hardcoded so
         /// the drag/anchor math tracks whatever ``DeveloperOverlayButton`` draws
         /// (it scales with Dynamic Type).
@@ -42,6 +43,8 @@
         @State private var windowResize: CGSize = .zero
 
         @Environment(\.stylesheet) private var stylesheet
+        @Environment(WhereDeveloperLaunchController.self) private var launchController:
+            WhereDeveloperLaunchController?
 
         init(tabBarInset: CGFloat = 0) {
             self.tabBarInset = tabBarInset
@@ -82,6 +85,7 @@
                         corner: model.corner,
                         maxHeight: menuFrame.height,
                         onOpenDestination: openDestination,
+                        onConfigureDemo: configureDemo,
                     )
                     .frame(width: menuFrame.width, height: menuFrame.height)
                     .position(x: menuFrame.midX, y: menuFrame.midY)
@@ -126,6 +130,11 @@
             .fullScreenCover(isPresented: $isPresentingFlyover) {
                 WhereFlyoverPresentationView()
             }
+            .sheet(isPresented: $isPresentingDemoConfiguration) {
+                if let launchController {
+                    DeveloperDemoLaunchSheet(controller: launchController)
+                }
+            }
             // Menu and full-screen states are modal to VoiceOver. Crossing either
             // boundary moves focus into/out of the active developer surface.
             .onChange(of: model.presentation) { old, new in
@@ -153,6 +162,13 @@
             withAnimation(stylesheet.developerOverlay.menu.motion.animation) {
                 model.closeMenu()
             }
+        }
+
+        private func configureDemo() {
+            withAnimation(stylesheet.developerOverlay.menu.motion.animation) {
+                model.closeMenu()
+            }
+            isPresentingDemoConfiguration = true
         }
 
         private func openDestination(_ destination: DeveloperDestination) {
@@ -388,12 +404,15 @@
             whereSnapshot(name: "Collapsed", configurations: .phoneLightDark) {
                 DeveloperOverlayPreview(presentation: .collapsed)
             }
-            whereSnapshot(name: "MenuBottomTrailing", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "MenuBottomTrailing",
+                configurations: .fullContentPhoneLightDark,
+            ) {
                 DeveloperOverlayPreview(presentation: .menu)
             }
             whereSnapshot(
                 name: "MenuTopLeading",
-                configurations: SnapshotConfiguration.combinations(devices: [.iPhone]),
+                configurations: SnapshotConfiguration.combinations(devices: [.iPhoneFullContent]),
             ) {
                 DeveloperOverlayPreview(presentation: .menu, corner: .topLeading)
             }
@@ -401,7 +420,7 @@
                 name: "SelectedTool",
                 configurations: SnapshotConfiguration.combinations(devices: [.iPhone]),
             ) {
-                DeveloperOverlayPreview(presentation: .floating(.regionMap))
+                DeveloperOverlayPreview(presentation: .floating(.openSpans))
             }
         }
     }

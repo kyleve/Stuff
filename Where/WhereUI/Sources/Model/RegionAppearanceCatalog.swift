@@ -60,35 +60,35 @@ public enum RegionAppearanceCatalog {
 
     /// Selectable SF Symbols, all guaranteed-available multicolor-friendly
     /// location/place glyphs.
-    public static let symbols: [String] = [
-        "mappin.circle.fill",
-        "location.fill",
-        "map.fill",
-        "flag.fill",
-        "house.fill",
-        "building.2.fill",
-        "building.columns.fill",
-        "tent.fill",
-        "sun.max.fill",
-        "moon.stars.fill",
-        "cloud.fill",
-        "snowflake",
-        "leaf.fill",
-        "tree.fill",
-        "mountain.2.fill",
-        "water.waves",
-        "airplane",
-        "car.fill",
-        "tram.fill",
-        "sailboat.fill",
-        "star.fill",
-        "heart.fill",
-        "flame.fill",
-        "bolt.fill",
-        "globe.americas.fill",
-        "beach.umbrella.fill",
-        "camera.fill",
-        "sparkles",
+    public static let symbols: [RegionSymbol] = [
+        .mappinCircleFill,
+        .locationFill,
+        .mapFill,
+        .flagFill,
+        .houseFill,
+        .building2Fill,
+        .buildingColumnsFill,
+        .tentFill,
+        .sunMaxFill,
+        .moonStarsFill,
+        .cloudFill,
+        .snowflake,
+        .leafFill,
+        .treeFill,
+        .mountain2Fill,
+        .waterWaves,
+        .airplane,
+        .carFill,
+        .tramFill,
+        .sailboatFill,
+        .starFill,
+        .heartFill,
+        .flameFill,
+        .boltFill,
+        .globeAmericasFill,
+        .beachUmbrellaFill,
+        .cameraFill,
+        .sparkles,
     ]
 
     /// The default appearance for `region` when the user hasn't picked one — the
@@ -102,24 +102,24 @@ public enum RegionAppearanceCatalog {
             ?? RegionAppearance(
                 color: defaultColor(for: region.rawValue),
                 emoji: "📍",
-                symbolName: "mappin.circle.fill",
+                symbolName: .mappinCircleFill,
             )
     }
 
     private static let bespokeAppearances: [String: RegionAppearance] = [
         Region.california.rawValue:
-            RegionAppearance(color: .orange, emoji: "🌴", symbolName: "sun.max.fill"),
+            RegionAppearance(color: .orange, emoji: "🌴", symbolName: .sunMaxFill),
         Region.newYork.rawValue:
-            RegionAppearance(color: .indigo, emoji: "🗽", symbolName: "building.2.fill"),
+            RegionAppearance(color: .indigo, emoji: "🗽", symbolName: .building2Fill),
         Region.canada.rawValue:
-            RegionAppearance(color: .red, emoji: "🍁", symbolName: "leaf.fill"),
+            RegionAppearance(color: .red, emoji: "🍁", symbolName: .leafFill),
         Region.europeanUnion.rawValue:
-            RegionAppearance(color: .blue, emoji: "🇪🇺", symbolName: "star.fill"),
+            RegionAppearance(color: .blue, emoji: "🇪🇺", symbolName: .starFill),
         // `.other` keeps its original catch-all look; `location.magnifyingglass`
         // isn't in the pickable `symbols` catalog, but a fallback default isn't
         // constrained to the picker's options.
         Region.other.rawValue:
-            RegionAppearance(color: .teal, emoji: "🧭", symbolName: "location.magnifyingglass"),
+            RegionAppearance(color: .teal, emoji: "🧭", symbolName: .locationMagnifyingglass),
     ]
 
     /// An accent token derived from the region id across every selectable color.

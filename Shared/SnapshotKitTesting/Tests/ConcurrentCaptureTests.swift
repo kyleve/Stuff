@@ -26,8 +26,8 @@ struct ConcurrentCaptureTests {
         try waitFor { hostKeyWindow() != nil }
         let windowInsetsBefore = hostKeyWindow()?.safeAreaInsets
 
-        let serialInset = await expectations(for: captureProbeImage(topInset: 20))
-        let serialZero = await expectations(for: captureProbeImage(topInset: 0))
+        let serialInset = try await expectations(for: captureProbeImage(topInset: 20))
+        let serialZero = try await expectations(for: captureProbeImage(topInset: 0))
         expectInsetCapture(serialInset)
         expectZeroInsetCapture(serialZero)
 
@@ -35,16 +35,16 @@ struct ConcurrentCaptureTests {
         // interleave at the pipeline's suspension points — exactly the
         // scheduling that corrupted captures before the lock serialized them.
         var concurrent: [CGFloat: ProbedCapture] = [:]
-        await withTaskGroup(of: IndexedCapture.self) { group in
+        try await withThrowingTaskGroup(of: IndexedCapture.self) { group in
             for topInset: CGFloat in [20, 0] {
                 group.addTask { @MainActor in
-                    await IndexedCapture(
+                    try await IndexedCapture(
                         topInset: topInset,
                         capture: expectations(for: captureProbeImage(topInset: topInset)),
                     )
                 }
             }
-            for await result in group {
+            for try await result in group {
                 concurrent[result.topInset] = result.capture
             }
         }
@@ -88,10 +88,10 @@ private struct SafeAreaProbeView: View {
 }
 
 @MainActor
-private func captureProbeImage(topInset: CGFloat) async -> UIImage {
+private func captureProbeImage(topInset: CGFloat) async throws -> UIImage {
     let host = UIHostingController(rootView: SafeAreaProbeView())
     host.view.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
-    return await renderSnapshotImage(
+    return try await renderSnapshotImage(
         of: host,
         named: "safe-area-\(Int(topInset))pt-probe",
         safeAreaInsets: UIEdgeInsets(top: topInset, left: 0, bottom: 0, right: 0),

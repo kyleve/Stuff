@@ -18,5 +18,10 @@
     "repo": "twostraws/SwiftData-Agent-Skill",
     "path": "swiftdata-pro",
     "ref": "922d989473a9914210b41529a1ac5636aff4b8c1"
+  },
+  "simple-english": {
+    "repo": "AminBlg/SimpleEnglish",
+    "path": "skills/simple-english",
+    "ref": "59bf6702197a5aadc96d197ea17f290d8d50dcd3"
   }
 }

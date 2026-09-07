@@ -33,7 +33,7 @@ struct AboutSettingsViewTests {
     @Test func searchFindsTheAboutSettingsByKeyword() {
         // None of these words appear in the section titles, so a match proves the
         // keyword lists are wired rather than the titles happening to overlap.
-        for query in ["licenses", "sha", "geojson", "skills"] {
+        for query in ["licenses", "sha", "geojson", "skills", "github", "repository"] {
             let destinations = Set(SettingsCatalog.results(matching: query).map(\.destination))
             #expect(destinations.contains(.about), "no About result for \"\(query)\"")
         }

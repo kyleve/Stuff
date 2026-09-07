@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
@@ -38,7 +39,7 @@ struct AlertsSettingsView: View {
         @Bindable var reminders = reminders
         return Section {
             Toggle(isOn: $reminders.remindersEnabled) {
-                Label(String(localized: .settingsRemindersToggle), systemImage: "bell.badge")
+                Label(String(localized: .settingsRemindersToggle), systemSymbol: .bellBadge)
             }
             .settingsRow(Item.dailyReminder)
 
@@ -55,7 +56,7 @@ struct AlertsSettingsView: View {
                     } label: {
                         Label(
                             String(localized: .settingsRemindersOpenSettings),
-                            systemImage: "bell.slash",
+                            systemSymbol: .bellSlash,
                         )
                     }
                 }
@@ -80,7 +81,7 @@ struct AlertsSettingsView: View {
             Toggle(isOn: $reminders.summaryEnabled) {
                 Label(
                     String(localized: .settingsSummaryToggle),
-                    systemImage: "chart.bar.doc.horizontal",
+                    systemSymbol: .chartBarDocHorizontal,
                 )
             }
             .settingsRow(Item.dailySummary)
@@ -98,7 +99,7 @@ struct AlertsSettingsView: View {
                     } label: {
                         Label(
                             String(localized: .settingsRemindersOpenSettings),
-                            systemImage: "bell.slash",
+                            systemSymbol: .bellSlash,
                         )
                     }
                 }
@@ -123,7 +124,7 @@ struct AlertsSettingsView: View {
             Toggle(isOn: $reminders.issueAlertsEnabled) {
                 Label(
                     String(localized: .settingsIssueAlertsToggle),
-                    systemImage: "checklist.checked",
+                    systemSymbol: .checklistChecked,
                 )
             }
             .settingsRow(Item.issueAlerts)
@@ -134,7 +135,7 @@ struct AlertsSettingsView: View {
                 } label: {
                     Label(
                         String(localized: .settingsRemindersOpenSettings),
-                        systemImage: "bell.slash",
+                        systemSymbol: .bellSlash,
                     )
                 }
             }
@@ -180,7 +181,7 @@ struct AlertsSettingsView: View {
                 if isScanningForIssues {
                     SavingStatusRow(text: String(localized: .settingsFindIssuesScanning))
                 } else {
-                    Label(String(localized: .settingsFindIssues), systemImage: "magnifyingglass")
+                    Label(String(localized: .settingsFindIssues), systemSymbol: .magnifyingglass)
                 }
             }
             .disabled(isScanningForIssues)
@@ -190,7 +191,7 @@ struct AlertsSettingsView: View {
                 Label {
                     Text(WhereFormat.settingsFindIssuesResult(count: count))
                 } icon: {
-                    Image(systemName: count == 0 ? "checkmark.circle" : "checklist")
+                    Image(systemSymbol: count == 0 ? .checkmarkCircle : .checklist)
                 }
                 .font(.subheadline)
                 .foregroundStyle(.secondary)

@@ -1,3 +1,4 @@
+import SFSafeSymbols
 #if DEBUG
     import Flyover
     import SwiftUI
@@ -16,7 +17,7 @@
                         FlyoverView(catalog: catalog)
                     case let .failed(message):
                         ContentUnavailableView {
-                            Label("Flyover failed to load", systemImage: "exclamationmark.triangle")
+                            Label("Flyover failed to load", systemSymbol: .exclamationmarkTriangle)
                         } description: {
                             Text(message)
                         } actions: {

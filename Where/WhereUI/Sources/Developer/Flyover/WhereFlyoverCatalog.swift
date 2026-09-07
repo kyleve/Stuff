@@ -61,6 +61,7 @@
         private static var appRegistrations: [WhereFlyoverData] {
             [
                 LaunchSplashView.flyoverData,
+                WhereLifecycleFailureView.flyoverData,
                 OnboardingView.flyoverData,
                 RegionPickerView.flyoverData,
                 RegionCustomizeView.flyoverData,
@@ -76,7 +77,6 @@
                 YearView.flyoverData,
                 CalendarContentView.yearFlyoverData,
                 PresenceTimelineList.flyoverData,
-                RecentActivitySummaryView.flyoverData,
             ]
         }
 
@@ -88,13 +88,21 @@
                 AddEvidenceView.flyoverData,
                 LoggedDaysView.flyoverData,
                 RegionsSettingsView.flyoverData,
-                LocationSettingsView.flyoverData,
+                DevicesSettingsView.flyoverData,
                 AlertsSettingsView.flyoverData,
                 AppearanceSettingsView.flyoverData,
                 CardDesignerStudioView.flyoverData,
+                RankingAnimationLabView.flyoverData,
                 AppIconView.flyoverData,
                 VisibleYearSettingsView.flyoverData,
+                SiriFeaturesView.flyoverData,
+                WidgetFeaturesView.flyoverData,
+                ShareEvidenceFeaturesView.flyoverData,
+                EstimatedTimeFeaturesView.flyoverData,
+                InsightsAccuracyFeaturesView.flyoverData,
+                PersonalizationFeaturesView.flyoverData,
                 DataSettingsView.flyoverData,
+                PrivacyDiagnosticsSettingsView.flyoverData,
                 AboutSettingsView.flyoverData,
                 LicenseView.flyoverData,
             ]

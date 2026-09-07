@@ -94,4 +94,24 @@ enum WhereLaunchLog: LogEvent {
                 "Detached launch step '\(stepID)' failed: \(description)"
         }
     }
+
+    var remoteFields: [RemoteLogField] {
+        switch self {
+            case let .historyPruned(expiredEventCount, overflowEventCount):
+                [
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("expired_event_count"),
+                        value: .count(expiredEventCount),
+                    ),
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("overflow_event_count"),
+                        value: .count(overflowEventCount),
+                    ),
+                ]
+            case .runnerCreated, .servicesAssembled, .servicesAssemblyFailed,
+                 .loggingStoreReady, .loggingStoreUnavailable, .historyPruneFailed,
+                 .detachedStepFailed:
+                []
+        }
+    }
 }

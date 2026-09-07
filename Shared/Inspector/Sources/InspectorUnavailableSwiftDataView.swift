@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// Recovery surface for a configured SwiftData source whose container cannot
@@ -10,7 +11,7 @@ struct InspectorUnavailableSwiftDataView: View {
 
     var body: some View {
         ContentUnavailableView {
-            Label("SwiftData Unavailable", systemImage: "exclamationmark.triangle")
+            Label("SwiftData Unavailable", systemSymbol: .exclamationmarkTriangle)
         } description: {
             Text(model.swiftDataFailures[source.id] ?? "The store could not be opened.")
         } actions: {
@@ -19,7 +20,7 @@ struct InspectorUnavailableSwiftDataView: View {
             } else if model.canEraseUnreadableStore(id: source.id) {
                 Button(
                     "Delete Unreadable Store",
-                    systemImage: "trash",
+                    systemSymbol: .trash,
                     role: .destructive,
                 ) {
                     isConfirmingErase = true

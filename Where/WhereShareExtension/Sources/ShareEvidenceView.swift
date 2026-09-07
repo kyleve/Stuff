@@ -70,7 +70,7 @@ struct ShareEvidenceView: View {
             Section {
                 Picker(String(localized: .shareFormKind), selection: $model.kind) {
                     ForEach(EvidenceKind.knownCases, id: \.self) { kind in
-                        Label(kind.displayName, systemImage: kind.symbolName).tag(kind)
+                        Label(kind.displayName, systemSymbol: kind.symbol).tag(kind)
                     }
                 }
                 if case .other = model.kind {
@@ -111,7 +111,7 @@ struct ShareEvidenceView: View {
         HStack {
             Label(
                 attachment.filename ?? String(localized: .shareAttachmentFallbackName),
-                systemImage: "paperclip",
+                systemSymbol: .paperclip,
             )
             .lineLimit(1)
             .truncationMode(.middle)

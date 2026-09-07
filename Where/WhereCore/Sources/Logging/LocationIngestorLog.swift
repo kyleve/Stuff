@@ -4,6 +4,21 @@ import PeriscopeCore
 /// and the durable retry queue. Persist failures carry the offending sample id
 /// on `externalID` so the tooling can trace one sample across retries.
 enum LocationIngestorLog: LogEvent {
+    private enum RemoteKind: String, CaseIterable {
+        case monitoringStarted = "monitoring-started"
+        case monitoringStopped = "monitoring-stopped"
+        case restoredBacklog = "restored-backlog"
+        case quiesced
+        case todayIntervalUnavailable = "today-interval-unavailable"
+        case foregroundCaptureReadFailed = "foreground-capture-read-failed"
+        case capturedForegroundFix = "captured-foreground-fix"
+        case persistFailed = "persist-failed"
+        case retryBacklogPersistenceFailed = "retry-backlog-persistence-failed"
+        case retryQueueAtCapacity = "retry-queue-at-capacity"
+        case retryStillFailing = "retry-still-failing"
+        case drainedBacklog = "drained-backlog"
+    }
+
     /// Names the ingestor's timed spans.
     ///
     /// The single-sample commit isn't here — `SwiftDataStore` already spans every
@@ -34,6 +49,7 @@ enum LocationIngestorLog: LogEvent {
     case foregroundCaptureReadFailed(description: String)
     case capturedForegroundFix
     case persistFailed(sampleID: String, description: String)
+    case retryBacklogPersistenceFailed(description: String)
     case retryQueueAtCapacity(capacity: Int)
     case retryStillFailing(sampleID: String, description: String)
     case drainedBacklog(sampleCount: Int, dayCount: Int)
@@ -47,7 +63,7 @@ enum LocationIngestorLog: LogEvent {
                 .info
             case .todayIntervalUnavailable, .foregroundCaptureReadFailed, .retryQueueAtCapacity:
                 .warning
-            case .persistFailed, .retryStillFailing:
+            case .persistFailed, .retryBacklogPersistenceFailed, .retryStillFailing:
                 .error
         }
     }
@@ -70,6 +86,8 @@ enum LocationIngestorLog: LogEvent {
                 "Captured one-shot foreground location for today"
             case let .persistFailed(sampleID, description):
                 "Failed to persist GPS sample \(sampleID): \(description)"
+            case let .retryBacklogPersistenceFailed(description):
+                "Failed to durably persist the GPS retry backlog; stopping recording: \(description)"
             case let .retryQueueAtCapacity(capacity):
                 "Retry queue at capacity (\(capacity)); dropping oldest queued GPS sample"
             case let .retryStillFailing(sampleID, description):
@@ -85,8 +103,54 @@ enum LocationIngestorLog: LogEvent {
                 WhereStoreID.sample(sampleID)
             case .monitoringStarted, .monitoringStopped, .restoredBacklog, .quiesced,
                  .todayIntervalUnavailable, .foregroundCaptureReadFailed, .capturedForegroundFix,
-                 .retryQueueAtCapacity, .drainedBacklog:
+                 .retryBacklogPersistenceFailed, .retryQueueAtCapacity, .drainedBacklog:
                 nil
+        }
+    }
+
+    var remoteFields: [RemoteLogField] {
+        var fields = [RemoteLogField.eventKind(remoteKind)]
+        switch self {
+            case let .restoredBacklog(count):
+                fields.append(RemoteLogField(
+                    key: RemoteLogFieldKey("backlog_count"),
+                    value: .count(count),
+                ))
+            case let .retryQueueAtCapacity(capacity):
+                fields.append(RemoteLogField(
+                    key: RemoteLogFieldKey("capacity"),
+                    value: .count(capacity),
+                ))
+            case let .drainedBacklog(sampleCount, dayCount):
+                fields.append(contentsOf: [
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("sample_count"),
+                        value: .count(sampleCount),
+                    ),
+                    RemoteLogField(key: RemoteLogFieldKey("day_count"), value: .count(dayCount)),
+                ])
+            case .monitoringStarted, .monitoringStopped, .quiesced, .todayIntervalUnavailable,
+                 .foregroundCaptureReadFailed, .capturedForegroundFix, .persistFailed,
+                 .retryBacklogPersistenceFailed, .retryStillFailing:
+                break
+        }
+        return fields
+    }
+
+    private var remoteKind: RemoteKind {
+        switch self {
+            case .monitoringStarted: .monitoringStarted
+            case .monitoringStopped: .monitoringStopped
+            case .restoredBacklog: .restoredBacklog
+            case .quiesced: .quiesced
+            case .todayIntervalUnavailable: .todayIntervalUnavailable
+            case .foregroundCaptureReadFailed: .foregroundCaptureReadFailed
+            case .capturedForegroundFix: .capturedForegroundFix
+            case .persistFailed: .persistFailed
+            case .retryBacklogPersistenceFailed: .retryBacklogPersistenceFailed
+            case .retryQueueAtCapacity: .retryQueueAtCapacity
+            case .retryStillFailing: .retryStillFailing
+            case .drainedBacklog: .drainedBacklog
         }
     }
 }

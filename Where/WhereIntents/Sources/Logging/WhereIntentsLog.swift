@@ -1,8 +1,7 @@
 import PeriscopeCore
 import WhereCore
 
-/// Structured events for the Where App Intents surface — Spotlight indexing of
-/// the tracked regions and the recent-activity summary intent. These run in the
+/// Structured events for the Where App Intents surface. These run in the
 /// app/intents process, which keeps `Periscope.shared` OSLog-only (no
 /// persistent store of its own).
 enum WhereIntentsLog: LogEvent {
@@ -39,23 +38,19 @@ enum WhereIntentsLog: LogEvent {
         case daysInRegionSnippet = "days-in-region-snippet"
         case logDay = "log-day"
         case logTrip = "log-trip"
-        case recentActivitySummary = "recent-activity-summary"
         case regionOnDate = "region-on-date"
         case todayRegions = "today-regions"
 
         /// Siri and Shortcuts hold the user waiting on `perform()`, so these are
         /// tight: a single year's aggregated read or a one-day write should be
-        /// well under a second. The exceptions earn their slack — a trip
-        /// backfills a range in one transaction, and the recent-activity summary
-        /// waits on an on-device language model that may still be warming.
+        /// well under a second. A trip earns more slack because it backfills a
+        /// range in one transaction.
         var budget: Duration {
             switch self {
                 case .daysInRegion, .daysInRegionSnippet, .logDay, .regionOnDate, .todayRegions:
                     .seconds(2)
                 case .logTrip:
                     .seconds(5)
-                case .recentActivitySummary:
-                    .seconds(15)
             }
         }
     }
@@ -65,17 +60,13 @@ enum WhereIntentsLog: LogEvent {
     /// Indexing the tracked regions into Spotlight failed
     /// (degraded-but-handled: search integration is a nicety).
     case spotlightIndexFailed(description: String)
-    /// The recent-activity summary couldn't be produced (e.g. Apple
-    /// Intelligence is off or the model is warming).
-    case recentActivityUnavailable(reason: String)
-
     static let eventName = "WhereIntents"
 
     var level: LogLevel {
         switch self {
             case .spotlightIndexed:
                 .info
-            case .spotlightIndexFailed, .recentActivityUnavailable:
+            case .spotlightIndexFailed:
                 .warning
         }
     }
@@ -86,8 +77,6 @@ enum WhereIntentsLog: LogEvent {
                 "Indexed \(regionCount) region(s) for Spotlight"
             case let .spotlightIndexFailed(description):
                 "Failed to index regions for Spotlight: \(description)"
-            case let .recentActivityUnavailable(reason):
-                "Recent-activity summary unavailable: \(reason)"
         }
     }
 }

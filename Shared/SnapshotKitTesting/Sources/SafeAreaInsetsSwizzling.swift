@@ -22,8 +22,8 @@ import UIKit
 func swizzle<Output>(
     safeAreaInsets: UIEdgeInsets,
     for viewController: UIViewController,
-    operation: () async -> Output,
-) async -> Output {
+    operation: () async throws -> Output,
+) async rethrows -> Output {
     _overrideSafeAreaInsets = safeAreaInsets
     _overrideViewController = viewController
     UIView.swizzleSafeAreaInsets()
@@ -32,7 +32,7 @@ func swizzle<Output>(
         _overrideViewController = nil
         UIView.unswizzleSafeAreaInsets()
     }
-    return await operation()
+    return try await operation()
 }
 
 @MainActor private var _overrideViewController: UIViewController?

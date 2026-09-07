@@ -1,6 +1,7 @@
 import MapKit
 import PeriscopeCore
 import RegionKit
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
@@ -102,7 +103,7 @@ struct RegionPickerView: View {
             case let .some(.failure(error)):
                 ContentUnavailableView(
                     String(localized: .regionPickerLoadErrorTitle),
-                    systemImage: "map",
+                    systemSymbol: .map,
                     description: Text(error.localizedDescription),
                 )
             case let .some(.success(data)):
@@ -271,7 +272,7 @@ private struct RegionPickerRow: View {
                 .foregroundStyle(.primary)
             Spacer(minLength: 0)
             if isSelected {
-                Image(systemName: "checkmark")
+                Image(systemSymbol: .checkmark)
                     .fontWeight(.semibold)
                     .foregroundStyle(style.tint)
             }

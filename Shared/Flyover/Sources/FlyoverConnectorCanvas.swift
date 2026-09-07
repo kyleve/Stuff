@@ -35,18 +35,17 @@ struct FlyoverConnectorCanvas<ScreenID: Hashable>: View {
         context: inout GraphicsContext,
     ) {
         let style = stylesheet.connector
-        let start = CGPoint(x: source.maxX, y: source.midY)
-        let end = CGPoint(x: destination.minX, y: destination.midY)
-        let controlOffset = max(
-            (end.x - start.x) * style.curvature,
-            style.minimumControlOffset,
+        let geometry = FlyoverConnectorGeometry(
+            source: source,
+            destination: destination,
+            style: style,
         )
         var path = Path()
-        path.move(to: start)
+        path.move(to: geometry.start)
         path.addCurve(
-            to: end,
-            control1: CGPoint(x: start.x + controlOffset, y: start.y),
-            control2: CGPoint(x: end.x - controlOffset, y: end.y),
+            to: geometry.end,
+            control1: geometry.firstControl,
+            control2: geometry.secondControl,
         )
         let strokeStyle = StrokeStyle(
             lineWidth: style.lineWidth,
@@ -56,15 +55,9 @@ struct FlyoverConnectorCanvas<ScreenID: Hashable>: View {
         context.stroke(path, with: .color(color(for: transition.kind)), style: strokeStyle)
 
         var arrow = Path()
-        arrow.move(to: CGPoint(
-            x: end.x - style.arrowWidth,
-            y: end.y - style.arrowHalfHeight,
-        ))
-        arrow.addLine(to: end)
-        arrow.addLine(to: CGPoint(
-            x: end.x - style.arrowWidth,
-            y: end.y + style.arrowHalfHeight,
-        ))
+        arrow.move(to: geometry.firstArrowPoint)
+        arrow.addLine(to: geometry.end)
+        arrow.addLine(to: geometry.secondArrowPoint)
         context.stroke(
             arrow,
             with: .color(color(for: transition.kind)),
@@ -84,8 +77,8 @@ struct FlyoverConnectorCanvas<ScreenID: Hashable>: View {
         context.draw(
             label,
             at: CGPoint(
-                x: (start.x + end.x) / 2,
-                y: (start.y + end.y) / 2 - style.labelOffsetY,
+                x: geometry.midpoint.x,
+                y: geometry.midpoint.y - style.labelOffsetY,
             ),
         )
     }

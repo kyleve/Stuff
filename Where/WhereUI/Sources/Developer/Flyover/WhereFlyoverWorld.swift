@@ -35,7 +35,11 @@
                 configuration: Periscope.Configuration(),
                 sinks: [],
             )
-            let scope = try await WhereScope.demo(now: now, logSystem: logSystem)
+            let scope = try await WhereScope.demo(
+                now: now,
+                logSystem: logSystem,
+                configuration: .standard,
+            )
             let session = WhereSession(scope: scope, now: now)
             await session.start()
 
@@ -85,7 +89,7 @@
             let session = WhereSession(scope: scope, now: now)
             let model = WhereModel(
                 services: services,
-                report: PreviewSupport.sampleReport(),
+                details: PreviewSupport.sampleYearReportDetails(),
                 selectedYear: PreviewSupport.year,
                 preferences: preferences,
                 logSystem: logSystem,
@@ -93,7 +97,7 @@
             )
             let report = YearReportModel(
                 services: services,
-                report: PreviewSupport.sampleReport(),
+                details: PreviewSupport.sampleYearReportDetails(),
                 selectedYear: PreviewSupport.year,
                 preferences: preferences,
                 now: now,

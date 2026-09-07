@@ -1,11 +1,11 @@
 import Foundation
 import RegionKit
 
-public enum DataIssueCategory: Sendable, Hashable, CaseIterable {
-    case missingDays
-    case borderDrift
-    case abruptChange
-    case flightDay
+public enum DataIssueCategory: String, Codable, Sendable, Hashable, CaseIterable {
+    case missingDays = "missing-days"
+    case borderDrift = "border-drift"
+    case abruptChange = "abrupt-change"
+    case flightDay = "flight-day"
 }
 
 /// Closed set of fix shapes. The UI switches on this, so a new detector that
