@@ -10,3 +10,6 @@ Keep the protocol injectable, keep raw `OSStatus` failures observable, and do
 not turn an inaccessible item into `notFound`; callers decide whether absence
 permits creating a new secret. Tests use the in-memory store SPI, never a
 user's Keychain. Run `./test KeychainKitTests`.
+
+Keep collection entries create-only. Do not treat a successful local insert
+as a cross-device uniqueness guarantee (`KeychainCollectionTests`).
