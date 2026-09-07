@@ -54,8 +54,6 @@ struct WhereStylesheetTests {
         #expect(welcome.paperOpacity == 0.92)
         #expect(welcome.scrimOpacity == 0.28)
         #expect(welcome.glassTintOpacity == 0.2)
-        #expect(welcome.outlineOpacity == 0.28)
-        #expect(welcome.outlineWidth == 1)
         #expect(welcome.glow == .init(opacity: 0.16, radius: 22))
         #expect(welcome.lift == .init(opacity: 0.18, radius: 12, offsetY: 6))
         #expect(welcome.close.offset == CGSize(width: 8, height: -8))

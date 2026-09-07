@@ -108,13 +108,6 @@ struct RegionWelcomeCard: View {
             .clipShape(shape)
             .allowsHitTesting(false)
         }
-        .overlay {
-            shape.strokeBorder(
-                regionStyle.tint.opacity(welcome.outlineOpacity),
-                lineWidth: welcome.outlineWidth,
-            )
-            .allowsHitTesting(false)
-        }
         .overlay(alignment: .topTrailing) {
             Button(
                 String(localized: .locationWelcomeDismiss),

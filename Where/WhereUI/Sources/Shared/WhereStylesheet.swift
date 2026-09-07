@@ -112,8 +112,6 @@ extension WhereStylesheet {
         var paperOpacity: Double
         var scrimOpacity: Double
         var glassTintOpacity: Double
-        var outlineOpacity: Double
-        var outlineWidth: CGFloat
         var glow: Shadow
         var lift: Shadow
         var close: Close
@@ -172,8 +170,6 @@ extension WhereStylesheet {
             paperOpacity: 0.92,
             scrimOpacity: 0.28,
             glassTintOpacity: 0.2,
-            outlineOpacity: 0.28,
-            outlineWidth: 1,
             glow: Shadow(opacity: 0.16, radius: 22),
             lift: Shadow(opacity: 0.18, radius: 12, offsetY: 6),
             close: Close(
