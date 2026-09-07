@@ -476,7 +476,7 @@ public actor LocationIngestor {
             await closeRecordingAuthority(ifAuthorizedFor: dataGenerationID)
         } catch {
             // Persistence failures (SwiftData save, CloudKit, etc.) are surfaced
-            // via `os.Logger` rather than silently dropped. The stream keeps
+            // via typed `WhereLog` events rather than silently dropped. The stream keeps
             // running so a transient error doesn't stop tracking, and the sample
             // is queued for retry on the next save attempt.
             Self.logger(attachments: [.error(error, name: "persist-error")]) {
