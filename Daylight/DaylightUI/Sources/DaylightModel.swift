@@ -46,12 +46,12 @@ public final class DaylightModel {
 
     public var previewKey: PreviewKey {
         PreviewKey(
-            settings: settings,
-            enabled: ready && !isArmed && !working,
+            settings: settings.camera,
+            enabled: !isArmed && !working,
         )
     }
 
-    public struct PreviewKey: Equatable { let settings: CaptureSettings; let enabled: Bool }
+    public struct PreviewKey: Equatable { let settings: CaptureSettings.Camera; let enabled: Bool }
     public var recentHistory: [CaptureSequence] {
         Array(history
             .filter {
@@ -145,6 +145,7 @@ public final class DaylightModel {
         guard await camera.requestAccess()
         else { notice = DaylightError.cameraPermission.localizedDescription; return }
         do {
+            try Task.checkCancellation()
             let stream = try await camera.preview(
                 settings: settings.camera,
             )

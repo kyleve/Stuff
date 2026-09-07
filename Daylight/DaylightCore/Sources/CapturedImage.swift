@@ -3,12 +3,13 @@ import Foundation
 public struct CapturedImage: Codable, Equatable, Sendable, Identifiable {
     public var id: CaptureSequence.Slot.ID
     public let capturedAt: Date
-    public let format: Format
+    /// Older captures did not record a format or delivery checkpoint.
+    public let format: Format?
     public enum Format: String, Codable, Sendable { case jpeg, rawAndJPEG }
 
     public var photos: PhotosState
     public var score: ScoreState
-    public var capturedEventHandled = false
+    public var capturedEventHandled: Bool? = false
 
     public enum PhotosState: Codable, Equatable, Sendable {
         case pending, saving(String?), saved(String), failed(String), ambiguous

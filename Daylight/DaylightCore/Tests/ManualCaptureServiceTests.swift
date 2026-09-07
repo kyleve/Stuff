@@ -22,6 +22,28 @@ struct ManualCaptureServiceTests {
         #expect(try await reopened.armedIntent() == false)
     }
 
+    @Test func legacySavedShotRecoversWithoutRecaptureOrAnotherPhotosSave() async throws {
+        let fixture = try CaptureHarness()
+        defer { do { try fixture.clean() } catch { Issue.record(error) } }
+        let data = Data(
+            #"{"version":1,"value":{"id":{"rawValue":"00000000-0000-0000-0000-000000000001"},"date":1000,"state":{"captured":{"_0":{"id":{"rawValue":"00000000-0000-0000-0000-000000000001"},"capturedAt":1000,"photos":{"saved":{"_0":"existing-asset"}},"score":{"pending":{}},"recipe":{"preset":"original"}}}}}}"#
+                .utf8,
+        )
+        let url = fixture.root.appendingPathComponent("manual-legacy.json")
+        try data.write(to: url)
+        let engine = fixture.engine(photos: ScriptedPhotos(), scorer: ScriptedScorer())
+        _ = try await engine.load()
+        try await engine.tick(canCapture: false)
+        let record = try #require(try await engine.manualHistory().first)
+        guard case let .captured(image) = record.state else {
+            Issue.record("Saved legacy capture was lost"); return
+        }
+        #expect(image.photos == .saved("existing-asset"))
+        #expect(await fixture.camera.count == 0)
+        #expect(await fixture.publisher.count == 0)
+        #expect(try Data(contentsOf: url) == data)
+    }
+
     @Test func disarmedRecoveryFinishesStagedTestShotWithoutUsingCamera() async throws {
         let fixture = try CaptureHarness()
         defer { do { try fixture.clean() } catch { Issue.record(error) } }

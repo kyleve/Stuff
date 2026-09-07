@@ -33,8 +33,12 @@ extension CaptureSequence.Slot.State {
             case let .failed(message): message
             case let .captured(image):
                 switch image.photos {
-                    case .saved: String(localized: image
-                            .format == .rawAndJPEG ? .photosSavedRaw : .photosSavedJpeg)
+                    case .saved:
+                        switch image.format {
+                            case .rawAndJPEG: String(localized: .photosSavedRaw)
+                            case .jpeg: String(localized: .photosSavedJpeg)
+                            case nil: String(localized: .photosSaved)
+                        }
                     case .pending, .saving: String(localized: .photosSaving)
                     case let .failed(message): message
                     case .ambiguous: String(localized: .photosAmbiguous)

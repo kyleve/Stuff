@@ -56,7 +56,7 @@
         }
     }
 
-    private actor PreviewCaptureController: CaptureControlling {
+    actor PreviewCaptureController: CaptureControlling {
         func armedIntent() -> Bool {
             false
         }
@@ -110,7 +110,7 @@
         func stop() {}
     }
 
-    private struct PreviewPhotos: PhotosSaving {
+    struct PreviewPhotos: PhotosSaving {
         func requestAccess() -> Bool {
             true
         }
@@ -129,7 +129,7 @@
         }
     }
 
-    private actor PreviewAccount: MastodonManaging {
+    actor PreviewAccount: MastodonManaging {
         var settings = MastodonSettings.initial
         func configuration() -> MastodonSettings {
             settings

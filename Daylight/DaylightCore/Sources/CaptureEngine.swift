@@ -265,7 +265,7 @@ public actor CaptureEngine: CaptureControlling {
         sequenceID: SolarEvent.ID,
         index: Int,
     ) async throws {
-        guard !image.capturedEventHandled else { return }
+        guard image.capturedEventHandled != true else { return }
         try await enqueue(image: image, sequenceID: sequenceID, kind: .capturedImage)
         image.capturedEventHandled = true
         try await setImage(image, sequenceID: sequenceID, index: index)

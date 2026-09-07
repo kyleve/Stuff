@@ -7,3 +7,5 @@ SwiftUI presentation, Broadway appearance, and observable models.
 Import Core and Mastodon contracts. Keep capture and persistence in services. Route screen actions through DaylightModel.
 
 Use ./test for unit tests. UI snapshots belong to DaylightUISnapshotTests in the shared StuffSnapshotTests scheme. Device camera and Photos checks require the physical iPhone.
+
+Keep live framing independent of archive readiness. Check cancellation after camera permission returns and before starting the preview.
