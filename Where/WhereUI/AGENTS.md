@@ -65,6 +65,10 @@ Layering, localization, preview, and testing conventions live in the feature
   factory methods.
 - Construct and retain the Where Flyover catalog once after its world loads.
   Never rebuild fixture state from a SwiftUI `body`.
+- Build one `WhereFlyoverWorld` for each hosted web export. Reuse it for every
+  capture. Never activate its scope or read user data.
+- Export stable screen IDs from reflected screen and context type names. Use
+  snapshot case names for snapshot-backed variant IDs.
 - Present Where Flyover from the developer accordion with `fullScreenCover`.
   Place it outside the selected-tool `NavigationStack`.
 - Register leaf screens against Flyover's default navigation container. Use

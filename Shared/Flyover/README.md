@@ -134,6 +134,125 @@ Then keep their central catalog limited to grouping and assembly.
 Swift macros cannot discover all conformers or navigation destinations across a module.
 A generated source scan would add build ordering and cache invalidation complexity.
 
+## Static web export
+
+`FlyoverWebExporter` converts a DEBUG catalog into a static QA atlas. It writes
+native PNG captures, `manifest.json`, and `manifest.js`. The web shell reads
+`manifest.js`, so the atlas works from `file://` and any static host. The
+browser changes images and navigation state. It does not run SwiftUI or
+serialize `FlyoverControl` actions.
+
+The exporter validates the complete plan before its first capture. The host
+provides one stable string for each typed screen ID and one capture closure.
+Stable IDs must be nonempty and unique. Variant IDs must also be nonempty and
+unique within a screen. Image paths use generated ordinals, never these IDs.
+
+Hosted variants have a `FlyoverExportPolicy` with a fixed viewport by default.
+Snapshot-backed variants inherit their settle, readiness, and hook behavior.
+Their frame matrix must resolve to one capture extent: fixed, intrinsic,
+full-content, or two-axis full-content. A mixed matrix has no resolved policy.
+The app must supply an explicit policy before export.
+
+Profiles are additive and keep request order. No profile matrix is generated.
+The built-in IDs are:
+
+- `phone-light`, `phone-dark`, `tablet-light`, and `phone-landscape`
+- `phone-small`, `phone-xxxl`, and `phone-ax3`
+- `phone-contrast`, `phone-rtl`, `phone-bold`, and `phone-voiceover`
+
+The first profile is the initial web selection. An empty profile list becomes
+`phone-light` followed by `phone-dark`. Fixed Flyover viewports keep their size
+while profile traits still apply.
+
+Run Where's exporter from the repository root:
+
+```sh
+./flyover export
+./flyover export --profile phone-light --profile phone-dark
+./flyover export --output /tmp/where-flyover --profile tablet-light
+```
+
+The default output is `.build/flyover/where`, resolved from the caller's
+directory. The command stages the complete site and replaces only an existing
+directory marked with `.flyover-generated`. A failed capture leaves the last
+successful atlas unchanged.
+
+### Preview the export
+
+Serve the default export on this computer:
+
+```sh
+./flyover preview
+```
+
+The command selects a free port and prints the local URL. Press Control-C to
+stop the server.
+
+Use `--lan` to open the preview to other devices on the local network:
+
+```sh
+./flyover preview --lan
+./flyover preview --output /tmp/where-flyover --lan --port 8080
+```
+
+The command prints one URL for each network address that it finds. The other
+device must be able to reach this computer. A macOS firewall prompt can appear.
+
+WARNING: LAN preview has no authentication or TLS. Any device that can reach
+the computer can view the native screenshots. Stop and restart the preview
+after each export.
+
+For a static host, upload the contents of the generated directory. Put
+`index.html` at the selected host root or subpath. The site needs no build step.
+All site URLs are relative.
+
+The manifest compatibility boundary is `schemaVersion: 1`. It contains the
+application and build identity, profiles, precomputed canvas geometry, groups,
+screens, routes, and image metadata. It contains no local source or account
+paths. Full-content sizing uses SnapshotKitTesting limits and convergence
+rules. A sizing failure stops the export; it never substitutes a viewport
+image.
+
+The website opens the first catalog group in canvas mode. A floating control
+dock keeps the canvas visible. The group panel and overview map move between
+groups without recalculating the graph. The canvas keeps its position when a
+state, profile, or panel changes.
+
+Canvas and list views give an active image source to every visible screenshot.
+The list can also preload nearby screenshots. This preload targets six active
+images and 24 million pixels.
+Visible screenshots override both targets.
+The inspector removes these sources while it shows one full-resolution capture.
+
+Point to or focus a card to emphasize its connected routes. The site dims
+unrelated cards and routes until the focus moves. Filters for groups, capture
+extents, and route states stay in a separate panel.
+
+Search opens a command palette. It matches group, screen, state, and connected
+route names. A result opens its screen or fits its group. List mode shows the
+same selection in grouped rows. State and profile changes update the native
+image without changing the selected screen.
+
+The inspector uses the full browser window. The image stays central while a
+drawer supplies capture data and route links. Full-content images use a
+device-width scroll area. The Fit and 100% controls change the image scale
+without changing the capture.
+
+Atlas controls, labels, and screenshots do not support browser text selection
+or image dragging. Search text, screen titles, error details, and metadata
+values remain selectable.
+
+The browser hash stores the view, screen, state, and profile. Browser Back and
+Forward restore these values. The site also supplies these keyboard controls:
+
+- Press `/` or `Command-K` to open search.
+- Press `F` to fit the complete canvas.
+- Press `0` to fit the current group.
+- Press `+` or `-` to change the canvas zoom.
+- Press an arrow key, `[` or `]`, to move between inspector screens.
+- Press `I` to show or hide the inspector details.
+- Press Escape to close the inspector.
+
 ## Testing
 
 Run unit coverage with:

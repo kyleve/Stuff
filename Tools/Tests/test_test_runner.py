@@ -89,6 +89,27 @@ class TestRunnerTests(unittest.TestCase):
 
             self.assertIn("1 images", output.getvalue())
 
+    def test_progress_passes_through_flyover_export_status(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = io.StringIO()
+            reporter = ProgressReporter(
+                heartbeat=15,
+                status_path=None,
+                counts_path=Path(directory) / "counts.json",
+                scheme="Snapshots",
+                is_terminal=False,
+                count_images=False,
+                output=output,
+                clock=Clock(),
+            )
+
+            reporter.consume("FLYOVER_EXPORT 37/110 Locations / Empty / phone-light")
+
+            self.assertIn(
+                "FLYOVER_EXPORT 37/110 Locations / Empty / phone-light",
+                output.getvalue(),
+            )
+
     def test_progress_keeps_cached_test_count_labeled_as_tests(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

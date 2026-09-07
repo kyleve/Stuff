@@ -77,9 +77,9 @@
                     title: title,
                     viewport: viewport,
                     navigationContainer: navigationContainer,
-                    variants: Screen.snapshots.enumerated().map { index, snapshotCase in
+                    variants: Screen.snapshots.map { snapshotCase in
                         FlyoverVariant(
-                            id: FlyoverVariantID("\(id).\(index)"),
+                            id: FlyoverVariantID(snapshotCase.name),
                             snapshotCase: snapshotCase,
                         )
                     },
