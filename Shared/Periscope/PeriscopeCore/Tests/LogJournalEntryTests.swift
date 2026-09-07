@@ -56,7 +56,7 @@ struct LogJournalEntryTests {
     @Test func spanBegansCarryTheirRelaunchPolicy() throws {
         let record = LogRecord(
             date: Date(timeIntervalSinceReferenceDate: 5),
-            event: SpanBegan(
+            event: makeSpanBegan(
                 spanID: SpanID(),
                 name: "long-download",
                 lifetime: .indefinite,
@@ -76,7 +76,7 @@ struct LogJournalEntryTests {
     @Test func nonBeganRecordsCarryNoRelaunchPolicy() throws {
         let record = LogRecord(
             date: Date(timeIntervalSinceReferenceDate: 6),
-            event: SpanEnded(
+            event: makeSpanEnded(
                 spanID: SpanID(),
                 name: "long-download",
                 duration: .seconds(1),
@@ -92,7 +92,7 @@ struct LogJournalEntryTests {
         let big = Data(repeating: 0xAB, count: LogJournalRecord.maximumInlineAttachmentBytes + 1)
         let record = LogRecord(
             date: Date(timeIntervalSinceReferenceDate: 1),
-            event: Message(level: .info, "screenshotted"),
+            event: makeMessage("screenshotted"),
             scopes: [scope.id],
             attachments: [
                 LogAttachment(name: "small", contentType: .json, data: Data([1])),
@@ -134,7 +134,7 @@ struct LogJournalEntryTests {
     @Test func entriesWithoutAmbientStateStillDecode() throws {
         let record = LogRecord(
             date: Date(timeIntervalSinceReferenceDate: 7),
-            event: Message(level: .info, "from an older build"),
+            event: makeMessage("from an older build"),
             scopes: [],
         )
         let journaled = try LogJournalRecord(record: record, sequence: 1)

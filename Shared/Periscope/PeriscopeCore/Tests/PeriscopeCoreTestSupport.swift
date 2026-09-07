@@ -213,7 +213,87 @@ func makeRecord(
     date: Date,
     scopes: [ScopeID],
 ) -> LogRecord {
-    LogRecord(date: date, event: Message(level: level, text), scopes: scopes)
+    LogRecord(
+        date: date,
+        event: Message(
+            level: .restricted(.technicalState, level),
+            text: .restricted(.arbitraryText, text),
+        ),
+        scopes: scopes,
+    )
+}
+
+func makeMessage(_ text: String, level: LogLevel = .info) -> Message {
+    Message(
+        level: .restricted(.technicalState, level),
+        text: .restricted(.arbitraryText, text),
+    )
+}
+
+/// Builds an ambient event while keeping its complete restricted schema explicit.
+func makeAmbientEvent(
+    kind: AmbientKind,
+    value: [String: AmbientValue],
+    level: LogLevel = .info,
+    reporting: AmbientEvent.Reporting = .state,
+) -> AmbientEvent {
+    AmbientEvent(
+        kind: .restricted(.technicalState, kind),
+        value: .restricted(.domainValue, value),
+        level: .restricted(.technicalState, level),
+        reporting: .restricted(.technicalState, reporting),
+    )
+}
+
+func makeSpanBegan(
+    spanID: SpanID,
+    name: String,
+    lifetime: SpanLifetime,
+    relaunchPolicy: SpanRelaunchPolicy,
+) -> SpanBegan {
+    let mode: SpanBegan.LifetimeMode
+    let budget: Duration?
+    switch lifetime {
+        case .scoped:
+            mode = .scoped
+            budget = nil
+        case let .bounded(value):
+            mode = .bounded
+            budget = value
+        case .indefinite:
+            mode = .indefinite
+            budget = nil
+    }
+    return SpanBegan(
+        spanID: .restricted(.identifier, spanID),
+        name: .restricted(.technicalState, name),
+        lifetimeMode: .restricted(.technicalState, mode),
+        budget: .shared(.duration, budget),
+        relaunchPolicy: .shared(.category, relaunchPolicy),
+    )
+}
+
+func makeSpanEnded(
+    spanID: SpanID,
+    name: String,
+    duration: Duration?,
+    exit: SpanExit,
+) -> SpanEnded {
+    SpanEnded(
+        spanID: .restricted(.identifier, spanID),
+        name: .restricted(.technicalState, name),
+        duration: .shared(.duration, duration),
+        exitMode: .shared(.category, exit.mode),
+        exitReason: .restricted(.errorDetails, exit.reason),
+    )
+}
+
+func makeSpanOverdue(spanID: SpanID, name: String, budget: Duration) -> SpanOverdue {
+    SpanOverdue(
+        spanID: .restricted(.identifier, spanID),
+        name: .restricted(.technicalState, name),
+        budget: .shared(.duration, budget),
+    )
 }
 
 /// Shared fixture events used across suites.

@@ -12,7 +12,8 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) first. That file owns the build 
 ## Invariants
 
 - **Stacked `logContext` modifiers link, not replace.** A child's context is the union of every ancestor's scopes plus merged tags. The nearest modifier is primary (`Log.linked(with:)` semantics). Do not reimplement the merge here.
-- **`\.logContext` always yields a usable logger.** Outside any modifier, it falls back to a root `Log<Message>` on `Periscope.shared`. That mirrors `Log.current`.
+- **Keep the accumulated environment value optional.** A direct fallback would join a freeform scope into every explicit context.
+- **`\.logContext` always yields a usable context.** Outside any modifier, it falls back to `LogContext()` on `Periscope.shared`.
 
 ## Testing
 

@@ -35,7 +35,10 @@ struct StoredLogEventTests {
     }
 
     @Test func decodeThrowsWhenTheShapeNoLongerMatches() throws {
-        let payload = try JSONEncoder().encode(Message(level: .info, "not a photo"))
+        let payload = try JSONEncoder().encode(Message(
+            level: .restricted(.technicalState, .info),
+            text: .restricted(.arbitraryText, "not a photo"),
+        ))
         let stored = makeStored(payload: payload)
 
         #expect(throws: (any Error).self) {
