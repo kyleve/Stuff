@@ -114,7 +114,7 @@ inbox rather than here.
 ## P2s (Nice to have)
 - perf(CI) [needs-design]: Re-evaluate caching Git LFS snapshot objects without
   fighting CircleCI's   checkout hydration — at the time of that measurement the built-in checkout
-  downloaded all 377 then-current objects (358.58 MiB; the tree holds 484
+  downloaded all 377 then-current objects (358.58 MiB; the tree holds 490
   reference images as of 2026-09-06, so re-measure before retrying) before
   [`.circleci/config.yml:20-32`](.circleci/config.yml), while PR #245's first
   cache attempt encountered a cold miss and then made `git lfs prune

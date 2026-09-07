@@ -137,8 +137,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 
 - **`OnboardingView` / `OnboardingFlowModel`** — the rendered first-run flow and its view-scoped
   observable coordinator, registered for the launch's
-  `OnboardingGate` and handed its `LifecycleGateHandle`. The gate roots the
-  trunk, so there is no session behind it: a paged intro,
+  `OnboardingGate` and handed its `LifecycleGateHandle`. The gate follows the
+  side-effect-free demo preflight and precedes every world-building step, so
+  there is no session behind it: a paged intro,
   then picking up to five primary US regions (map or searchable list) and
   giving each a look, then verifying this installation's automatic-recording
   choice. The final page opens the real store in a dormant state to inspect recent synced advisory

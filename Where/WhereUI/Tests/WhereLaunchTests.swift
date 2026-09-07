@@ -154,8 +154,8 @@ struct WhereLaunchTests {
 
     @Test func planNodesRunInStartParityOrder() throws {
         // The work steps mirror WhereSession.start()'s order; the only
-        // insertions are the onboarding gate at the head and the
-        // resolve-scope / start-session promotions behind it.
+        // insertions are the demo preflight and onboarding gate ahead of the
+        // resolve-scope / start-session promotions.
         let model = try makeModel(preferences: makePreferences())
         let ids = WhereLaunch.plan(for: model).nodeIDs
         #expect(ids == [

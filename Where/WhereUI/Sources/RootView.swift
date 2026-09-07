@@ -145,9 +145,9 @@ public struct RootView: View {
                 },
                 failure: { WhereLifecycleFailureView(failure: $0) },
                 gates: {
-                    // The gate roots the trunk, so there is no session (and no
-                    // open store) behind it yet — onboarding builds the scope
-                    // it commits regions with, through the model.
+                    // The gate precedes every world-building step, so there is
+                    // no session (and no open store) behind it yet — onboarding
+                    // builds the scope it commits regions with, through the model.
                     GateView(for: OnboardingGate.self) { handle, _ in
                         OnboardingView(
                             gate: handle,
