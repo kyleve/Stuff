@@ -68,10 +68,15 @@ internal shape.
 - **Authenticate archives before counting them toward retention.** Preserve
   unknown keys and invalid files. Do not repeat a committed write because
   retention failed (`AutomaticBackupStorageTests`).
+  Recheck the candidate and all retained archive digests in one coordinated
+  operation before deleting (`AutomaticBackupRetentionTests`).
 - **Own automatic execution outside the launch trunk.** Cancel and drain it
   before reset or logout. Reconcile scheduling from the latest configuration
   (`AutomaticBackupServiceTests`). `CoordinatedBackupFileAccess` may send only
   `NSFileCoordinator.cancel()` across threads, as permitted by Apple's contract.
+- **Keep catalog I/O outside the storage actor.** Preflight download status
+  before content coordination. Cancel pending reads with their owning view and
+  preserve accessible entries when iCloud is partial (`AutomaticBackupStorageTests`).
 - **Backup import never adopts or changes local recording consent.** Archives
   omit that device-local choice. Replace preserves it and every existing
   removal tombstone while rotating the data generation and discarding the local

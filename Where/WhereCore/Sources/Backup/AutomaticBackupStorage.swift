@@ -32,6 +32,7 @@ public actor AutomaticBackupStorage {
     private let iCloudRoot: @Sendable () throws -> URL?
     private let localRoot: @Sendable () throws -> URL
     private let fileManager: FileManager
+    private let availability: any AutomaticBackupFileAvailabilityChecking
     private let retainedFileCount: Int
     private static let logger = WhereLog.backup(AutomaticBackupLog.self)
 
@@ -41,6 +42,7 @@ public actor AutomaticBackupStorage {
     ) {
         backupService = BackupService()
         fileManager = .default
+        availability = SystemAutomaticBackupFileAvailability()
         self.retainedFileCount = retainedFileCount
         iCloudRoot = {
             FileManager.default.url(forUbiquityContainerIdentifier: iCloudContainerIdentifier)?
@@ -62,9 +64,12 @@ public actor AutomaticBackupStorage {
         iCloudRoot: @escaping @Sendable () throws -> URL?,
         localRoot: @escaping @Sendable () throws -> URL,
         retainedFileCount: Int = 3,
+        availability: any AutomaticBackupFileAvailabilityChecking =
+            SystemAutomaticBackupFileAvailability(),
     ) {
         backupService = BackupService()
         fileManager = .default
+        self.availability = availability
         self.iCloudRoot = iCloudRoot
         self.localRoot = localRoot
         self.retainedFileCount = retainedFileCount
@@ -110,21 +115,34 @@ public actor AutomaticBackupStorage {
         }
     }
 
-    public func catalog() throws -> AutomaticBackupCatalog {
+    /// Catalog work has its own cancellable I/O context, outside the storage
+    /// actor. A blocked reader must not hold up exports or their cancellation.
+    @concurrent
+    public nonisolated func catalog() async throws -> AutomaticBackupCatalog {
+        try await BackupService.withCancellation { try readCatalog() }
+    }
+
+    private nonisolated func readCatalog() throws -> AutomaticBackupCatalog {
+        try Task.checkCancellation()
         var files: [AutomaticBackupFile] = []
         var isICloudUnavailable = false
 
         do {
             if let cloudRoot = try iCloudRoot() {
-                files += try enumerate(
+                let cloud = try enumerate(
                     Root(url: cloudRoot, location: .iCloudDrive),
                     coordinated: true,
                 )
+                files += cloud.files
+                isICloudUnavailable = cloud.isICloudUnavailable
             } else {
                 isICloudUnavailable = true
                 Self.logger { .iCloudUnavailable }
             }
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
+            try Task.checkCancellation()
             isICloudUnavailable = true
             Self.logger { .iCloudAccessFailed(description: error.localizedDescription) }
         }
@@ -132,7 +150,8 @@ public actor AutomaticBackupStorage {
         files += try enumerate(
             Root(url: localRoot(), location: .appDocuments),
             coordinated: false,
-        )
+        ).files
+        try Task.checkCancellation()
         return AutomaticBackupCatalog(
             files: files.sorted {
                 if $0.exportedAt == $1.exportedAt { return $0.url.path < $1.url.path }
@@ -180,29 +199,49 @@ public actor AutomaticBackupStorage {
         )
     }
 
-    private func enumerate(_ root: Root, coordinated: Bool) throws -> [AutomaticBackupFile] {
+    private nonisolated func enumerate(
+        _ root: Root,
+        coordinated: Bool,
+    ) throws -> AutomaticBackupCatalog {
         let urls: [URL]
         do {
+            let fileManager = FileManager()
             let operation = { (url: URL) in
-                try self.fileManager.contentsOfDirectory(
+                try fileManager.contentsOfDirectory(
                     at: url,
                     includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey],
                     options: [.skipsHiddenFiles],
                 )
             }
             urls = try coordinated
-                ? CoordinatedBackupFileAccess.read(at: root.url, operation: operation)
+                ? CoordinatedBackupFileAccess.read(
+                    at: root.url,
+                    options: .immediatelyAvailableMetadataOnly,
+                    operation: operation,
+                )
                 : operation(root.url)
         } catch CocoaError.fileReadNoSuchFile {
-            return []
+            return AutomaticBackupCatalog(files: [], isICloudUnavailable: false)
         }
         var files: [AutomaticBackupFile] = []
+        var hasUnavailableFiles = false
         for url in urls where url.pathExtension.lowercased() == "wherebackup" {
             try Task.checkCancellation()
             // A matching extension alone does not make this one of our
             // automatic files. Ignore malformed or foreign containers
             // so catalog and retention never delete unrecognized data.
             do {
+                // This must precede content coordination: that call otherwise
+                // waits for iCloud to download the item before its accessor runs.
+                if coordinated, try !availability.isDownloaded(at: url) {
+                    hasUnavailableFiles = true
+                    Self
+                        .logger {
+                            .iCloudAccessFailed(description: StorageError.downloadPending
+                                .localizedDescription)
+                        }
+                    continue
+                }
                 let operation = { (coordinatedURL: URL) in
                     try self.describe(coordinatedURL, location: root.location)
                 }
@@ -216,18 +255,21 @@ public actor AutomaticBackupStorage {
                 Self.logger { .ignoredUnrecognizedFile(name: url.lastPathComponent) }
             } catch is Archive.ArchiveError {
                 Self.logger { .ignoredUnrecognizedFile(name: url.lastPathComponent) }
+            } catch {
+                try Task.checkCancellation()
+                guard coordinated else { throw error }
+                hasUnavailableFiles = true
+                Self.logger { .iCloudAccessFailed(description: error.localizedDescription) }
             }
         }
-        return files
+        return AutomaticBackupCatalog(files: files, isICloudUnavailable: hasUnavailableFiles)
     }
 
-    private func describe(
+    private nonisolated func describe(
         _ url: URL,
         location: AutomaticBackupFile.StorageLocation,
     ) throws -> AutomaticBackupFile {
-        let cloudValues = try url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey])
-        if cloudValues.ubiquitousItemDownloadingStatus == .notDownloaded {
-            try fileManager.startDownloadingUbiquitousItem(at: url)
+        if try !availability.isDownloaded(at: url) {
             throw StorageError.downloadPending
         }
         // Archive's failable initializer cannot distinguish I/O from format
@@ -248,13 +290,8 @@ public actor AutomaticBackupStorage {
     /// Only authenticated, readable archives with available recovery keys may
     /// displace another recoverable archive. Unknown keys and invalid files stay.
     public func reconcileRetention(recoveryKeys: BackupRecoveryKeyProvider) async throws {
-        let catalog = try catalog()
-        struct VerifiedFile: Sendable {
-            let file: AutomaticBackupFile
-            let digest: SHA256.Digest
-            let exportedAt: Date
-        }
-        var verified: [VerifiedFile] = []
+        let catalog = try await catalog()
+        var verified: [AutomaticBackupRetention.VerifiedFile] = []
         for file in catalog.files {
             try Task.checkCancellation()
             let identifier = try CoordinatedBackupFileAccess.read(at: file.url) {
@@ -266,7 +303,7 @@ public actor AutomaticBackupStorage {
             do {
                 let candidate = try CoordinatedBackupFileAccess.read(at: file.url) { url in
                     _ = try self.backupService.readEncryptedArchive(at: url, recoveryKey: key)
-                    return try VerifiedFile(
+                    return try AutomaticBackupRetention.VerifiedFile(
                         file: file,
                         digest: SHA256.hash(data: Data(contentsOf: url, options: .mappedIfSafe)),
                         exportedAt: self.backupService.readEncryptedEnvelope(at: url).exportedAt,
@@ -279,25 +316,8 @@ public actor AutomaticBackupStorage {
                 Self.logger { .ignoredUnrecognizedFile(name: file.url.lastPathComponent) }
             }
         }
-        let ordered = verified.sorted {
-            if $0.exportedAt == $1.exportedAt { return $0.file.url.path < $1.file.url.path }
-            return $0.exportedAt > $1.exportedAt
-        }
-        for candidate in ordered.dropFirst(retainedFileCount) {
-            try Task.checkCancellation()
-            try CoordinatedBackupFileAccess
-                .write(at: candidate.file.url, options: .forDeleting) { url in
-                    // A replaced or modified file must be reconsidered next time,
-                    // never deleted using a stale validation result.
-                    let digest = try SHA256.hash(data: Data(
-                        contentsOf: url,
-                        options: .mappedIfSafe,
-                    ))
-                    guard digest == candidate.digest else { return }
-                    try Task.checkCancellation()
-                    try self.fileManager.removeItem(at: url)
-                }
-        }
+        try await AutomaticBackupRetention(verified: verified, retainedFileCount: retainedFileCount)
+            .prune()
     }
 
     private func removeStagingItemIfPresent(at url: URL) {

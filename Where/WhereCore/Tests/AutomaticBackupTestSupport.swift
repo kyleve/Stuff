@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 @_spi(Testing) import KeychainKit
 @_spi(Testing) @testable import WhereCore
@@ -62,6 +63,76 @@ struct AutomaticBackupStorageFixture {
 
     func cleanup() throws {
         try FileManager.default.removeItem(at: root)
+    }
+
+    func makeVerifiedFiles(count: Int) async throws -> [AutomaticBackupRetention.VerifiedFile] {
+        let storage = AutomaticBackupStorage(iCloudRoot: { nil }, localRoot: { root })
+        var verified: [AutomaticBackupRetention.VerifiedFile] = []
+        for index in 0 ..< count {
+            let date = Date(timeIntervalSince1970: Double(index))
+            let source = try makeArchive(at: date)
+            defer { try? FileManager.default.removeItem(at: source.deletingLastPathComponent()) }
+            let file = try await storage.store(source)
+            _ = try BackupService().readEncryptedArchive(at: file.url, recoveryKey: key)
+            try verified.append(AutomaticBackupRetention.VerifiedFile(
+                file: file,
+                digest: SHA256.hash(data: Data(contentsOf: file.url)),
+                exportedAt: date,
+            ))
+        }
+        return verified
+    }
+}
+
+struct ScriptedBackupFileAvailability: AutomaticBackupFileAvailabilityChecking {
+    let unavailable: Set<URL>
+
+    func isDownloaded(at url: URL) throws -> Bool {
+        !unavailable.contains(url)
+    }
+}
+
+/// A synchronous I/O stall with a bounded, cancellation-aware release.
+/// NSCondition protects all mutable state; no callback runs while holding it.
+final class BlockingBackupFileAvailability: AutomaticBackupFileAvailabilityChecking,
+    @unchecked Sendable
+{
+    private let blockedURL: URL
+    private let condition = NSCondition()
+    private var arrived = false
+    private var released = false
+
+    init(blockedURL: URL) {
+        self.blockedURL = blockedURL
+    }
+
+    var hasArrived: Bool {
+        condition.lock()
+        defer { condition.unlock() }
+        return arrived
+    }
+
+    func release() {
+        condition.lock()
+        released = true
+        condition.broadcast()
+        condition.unlock()
+    }
+
+    func isDownloaded(at url: URL) throws -> Bool {
+        guard url == blockedURL else { return true }
+        let progress = BackupService.cancellationProgress
+        progress?.cancellationHandler = { self.release() }
+        defer { progress?.cancellationHandler = nil }
+        condition.lock()
+        defer { condition.unlock() }
+        arrived = true
+        let deadline = Date().addingTimeInterval(10)
+        while !released {
+            guard condition.wait(until: deadline) else { throw CocoaError(.fileReadUnknown) }
+        }
+        if progress?.isCancelled == true { throw CancellationError() }
+        return true
     }
 }
 

@@ -5,6 +5,72 @@ import ZIPFoundation
 @_spi(Testing) @testable import WhereCore
 
 struct AutomaticBackupStorageTests {
+    @Test(.timeLimit(.minutes(1)))
+    func blockedCatalogDoesNotOwnTheStorageActorAndReceivesCancellation() async throws {
+        let fixture = try AutomaticBackupStorageFixture()
+        defer { try? fixture.cleanup() }
+        let blockedURL = fixture.root.appendingPathComponent("blocked.wherebackup")
+        try Data([1]).write(to: blockedURL)
+        let availability = BlockingBackupFileAvailability(blockedURL: blockedURL)
+        defer { availability.release() }
+        let storage = AutomaticBackupStorage(
+            iCloudRoot: { fixture.root },
+            localRoot: { fixture.root.appendingPathComponent("local") },
+            availability: availability,
+        )
+        let read = Task { try await storage.catalog() }
+        defer { read.cancel() }
+        let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+        while !availability.hasArrived, ContinuousClock.now < deadline {
+            await Task.yield()
+        }
+        try #require(availability.hasArrived)
+        let source = try fixture.makeArchive(at: Date(timeIntervalSince1970: 1))
+        defer { try? FileManager.default.removeItem(at: source.deletingLastPathComponent()) }
+        let stored = try await storage.store(source)
+        #expect(FileManager.default.fileExists(atPath: stored.url.path))
+        read.cancel()
+        await #expect(throws: CancellationError.self) { try await read.value }
+    }
+
+    @Test func evictedCloudFilesDoNotHideAccessibleCloudAndLocalBackups() async throws {
+        let fixture = try AutomaticBackupStorageFixture()
+        defer { try? fixture.cleanup() }
+        let cloud = fixture.root.appendingPathComponent("cloud")
+        let local = fixture.root.appendingPathComponent("local")
+        let writer = AutomaticBackupStorage(iCloudRoot: { cloud }, localRoot: { local })
+        let localWriter = AutomaticBackupStorage(iCloudRoot: { nil }, localRoot: { local })
+        let cloudSource = try fixture.makeArchive(at: Date(timeIntervalSince1970: 2))
+        defer { try? FileManager.default.removeItem(at: cloudSource.deletingLastPathComponent()) }
+        let localSource = try fixture.makeArchive(at: Date(timeIntervalSince1970: 1))
+        defer { try? FileManager.default.removeItem(at: localSource.deletingLastPathComponent()) }
+        let cloudFile = try await writer.store(cloudSource)
+        let localFile = try await localWriter.store(localSource)
+        let evicted = cloud.appendingPathComponent("evicted.wherebackup")
+        // Unreadable contents deliberately fail if the preflight is performed
+        // after content access. No real iCloud account is used by this test.
+        try FileManager.default.createDirectory(at: evicted, withIntermediateDirectories: true)
+        let reader = AutomaticBackupStorage(
+            iCloudRoot: { cloud },
+            localRoot: { local },
+            availability: ScriptedBackupFileAvailability(unavailable: [evicted]),
+        )
+        let catalog = try await reader.catalog()
+        #expect(catalog.isICloudUnavailable)
+        #expect(catalog.files.map(\.url) == [cloudFile.url, localFile.url])
+    }
+
+    @Test func cancelledCatalogIsNotReportedAsAnEmptyOrPartialSuccess() async throws {
+        let fixture = try AutomaticBackupStorageFixture()
+        defer { try? fixture.cleanup() }
+        let storage = AutomaticBackupStorage(iCloudRoot: { nil }, localRoot: { fixture.root })
+        let task = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            return try await storage.catalog()
+        }
+        await #expect(throws: CancellationError.self) { try await task.value }
+    }
+
     @Test func forgedFutureEnvelopesCannotDisplaceRecoverableBackups() async throws {
         let fixture = try AutomaticBackupStorageFixture()
         defer { try? fixture.cleanup() }
