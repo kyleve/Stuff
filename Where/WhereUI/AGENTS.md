@@ -37,8 +37,8 @@ Layering, localization, preview, and testing conventions live in the feature
   handoff or recording. Reconcile onboarding imports before offering Restore.
   Acknowledge their preference independently of cleanup. Retain the marker
   through any failure (`WhereLaunchTests`).
-- Keep backup import onboarding-only. Settings exports archives but never
-  starts or resumes an import (`BackupModelTests`).
+- Keep backup import onboarding-only. Settings exports archives and presents automatic-backup
+  status but never starts or resumes an import (`BackupModelTests`).
 - Keep diagnostic reporting's saved, process-effective, applying, and failed
   states distinct. Crash and replay choices stay pending until relaunch.
   Remote-log revisions apply live. A runtime failure invalidates in-flight

@@ -13,6 +13,7 @@ enum WhereSessionLog: LogEvent {
         case trackingEnabled = "tracking-enabled"
         case stoppedBackgroundTracking = "stopped-background-tracking"
         case recordingReconcileFailed = "recording-reconcile-failed"
+        case automaticBackupFailed = "automatic-backup-failed"
         case remindersUnauthorized = "reminders-unauthorized"
         case summaryUnauthorized = "summary-unauthorized"
         case issueAlertsUnauthorized = "issue-alerts-unauthorized"
@@ -41,6 +42,7 @@ enum WhereSessionLog: LogEvent {
     case trackingEnabled
     case stoppedBackgroundTracking
     case recordingReconcileFailed(description: String)
+    case automaticBackupFailed(description: String)
     case remindersUnauthorized
     case summaryUnauthorized
     case issueAlertsUnauthorized
@@ -55,6 +57,8 @@ enum WhereSessionLog: LogEvent {
                  .summaryUnauthorized, .issueAlertsUnauthorized, .regionStylesLoadFailed,
                  .recordingReconcileFailed:
                 .warning
+            case .automaticBackupFailed:
+                .error
             case .backgroundTrackingStarted, .backgroundTrackingStopped, .permissionGranted,
                  .trackingEnabled, .stoppedBackgroundTracking, .erasedSession:
                 .info
@@ -79,6 +83,8 @@ enum WhereSessionLog: LogEvent {
                 "Stopped background tracking"
             case let .recordingReconcileFailed(description):
                 "Failed to reconcile device recording policy: \(description)"
+            case let .automaticBackupFailed(description):
+                "Automatic backup failed: \(description)"
             case .remindersUnauthorized:
                 "Logging reminders enabled but notifications not authorized"
             case .summaryUnauthorized:
@@ -106,6 +112,7 @@ enum WhereSessionLog: LogEvent {
             case .trackingEnabled: .trackingEnabled
             case .stoppedBackgroundTracking: .stoppedBackgroundTracking
             case .recordingReconcileFailed: .recordingReconcileFailed
+            case .automaticBackupFailed: .automaticBackupFailed
             case .remindersUnauthorized: .remindersUnauthorized
             case .summaryUnauthorized: .summaryUnauthorized
             case .issueAlertsUnauthorized: .issueAlertsUnauthorized

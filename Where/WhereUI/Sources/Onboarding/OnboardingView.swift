@@ -140,7 +140,7 @@ public struct OnboardingView: View {
         }
         .fileImporter(
             isPresented: $flow.showImporter,
-            allowedContentTypes: [.zip],
+            allowedContentTypes: [.zip, .whereBackup],
             onCompletion: flow.handleRestoreSelection,
         )
         .confirmationDialog(
@@ -160,6 +160,25 @@ public struct OnboardingView: View {
             }
         } message: { _ in
             Text(String(localized: .settingsBackupImportStrategyMessage))
+        }
+        .alert(
+            String(localized: "onboarding.restore.recoveryKey.title", bundle: .module),
+            isPresented: $flow.showRecoveryKeyPrompt,
+        ) {
+            TextField(
+                String(localized: "onboarding.restore.recoveryKey.placeholder", bundle: .module),
+                text: $flow.enteredRecoveryKey,
+            )
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            Button(String(localized: "onboarding.restore.recoveryKey.continue", bundle: .module)) {
+                flow.finish(using: model)
+            }
+            Button(String(localized: .settingsDataCancel), role: .cancel) {
+                flow.discardPendingRestore()
+            }
+        } message: {
+            Text(String(localized: "onboarding.restore.recoveryKey.message", bundle: .module))
         }
         .alert(
             flow.failureTitle,

@@ -58,6 +58,10 @@ internal shape.
   lossless.** Add persisted user-data shapes end-to-end and cover both import
   strategies. Export no target-owned recording check-ins. Ignore any in an
   imported archive (`BackupServiceTests` / `BackupCoordinatorTests`).
+- **Keep manual exports plaintext and automatic backups encrypted.** Wrap the unchanged backup ZIP
+  in the authenticated `.wherebackup` envelope; never create a replacement recovery key while
+  protected data or the Keychain item is inaccessible (`EncryptedBackupEnvelopeTests` /
+  `BackupRecoveryKeyProviderTests`).
 - **Backup import never adopts or changes local recording consent.** Archives
   omit that device-local choice. Replace preserves it and every existing
   removal tombstone while rotating the data generation and discarding the local

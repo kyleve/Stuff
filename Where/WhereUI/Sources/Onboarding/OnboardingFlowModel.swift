@@ -36,6 +36,8 @@ final class OnboardingFlowModel {
     var intro = OnboardingIntroState()
     var showImporter = false
     var showRestoreStrategyDialog = false
+    var showRecoveryKeyPrompt = false
+    var enteredRecoveryKey = ""
 
     private static let demoBuildDisplayTime = Duration.seconds(2)
     private static let logger = WhereLog.session(OnboardingViewLog.self)
@@ -225,9 +227,20 @@ final class OnboardingFlowModel {
         using model: WhereModel,
     ) async -> Bool {
         do {
+            let recoveryKey: BackupRecoveryKey? = if readyImport.url.pathExtension.lowercased()
+                == "wherebackup"
+            {
+                try await scope.services.automaticBackups?.restoreRecoveryKey(
+                    explicitBase64: enteredRecoveryKey
+                        .trimmingCharacters(in: .whitespacesAndNewlines),
+                )
+            } else {
+                nil
+            }
             let summary = try await scope.services.backup.importBackup(
                 from: readyImport.url,
                 strategy: readyImport.strategy,
+                recoveryKey: recoveryKey,
             ) { _ in }
             restoreSelection.markCommitted(summary)
             model.completeOnboarding()
@@ -241,6 +254,15 @@ final class OnboardingFlowModel {
                 return false
             }
             return true
+        } catch is BackupCoordinator.RecoveryKeyRequiredError {
+            await requestRecoveryKey(using: model)
+            return false
+        } catch BackupService.EncryptedBackupError.recoveryKeyMismatch {
+            await requestRecoveryKey(using: model)
+            return false
+        } catch BackupRecoveryKeyProvider.ProviderError.malformedKey {
+            await requestRecoveryKey(using: model)
+            return false
         } catch let error as BackupCoordinator.CommittedImportCleanupError {
             restoreSelection.markCommitted(error.summary)
             model.completeOnboarding()
@@ -286,6 +308,15 @@ final class OnboardingFlowModel {
             }
             return false
         }
+    }
+
+    private func requestRecoveryKey(using model: WhereModel) async {
+        await model.endSession()
+        intro.activity = .browsing
+        phase = .intro
+        isFinishing = false
+        enteredRecoveryKey = ""
+        showRecoveryKeyPrompt = true
     }
 
     private func configureRecording(in scope: WhereScope) async throws {

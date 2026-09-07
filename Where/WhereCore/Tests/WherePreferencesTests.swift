@@ -21,6 +21,9 @@ struct WherePreferencesTests {
         #expect(preferences.summaryEnabled)
         #expect(preferences.summaryTime == .defaultMorning)
         #expect(preferences.issueAlertsEnabled)
+        #expect(preferences.automaticBackupsEnabled)
+        #expect(preferences.automaticBackupInterval == .weekly)
+        #expect(preferences.lastAutomaticBackupAt == nil)
         #expect(
             preferences.recordingConfigurationWarningRegistration
                 == RecordingConfigurationWarningRegistration(),
@@ -208,6 +211,9 @@ struct WherePreferencesTests {
         preferences.summaryEnabled = false
         preferences.summaryTime = ReminderTime(hour: 17, minute: 45)
         preferences.issueAlertsEnabled = false
+        preferences.automaticBackupsEnabled = false
+        preferences.automaticBackupInterval = .monthly
+        preferences.lastAutomaticBackupAt = Date(timeIntervalSince1970: 1_700_000_000)
         var recordingWarning = preferences.recordingConfigurationWarningRegistration
         recordingWarning.register(isWarningConditionActive: true)
         recordingWarning.acknowledgeCurrentGeneration()
@@ -236,6 +242,9 @@ struct WherePreferencesTests {
         #expect(preferences.summaryEnabled)
         #expect(preferences.summaryTime == .defaultMorning)
         #expect(preferences.issueAlertsEnabled)
+        #expect(preferences.automaticBackupsEnabled)
+        #expect(preferences.automaticBackupInterval == .weekly)
+        #expect(preferences.lastAutomaticBackupAt == nil)
         #expect(
             preferences.recordingConfigurationWarningRegistration
                 == RecordingConfigurationWarningRegistration(),

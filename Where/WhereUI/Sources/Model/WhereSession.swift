@@ -51,6 +51,13 @@ public final class WhereSession {
         return configuration.device.status == .recording
     }
 
+    /// Whether this installation's resolved local policy enables automatic
+    /// recording. Automatic backups use policy, not transient GPS attachment,
+    /// as their availability gate.
+    public var isAutomaticRecordingEnabled: Bool {
+        recordingEnabled
+    }
+
     public var isCurrentDeviceRemoved: Bool {
         if case .removed = recordingRuntimeState { true } else { false }
     }
@@ -236,6 +243,7 @@ public final class WhereSession {
         await applyReminderConfiguration()
         await applySummaryConfiguration()
         await applyIssueAlertConfiguration()
+        await runAutomaticBackupIfDue()
         // Republish the widget snapshot from whatever is already on disk so a
         // cold launch with no writes this session doesn't leave the widget
         // blank or showing the previous day's "today".
@@ -254,6 +262,7 @@ public final class WhereSession {
             await applyReminderConfiguration()
             await applySummaryConfiguration()
             await applyIssueAlertConfiguration()
+            await runAutomaticBackupIfDue()
             // The calendar day may have rolled over while backgrounded;
             // recompute so the widget's "today" reflects the current day rather
             // than stale foreground state.
@@ -502,6 +511,31 @@ public final class WhereSession {
             Self.logger { .trackingEnabled }
         } else if configuration.localAutomaticRecordingEnabled == false {
             Self.logger { .stoppedBackgroundTracking }
+        }
+        await runAutomaticBackupIfDue()
+    }
+
+    /// Runs the first/due automatic backup and advances success metadata only
+    /// after the encrypted container is durably stored.
+    @discardableResult
+    public func runAutomaticBackupIfDue() async -> AutomaticBackupRunResult? {
+        guard let automaticBackups = services.automaticBackups else { return nil }
+        do {
+            let result = try await automaticBackups.runIfDue(configuration: .init(
+                isEnabled: preferences.automaticBackupsEnabled,
+                isRecordingEnabled: isAutomaticRecordingEnabled,
+                interval: preferences.automaticBackupInterval,
+                lastSuccessfulBackupAt: preferences.lastAutomaticBackupAt,
+            ))
+            if case let .completed(exportedAt) = result {
+                preferences.lastAutomaticBackupAt = exportedAt
+            }
+            return result
+        } catch {
+            Self.logger(attachments: [.error(error, name: "automatic-backup-error")]) {
+                .automaticBackupFailed(description: error.localizedDescription)
+            }
+            return nil
         }
     }
 

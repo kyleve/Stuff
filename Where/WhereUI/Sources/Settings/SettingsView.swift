@@ -36,7 +36,10 @@ struct SettingsView: View {
         self.recordingWarning = recordingWarning ?? RecordingConfigurationWarningModel(
             preferences: report.preferences,
         )
-        _backup = State(initialValue: BackupModel(services: report.services))
+        _backup = State(initialValue: BackupModel(
+            services: report.services,
+            preferences: report.preferences,
+        ))
         _reminders = State(initialValue: RemindersSettingsModel(
             services: report.services,
             preferences: report.preferences,

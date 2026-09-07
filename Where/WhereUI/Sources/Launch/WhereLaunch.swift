@@ -257,6 +257,9 @@ public final class WhereBootstrap: WhereScopeAssembling {
     private let installationContextStore: any InstallationRecordingContextStoring
     private let storeStorage: SwiftDataStore.Storage
     private let locationOutbox: any LocationOutbox
+    private let backupRecoveryKeys: BackupRecoveryKeyProvider?
+    private let automaticBackupStorage: AutomaticBackupStorage?
+    private let automaticBackupScheduler: any AutomaticBackupTaskScheduling
     private var locationSource: CoreLocationSource?
     private var preparedStore: SwiftDataStore?
 
@@ -264,10 +267,17 @@ public final class WhereBootstrap: WhereScopeAssembling {
         installationContextStore: any InstallationRecordingContextStoring,
         storeStorage: SwiftDataStore.Storage,
         locationOutbox: any LocationOutbox,
+        backupRecoveryKeys: BackupRecoveryKeyProvider? = nil,
+        automaticBackupStorage: AutomaticBackupStorage? = nil,
+        automaticBackupScheduler: any AutomaticBackupTaskScheduling =
+            NoopAutomaticBackupTaskScheduler(),
     ) {
         self.installationContextStore = installationContextStore
         self.storeStorage = storeStorage
         self.locationOutbox = locationOutbox
+        self.backupRecoveryKeys = backupRecoveryKeys
+        self.automaticBackupStorage = automaticBackupStorage
+        self.automaticBackupScheduler = automaticBackupScheduler
     }
 
     /// Install the `CLLocationManager` + delegate right away, without touching
@@ -317,6 +327,9 @@ public final class WhereBootstrap: WhereScopeAssembling {
                 widgetRefresher: WidgetCenterTimelineRefresher(),
                 locationOutbox: locationOutbox,
                 importRecoveryPersistence: installationContextStore,
+                backupRecoveryKeys: backupRecoveryKeys,
+                automaticBackupStorage: automaticBackupStorage,
+                automaticBackupScheduler: automaticBackupScheduler,
             )
             Self.logger { .servicesAssembled }
             return services

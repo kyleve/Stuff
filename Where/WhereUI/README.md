@@ -162,7 +162,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   that onboarding marker before handing services to App Intents or registering
   the recording device, so Replace cleanup finishes before GPS can reopen or
   drain an obsolete outbox. `OnboardingImportRecoveryModel` owns that reconciliation rather than
-  the process-wide `WhereModel`. Settings offers export only.
+  the process-wide `WhereModel`. Encrypted `.wherebackup` files first try the synchronized key and
+  prompt for the copied recovery key if needed. Settings offers manual export plus automatic-backup
+  cadence, recovery-key, and read-only catalog controls; restore remains onboarding-only.
 - **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
   picker (segmented map/list) and the stepped color/emoji/icon editor for onboarding.
   `PrimaryRegionSelectionModel` contains their shared state. The `RegionsSettingsView`

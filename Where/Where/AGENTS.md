@@ -51,6 +51,8 @@ layering, and the domain rules this target merely starts up.
   `initializePrerequisites` installs the `CLLocationManager` in time to receive
   the queued event). It hands it to `RootView` through `WhereApp`. Do not move
   this wiring into a view.
+- **Register and submit automatic-backup background work only through the app adapter.** Bail
+  before driving launch while protected data is unavailable.
 - **Reconcile reporting before forwarding launch to the selected runtime.**
   Snapshot crash and replay choices once. Use the same process preferences for
   `WhereModel`. Never start the provider on an all-Off launch. Remote-log sink

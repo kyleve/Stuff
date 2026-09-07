@@ -10,6 +10,14 @@ import RegionKit
 /// UI directly through `WhereServices.backup`; construction stays in-module via
 /// the internal `init`.
 public actor BackupCoordinator {
+    public struct RecoveryKeyRequiredError: Error, LocalizedError {
+        public init() {}
+
+        public var errorDescription: String? {
+            "A recovery key is required to open this encrypted backup."
+        }
+    }
+
     /// How an imported backup combines with whatever is already on the device.
     public enum ImportStrategy: Sendable, Hashable {
         /// Upsert the imported rows into the existing data (by `id` for
@@ -102,6 +110,18 @@ public actor BackupCoordinator {
     /// archive on disk). Actor-isolated, so it survives the UI that triggered
     /// the export being torn down.
     private var previousExportDirectory: URL?
+    private var exportIsActive = false
+    private struct ExportWaiter {
+        let id: UUID
+        let continuation: CheckedContinuation<Void, Error>
+    }
+
+    private var exportWaiters: [ExportWaiter] = []
+
+    private enum ExportStagingOwnership: Equatable {
+        case manualShare
+        case automatic
+    }
 
     init(
         store: any WhereStore,
@@ -139,17 +159,59 @@ public actor BackupCoordinator {
     public func exportBackup(
         onProgress: @Sendable (Double) -> Void = { _ in },
     ) async throws -> URL {
-        try await Self.logger.measure(.exportBackup) {
-            try await performExport(onProgress: onProgress)
+        try await acquireExportPermit()
+        defer { releaseExportPermit() }
+        try Task.checkCancellation()
+        return try await Self.logger.measure(.exportBackup) {
+            try await performExport(
+                onProgress: onProgress,
+                exportedAt: nil,
+                stagingOwnership: .manualShare,
+            )
         }
+    }
+
+    /// Runs the complete automatic operation under the same export permit as
+    /// manual export: snapshot, ZIP, encryption, coordinated movement, and
+    /// retention cannot overlap another export's staging lifecycle.
+    public func writeAutomaticBackup(
+        recoveryKey: BackupRecoveryKey,
+        exportedAt: Date,
+        storage: AutomaticBackupStorage,
+    ) async throws -> AutomaticBackupFile {
+        try await acquireExportPermit()
+        defer { releaseExportPermit() }
+        try Task.checkCancellation()
+
+        let plaintext = try await performExport(
+            onProgress: { _ in },
+            exportedAt: exportedAt,
+            stagingOwnership: .automatic,
+        )
+        defer { Self.removeAutomaticStagingDirectory(plaintext.deletingLastPathComponent()) }
+
+        let backupService = backupService
+        let encrypted = try await Self.runDetached(priority: .utility) {
+            try backupService.makeEncryptedArchiveFile(
+                from: plaintext,
+                recoveryKey: recoveryKey,
+                exportedAt: exportedAt,
+            )
+        }
+        defer { Self.removeAutomaticStagingDirectory(encrypted.deletingLastPathComponent()) }
+        return try await storage.store(encrypted)
     }
 
     /// `exportBackup`'s body, split out so the outer span reads as one leg-by-leg
     /// tree rather than wrapping a `return`.
     private func performExport(
         onProgress: @Sendable (Double) -> Void,
+        exportedAt: Date?,
+        stagingOwnership: ExportStagingOwnership,
     ) async throws -> URL {
-        purgePreviousExport()
+        if stagingOwnership == .manualShare {
+            purgePreviousExport()
+        }
 
         let snapshot = try await store.readSnapshot {
             let tables = try await Self.logger.measure(.exportReads) {
@@ -174,6 +236,7 @@ public actor BackupCoordinator {
             try await Self.logger.measure(.exportBlobLoad) {
                 var lastPercent = -1
                 for (index, item) in evidence.enumerated() {
+                    try Task.checkCancellation()
                     if let blob = try await store.evidenceBlob(for: item.id) {
                         blobs[item.id] = blob
                     }
@@ -189,7 +252,7 @@ public actor BackupCoordinator {
         }
         let tables = snapshot.tables
         let backupService = backupService
-        let url = try await Task.detached(priority: .utility) {
+        let url = try await Self.runDetached(priority: .utility) {
             try backupService.makeArchiveFile(
                 samples: tables.samples,
                 evidence: tables.evidence,
@@ -203,11 +266,64 @@ public actor BackupCoordinator {
                 recordingDeviceRemovals: tables.recordingDeviceRemovals,
                 plannedStayRecords: tables.plannedStayRecords,
                 blobs: snapshot.blobs,
+                exportedAt: exportedAt ?? Date(),
             )
-        }.value
+        }
         onProgress(1)
-        previousExportDirectory = url.deletingLastPathComponent()
+        if stagingOwnership == .manualShare {
+            previousExportDirectory = url.deletingLastPathComponent()
+        }
         return url
+    }
+
+    /// Run synchronous file/crypto work off the caller's executor while still
+    /// forwarding structured cancellation to the child task. Each operation
+    /// checks cancellation after opaque system calls return, which makes their
+    /// staging cleanup run before the cancelled parent completes.
+    private static func runDetached<Value: Sendable>(
+        priority: TaskPriority,
+        operation: @escaping @Sendable () throws -> Value,
+    ) async throws -> Value {
+        let task = Task.detached(priority: priority) {
+            try Task.checkCancellation()
+            let value = try operation()
+            try Task.checkCancellation()
+            return value
+        }
+        return try await withTaskCancellationHandler {
+            try await task.value
+        } onCancel: {
+            task.cancel()
+        }
+    }
+
+    private func acquireExportPermit() async throws {
+        try Task.checkCancellation()
+        guard exportIsActive else {
+            exportIsActive = true
+            return
+        }
+        let id = UUID()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                exportWaiters.append(ExportWaiter(id: id, continuation: continuation))
+            }
+        } onCancel: {
+            Task { await self.cancelExportWaiter(id) }
+        }
+    }
+
+    private func releaseExportPermit() {
+        guard !exportWaiters.isEmpty else {
+            exportIsActive = false
+            return
+        }
+        exportWaiters.removeFirst().continuation.resume()
+    }
+
+    private func cancelExportWaiter(_ id: UUID) {
+        guard let index = exportWaiters.firstIndex(where: { $0.id == id }) else { return }
+        exportWaiters.remove(at: index).continuation.resume(throwing: CancellationError())
     }
 
     /// Everything an export reads out of the store before it starts on blobs.
@@ -253,6 +369,16 @@ public actor BackupCoordinator {
         }
     }
 
+    private static func removeAutomaticStagingDirectory(_ url: URL) {
+        do {
+            try FileManager.default.removeItem(at: url)
+        } catch {
+            WhereLog.backup(AutomaticBackupLog.self) {
+                .cleanupFailed(description: error.localizedDescription)
+            }
+        }
+    }
+
     /// Read a backup `.zip` and write its contents back into the store inside a
     /// single transaction. `.replace` wipes user history/settings first while retaining the
     /// append-only device ledger; `.merge` relies on the store's upsert semantics. Tracked
@@ -266,6 +392,7 @@ public actor BackupCoordinator {
     public func importBackup(
         from url: URL,
         strategy: ImportStrategy,
+        recoveryKey: BackupRecoveryKey? = nil,
         onProgress: @Sendable (Double) -> Void,
     ) async throws -> ImportSummary {
         try await hydrateImportRecovery()
@@ -290,6 +417,7 @@ public actor BackupCoordinator {
                 from: url,
                 strategy: strategy,
                 transactionID: operationID,
+                recoveryKey: recoveryKey,
                 onProgress: onProgress,
             )
         }
@@ -380,6 +508,7 @@ public actor BackupCoordinator {
         from url: URL,
         strategy: ImportStrategy,
         transactionID: UUID,
+        recoveryKey: BackupRecoveryKey?,
         onProgress: @Sendable (Double) -> Void,
     ) async throws -> ImportSummary {
         let expectedGenerationID = try await (store.dataGeneration()).id
@@ -390,9 +519,16 @@ public actor BackupCoordinator {
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
 
         let backupService = backupService
-        let result = try await Task.detached(priority: .utility) {
-            try backupService.readArchive(at: url)
-        }.value
+        let result = try await Self.runDetached(priority: .utility) {
+            if url.pathExtension.lowercased() == "wherebackup" {
+                guard let recoveryKey else { throw RecoveryKeyRequiredError() }
+                return try backupService.readEncryptedArchive(
+                    at: url,
+                    recoveryKey: recoveryKey,
+                )
+            }
+            return try backupService.readArchive(at: url)
+        }
         let archive = result.archive
         let blobs = result.blobs
         let summary = ImportSummary(
