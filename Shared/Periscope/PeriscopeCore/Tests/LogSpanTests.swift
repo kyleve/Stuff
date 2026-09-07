@@ -2,14 +2,11 @@ import Foundation
 import PeriscopeCore
 import Testing
 
-private struct DatabaseLogs: LogEvent {
+@LogScope("DatabaseLogs")
+private enum DatabaseLogs {
     enum SpanName: Hashable {
         case saveEvent
         case migration
-    }
-
-    var message: String {
-        "db"
     }
 }
 

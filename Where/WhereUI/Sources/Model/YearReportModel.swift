@@ -343,7 +343,7 @@ public final class YearReportModel {
 
     public func select(year: Int) async {
         guard year != selectedYear else { return }
-        Self.logger { .selectedYear(year: year) }
+        Self.logger.selectedYear(year: .restricted(.domainValue, year))
         selectedYear = year
         // Drop the previous year's report so views fall back to their loading
         // state instead of rendering stale data under the new year's label.
@@ -383,12 +383,10 @@ public final class YearReportModel {
             guard requestedYear == selectedYear else { return }
             if evidenceDayKeys != keys { evidenceDayKeys = keys }
         } catch {
-            Self.logger {
-                .evidenceDayKeysLoadFailed(
-                    year: requestedYear,
-                    description: error.localizedDescription,
-                )
-            }
+            Self.logger.evidenceDayKeysLoadFailed(
+                year: .restricted(.domainValue, requestedYear),
+                description: .restricted(.errorDetails, error.localizedDescription),
+            )
         }
     }
 
@@ -424,7 +422,9 @@ public final class YearReportModel {
         } catch {
             // Surface the failure and keep the last good count rather than
             // silently blanking the badge.
-            Self.logger { .dataIssueScanFailed(description: error.localizedDescription) }
+            Self.logger.dataIssueScanFailed(
+                description: .restricted(.errorDetails, error.localizedDescription),
+            )
         }
     }
 
@@ -448,16 +448,18 @@ public final class YearReportModel {
             if changed { loadedYear = LoadedYear(details: details, previous: loadedYear) }
             if loadState != .loaded { loadState = .loaded }
             if changed {
-                Self.logger {
-                    .reportLoaded(year: requestedYear, dayCount: details.report.days.count)
-                }
+                Self.logger.reportLoaded(
+                    year: .restricted(.domainValue, requestedYear),
+                    dayCount: .shared(.count, details.report.days.count),
+                )
             }
         } catch {
             guard requestedYear == selectedYear else { return }
             loadState = .failed(.reportUnavailable(message: error.localizedDescription))
-            Self.logger {
-                .reportLoadFailed(year: requestedYear, description: error.localizedDescription)
-            }
+            Self.logger.reportLoadFailed(
+                year: .restricted(.domainValue, requestedYear),
+                description: .restricted(.errorDetails, error.localizedDescription),
+            )
         }
     }
 
@@ -539,9 +541,10 @@ public final class YearReportModel {
             try await services.journal.clearYear(selectedYear)
         } catch {
             loadState = .failed(.clearFailed(message: error.localizedDescription))
-            Self.logger {
-                .clearYearFailed(year: selectedYear, description: error.localizedDescription)
-            }
+            Self.logger.clearYearFailed(
+                year: .restricted(.domainValue, selectedYear),
+                description: .restricted(.errorDetails, error.localizedDescription),
+            )
         }
     }
 
@@ -560,13 +563,11 @@ public final class YearReportModel {
         do {
             return try await services.reports.locations(in: region, year: selectedYear)
         } catch {
-            Self.logger {
-                .locationsLoadFailed(
-                    region: region.rawValue,
-                    year: selectedYear,
-                    description: error.localizedDescription,
-                )
-            }
+            Self.logger.locationsLoadFailed(
+                region: .restricted(.location, region.rawValue),
+                year: .restricted(.domainValue, selectedYear),
+                description: .restricted(.errorDetails, error.localizedDescription),
+            )
             return []
         }
     }
@@ -578,13 +579,12 @@ public final class YearReportModel {
         do {
             return try await services.reports.locations(onDay: day)
         } catch {
-            Self.logger(attachments: [.error(error, name: "day-locations-error")]) {
-                .dayLocationsLoadFailed(
-                    day: day.description,
-                    year: selectedYear,
-                    description: error.localizedDescription,
-                )
-            }
+            Self.logger.dayLocationsLoadFailed(
+                day: .restricted(.dateTime, day.description),
+                year: .restricted(.domainValue, selectedYear),
+                description: .restricted(.errorDetails, error.localizedDescription),
+                attachments: [.error(error, name: "day-locations-error")],
+            )
             return [:]
         }
     }
@@ -596,12 +596,10 @@ public final class YearReportModel {
         do {
             return try await services.reports.representativeCoordinates(for: selectedYear)
         } catch {
-            Self.logger {
-                .representativeCoordinatesLoadFailed(
-                    year: selectedYear,
-                    description: error.localizedDescription,
-                )
-            }
+            Self.logger.representativeCoordinatesLoadFailed(
+                year: .restricted(.domainValue, selectedYear),
+                description: .restricted(.errorDetails, error.localizedDescription),
+            )
             return [:]
         }
     }

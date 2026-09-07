@@ -19,7 +19,7 @@ struct NetworkPathAmbientSourceTests {
         let sink = CapturingSink()
         let system = Periscope(configuration: Periscope.Configuration(), sinks: [sink])
         let source = NetworkPathAmbientSource()
-        let log = Log<AmbientEvent>(recorder: system)
+        let log = Log<AmbientLog>(recorder: system)
 
         source.start(log: log)
         source.start(log: log) // replaces (and cancels) the first monitor
@@ -34,7 +34,7 @@ struct NetworkPathAmbientSourceTests {
         let sink = CapturingSink()
         let system = Periscope(configuration: Periscope.Configuration(), sinks: [sink])
         let source = NetworkPathAmbientSource()
-        let log = Log<AmbientEvent>(recorder: system)
+        let log = Log<AmbientLog>(recorder: system)
 
         source.emit(wifi, to: log)
         source.emit(wifi, to: log) // NWPathMonitor churn: dropped
@@ -52,7 +52,7 @@ struct NetworkPathAmbientSourceTests {
         let sink = CapturingSink()
         let system = Periscope(configuration: Periscope.Configuration(), sinks: [sink])
         let source = NetworkPathAmbientSource()
-        let log = Log<AmbientEvent>(recorder: system)
+        let log = Log<AmbientLog>(recorder: system)
 
         source.emit(wifi, to: log)
         source.emit(cellular, to: log)
@@ -70,7 +70,7 @@ struct NetworkPathAmbientSourceTests {
         let sink = CapturingSink()
         let system = Periscope(configuration: Periscope.Configuration(), sinks: [sink])
         let source = NetworkPathAmbientSource()
-        let log = Log<AmbientEvent>(recorder: system)
+        let log = Log<AmbientLog>(recorder: system)
 
         source.emit(wifi, to: log)
         source.stop() // clears the last-value filter

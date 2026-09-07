@@ -107,7 +107,7 @@ struct NDJSONExporterTests {
     }
 
     @Test func linesCarryTheEventFields() throws {
-        let payload = try JSONEncoder().encode(PhotoLogs(photoID: "p1"))
+        let payload = try JSONEncoder().encode(makePhotoEvent("p1"))
         let line = NDJSONExporter.line(
             for: stored(
                 message: "hello",
@@ -128,7 +128,7 @@ struct NDJSONExporterTests {
         #expect(object["scopePath"] as? String == "app/photos")
         #expect(object["session"] as? String == sessionID.uuidString)
         #expect((object["tags"] as? [String: String])?["payment-id"] == "pay_1")
-        #expect((object["payload"] as? [String: Any])?["photoID"] as? String == "p1")
+        #expect((object["payload"] as? [String: Any])?["photo_id"] as? String == "p1")
     }
 
     @Test func linesCarryTheSpanExitWhenPresent() throws {

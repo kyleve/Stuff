@@ -33,9 +33,11 @@ public struct WidgetCenterTimelineRefresher: WidgetTimelineRefreshing {
     public func publish(_ snapshot: WidgetSnapshot) async {
         do {
             try WidgetSnapshotStore.shared().write(snapshot)
-            Self.logger { .wroteSnapshot }
+            Self.logger.wroteSnapshot()
         } catch {
-            Self.logger { .publishFailed(description: error.localizedDescription) }
+            Self.logger.publishFailed(
+                description: .restricted(.errorDetails, error.localizedDescription),
+            )
         }
         WidgetCenter.shared.reloadAllTimelines()
     }

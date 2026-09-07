@@ -3,7 +3,8 @@ import PeriscopeCore
 /// Names `DataIssueScanner`'s timed spans, and nothing else — the scanner throws
 /// its read failures to the caller, so what's worth recording about it is what a
 /// scan costs. A span-only facade, like ``PresenceCalendarLog``.
-struct DataIssueScannerLog: LogEvent {
+@LogScope("DataIssueScanner")
+enum DataIssueScannerLog {
     /// Names the scan spans (`log.measure(.scan) { … }`).
     ///
     /// `description` is written out because ``detect(_:)`` carries the detector's
@@ -24,14 +25,6 @@ struct DataIssueScannerLog: LogEvent {
             }
         }
     }
-
-    static let eventName = "DataIssueScanner"
-
-    var message: String {
-        ""
-    }
-
-    private init() {}
 }
 
 extension DataIssueCategory {

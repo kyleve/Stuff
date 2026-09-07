@@ -31,11 +31,14 @@ public actor WidgetPresentationPublisher {
             try makeStore().write(theme: theme)
             lastPublishedTheme = theme
             reloadTimelines()
-            Self.logger { .published(theme: theme.rawValue) }
+            Self.logger.published(
+                theme: .restricted(.technicalState, theme.rawValue),
+            )
         } catch {
-            Self.logger(attachments: [.error(error, name: "publish-error")]) {
-                .publishFailed(description: error.localizedDescription)
-            }
+            Self.logger.publishFailed(
+                description: .restricted(.errorDetails, error.localizedDescription),
+                attachments: [.error(error, name: "publish-error")],
+            )
         }
     }
 

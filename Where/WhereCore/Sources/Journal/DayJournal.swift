@@ -128,7 +128,10 @@ public actor DayJournal {
             try await store.setManualDay(presence)
         }
         await reconcileAfterDayDataChange()
-        Self.logger { .addedManualDay(day: String(describing: day), regionCount: regions.count) }
+        Self.logger.addedManualDay(
+            day: .restricted(.dateTime, String(describing: day)),
+            regionCount: .shared(.count, regions.count),
+        )
     }
 
     /// Authoritatively set the regions for a single calendar day, *replacing*
@@ -147,7 +150,10 @@ public actor DayJournal {
             try await store.setManualDay(presence)
         }
         await reconcileAfterDayDataChange()
-        Self.logger { .overrodeDay(day: String(describing: day), regionCount: regions.count) }
+        Self.logger.overrodeDay(
+            day: .restricted(.dateTime, String(describing: day)),
+            regionCount: .shared(.count, regions.count),
+        )
     }
 
     /// Drop the manual overlay for a single calendar day, restoring the
@@ -160,7 +166,9 @@ public actor DayJournal {
             try await store.clearManualDay(day)
         }
         await reconcileAfterDayDataChange()
-        Self.logger { .clearedManualDay(day: String(describing: day)) }
+        Self.logger.clearedManualDay(
+            day: .restricted(.dateTime, String(describing: day)),
+        )
     }
 
     /// Drop the manual overlays for several calendar days (the logged-days
@@ -183,7 +191,7 @@ public actor DayJournal {
             }
         }
         await reconcileAfterDayDataChange()
-        Self.logger { .clearedManualDays(dayCount: days.count) }
+        Self.logger.clearedManualDays(dayCount: .shared(.count, days.count))
     }
 
     /// Assert `regions` for every calendar day in the inclusive range
@@ -217,9 +225,10 @@ public actor DayJournal {
             }
         }
         await reconcileAfterDayDataChange()
-        Self.logger {
-            .backfilledManualDays(dayCount: days.count, regionCount: regions.count)
-        }
+        Self.logger.backfilledManualDays(
+            dayCount: .shared(.count, days.count),
+            regionCount: .shared(.count, regions.count),
+        )
     }
 
     // MARK: - Clearing
@@ -233,7 +242,7 @@ public actor DayJournal {
             }
         }
         await reconcileAfterDayDataChange()
-        Self.logger { .clearedYear(year: year) }
+        Self.logger.clearedYear(year: .restricted(.domainValue, year))
     }
 
     /// Erase every sample, manual day, and piece of evidence in the store, then
@@ -263,7 +272,7 @@ public actor DayJournal {
             }
         }
         await reconcileAfterDayDataChange()
-        Self.logger { .erasedAllData }
+        Self.logger.erasedAllData()
     }
 
     // MARK: - Evidence
@@ -272,9 +281,10 @@ public actor DayJournal {
         try await store.performInCurrentGeneration {
             try await store.write(evidence: evidence, blob: blob)
         }
-        Self.logger {
-            .wroteEvidence(id: String(describing: evidence.id), hasBlob: blob != nil)
-        }
+        Self.logger.wroteEvidence(
+            id: .restricted(.identifier, String(describing: evidence.id)),
+            hasBlob: .shared(.boolean, blob != nil),
+        )
     }
 
     public func evidence(for year: Int) async throws -> [Evidence] {
