@@ -302,7 +302,7 @@ struct LocationsView: View {
     }
 
     private func planStayFromWelcome(_ region: Region) {
-        withAnimation(stylesheet.locationWelcome.motion.animation) {
+        withAnimation(stylesheet.locationWelcome.motion.departure.animation) {
             welcome.dismiss()
         } completion: {
             editPlannedStay(region)

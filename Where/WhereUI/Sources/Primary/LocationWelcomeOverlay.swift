@@ -51,7 +51,7 @@ struct LocationWelcomeOverlay: View {
                 }
             }
         }
-        .animation(stylesheet.locationWelcome.motion.animation, value: presentation)
+        .animation(stylesheet.locationWelcome.motion.scrimAnimation, value: presentation)
     }
 }
 
