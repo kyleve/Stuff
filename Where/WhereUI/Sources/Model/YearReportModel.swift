@@ -196,6 +196,13 @@ public final class YearReportModel {
         }
     }
 
+    #if DEBUG
+        /// Clears the acknowledgement so the next visible Locations lookup can welcome again.
+        func resetLocationWelcome() {
+            preferences.lastWelcomedRegion = nil
+        }
+    #endif
+
     /// GPS border-drift detection threshold (device setting). The setter persists
     /// it, forces a badge recount, and — through the observed mirror — re-keys
     /// `dataIssueScanInputs` so the Resolve list re-scans immediately, not just on

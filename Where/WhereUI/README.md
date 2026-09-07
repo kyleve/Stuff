@@ -134,6 +134,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 - **`RegionWelcomeCard`** — a centered Locations overlay that combines a region's emoji,
   icon, outline, Liquid Glass card treatment, and passport ink. It uses a spring transition
   and an opacity-only transition when Reduce Motion is enabled.
+  Debug builds include **Reset Welcome Card** in Settings > Appearance beside the welcome-card toggle.
+  The reset clears the saved region so the next Locations visit can show the card again.
+  Welcome cards must be enabled, and the device must resolve a tracked region with recording active.
 
 - **`OnboardingView` / `OnboardingFlowModel`** — the rendered first-run flow and its view-scoped
   observable coordinator, registered for the launch's

@@ -39,6 +39,34 @@ struct LocationWelcomeModelTests {
         #expect(fixture.model.presentation == .init(region: .newYork, greeting: .returnVisit))
     }
 
+    @Test(arguments: [true, false])
+    func appearanceResetAllowsTheSameRegionToWelcomeAgainWhenEnabled(isEnabled: Bool) async throws {
+        let fixture = try await fixture(region: .california)
+        await fixture.model.resolve()
+        fixture.model.dismiss()
+        await fixture.model.resolve()
+        #expect(fixture.model.presentation == nil)
+
+        let report = YearReportModel(
+            services: fixture.services,
+            selectedYear: 2026,
+            preferences: fixture.preferences,
+        )
+        report.showsLocationWelcome = isEnabled
+        report.resetLocationWelcome()
+
+        #expect(fixture.preferences.lastWelcomedRegion == nil)
+        #expect(fixture.preferences.showsLocationWelcome == isEnabled)
+        #expect(fixture.model.presentation == nil)
+
+        await fixture.model.resolve()
+
+        #expect(fixture.model.presentation == (isEnabled ? .init(
+            region: .california,
+            greeting: .first,
+        ) : nil))
+    }
+
     @Test func inactiveRecordingDoesNotPresent() async throws {
         let fixture = try fixtureWithoutRecording(region: .california)
 

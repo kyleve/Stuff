@@ -60,8 +60,24 @@ struct AppearanceSettingsView: View {
                         )
                     }
                     .settingsRow(Item.locationWelcome)
+
+                    #if DEBUG
+                        Button(action: report.resetLocationWelcome) {
+                            Label(
+                                String(localized: .settingsAppearanceLocationWelcomeResetTitle),
+                                systemSymbol: .arrowCounterclockwise,
+                            )
+                        }
+                        .disabled(!report.showsLocationWelcome)
+                        .settingsRow(Item.resetLocationWelcome)
+                    #endif
                 } footer: {
-                    Text(String(localized: .settingsAppearanceLocationWelcomeFooter))
+                    VStack(alignment: .leading) {
+                        Text(String(localized: .settingsAppearanceLocationWelcomeFooter))
+                        #if DEBUG
+                            Text(String(localized: .settingsAppearanceLocationWelcomeResetFooter))
+                        #endif
+                    }
                 }
 
                 Section {
@@ -157,6 +173,7 @@ extension AppearanceSettingsView: SettingsSection {
         case locationForecasts
         case appIcon
         #if DEBUG
+            case resetLocationWelcome
             case cardDesigner
             case rankingAnimation
         #endif
@@ -172,6 +189,8 @@ extension AppearanceSettingsView: SettingsSection {
                     String(localized: .settingsAppearanceLocationForecastsToggle)
                 case .appIcon: String(localized: .settingsAppIconLink)
                 #if DEBUG
+                    case .resetLocationWelcome:
+                        String(localized: .settingsAppearanceLocationWelcomeResetTitle)
                     case .cardDesigner: String(localized: .cardDesignerTitle)
                     case .rankingAnimation: String(localized: .rankingAnimationTitle)
                 #endif
@@ -190,6 +209,8 @@ extension AppearanceSettingsView: SettingsSection {
                     splitKeywords(String(localized: .settingsKeywordsLocationForecasts))
                 case .appIcon: splitKeywords(String(localized: .settingsKeywordsAppIcon))
                 #if DEBUG
+                    case .resetLocationWelcome:
+                        splitKeywords(String(localized: .settingsKeywordsLocationWelcome))
                     case .cardDesigner:
                         splitKeywords(String(localized: .cardDesignerSettingsKeywords))
                     case .rankingAnimation:

@@ -158,6 +158,7 @@ worked examples.
   count animation and outline-cache behavior.
 - Keep the DEBUG Ranking Animation Lab session-only. It tunes the containing
   Location-card stack, never Card Designer persistence, exports, or app overrides.
+- Keep the Appearance welcome reset under `#if DEBUG`. Clear only the saved welcome region through `YearReportModel.resetLocationWelcome()`.
 
 ## Testing
 

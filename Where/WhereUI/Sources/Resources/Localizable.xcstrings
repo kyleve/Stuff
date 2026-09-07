@@ -6161,6 +6161,28 @@
         }
       }
     },
+    "settings.appearance.locationWelcome.reset.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Developer: Clear the saved welcome region, then return to Locations to show the card again."
+          }
+        }
+      }
+    },
+    "settings.appearance.locationWelcome.reset.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset Welcome Card"
+          }
+        }
+      }
+    },
     "settings.appearance.locationWelcome.toggle" : {
       "comment" : "Toggle that controls whether live-region welcome cards appear on the Locations tab.",
       "extractionState" : "manual",
