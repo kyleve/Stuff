@@ -23,6 +23,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
     private let automaticBackupScheduler: AutomaticBackupBackgroundScheduler
     private let backupRecoveryKeys: BackupRecoveryKeyProvider
     private let firstUnlockAvailability: FirstUnlockAvailability
+    private let installationContextStore = FileInstallationRecordingContextStore()
     private var launchBackupClaimedByBackgroundTask = false
     private let logger = Logger(subsystem: "com.stuff.where", category: "AutomaticBackup")
 
@@ -55,6 +56,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             self.backupRecoveryKeys = backupRecoveryKeys
             self.developerLaunchController = developerLaunchController
             model = Self.makeModel(
+                installationContextStore: installationContextStore,
                 storeStorage: Self.storeStorage(
                     forCloudKitValidationBuild: Self.isCloudKitValidationBuild,
                 ),
@@ -89,6 +91,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             self.automaticBackupScheduler = automaticBackupScheduler
             self.backupRecoveryKeys = backupRecoveryKeys
             model = Self.makeModel(
+                installationContextStore: installationContextStore,
                 storeStorage: .cloudKit,
                 preferences: preferences,
                 effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
@@ -100,6 +103,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
     #endif
 
     private static func makeModel(
+        installationContextStore: FileInstallationRecordingContextStore,
         storeStorage: SwiftDataStore.Storage,
         preferences: WherePreferences,
         effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration,
@@ -107,7 +111,6 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
         automaticBackupScheduler: AutomaticBackupBackgroundScheduler,
         backupRecoveryKeys: BackupRecoveryKeyProvider,
     ) -> WhereModel {
-        let installationContextStore = FileInstallationRecordingContextStore()
         let locationOutbox = FileLocationOutbox.applicationSupport()
         return WhereModel(
             preferences: preferences,
@@ -148,7 +151,14 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
         }
         model.synchronizeTheme()
         let launcher = WhereLaunch
-            .makeLauncher(model: model, reason: .undetermined) { [intentServices, model] in
+            .makeLauncher(
+                model: model,
+                reason: .undetermined,
+                prepareProtectedData: { [firstUnlockAvailability, installationContextStore] in
+                    try await firstUnlockAvailability.waitUntilAvailable()
+                    try installationContextStore.prepareAfterFirstUnlock()
+                },
+            ) { [intentServices, model] in
                 await intentServices.install(
                     .forIntents(sharingStoreOf: $0),
                     theme: model.theme,
@@ -166,6 +176,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
 
     func protectedDataDidBecomeAvailable() {
         Task { [weak self] in
+            await self?.firstUnlockAvailability.protectedDataDidBecomeAvailable()
             await self?.initializeRecoveryKey()
             await self?.driveLaunch()
             if self?.launchBackupClaimedByBackgroundTask == true {

@@ -3,6 +3,9 @@
 Automatic backups run outside the recording launch trunk. Background expiration
 cancels their shared operation without cancelling recording launch. A Class C
 file probe distinguishes first-unlock protection from an ordinary screen lock.
+The shared launch plan waits for that probe before loading the installation
+sidecar. Construction does no sidecar I/O. Protected-data availability resumes
+headless and UI-driven waiters through the same barrier.
 The handler exits at an unanswered onboarding gate and retries after unlock.
 
 The iOS/iPadOS app bundle for **Where**.
@@ -34,7 +37,7 @@ In release this is always `RegularApplicationRuntime`.
 In DEBUG, `WhereDeveloperLaunchController` persists one mutually exclusive
 next-process choice: the standalone Inspector runtime or a configured,
 one-shot demo inside the regular runtime. The demo request is consumed as the
-regular runtime is built. Its first launch step activates an in-memory scope
+regular runtime is built. After first-unlock preparation, its demo step activates an in-memory scope
 before onboarding can open the real store. A later process therefore returns
 to the user's untouched data unless another demo is scheduled.
 Every later callback and root-view request uses protocol dispatch, so no feature or lifecycle code switches on a mode.

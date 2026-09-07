@@ -7,6 +7,8 @@ import UIKit
 actor FirstUnlockAvailability {
     private let marker: URL
     private let isDeviceUnlocked: @Sendable () async -> Bool
+    private var hasBeenAvailable = false
+    private var waiters: [UUID: CheckedContinuation<Void, Error>] = [:]
     private let logger = Logger(subsystem: "com.stuff.where", category: "AutomaticBackup")
 
     init(marker: URL, isDeviceUnlocked: @escaping @Sendable () async -> Bool) {
@@ -23,6 +25,7 @@ actor FirstUnlockAvailability {
     }
 
     func isAvailable() async -> Bool {
+        if hasBeenAvailable { return true }
         let unlocked = await isDeviceUnlocked()
         do {
             if !FileManager.default.fileExists(atPath: marker.path) {
@@ -36,6 +39,7 @@ actor FirstUnlockAvailability {
                 ])
             }
             _ = try Data(contentsOf: marker)
+            protectedDataDidBecomeAvailable()
             return true
         } catch {
             if unlocked {
@@ -46,7 +50,52 @@ actor FirstUnlockAvailability {
             }
             // The system's unlocked state is authoritative; never block
             // recording because creating the marker failed (for example ENOSPC).
-            return unlocked
+            if unlocked { protectedDataDidBecomeAvailable() }
+            return hasBeenAvailable
         }
     }
+
+    /// All launch entry points join this barrier, including RootView promotion.
+    func waitUntilAvailable() async throws {
+        if await isAvailable() {
+            try Task.checkCancellation()
+            return
+        }
+        let token = UUID()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<
+                Void,
+                Error
+            >) in
+                if Task.isCancelled {
+                    continuation.resume(throwing: CancellationError())
+                } else if hasBeenAvailable {
+                    continuation.resume()
+                } else {
+                    waiters[token] = continuation
+                }
+            }
+        } onCancel: {
+            Task { await self.cancelWaiter(token) }
+        }
+    }
+
+    func protectedDataDidBecomeAvailable() {
+        hasBeenAvailable = true
+        let pending = waiters.values
+        waiters.removeAll()
+        for continuation in pending {
+            continuation.resume()
+        }
+    }
+
+    private func cancelWaiter(_ token: UUID) {
+        waiters.removeValue(forKey: token)?.resume(throwing: CancellationError())
+    }
+
+    #if DEBUG
+        @_spi(Testing) public var waitingCallerCount: Int {
+            waiters.count
+        }
+    #endif
 }

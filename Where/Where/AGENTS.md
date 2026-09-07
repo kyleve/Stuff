@@ -53,6 +53,10 @@ layering, and the domain rules this target merely starts up.
   this wiring into a view.
 - **Register and submit automatic-backup background work only through the app adapter.**
   Probe first-unlock availability before opening the store or querying Keychain.
+  Put installation-sidecar loading behind the same barrier in the shared
+  launch plan; RootView promotion must not bypass it (`FirstUnlockAvailabilityTests`).
+  Keep construction and preparation at this owner; Bumper's installation-context
+  rules reject competing owners (`.bumper/Tests/WhereProjectRulesTests.swift`).
   Do not gate ordinary locked recording on `isProtectedDataAvailable`
   (`FirstUnlockAvailabilityTests`). Keep backups outside the launch trunk;
   expiration must cancel the shared export, not only its waiter

@@ -24,6 +24,8 @@ Layering, localization, preview, and testing conventions live in the feature
 - Keep `FileInstallationRecordingContextStore` as the UIKit/FileManager
   adapter for Core's installation-context protocol. Resolve one instance at
   the app root. Inject it into both `WhereModel` and `WhereBootstrap`.
+  Defer its file access until the shared launch plan passes first unlock
+  (`InstallationRecordingContextStoreTests` / `PrepareProtectedDataStepTests`).
 - Persist the installation identity, recording choice with its current-On
   timestamp, stable profile/policy IDs and timestamps, two-phase backup-import
   recovery, and the independent terminal onboarding-import tombstone together
@@ -105,6 +107,7 @@ Layering, localization, preview, and testing conventions live in the feature
   owns log retention. `LogHistoryPruner` bounds the store by age *and* event
   count. Both bounds are load-bearing. An age window alone leaves a
   heavy-logging device unbounded inside it.
+  Keep user waits (first unlock and onboarding) outside work budgets.
 - A compact form `DatePicker` goes through `WhereDatePicker`
   ([`Sources/Shared/WhereDatePicker.swift`](Sources/Shared/WhereDatePicker.swift)).
   It substitutes a deterministic stand-in under capture. The live control

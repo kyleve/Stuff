@@ -4,6 +4,42 @@ import Testing
 
 struct WhereProjectRulesTests {
     @Test
+    func `only the regular runtime constructs the installation sidecar`() throws {
+        let source = "let store = FileInstallationRecordingContextStore()"
+        let allowed = try evaluate(
+            path: "Where/Where/Sources/RegularApplicationRuntime.swift",
+            component: .app,
+            source: source,
+        )
+        let rejected = try evaluate(
+            path: "Where/WhereUI/Sources/Launch/CompetingContext.swift",
+            component: .whereUI,
+            source: source,
+        )
+        #expect(allowed.violations.isEmpty)
+        #expect(rejected.violations.count == 1)
+        #expect(rejected.violations.first?.rule.id == "where.installation_context_ownership")
+    }
+
+    @Test
+    func `sidecar preparation stays at the first unlock owner`() throws {
+        let source = "func prepare() throws { try store.prepareAfterFirstUnlock() }"
+        let allowed = try evaluate(
+            path: "Where/Where/Sources/RegularApplicationRuntime.swift",
+            component: .app,
+            source: source,
+        )
+        let rejected = try evaluate(
+            path: "Where/WhereUI/Sources/Launch/CompetingContext.swift",
+            component: .whereUI,
+            source: source,
+        )
+        #expect(allowed.violations.isEmpty)
+        #expect(rejected.violations.count == 1)
+        #expect(rejected.violations.first?.rule.id == "where.installation_context_preparation")
+    }
+
+    @Test
     func `production store opens at process composition roots`() throws {
         let allowed = try evaluate(
             path: "Where/WhereUI/Sources/Launch/WhereLaunch.swift",

@@ -73,13 +73,13 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   developer relaunches. The Logs destination is always present. Before its
   durable store is ready it reports whether the open is still running,
   unavailable, or failed with the actual error.
-- **`WhereLaunch`** — the launch, reset, and exit-demo plans themselves. Every
+- **`WhereLaunch`** — the launch, reset, and exit-demo plans themselves. First-unlock
+  preparation precedes demo activation and onboarding. Every work
   step declares a budget (`BudgetedLaunchStep`) and joins the
   plan through `.measured()`, so each run is one Periscope span named after
   the step (`step(resolve-scope)`) that warns while it overruns its budget — 
   the launch's cost breaks down per step instead of arriving as one slow
-  splash. (The onboarding gate is the one unmeasured node: it parks on the
-  user.)
+  splash. First-unlock and onboarding waits are unmeasured because they wait on the user.
 - **`WhereScope`** — what the app is logged in *to*: one open store's
   `WhereServices`, the `WherePreferences` driving it, and the durable log store
   they record into, created whole and never reconfigured. `WhereModel` owns

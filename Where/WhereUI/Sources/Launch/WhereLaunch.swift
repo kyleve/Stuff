@@ -9,6 +9,8 @@ import WhereCore
 /// untracked step); an enum makes each ID a compile-checked symbol and gives
 /// the launch/reset parity tests a single source of truth.
 public enum LaunchStepID: String, Sendable {
+    /// Wait for first unlock before loading the installation sidecar or opening a store.
+    case protectedData = "protected-data"
     /// Consume an optional one-shot demo request before onboarding can open a real store.
     case activateDemo = "activate-demo"
     /// First-run onboarding gate, after optional demo activation: until the user
@@ -117,6 +119,7 @@ public enum WhereLaunch {
     public static func makeLauncher(
         model: WhereModel,
         reason: LifecycleReason,
+        prepareProtectedData: @escaping @MainActor () async throws -> Void = {},
         onServicesReady: @escaping @MainActor (WhereServices) async -> Void = { _ in },
     ) -> LifecycleRunner<WhereSession> {
         logger { .runnerCreated(reason: String(describing: reason)) }
@@ -126,7 +129,11 @@ public enum WhereLaunch {
                 model.prepareLocation()
                 ForegroundNotificationPresenter.install()
             },
-            plan: plan(for: model, onServicesReady: onServicesReady),
+            plan: plan(
+                for: model,
+                prepareProtectedData: prepareProtectedData,
+                onServicesReady: onServicesReady,
+            ),
         )
         // Mirror detached-step failures into WhereLog: the runner only
         // records them on its observable `detachedFailures`, which nothing
@@ -159,9 +166,11 @@ public enum WhereLaunch {
     /// is a human's, not the app's.
     public static func plan(
         for model: WhereModel,
+        prepareProtectedData: @escaping @MainActor () async throws -> Void = {},
         onServicesReady: @escaping @MainActor (WhereServices) async -> Void = { _ in },
     ) -> LaunchPlan<LaunchStepID, Void, WhereSession> {
-        LaunchPlan(ActivateLaunchDemoStep(model: model).measured())
+        LaunchPlan(PrepareProtectedDataStep(prepare: prepareProtectedData))
+            .then(ActivateLaunchDemoStep(model: model).measured())
             .gate(OnboardingGate(model: model))
             .then(ResolveScopeStep(model: model).measured())
             .then(StartSessionStep(model: model, onServicesReady: onServicesReady).measured())
