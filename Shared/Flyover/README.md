@@ -161,8 +161,8 @@ The built-in IDs are:
 - `phone-contrast`, `phone-rtl`, `phone-bold`, and `phone-voiceover`
 
 The first profile is the initial web selection. An empty profile list becomes
-`phone-light`. Fixed Flyover viewports keep their size while profile traits
-still apply.
+`phone-light` followed by `phone-dark`. Fixed Flyover viewports keep their size
+while profile traits still apply.
 
 Run Where's exporter from the repository root:
 

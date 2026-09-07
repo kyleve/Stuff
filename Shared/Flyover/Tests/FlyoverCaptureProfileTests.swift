@@ -3,8 +3,12 @@
     import Testing
 
     struct FlyoverCaptureProfileTests {
-        @Test func emptyRequestUsesPhoneLight() throws {
-            #expect(try FlyoverCaptureProfile.parse([]) == [.phoneLight])
+        @Test func emptyRequestUsesLightAndDarkPhones() throws {
+            #expect(try FlyoverCaptureProfile.parse([]) == [.phoneLight, .phoneDark])
+        }
+
+        @Test func emptyTypedRequestUsesLightAndDarkPhones() {
+            #expect(FlyoverCaptureProfile.orderedUnique([]) == [.phoneLight, .phoneDark])
         }
 
         @Test func preservesFirstOccurrenceOrderAndRemovesDuplicates() throws {

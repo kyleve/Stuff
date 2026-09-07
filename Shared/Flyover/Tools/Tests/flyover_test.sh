@@ -77,6 +77,8 @@ chmod +x "$FAILURE_RUNNER"
 "$ROOT/flyover" --help | grep -q 'flyover preview' || fail "preview help is incomplete"
 "$ROOT/flyover" export --help | grep -q 'phone-voiceover' \
     || fail "export help does not list the supported profiles"
+"$ROOT/flyover" export --help | grep -q 'defaults are phone-light and phone-dark' \
+    || fail "export help does not list both default profiles"
 "$ROOT/flyover" preview --help | grep -q 'no authentication or TLS' \
     || fail "preview help does not explain LAN exposure"
 expect_failure "$ROOT/flyover" export --profile system
@@ -159,6 +161,15 @@ mkdir -p "$CALLER"
 )
 [ -f "$CALLER/.build/flyover/where/.flyover-generated" ] \
     || fail "default output path did not resolve from the caller directory"
+python3 - "$CALLER/.build/flyover/where/manifest.json" <<'PY'
+import json, pathlib, sys
+manifest = json.loads(pathlib.Path(sys.argv[1]).read_text())
+profiles = [item['id'] for item in manifest['profiles']]
+if profiles != ['phone-light', 'phone-dark']:
+    raise SystemExit(f'default profiles are wrong: {profiles}')
+if len(manifest['images']) != 2:
+    raise SystemExit(f'default image count is wrong: {len(manifest["images"])}')
+PY
 
 OUTPUT="$TEMP/output"
 FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" FLYOVER_XCODE_VERSION_OVERRIDE=Tests \

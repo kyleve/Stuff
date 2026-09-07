@@ -38,8 +38,7 @@
         }
 
         public static func parse(_ identifiers: [String]) throws -> [Self] {
-            let requested = identifiers.isEmpty ? [phoneLight.rawValue] : identifiers
-            return try orderedUnique(requested.map { identifier in
+            try orderedUnique(identifiers.map { identifier in
                 guard let profile = Self(rawValue: identifier) else {
                     throw FlyoverExportError.unknownProfile(identifier)
                 }
@@ -48,7 +47,7 @@
         }
 
         static func orderedUnique(_ requestedProfiles: [Self]) -> [Self] {
-            let profiles = requestedProfiles.isEmpty ? [.phoneLight] : requestedProfiles
+            let profiles = requestedProfiles.isEmpty ? [.phoneLight, .phoneDark] : requestedProfiles
             var seen: Set<Self> = []
             return profiles.filter { seen.insert($0).inserted }
         }

@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd -P)"
 DEFAULT_OUTPUT=".build/flyover/where"
+DEFAULT_PROFILES=(phone-light phone-dark)
 OUTPUT="$DEFAULT_OUTPUT"
 PROFILES=()
 STAGING=""
@@ -28,7 +29,7 @@ Commands:
 Export options:
   --output DIR     Generated website directory (default: .build/flyover/where)
   --profile NAME   Add a capture profile. Repeat the flag for more profiles.
-                   The default is phone-light.
+                   The defaults are phone-light and phone-dark.
 
 Preview options:
   --output DIR     Existing generated directory (default: .build/flyover/where)
@@ -62,7 +63,7 @@ Capture Where's native Flyover catalog as a portable static website.
 Options:
   --output DIR     Generated website directory (default: .build/flyover/where)
   --profile NAME   Add a capture profile. Repeat the flag for more profiles.
-                   The default is phone-light.
+                   The defaults are phone-light and phone-dark.
   -h, --help       Show this help.
 
 Profiles:
@@ -257,7 +258,7 @@ while [ "$#" -gt 0 ]; do
     shift
 done
 
-[ "${#PROFILES[@]}" -gt 0 ] || PROFILES=(phone-light)
+[ "${#PROFILES[@]}" -gt 0 ] || PROFILES=("${DEFAULT_PROFILES[@]}")
 DESTINATION="$(resolve_path "$OUTPUT")"
 HOME_PATH="$(resolve_path "$HOME")"
 WORKSPACE_PATH="$(resolve_path "$ROOT")"
