@@ -9,6 +9,7 @@ let package = Package(
         .macOS(.v26),
     ],
     products: [
+        .library(name: "DaylightCore", targets: ["DaylightCore"]),
         .library(name: "CreditKit", targets: ["CreditKit"]),
         .library(name: "LedgerCore", targets: ["LedgerCore"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
@@ -45,6 +46,11 @@ let package = Package(
         .package(url: "https://github.com/SFSafeSymbols/SFSafeSymbols", from: "7.0.0"),
     ],
     targets: [
+        .target(
+            name: "DaylightCore",
+            dependencies: [.target(name: "PeriscopeCore")],
+            path: "Daylight/DaylightCore/Sources",
+        ),
         .target(
             name: "CreditKit",
             path: "Shared/CreditKit/Sources",

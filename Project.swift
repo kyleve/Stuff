@@ -184,6 +184,12 @@ let project = Project(
     packages: [stuffPackage, sfSafeSymbolsPackage],
     settings: projectSettings,
     targets: [
+        unitTests(
+            name: "DaylightCoreTests",
+            bundleIdSuffix: "daylight.core",
+            productDependency: "DaylightCore",
+            sources: ["Daylight/DaylightCore/Tests/**"],
+        ),
         .target(
             name: "Where",
             destinations: destinations,
@@ -722,6 +728,7 @@ let project = Project(
             name: "Stuff-iOS-Tests",
             shared: true,
             buildAction: .buildAction(targets: [
+                "DaylightCoreTests",
                 "Where",
                 "RegionViewer",
                 "StuffTestHost",
@@ -749,6 +756,7 @@ let project = Project(
             ]),
             testAction: .targets(
                 [
+                    "DaylightCoreTests",
                     "CreditKitTests",
                     "WhereCrashReportingTests",
                     "LifecycleKitTests",
@@ -773,6 +781,7 @@ let project = Project(
                 arguments: .arguments(environmentVariables: packageResourceEnvironment),
             ),
         ),
+        testScheme(name: "DaylightCoreTests"),
         testScheme(name: "LedgerCoreTests"),
         testScheme(name: "CreditKitTests"),
         testScheme(name: "WhereCrashReportingTests"),
