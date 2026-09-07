@@ -16,6 +16,12 @@ extension ThrowSession {
         projectionPlaylist.entries.count > 1
     }
 
+    /// A requested View is exchanging now or waiting for its first prepared frame.
+    /// Automatic prewarming stays invisible until its actual exchange begins.
+    public var isExperienceSwitchPending: Bool {
+        requestedExperienceID != nil && prewarmingExperienceID == nil
+    }
+
     public func selectExperience(_ id: RunnableProjectionExperienceID) async {
         await performExperienceSelection(.experience(id))
     }
