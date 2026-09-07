@@ -6,14 +6,12 @@ public struct CaptureSettings: Codable, Equatable, Sendable {
     public var sunrise: Window
     public var sunset: Window
     public var camera: Camera
-    public var recipe: ImageRecipe
 
     public static let standard = Self(
         site: .sanFrancisco,
         sunrise: .standard,
         sunset: .standard,
         camera: .standard,
-        recipe: .original,
     )
 
     public struct Site: Codable, Equatable, Sendable {
@@ -56,6 +54,5 @@ public struct CaptureSettings: Codable, Equatable, Sendable {
                   (1 ... 60).contains(window.intervalMinutes)
             else { throw DaylightError.invalidSettings }
         }
-        try recipe.validate()
     }
 }

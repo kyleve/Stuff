@@ -1,0 +1,324 @@
+import DaylightCore
+import Foundation
+
+/// One personal Mastodon account. Every remote checkpoint is persisted before the next side effect.
+public actor MastodonDestination: PublishingDestination, MastodonManaging {
+    public nonisolated let id = PublishingDestinationID(rawValue: "mastodon")
+    public nonisolated let inputs: Set<PublishingInput.Kind> = [.sequenceHighlight]
+    private let transport: any HTTPTransport
+    private let credentials: any MastodonCredentials
+    private let settingsURL: URL
+    private var settings: MastodonSettings
+    private let now: @Sendable () -> Date
+    private struct Account: Decodable { let id: String; let acct: String }
+    private struct Media: Decodable { let id: String; let url: URL? }
+    private struct Status: Decodable { let id: String; let url: URL }
+    private struct Instance: Decodable {
+        let configuration: Configuration
+        struct Configuration: Decodable {
+            let mediaAttachments: Limits
+            let statuses: StatusLimits
+        }
+
+        struct Limits: Decodable {
+            let imageSizeLimit: Int; let imageMatrixLimit: Int; let supportedMimeTypes: [String]
+        }
+
+        struct StatusLimits: Decodable { let maxCharacters: Int }
+    }
+
+    private struct Checkpoint: Codable {
+        var version = 1
+        let connection: MastodonSettings.Connection
+        let caption: String
+        let description: String
+        let visibility: MastodonSettings.Visibility
+        var mediaID: String?
+        var firstSubmission: Date?
+    }
+
+    public init(
+        settingsURL: URL,
+        transport: any HTTPTransport,
+        credentials: any MastodonCredentials,
+        now: @escaping @Sendable () -> Date,
+    ) throws {
+        self.settingsURL = settingsURL; self.transport = transport; self
+            .credentials = credentials; self.now = now
+        if FileManager.default.fileExists(atPath: settingsURL.path) {
+            settings = try JSONDecoder().decode(
+                MastodonSettings.self,
+                from: Data(contentsOf: settingsURL),
+            )
+        } else { settings = .initial }
+        guard settings.version == 1 else { throw MastodonError.invalidResponse }
+    }
+
+    public func configuration() -> MastodonSettings {
+        settings
+    }
+
+    public func isEnabled() -> Bool {
+        settings.enabled && settings.connection != nil
+    }
+
+    public func connect(server value: String, token: String) async throws -> MastodonSettings {
+        guard let components = URLComponents(string: value
+            .trimmingCharacters(in: .whitespacesAndNewlines)),
+            components.scheme == "https", components.host != nil, components.user == nil,
+            components.password == nil,
+            components.query == nil, components.fragment == nil,
+            ["", "/"].contains(components.path),
+            let url = components.url else { throw MastodonError.invalidServer }
+        let secret = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !secret.isEmpty else { throw MastodonError.missingCredentials }
+        let data = try await request(
+            server: url,
+            path: "api/v1/accounts/verify_credentials",
+            token: secret,
+            method: "GET",
+            body: nil,
+            contentType: nil,
+            idempotencyKey: nil,
+        )
+        let account = try JSONDecoder().decode(Account.self, from: data)
+        let connection = MastodonSettings.Connection(
+            server: url,
+            accountID: account.id,
+            username: account.acct,
+        )
+        var updated = settings
+        updated.connection = connection; updated.enabled = false
+        try credentials.write(MastodonCredential(connection: connection, token: secret))
+        try persist(updated)
+        return updated
+    }
+
+    public func update(
+        enabled: Bool,
+        visibility: MastodonSettings.Visibility,
+        caption: String,
+    ) throws {
+        guard !enabled || settings.connection != nil else { throw MastodonError.missingCredentials }
+        var updated = settings
+        updated.enabled = enabled; updated.visibility = visibility; updated.caption = caption
+        try persist(updated)
+    }
+
+    private func persist(_ value: MastodonSettings) throws {
+        try JSONEncoder().encode(value).write(to: settingsURL, options: .atomic)
+        settings = value
+    }
+
+    public func deliver(
+        _ input: PublishingInput,
+        deliveryID: PublishingDelivery.ID,
+        checkpoint: Data?,
+        saveCheckpoint: @escaping @Sendable (Data) async throws
+            -> Void,
+    ) async throws -> PublishingReceipt {
+        guard settings.enabled, let connection = settings.connection,
+              let credential = try credentials.read()
+        else { throw MastodonError.missingCredentials }
+        guard credential.connection == connection else {
+            throw PublishingFailure
+                .needsAttention(
+                    "Reconnect the displayed account before publishing. The saved token belongs to a different account.",
+                )
+        }
+        let token = credential.token
+        var progress: Checkpoint
+        if let checkpoint {
+            progress = try JSONDecoder().decode(Checkpoint.self, from: checkpoint)
+            guard progress.version == 1, progress.connection == connection else {
+                throw PublishingFailure
+                    .needsAttention(
+                        "The account changed. Review this queued post before publishing.",
+                    )
+            }
+        } else {
+            guard let zone = TimeZone(identifier: input.timeZoneIdentifier)
+            else { throw MastodonError.invalidResponse }
+            let date = input.image.capturedAt.formatted(Date.FormatStyle(
+                date: .abbreviated,
+                time: .omitted,
+                timeZone: zone,
+            ))
+            let time = input.image.capturedAt.formatted(Date.FormatStyle(
+                date: .omitted,
+                time: .shortened,
+                timeZone: zone,
+            ))
+            let event = input.event.id.kind == .sunrise ? "Sunrise" : "Sunset"
+            progress = Checkpoint(
+                connection: connection,
+                caption: settings.caption.replacingOccurrences(
+                    of: "{event}",
+                    with: event,
+                ).replacingOccurrences(of: "{date}", with: date),
+                description: "Camera view near \(event.lowercased()), photographed on \(date) at \(time).",
+                visibility: settings.visibility,
+            )
+            try await saveCheckpoint(JSONEncoder().encode(progress))
+        }
+        if let first = progress.firstSubmission, now().timeIntervalSince(first) >= 3500 {
+            throw PublishingFailure
+                .needsAttention(
+                    "The previous post may have succeeded. Check Mastodon before retrying; its duplicate protection has expired.",
+                )
+        }
+        if progress.mediaID == nil {
+            let instanceData = try await request(
+                server: connection.server,
+                path: "api/v2/instance",
+                token: token,
+                method: "GET",
+                body: nil,
+                contentType: nil,
+                idempotencyKey: nil,
+            )
+            let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+            let instance = try decoder.decode(Instance.self, from: instanceData)
+            guard progress.caption.count <= instance.configuration.statuses.maxCharacters else {
+                throw PublishingFailure
+                    .needsAttention("Shorten the caption to fit this server's post limit.")
+            }
+            let limits = instance.configuration.mediaAttachments
+            guard limits.supportedMimeTypes.contains("image/jpeg"), limits.imageSizeLimit > 0,
+                  limits.imageMatrixLimit > 0
+            else {
+                throw PublishingFailure
+                    .needsAttention("This server does not accept JPEG photographs.")
+            }
+            let source = try Data(contentsOf: input.imageURL)
+            var dimension = min(2560, sqrt(Double(limits.imageMatrixLimit)))
+            var jpeg = try JPEGExporter().stripMetadata(JPEGRenderer().renderJPEG(
+                source,
+                maximumDimension: dimension,
+            ))
+            while jpeg.count > limits.imageSizeLimit, dimension > 320 {
+                dimension *= 0.75
+                jpeg = try JPEGExporter().stripMetadata(JPEGRenderer().renderJPEG(
+                    source,
+                    maximumDimension: dimension,
+                ))
+            }
+            guard jpeg.count <= limits.imageSizeLimit
+            else {
+                throw PublishingFailure
+                    .needsAttention("The photograph cannot fit this server's upload limit.")
+            }
+            let boundary = UUID().uuidString
+            let header = [
+                "--\(boundary)",
+                #"Content-Disposition: form-data; name="description""#,
+                "",
+                progress.description,
+                "--\(boundary)",
+                #"Content-Disposition: form-data; name="file"; filename="daylight.jpg""#,
+                "Content-Type: image/jpeg",
+                "",
+                "",
+            ].joined(separator: "\r\n")
+            var body = Data(header.utf8)
+            body.append(jpeg); body.append(Data("\r\n--\(boundary)--\r\n".utf8))
+            let data = try await request(
+                server: connection.server,
+                path: "api/v2/media",
+                token: token,
+                method: "POST",
+                body: body,
+                contentType: "multipart/form-data; boundary=\(boundary)",
+                idempotencyKey: nil,
+            )
+            progress.mediaID = try JSONDecoder().decode(Media.self, from: data).id
+            try await saveCheckpoint(JSONEncoder().encode(progress))
+        }
+        guard let mediaID = progress.mediaID else { throw MastodonError.invalidResponse }
+        let mediaData = try await request(
+            server: connection.server,
+            path: "api/v1/media/\(mediaID)",
+            token: token,
+            method: "GET",
+            body: nil,
+            contentType: nil,
+            idempotencyKey: nil,
+        )
+        guard try JSONDecoder().decode(Media.self, from: mediaData).url != nil else {
+            throw PublishingFailure.retry(
+                after: now().addingTimeInterval(15),
+                message: "Mastodon is processing the photo.",
+            )
+        }
+        if progress.firstSubmission == nil {
+            progress.firstSubmission = now()
+            try await saveCheckpoint(JSONEncoder().encode(progress))
+        }
+        struct Post: Encodable {
+            let status: String; let media_ids: [String]; let visibility: String
+        }
+        let body = try JSONEncoder().encode(Post(
+            status: progress.caption,
+            media_ids: [mediaID],
+            visibility: progress.visibility.rawValue,
+        ))
+        let data = try await request(
+            server: connection.server,
+            path: "api/v1/statuses",
+            token: token,
+            method: "POST",
+            body: body,
+            contentType: "application/json",
+            idempotencyKey: deliveryID.rawValue.uuidString,
+        )
+        let status = try JSONDecoder().decode(Status.self, from: data)
+        return PublishingReceipt(remoteID: status.id, url: status.url)
+    }
+
+    private func request(
+        server: URL,
+        path: String,
+        token: String,
+        method: String,
+        body: Data?,
+        contentType: String?,
+        idempotencyKey: String?,
+    ) async throws -> Data {
+        var request = URLRequest(url: server.appendingPathComponent(path))
+        request.httpMethod = method; request.httpBody = body
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        request.setValue(idempotencyKey, forHTTPHeaderField: "Idempotency-Key")
+        let response = try await transport.send(request)
+        if response.status == 206 { throw PublishingFailure.retry(
+            after: now().addingTimeInterval(15),
+            message: "Mastodon is processing the photo.",
+        ) }
+        if response.status == 429 || response.status >= 500 {
+            let retryDate: Date
+            if let header = response.retryAfter, let seconds = Double(header), seconds.isFinite {
+                retryDate = now().addingTimeInterval(max(1, seconds))
+            } else if let header = response.retryAfter {
+                let formatter = DateFormatter()
+                formatter.locale = Locale(identifier: "en_US_POSIX")
+                formatter.timeZone = .gmt
+                formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss z"
+                retryDate = max(
+                    now().addingTimeInterval(1),
+                    formatter.date(from: header) ?? now().addingTimeInterval(60),
+                )
+            } else { retryDate = now().addingTimeInterval(60) }
+            throw PublishingFailure.retry(
+                after: retryDate,
+                message: "Mastodon is temporarily unavailable (\(response.status)).",
+            )
+        }
+        guard (200 ... 299).contains(response.status) else {
+            throw PublishingFailure
+                .needsAttention(
+                    "Mastodon rejected the request (\(response.status)). Check the account, token permissions, and queued post.",
+                )
+        }
+        return response.data
+    }
+}

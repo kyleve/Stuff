@@ -13,6 +13,7 @@ public struct PublishingDelivery: Codable, Equatable, Sendable, Identifiable {
     public let destination: PublishingDestinationID
     public let imageID: CaptureSequence.Slot.ID
     public let kind: PublishingInput.Kind
+    public var attempts = 0
     public var checkpoint: Data?
     public var state: State
     public enum State: Codable, Equatable, Sendable {

@@ -6,15 +6,17 @@ public struct PublishingInput: Sendable {
     public let image: CapturedImage
     public let event: SolarEvent
     public let timeZoneIdentifier: String
-    public let renderedURL: URL
+    public let imageURL: URL
+    public let rawURL: URL?
     public init(
         kind: Kind,
         image: CapturedImage,
         event: SolarEvent,
         timeZoneIdentifier: String,
-        renderedURL: URL,
+        imageURL: URL,
+        rawURL: URL?,
     ) {
         self.kind = kind; self.image = image; self.event = event
-        self.timeZoneIdentifier = timeZoneIdentifier; self.renderedURL = renderedURL
+        self.timeZoneIdentifier = timeZoneIdentifier; self.imageURL = imageURL; self.rawURL = rawURL
     }
 }

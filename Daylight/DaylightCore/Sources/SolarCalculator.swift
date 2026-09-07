@@ -33,12 +33,20 @@ public struct SolarCalculator: SolarCalculating {
             tan(declination)
         guard (-1 ... 1).contains(cosine) else { return [] }
         let angle = acos(cosine) * 180 / .pi
-        return SolarEvent.Kind.allCases.map { kind in
+        let localDay = local.dateInterval(of: .day, for: date)
+        guard let localDay else { throw DaylightError.invalidSettings }
+        return try SolarEvent.Kind.allCases.map { kind in
             let sign: Double = kind == .sunrise ? 1 : -1
             let minutes = 720 - 4 * (site.longitude + sign * angle) - equation
+            let estimate = base.addingTimeInterval(minutes * 60)
+            // Civil zones can lie on the opposite side of the international date line from
+            // longitude.
+            guard let eventDate = [-86400.0, 0, 86400].map({ estimate.addingTimeInterval($0) })
+                .first(where: { $0 >= localDay.start && $0 < localDay.end })
+            else { throw DaylightError.invalidSettings }
             return SolarEvent(
                 id: .init(year: year, month: month, day: day, kind: kind),
-                date: base.addingTimeInterval(minutes * 60),
+                date: eventDate,
             )
         }
     }

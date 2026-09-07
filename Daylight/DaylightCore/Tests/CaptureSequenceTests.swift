@@ -10,11 +10,11 @@ struct CaptureSequenceTests {
         )
         var settings = CaptureSettings.standard
         let sequence = CaptureSequence(event: event, settings: settings)
-        settings.recipe.preset = .warm
+        settings.camera.zoom = 2
         #expect(sequence.slots.count == 13)
         #expect(sequence.slots.first?.scheduledAt == event.date.addingTimeInterval(-1800))
         #expect(sequence.slots.last?.scheduledAt == event.date.addingTimeInterval(1800))
         #expect(Set(sequence.slots.map(\.id)).count == 13)
-        #expect(sequence.settings.recipe.preset == .original)
+        #expect(sequence.settings.camera.zoom == 1)
     }
 }

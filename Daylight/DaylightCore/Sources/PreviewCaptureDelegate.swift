@@ -3,20 +3,15 @@ import CoreImage
 import Foundation
 import Synchronization
 
-/// Drops busy/old frames and limits processed preview work to four frames per second.
+/// Drops stale preview frames and limits display work to four frames per second.
 final class PreviewCaptureDelegate: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate,
     Sendable
 {
-    struct State {
-        var recipe: ImageRecipe
-        var lastFrame = Date.distantPast
-    }
-
-    private let processor = ImageProcessor()
-    private let state: Mutex<State>
+    private let renderer = JPEGRenderer()
+    private let lastFrame = Mutex<Date?>(nil)
     private let continuation: AsyncThrowingStream<Data, any Error>.Continuation
-    init(recipe: ImageRecipe, continuation: AsyncThrowingStream<Data, any Error>.Continuation) {
-        state = Mutex(State(recipe: recipe)); self.continuation = continuation
+    init(continuation: AsyncThrowingStream<Data, any Error>.Continuation) {
+        self.continuation = continuation
     }
 
     func captureOutput(
@@ -24,21 +19,17 @@ final class PreviewCaptureDelegate: NSObject, AVCaptureVideoDataOutputSampleBuff
         didOutput sampleBuffer: CMSampleBuffer,
         from _: AVCaptureConnection,
     ) {
-        let recipe: ImageRecipe? = state.withLock { value in
+        let eligible = lastFrame.withLock { value in
             let now = Date()
-            guard now.timeIntervalSince(value.lastFrame) >= 0.25 else { return nil }
-            value.lastFrame = now
-            return value.recipe
+            if let value, now.timeIntervalSince(value) < 0.25 { return false }
+            value = now
+            return true
         }
-        guard let recipe, let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-        do {
-            let data = try processor.renderJPEG(
-                CIImage(cvPixelBuffer: buffer),
-                recipe: recipe,
-                maximumDimension: 960,
-            )
-            continuation.yield(data)
-        } catch { continuation.finish(throwing: error) }
+        guard eligible, let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        do { try continuation.yield(renderer.renderJPEG(
+            CIImage(cvPixelBuffer: buffer),
+            maximumDimension: 960,
+        )) } catch { continuation.finish(throwing: error) }
     }
 
     func finish() {

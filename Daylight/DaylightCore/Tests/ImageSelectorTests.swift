@@ -13,7 +13,7 @@ struct ImageSelectorTests {
             var image = CapturedImage(
                 id: sequence.slots[index].id,
                 capturedAt: sequence.slots[index].scheduledAt,
-                recipe: .original,
+                format: .jpeg,
             )
             image.score = .scored(.init(overall: index == 12 ? 1 : 0.5, isUtility: index == 12))
             sequence.slots[index].state = .captured(image)

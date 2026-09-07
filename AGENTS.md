@@ -223,6 +223,10 @@ Release and transactionally installs it to `/Applications` (ad-hoc signed, no
 team needed). Its `--dry-run` validates and reports the replacement without
 building, stopping, replacing, or launching anything.
 
+The **Daylight** camera app uses the same iOS build and test schemes. Use
+[`./Daylight/install`](Daylight/install) for a physical device. Its dry run resolves
+the device without generating, building, installing, or launching.
+
 ## Per-module docs
 
 Shared modules live under `Shared/`. Feature modules live under a top-level folder

@@ -29,4 +29,17 @@ struct SolarCalculatorTests {
         polar.latitude = 89
         #expect(try SolarCalculator().events(on: date, site: polar).isEmpty)
     }
+
+    @Test func localDaySurvivesUTCMidnightAndInternationalDateLine() throws {
+        let formatter = ISO8601DateFormatter()
+        let beforeMidnight = try #require(formatter.date(from: "2026-06-22T00:05:00Z"))
+        let sf = try SolarCalculator().events(on: beforeMidnight, site: .sanFrancisco)
+        #expect(sf.allSatisfy { $0.id.day == 21 })
+        var site = CaptureSettings.Site.sanFrancisco
+        site.latitude = 1.87; site.longitude = -157.4; site.timeZoneIdentifier = "Pacific/Kiritimati"
+        let events = try SolarCalculator().events(on: beforeMidnight, site: site)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: site.timeZoneIdentifier))
+        #expect(events.allSatisfy { calendar.isDate($0.date, inSameDayAs: beforeMidnight) })
+    }
 }

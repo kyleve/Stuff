@@ -2,8 +2,8 @@ import Foundation
 import Photos
 import Synchronization
 
-/// Saves original and adjustment output in the same Photos transaction, without per-shot edit
-/// prompts.
+/// Saves original RAW and JPEG resources in one Photos asset and records a durable asset identifier
+/// for recovery.
 public struct PhotosLibrary: PhotosSaving {
     public init() {}
     public func requestAccess() async -> Bool {
@@ -15,13 +15,14 @@ public struct PhotosLibrary: PhotosSaving {
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         guard status == .authorized || status == .limited
         else { throw DaylightError.photosPermission }
-        return PHAsset.fetchAssets(withLocalIdentifiers: [assetIdentifier], options: nil).count == 1
+        guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [assetIdentifier], options: nil)
+            .firstObject else { return false }
+        return asset.mediaType == .image
     }
 
     public func save(
         originalURL: URL,
-        renderedURL: URL,
-        recipe: ImageRecipe,
+        rawURL: URL?,
         capturedAt: Date,
         recordIdentifier: @escaping @Sendable (String) async throws
             -> Void,
@@ -29,7 +30,6 @@ public struct PhotosLibrary: PhotosSaving {
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         guard status == .authorized || status == .limited
         else { throw DaylightError.photosPermission }
-        let recipeData = try JSONEncoder().encode(recipe)
         // New asset placeholders only exist inside a change block. Persist their ID synchronously
         // through a local sidecar before the transaction can commit; the owner reconciles it on
         // restart.
@@ -38,23 +38,15 @@ public struct PhotosLibrary: PhotosSaving {
         let result = Mutex<Result<String, any Error>?>(nil)
         try await PHPhotoLibrary.shared().performChanges {
             do {
-                guard let request = PHAssetChangeRequest
-                    .creationRequestForAssetFromImage(atFileURL: originalURL),
-                    let placeholder = request.placeholderForCreatedAsset
+                let request = PHAssetCreationRequest.forAsset()
+                if let rawURL {
+                    request.addResource(with: .photo, fileURL: rawURL, options: nil)
+                    request.addResource(with: .alternatePhoto, fileURL: originalURL, options: nil)
+                } else { request.addResource(with: .photo, fileURL: originalURL, options: nil) }
+                guard let placeholder = request.placeholderForCreatedAsset
                 else { throw DaylightError.invalidImage }
                 request.creationDate = capturedAt
-                let output = PHContentEditingOutput(placeholderForCreatedAsset: placeholder)
-                output.adjustmentData = PHAdjustmentData(
-                    formatIdentifier: "com.stuff.daylight.recipe",
-                    formatVersion: "1",
-                    data: recipeData,
-                )
-                try Data(contentsOf: renderedURL).write(
-                    to: output.renderedContentURL,
-                    options: .atomic,
-                )
                 try Data(placeholder.localIdentifier.utf8).write(to: receiptURL, options: .atomic)
-                request.contentEditingOutput = output
                 result.withLock { $0 = .success(placeholder.localIdentifier) }
             } catch {
                 result.withLock { $0 = .failure(error) }
