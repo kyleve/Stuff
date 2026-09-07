@@ -52,8 +52,8 @@ WhereCore, RegionKit, or LifecycleKit into this feature.
   bypass quiet output without starting a feed.
 - Keep Geography offline and Map-only. Never add online map tiles or transmit
   the observer location to a map provider.
-- Revalidate the availability-gated iOS 27 scene-accessory adapter against the
-  GM SDK before release.
+- Attach the iOS 27 external-display scene accessory to the controller root.
+  Use the shared session and production projection surface in its content.
 
 ## Installing to a device
 

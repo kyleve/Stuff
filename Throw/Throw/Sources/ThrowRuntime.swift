@@ -89,16 +89,12 @@ enum ControllerSceneLifecycleEvent: Equatable {
 protocol ThrowApplicationRuntime: AnyObject {
     var session: ThrowSession { get }
 
-    func projectionOutputConnected(
-        _ output: ProjectionOutput,
-        appearanceSink: @escaping @MainActor (UIUserInterfaceStyle) -> Void,
-    )
+    func projectionOutputConnected(_ output: ProjectionOutput)
     func projectionOutputDisconnected(_ output: ProjectionOutput)
     func controllerScene(
         _ id: ControllerSceneID,
         didReceive event: ControllerSceneLifecycleEvent,
     )
-    func controllerAppearanceDidChange(_ style: UIUserInterfaceStyle)
     func sessionOutputDemandDidChange()
 }
 
@@ -123,10 +119,7 @@ final class ThrowRuntime: ThrowApplicationRuntime {
     private let idleTimerController: any IdleTimerControlling
     private let backgroundExecutionLeaser: any BackgroundExecutionLeasing
     private var activeOutputs: [ProjectionOutputID: ProjectionOutput] = [:]
-    private var appearanceSinks: [ProjectionOutputID: @MainActor (UIUserInterfaceStyle) -> Void] =
-        [:]
     private var previousIdleTimerState: Bool?
-    private var controllerAppearance: UIUserInterfaceStyle = .unspecified
     private var foregroundControllerScenes: Set<ControllerSceneID> = []
     private var backgroundPreferenceFlush = BackgroundPreferenceFlushState.idle(
         nextID: BackgroundPreferenceFlushID(rawValue: 0),
@@ -165,14 +158,8 @@ final class ThrowRuntime: ThrowApplicationRuntime {
         )
     }
 
-    func projectionOutputConnected(
-        _ output: ProjectionOutput,
-        appearanceSink: @escaping @MainActor (UIUserInterfaceStyle) -> Void,
-    ) {
+    func projectionOutputConnected(_ output: ProjectionOutput) {
         let id = Self.id(for: output)
-        appearanceSinks[id] = appearanceSink
-        appearanceSink(controllerAppearance)
-
         guard activeOutputs[id] == nil else { return }
         activeOutputs[id] = output
         session.projectionOutputConnected(output)
@@ -181,7 +168,6 @@ final class ThrowRuntime: ThrowApplicationRuntime {
 
     func projectionOutputDisconnected(_ output: ProjectionOutput) {
         let id = Self.id(for: output)
-        appearanceSinks[id] = nil
         guard let connectedOutput = activeOutputs.removeValue(forKey: id) else { return }
         session.projectionOutputDisconnected(connectedOutput)
         sessionOutputDemandDidChange()
@@ -205,14 +191,6 @@ final class ThrowRuntime: ThrowApplicationRuntime {
             cancelBackgroundPreferenceFlush()
         } else {
             startBackgroundPreferenceFlush()
-        }
-    }
-
-    func controllerAppearanceDidChange(_ style: UIUserInterfaceStyle) {
-        guard controllerAppearance != style else { return }
-        controllerAppearance = style
-        for sink in appearanceSinks.values {
-            sink(style)
         }
     }
 
@@ -287,12 +265,33 @@ final class ThrowRuntime: ThrowApplicationRuntime {
 struct RuntimeControllerView: View {
     let session: ThrowSession
     let outputDemandDidChange: @MainActor () -> Void
+    let externalOutputConnected: @MainActor (ProjectionOutput) -> Void
+    let externalOutputDisconnected: @MainActor (ProjectionOutput) -> Void
+    @State private var externalDisplayOutputID = ProjectionOutputID(
+        rawValue: "external-accessory:\(UUID().uuidString)",
+    )
 
     var body: some View {
         ThrowRootView(session: session)
             .onChange(of: session.projectionOutputCount, initial: true) {
                 _, _ in
                 outputDemandDidChange()
+            }
+            .sceneAccessory {
+                ExternalNonInteractiveAccessory {
+                    ThrowProjectionRootView(session: session, presentation: .externalDisplay)
+                        .throwBroadwayRoot()
+                        .onAppear {
+                            externalOutputConnected(
+                                .externalDisplay(externalDisplayOutputID),
+                            )
+                        }
+                        .onDisappear {
+                            externalOutputDisconnected(
+                                .externalDisplay(externalDisplayOutputID),
+                            )
+                        }
+                }
             }
     }
 }

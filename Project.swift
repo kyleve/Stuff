@@ -422,14 +422,6 @@ let project = Project(
                                 "UISceneConfigurationName": .string("Throw Controller"),
                             ]),
                         ]),
-                        "UIWindowSceneSessionRoleExternalDisplayNonInteractive": .array([
-                            .dictionary([
-                                "UISceneConfigurationName": .string("Throw External Display"),
-                                "UISceneDelegateClassName": .string(
-                                    "$(PRODUCT_MODULE_NAME).ExternalDisplaySceneDelegate",
-                                ),
-                            ]),
-                        ]),
                     ]),
                 ]),
                 "UIApplicationSupportsIndirectInputEvents": .boolean(true),

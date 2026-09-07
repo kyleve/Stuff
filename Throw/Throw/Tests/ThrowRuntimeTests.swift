@@ -55,8 +55,8 @@ struct ThrowRuntimeTests {
             ProjectionOutputID(rawValue: "preview-test"),
         )
 
-        runtime.projectionOutputConnected(external) { _ in }
-        runtime.projectionOutputConnected(preview) { _ in }
+        runtime.projectionOutputConnected(external)
+        runtime.projectionOutputConnected(preview)
         #expect(idleTimer.isIdleTimerDisabled)
 
         runtime.projectionOutputDisconnected(external)
@@ -77,30 +77,11 @@ struct ThrowRuntimeTests {
             ProjectionOutputID(rawValue: "external-test"),
         )
 
-        runtime.projectionOutputConnected(output) { _ in }
-        runtime.projectionOutputConnected(output) { _ in }
+        runtime.projectionOutputConnected(output)
+        runtime.projectionOutputConnected(output)
         runtime.projectionOutputDisconnected(output)
 
         #expect(idleTimer.isIdleTimerDisabled == false)
-    }
-
-    @Test func externalAppearanceTracksTheController() {
-        let runtime = ThrowRuntime(
-            session: .fixture(),
-            idleTimerController: IdleTimerControllerSpy(isIdleTimerDisabled: false),
-            backgroundExecutionLeaser: BackgroundExecutionLeaserSpy(),
-        )
-        let output = ProjectionOutput.externalDisplay(
-            ProjectionOutputID(rawValue: "external-test"),
-        )
-        var received: [UIUserInterfaceStyle] = []
-
-        runtime.projectionOutputConnected(output) { received.append($0) }
-        runtime.controllerAppearanceDidChange(.dark)
-        runtime.controllerAppearanceDidChange(.dark)
-        runtime.controllerAppearanceDidChange(.light)
-
-        #expect(received == [.unspecified, .dark, .light])
     }
 
     @Test func sessionOutputDemandDrivesTheIdleTimerBridge() {
@@ -161,7 +142,7 @@ struct ThrowRuntimeTests {
             ProjectionOutputID(rawValue: "external-lifecycle-test"),
         )
 
-        runtime.projectionOutputConnected(externalOutput) { _ in }
+        runtime.projectionOutputConnected(externalOutput)
         #expect(session.hasProjectionOutputDemand)
         #expect(session.hasForegroundControllerSceneForTesting == false)
 

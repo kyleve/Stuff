@@ -12,7 +12,7 @@ The Throw app is the iOS composition and scene shell; see
 - Expose the shared session through the runtime protocol. Compose concrete
   controller and projection roots at each scene without `AnyView` erasure.
 - Construct `ThrowRuntime` only in `ThrowRuntime.swift`. `AppDelegate` obtains
-  that one live runtime. Scene delegates use the platform handoff and never create a fallback.
+  that one live runtime. Never create a fallback runtime.
 - Start cold launch from the process runtime. Never attach launch ownership to a
   scene or SwiftUI task.
 - Compose controller and projection surfaces through the exhaustive session
@@ -23,17 +23,15 @@ The Throw app is the iOS composition and scene shell; see
 - Retain the final-background preference flush under one injected UIKit
   execution lease. End the lease on completion or expiration. Cancel the
   retained flush task when the lease expires or a controller returns foreground.
-- Host every projected output with ThrowUI's `ThrowProjectionRootView`; keep its
-  UIKit window and hosting view opaque black.
-- Derive size and aspect changes from the connected `UIWindowScene`, never
-  `UIScreen.main`.
-- Retain the iOS 27 `UISceneAccessory` and its registration for as long as the
-  controller scene is eligible. Revalidate this adapter against the GM SDK.
+- Host every projected output with ThrowUI's `ThrowProjectionRootView`. Keep its
+  surface opaque black.
+- Attach the iOS 27 `ExternalNonInteractiveAccessory` to the controller root.
+  Never construct another runtime or session in the accessory content.
 - Keep required-reason API declarations in `PrivacyInfo.xcprivacy`. Preserve
   the built-app manifest guard when changing app resources or preferences.
 - Restore the process's prior idle-timer state when the final output leaves.
 
 ## Testing
 
-Run `./test ThrowTests`. App tests prove the delegate and every scene handoff
-use the same runtime and that duplicate output IDs do not duplicate demand.
+Run `./test ThrowTests`. App tests prove the shared runtime, controller-scene
+lifecycle, output demand, background flush, and idle-timer contracts.
