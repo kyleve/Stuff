@@ -452,6 +452,160 @@
         }
       }
     },
+    "recovery.cancel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "recovery.invalidURL" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter the full URL of the published post."
+          }
+        }
+      }
+    },
+    "recovery.photos.absent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I checked Photos: this photo is missing"
+          }
+        }
+      }
+    },
+    "recovery.photos.confirm" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save another copy to Photos?"
+          }
+        }
+      }
+    },
+    "recovery.photos.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check Photos at the capture time before saving another copy. Retry first checks whether the photo was already saved."
+          }
+        }
+      }
+    },
+    "recovery.photos.retry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry saving"
+          }
+        }
+      }
+    },
+    "recovery.photos.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save to Photos"
+          }
+        }
+      }
+    },
+    "recovery.publishing.absent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I checked Mastodon: this post is missing"
+          }
+        }
+      }
+    },
+    "recovery.publishing.confirm" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create a replacement post?"
+          }
+        }
+      }
+    },
+    "recovery.publishing.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check the original Mastodon account before creating a replacement. If the post exists, enter its URL to mark it as published."
+          }
+        }
+      }
+    },
+    "recovery.publishing.record" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record existing post"
+          }
+        }
+      }
+    },
+    "recovery.publishing.retry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry publishing"
+          }
+        }
+      }
+    },
+    "recovery.publishing.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recover post"
+          }
+        }
+      }
+    },
+    "recovery.publishing.url" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Published post URL"
+          }
+        }
+      }
+    },
     "schedule.after %lld" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -83,6 +83,17 @@ actor ScriptedPublisher: PublishingDestination {
         true
     }
 
+    func recover(checkpoint: Data?, action: PublishingRecoveryAction) -> PublishingRecoveryResult {
+        switch action {
+            case .retry: .retry(checkpoint: checkpoint)
+            case .confirmedAbsent: .retry(checkpoint: nil)
+            case let .published(url): .delivered(PublishingReceipt(
+                    remoteID: url.lastPathComponent,
+                    url: url,
+                ))
+        }
+    }
+
     func deliver(
         _: PublishingInput,
         deliveryID _: PublishingDelivery.ID,
@@ -150,7 +161,7 @@ struct FailingPhotos: PhotosSaving {
     ) throws
         -> String
     {
-        throw DaylightError.photosPermission
+        throw PhotosSaveFailure(message: DaylightError.photosPermission.localizedDescription)
     }
 }
 
@@ -180,6 +191,17 @@ actor GatedPublisher: PublishingDestination {
 
     func release() {
         releaseWaiter?.resume(); releaseWaiter = nil
+    }
+
+    func recover(checkpoint: Data?, action: PublishingRecoveryAction) -> PublishingRecoveryResult {
+        switch action {
+            case .retry: .retry(checkpoint: checkpoint)
+            case .confirmedAbsent: .retry(checkpoint: nil)
+            case let .published(url): .delivered(PublishingReceipt(
+                    remoteID: url.lastPathComponent,
+                    url: url,
+                ))
+        }
     }
 
     func deliver(

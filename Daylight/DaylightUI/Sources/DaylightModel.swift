@@ -152,6 +152,51 @@ public final class DaylightModel {
         }
     }
 
+    public func resolvePhotos(
+        imageID: CaptureSequence.Slot.ID,
+        resolution: PhotosResolution,
+    ) async {
+        guard !working else { return }
+        working = true; defer { working = false }
+        do {
+            guard await photos.requestAccess() else { throw DaylightError.photosPermission }
+            try await engine.resolvePhotos(imageID: imageID, resolution: resolution)
+            await refresh(); notice = nil
+        } catch { notice = error.localizedDescription }
+    }
+
+    public func recoverDelivery(
+        sequenceID: SolarEvent.ID,
+        deliveryID: PublishingDelivery.ID,
+        action: PublishingRecoveryAction,
+    ) async {
+        guard !working else { return }
+        working = true; defer { working = false }
+        do {
+            try await engine.recoverDelivery(
+                sequenceID: sequenceID,
+                deliveryID: deliveryID,
+                action: action,
+            )
+            await refresh(); notice = nil
+        } catch { notice = error.localizedDescription }
+    }
+
+    public func recordPublishedPost(
+        sequenceID: SolarEvent.ID,
+        deliveryID: PublishingDelivery.ID,
+        url: String,
+    ) async {
+        guard let url = URL(string: url.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+            notice = String(localized: .recoveryInvalidURL); return
+        }
+        await recoverDelivery(
+            sequenceID: sequenceID,
+            deliveryID: deliveryID,
+            action: .published(url),
+        )
+    }
+
     public func preview() async {
         guard previewKey.enabled else { return }
         await cameraStop?.task.value
@@ -273,6 +318,24 @@ public final class DaylightModel {
 
 #if DEBUG
     extension DaylightModel {
+        static func recoveryPreview() -> DaylightModel {
+            let model = DaylightPreviewSupport.model()
+            model.ready = true; model.history = [DaylightPreviewSupport.recoverySequence()]
+            return model
+        }
+
+        static func publishingFailurePreview() -> DaylightModel {
+            let model = DaylightPreviewSupport.model()
+            model.ready = true; model.publishingIssue = "The saved Mastodon settings could not be read. Reconnect to resume publishing."
+            return model
+        }
+
+        static func historyPreview() -> DaylightModel {
+            let model = DaylightPreviewSupport.model()
+            model.ready = true; model.history = [DaylightPreviewSupport.completedSequence()]
+            return model
+        }
+
         static func preview(mode: Mode, notice: String?) -> DaylightModel {
             let model = DaylightPreviewSupport.model()
             model.ready = true

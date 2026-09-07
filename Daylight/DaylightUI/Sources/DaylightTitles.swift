@@ -40,7 +40,7 @@ extension CaptureSequence.Slot.State {
                             case nil: String(localized: .photosSaved)
                         }
                     case .pending, .saving: String(localized: .photosSaving)
-                    case let .failed(message): message
+                    case let .failed(message), let .retry(_, message): message
                     case .ambiguous: String(localized: .photosAmbiguous)
                 }
         }
@@ -52,7 +52,7 @@ extension CapturedImage.PhotosState {
         switch self {
             case .saved: String(localized: .photosSaved)
             case .pending, .saving: String(localized: .photosSaving)
-            case let .failed(message): message
+            case let .failed(message), let .retry(_, message): message
             case .ambiguous: String(localized: .photosAmbiguous)
         }
     }

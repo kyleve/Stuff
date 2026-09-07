@@ -112,5 +112,11 @@ actor LifecycleTestController: CaptureControlling {
         []
     }
 
+    func recoverDelivery(
+        sequenceID _: SolarEvent.ID,
+        deliveryID _: PublishingDelivery.ID,
+        action _: PublishingRecoveryAction,
+    ) {}
+    func resolvePhotos(imageID _: CaptureSequence.Slot.ID, resolution _: PhotosResolution) {}
     func manualCapture() {}
 }

@@ -13,6 +13,16 @@ public struct CapturedImage: Codable, Equatable, Sendable, Identifiable {
 
     public enum PhotosState: Codable, Equatable, Sendable {
         case pending, saving(String?), saved(String), failed(String), ambiguous
+        case retry(Date, String)
+        public var needsRecovery: Bool {
+            switch self { case .saving, .failed, .ambiguous, .retry: true; case .pending,
+                     .saved: false }
+        }
+
+        public var requiresAbsenceConfirmation: Bool {
+            switch self { case .saving, .ambiguous: true; case .pending, .saved, .failed,
+                     .retry: false }
+        }
     }
 
     public enum ScoreState: Codable, Equatable, Sendable {

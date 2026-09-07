@@ -7,3 +7,5 @@ Daylight's capture domain, solar scheduling, image selection, durable staging, a
 Capture records from before RAW support can omit format and delivery checkpoints. Reading these records preserves their Photos identifiers. Missing format means unknown; a missing delivery checkpoint means no recorded completion.
 
 Highlight selection remains pending until delivery registration completes. Capture readiness is injected separately from camera access requests so lifecycle tests can exercise permission and thermal failures.
+
+Photos savers report `PhotosSaveFailure` only when they can prove no asset was created. These failures retry after a persisted delay. Other failures retain receipts for reconciliation. `CaptureControlling.resolvePhotos` checks existing receipts before retrying; uncertain saves require confirmed absence. Publishing adapters own recovery decisions through `recover`. The engine preserves delivery identity and previous checkpoints when requeuing work.

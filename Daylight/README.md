@@ -48,6 +48,16 @@ Uploads retry while the app is active. The queue preserves media identifiers and
 
 Each capture saves as one Photos asset, with RAW as the main resource and JPEG as its companion when available. Interrupted saves use a durable asset receipt for reconciliation. Ambiguous saves remain visible in history and retain their staged files.
 
+## Recover a failed save or post
+
+Open sequence history after stopping unattended capture. Photos failures that cannot have created an asset retry automatically after a short delay. Other failures retain their receipts and require review.
+
+For a failed Photos save, choose **Save to Photos**. Retry checks whether the saved receipt identifies an existing photo. If the outcome is uncertain, check Photos before confirming that the photo is missing.
+
+For a failed delivery, choose **Recover post**. After correcting account settings, retry publishing. If the earlier submission is uncertain, check the original Mastodon account. Enter an existing post's URL to record completion, or confirm that it is missing before creating a replacement. Recovery preserves delivery identity and previous checkpoints.
+
+Damaged Mastodon settings disable publishing while local capture remains available. Reconnect the account to repair the configuration. The damaged settings file is preserved.
+
 ## Architecture and extension points
 
 `Daylight` creates shared services once. `DaylightUI` renders observable state. `DaylightCore` owns scheduling, capture, processing, Photos integration, and the archive. `DaylightMastodon` owns the first publishing adapter.

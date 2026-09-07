@@ -7,3 +7,5 @@ Keep domain and service code independent of UI, Where, and Ledger. Create collab
 Preserve pre-RAW capture records with absent format and delivery checkpoints. Keep saved Photos identifiers intact; see CapturedImageTests and ManualCaptureServiceTests.
 
 Persist highlight deliveries before marking selection complete. Cleanup must not observe a selected image whose deliveries are still being registered.
+
+Treat only PhotosSaveFailure as proof that no asset was created. Preserve uncertain-save receipts. Require confirmed absence before replacing uncertain work. Keep delivery IDs and prior checkpoints through recovery.

@@ -15,9 +15,13 @@ public struct PublishingDelivery: Codable, Equatable, Sendable, Identifiable {
     public let kind: PublishingInput.Kind
     public var attempts = 0
     public var checkpoint: Data?
+    public var recoveryHistory: [Data]?
     public var state: State
     public enum State: Codable, Equatable, Sendable {
         case pending, retry(Date, String), delivered(PublishingReceipt), needsAttention(String)
+        public var needsRecovery: Bool {
+            switch self { case .retry, .needsAttention: true; case .pending, .delivered: false }
+        }
     }
 
     public init(

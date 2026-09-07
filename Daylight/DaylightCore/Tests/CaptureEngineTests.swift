@@ -130,7 +130,7 @@ struct CaptureEngineTests {
         try await engine.tick(canCapture: true)
         try await engine.publishPending()
         let image = try #require(await engine.history().first?.images.first)
-        #expect(image.photos == .ambiguous)
+        if case .retry = image.photos {} else { Issue.record("Expected retryable Photos failure") }
         #expect(await fixture.publisher.count == 1)
         let original = await fixture.store.imageURL(image.id, resource: .original)
         #expect(FileManager.default.fileExists(atPath: original.path))
@@ -211,5 +211,106 @@ extension CaptureEngineTests {
         try await tick.value
         #expect(await engine.history().first?.deliveries.count == 1)
         #expect(try await fixture.store.sequences().first?.deliveries.count == 1)
+    }
+}
+
+extension CaptureEngineTests {
+    @Test func permissionRestorationRetriesPhotosAfterBackoffAcrossRelaunch() async throws {
+        let fixture = try CaptureHarness()
+        defer { do { try fixture.clean() } catch { Issue.record(error) } }
+        let first = fixture.engine(photos: FailingPhotos(), scorer: ScriptedScorer())
+        _ = try await first.load()
+        try await first.tick(canCapture: true)
+        let photos = ScriptedPhotos()
+        let reopened = fixture.engine(photos: photos, scorer: ScriptedScorer())
+        _ = try await reopened.load()
+        try await reopened.tick(canCapture: false)
+        #expect(await photos.count == 0)
+        fixture.clock.advance(31)
+        try await reopened.tick(canCapture: false)
+        #expect(await photos.count == 1)
+        #expect(await reopened.history().first?.images.first?.photos == .saved("saved"))
+        #expect(await fixture.camera.count == 1)
+    }
+
+    @Test func ambiguousPhotoRequiresConfirmationAndChecksExistingReceipt() async throws {
+        let fixture = try CaptureHarness()
+        defer { do { try fixture.clean() } catch { Issue.record(error) } }
+        var sequence = CaptureSequence(event: fixture.event, settings: .standard)
+        let slot = sequence.slots[0]
+        var image = CapturedImage(id: slot.id, capturedAt: slot.scheduledAt, format: .jpeg)
+        image.photos = .ambiguous
+        sequence.slots[0].state = .captured(image)
+        try await fixture.store.save(sequence)
+        try await fixture.store.stage(Data("image".utf8), imageID: slot.id, resource: .original)
+        let photos = ScriptedPhotos()
+        let engine = fixture.engine(photos: photos, scorer: ScriptedScorer())
+        _ = try await engine.load()
+        await #expect(throws: DaylightError.self) { try await engine.resolvePhotos(
+            imageID: image.id,
+            resolution: .retry,
+        ) }
+        let original = await fixture.store.imageURL(slot.id, resource: .original)
+        try Data("saved".utf8)
+            .write(to: original.deletingPathExtension().appendingPathExtension("photos-receipt"))
+        try await engine.resolvePhotos(imageID: image.id, resolution: .confirmedAbsent)
+        #expect(await engine.history().first?.images.first?.photos == .saved("saved"))
+        #expect(await photos.count == 0)
+    }
+
+    @Test func deliveryRecoveryPreservesIdentityAndPriorCheckpoints() async throws {
+        let fixture = try CaptureHarness()
+        defer { do { try fixture.clean() } catch { Issue.record(error) } }
+        var sequence = CaptureSequence(event: fixture.event, settings: .standard)
+        var delivery = PublishingDelivery(
+            destination: fixture.publisher.id,
+            imageID: sequence.slots[0].id,
+            kind: .sequenceHighlight,
+        )
+        delivery.checkpoint = Data("earlier submission".utf8)
+        delivery.state = .needsAttention("Check the previous post")
+        delivery.attempts = 3
+        sequence.deliveries = [delivery]
+        try await fixture.store.save(sequence)
+        let engine = fixture.engine(photos: ScriptedPhotos(), scorer: ScriptedScorer())
+        _ = try await engine.load()
+        try await engine.recoverDelivery(
+            sequenceID: sequence.id,
+            deliveryID: delivery.id,
+            action: .confirmedAbsent,
+        )
+        let recovered = try #require(try await fixture.store.sequences().first?.deliveries.first)
+        #expect(recovered.id == delivery.id)
+        #expect(recovered.attempts == 3)
+        #expect(recovered.checkpoint == nil)
+        #expect(recovered.recoveryHistory == [Data("earlier submission".utf8)])
+        if case .pending = recovered.state {} else { Issue.record("Delivery was not requeued") }
+    }
+
+    @Test func recordedPostReceiptPreventsAnotherDelivery() async throws {
+        let fixture = try CaptureHarness()
+        defer { do { try fixture.clean() } catch { Issue.record(error) } }
+        var sequence = CaptureSequence(event: fixture.event, settings: .standard)
+        var delivery = PublishingDelivery(
+            destination: fixture.publisher.id,
+            imageID: sequence.slots[0].id,
+            kind: .sequenceHighlight,
+        )
+        delivery.state = .needsAttention("Check the previous post")
+        sequence.deliveries = [delivery]
+        try await fixture.store.save(sequence)
+        let engine = fixture.engine(photos: ScriptedPhotos(), scorer: ScriptedScorer())
+        _ = try await engine.load()
+        let url = try #require(URL(string: "https://example.com/@camera/123"))
+        try await engine.recoverDelivery(
+            sequenceID: sequence.id,
+            deliveryID: delivery.id,
+            action: .published(url),
+        )
+        try await engine.publishPending()
+        let recovered = try #require(try await fixture.store.sequences().first?.deliveries.first)
+        if case let .delivered(receipt) = recovered.state { #expect(receipt.url == url) }
+        else { Issue.record("Post receipt was not recorded") }
+        #expect(await fixture.publisher.count == 0)
     }
 }

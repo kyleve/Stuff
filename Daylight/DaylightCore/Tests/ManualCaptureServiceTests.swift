@@ -64,3 +64,23 @@ struct ManualCaptureServiceTests {
         else { Issue.record("Test shot did not recover") }
     }
 }
+
+extension ManualCaptureServiceTests {
+    @Test func permissionFailureRetriesSavedManualBytesWithoutAnotherShutter() async throws {
+        let fixture = try CaptureHarness()
+        defer { do { try fixture.clean() } catch { Issue.record(error) } }
+        let first = fixture.engine(photos: FailingPhotos(), scorer: ScriptedScorer())
+        _ = try await first.load()
+        await #expect(throws: PhotosSaveFailure.self) { try await first.manualCapture() }
+        fixture.clock.advance(31)
+        let photos = ScriptedPhotos()
+        let engine = fixture.engine(photos: photos, scorer: ScriptedScorer())
+        _ = try await engine.load()
+        try await engine.tick(canCapture: false)
+        let record = try #require(try await engine.manualHistory().first)
+        if case let .captured(image) = record.state { #expect(image.photos == .saved("saved")) }
+        else { Issue.record("Manual shot was not recovered") }
+        #expect(await photos.count == 1)
+        #expect(await fixture.camera.count == 1)
+    }
+}

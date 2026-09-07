@@ -29,7 +29,9 @@ public struct PhotosLibrary: PhotosSaving {
     ) async throws -> String {
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         guard status == .authorized || status == .limited
-        else { throw DaylightError.photosPermission }
+        else {
+            throw PhotosSaveFailure(message: DaylightError.photosPermission.localizedDescription)
+        }
         // New asset placeholders only exist inside a change block. Persist their ID synchronously
         // through a local sidecar before the transaction can commit; the owner reconciles it on
         // restart.

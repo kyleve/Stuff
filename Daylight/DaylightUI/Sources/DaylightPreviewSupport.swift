@@ -15,6 +15,17 @@
             )
         }
 
+        static func recoverySequence() -> CaptureSequence {
+            var sequence = completedSequence()
+            if case var .captured(image) = sequence.slots[0].state {
+                image.photos = .ambiguous
+                sequence.slots[0].state = .captured(image)
+            }
+            sequence.deliveries[0]
+                .state = .needsAttention("Check Mastodon before retrying this post.")
+            return sequence
+        }
+
         static func completedSequence() -> CaptureSequence {
             var result = sequence()
             for index in 7 ..< result.slots.count {
@@ -85,6 +96,12 @@
             []
         }
 
+        func recoverDelivery(
+            sequenceID _: SolarEvent.ID,
+            deliveryID _: PublishingDelivery.ID,
+            action _: PublishingRecoveryAction,
+        ) {}
+        func resolvePhotos(imageID _: CaptureSequence.Slot.ID, resolution _: PhotosResolution) {}
         func manualCapture() {}
     }
 

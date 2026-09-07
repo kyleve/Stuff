@@ -35,6 +35,7 @@ public actor CaptureEngine: CaptureControlling {
             store: store,
             camera: camera,
             photos: photos,
+            now: now,
         )
         self.store = store; self.camera = camera; self.solar = solar
         self.photos = photos; self.scorer = scorer; self.destinations = destinations; self
@@ -206,6 +207,9 @@ public actor CaptureEngine: CaptureControlling {
             try await queueCapturedImage(&image, sequenceID: sequenceID, index: index)
             return
         }
+        if case let .retry(date, _) = image.photos {
+            if date <= now() { image.photos = .pending }
+        }
         switch image.photos {
             case .pending:
                 image.photos = .saving(nil)
@@ -224,30 +228,37 @@ public actor CaptureEngine: CaptureControlling {
                     }
                     image.photos = .saved(asset)
                 } catch {
-                    image.photos = .ambiguous
+                    let recorded: String? = if case let .captured(current) = sequences[sequenceID]?
+                        .slots[index].state,
+                        case let .saving(identifier) = current
+                        .photos { identifier } else { nil }
+                    image.photos = try PhotosRecovery.failure(
+                        error,
+                        originalURL: original,
+                        recorded: recorded,
+                        now: now(),
+                    )
                     log
                         .warning(
                             "Photos save interrupted; staged files preserved for reconciliation.",
                         )
                 }
-            case let .saving(identifier):
-                let receipt = original.deletingPathExtension()
-                    .appendingPathExtension("photos-receipt")
-                let recorded: String
-                if let identifier { recorded = identifier }
-                else if FileManager.default
-                    .fileExists(atPath: receipt.path)
-                { recorded = try String(
-                    contentsOf: receipt,
-                    encoding: .utf8,
-                ) } else { image.photos = .ambiguous; try await setImage(
-                    image,
-                    sequenceID: sequenceID,
-                    index: index,
-                ); return }
-                image.photos = try await photos
-                    .contains(assetIdentifier: recorded) ? .saved(recorded) : .ambiguous
-            case .saved, .failed, .ambiguous: break
+            case .saving, .ambiguous:
+                let recorded: String? = if case let .saving(identifier) = image
+                    .photos { identifier } else { nil }
+                if let identifier = try PhotosRecovery.identifier(
+                    originalURL: original,
+                    recorded: recorded,
+                ) {
+                    do {
+                        image.photos = try await photos
+                            .contains(assetIdentifier: identifier) ? .saved(identifier) : .ambiguous
+                    } catch {
+                        image.photos = .saving(identifier)
+                        log.warning("Photos reconciliation deferred; receipt preserved.")
+                    }
+                } else { image.photos = .ambiguous }
+            case .saved, .failed, .retry: break
         }
         if case .pending = image.score {
             do { image.score = try await .scored(scorer.score(Data(contentsOf: original))) }
@@ -395,6 +406,83 @@ public actor CaptureEngine: CaptureControlling {
             let delivered = sequence.deliveries.filter { $0.imageID == image.id }
                 .allSatisfy { if case .delivered = $0.state { true } else { false } }
             if delivered { try await store.removeStagedFiles(imageID: image.id) }
+        }
+    }
+
+    public func recoverDelivery(
+        sequenceID: SolarEvent.ID,
+        deliveryID: PublishingDelivery.ID,
+        action: PublishingRecoveryAction,
+    ) async throws {
+        guard !publishingBusy else { throw DaylightError.interrupted }
+        publishingBusy = true; defer { publishingBusy = false }
+        guard let index = sequences[sequenceID]?.deliveries
+            .firstIndex(where: { $0.id == deliveryID }),
+            let delivery = sequences[sequenceID]?.deliveries[index],
+            let destination = destinations.first(where: { $0.id == delivery.destination })
+        else { throw DaylightError.invalidStore }
+        switch delivery.state {
+            case .needsAttention, .retry: break
+            case .pending,
+                 .delivered: throw DaylightError.service("This delivery no longer needs recovery.")
+        }
+        let result = try await destination.recover(checkpoint: delivery.checkpoint, action: action)
+        switch result {
+            case let .retry(checkpoint):
+                if let prior = delivery.checkpoint, prior != checkpoint {
+                    var history = delivery.recoveryHistory ?? []
+                    history.append(prior)
+                    sequences[sequenceID]?.deliveries[index].recoveryHistory = history
+                }
+                sequences[sequenceID]?.deliveries[index].checkpoint = checkpoint
+                sequences[sequenceID]?.deliveries[index].state = .pending
+            case let .delivered(receipt):
+                sequences[sequenceID]?.deliveries[index].state = .delivered(receipt)
+        }
+        try await persist(sequenceID)
+    }
+
+    public func resolvePhotos(
+        imageID: CaptureSequence.Slot.ID,
+        resolution: PhotosResolution,
+    ) async throws {
+        guard !captureBusy else { throw DaylightError.interrupted }
+        captureBusy = true; defer { captureBusy = false }
+        for sequence in history() {
+            guard let index = sequence.slots.firstIndex(where: { $0.id == imageID }),
+                  case var .captured(image) = sequences[sequence.id]?.slots[index].state
+            else { continue }
+            image.photos = try await resolvedPhotosState(image, resolution: resolution)
+            try await setImage(image, sequenceID: sequence.id, index: index)
+            return
+        }
+        guard var manual = try await store.manualCaptures().first(where: { $0.id == imageID }),
+              case var .captured(image) = manual.state else { throw DaylightError.unavailableAsset }
+        image.photos = try await resolvedPhotosState(image, resolution: resolution)
+        manual.state = .captured(image)
+        try await store.saveManual(manual)
+    }
+
+    private func resolvedPhotosState(
+        _ image: CapturedImage,
+        resolution: PhotosResolution,
+    ) async throws -> CapturedImage.PhotosState {
+        if case .saved = image.photos { return image.photos }
+        let original = await store.imageURL(image.id, resource: .original)
+        let recorded: String? = if case let .saving(identifier) = image.photos { identifier }
+        else { nil }
+        if let identifier = try PhotosRecovery.identifier(
+            originalURL: original,
+            recorded: recorded,
+        ),
+            try await photos.contains(assetIdentifier: identifier) { return .saved(identifier) }
+        switch image.photos {
+            case .retry, .failed, .pending: return .pending
+            case .saving, .ambiguous:
+                guard case .confirmedAbsent = resolution
+                else { throw DaylightError.ambiguousPhotosSave }
+                return .pending
+            case .saved: return image.photos
         }
     }
 

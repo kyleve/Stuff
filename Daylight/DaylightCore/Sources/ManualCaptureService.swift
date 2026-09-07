@@ -5,12 +5,15 @@ actor ManualCaptureService {
     private let store: CaptureStore
     private let camera: any CameraCapturing
 
+    private let now: @Sendable () -> Date
     private let photos: any PhotosSaving
     init(
         store: CaptureStore,
         camera: any CameraCapturing,
         photos: any PhotosSaving,
+        now: @escaping @Sendable () -> Date,
     ) {
+        self.now = now
         self.store = store; self.camera = camera; self.photos = photos
     }
 
@@ -37,9 +40,9 @@ actor ManualCaptureService {
                 case .capturing: try await finish(record)
                 case let .captured(image):
                     switch image.photos {
-                        case .pending, .saving: try await finish(record)
+                        case .pending, .saving, .ambiguous, .retry: try await finish(record)
                         case .saved: try await store.removeStagedFiles(imageID: record.id)
-                        case .ambiguous, .failed: break
+                        case .failed: break
                     }
                 case .failed: break
             }
@@ -62,6 +65,10 @@ actor ManualCaptureService {
         ) }
         record.state = .captured(image)
         try await store.saveManual(record)
+        if case let .retry(date, _) = image.photos {
+            guard date <= now() else { return }
+            image.photos = .pending
+        }
         switch image.photos {
             case .pending:
                 image.photos = .saving(nil); record.state = .captured(image)
@@ -81,23 +88,32 @@ actor ManualCaptureService {
                     }
                     image.photos = .saved(asset)
                 } catch {
-                    image.photos = .ambiguous; record.state = .captured(image)
+                    let saved = try await store.manualCaptures().first { $0.id == record.id }
+                    let identifier: String? = if let saved,
+                                                 case let .captured(current) = saved.state,
+                                                 case let .saving(identifier) = current
+                                                 .photos { identifier } else { nil }
+                    image.photos = try PhotosRecovery.failure(
+                        error,
+                        originalURL: originalURL,
+                        recorded: identifier,
+                        now: now(),
+                    )
+                    record.state = .captured(image)
                     try await store.saveManual(record)
                     throw error
                 }
-            case let .saving(identifier):
-                let receipt = originalURL.deletingPathExtension()
-                    .appendingPathExtension("photos-receipt")
-                let asset: String? = if let identifier { identifier }
-                else if FileManager.default.fileExists(atPath: receipt.path) { try String(
-                    contentsOf: receipt,
-                    encoding: .utf8,
-                ) } else { nil }
-                if let asset,
-                   try await photos
-                   .contains(assetIdentifier: asset) { image.photos = .saved(asset) }
-                else { image.photos = .ambiguous }
-            case .saved, .failed, .ambiguous: break
+            case .saving, .ambiguous:
+                let recorded: String? = if case let .saving(identifier) = image
+                    .photos { identifier } else { nil }
+                if let identifier = try PhotosRecovery.identifier(
+                    originalURL: originalURL,
+                    recorded: recorded,
+                ) {
+                    image.photos = try await photos
+                        .contains(assetIdentifier: identifier) ? .saved(identifier) : .ambiguous
+                } else { image.photos = .ambiguous }
+            case .saved, .failed, .retry: break
         }
         record.state = .captured(image)
         try await store.saveManual(record)

@@ -43,6 +43,16 @@ struct MastodonSettingsView: View {
     extension MastodonSettingsView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             SnapshotCase(
+                name: "ConfigurationFailure",
+                configurations: SnapshotConfiguration.combinations(devices: [.iPhoneFullContent]),
+                settle: .immediate,
+            ) {
+                NavigationStack {
+                    MastodonSettingsView(model: DaylightModel.publishingFailurePreview())
+                }
+                .broadwayRoot()
+            }
+            SnapshotCase(
                 name: "MastodonSettingsView",
                 configurations: SnapshotConfiguration.combinations(devices: [.iPhoneFullContent]),
                 settle: .immediate,

@@ -44,8 +44,7 @@ public struct DaylightContentView: View {
                 NavigationLink { MastodonSettingsView(model: model) } label: { Text(.mastodonTitle)
                 }
                 NavigationLink { SequenceHistoryView(
-                    sequences: model.recentHistory,
-                    manualCaptures: model.manualHistory,
+                    model: model,
                 ) } label: {
                     Text(.historyTitle)
                 }

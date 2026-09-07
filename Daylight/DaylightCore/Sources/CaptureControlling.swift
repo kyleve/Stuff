@@ -11,5 +11,11 @@ public protocol CaptureControlling: Sendable {
     func history() async -> [CaptureSequence]
     func nextCapture() async -> Date?
     func manualHistory() async throws -> [ManualCapture]
+    func recoverDelivery(
+        sequenceID: SolarEvent.ID,
+        deliveryID: PublishingDelivery.ID,
+        action: PublishingRecoveryAction,
+    ) async throws
+    func resolvePhotos(imageID: CaptureSequence.Slot.ID, resolution: PhotosResolution) async throws
     func manualCapture() async throws
 }

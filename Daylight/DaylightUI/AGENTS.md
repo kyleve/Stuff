@@ -11,3 +11,5 @@ Use ./test for unit tests. UI snapshots belong to DaylightUISnapshotTests in the
 Keep live framing independent of archive readiness. Check cancellation after camera permission returns and before starting the preview.
 
 Scope capture-loop state changes and cleanup to the current foreground run and arming revision. Await any camera stop already in flight before starting preview or another run.
+
+Route recovery through typed controller actions. Require explicit absence confirmation for uncertain saves or posts; recording a post URL must not submit a replacement.

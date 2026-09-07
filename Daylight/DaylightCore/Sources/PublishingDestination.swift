@@ -4,6 +4,8 @@ public protocol PublishingDestination: Sendable {
     var id: PublishingDestinationID { get }
     var inputs: Set<PublishingInput.Kind> { get }
     func isEnabled() async -> Bool
+    func recover(checkpoint: Data?, action: PublishingRecoveryAction) async throws
+        -> PublishingRecoveryResult
     func deliver(
         _ input: PublishingInput,
         deliveryID: PublishingDelivery.ID,

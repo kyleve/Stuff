@@ -17,6 +17,7 @@ struct UnattendedCaptureView: View {
                 }
                 if let sequence = model.recentHistory
                     .first { SequenceSummaryView(sequence: sequence) }
+                if let issue = model.publishingIssue { Text(issue) }
                 if let notice = model.notice { Text(notice) }
                 Button(.captureStop) { Task { await model.toggleArmed() } }.buttonStyle(.bordered)
             }.frame(maxWidth: .infinity).padding(stylesheet.capture.padding)

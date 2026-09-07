@@ -49,6 +49,7 @@ public actor MastodonDestination: PublishingDestination, MastodonManaging {
         var mediaID: String?
         var firstSubmission: Date?
         var submissionClock: SubmissionClock?
+        var refreshConfiguration: Bool?
     }
 
     public init(
@@ -169,29 +170,12 @@ public actor MastodonDestination: PublishingDestination, MastodonManaging {
                         "The account changed. Review this queued post before publishing.",
                     )
             }
+            if progress.refreshConfiguration == true {
+                progress = try makeCheckpoint(input: input, connection: connection)
+                try await saveCheckpoint(JSONEncoder().encode(progress))
+            }
         } else {
-            guard let zone = TimeZone(identifier: input.timeZoneIdentifier)
-            else { throw MastodonError.invalidResponse }
-            let date = input.image.capturedAt.formatted(Date.FormatStyle(
-                date: .abbreviated,
-                time: .omitted,
-                timeZone: zone,
-            ))
-            let time = input.image.capturedAt.formatted(Date.FormatStyle(
-                date: .omitted,
-                time: .shortened,
-                timeZone: zone,
-            ))
-            let event = input.event.id.kind == .sunrise ? "Sunrise" : "Sunset"
-            progress = Checkpoint(
-                connection: connection,
-                caption: settings.caption.replacingOccurrences(
-                    of: "{event}",
-                    with: event,
-                ).replacingOccurrences(of: "{date}", with: date),
-                description: "Camera view near \(event.lowercased()), photographed on \(date) at \(time).",
-                visibility: settings.visibility,
-            )
+            progress = try makeCheckpoint(input: input, connection: connection)
             try await saveCheckpoint(JSONEncoder().encode(progress))
         }
         try validateSubmission(progress)
@@ -305,6 +289,80 @@ public actor MastodonDestination: PublishingDestination, MastodonManaging {
         )
         let status = try JSONDecoder().decode(Status.self, from: data)
         return PublishingReceipt(remoteID: status.id, url: status.url)
+    }
+
+    private func makeCheckpoint(
+        input: PublishingInput,
+        connection: MastodonSettings.Connection,
+    ) throws -> Checkpoint {
+        guard let zone = TimeZone(identifier: input.timeZoneIdentifier)
+        else { throw MastodonError.invalidResponse }
+        let date = input.image.capturedAt.formatted(Date.FormatStyle(
+            date: .abbreviated,
+            time: .omitted,
+            timeZone: zone,
+        ))
+        let time = input.image.capturedAt.formatted(Date.FormatStyle(
+            date: .omitted,
+            time: .shortened,
+            timeZone: zone,
+        ))
+        let event = input.event.id.kind == .sunrise ? "Sunrise" : "Sunset"
+        return Checkpoint(
+            connection: connection,
+            caption: settings.caption.replacingOccurrences(
+                of: "{event}",
+                with: event,
+            ).replacingOccurrences(of: "{date}", with: date),
+            description: "Camera view near \(event.lowercased()), photographed on \(date) at \(time).",
+            visibility: settings.visibility,
+        )
+    }
+
+    private func resetForRecovery(_ checkpoint: Checkpoint?) throws -> Data? {
+        guard var checkpoint else { return nil }
+        checkpoint.firstSubmission = nil
+        checkpoint.submissionClock = nil
+        checkpoint.mediaID = nil
+        checkpoint.refreshConfiguration = true
+        return try JSONEncoder().encode(checkpoint)
+    }
+
+    public func recover(
+        checkpoint: Data?,
+        action: PublishingRecoveryAction,
+    ) throws -> PublishingRecoveryResult {
+        guard let connection = settings.connection else { throw MastodonError.missingCredentials }
+        let progress = try checkpoint.map { try JSONDecoder().decode(Checkpoint.self, from: $0) }
+        if let progress {
+            guard progress.version == 1, progress.connection == connection else {
+                throw PublishingFailure
+                    .needsAttention("Reconnect the original account to recover this delivery.")
+            }
+        }
+        switch action {
+            case .retry:
+                if let progress, progress.firstSubmission != nil {
+                    try validateSubmission(progress)
+                    return .retry(checkpoint: checkpoint)
+                }
+                return try .retry(checkpoint: resetForRecovery(progress))
+            case .confirmedAbsent:
+                return try .retry(checkpoint: resetForRecovery(progress))
+            case let .published(url):
+                guard url.scheme == "https", url.host == connection.server.host,
+                      url.port == connection.server.port, url.user == nil, url.password == nil,
+                      url.query == nil, url.fragment == nil,
+                      !url.lastPathComponent.isEmpty,
+                      url.lastPathComponent.allSatisfy(\.isNumber)
+                else {
+                    throw PublishingFailure
+                        .needsAttention(
+                            "Enter the published post's URL on the original Mastodon server.",
+                        )
+                }
+                return .delivered(PublishingReceipt(remoteID: url.lastPathComponent, url: url))
+        }
     }
 
     private func validateSubmission(_ progress: Checkpoint) throws {

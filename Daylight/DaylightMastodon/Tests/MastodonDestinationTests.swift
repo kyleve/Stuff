@@ -238,3 +238,130 @@ extension MastodonDestinationTests {
         #expect(try Data(contentsOf: #require(backups.first)) == damaged)
     }
 }
+
+extension MastodonDestinationTests {
+    @Test func uncertainDeliveryCanBeExplicitlyReconciledWithoutBlindRetry() async throws {
+        let fixture = try MastodonHarness(responses: [
+            MastodonHarness.instance,
+            MastodonHarness.uploaded,
+            MastodonHarness.processed,
+        ])
+        defer { do { try fixture.clean() } catch { Issue.record(error) } }
+        try await fixture.connect()
+        await #expect(throws: URLError.self) { try await fixture.deliver(fixture.input()) }
+        fixture.clock.advance(3601)
+        let checkpoint = try #require(await fixture.checkpoints.value)
+        await #expect(throws: PublishingFailure.self) { try await fixture.destination.recover(
+            checkpoint: checkpoint,
+            action: .retry,
+        ) }
+        let result = try await fixture.destination.recover(
+            checkpoint: checkpoint,
+            action: .confirmedAbsent,
+        )
+        if case let .retry(checkpoint) = result {
+            let retained = try #require(checkpoint)
+            let object = try #require(JSONSerialization
+                .jsonObject(with: retained) as? [String: Any])
+            #expect(object["connection"] != nil)
+            #expect(object["firstSubmission"] == nil)
+        } else { Issue.record("Confirmed missing post was not released for retry") }
+        let url = try #require(URL(string: "https://example.com/@camera/99"))
+        let recorded = try await fixture.destination.recover(
+            checkpoint: checkpoint,
+            action: .published(url),
+        )
+        if case let .delivered(receipt) = recorded { #expect(receipt.remoteID == "99") }
+        else { Issue.record("Existing post was not recorded") }
+        let wrongServer = try #require(URL(string: "https://different.example/@camera/99"))
+        await #expect(throws: PublishingFailure.self) { try await fixture.destination.recover(
+            checkpoint: checkpoint,
+            action: .published(wrongServer),
+        ) }
+    }
+}
+
+extension MastodonDestinationTests {
+    @Test func confirmedRetryRefreshesCaptionWithoutChangingDeliveryIdentity() async throws {
+        let fixture = try MastodonHarness(responses: [
+            MastodonHarness.instance,
+            MastodonHarness.uploaded,
+            MastodonHarness.processed,
+        ])
+        defer { do { try fixture.clean() } catch { Issue.record(error) } }
+        try await fixture.connect()
+        let input = try fixture.input()
+        await #expect(throws: URLError.self) { try await fixture.deliver(input) }
+        let recovered = try await fixture.destination.recover(
+            checkpoint: fixture.checkpoints.value,
+            action: .confirmedAbsent,
+        )
+        guard case let .retry(checkpoint) = recovered
+        else { Issue.record("Expected retry"); return }
+        try await fixture.destination.update(
+            enabled: true,
+            visibility: .private,
+            caption: "Replacement {event}",
+        )
+        await fixture.transport.replaceResponses(
+            [
+                MastodonHarness.instance,
+                MastodonHarness.uploaded,
+                MastodonHarness.processed,
+                MastodonHarness.posted,
+            ],
+            onRequest: { _ in },
+        )
+        _ = try await fixture.destination.deliver(
+            input,
+            deliveryID: fixture.deliveryID,
+            checkpoint: checkpoint,
+        ) { await fixture.checkpoints.save($0) }
+        let request = try #require(await fixture.transport.requests.last)
+        #expect(request.value(forHTTPHeaderField: "Idempotency-Key") == fixture.deliveryID.rawValue
+            .uuidString)
+        let body = try #require(request.httpBody)
+        let object = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        #expect(object["status"] as? String == "Replacement Sunset")
+    }
+
+    @Test func confirmedRetryRemainsBoundToOriginalAccount() async throws {
+        let fixture = try MastodonHarness(responses: [
+            MastodonHarness.instance,
+            MastodonHarness.uploaded,
+            MastodonHarness.processed,
+        ])
+        defer { do { try fixture.clean() } catch { Issue.record(error) } }
+        try await fixture.connect()
+        let input = try fixture.input()
+        await #expect(throws: URLError.self) { try await fixture.deliver(input) }
+        let recovered = try await fixture.destination.recover(
+            checkpoint: fixture.checkpoints.value,
+            action: .confirmedAbsent,
+        )
+        guard case let .retry(checkpoint) = recovered
+        else { Issue.record("Expected retry"); return }
+        await fixture.transport.replaceResponses(
+            [MastodonHarness.response(#"{"id":"other","acct":"other"}"#)],
+            onRequest: { _ in },
+        )
+        _ = try await fixture.destination.connect(
+            server: "https://example.com",
+            token: "other-token",
+        )
+        try await fixture.destination.update(
+            enabled: true,
+            visibility: .private,
+            caption: "caption",
+        )
+        let count = await fixture.transport.requests.count
+        await #expect(throws: PublishingFailure.self) {
+            try await fixture.destination.deliver(
+                input,
+                deliveryID: fixture.deliveryID,
+                checkpoint: checkpoint,
+            ) { await fixture.checkpoints.save($0) }
+        }
+        #expect(await fixture.transport.requests.count == count)
+    }
+}
