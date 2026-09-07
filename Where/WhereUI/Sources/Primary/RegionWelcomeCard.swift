@@ -8,7 +8,7 @@ struct RegionWelcomeCard: View {
     let dismissAction: () -> Void
     let planStayAction: ((Region) -> Void)?
 
-    @State private var regionPath = Path()
+    @State private var regionPaths: ArtworkPaths?
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
     @Environment(\.regionOutlinePathCache) private var regionOutlinePathCache
@@ -95,9 +95,29 @@ struct RegionWelcomeCard: View {
                         secondaryOpacity: stylesheet.card.rosetteFill.secondary,
                     )
 
-                    if let artwork = stylesheet.card.regular.regionShape {
+                    if
+                        let regionShape = stylesheet.card.regular.regionShape,
+                        let microprint = regionPaths?.microprint,
+                        !microprint.isEmpty
+                    {
+                        RegionOutlineSecurityBorder(
+                            paths: [microprint],
+                            tint: regionStyle.tint,
+                            cornerRadius: welcome.cornerRadius,
+                            inset: regionShape.securityBorder.inset,
+                            glyphSize: regionShape.securityBorder.glyphSize,
+                            spacing: regionShape.securityBorder.spacing,
+                            opacity: regionShape.securityBorder.opacity,
+                        )
+                    }
+
+                    if
+                        let artwork = stylesheet.card.regular.regionShape,
+                        let watermark = regionPaths?.watermark,
+                        !watermark.isEmpty
+                    {
                         RegionOutlineArtwork(
-                            path: regionPath,
+                            path: watermark,
                             tint: regionStyle.tint,
                             style: artwork.watermark,
                         )
@@ -153,17 +173,32 @@ struct RegionWelcomeCard: View {
         )
         .task(id: presentation.region) {
             guard let regionOutlinePathCache else { return }
-            let loaded = await regionOutlinePathCache.path(
-                for: presentation.region,
+            let region = presentation.region
+            async let watermark = regionOutlinePathCache.path(
+                for: region,
                 resolution: .medium,
             )
+            async let microprint = regionOutlinePathCache.path(
+                for: region,
+                resolution: .micro,
+            )
+            let (watermarkPath, microprintPath) = await (watermark, microprint)
+            let loaded = ArtworkPaths(
+                watermark: watermarkPath,
+                microprint: microprintPath,
+            )
             guard !Task.isCancelled else { return }
-            regionPath = loaded
+            regionPaths = loaded
         }
     }
 
     private func planStay() {
         planStayAction?(presentation.region)
+    }
+
+    private struct ArtworkPaths {
+        let watermark: Path
+        let microprint: Path
     }
 }
 
