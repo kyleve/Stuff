@@ -27,7 +27,10 @@ Catalog reads run outside the storage actor with independent cancellation.
 They check download metadata before requesting content access, so evicted iCloud
 files produce a partial listing without hiding accessible cloud or local files.
 
-The service owns one cancellable operation shared by all triggers. It uses
+The service owns one cancellable operation shared by all triggers. Callers
+choose cancellation authority explicitly. Background expiration cancels execution;
+Data-page disappearance waits for its result without cancelling the export.
+The UI caller still records successful metadata before returning. The service uses
 the latest preferences when scheduling. Reset suspends and drains the operation;
 a failed reset resumes scheduling. Logout permanently retires that service.
 Preference reset generations reject late success metadata from retired sessions.

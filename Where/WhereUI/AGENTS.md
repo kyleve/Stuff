@@ -43,6 +43,8 @@ Layering, localization, preview, and testing conventions live in the feature
   status but never starts or resumes an import (`BackupModelTests`).
 - Invalidate pending recovery-key reveals when the Data page hides its key.
   A late response must not reveal it again (`BackupModelTests`).
+  Snapshot the shared `BackupSettingsContent`; test lifecycle hiding through
+  `BackupSettingsSection` and `BackupModel` rather than capture rehosting.
 - Keep diagnostic reporting's saved, process-effective, applying, and failed
   states distinct. Crash and replay choices stay pending until relaunch.
   Remote-log revisions apply live. A runtime failure invalidates in-flight

@@ -162,6 +162,8 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   cadence, recovery-key, and read-only catalog controls; restore remains onboarding-only.
   Hiding the recovery key also invalidates pending reveals, so a late Keychain
   response cannot expose the key after the page closes or the scene becomes inactive.
+  `BackupSettingsSection` owns these lifecycle actions. Its shared display child,
+  `BackupSettingsContent`, lets snapshots pin visible states without simulating scene changes.
 - **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
   picker (segmented map/list) and per-region color/emoji/icon customization,
   backed by `PrimaryRegionSelectionModel`. Reused by onboarding and the Settings

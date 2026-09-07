@@ -4,6 +4,51 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct AutomaticBackupServiceTests {
+    @Test func cancellingAViewCallerDoesNotCancelTheSharedExport() async throws {
+        let fixture = try AutomaticBackupStorageFixture()
+        defer { try? fixture.cleanup() }
+        let gate = BackupAccessGate()
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: ScriptedLocationSource(),
+            backupRecoveryKeys: BackupRecoveryKeyProvider(
+                store: InMemoryKeychainStore(),
+                isProtectedDataAvailable: { await gate.wait() },
+            ),
+            automaticBackupStorage: AutomaticBackupStorage(
+                iCloudRoot: { nil },
+                localRoot: { fixture.root },
+            ),
+            now: { now },
+        )
+        let automatic = try #require(services.automaticBackups)
+        let configuration = AutomaticBackupConfiguration(
+            isEnabled: true,
+            isRecordingEnabled: true,
+            interval: .weekly,
+            lastSuccessfulBackupAt: nil,
+        )
+        let view = Task { try await automatic.runIfDue(
+            cancellation: .finishExecution,
+            configuration: configuration,
+        ) }
+        await gate.waitForArrival()
+        let background = Task { try await automatic.runIfDue(
+            cancellation: .cancelExecution,
+            configuration: configuration,
+        ) }
+        view.cancel()
+        await gate.release()
+        #expect(try await view.value == .completed(exportedAt: now))
+        let backgroundResult = try await background.value
+        // Either joins the flight or arrives after it committed. Both preserve
+        // the one archive and avoid a second export.
+        #expect(backgroundResult == .completed(exportedAt: now) || backgroundResult ==
+            .notDue(nextEligibleAt: AutomaticBackupInterval.weekly.nextDate(after: now)))
+        #expect(try await automatic.catalog().files.count == 1)
+    }
+
     @Test func shutdownDrainsAnInFlightScheduleBeforeReturning() async throws {
         let fixture = try AutomaticBackupStorageFixture()
         defer { try? fixture.cleanup() }
@@ -66,7 +111,7 @@ struct AutomaticBackupServiceTests {
         )
         let automatic = try #require(services.automaticBackups)
         let operation = Task {
-            try await automatic.runIfDue(configuration: .init(
+            try await automatic.runIfDue(cancellation: .cancelExecution, configuration: .init(
                 isEnabled: true,
                 isRecordingEnabled: true,
                 interval: .weekly,
@@ -110,12 +155,18 @@ struct AutomaticBackupServiceTests {
         await automatic.reconcileSchedule(configuration: configuration)
         await automatic.suspend()
         #expect(await scheduler.latest?.isEnabled == false)
-        #expect(try await automatic.runIfDue(configuration: configuration) == .disabled)
+        #expect(try await automatic.runIfDue(
+            cancellation: .cancelExecution,
+            configuration: configuration,
+        ) == .disabled)
         await automatic.resume()
         #expect(await scheduler.latest?.isEnabled == true)
         await automatic.shutDown()
         await automatic.resume()
-        #expect(try await automatic.runIfDue(configuration: configuration) == .disabled)
+        #expect(try await automatic.runIfDue(
+            cancellation: .cancelExecution,
+            configuration: configuration,
+        ) == .disabled)
         #expect(await scheduler.latest?.isEnabled == false)
         #expect(try await automatic.catalog().files.isEmpty)
     }
@@ -140,7 +191,7 @@ struct AutomaticBackupServiceTests {
         )
         let automatic = try #require(services.automaticBackups)
         let operation = Task {
-            try await automatic.runIfDue(configuration: .init(
+            try await automatic.runIfDue(cancellation: .cancelExecution, configuration: .init(
                 isEnabled: true,
                 isRecordingEnabled: true,
                 interval: .weekly,
@@ -178,7 +229,7 @@ struct AutomaticBackupServiceTests {
         )
         let automatic = try #require(services.automaticBackups)
         let operation = Task {
-            try await automatic.runIfDue(configuration: .init(
+            try await automatic.runIfDue(cancellation: .cancelExecution, configuration: .init(
                 isEnabled: true,
                 isRecordingEnabled: true,
                 interval: .weekly,
@@ -222,7 +273,10 @@ struct AutomaticBackupServiceTests {
             lastSuccessfulBackupAt: nil,
         )
 
-        #expect(try await automatic.runIfDue(configuration: configuration) == .completed(
+        #expect(try await automatic.runIfDue(
+            cancellation: .cancelExecution,
+            configuration: configuration,
+        ) == .completed(
             exportedAt: now,
         ))
         let catalog = try await automatic.catalog()
@@ -235,13 +289,17 @@ struct AutomaticBackupServiceTests {
             lastSuccessfulBackupAt: now,
         )
         let next = AutomaticBackupInterval.weekly.nextDate(after: now)
-        #expect(try await automatic.runIfDue(configuration: afterSuccess) == .notDue(
+        #expect(try await automatic.runIfDue(
+            cancellation: .cancelExecution,
+            configuration: afterSuccess,
+        ) == .notDue(
             nextEligibleAt: next,
         ))
         #expect(await scheduler.latest?.isEnabled == true)
         // A caller's stale preference snapshot must not produce another file.
         #expect(try await automatic
-            .runIfDue(configuration: configuration) == .notDue(nextEligibleAt: next))
+            .runIfDue(cancellation: .cancelExecution, configuration: configuration) ==
+            .notDue(nextEligibleAt: next))
     }
 
     @Test func lockedKeyDefersBeforeExport() async throws {
@@ -265,7 +323,7 @@ struct AutomaticBackupServiceTests {
         )
         let automatic = try #require(services.automaticBackups)
 
-        #expect(try await automatic.runIfDue(configuration: .init(
+        #expect(try await automatic.runIfDue(cancellation: .cancelExecution, configuration: .init(
             isEnabled: true,
             isRecordingEnabled: true,
             interval: .weekly,

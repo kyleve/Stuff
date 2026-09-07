@@ -74,6 +74,7 @@ internal shape.
   before reset or logout. Reconcile scheduling from the latest configuration
   (`AutomaticBackupServiceTests`). `CoordinatedBackupFileAccess` may send only
   `NSFileCoordinator.cancel()` across threads, as permitted by Apple's contract.
+  Give UI callers no cancellation authority over the shared export.
 - **Keep catalog I/O outside the storage actor.** Preflight download status
   before content coordination. Cancel pending reads with their owning view and
   preserve accessible entries when iCloud is partial (`AutomaticBackupStorageTests`).

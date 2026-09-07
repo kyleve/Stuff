@@ -58,6 +58,13 @@ public final class BackupModel {
     private let services: WhereServices
     private let preferences: WherePreferences?
     @ObservationIgnored private var changesTask: Task<Void, Never>?
+    private struct CatalogRequest {
+        let id: UUID
+        let task: Task<AutomaticBackupCatalog, Error>
+    }
+
+    @ObservationIgnored private var catalogRequest: CatalogRequest?
+    @ObservationIgnored private var appearanceGeneration = UUID()
     @ObservationIgnored private var recoveryKeyRequest = UUID()
     #if DEBUG
         private var freezesPreviewState = false
@@ -73,6 +80,7 @@ public final class BackupModel {
 
     deinit {
         changesTask?.cancel()
+        catalogRequest?.task.cancel()
     }
 
     /// Build a backup `.zip` of the entire database and return its URL for the
@@ -141,6 +149,7 @@ public final class BackupModel {
         #if DEBUG
             guard !freezesPreviewState else { return }
         #endif
+        let generation = appearanceGeneration
         if changesTask == nil, let automaticBackups = services.automaticBackups {
             changesTask = Task { @MainActor [weak self] in
                 for await _ in await automaticBackups.changes() {
@@ -149,6 +158,7 @@ public final class BackupModel {
             }
         }
         await runIfDue(recordingEnabled: recordingEnabled)
+        guard appearanceGeneration == generation, !Task.isCancelled else { return }
         await refreshCatalog()
     }
 
@@ -156,30 +166,71 @@ public final class BackupModel {
         guard let automaticBackups = services.automaticBackups, let preferences else { return }
         let generation = preferences.resetGeneration
         do {
-            let result = try await automaticBackups.runIfDue(configuration: .init(
-                isEnabled: preferences.automaticBackupsEnabled,
-                isRecordingEnabled: recordingEnabled,
-                interval: preferences.automaticBackupInterval,
-                lastSuccessfulBackupAt: preferences.lastAutomaticBackupAt,
-            ))
+            let result = try await automaticBackups.runIfDue(
+                cancellation: .finishExecution,
+                configuration: .init(
+                    isEnabled: preferences.automaticBackupsEnabled,
+                    isRecordingEnabled: recordingEnabled,
+                    interval: preferences.automaticBackupInterval,
+                    lastSuccessfulBackupAt: preferences.lastAutomaticBackupAt,
+                ),
+            )
             if case let .completed(exportedAt) = result {
                 preferences.recordAutomaticBackupSuccess(at: exportedAt, generation: generation)
             }
+        } catch is CancellationError {
+            // Reset, disable, or background expiration may cancel the owned run.
         } catch {
+            guard !Task.isCancelled else { return }
             presentBackupError(error)
         }
     }
 
     public func refreshCatalog() async {
+        guard !Task.isCancelled else { return }
         guard let automaticBackups = services.automaticBackups else {
             catalogState = .loaded(AutomaticBackupCatalog(files: [], isICloudUnavailable: false))
             return
         }
         catalogState = .loading
+        catalogRequest?.task.cancel()
+        let request = CatalogRequest(
+            id: UUID(),
+            task: Task { try await automaticBackups.catalog() },
+        )
+        catalogRequest = request
+        defer {
+            if catalogRequest?.id == request.id { catalogRequest = nil }
+        }
         do {
-            catalogState = try await .loaded(automaticBackups.catalog())
+            let catalog = try await withTaskCancellationHandler {
+                try await request.task.value
+            } onCancel: { request.task.cancel() }
+            guard catalogRequest?.id == request.id else { return }
+            try Task.checkCancellation()
+            catalogState = .loaded(catalog)
+        } catch is CancellationError {
+            if catalogRequest?.id == request.id { catalogState = .idle }
         } catch {
+            guard catalogRequest?.id == request.id else { return }
+            if Task.isCancelled {
+                catalogState = .idle
+                return
+            }
             catalogState = .failed(error.localizedDescription)
+        }
+    }
+
+    /// Stop view-owned reads and observations, never the app-owned export.
+    public func deactivate() {
+        appearanceGeneration = UUID()
+        hideRecoveryKey()
+        changesTask?.cancel()
+        changesTask = nil
+        if let catalogRequest {
+            catalogRequest.task.cancel()
+            self.catalogRequest = nil
+            catalogState = .idle
         }
     }
 

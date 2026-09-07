@@ -7,6 +7,38 @@ import Testing
 /// Exercises `BackupModel`'s Settings-only export bridge and error presentation.
 @MainActor
 struct BackupModelTests {
+    @Test func disappearingDuringAutomaticBackupStillPersistsTheCompletedResult() async throws {
+        let gate = BackupKeyAccessGate()
+        let root = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let preferences = WherePreferences(store: InMemoryKeyValueStore())
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: ScriptedLocationSource(),
+            backupRecoveryKeys: BackupRecoveryKeyProvider(
+                store: InMemoryKeychainStore(),
+                isProtectedDataAvailable: { await gate.wait() },
+            ),
+            automaticBackupStorage: AutomaticBackupStorage(
+                iCloudRoot: { nil },
+                localRoot: { root },
+            ),
+            now: { now },
+        )
+        let model = BackupModel(services: services, preferences: preferences)
+        let activation = Task { await model.activate(recordingEnabled: true) }
+        await gate.waitForArrival()
+        model.deactivate()
+        activation.cancel()
+        await gate.release()
+        await activation.value
+        #expect(preferences.lastAutomaticBackupAt == now)
+        #expect(model.backupError == nil)
+        #expect(model.catalogState == .idle)
+        #expect(model.revealedRecoveryKey == nil)
+    }
+
     @Test func hidingWhileKeyAccessIsPendingDiscardsTheLateResult() async throws {
         let gate = BackupKeyAccessGate()
         let services = try WhereServices(

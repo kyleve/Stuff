@@ -30,6 +30,14 @@ public enum AutomaticBackupRunResult: Sendable, Equatable {
 /// Single-flight coordinator for due checks, encrypted export, storage, and
 /// catalog change notifications.
 public actor AutomaticBackupService {
+    /// Background expiration owns cancellation; a disappearing view does not.
+    public enum CallerCancellation: Sendable {
+        case cancelExecution
+        /// Await the shared result even after cancellation, so the caller can
+        /// persist success. No further view work should run on that caller.
+        case finishExecution
+    }
+
     private let backup: BackupCoordinator
     private let recoveryKeys: BackupRecoveryKeyProvider
     private let storage: AutomaticBackupStorage
@@ -77,6 +85,7 @@ public actor AutomaticBackupService {
     }
 
     public func runIfDue(
+        cancellation: CallerCancellation,
         configuration: AutomaticBackupConfiguration,
     ) async throws -> AutomaticBackupRunResult {
         await reconcileSchedule(configuration: configuration)
@@ -99,11 +108,13 @@ public actor AutomaticBackupService {
             run = active
         }
         defer { if run?.id == active.id { run = nil } }
-        // Every trigger joins the same owned operation. Background expiration
-        // cancels the actual export even when another trigger started it.
+        // All callers await the same result. Only an execution owner can
+        // cancel it; reset and recording disable retain their explicit authority.
         return try await withTaskCancellationHandler {
             try await active.task.value
-        } onCancel: { active.task.cancel() }
+        } onCancel: {
+            if cancellation == .cancelExecution { active.task.cancel() }
+        }
     }
 
     private func performBackup() async throws -> AutomaticBackupRunResult {

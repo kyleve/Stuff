@@ -528,12 +528,15 @@ public final class WhereSession {
         guard let automaticBackups = services.automaticBackups else { return nil }
         let generation = preferences.resetGeneration
         do {
-            let result = try await automaticBackups.runIfDue(configuration: .init(
-                isEnabled: preferences.automaticBackupsEnabled,
-                isRecordingEnabled: isAutomaticRecordingEnabled,
-                interval: preferences.automaticBackupInterval,
-                lastSuccessfulBackupAt: preferences.lastAutomaticBackupAt,
-            ))
+            let result = try await automaticBackups.runIfDue(
+                cancellation: .cancelExecution,
+                configuration: .init(
+                    isEnabled: preferences.automaticBackupsEnabled,
+                    isRecordingEnabled: isAutomaticRecordingEnabled,
+                    interval: preferences.automaticBackupInterval,
+                    lastSuccessfulBackupAt: preferences.lastAutomaticBackupAt,
+                ),
+            )
             if case let .completed(exportedAt) = result {
                 preferences.recordAutomaticBackupSuccess(at: exportedAt, generation: generation)
             }
