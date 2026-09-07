@@ -28,6 +28,7 @@ struct DaylightModelTests {
             camera: camera,
             photos: PreviewPhotos(),
             mastodon: PreviewAccount(),
+            readiness: PreviewReadiness(),
         )
         #expect(!model.ready)
         await model.preview()
@@ -44,6 +45,7 @@ struct DaylightModelTests {
             camera: camera,
             photos: PreviewPhotos(),
             mastodon: PreviewAccount(),
+            readiness: PreviewReadiness(),
         )
         await model.preview()
         #expect(await camera.accessRequests == 1)
@@ -58,6 +60,7 @@ struct DaylightModelTests {
             camera: camera,
             photos: PreviewPhotos(),
             mastodon: PreviewAccount(),
+            readiness: PreviewReadiness(),
         )
         let task = Task { await model.preview() }
         task.cancel()
@@ -69,5 +72,51 @@ struct DaylightModelTests {
         let model = DaylightModel.preview(mode: .armed, notice: nil)
         await model.toggleArmed()
         #expect(!model.isArmed)
+    }
+}
+
+extension DaylightModelTests {
+    @Test(.timeLimit(.minutes(1))) func stoppingDuringTickCannotRearm() async {
+        let engine = LifecycleTestController(blockTick: true, blockPublishing: false)
+        let model = DaylightModel(
+            engine: engine,
+            camera: PreviewTestCamera(allowed: true, frame: Data()),
+            photos: PreviewPhotos(),
+            mastodon: PreviewAccount(),
+            readiness: PreviewReadiness(),
+        )
+        let run = Task { await model.run(active: true) }
+        await engine.tickEntered.wait()
+        await model.toggleArmed()
+        #expect(!model.isArmed)
+        await engine.releaseTick.open()
+        await engine.nextTick.wait()
+        #expect(!model.isArmed)
+        #expect(await engine.armedIntent() == false)
+        run.cancel(); await run.value
+    }
+
+    @Test(.timeLimit(.minutes(1))) func previousForegroundCleanupCannotStopCurrentCamera() async {
+        let engine = LifecycleTestController(blockTick: false, blockPublishing: true)
+        let camera = PreviewTestCamera(allowed: true, frame: Data())
+        let model = DaylightModel(
+            engine: engine,
+            camera: camera,
+            photos: PreviewPhotos(),
+            mastodon: PreviewAccount(),
+            readiness: PreviewReadiness(),
+        )
+        let oldRun = Task { await model.run(active: true) }
+        await engine.publishingEntered.wait()
+        oldRun.cancel()
+        await model.run(active: false)
+        let stops = await camera.stops
+        let newRun = Task { await model.run(active: true) }
+        await engine.nextTick.wait()
+        await engine.releasePublishing.open()
+        await oldRun.value
+        #expect(await camera.stops == stops)
+        #expect(model.isArmed)
+        newRun.cancel(); await newRun.value
     }
 }

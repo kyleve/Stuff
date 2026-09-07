@@ -3,7 +3,7 @@ import Foundation
 public enum DaylightError: Error, LocalizedError, Sendable {
     case invalidSettings, unavailableCamera, cameraPermission, photosPermission, insufficientStorage
     case invalidImage, unsupportedVersion, invalidStore, noScoredImages
-    case interrupted, ambiguousPhotosSave, unavailableAsset
+    case cooling, interrupted, ambiguousPhotosSave, unavailableAsset
     case service(String)
 
     public var errorDescription: String? {
@@ -17,6 +17,7 @@ public enum DaylightError: Error, LocalizedError, Sendable {
             case .unsupportedVersion: "This data was saved by an unsupported version of Daylight."
             case .invalidStore: "The capture archive is inconsistent. Its files have been preserved."
             case .noScoredImages: "No suitable image could be scored. The sequence is preserved."
+            case .cooling: "Capture paused while the phone cools."
             case .interrupted: "Capture was interrupted. Future slots resume when the camera is available."
             case .ambiguousPhotosSave: "A Photos save was interrupted. Check Photos before retrying."
             case .unavailableAsset: "The saved photo is no longer accessible."

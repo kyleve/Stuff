@@ -171,3 +171,45 @@ struct CaptureEngineTests {
         #expect(await engine.history().first?.images.count == 1)
     }
 }
+
+extension CaptureEngineTests {
+    @Test(.timeLimit(.minutes(1))) func cleanupWaitsForHighlightRegistration() async throws {
+        let fixture = try CaptureHarness()
+        defer { do { try fixture.clean() } catch { Issue.record(error) } }
+        var sequence = CaptureSequence(event: fixture.event, settings: .standard)
+        for index in sequence.slots.indices {
+            sequence.slots[index].state = .missed
+        }
+        let slot = sequence.slots[0]
+        var image = CapturedImage(id: slot.id, capturedAt: slot.scheduledAt, format: .jpeg)
+        image.photos = .saved("saved"); image.score = .scored(.init(
+            overall: 0.8,
+            isUtility: false,
+        )); image.capturedEventHandled = true
+        sequence.slots[0].state = .captured(image)
+        try await fixture.store.save(sequence)
+        try await fixture.store.stage(Data("original".utf8), imageID: image.id, resource: .original)
+        fixture.clock.advance(3631)
+        let destination = GatedPublisher()
+        let engine = CaptureEngine(
+            store: fixture.store,
+            camera: fixture.camera,
+            solar: ScriptedSolar(event: fixture.event),
+            photos: ScriptedPhotos(),
+            scorer: ScriptedScorer(),
+            destinations: [destination],
+            log: Log<DaylightLogEvent>(system: Periscope(configuration: .init(), sinks: [])),
+            now: { fixture.clock.now },
+        )
+        _ = try await engine.load()
+        let tick = Task { try await engine.tick(canCapture: false) }
+        await destination.waitUntilEntered()
+        try await engine.publishPending()
+        let url = await fixture.store.imageURL(image.id, resource: .original)
+        #expect(FileManager.default.fileExists(atPath: url.path))
+        await destination.release()
+        try await tick.value
+        #expect(await engine.history().first?.deliveries.count == 1)
+        #expect(try await fixture.store.sequences().first?.deliveries.count == 1)
+    }
+}

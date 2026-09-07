@@ -1,9 +1,7 @@
-import AVFoundation
 import DaylightCore
 import DaylightMastodon
 import Foundation
 import Observation
-import Photos
 import UIKit
 
 /// Observable presentation state. Services own capture, persistence, and delivery behavior.
@@ -23,6 +21,12 @@ public final class DaylightModel {
     public private(set) var notice: String?
     public private(set) var ready = false
     public private(set) var working = false
+    private struct RunID: Equatable { let rawValue = UUID() }
+    private struct CameraStop { let id: RunID; let task: Task<Void, Never> }
+    private var currentRun: RunID?
+    private var armRevision = RunID()
+    private var cameraStop: CameraStop?
+    private let readiness: any CaptureReadiness
     private let engine: any CaptureControlling
     private let camera: any CameraCapturing
     private let photos: any PhotosSaving
@@ -36,7 +40,9 @@ public final class DaylightModel {
         camera: any CameraCapturing,
         photos: any PhotosSaving,
         mastodon: any MastodonManaging,
+        readiness: any CaptureReadiness,
     ) {
+        self.readiness = readiness
         self.engine = engine; self.camera = camera; self.photos = photos; self.mastodon = mastodon
     }
 
@@ -90,17 +96,18 @@ public final class DaylightModel {
 
     public func toggleArmed() async {
         guard !working else { return }
+        working = true; defer { working = false }
+        armRevision = RunID()
         if isArmed {
             do { try await engine.setArmedIntent(false) }
             catch { notice = error.localizedDescription; return }
-            mode = .setup; await camera.stop(); restoreScreen(); return
+            mode = .setup; await stopCamera(); restoreScreen(); return
         }
-        working = true; defer { working = false }
         do {
             try await engine.configure(settings)
             guard await camera.requestAccess() else { throw DaylightError.cameraPermission }
             guard await photos.requestAccess() else { throw DaylightError.photosPermission }
-            await camera.stop()
+            await stopCamera()
             try await engine.setArmedIntent(true)
             mode = .armed; notice = nil
             dimScreen()
@@ -114,7 +121,7 @@ public final class DaylightModel {
             try await engine.configure(settings)
             guard await camera.requestAccess() else { throw DaylightError.cameraPermission }
             guard await photos.requestAccess() else { throw DaylightError.photosPermission }
-            await camera.stop()
+            await stopCamera()
             try await engine.manualCapture()
             manualHistory = try await engine.manualHistory()
             notice = String(localized: .captureTestSaved)
@@ -142,10 +149,13 @@ public final class DaylightModel {
 
     public func preview() async {
         guard previewKey.enabled else { return }
+        await cameraStop?.task.value
         guard await camera.requestAccess()
         else { notice = DaylightError.cameraPermission.localizedDescription; return }
         do {
+            await cameraStop?.task.value
             try Task.checkCancellation()
+            guard previewKey.enabled else { return }
             let stream = try await camera.preview(
                 settings: settings.camera,
             )
@@ -157,53 +167,69 @@ public final class DaylightModel {
         catch { if !Task.isCancelled { notice = error.localizedDescription } }
     }
 
+    /// Stop requests are owned tasks: newer sessions wait for a stop already in flight.
+    private func stopCamera() async {
+        let previous = cameraStop?.task
+        let operation = CameraStop(id: RunID(), task: Task { [camera] in
+            await previous?.value
+            await camera.stop()
+        })
+        cameraStop = operation
+        await operation.task.value
+        if cameraStop?.id == operation.id { cameraStop = nil }
+    }
+
     public func run(active: Bool) async {
-        guard active else { await camera.stop(); restoreScreen(); return }
+        let run = RunID()
+        currentRun = run
+        guard active else { restoreScreen(); await stopCamera(); return }
+        await cameraStop?.task.value
+        guard currentRun == run, !Task.isCancelled else { return }
         await load()
-        guard ready else { return }
+        guard ready, currentRun == run, !Task.isCancelled else { return }
         if isArmed { dimScreen() }
         await withTaskGroup(of: Void.self) { group in
-            group.addTask { await self.captureLoop() }
-            group.addTask { await self.publishingLoop() }
+            group.addTask { await self.captureLoop(run: run) }
+            group.addTask { await self.publishingLoop(run: run) }
             await group.waitForAll()
         }
-        await camera.stop()
+        guard currentRun == run else { return }
+        await stopCamera()
+        guard currentRun == run else { return }
         restoreScreen()
     }
 
-    private func captureLoop() async {
-        while !Task.isCancelled {
+    private func captureLoop(run: RunID) async {
+        while currentRun == run, !Task.isCancelled {
+            let revision = armRevision
             do {
                 if isArmed {
-                    let thermal = ProcessInfo.processInfo.thermalState
-                    if thermal == .serious || thermal == .critical {
-                        mode = .suspended(String(localized: .captureCooling)); await camera.stop()
-                    } else {
-                        guard AVCaptureDevice.authorizationStatus(for: .video) == .authorized
-                        else { throw DaylightError.cameraPermission }
-                        let authorization = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-                        guard authorization == .authorized || authorization == .limited
-                        else { throw DaylightError.photosPermission }
-                        try await engine.tick(canCapture: true)
-                        mode = .armed
-                    }
+                    try readiness.check()
+                    try await engine.tick(canCapture: true)
+                    guard currentRun == run, !Task.isCancelled else { return }
+                    if armRevision == revision, isArmed { mode = .armed }
                 } else { try await engine.tick(canCapture: false) }
+                guard currentRun == run, !Task.isCancelled else { return }
                 await refresh()
                 try await Task.sleep(for: .seconds(1))
             } catch is CancellationError { return }
             catch {
-                if isArmed { mode = .suspended(error.localizedDescription) }
-                else { notice = error.localizedDescription }
+                guard currentRun == run, !Task.isCancelled else { return }
+                if armRevision == revision {
+                    if isArmed { mode = .suspended(error.localizedDescription) }
+                    else { notice = error.localizedDescription }
+                }
                 do { try await Task.sleep(for: .seconds(5)) } catch { return }
             }
         }
     }
 
-    private func publishingLoop() async {
-        while !Task.isCancelled {
+    private func publishingLoop(run: RunID) async {
+        while currentRun == run, !Task.isCancelled {
             do { try await engine.publishPending(); try await Task.sleep(for: .seconds(5)) }
             catch is CancellationError { return }
             catch {
+                guard currentRun == run, !Task.isCancelled else { return }
                 notice = error.localizedDescription
                 do { try await Task.sleep(for: .seconds(30)) } catch { return }
             }

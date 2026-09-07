@@ -7,3 +7,5 @@ Import Core and Mastodon contracts. Keep capture and persistence in services. Ro
 Tests use injected services. The application remains disarmed on a fresh installation. Camera access and Photos access require the system permission prompts.
 
 The setup screen starts live framing and requests camera access independently of archive loading. Archive failures remain visible and keep capture controls disabled. Photos access is requested when saving a test shot or arming capture.
+
+Foreground runs carry an ownership identity. A completed capture cycle cannot undo a stop action, and cleanup from an older run cannot stop the current session. Camera stop operations finish before a new preview or foreground run starts.

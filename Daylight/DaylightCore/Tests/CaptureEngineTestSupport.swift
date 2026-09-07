@@ -159,3 +159,36 @@ struct FailingScorer: ImageScoring {
         throw DaylightError.invalidImage
     }
 }
+
+actor GatedPublisher: PublishingDestination {
+    nonisolated let id = PublishingDestinationID(rawValue: "gated")
+    nonisolated let inputs: Set<PublishingInput.Kind> = [.sequenceHighlight]
+    private var entered = false
+    private var enterWaiter: CheckedContinuation<Void, Never>?
+    private var releaseWaiter: CheckedContinuation<Void, Never>?
+    func isEnabled() async -> Bool {
+        entered = true
+        enterWaiter?.resume(); enterWaiter = nil
+        await withCheckedContinuation { releaseWaiter = $0 }
+        return true
+    }
+
+    func waitUntilEntered() async {
+        if entered { return }
+        await withCheckedContinuation { enterWaiter = $0 }
+    }
+
+    func release() {
+        releaseWaiter?.resume(); releaseWaiter = nil
+    }
+
+    func deliver(
+        _ input: PublishingInput,
+        deliveryID _: PublishingDelivery.ID,
+        checkpoint _: Data?,
+        saveCheckpoint _: @escaping @Sendable (Data) async throws -> Void,
+    ) throws -> PublishingReceipt {
+        _ = try Data(contentsOf: input.imageURL)
+        return PublishingReceipt(remoteID: "gated", url: URL(string: "https://example.com/gated")!)
+    }
+}

@@ -43,6 +43,7 @@ struct DaylightApp: App {
                 camera: camera,
                 photos: photos,
                 mastodon: mastodon,
+                readiness: SystemCaptureReadiness(),
             ))
         } catch { startup = .failure(error) }
     }

@@ -11,6 +11,7 @@
                 camera: PreviewCamera(),
                 photos: PreviewPhotos(),
                 mastodon: PreviewAccount(),
+                readiness: PreviewReadiness(),
             )
         }
 
@@ -55,6 +56,8 @@
             return sequence
         }
     }
+
+    struct PreviewReadiness: CaptureReadiness { func check() {} }
 
     actor PreviewCaptureController: CaptureControlling {
         func armedIntent() -> Bool {

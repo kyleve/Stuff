@@ -152,12 +152,12 @@ public actor CaptureEngine: CaptureControlling {
             {
                 do {
                     let selected = try ImageSelector().select(from: sequence)
-                    sequences[sequenceID]?.selection = .selected(selected.id)
                     try await enqueue(
                         image: selected,
                         sequenceID: sequenceID,
                         kind: .sequenceHighlight,
                     )
+                    sequences[sequenceID]?.selection = .selected(selected.id)
                 } catch {
                     sequences[sequenceID]?.selection = .failed(error.localizedDescription)
                     log.warning("Image selection failed; sequence preserved.")
