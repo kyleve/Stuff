@@ -110,7 +110,11 @@ while True:
             self.bin / "mise",
             """#!/bin/bash
 printf 'mise %s\\n' "$*" >>"$TOOL_LOG"
-exit "${MISE_STATUS:-0}"
+status="${MISE_STATUS:-0}"
+if [ "$status" -eq 0 ] && [[ " $* " == *" swift build --product PeriscopeMacrosTests "* ]]; then
+  /bin/mkdir -p .build/fixture/Products/Debug/PeriscopeMacrosTests.xctest
+fi
+exit "$status"
 """,
         )
         self._write_executable(
