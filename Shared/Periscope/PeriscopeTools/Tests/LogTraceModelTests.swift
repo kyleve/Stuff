@@ -92,7 +92,7 @@ struct LogTraceModelTests {
         let model = LogTraceModel(store: store, origin: origin, limit: 500)
         await model.load()
 
-        #expect(model.trail.contains { $0.spanID == span && $0.eventName == "span-began" })
+        #expect(model.trail.contains { $0.spanID == span && $0.eventName == "span.began" })
     }
 
     @Test func sameMillisecondEventsAfterTheOriginAreExcluded() async throws {

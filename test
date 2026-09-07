@@ -456,7 +456,7 @@ if [ "${#SCHEMES[@]}" -eq 0 ] && [ "$HOST_MACROS" = false ]; then
     exit 1
 fi
 
-for scheme in "${SCHEMES[@]}"; do
+for scheme in ${SCHEMES[@]+"${SCHEMES[@]}"}; do
     [ "$scheme" = "$SNAPSHOT_SCHEME" ] || continue
 
     expected_xcode_build="$(< .xcode-build-version)"

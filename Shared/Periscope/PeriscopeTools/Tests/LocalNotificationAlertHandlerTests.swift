@@ -72,7 +72,7 @@ struct LocalNotificationAlertHandlerTests {
 
         let request = LocalNotificationAlertHandler.request(for: record)
 
-        #expect(request.content.title == "Error: message")
+        #expect(request.content.title == "Error: message.message")
         #expect(request.content.body == "Upload failed")
         #expect(request.identifier == "periscope-alert-\(record.id.uuidString)")
         #expect(request.trigger == nil)
