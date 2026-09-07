@@ -148,7 +148,7 @@ struct GeographyLayerRuntimeTests {
         let frame = try await runtime.frame(for: GeographyLayerInput())
 
         #expect(frame.layerID == .geography)
-        #expect(frame.geographicLines.count == 40179)
+        #expect(frame.geographicLines.count == 40589)
         #expect(Set(frame.geographicLines.map(\.kind)) == Set(GeographyLineKind.allCases))
         #expect(
             Set(frame.geographicLines.map(\.detailLevel)) == Set(GeographyDetailLevel.allCases),
@@ -170,6 +170,25 @@ struct GeographyLayerRuntimeTests {
         let kinds = Set(segments.map(\.kind))
         #expect(kinds.contains(.coastline))
         #expect(kinds.contains(.primaryRoad))
+    }
+
+    @Test func bundledArchiveProjectsDetailedNYCShorelineAtTransitScale() async throws {
+        let runtime = GeographyLayerRuntime(dataSource: BundledGeographyDataSource())
+        let frame = try await runtime.frame(for: GeographyLayerInput())
+        let observer = try ObserverPosition(
+            coordinate: GeoCoordinate(latitude: 40.758, longitude: -73.9855),
+            altitude: Altitude(feet: 0),
+        )
+
+        let segments = try ProjectionEngine().geographySegments(
+            lines: frame.geographicLines,
+            observer: observer,
+            viewport: .map(TransitMapViewport(radius: NauticalMiles(value: 5))),
+            calibration: .defaultValue,
+            geometry: ProjectionGeometry(width: 960, height: 540),
+        )
+
+        #expect(segments.count(where: { $0.kind == .coastline }) > 100)
     }
 
     @Test func bundledResourcesContainOnlyTheCurrentGeographyArchive() {

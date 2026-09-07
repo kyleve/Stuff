@@ -27,14 +27,17 @@ The default archive uses these inputs:
 | Natural Earth | 5.1.2 collection, 1:10m | Admin-1 boundaries outside the United States | `regional-boundary` |
 | Census cartographic boundaries | 2025, 1:500k | State polygons | `regional-boundary` |
 | Census cartographic boundaries | 2025, 1:500k | County polygons | `county-boundary` |
+| Census TIGER/Line | 2025, source resolution | Nationwide coastline | `coastline` |
 | Census TIGER/Line | 2025, source resolution | Nationwide Primary Roads | `primary-road` |
+| NYC Open Data | 2022 capture, source resolution | NYC planimetric shoreline | `coastline` |
 
-The eight downloads use approximately 65 MiB. The generator reads the SHP and
-DBF members directly from each ZIP file. It does not require GDAL or a GeoJSON
-conversion.
+The ten downloads use approximately 96 MiB. The generator reads SHP and DBF
+members directly from each ZIP file and reads the NYC shoreline GeoJSON. It
+does not require GDAL or a format conversion.
 
 Natural Earth URLs include the `5.1.2` release. Census URLs include the `2025`
-vintage. The SHA-256 values protect the build if a server changes a file.
+vintage. The NYC input uses the official source-resolution planimetric data.
+The SHA-256 values protect the build if a server changes a file.
 
 ## Generate the archive
 
@@ -86,9 +89,11 @@ The generator simplifies all linework to 0.005 NM. This keeps deviations below
 approximately one screen pixel at the smallest Transit Map radius on common
 projector resolutions. Densification limits every output segment to 10 NM.
 
-The nationwide Census TIGER coastline supplies the `neighborhood` tier. When
-it intersects an 8 NM-or-smaller viewport, it replaces the broader coastline
-tiers for that viewport. Other line kinds remain additive across detail tiers.
+The nationwide Census TIGER coastline and NYC's planimetric shoreline supply
+the `neighborhood` tier. The NYC line includes the Hudson and East River shores
+that the Census coastline definition omits. When neighborhood coastline
+intersects an 8 NM-or-smaller viewport, it replaces the broader coastline tiers
+for that viewport. Other line kinds remain additive across detail tiers.
 
 ## Priority and duplicate geometry
 

@@ -8,10 +8,10 @@
     "maximumCoordinateCount": 2500000,
     "maximumOutputBytes": 33554432,
     "expectedOutput": {
-      "sha256": "3fe4694a17e5ae449f5f1b53d3c79d4539f4f37d1adeea892b427020425bbbd0",
-      "encodedBytes": 21883044,
-      "pathCount": 40179,
-      "coordinateCount": 2455484
+      "sha256": "02425ee4cd77d774af0d1a198b2680a2e08f8f6a213238df1429651999c6ac49",
+      "encodedBytes": 21982402,
+      "pathCount": 40589,
+      "coordinateCount": 2465522
     }
   },
   "sources": [
@@ -41,9 +41,33 @@
       "homepageURL": "https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.2025.html",
       "termsURL": "https://www2.census.gov/geo/pdfs/maps-data/data/tiger/tgrshp2025/TGRSHP2025_TechDoc_Ch1.pdf",
       "credit": "U.S. Census Bureau"
+    },
+    {
+      "id": "nyc-planimetric-shoreline-2022",
+      "name": "NYC Planimetric Database: Shoreline",
+      "release": "2022 capture, published 2024-04-24",
+      "scale": "source resolution",
+      "homepageURL": "https://data.cityofnewyork.us/Recreation/NYC-Planimetric-Database-Shoreline/59xk-wagz",
+      "termsURL": "https://opendata.cityofnewyork.us/overview/#termsofuse",
+      "credit": "NYC Office of Technology and Innovation"
     }
   ],
   "inputs": [
+    {
+      "id": "nyc-planimetric-shoreline",
+      "sourceID": "nyc-planimetric-shoreline-2022",
+      "format": "geojson",
+      "archive": {
+        "file": "nyc-planimetric-shoreline.geojson",
+        "url": "https://data.cityofnewyork.us/resource/59xk-wagz.geojson?$limit=50000",
+        "sha256": "69e1ac8ea47e1371fd4cf3a544e0045616a732e4062263af3404555bef24a98c"
+      },
+      "kind": "coastline",
+      "detailLevel": "neighborhood",
+      "priority": 800,
+      "deduplicationGroup": "coastline",
+      "simplificationNauticalMiles": 0.005
+    },
     {
       "id": "census-coastline",
       "sourceID": "census-tiger-line-2025",
