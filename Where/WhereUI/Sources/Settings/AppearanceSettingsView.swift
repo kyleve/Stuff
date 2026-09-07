@@ -3,8 +3,8 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Settings drill-in for presentation choices: theme, Locations-card overlays,
-/// and alternate app icon.
+/// Settings drill-in for presentation choices: theme, Locations-card overlays
+/// and welcomes, and alternate app icon.
 struct AppearanceSettingsView: View {
     let report: YearReportModel
     var focus: SettingsFocus?
@@ -50,6 +50,18 @@ struct AppearanceSettingsView: View {
                     .settingsRow(Item.locationDots)
                 } footer: {
                     Text(String(localized: .settingsAppearanceLocationDotsFooter))
+                }
+
+                Section {
+                    Toggle(isOn: $report.showsLocationWelcome) {
+                        Label(
+                            String(localized: .settingsAppearanceLocationWelcomeToggle),
+                            systemSymbol: .sparkles,
+                        )
+                    }
+                    .settingsRow(Item.locationWelcome)
+                } footer: {
+                    Text(String(localized: .settingsAppearanceLocationWelcomeFooter))
                 }
 
                 Section {
@@ -141,6 +153,7 @@ extension AppearanceSettingsView: SettingsSection {
     enum Item: SettingsItem {
         case theme
         case locationDots
+        case locationWelcome
         case locationForecasts
         case appIcon
         #if DEBUG
@@ -153,6 +166,8 @@ extension AppearanceSettingsView: SettingsSection {
                 case .theme: String(localized: .settingsAppearanceThemeHeader)
                 case .locationDots:
                     String(localized: .settingsAppearanceLocationDotsToggle)
+                case .locationWelcome:
+                    String(localized: .settingsAppearanceLocationWelcomeToggle)
                 case .locationForecasts:
                     String(localized: .settingsAppearanceLocationForecastsToggle)
                 case .appIcon: String(localized: .settingsAppIconLink)
@@ -169,6 +184,8 @@ extension AppearanceSettingsView: SettingsSection {
                     splitKeywords(String(localized: .settingsKeywordsTheme))
                 case .locationDots:
                     splitKeywords(String(localized: .settingsKeywordsLocationDots))
+                case .locationWelcome:
+                    splitKeywords(String(localized: .settingsKeywordsLocationWelcome))
                 case .locationForecasts:
                     splitKeywords(String(localized: .settingsKeywordsLocationForecasts))
                 case .appIcon: splitKeywords(String(localized: .settingsKeywordsAppIcon))

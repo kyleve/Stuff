@@ -13,6 +13,7 @@ struct WherePreferencesTests {
 
         #expect(preferences.hasOnboarded == false)
         #expect(preferences.showsRecordedLocationDots)
+        #expect(preferences.showsLocationWelcome)
         #expect(preferences.theme == .standard)
         #expect(preferences.showsEstimatedTimeAndPlanning)
         #expect(preferences.remindersEnabled)
@@ -138,6 +139,14 @@ struct WherePreferencesTests {
         #expect(preferences.lastWelcomedRegion == nil)
     }
 
+    @Test func locationWelcomeVisibilityRoundTrips() {
+        let preferences = preferences()
+
+        preferences.showsLocationWelcome = false
+
+        #expect(preferences.showsLocationWelcome == false)
+    }
+
     @Test func estimatedTimeUsesTheLegacyLocationsVisibilityKey() {
         let store = InMemoryKeyValueStore()
         store.set(false, forKey: "where.showsLocationForecastsOnLocationsTab")
@@ -191,6 +200,7 @@ struct WherePreferencesTests {
         let preferences = preferences()
         preferences.hasOnboarded = true
         preferences.showsRecordedLocationDots = false
+        preferences.showsLocationWelcome = false
         preferences.theme = .alternate
         preferences.showsEstimatedTimeAndPlanning = false
         preferences.remindersEnabled = false
@@ -218,6 +228,7 @@ struct WherePreferencesTests {
 
         #expect(preferences.hasOnboarded == false)
         #expect(preferences.showsRecordedLocationDots)
+        #expect(preferences.showsLocationWelcome)
         #expect(preferences.theme == .standard)
         #expect(preferences.showsEstimatedTimeAndPlanning)
         #expect(preferences.remindersEnabled)

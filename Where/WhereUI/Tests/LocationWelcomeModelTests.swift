@@ -46,6 +46,35 @@ struct LocationWelcomeModelTests {
         #expect(fixture.model.presentation == nil)
     }
 
+    @Test func disabledPreferenceDoesNotPresent() async throws {
+        let preferences = WherePreferences(store: InMemoryKeyValueStore())
+        preferences.showsLocationWelcome = false
+        let fixture = try await fixture(region: .california, preferences: preferences)
+
+        await fixture.model.resolve()
+
+        #expect(fixture.model.presentation == nil)
+    }
+
+    @Test func disabledDuringResolutionDoesNotPublishALateWelcome() async throws {
+        let source = GatedCurrentLocationSource()
+        let preferences = WherePreferences(store: InMemoryKeyValueStore())
+        let services = try Self.services(locationSource: source)
+        try await services.ingestor.authorizeRecording()
+        let model = LocationWelcomeModel(services: services, preferences: preferences)
+        let task = Task { await model.resolve() }
+        await source.waitUntilRequestCount(1)
+
+        preferences.showsLocationWelcome = false
+        try await source.resolveRequest(
+            at: 0,
+            with: Self.sample(region: .california),
+        )
+        await task.value
+
+        #expect(model.presentation == nil)
+    }
+
     @Test func cancelledResolutionDoesNotPublishALateRegion() async throws {
         let source = GatedCurrentLocationSource()
         let preferences = WherePreferences(store: InMemoryKeyValueStore())

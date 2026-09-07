@@ -175,8 +175,8 @@ one it belongs to rather than to a god-object:
   `InstallationRecordingContextStoring` keeps the persistence adapter outside
   the domain value.
 - **`WherePreferences`** — persisted user intent (onboarding,
-  reminder / summary schedules, presentation theme, and Locations-card GPS-dot and
-  estimated-time/planning visibility) plus the
+  reminder / summary schedules, presentation theme, and Locations-card GPS-dot,
+  live-region welcome, and estimated-time/planning visibility) plus the
   year-keyed Location-card counts, last welcomed region, and recording-warning generation used for presentation
   continuity, behind a `KeyValueStore`. It also owns the vendor-neutral
   `DiagnosticReportingConfiguration`: crash reports default On, replay Off,

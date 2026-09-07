@@ -6149,6 +6149,30 @@
         }
       }
     },
+    "settings.appearance.locationWelcome.footer" : {
+      "comment" : "Explains when the live-region welcome card appears.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show a welcome card when Where starts counting days toward a different tracked region."
+          }
+        }
+      }
+    },
+    "settings.appearance.locationWelcome.toggle" : {
+      "comment" : "Toggle that controls whether live-region welcome cards appear on the Locations tab.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Region welcome cards"
+          }
+        }
+      }
+    },
     "settings.appearance.theme.footer" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8538,6 +8562,18 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "estimate, estimates, estimated time, forecast, forecasts, annual, year"
+          }
+        }
+      }
+    },
+    "settings.keywords.locationWelcome" : {
+      "comment" : "Comma-separated Settings search keywords for the live-region welcome visibility toggle.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "welcome, greeting, region, location, card, arrival"
           }
         }
       }

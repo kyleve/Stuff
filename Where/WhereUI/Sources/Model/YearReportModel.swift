@@ -150,6 +150,10 @@ public final class YearReportModel {
     /// model publishes this value to both the Appearance toggle and Locations.
     private var showsRecordedLocationDotsStorage: Bool
 
+    /// Observed mirror of the live-region welcome visibility preference. The
+    /// Appearance toggle and mounted Locations root share this scene state.
+    private var showsLocationWelcomeStorage: Bool
+
     /// Observed mirror of the estimated-time and planning visibility preference.
     /// `WherePreferences` is intentionally not observable, so the async intent
     /// below updates every mounted forecast/planning surface immediately.
@@ -178,6 +182,17 @@ public final class YearReportModel {
             guard newValue != showsRecordedLocationDotsStorage else { return }
             showsRecordedLocationDotsStorage = newValue
             preferences.showsRecordedLocationDots = newValue
+        }
+    }
+
+    /// Whether Locations may resolve and present its live-region welcome.
+    /// Writes persist synchronously and hide a mounted welcome immediately.
+    var showsLocationWelcome: Bool {
+        get { showsLocationWelcomeStorage }
+        set {
+            guard newValue != showsLocationWelcomeStorage else { return }
+            showsLocationWelcomeStorage = newValue
+            preferences.showsLocationWelcome = newValue
         }
     }
 
@@ -272,6 +287,7 @@ public final class YearReportModel {
         driftThresholdStorage = DriftThreshold(rawValue: preferences.driftThresholdMeters)
             ?? .default
         showsRecordedLocationDotsStorage = preferences.showsRecordedLocationDots
+        showsLocationWelcomeStorage = preferences.showsLocationWelcome
         showsEstimatedTimeAndPlanning = preferences.showsEstimatedTimeAndPlanning
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current

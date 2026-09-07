@@ -120,7 +120,7 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   demo, and completion orchestration) and **`OnboardingImportRecoveryModel`** (the sidecar/store
   recovery handshake after an interrupted onboarding import), and
   **`LocationCardsPresentationModel`** (the last primary-card counts and order
-  the user saw), and **`LocationWelcomeModel`** (the current-region welcome and
+  the user saw), and **`LocationWelcomeModel`** (the preference-gated current-region welcome and
   its persisted acknowledgement). The Location model holds saved values until the card surface
   is visible and unobscured, holds them there for another half second, then
   advances every changed number and any live two-card reversal in one animated

@@ -49,6 +49,13 @@ public final class WherePreferences {
         set { store.set(newValue, forKey: Keys.showsRecordedLocationDots.rawValue) }
     }
 
+    /// Whether Locations may present the live-region welcome card. Defaults to
+    /// `true` so the acknowledgement remains available until explicitly hidden.
+    public var showsLocationWelcome: Bool {
+        get { store.object(forKey: Keys.showsLocationWelcome.rawValue) as? Bool ?? true }
+        set { store.set(newValue, forKey: Keys.showsLocationWelcome.rawValue) }
+    }
+
     /// The device-local presentation theme. Missing and unrecognized values
     /// resolve to Standard so upgrades preserve the app's familiar appearance.
     public var theme: WhereTheme {
@@ -255,6 +262,7 @@ public final class WherePreferences {
     private enum Keys: String, CaseIterable {
         case hasOnboarded = "where.hasOnboarded"
         case showsRecordedLocationDots = "where.showsRecordedLocationDots"
+        case showsLocationWelcome = "where.showsLocationWelcome"
         case theme = "where.theme"
         case showsLocationForecastsOnLocationsTab = "where.showsLocationForecastsOnLocationsTab"
         case remindersEnabled = "where.remindersEnabled"

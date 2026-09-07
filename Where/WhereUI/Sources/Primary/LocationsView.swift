@@ -37,14 +37,20 @@ struct LocationsView: View {
             && !showingResolution
             && plannedStayEditorTarget == nil
             && !planning.isShowingError
-            && welcome.presentation == nil
+            && welcomePresentation == nil
     }
 
     private var isWelcomeLookupActive: Bool {
-        isLocationsSurfaceVisible
+        report.showsLocationWelcome
+            && isLocationsSurfaceVisible
             && !showingResolution
             && plannedStayEditorTarget == nil
             && !planning.isShowingError
+    }
+
+    private var welcomePresentation: LocationWelcomeModel.Presentation? {
+        guard report.showsLocationWelcome else { return nil }
+        return welcome.presentation
     }
 
     private var welcomePlanStayAction: ((Region) -> Void)? {
@@ -104,9 +110,9 @@ struct LocationsView: View {
                     }
                 }
         }
-        .accessibilityHidden(welcome.presentation != nil)
+        .accessibilityHidden(welcomePresentation != nil)
         .overlay {
-            if let presentation = welcome.presentation {
+            if let presentation = welcomePresentation {
                 LocationWelcomeOverlay(
                     presentation: presentation,
                     dismissAction: welcome.dismiss,
@@ -115,7 +121,7 @@ struct LocationsView: View {
                 .transition(stylesheet.locationWelcome.motion.transition)
             }
         }
-        .animation(stylesheet.locationWelcome.motion.animation, value: welcome.presentation)
+        .animation(stylesheet.locationWelcome.motion.animation, value: welcomePresentation)
         .task(id: isWelcomeLookupActive) {
             guard isWelcomeLookupActive else { return }
             await welcome.resolve()
