@@ -21,7 +21,7 @@ does not import WhereCore or RegionKit and does not use LifecycleKit.
 
 ## Build and run
 
-Generate the workspace, then use the shared `Throw` scheme on an iOS 26 or
+Generate the workspace, then use the shared `Throw` scheme on an iOS 27 or
 newer iPhone or iPad:
 
 ```bash
@@ -168,12 +168,11 @@ NYC shoreline geometry is from the [NYC Planimetric Database](https://data.cityo
 
 ## External scenes
 
-iOS 26 discovers noninteractive external displays through the declared scene
-role. On iOS 27, the controller also registers a retained
-`UISceneAccessory.externalNonInteractive` adapter. The iOS 27 integration was
-compiled against the installed beta SDK and must be revalidated against the
-iOS 27 GM SDK before release. Focus, keystone, and optical registration remain
-projector responsibilities.
+Throw requires iOS 27. The controller root attaches an
+`ExternalNonInteractiveAccessory`. The system creates its external scene when
+a compatible display connects. The accessory shows the same production
+`ProjectionSurface` that Preview and the full-screen fallback use. Focus,
+keystone, and optical registration remain projector responsibilities.
 
 See [`AGENTS.md`](AGENTS.md) for the feature's editing rules and each module's
 README for its public API and limitations.

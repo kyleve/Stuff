@@ -22,14 +22,12 @@ owned by the root [`TODOs.md`](../TODOs.md).
   240 NM on each projector aspect ratio. Record the devices, OS builds,
   projectors, provider states, and results in the release checklist. (human
   2026-08-24)
-- test(Throw) [needs-design]: Revalidate and physically exercise the iOS 27
-  external-scene accessory against the GM SDK — the availability-gated adapter
-  constructs, retains, unregisters, and migrates `UISceneAccessory` registration
-  between controller scenes (`Throw/Sources/ThrowApp.swift:36-119`), while the
-  feature contract explicitly treats final-SDK validation as a release gate
-  (`AGENTS.md:28-29`). Confirm API compatibility, controller-window
-  closure/recreation, and that the iOS 26 manifest and iOS 27 accessory paths do
-  not create duplicate output scenes or polling demand. (human 2026-08-24)
+- test(Throw) [needs-design]: Physically exercise the native iOS 27 external
+  scene accessory — the controller root attaches one
+  `ExternalNonInteractiveAccessory` and gives it the shared session
+  (`Throw/Sources/ThrowRuntime.swift`). Confirm USB-C and AirPlay connection,
+  controller-window recreation, display reconnection, resolution changes, and
+  single polling demand across all output scenes. (human 2026-08-24)
 - test(ThrowCore) [needs-design]: Revalidate the externally controlled aircraft
   provider contracts immediately before each beta release — implementation was
   checked on 2026-08-24 against the current ADS-B Exchange Personal/RapidAPI

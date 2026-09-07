@@ -2,6 +2,7 @@ import ProjectDescription
 
 let destinations: Destinations = [.iPhone, .iPad]
 let deployment: DeploymentTargets = .iOS("26.0")
+let throwDeployment: DeploymentTargets = .iOS("27.0")
 
 /// The Ledger menu bar app is the only native-macOS target; everything else
 /// stays on the shared iOS destinations above.
@@ -189,7 +190,7 @@ let project = Project(
             destinations: destinations,
             product: .app,
             bundleId: "com.stuff.throw",
-            deploymentTargets: deployment,
+            deploymentTargets: throwDeployment,
             infoPlist: .extendingDefault(with: [
                 "CFBundleDisplayName": .string("Throw"),
                 "CFBundleShortVersionString": .string("0.1"),
@@ -209,14 +210,6 @@ let project = Project(
                         "UIWindowSceneSessionRoleApplication": .array([
                             .dictionary([
                                 "UISceneConfigurationName": .string("Throw Controller"),
-                            ]),
-                        ]),
-                        "UIWindowSceneSessionRoleExternalDisplayNonInteractive": .array([
-                            .dictionary([
-                                "UISceneConfigurationName": .string("Throw External Display"),
-                                "UISceneDelegateClassName": .string(
-                                    "$(PRODUCT_MODULE_NAME).ExternalDisplaySceneDelegate",
-                                ),
                             ]),
                         ]),
                     ]),
@@ -451,7 +444,7 @@ let project = Project(
             destinations: destinations,
             product: .unitTests,
             bundleId: "com.stuff.throw.tests",
-            deploymentTargets: deployment,
+            deploymentTargets: throwDeployment,
             sources: ["Throw/Throw/Tests/**"],
             dependencies: [
                 .target(name: "Throw"),
