@@ -1,0 +1,86 @@
+{
+  "source": "pluscal",
+  "module": "PollingPublication.tla",
+  "cases": [
+    {
+      "name": "broken-lease-less",
+      "config": "BrokenLeaseLess.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant ExactTokenPublicationSafety is violated."
+    },
+    {
+      "name": "broken-revision-less",
+      "config": "BrokenRevisionLess.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant CorrectAtQuiescence is violated."
+    },
+    {
+      "name": "old-in-flight-reachability",
+      "config": "OldInFlightReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant OldBufferedOrInFlightNotReached is violated."
+    },
+    {
+      "name": "old-rejection-reachability",
+      "config": "OldRejectionReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant OldUpdateRejectionNotReached is violated."
+    },
+    {
+      "name": "early-update-reachability",
+      "config": "EarlyUpdateReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant EarlyNewUpdateRejectionNotReached is violated."
+    },
+    {
+      "name": "recovery-reachability",
+      "config": "RecoveryReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RecoveryApplicationNotReached is violated."
+    },
+    {
+      "name": "overtake-reachability",
+      "config": "OvertakeReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant OvertakenRecoveryRejectionNotReached is violated."
+    },
+    {
+      "name": "stale-frame-reachability",
+      "config": "StaleFrameReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant StaleFrameRejectionNotReached is violated."
+    },
+    {
+      "name": "inactive-reachability",
+      "config": "InactiveReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant InactiveApplicationNotReached is violated."
+    },
+    {
+      "name": "update-reachability",
+      "config": "UpdateReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant UpdateOperationNotReached is violated."
+    },
+    {
+      "name": "current-single",
+      "config": "CurrentSingle.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-update",
+      "config": "CurrentUpdate.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-repeated",
+      "config": "CurrentRepeated.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-deactivation",
+      "config": "CurrentDeactivation.cfg",
+      "expect": "pass"
+    }
+  ]
+}

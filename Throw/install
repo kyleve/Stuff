@@ -1,0 +1,202 @@
+#!/bin/bash
+set -euo pipefail
+
+# install — build Throw and install it on a connected iPhone or iPad without Xcode UI.
+#
+# Shell owns project, build, and process orchestration. Tools/device_selection.rb
+# owns exact physical-device decoding so tests can exercise the selection policy.
+
+cd "$(dirname "$0")/.."
+
+WORKSPACE="Stuff.xcworkspace"
+APP_NAME="Throw"
+SCHEME="Throw"
+BUNDLE_ID="com.stuff.throw"
+
+CONFIGURATION="Debug"
+OPTIMIZE=true
+DEVICE=""
+LAUNCH=true
+ASSUME_YES=false
+DRY_RUN=false
+
+usage() {
+    cat <<'USAGE'
+Usage: ./Throw/install [options]
+
+Builds Throw and installs it on a connected iPhone or iPad with xcodebuild and
+xcrun devicectl. The command does not open Xcode. By default, it builds the
+Debug configuration with compiler optimizations forced on. This keeps the
+DEBUG-only projector tools and gives approximately Release performance.
+
+Options:
+  --device NAME            Target a device by exact name, UDID, or identifier
+                           (default: the sole paired iOS device)
+  --configuration NAME     Build configuration (default: Debug)
+  --optimize               Force compiler optimizations on (default)
+  --no-optimize            Use the configuration's optimization level
+  --no-launch              Install the app without launching it
+  --dry-run                Resolve the device and report all planned actions
+  -y, --yes                Skip the "unlock your device" confirmation prompt
+  -h, --help               Show this help
+
+Examples:
+  ./Throw/install
+  ./Throw/install --device "Kai's iPad"
+  ./Throw/install --configuration Release
+  ./Throw/install --no-optimize --no-launch
+  ./Throw/install --device "Kai's iPad" --dry-run
+USAGE
+}
+
+require_value() {
+    if [ -z "${2:-}" ]; then
+        echo "error: $1 requires a value (see ./Throw/install --help)" >&2
+        exit 1
+    fi
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --device) shift; require_value --device "${1:-}"; DEVICE="$1" ;;
+        --configuration) shift; require_value --configuration "${1:-}"; CONFIGURATION="$1" ;;
+        --optimize) OPTIMIZE=true ;;
+        --no-optimize) OPTIMIZE=false ;;
+        --no-launch) LAUNCH=false ;;
+        --dry-run) DRY_RUN=true ;;
+        -y|--yes) ASSUME_YES=true ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "error: unknown option '$1' (see ./Throw/install --help)" >&2; exit 1 ;;
+    esac
+    shift
+done
+
+# A physical-device build needs a real signing team. Preserve mise failures so
+# a malformed configuration remains different from an unset variable.
+# shellcheck disable=SC2016
+TEAM_ID="$(mise exec -- sh -c 'printf "%s" "${TUIST_DEVELOPMENT_TEAM:-}"')"
+if [ -z "$TEAM_ID" ]; then
+    cat >&2 <<'EOF'
+error: no Apple Developer team is configured. A device build cannot be signed.
+
+Set the team once, then run this command again:
+  ./ide --team-id <ABCDE12345>
+EOF
+    exit 1
+fi
+
+# Persistent DerivedData prevents package-checkout damage when macOS cleans
+# TMPDIR. A dry run creates no build directory. It uses one temporary file for
+# the read-only devicectl inventory.
+WORKDIR="$HOME/Library/Developer/Xcode/DerivedData/throw-install-$(basename "$PWD")"
+DERIVED="$WORKDIR/DerivedData"
+if [ "$DRY_RUN" = true ]; then
+    DEVICES_JSON="$(mktemp "${TMPDIR:-/tmp}/throw-install-devices.XXXXXX")"
+    trap 'rm -f "$DEVICES_JSON"' EXIT
+else
+    DEVICES_JSON="$WORKDIR/devices.json"
+    mkdir -p "$WORKDIR"
+fi
+
+OPTIMIZATION_OVERRIDES=()
+if [ "$OPTIMIZE" = true ]; then
+    OPTIMIZATION_OVERRIDES=(SWIFT_OPTIMIZATION_LEVEL=-O GCC_OPTIMIZATION_LEVEL=s)
+fi
+
+build_app() {
+    mise exec -- xcodebuild build \
+        -workspace "$WORKSPACE" \
+        -scheme "$SCHEME" \
+        -configuration "$CONFIGURATION" \
+        -destination 'generic/platform=iOS' \
+        -derivedDataPath "$DERIVED" \
+        -allowProvisioningUpdates \
+        ${OPTIMIZATION_OVERRIDES[@]+"${OPTIMIZATION_OVERRIDES[@]}"}
+}
+
+missing_throw_core_resources() {
+    local resource
+    local resource_name
+    local built_resources="$APP/Stuff_ThrowCore.bundle"
+
+    for resource in Throw/ThrowCore/Sources/Resources/*; do
+        [ -f "$resource" ] || continue
+        resource_name="$(basename "$resource")"
+        if [ ! -f "$built_resources/$resource_name" ]; then
+            printf '%s\n' "$resource_name"
+        fi
+    done
+}
+
+if [ "$DRY_RUN" = true ]; then
+    echo "==> Would run tuist generate --no-open"
+    echo "==> Would build $SCHEME ($CONFIGURATION$([ "$OPTIMIZE" = true ] && echo ', optimized')) for device"
+else
+    echo "==> tuist generate --no-open"
+    mise exec -- tuist generate --no-open >/dev/null
+
+    echo "==> xcodebuild ($CONFIGURATION$([ "$OPTIMIZE" = true ] && echo ', optimized')) for device"
+    build_app
+fi
+
+APP="$DERIVED/Build/Products/$CONFIGURATION-iphoneos/$APP_NAME.app"
+if [ "$DRY_RUN" != true ] && [ ! -d "$APP" ]; then
+    echo "error: built app not found at $APP" >&2
+    exit 1
+fi
+
+if [ "$DRY_RUN" != true ]; then
+    MISSING_RESOURCES="$(missing_throw_core_resources)"
+    if [ -n "$MISSING_RESOURCES" ]; then
+        echo "==> stale package resources detected; cleaning and rebuilding"
+        mise exec -- xcodebuild clean \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration "$CONFIGURATION" \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$DERIVED"
+        build_app
+        MISSING_RESOURCES="$(missing_throw_core_resources)"
+    fi
+
+    if [ -n "$MISSING_RESOURCES" ]; then
+        echo "error: built ThrowCore resource bundle is incomplete:" >&2
+        while IFS= read -r RESOURCE; do
+            printf '  %s\n' "$RESOURCE" >&2
+        done <<<"$MISSING_RESOURCES"
+        exit 1
+    fi
+fi
+
+echo "==> resolving device"
+xcrun devicectl list devices --json-output "$DEVICES_JSON" >/dev/null
+DEVICE_SELECTION="$(mise exec -- ruby Tools/device_selection.rb --filter "$DEVICE" <"$DEVICES_JSON")"
+DEVICE_UDID="${DEVICE_SELECTION%%$'\t'*}"
+DEVICE_NAME="${DEVICE_SELECTION#*$'\t'}"
+
+if [ "$DRY_RUN" = true ]; then
+    echo "==> Would install $APP to $DEVICE_NAME ($DEVICE_UDID)"
+    if [ "$LAUNCH" = true ]; then
+        echo "==> Would launch $BUNDLE_ID"
+    fi
+    echo "Dry run — no project, build, app install, or process launch occurred."
+    exit 0
+fi
+
+if [ "$ASSUME_YES" = false ] && [ -t 0 ]; then
+    printf 'Make sure that "%s" is unlocked and trusts this Mac.\n' "$DEVICE_NAME"
+    read -r -p "Press Enter to install, or Ctrl-C to cancel... " _
+fi
+
+echo "==> installing to device"
+xcrun devicectl device install app --device "$DEVICE_UDID" "$APP"
+
+if [ "$LAUNCH" = true ]; then
+    echo "==> launching $BUNDLE_ID"
+    xcrun devicectl device process launch \
+        --device "$DEVICE_UDID" \
+        --terminate-existing \
+        "$BUNDLE_ID"
+fi
+
+echo "Done. (Build products: $DERIVED)"

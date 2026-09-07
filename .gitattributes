@@ -4,3 +4,7 @@
 # assets) are untouched, and so future modules that adopt snapshot testing are
 # covered automatically.
 **/__Snapshots__/**/*.png filter=lfs diff=lfs merge=lfs -text
+
+# Keep pinned Natural Earth source inputs byte-for-byte identical to the
+# verified release archives, including upstream end-of-line whitespace.
+Throw/ThrowCore/Tools/source/natural-earth-v5.1.2/*.geojson whitespace=-blank-at-eol

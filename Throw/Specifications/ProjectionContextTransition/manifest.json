@@ -1,0 +1,82 @@
+{
+  "source": "tla",
+  "module": "ProjectionContextTransition.tla",
+  "cases": [
+    {
+      "name": "broken-context",
+      "config": "BrokenContext.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoInvalidatedContextCommit is violated."
+    },
+    {
+      "name": "broken-pair",
+      "config": "BrokenPair.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant ExactVisiblePair is violated."
+    },
+    {
+      "name": "broken-freshness",
+      "config": "BrokenFreshness.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoStaleInputAcceptance is violated."
+    },
+    {
+      "name": "broken-writer",
+      "config": "BrokenWriter.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoWriterDuringFadeIn is violated."
+    },
+    {
+      "name": "broken-early-invalidation-finish",
+      "config": "BrokenEarlyInvalidationFinish.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant InvalidationGateHoldsUntilCleanupAndLeaseSync is violated."
+    },
+    {
+      "name": "reachability",
+      "config": "Reachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RequiredPathsNotAllReached is violated."
+    },
+    {
+      "name": "stale-worker-reachability",
+      "config": "StaleWorkerReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant StaleWorkerCompletionNotReached is violated."
+    },
+    {
+      "name": "stale-report-reachability",
+      "config": "StaleReportReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant StaleReportCompletionNotReached is violated."
+    },
+    {
+      "name": "stale-fade-reachability",
+      "config": "StaleFadeReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant StaleFadeCompletionNotReached is violated."
+    },
+    {
+      "name": "worker-input-rejection-reachability",
+      "config": "WorkerInputRejectionReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant WorkerInputRejectionNotReached is violated."
+    },
+    {
+      "name": "report-input-rejection-reachability",
+      "config": "ReportInputRejectionReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant ReportInputRejectionNotReached is violated."
+    },
+    {
+      "name": "current-small",
+      "config": "CurrentSmall.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-larger",
+      "config": "CurrentLarger.cfg",
+      "expect": "pass"
+    }
+  ]
+}

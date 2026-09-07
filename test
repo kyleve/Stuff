@@ -257,7 +257,7 @@ run_architecture_checks() {
     swift run bumper config .
     echo "==> Testing Bumper Bowling rules"
     swift run bumper test .
-    echo "==> Enforcing Where architecture"
+    echo "==> Enforcing application architecture"
     swift run bumper lint . --timings
 }
 

@@ -1,12 +1,11 @@
 # frozen_string_literal: true
 
-require "fileutils"
 require "json"
 require "minitest/autorun"
-require "open3"
 require "pathname"
-require "rbconfig"
 require "tmpdir"
+
+require File.expand_path("ios_device_install_fixture", __dir__)
 
 class WhereInstallCommandTest < Minitest::Test
   def test_dry_run_resolves_exact_device_without_building_or_installing
@@ -135,148 +134,15 @@ class WhereInstallCommandTest < Minitest::Test
 
   def with_fixture(team_status: 0, team_id: "TEAM12345", statuses: {})
     Dir.mktmpdir do |directory|
-      yield Fixture.new(Pathname(directory), team_status: team_status, team_id: team_id, statuses: statuses)
-    end
-  end
-
-  class Fixture
-    attr_reader :derived_data
-
-    def initialize(root, team_status:, team_id:, statuses:)
-      @root = root
-      @repository = File.expand_path("../..", __dir__)
-      @home = root / "home"
-      @temporary = root / "tmp"
-      binary = root / "bin"
-      FileUtils.mkdir_p([@home, @temporary, binary])
-      @devices = root / "devices.json"
-      @log = root / "commands.log"
-      @derived_data = @home / "Library/Developer/Xcode/DerivedData/where-install-#{File.basename(@repository)}"
-      write_fake_mise(binary / "mise", team_status, team_id)
-      write_fake_xcrun(binary / "xcrun")
-      @environment = {
-        "PATH" => "#{binary}:#{ENV.fetch('PATH')}",
-        "HOME" => @home.to_s,
-        "TMPDIR" => @temporary.to_s,
-        "FAKE_DEVICES" => @devices.to_s,
-        "FAKE_COMMAND_LOG" => @log.to_s,
-        "FAKE_GENERATE_STATUS" => statuses.fetch(:generate, 0).to_s,
-        "FAKE_BUILD_STATUS" => statuses.fetch(:build, 0).to_s,
-        "FAKE_LIST_STATUS" => statuses.fetch(:list, 0).to_s,
-        "FAKE_INSTALL_STATUS" => statuses.fetch(:install, 0).to_s,
-        "FAKE_LAUNCH_STATUS" => statuses.fetch(:launch, 0).to_s,
-      }
-      write_devices
-    end
-
-    def write_devices(*devices)
-      @devices.write(JSON.generate("result" => { "devices" => devices }))
-    end
-
-    def write_raw_devices(json)
-      @devices.write(json)
-    end
-
-    def device(identifier:, udid:, name:)
-      {
-        "identifier" => identifier,
-        "properties" => {
-          "hardware" => { "platform" => "iOS", "reality" => "physical", "udid" => udid },
-          "connection" => { "state" => "connected" },
-          "state" => { "name" => name },
-        },
-      }
-    end
-
-    def run(*arguments)
-      Open3.capture3(
-        @environment,
-        File.join(@repository, "Where/install"),
-        *arguments,
-        chdir: @repository,
+      yield IOSDeviceInstallFixture.new(
+        Pathname(directory),
+        command: "Where/install",
+        app_name: "Where",
+        derived_data_prefix: "where-install",
+        team_status: team_status,
+        team_id: team_id,
+        statuses: statuses,
       )
-    end
-
-    def run_interactively_with_eof
-      Open3.capture3(
-        @environment,
-        "/usr/bin/script",
-        "-q",
-        "/dev/null",
-        File.join(@repository, "Where/install"),
-        chdir: @repository,
-        stdin_data: "",
-      )
-    end
-
-    def log
-      @log.exist? ? @log.read : ""
-    end
-
-    private
-
-    def write_fake_mise(path, team_status, team_id)
-      path.write(<<~SH)
-        #!/bin/sh
-        [ "$1" = exec ] && [ "$2" = -- ] || exit 90
-        shift 2
-        if [ "$1" = sh ]; then
-          echo 'mise team' >>"$FAKE_COMMAND_LOG"
-          if [ #{team_status} -ne 0 ]; then
-            echo 'mise team lookup failed' >&2
-            exit #{team_status}
-          fi
-          printf '%s' #{team_id}
-          exit 0
-        fi
-        if [ "$1" = ruby ]; then
-          shift
-          exec #{RbConfig.ruby} "$@"
-        fi
-        echo "$*" >>"$FAKE_COMMAND_LOG"
-        if [ "$1" = tuist ]; then
-          exit "$FAKE_GENERATE_STATUS"
-        fi
-        if [ "$1" = xcodebuild ]; then
-          status="$FAKE_BUILD_STATUS"
-          if [ "$status" -eq 0 ]; then
-            previous=""
-            for argument in "$@"; do
-              if [ "$previous" = -derivedDataPath ]; then
-                mkdir -p "$argument/Build/Products/Debug-iphoneos/Where.app"
-                break
-              fi
-              previous="$argument"
-            done
-          fi
-          exit "$status"
-        fi
-        exit 91
-      SH
-      path.chmod(0o755)
-    end
-
-    def write_fake_xcrun(path)
-      path.write(<<~'SH')
-        #!/bin/sh
-        echo "$*" >>"$FAKE_COMMAND_LOG"
-        if [ "$1 $2 $3" = "devicectl list devices" ]; then
-          [ "$FAKE_LIST_STATUS" -eq 0 ] || exit "$FAKE_LIST_STATUS"
-          shift 3
-          while [ $# -gt 0 ]; do
-            if [ "$1" = --json-output ]; then
-              cp "$FAKE_DEVICES" "$2"
-              exit 0
-            fi
-            shift
-          done
-          exit 93
-        fi
-        [ "$1 $2 $3 $4" = "devicectl device install app" ] && exit "$FAKE_INSTALL_STATUS"
-        [ "$1 $2 $3 $4" = "devicectl device process launch" ] && exit "$FAKE_LAUNCH_STATUS"
-        exit 92
-      SH
-      path.chmod(0o755)
     end
   end
 end

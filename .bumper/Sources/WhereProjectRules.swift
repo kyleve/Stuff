@@ -12,11 +12,6 @@ let whereProjectRules = RuleSet {
         allowed: .files(["Where/WhereUI/Sources/Launch/WhereLaunch.swift"]),
         id: "where.live_location_source_ownership",
     )
-    Rules.singleNominalSpelling(
-        suffix: "Log",
-        owner: whereLoggingScope,
-        id: "where.logging_type_ownership",
-    )
     productionStoreOpeningRule
     checkedConcurrencyBoundaryRule
     gregorianCalendarRule
@@ -29,15 +24,6 @@ let whereProjectRules = RuleSet {
 private let whereServicesConstructionScope = RuleScope
     .component(WhereComponent.whereCore)
     .union(.files(["Where/WhereUI/Sources/Preview/PreviewSupport.swift"]))
-
-private let whereLoggingScope = RuleScope
-    .under("Where/RegionKit/Sources/Logging")
-    .union(.under("Where/Where/Sources/Logging"))
-    .union(.under("Where/WhereCore/Sources/Logging"))
-    .union(.under("Where/WhereUI/Sources/Logging"))
-    .union(.under("Where/WhereIntents/Sources/Logging"))
-    .union(.under("Where/WhereWidgets/Sources/Logging"))
-    .union(.under("Where/WhereShareExtension/Sources/Logging"))
 
 private let productionStoreOpeningPaths: Set<RelativeFilePath> = [
     "Where/WhereUI/Sources/Launch/WhereLaunch.swift",

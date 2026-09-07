@@ -23,6 +23,7 @@ GENERATOR="Shared/CreditKit/Tools/generate-attribution.rb"
 
 # One entry per app that ships a report.
 CONFIGS=(
+    "Throw/Throw/attribution-sources.json"
     "Where/Where/attribution-sources.json"
 )
 

@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "source": "https://github.com/Mictronics/aircraft-database",
+  "revision": "722ec71ad990bd75389a6626d6c3a065b02f2b6d",
+  "archive": "icao_aircraft_types.zip",
+  "sha256": "46e4a4c6274176f70f204ee9cceaf132d47a408c05ebdd75d32e09e909087f0f",
+  "license": "ODC-By-1.0"
+}

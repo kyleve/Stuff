@@ -1,0 +1,119 @@
+import Foundation
+
+/// A user-editable map-center offset measured from the observer.
+public struct MapCenterOffset: Hashable, Sendable {
+    public static let allowedNauticalMiles = -50.0 ... 50.0
+
+    public let eastNauticalMiles: Double
+    public let northNauticalMiles: Double
+
+    public init(eastNauticalMiles: Double, northNauticalMiles: Double) throws {
+        guard eastNauticalMiles.isFinite, northNauticalMiles.isFinite else {
+            throw ThrowValidationError.nonFiniteValue(field: "mapCenterOffset")
+        }
+        guard Self.isValidComponent(eastNauticalMiles),
+              Self.isValidComponent(northNauticalMiles)
+        else {
+            throw ThrowValidationError.outOfRange(
+                field: "mapCenterOffset",
+                closedRange: Self.allowedNauticalMiles,
+            )
+        }
+        self.eastNauticalMiles = eastNauticalMiles
+        self.northNauticalMiles = northNauticalMiles
+    }
+
+    private static func isValidComponent(_ value: Double) -> Bool {
+        allowedNauticalMiles.contains(value) && value.rounded() == value
+            && Int(value).isMultiple(of: 5)
+    }
+}
+
+/// A coarse geographic bucket used to select a fixed Map center without
+/// persisting behavior against an exact observer coordinate.
+public struct MapRegionID: Hashable, Sendable, CustomStringConvertible {
+    private static let latitudeBandRange = -90 ... 89
+    private static let longitudeBandRange = -180 ... 179
+
+    public let latitudeBand: Int
+    public let longitudeBand: Int
+
+    public init(containing coordinate: GeoCoordinate) {
+        latitudeBand = min(
+            Self.latitudeBandRange.upperBound,
+            Int(floor(coordinate.latitude)),
+        )
+        longitudeBand = coordinate.longitude == 180
+            ? Self.longitudeBandRange.lowerBound
+            : Int(floor(coordinate.longitude))
+    }
+
+    public init(latitudeBand: Int, longitudeBand: Int) throws {
+        guard Self.latitudeBandRange.contains(latitudeBand),
+              Self.longitudeBandRange.contains(longitudeBand)
+        else {
+            throw ThrowValidationError.invalidPreferencePayload
+        }
+        self.latitudeBand = latitudeBand
+        self.longitudeBand = longitudeBand
+    }
+
+    public var description: String {
+        "<MapRegionID redacted>"
+    }
+}
+
+public struct MapCenterProfile: Hashable, Sendable, CustomStringConvertible {
+    public let regionID: MapRegionID
+    public let center: GeoCoordinate
+
+    public init(regionID: MapRegionID, center: GeoCoordinate) {
+        self.regionID = regionID
+        self.center = center
+    }
+
+    public var description: String {
+        "<MapCenterProfile location=<redacted>>"
+    }
+}
+
+/// Fixed Map centers keyed by coarse observer region. True Sky never reads
+/// these values.
+public struct MapCenterPreferences: Hashable, Sendable, CustomStringConvertible {
+    public static let defaultValue = try! MapCenterPreferences(profiles: [])
+
+    public let profiles: [MapCenterProfile]
+
+    public init(profiles: [MapCenterProfile]) throws {
+        guard Set(profiles.map(\.regionID)).count == profiles.count else {
+            throw ThrowValidationError.invalidPreferencePayload
+        }
+        self.profiles = profiles.sorted {
+            if $0.regionID.latitudeBand == $1.regionID.latitudeBand {
+                $0.regionID.longitudeBand < $1.regionID.longitudeBand
+            } else {
+                $0.regionID.latitudeBand < $1.regionID.latitudeBand
+            }
+        }
+    }
+
+    public func center(for observer: GeoCoordinate) -> GeoCoordinate {
+        let regionID = MapRegionID(containing: observer)
+        return profiles.first { $0.regionID == regionID }?.center ?? observer
+    }
+
+    public func setting(center: GeoCoordinate, for observer: GeoCoordinate) -> Self {
+        let regionID = MapRegionID(containing: observer)
+        let profile = MapCenterProfile(regionID: regionID, center: center)
+        return try! Self(profiles: profiles.filter { $0.regionID != regionID } + [profile])
+    }
+
+    public func resetting(for observer: GeoCoordinate) -> Self {
+        let regionID = MapRegionID(containing: observer)
+        return try! Self(profiles: profiles.filter { $0.regionID != regionID })
+    }
+
+    public var description: String {
+        "<MapCenterPreferences count=\(profiles.count) locations=<redacted>>"
+    }
+}

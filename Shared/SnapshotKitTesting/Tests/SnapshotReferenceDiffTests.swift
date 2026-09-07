@@ -33,6 +33,15 @@ struct SnapshotReferenceDiffTests {
         #expect(url.lastPathComponent == "thing.iPhone.png")
     }
 
+    @Test func referencePathSanitizesNamesLikeTheComparisonLibrary() {
+        let url = snapshotReferenceURL(
+            testFilePath: "/repo/T/Tests/TSnapshotTests.swift",
+            testName: "flight activity()",
+            identifier: "adsb.lol Source_iPhone",
+        )
+        #expect(url.lastPathComponent == "flight-activity.adsb-lol-Source_iPhone.png")
+    }
+
     /// The derivation above is only useful if it lands on a real file. This
     /// repo's own Inspector reference is the fixture.
     @Test func derivedPathFindsAnActualReferenceInThisRepo() {
@@ -48,6 +57,18 @@ struct SnapshotReferenceDiffTests {
             swift-snapshot-testing's reference layout has moved, so every capture \
             would report `referenceMissing` instead of comparing.
             """,
+        )
+    }
+
+    @Test func derivedPathFindsAReferenceWithASanitizedIdentifier() {
+        let url = snapshotReferenceURL(
+            testFilePath: throwProjectionTestFilePath,
+            testName: "projectionSurface()",
+            identifier: "Flight Activity Map_16x9",
+        )
+        #expect(
+            FileManager.default.fileExists(atPath: url.path),
+            "Derived sanitized reference path does not exist: \(url.path)",
         )
     }
 
@@ -170,6 +191,17 @@ struct SnapshotReferenceDiffTests {
             .deletingLastPathComponent()
             .appendingPathComponent("Inspector/SnapshotTests")
             .appendingPathComponent("InspectorSnapshotTests.swift")
+            .path
+    }
+
+    private var throwProjectionTestFilePath: String {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Throw/ThrowUI/SnapshotTests")
+            .appendingPathComponent("ProjectionSurfaceSnapshotTests.swift")
             .path
     }
 

@@ -1,0 +1,82 @@
+{
+  "source": "pluscal",
+  "module": "PreferenceTransactions.tla",
+  "cases": [
+    {
+      "name": "broken-retry",
+      "config": "BrokenRetry.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant PersistedSourceHasAlignedCredential is violated."
+    },
+    {
+      "name": "broken-observer",
+      "config": "BrokenObserver.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant VisibleFrameMatchesPublishedObserver is violated."
+    },
+    {
+      "name": "broken-invalidation",
+      "config": "BrokenInvalidation.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant InvalidationCompletionFollowsRequiredWork is violated."
+    },
+    {
+      "name": "retry-reachability",
+      "config": "CurrentRetryReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RetryRecoveryWasNotQueued is violated."
+    },
+    {
+      "name": "stale-render-reachability",
+      "config": "CurrentStaleRenderReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant StaleRenderWasNotRejected is violated."
+    },
+    {
+      "name": "invalidation-reachability",
+      "config": "CurrentInvalidationReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RequiredInvalidationPathNotReached is violated."
+    },
+    {
+      "name": "renewal-replaced-reachability",
+      "config": "CurrentRenewalReplacedReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant ReplacedRenewalNotReached is violated."
+    },
+    {
+      "name": "renewal-retired-reachability",
+      "config": "CurrentRenewalRetiredReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RetiredRenewalNotReached is violated."
+    },
+    {
+      "name": "renewal-superseded-reachability",
+      "config": "CurrentRenewalSupersededReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant SupersededRenewalNotReached is violated."
+    },
+    {
+      "name": "old-callback-reachability",
+      "config": "CurrentOldCallbackReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant OldCallbacksAfterSuccessorSyncNotReached is violated."
+    },
+    {
+      "name": "delayed-runtime-teardown-reachability",
+      "config": "CurrentDelayedRuntimeTeardownReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant DelayedRuntimeTeardownAfterSuccessorNotReached is violated."
+    },
+    {
+      "name": "current-small",
+      "config": "CurrentSmall.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-expanded",
+      "config": "CurrentExpanded.cfg",
+      "expect": "pass"
+    }
+  ]
+}

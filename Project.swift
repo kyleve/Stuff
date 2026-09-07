@@ -185,6 +185,55 @@ let project = Project(
     settings: projectSettings,
     targets: [
         .target(
+            name: "Throw",
+            destinations: destinations,
+            product: .app,
+            bundleId: "com.stuff.throw",
+            deploymentTargets: deployment,
+            infoPlist: .extendingDefault(with: [
+                "CFBundleDisplayName": .string("Throw"),
+                "CFBundleShortVersionString": .string("0.1"),
+                "CFBundleVersion": .string("1"),
+                "NSAppTransportSecurity": .dictionary([
+                    "NSAllowsLocalNetworking": .boolean(true),
+                ]),
+                "NSLocalNetworkUsageDescription": .string(
+                    "Throw connects to a readsb receiver you choose on your local network.",
+                ),
+                "NSLocationWhenInUseUsageDescription": .string(
+                    "Throw uses your location to place aircraft correctly around you.",
+                ),
+                "UIApplicationSceneManifest": .dictionary([
+                    "UIApplicationSupportsMultipleScenes": .boolean(true),
+                    "UISceneConfigurations": .dictionary([
+                        "UIWindowSceneSessionRoleApplication": .array([
+                            .dictionary([
+                                "UISceneConfigurationName": .string("Throw Controller"),
+                            ]),
+                        ]),
+                        "UIWindowSceneSessionRoleExternalDisplayNonInteractive": .array([
+                            .dictionary([
+                                "UISceneConfigurationName": .string("Throw External Display"),
+                                "UISceneDelegateClassName": .string(
+                                    "$(PRODUCT_MODULE_NAME).ExternalDisplaySceneDelegate",
+                                ),
+                            ]),
+                        ]),
+                    ]),
+                ]),
+                "UIApplicationSupportsIndirectInputEvents": .boolean(true),
+                "UILaunchScreen": .dictionary([:]),
+            ]),
+            sources: ["Throw/Throw/Sources/**"],
+            resources: ["Throw/Throw/Resources/**"],
+            dependencies: [
+                .package(product: "ThrowUI"),
+            ],
+            settings: .settings(base: [
+                "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "",
+            ]),
+        ),
+        .target(
             name: "Where",
             destinations: destinations,
             product: .app,
@@ -398,6 +447,20 @@ let project = Project(
             environmentVariables: packageResourceEnvironment,
         ),
         .target(
+            name: "ThrowTests",
+            destinations: destinations,
+            product: .unitTests,
+            bundleId: "com.stuff.throw.tests",
+            deploymentTargets: deployment,
+            sources: ["Throw/Throw/Tests/**"],
+            dependencies: [
+                .target(name: "Throw"),
+                .package(product: "TestHostSupport"),
+                .package(product: "ThrowUI"),
+            ],
+            environmentVariables: packageResourceEnvironment,
+        ),
+        .target(
             name: "StuffTestHost",
             destinations: destinations,
             product: .app,
@@ -572,6 +635,18 @@ let project = Project(
             productDependency: "WhereIntents",
             sources: ["Where/WhereIntents/Tests/**"],
         ),
+        unitTests(
+            name: "ThrowCoreTests",
+            bundleIdSuffix: "throwcore",
+            productDependency: "ThrowCore",
+            sources: ["Throw/ThrowCore/Tests/**"],
+        ),
+        unitTests(
+            name: "ThrowUITests",
+            bundleIdSuffix: "throwui",
+            productDependency: "ThrowUI",
+            sources: ["Throw/ThrowUI/Tests/**"],
+        ),
         // Image snapshot bundles: one per module that owns image references,
         // all gathered into the single `StuffSnapshotTests` scheme below so CI
         // runs them in one `snapshot` job. They are slow and LFS-backed, so
@@ -639,6 +714,14 @@ let project = Project(
             extraPackageProducts: ["SnapshotKitTesting"],
             environmentVariables: snapshotEnvironment,
         ),
+        unitTests(
+            name: "ThrowUISnapshotTests",
+            bundleIdSuffix: "throwui.snapshot",
+            productDependency: "ThrowUI",
+            sources: ["Throw/ThrowUI/SnapshotTests/**"],
+            extraPackageProducts: ["SnapshotKitTesting"],
+            environmentVariables: snapshotEnvironment,
+        ),
         .target(
             name: "BroadwayCatalog",
             destinations: destinations,
@@ -690,6 +773,12 @@ let project = Project(
     // WhereCoreTests` / `tuist test WhereTests` / `tuist test WhereUITests`
     // target a single bundle without building the whole workspace.
     schemes: [
+        .scheme(
+            name: "Throw",
+            shared: true,
+            buildAction: .buildAction(targets: ["Throw"]),
+            runAction: .runAction(executable: "Throw"),
+        ),
         // App target schemes are normally autogenerated, but declare the
         // RegionViewer one explicitly so `tuist build RegionViewer` (and a
         // Run that launches the Catalyst app) is always available.
@@ -722,6 +811,7 @@ let project = Project(
             name: "Stuff-iOS-Tests",
             shared: true,
             buildAction: .buildAction(targets: [
+                "Throw",
                 "Where",
                 "RegionViewer",
                 "StuffTestHost",
@@ -746,6 +836,9 @@ let project = Project(
                 "BroadwayCoreTests",
                 "BroadwayUITests",
                 "BroadwayCatalogTests",
+                "ThrowCoreTests",
+                "ThrowUITests",
+                "ThrowTests",
             ]),
             testAction: .targets(
                 [
@@ -769,6 +862,9 @@ let project = Project(
                     "BroadwayCoreTests",
                     "BroadwayUITests",
                     "BroadwayCatalogTests",
+                    "ThrowCoreTests",
+                    "ThrowUITests",
+                    "ThrowTests",
                 ],
                 arguments: .arguments(environmentVariables: packageResourceEnvironment),
             ),
@@ -790,6 +886,9 @@ let project = Project(
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),
+        testScheme(name: "ThrowCoreTests"),
+        testScheme(name: "ThrowUITests"),
+        testScheme(name: "ThrowTests"),
         // Every image-snapshot bundle, in one scheme, so CI runs them all in
         // the single `snapshot` job. A new module's image suite gets its own
         // `*SnapshotTests` target above and joins the lists here — it must not
@@ -807,6 +906,7 @@ let project = Project(
                 "FlyoverSnapshotTests",
                 "PeriscopeToolsSnapshotTests",
                 "InspectorSnapshotTests",
+                "ThrowUISnapshotTests",
             ]),
             testAction: .targets(
                 [
@@ -814,6 +914,7 @@ let project = Project(
                     "FlyoverSnapshotTests",
                     "PeriscopeToolsSnapshotTests",
                     "InspectorSnapshotTests",
+                    "ThrowUISnapshotTests",
                 ],
                 arguments: .arguments(environmentVariables: snapshotEnvironment),
             ),

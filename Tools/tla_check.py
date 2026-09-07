@@ -1,9 +1,9 @@
-"""Validate, translate, and run the repository's TLA+ manifests.
+"""Discover, validate, translate, and run the repository's TLA+ manifests.
 
-The repository launcher owns discovery and the pinned TLC download. This module
-owns structured manifest validation, isolated PlusCal translation, command
-construction, execution, and reporting so those behaviors can be tested without
-Java or TLC.
+The repository launcher owns public argument handling and the pinned TLC
+download. This module owns cross-feature discovery, structured manifest
+validation, isolated PlusCal translation, command construction, execution, and
+reporting so those behaviors can be tested without Java or TLC.
 """
 
 from __future__ import annotations
@@ -48,6 +48,13 @@ class TlaManifest:
 
 
 @dataclass(frozen=True)
+class TlaSpec:
+    name: str
+    directory: Path
+    manifest: Path
+
+
+@dataclass(frozen=True)
 class ToolVersions:
     tlc: str
     pluscal: str
@@ -63,6 +70,37 @@ def _required_string(value: object, field: str, manifest_path: Path) -> str:
     if not isinstance(value, str) or not value:
         raise TlaCheckError(f"error: {manifest_path}: {field} must be a non-empty string")
     return value
+
+
+def discover_specs(repository_root: Path) -> tuple[TlaSpec, ...]:
+    """Return specs from each top-level feature Specifications directory."""
+
+    discovered: list[TlaSpec] = []
+    for manifest in repository_root.glob("*/Specifications/*/manifest.json"):
+        if manifest.is_file():
+            discovered.append(TlaSpec(manifest.parent.name, manifest.parent, manifest))
+
+    discovered.sort(key=lambda spec: (spec.name, str(spec.manifest)))
+    locations_by_name: dict[str, list[Path]] = {}
+    for spec in discovered:
+        locations_by_name.setdefault(spec.name, []).append(spec.manifest)
+
+    duplicate_descriptions = []
+    for name, locations in locations_by_name.items():
+        if len(locations) > 1:
+            relative_locations = [
+                str(location.relative_to(repository_root)) for location in locations
+            ]
+            duplicate_descriptions.append(
+                f"{name!r}: {', '.join(relative_locations)}"
+            )
+    if duplicate_descriptions:
+        raise TlaCheckError(
+            "error: duplicate TLA+ spec folder name(s): "
+            + "; ".join(duplicate_descriptions)
+        )
+
+    return tuple(discovered)
 
 
 def load_manifest(manifest_path: Path) -> TlaManifest:
@@ -227,18 +265,9 @@ def _contained_file(root: Path, relative_path: str, field: str) -> Path:
     return resolved_path
 
 
-def run_manifest(
-    manifest_path: Path,
-    spec_directory: Path,
-    run_directory: Path,
-    jar_path: Path,
-    versions: ToolVersions,
-    *,
-    environment: Mapping[str, str] | None = None,
-    process_runner: ProcessRunner | None = None,
-    output: TextIO = sys.stdout,
-    monotonic: MonotonicClock = time.monotonic,
-) -> None:
+def validate_spec_files(manifest_path: Path, spec_directory: Path) -> TlaManifest:
+    """Validate one manifest and every file that it names."""
+
     manifest = load_manifest(manifest_path)
     module_path = _contained_file(spec_directory, manifest.module, "manifest module")
     if not module_path.is_file():
@@ -255,6 +284,51 @@ def run_manifest(
                 f"error: {manifest_path}: case {case.name!r} "
                 f"config {case.config!r} not found"
             )
+
+    return manifest
+
+
+def resolve_specs(
+    repository_root: Path, requested_names: Sequence[str]
+) -> tuple[TlaSpec, ...]:
+    """Resolve selected specs and validate their complete local fixtures."""
+
+    discovered = discover_specs(repository_root)
+    if not discovered:
+        raise TlaCheckError(
+            f"error: no specs found under {repository_root}/*/Specifications"
+        )
+
+    specs_by_name = {spec.name: spec for spec in discovered}
+    if requested_names:
+        selected: list[TlaSpec] = []
+        for name in requested_names:
+            spec = specs_by_name.get(name)
+            if spec is None:
+                raise TlaCheckError(f"error: unknown spec {name!r}")
+            selected.append(spec)
+    else:
+        selected = list(discovered)
+
+    for spec in selected:
+        validate_spec_files(spec.manifest, spec.directory)
+    return tuple(selected)
+
+
+def run_manifest(
+    manifest_path: Path,
+    spec_directory: Path,
+    run_directory: Path,
+    jar_path: Path,
+    versions: ToolVersions,
+    *,
+    environment: Mapping[str, str] | None = None,
+    process_runner: ProcessRunner | None = None,
+    output: TextIO = sys.stdout,
+    monotonic: MonotonicClock = time.monotonic,
+) -> None:
+    manifest = validate_spec_files(manifest_path, spec_directory)
+    module_path = _contained_file(spec_directory, manifest.module, "manifest module")
 
     generated_directory = run_directory / "generated"
     logs_directory = run_directory / "logs"
@@ -392,7 +466,42 @@ def run_manifest(
             )
 
 
-def main(arguments: Sequence[str]) -> int:
+def _print_spec_rows(specs: Sequence[TlaSpec]) -> None:
+    for spec in specs:
+        fields = (spec.name, str(spec.directory))
+        if any("\t" in field or "\n" in field or "\r" in field for field in fields):
+            raise TlaCheckError(
+                f"error: spec path contains an unsupported control character: "
+                f"{spec.directory}"
+            )
+        print("\t".join(fields))
+
+
+def _run_main(arguments: Sequence[str]) -> int:
+    if arguments and arguments[0] == "discover":
+        if len(arguments) != 2:
+            print("usage: tla_check.py discover REPOSITORY_ROOT", file=sys.stderr)
+            return 2
+        repository_root = Path(arguments[1])
+        specs = discover_specs(repository_root)
+        if not specs:
+            raise TlaCheckError(
+                f"error: no specs found under {repository_root}/*/Specifications"
+            )
+        _print_spec_rows(specs)
+        return 0
+
+    if arguments and arguments[0] == "resolve":
+        if len(arguments) < 2:
+            print(
+                "usage: tla_check.py resolve REPOSITORY_ROOT [SPEC ...]",
+                file=sys.stderr,
+            )
+            return 2
+        specs = resolve_specs(Path(arguments[1]), arguments[2:])
+        _print_spec_rows(specs)
+        return 0
+
     if len(arguments) != 8:
         print(
             "usage: tla_check.py MANIFEST SPEC_DIR RUN_DIR TLA2TOOLS_JAR "
@@ -402,12 +511,16 @@ def main(arguments: Sequence[str]) -> int:
         return 2
     manifest, spec, run, jar = (Path(argument) for argument in arguments[:4])
     versions = ToolVersions(*arguments[4:])
+    run_manifest(manifest, spec, run, jar, versions)
+    return 0
+
+
+def main(arguments: Sequence[str]) -> int:
     try:
-        run_manifest(manifest, spec, run, jar, versions)
+        return _run_main(arguments)
     except (OSError, TlaCheckError) as error:
         print(error, file=sys.stderr)
         return 1
-    return 0
 
 
 if __name__ == "__main__":

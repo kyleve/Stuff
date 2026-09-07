@@ -1,8 +1,8 @@
-# Where Architecture Rules
+# Application Architecture Rules
 
-`BumperBowling.swift` turns the module boundaries already documented in
-`Where/**/AGENTS.md` into source-level checks. It scans production sources only;
-tests and generated files are outside the architecture graph.
+`BumperBowling.swift` turns the module boundaries documented in the Where and
+Throw `AGENTS.md` files into source-level checks. It scans production sources
+only. Tests and generated files are outside the architecture graph.
 
 ## Layer boundaries
 
@@ -16,6 +16,12 @@ tests and generated files are outside the architecture graph.
 | `WhereWidgets` | `RegionKit`, `WhereCore`, `WhereUI` | Foundation, SwiftUI, UIKit |
 | `WhereShareExtension` | `WhereCore`, `WhereUI` | Foundation, SwiftUI, UIKit |
 | `RegionViewer` | `RegionKit`, `WhereCore`, `WhereUI` | Foundation, SwiftUI, UIKit |
+
+| Throw component | Allowed Throw dependencies | Framework capabilities |
+| --- | --- | --- |
+| `ThrowCore` | none | Foundation |
+| `ThrowUI` | `ThrowCore` | Foundation, SwiftUI, UIKit |
+| `Throw` app | `ThrowUI` | Foundation, SwiftUI, UIKit |
 
 An import of a declared Where module outside these edges is a
 `component_boundary` error. An import of a known framework capability outside
@@ -31,10 +37,13 @@ Delete or reshape a boundary only when the corresponding module architecture
 changes in its `AGENTS.md`, `Package.swift`, or `Project.swift`; update the
 documentation and executable rule in the same change.
 
+ThrowCore and ThrowUI also forbid LifecycleKit. Throw is a retryable runtime,
+not a terminal launch sequence. The Throw app cannot import ThrowCore directly.
+
 ## Graph integrity
 
 - `duplicate_ownership` keeps every source path and module in one component.
-- `declared_dependency_cycle` keeps the Where layer graph acyclic.
+- `declared_dependency_cycle` keeps each application layer graph acyclic.
 
 The mutation tests in `.bumper/Tests` prove that a valid downward import passes
 and that representative upward/framework imports fail with the expected rule.
@@ -92,6 +101,20 @@ These use Bumper's standard `constructionOwnership` shaper. TheButtonHeist's
 as the analogous lower-level ownership check and retained; the standard shaper
 fully expresses Where's constructor facts.
 
+Throw has matching ownership and typed-projection guards:
+
+- `throw.session_composition_ownership` permits `ThrowSession` construction only in `ThrowSession+Composition.swift`.
+- `throw.live_dependency_composition_ownership` keeps live stores, durable logging, sources, and polling dependencies in that same file.
+- `throw.runtime_composition_ownership` permits `ThrowRuntime` construction only in `ThrowRuntime.swift`.
+- `throw.layer_frame_erasure_ownership` permits raw DEBUG Testing `LayerFrame` construction only in `ProjectionModels.swift`.
+- `throw.projected_frame_erasure_ownership` permits raw `ProjectionFrame` and `ProjectedLayer` construction only at the ThrowUI presentation boundary.
+- `throw.typed_projection_families` preserves each layer kind's element or style
+  family, keeps airport identity in its glyph descriptor, and rejects erased
+  mark-array replacement at the presentation boundary.
+
+Repair a violation by injecting the existing object or by using a typed layer
+or experience frame. Change an owner only when the matching Throw module contract changes.
+
 ## Gregorian calendar
 
 `where.gregorian_calendar` rejects `Calendar.current` throughout Where's
@@ -125,7 +148,11 @@ conformance only in the Where app component.
 Where production sources. Production logging uses the typed `WhereLog` or
 `RegionLog` Periscope facades.
 
-This complements `where.logging_type_ownership`, which controls where the
+`throw.logging_facade` rejects direct system-log imports and raw diagnostic
+output calls in Throw production sources. Production logging uses typed
+`ThrowLog` events.
+
+This complements `repository.logging_type_ownership`, which controls where the
 typed event declarations live.
 
 ## Preview coverage
@@ -141,13 +168,38 @@ WhereIntents and WhereWidgets explicitly forbid direct `BroadwayCore` and
 
 ## Logging vocabulary ownership
 
-`where.logging_type_ownership` keeps every nominal type ending in `Log` under a
-module's `Sources/Logging` directory. This preserves the existing convention
-that collaborators and their typed Periscope event vocabulary do not accrete in
-the same files.
+`repository.logging_type_ownership` keeps every nominal type ending in `Log`
+under a Where or Throw module's `Sources/Logging` directory. This keeps typed
+Periscope event vocabulary separate from collaborators.
 
 Repair a violation by moving the logging type into the owning module's Logging
 directory. Delete or reshape the rule if the repository deliberately adopts a
 different logging vocabulary layout. Bumper's standard
 `singleNominalSpelling` shaper expresses the invariant; no custom syntax rule
 is needed.
+
+## Throw concrete view boundaries
+
+`throw.no_any_view` rejects `AnyView` in Throw production sources. Controller
+and projection scenes compose concrete ThrowUI roots. Runtime handoff exposes
+the shared session instead of erasing the view type.
+
+## Throw provider boundary
+
+`throw.provider_implementation_boundary` rejects concrete aircraft provider
+sources and decoders in ThrowUI. Source setup and provider capabilities go
+through `AircraftSourceOperationServing`, whose production implementation is
+owned by ThrowCore.
+
+## Throw checked concurrency boundaries
+
+`throw.checked_concurrency_boundaries` rejects `@preconcurrency` and
+`nonisolated(unsafe)` in all Throw production sources. Repair a violation with
+checked isolation. Do not add an exception without first documenting and
+testing the synchronization boundary.
+
+## Throw controller-scene lifecycle
+
+`throw.controller_scene_lifecycle` rejects app-delegate background and
+foreground callbacks in the Throw app. Controller roots deliver their exact
+scene identities and lifecycle transitions to the process runtime instead.
