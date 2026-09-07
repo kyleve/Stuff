@@ -52,7 +52,10 @@ capture + comparison pipeline lives in the sibling
 - **`SnapshotProviding`** — a type declares its variants via
   `static var snapshots: [SnapshotCase]`.
 - **`SnapshotCase`** — a named group of configurations plus a lazy content
-  builder. declaring a matrix does not instantiate its views or models. It is
+  builder. Declaring a matrix does not instantiate its views or models. The
+  current test runner evaluates the builder once per case and re-hosts that
+  value across configurations, so captured reference models are shared (see
+  [`TODOs.md`](TODOs.md)). It is
   also a `View`, so `snapshotPreviews` can render the whole matrix as a
   scrollable cutsheet inside a `#Preview`. Its `settle` axis
   (`SnapshotSettle`) declares whether the content needs the capture pipeline's

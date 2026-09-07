@@ -118,7 +118,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Quiescence cannot replace the pixel digest.**
 - **`SNAPSHOT_SETTLE` selects `pixel` (default), `quiescence`, or `both`.** Quiescence uses a `beforeWaiting` run-loop observer plus a recursive `needsLayout`/`needsDisplay`/`animationKeys` walk.
 - **`both` runs them together and reports disagreements.**
-- **Run in `both` mode (2026-07-28) over 260 references of the time — 490 as of 2026-09-06.** The counts below are that run's, not current.
+- **Run in `both` mode (2026-07-28) over 260 references of the time; current inventory is in [`MODULE_AUDIT.md`](../../MODULE_AUDIT.md).** The counts below are that run's, not current.
 - **That run had 226 settle phases, 134 with some disagreement.**
 - **8 cases had quiescence declare settled *earlier* than the digest.** Every one was a `Loaded_*` case whose content arrives late.
 - **That is the one dangerous direction.** It would capture a frame no reference recorded.

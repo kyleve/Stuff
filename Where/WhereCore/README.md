@@ -62,8 +62,9 @@ one it belongs to rather than to a god-object:
 - **`DayJournal`** — the user-sourced writes: manual-day overlays
   (`addManualDay` / `overrideDay` / `addManualDays`), clears
   (`clearManualDay` / `clearYear` / `eraseAllData`), evidence, and issue
-  dismissals. Each write commits, then awaits its reminder reconcile + widget
-  publish so the next reader sees a fully-applied change.
+  dismissals. Writes await reminder/issue reconciliation and widget publication
+  after committing. The local fan-out does not yet refresh daily summaries;
+  that gap is tracked in [`../TODOs.md`](../TODOs.md).
 - **`PlannedStayCoordinator`** — the synced, generation-scoped last-writer register behind “I’ll
   be here through…”. Clears and expiry write tombstones, and annual forecasts consume its current
   value without coupling projection math to persistence.
@@ -289,7 +290,9 @@ rotates to a Reset child generation, and discards the retry queue only after com
   generation. Concurrent unjoined resets select a synthetic empty generation. An
   incomplete causal generation DAG fails closed instead of mixing old and new state.
 - **Failures surface.** Store methods are `async throws`. Errors are logged via
-  `WhereLog` and left observable — never swallowed into an empty default.
+  `WhereLog`. Most callers propagate failure or retain honest failed state.
+  The reminder badge still logs a failed scan and returns zero; that exception
+  is tracked in [`../TODOs.md`](../TODOs.md).
 ## Testing
 
 Swift Testing in [`Tests/`](Tests) (`WhereCoreTests`), hosted in `StuffTestHost`.
