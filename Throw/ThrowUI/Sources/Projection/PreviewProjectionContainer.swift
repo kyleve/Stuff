@@ -26,6 +26,12 @@ struct PreviewProjectionContainer: View {
                                 await session.selectPreviousExperience()
                             }
                         }
+                        .disabled(session.isExperienceSwitchPending)
+                        if session.isExperienceSwitchPending {
+                            ProgressView()
+                                .tint(.white)
+                                .accessibilityLabel(String(localized: .dashboardPreparingView))
+                        }
                         Button(
                             String(localized: .dashboardNextViewAction),
                             systemSymbol: .forwardFill,
@@ -34,11 +40,13 @@ struct PreviewProjectionContainer: View {
                                 await session.selectNextExperience()
                             }
                         }
+                        .disabled(session.isExperienceSwitchPending)
                     }
                     .labelStyle(.iconOnly)
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                     .tint(.black.opacity(0.7))
+                    .animation(.easeInOut(duration: 0.2), value: session.isExperienceSwitchPending)
                     .padding(.horizontal)
                     .safeAreaPadding(.bottom)
                 }

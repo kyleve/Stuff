@@ -354,6 +354,40 @@ struct ThrowSessionExperiencesTests {
         #expect(session.projectionPlaylist.entry(for: .airAndSpace)?.dwellDuration.seconds == 300)
     }
 
+    @Test func previewReportsOnlyVisibleViewSwitchPreparation() {
+        let session = ThrowSession.fixture()
+        func setCoordinator(
+            requestedExperienceID: ProjectionExperienceID?,
+            prewarmingExperienceID: ProjectionExperienceID?,
+        ) {
+            let coordinator = ProjectionExperienceCoordinatorState(
+                activeExperienceID: .airAndSpace,
+                requestedExperienceID: requestedExperienceID,
+                prewarmingExperienceID: prewarmingExperienceID,
+                isPaused: false,
+                dwellEndsAt: nil,
+                nextExperienceID: .transit,
+                healthByExperience: [:],
+                manualSelectionFailure: nil,
+            )
+            session.projectionPresentationState = .initial(
+                coordinator: coordinator,
+                preferredExperienceID: .airAndSpace,
+                mode: .map,
+                generatedAt: session.dateProvider.now(),
+            )
+        }
+
+        setCoordinator(requestedExperienceID: .transit, prewarmingExperienceID: .transit)
+        #expect(session.isExperienceSwitchPending == false)
+
+        setCoordinator(requestedExperienceID: .transit, prewarmingExperienceID: nil)
+        #expect(session.isExperienceSwitchPending)
+
+        setCoordinator(requestedExperienceID: nil, prewarmingExperienceID: nil)
+        #expect(session.isExperienceSwitchPending == false)
+    }
+
     @Test func rapidPlaylistChangesConvergeOnTheNewestCoordinatorValue() async {
         let session = ThrowSession.fixture()
 
