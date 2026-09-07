@@ -49,6 +49,13 @@ public final class WherePreferences {
         set { store.set(newValue, forKey: Keys.showsRecordedLocationDots.rawValue) }
     }
 
+    /// Whether Locations may present the live-region welcome card. Defaults to
+    /// `true` so the acknowledgement remains available until explicitly hidden.
+    public var showsLocationWelcome: Bool {
+        get { store.object(forKey: Keys.showsLocationWelcome.rawValue) as? Bool ?? true }
+        set { store.set(newValue, forKey: Keys.showsLocationWelcome.rawValue) }
+    }
+
     /// The device-local presentation theme. Missing and unrecognized values
     /// resolve to Standard so upgrades preserve the app's familiar appearance.
     public var theme: WhereTheme {
@@ -222,6 +229,22 @@ public final class WherePreferences {
         store.set(snapshots, forKey: Keys.lastSeenLocationDayCounts.rawValue)
     }
 
+    /// The last live region whose Locations welcome the user dismissed.
+    public var lastWelcomedRegion: Region? {
+        get {
+            guard let rawValue = store.object(forKey: Keys.lastWelcomedRegion.rawValue) as? String
+            else { return nil }
+            return Region(rawValue: rawValue)
+        }
+        set {
+            if let newValue {
+                store.set(newValue.rawValue, forKey: Keys.lastWelcomedRegion.rawValue)
+            } else {
+                store.removeObject(forKey: Keys.lastWelcomedRegion.rawValue)
+            }
+        }
+    }
+
     /// Clear every persisted preference so the next launch behaves like a fresh
     /// install: onboarding shows again, presentation and notification settings
     /// revert to defaults, and UI continuity snapshots are forgotten.
@@ -239,6 +262,7 @@ public final class WherePreferences {
     private enum Keys: String, CaseIterable {
         case hasOnboarded = "where.hasOnboarded"
         case showsRecordedLocationDots = "where.showsRecordedLocationDots"
+        case showsLocationWelcome = "where.showsLocationWelcome"
         case theme = "where.theme"
         case showsLocationForecastsOnLocationsTab = "where.showsLocationForecastsOnLocationsTab"
         case remindersEnabled = "where.remindersEnabled"
@@ -253,6 +277,7 @@ public final class WherePreferences {
             "where.recordingConfigurationWarningRegistration"
         case driftThresholdMeters = "where.driftThresholdMeters"
         case lastSeenLocationDayCounts = "where.lastSeenLocationDayCounts"
+        case lastWelcomedRegion = "where.lastWelcomedRegion"
     }
 
     private static var isDebugBuild: Bool {

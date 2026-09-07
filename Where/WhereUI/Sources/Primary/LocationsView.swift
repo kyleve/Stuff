@@ -14,8 +14,10 @@ struct LocationsView: View {
 
     @State private var showingResolution = false
     @State private var plannedStayEditorTarget: PlannedStayEditorTarget?
+    @State private var isLocationsSurfaceVisible = false
     @State private var isCardSurfaceVisible = false
     @State private var cardPresentation: LocationCardsPresentationModel
+    @State private var welcome: LocationWelcomeModel
     @State private var planning = LocationsPlanningModel()
 
     /// Drives the region cards' tilt-reactive light sheen. Started/stopped
@@ -34,10 +36,41 @@ struct LocationsView: View {
         isCardSurfaceVisible
             && !showingResolution
             && plannedStayEditorTarget == nil
+            && !planning.isShowingError
+            && welcomePresentation == nil
+    }
+
+    private var isWelcomeLookupActive: Bool {
+        report.showsLocationWelcome
+            && isLocationsSurfaceVisible
+            && !showingResolution
+            && plannedStayEditorTarget == nil
+            && !planning.isShowingError
+    }
+
+    private var welcomePresentation: LocationWelcomeModel.Presentation? {
+        guard report.showsLocationWelcome else { return nil }
+        return welcome.presentation
+    }
+
+    private var welcomePlanStayAction: ((Region) -> Void)? {
+        guard report.showsEstimatedTimeAndPlanning else { return nil }
+        return planStayFromWelcome
     }
 
     init(report: YearReportModel) {
+        self.init(
+            report: report,
+            welcome: LocationWelcomeModel(
+                services: report.services,
+                preferences: report.preferences,
+            ),
+        )
+    }
+
+    init(report: YearReportModel, welcome: LocationWelcomeModel) {
         self.report = report
+        _welcome = State(initialValue: welcome)
         _cardPresentation = State(initialValue: LocationCardsPresentationModel(
             preferences: report.preferences,
             year: report.selectedYear,
@@ -50,6 +83,8 @@ struct LocationsView: View {
         NavigationStack {
             screen
                 .navigationBarTitleDisplayMode(.inline)
+                .onAppear { isLocationsSurfaceVisible = true }
+                .onDisappear { isLocationsSurfaceVisible = false }
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarTrailing) {
                         // Resolve stays immediately left of the stable planning
@@ -74,6 +109,22 @@ struct LocationsView: View {
                         }
                     }
                 }
+        }
+        .accessibilityHidden(welcomePresentation != nil)
+        .overlay {
+            if let presentation = welcomePresentation {
+                LocationWelcomeOverlay(
+                    presentation: presentation,
+                    dismissAction: welcome.dismiss,
+                    planStayAction: welcomePlanStayAction,
+                )
+                .transition(stylesheet.locationWelcome.motion.transition)
+            }
+        }
+        .animation(stylesheet.locationWelcome.motion.animation, value: welcomePresentation)
+        .task(id: isWelcomeLookupActive) {
+            guard isWelcomeLookupActive else { return }
+            await welcome.resolve()
         }
         .onAppear { tilt.start() }
         .onDisappear { tilt.stop() }
@@ -254,6 +305,14 @@ struct LocationsView: View {
         plannedStayEditorTarget = PlannedStayEditorTarget(region: region)
     }
 
+    private func planStayFromWelcome(_ region: Region) {
+        withAnimation(stylesheet.locationWelcome.motion.animation) {
+            welcome.dismiss()
+        } completion: {
+            editPlannedStay(region)
+        }
+    }
+
     private func clearPlannedStay() {
         Task {
             await planning.clear(using: report.forecasts.clear)
@@ -389,10 +448,38 @@ private struct ResolveToolbarLabel: View {
                     report: PreviewSupport.loadedYearReportModelWithLocationDotsHidden(),
                 )
             }
+            whereSnapshot(
+                name: "WelcomeFirst",
+                configurations: .phoneLightDark + [
+                    SnapshotConfiguration(dynamicType: .accessibility5, device: .iPhone),
+                ],
+                measurementReadiness: .immediate,
+            ) {
+                welcomeSnapshot(greeting: .first)
+            }
+            whereSnapshot(
+                name: "WelcomeBack",
+                configurations: .phoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                welcomeSnapshot(greeting: .returnVisit)
+            }
         }
 
         private static func forecastsHiddenReport() -> YearReportModel {
             PreviewSupport.loadedYearReportModelWithEstimatedTimeHidden()
+        }
+
+        private static func welcomeSnapshot(
+            greeting: LocationWelcomeModel.Presentation.Greeting,
+        ) -> some View {
+            let report = PreviewSupport.loadedYearReportModel()
+            let welcome = LocationWelcomeModel(
+                services: report.services,
+                preferences: report.preferences,
+            )
+            welcome.presentForTesting(region: .california, greeting: greeting)
+            return LocationsView(report: report, welcome: welcome)
         }
     }
 

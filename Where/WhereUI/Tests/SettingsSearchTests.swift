@@ -59,6 +59,15 @@ struct SettingsSearchTests {
         })
     }
 
+    @Test func matchesLocationWelcomeVisibilityOnGreetingKeyword() {
+        let results = SettingsCatalog.results(matching: "greeting")
+
+        #expect(results.contains {
+            $0.destination == .appearance
+                && $0.title == String(localized: .settingsAppearanceLocationWelcomeToggle)
+        })
+    }
+
     @Test func matchesTheRankingAnimationLabOnMotionKeyword() {
         let results = SettingsCatalog.results(matching: "overtake")
 
