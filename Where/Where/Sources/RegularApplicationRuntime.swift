@@ -22,6 +22,8 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
     private(set) var launcher: LifecycleRunner<WhereSession>!
     private let automaticBackupScheduler: AutomaticBackupBackgroundScheduler
     private let backupRecoveryKeys: BackupRecoveryKeyProvider
+    private let firstUnlockAvailability: FirstUnlockAvailability
+    private var launchBackupClaimedByBackgroundTask = false
     private let logger = Logger(subsystem: "com.stuff.where", category: "AutomaticBackup")
 
     #if DEBUG
@@ -44,8 +46,10 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             developerLaunchController: WhereDeveloperLaunchController? = nil,
         ) {
             let automaticBackupScheduler = AutomaticBackupBackgroundScheduler()
+            let firstUnlockAvailability = FirstUnlockAvailability.applicationSupport()
+            self.firstUnlockAvailability = firstUnlockAvailability
             let backupRecoveryKeys = BackupRecoveryKeyProvider.system {
-                await MainActor.run { UIApplication.shared.isProtectedDataAvailable }
+                await firstUnlockAvailability.isAvailable()
             }
             self.automaticBackupScheduler = automaticBackupScheduler
             self.backupRecoveryKeys = backupRecoveryKeys
@@ -77,8 +81,10 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging,
         ) {
             let automaticBackupScheduler = AutomaticBackupBackgroundScheduler()
+            let firstUnlockAvailability = FirstUnlockAvailability.applicationSupport()
+            self.firstUnlockAvailability = firstUnlockAvailability
             let backupRecoveryKeys = BackupRecoveryKeyProvider.system {
-                await MainActor.run { UIApplication.shared.isProtectedDataAvailable }
+                await firstUnlockAvailability.isAvailable()
             }
             self.automaticBackupScheduler = automaticBackupScheduler
             self.backupRecoveryKeys = backupRecoveryKeys
@@ -123,7 +129,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
     }
 
     func didFinishLaunching(
-        application: UIApplication,
+        application _: UIApplication,
         options _: [UIApplication.LaunchOptionsKey: Any]?,
     ) -> Bool {
         AppDependencyManager.shared
@@ -150,8 +156,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             }
         self.launcher = launcher
         Task { [weak self] in
-            guard application.isProtectedDataAvailable else {
-                self?.automaticBackupScheduler.retryAfterFirstUnlock()
+            guard await self?.firstUnlockAvailability.isAvailable() == true else {
                 return
             }
             await self?.driveLaunch()
@@ -163,12 +168,20 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
         Task { [weak self] in
             await self?.initializeRecoveryKey()
             await self?.driveLaunch()
+            if self?.launchBackupClaimedByBackgroundTask == true {
+                await self?.model.session?.runAutomaticBackupIfDue()
+            }
         }
     }
 
     private func driveLaunch() async {
         await launcher.run()
         guard !model.isInDemoMode else { return }
+        // The launcher owns recording, not backup execution. Keep the export
+        // out of its unstructured trunk so expiration can cancel the real job.
+        if !launchBackupClaimedByBackgroundTask {
+            await model.session?.runAutomaticBackupIfDue()
+        }
         await RegionSpotlightIndexer.indexRegions(resolving: intentServices)
     }
 
@@ -185,21 +198,41 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
     }
 
     private func performBackgroundBackup() async -> Bool {
-        guard UIApplication.shared.isProtectedDataAvailable else {
+        launchBackupClaimedByBackgroundTask = true
+        guard await firstUnlockAvailability.isAvailable() else {
             // Crucially, do not drive the launcher: resolving the scope would
             // open the store before first unlock.
             automaticBackupScheduler.retryAfterFirstUnlock()
             return false
         }
 
-        await launcher.run()
+        // didFinishLaunching already drives the shared launch. Do not await
+        // its unstructured task or park behind an unanswered onboarding gate.
+        do {
+            let isReady = try await AutomaticBackupLaunchReadiness.wait {
+                switch launcher.phase {
+                    case .awaitingGate, .failed: .unavailable
+                    case .launching, .running: .pending
+                    case .ready: .ready
+                }
+            }
+            guard isReady else {
+                await automaticBackupScheduler.reconcile(isEnabled: false, earliestBeginDate: nil)
+                return false
+            }
+            try Task.checkCancellation()
+        } catch {
+            await model.activeScope?.services.automaticBackups?.cancelCurrentRun()
+            if model.session == nil { automaticBackupScheduler.retryAfterFirstUnlock() }
+            return false
+        }
         guard let result = await model.session?.runAutomaticBackupIfDue() else {
-            automaticBackupScheduler.retryAfterFirstUnlock()
+            if model.session == nil { automaticBackupScheduler.retryAfterFirstUnlock() }
             return false
         }
         switch result {
             case .disabled, .notDue, .alreadyRunning, .completed:
-                return true
+                return !Task.isCancelled
             case .deferredUntilFirstUnlock:
                 automaticBackupScheduler.retryAfterFirstUnlock()
                 return false

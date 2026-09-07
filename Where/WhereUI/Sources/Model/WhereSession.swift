@@ -364,6 +364,12 @@ public final class WhereSession {
             for await update in updates {
                 guard let self else { break }
                 applyRecordingRuntimeUpdate(update)
+                await services.automaticBackups?.reconcileSchedule(configuration: .init(
+                    isEnabled: preferences.automaticBackupsEnabled,
+                    isRecordingEnabled: isAutomaticRecordingEnabled,
+                    interval: preferences.automaticBackupInterval,
+                    lastSuccessfulBackupAt: preferences.lastAutomaticBackupAt,
+                ))
             }
         }
     }
@@ -520,6 +526,7 @@ public final class WhereSession {
     @discardableResult
     public func runAutomaticBackupIfDue() async -> AutomaticBackupRunResult? {
         guard let automaticBackups = services.automaticBackups else { return nil }
+        let generation = preferences.resetGeneration
         do {
             let result = try await automaticBackups.runIfDue(configuration: .init(
                 isEnabled: preferences.automaticBackupsEnabled,
@@ -528,7 +535,7 @@ public final class WhereSession {
                 lastSuccessfulBackupAt: preferences.lastAutomaticBackupAt,
             ))
             if case let .completed(exportedAt) = result {
-                preferences.lastAutomaticBackupAt = exportedAt
+                preferences.recordAutomaticBackupSuccess(at: exportedAt, generation: generation)
             }
             return result
         } catch {

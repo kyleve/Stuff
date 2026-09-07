@@ -1,5 +1,10 @@
 # Where (app target)
 
+Automatic backups run outside the recording launch trunk. Background expiration
+cancels their shared operation without cancelling recording launch. A Class C
+file probe distinguishes first-unlock protection from an ordinary screen lock.
+The handler exits at an unanswered onboarding gate and retries after unlock.
+
 The iOS/iPadOS app bundle for **Where**.
 It is deliberately a shell.
 It starts the process, builds the objects everything else shares, and shows `WhereUI`'s `RootView`.

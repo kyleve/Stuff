@@ -625,6 +625,7 @@ public final class WhereModel {
     /// false or unset, so the relaunch parks for the user before anything
     /// re-opens. The old container is long gone by the time they answer.
     private func logOut() async {
+        await activeScope?.services.automaticBackups?.shutDown()
         await activeScope?.stopLogRouting()
         session = nil
         scopeState = .loggedOut(bootstrap: makeBootstrap(installationContextStore))
