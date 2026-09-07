@@ -61,6 +61,19 @@ struct WhereStylesheetTests {
         #expect(welcome.close.glow == .init(opacity: 0.28, radius: 8))
         #expect(welcome.close.lift == .init(opacity: 0.22, radius: 5, offsetY: 3))
         #expect(welcome.motion == .standard)
+        #expect(welcome.motion.arrival == .init(
+            animation: .spring(duration: 0.3, bounce: 0.28),
+            scale: 1.28,
+            rotationDegrees: -9,
+            verticalOffset: -24,
+        ))
+        #expect(welcome.motion.departure == .init(
+            animation: .easeOut(duration: 0.16),
+            scale: 1.045,
+            rotationDegrees: 3,
+            verticalOffset: -10,
+        ))
+        #expect(welcome.motion.scrimAnimation == .easeOut(duration: 0.16))
     }
 
     @Test func regularCardStyle() {
@@ -842,6 +855,15 @@ struct WhereStylesheetTests {
         #expect(resolved.locationCardStack.overtake.usesSpatialMotion == false)
         #expect(resolved.locationWelcome.motion == .reduced)
         #expect(resolved.locationWelcome.motion.usesSpatialMotion == false)
+        #expect(resolved.locationWelcome.motion.arrival == .init(
+            animation: .easeInOut(duration: 0.16),
+            scale: 1,
+            rotationDegrees: 0,
+            verticalOffset: 0,
+        ))
+        #expect(resolved.locationWelcome.motion.departure == resolved.locationWelcome.motion
+            .arrival)
+        #expect(resolved.locationWelcome.motion.scrimAnimation == .easeInOut(duration: 0.16))
         #expect(resolved.developerOverlay.menu.motion == .reduced)
         #expect(resolved.developerOverlay.menu.motion.usesSpatialMotion == false)
     }

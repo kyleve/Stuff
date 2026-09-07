@@ -112,16 +112,12 @@ struct LocationsView: View {
         }
         .accessibilityHidden(welcomePresentation != nil)
         .overlay {
-            if let presentation = welcomePresentation {
-                LocationWelcomeOverlay(
-                    presentation: presentation,
-                    dismissAction: welcome.dismiss,
-                    planStayAction: welcomePlanStayAction,
-                )
-                .transition(stylesheet.locationWelcome.motion.transition)
-            }
+            LocationWelcomeOverlay(
+                presentation: welcomePresentation,
+                dismissAction: welcome.dismiss,
+                planStayAction: welcomePlanStayAction,
+            )
         }
-        .animation(stylesheet.locationWelcome.motion.animation, value: welcomePresentation)
         .task(id: isWelcomeLookupActive) {
             guard isWelcomeLookupActive else { return }
             await welcome.resolve()
@@ -306,7 +302,7 @@ struct LocationsView: View {
     }
 
     private func planStayFromWelcome(_ region: Region) {
-        withAnimation(stylesheet.locationWelcome.motion.animation) {
+        withAnimation(stylesheet.locationWelcome.motion.departure.animation) {
             welcome.dismiss()
         } completion: {
             editPlannedStay(region)

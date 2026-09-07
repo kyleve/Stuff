@@ -131,33 +131,74 @@ extension WhereStylesheet {
         }
 
         struct Motion: Equatable {
-            var animation: Animation
-            var scale: CGFloat
-            var verticalOffset: CGFloat
+            var arrival: Movement
+            var departure: Movement
+            var scrimAnimation: Animation
             var usesSpatialMotion: Bool
 
-            var transition: AnyTransition {
-                let base: AnyTransition = usesSpatialMotion
-                    ? .scale(scale: scale).combined(with: .offset(y: verticalOffset))
+            struct Movement: Equatable {
+                var animation: Animation
+                var scale: CGFloat
+                var rotationDegrees: Double
+                var verticalOffset: CGFloat
+
+                var transition: AnyTransition {
+                    .modifier(
+                        active: LocationWelcomeTransitionModifier(
+                            scale: scale,
+                            rotationDegrees: rotationDegrees,
+                            verticalOffset: verticalOffset,
+                        ),
+                        identity: LocationWelcomeTransitionModifier(
+                            scale: 1,
+                            rotationDegrees: 0,
+                            verticalOffset: 0,
+                        ),
+                    )
                     .combined(with: .opacity)
-                    : .opacity
-                return .asymmetric(
-                    insertion: base.animation(animation),
-                    removal: base.animation(animation),
+                }
+            }
+
+            var transition: AnyTransition {
+                .asymmetric(
+                    insertion: (usesSpatialMotion ? arrival.transition : .opacity)
+                        .animation(arrival.animation),
+                    removal: (usesSpatialMotion ? departure.transition : .opacity)
+                        .animation(departure.animation),
                 )
             }
 
             static let standard = Motion(
-                animation: .spring(duration: 0.62, bounce: 0.32),
-                scale: 0.78,
-                verticalOffset: 34,
+                arrival: Movement(
+                    animation: .spring(duration: 0.3, bounce: 0.28),
+                    scale: 1.28,
+                    rotationDegrees: -9,
+                    verticalOffset: -24,
+                ),
+                departure: Movement(
+                    animation: .easeOut(duration: 0.16),
+                    scale: 1.045,
+                    rotationDegrees: 3,
+                    verticalOffset: -10,
+                ),
+                scrimAnimation: .easeOut(duration: 0.16),
                 usesSpatialMotion: true,
             )
 
             static let reduced = Motion(
-                animation: .easeInOut(duration: 0.18),
-                scale: 1,
-                verticalOffset: 0,
+                arrival: Movement(
+                    animation: .easeInOut(duration: 0.16),
+                    scale: 1,
+                    rotationDegrees: 0,
+                    verticalOffset: 0,
+                ),
+                departure: Movement(
+                    animation: .easeInOut(duration: 0.16),
+                    scale: 1,
+                    rotationDegrees: 0,
+                    verticalOffset: 0,
+                ),
+                scrimAnimation: .easeInOut(duration: 0.16),
                 usesSpatialMotion: false,
             )
         }
