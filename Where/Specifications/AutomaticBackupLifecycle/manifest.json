@@ -1,0 +1,46 @@
+{
+  "source": "pluscal",
+  "module": "AutomaticBackupLifecycle.tla",
+  "cases": [
+    {
+      "name": "candidate",
+      "config": "Candidate.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "candidate-two-runs",
+      "config": "CandidateTwoRuns.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "review-ui",
+      "config": "ReviewUI.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant UIHasNoCancellationAuthority is violated."
+    },
+    {
+      "name": "review-unlock",
+      "config": "ReviewUnlock.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoEarlyContextRead is violated."
+    },
+    {
+      "name": "broken-drain",
+      "config": "BrokenDrain.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoWriteAfterRetirement is violated."
+    },
+    {
+      "name": "broken-generation",
+      "config": "BrokenGeneration.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoStalePreference is violated."
+    },
+    {
+      "name": "reachability",
+      "config": "Reachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant CriticalStateNotReached is violated."
+    }
+  ]
+}

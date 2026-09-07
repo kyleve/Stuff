@@ -1,0 +1,34 @@
+{
+  "source": "pluscal",
+  "module": "RecoveryKeyPublication.tla",
+  "cases": [
+    {
+      "name": "current",
+      "config": "Current.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-three-devices",
+      "config": "CurrentThreeDevices.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "mutable-slot",
+      "config": "MutableSlot.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RecoveryKeysSurviveSync is violated."
+    },
+    {
+      "name": "publish-first",
+      "config": "PublishFirst.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant KeyPrecedesArchive is violated."
+    },
+    {
+      "name": "reachability",
+      "config": "Reachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant CriticalStateNotReached is violated."
+    }
+  ]
+}
