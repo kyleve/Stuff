@@ -10,8 +10,9 @@ import RegionKit
 /// by hand after the phone was off, a couple of corrected attributions, and a
 /// few recent days still unlogged — so that the calendar, the year report, and
 /// the Resolve tab all have something true to show. Everything is bound to the
-/// **current** year and stops at `now`: a demo entered in March shows a
-/// March-shaped year, not a full one.
+/// **current** year and stops at its injected reference date: ordinarily that
+/// is `now`, while the first days of January may move forward inside the
+/// in-memory demo so every requested detector fixture has enough calendar days.
 ///
 /// The script is derived from the year, so entering demo mode twice in a day
 /// produces the same data. Every feature is sized against how much of the year
@@ -25,6 +26,46 @@ import RegionKit
 /// rather than catalog lookups: they stand in for what a user typed, the same
 /// as the coordinates stand in for where they went, and neither is app chrome.
 public struct DemoDataBuilder: Sendable {
+    /// Selects which unresolved issue workflows the generated year demonstrates.
+    public struct Configuration: Codable, Equatable, Sendable {
+        public let issueCategories: Set<DataIssueCategory>
+
+        public init(issueCategories: Set<DataIssueCategory>) {
+            self.issueCategories = issueCategories
+        }
+
+        /// The one-tap onboarding demo's established shape.
+        public static let standard = Configuration(issueCategories: [.missingDays])
+
+        /// A developer showcase containing every Resolve workflow.
+        public static let allIssues =
+            Configuration(issueCategories: Set(DataIssueCategory.allCases))
+
+        /// Move a demo-only clock forward when the current year does not yet
+        /// contain enough days to keep the selected detector fixtures separate.
+        public func referenceDate(from requestedDate: Date, calendar: Calendar) -> Date {
+            let elapsedDays = calendar.ordinality(of: .day, in: .year, for: requestedDate) ?? 1
+            let requiredElapsedDays = issueCategories.map { category in
+                switch category {
+                    case .missingDays: 2
+                    case .abruptChange: 3
+                    case .borderDrift: 4
+                    case .flightDay: 5
+                }
+            }.max() ?? 1
+            guard elapsedDays < requiredElapsedDays else { return requestedDate }
+            guard let referenceDate = calendar.date(
+                byAdding: .day,
+                value: requiredElapsedDays - elapsedDays,
+                to: requestedDate,
+            ) else {
+                assertionFailure("Could not advance the demo reference date")
+                return requestedDate
+            }
+            return referenceDate
+        }
+    }
+
     /// Where the demo user lives. Coordinates verified to fall inside the
     /// bundled polygons (the same set `NewYorkHeavyYearTests` pins).
     private static let newYorkPlaces = [
@@ -64,6 +105,7 @@ public struct DemoDataBuilder: Sendable {
 
     private let now: Date
     private let calendar: Calendar
+    private let configuration: Configuration
 
     /// - Parameters:
     ///   - now: the instant the demo year runs up to — its last day, and the
@@ -72,8 +114,16 @@ public struct DemoDataBuilder: Sendable {
     ///     the reading side aggregates with (Gregorian, current time zone), or
     ///     the seeded days land in different buckets than they're read from.
     public init(now: Date, calendar: Calendar) {
+        self.init(now: now, calendar: calendar, configuration: .standard)
+    }
+
+    /// Build a demo year containing exactly the requested issue categories.
+    /// Pass ``Configuration/referenceDate(from:calendar:)`` as `now` when the
+    /// requested date may be too early in its year for those fixtures.
+    public init(now: Date, calendar: Calendar, configuration: Configuration) {
         self.now = now
         self.calendar = calendar
+        self.configuration = configuration
     }
 
     /// Write the demo year into `services`: the tracked regions, then the
@@ -200,6 +250,7 @@ public struct DemoDataBuilder: Sendable {
                     break
             }
         }
+        addConfiguredIssueFixtures(to: &script, elapsedDays: elapsedDays, using: &random)
         return script
     }
 
@@ -278,13 +329,15 @@ public struct DemoDataBuilder: Sendable {
         // The outstanding issues: a few recent days nothing was recorded for.
         // Only plain days at home are eligible, so a lapse never eats a trip's
         // travel day, and never today — which the app itself would fill in.
-        let unloggedCount = min(Self.maximumUnloggedDays, max(1, elapsedDays / 30))
-        var unlogged = 0
-        for offset in Self.unloggedDayOffsets where unlogged < unloggedCount {
-            let candidate = elapsedDays - offset
-            guard candidate >= 1, kinds[candidate] == .home else { continue }
-            kinds[candidate] = .missing
-            unlogged += 1
+        if configuration.issueCategories.contains(.missingDays) {
+            let unloggedCount = min(Self.maximumUnloggedDays, max(1, elapsedDays / 30))
+            var unlogged = 0
+            for offset in Self.unloggedDayOffsets where unlogged < unloggedCount {
+                let candidate = elapsedDays - offset
+                guard candidate >= 1, kinds[candidate] == .home else { continue }
+                kinds[candidate] = .missing
+                unlogged += 1
+            }
         }
 
         // A day or two the user corrected after the fact.
@@ -293,9 +346,162 @@ public struct DemoDataBuilder: Sendable {
             let corrected = day(atFraction: fraction)
             if kinds[corrected] == .home {
                 kinds[corrected] = .corrected
+                // Keep the correction from manufacturing an abrupt-change
+                // issue unless that category was explicitly requested.
+                for neighbor in [corrected - 1, corrected + 1]
+                    where kinds[neighbor] == .home
+                {
+                    kinds[neighbor] = .travel
+                }
             }
         }
         return kinds
+    }
+
+    /// Layer deterministic detector fixtures over the plausible baseline.
+    /// Each fixture owns complete days so categories remain independently selectable.
+    private func addConfiguredIssueFixtures(
+        to script: inout Script,
+        elapsedDays: Int,
+        using random: inout SeededRandom,
+    ) {
+        guard elapsedDays > 0 else { return }
+        var detectorFixtureDays: Set<Int> = []
+
+        func allocatedDay(_ fraction: Double, minimum: Int) -> Int {
+            max(minimum, min(elapsedDays, Int((Double(elapsedDays) * fraction).rounded())))
+        }
+
+        if configuration.issueCategories.contains(.abruptChange), elapsedDays >= 3 {
+            let first = elapsedDays < 30 ? 2 : allocatedDay(0.30, minimum: 2)
+            replaceDay(first, in: &script) { date in
+                samples(on: date, in: Self.californiaPlaces, using: &random)
+            }
+            replaceDay(min(first + 1, elapsedDays), in: &script) { date in
+                samples(on: date, in: Self.newYorkPlaces, using: &random)
+            }
+        }
+
+        if configuration.issueCategories.contains(.borderDrift), elapsedDays >= 4 {
+            let day = elapsedDays < 30 ? 4 : allocatedDay(0.44, minimum: 4)
+            detectorFixtureDays.insert(day)
+            replaceDay(day, in: &script) { date in
+                var samples = samples(on: date, in: Self.newYorkPlaces, using: &random)
+                for point in Self.borderDriftCoordinates {
+                    samples.append(sample(
+                        on: date,
+                        hour: 18 + samples.count,
+                        at: point,
+                        source: .gpsSignificantChange,
+                        using: &random,
+                        jittersCoordinate: false,
+                    ))
+                }
+                return samples
+            }
+        }
+
+        if configuration.issueCategories.contains(.flightDay), elapsedDays >= 5 {
+            let day = elapsedDays < 30 ? 5 : allocatedDay(0.70, minimum: 5)
+            detectorFixtureDays.insert(day)
+            replaceDay(day, in: &script) { date in
+                Self.flightCoordinates.enumerated().map { index, coordinate in
+                    sample(
+                        on: date,
+                        hour: 8 + index,
+                        at: coordinate,
+                        source: index == 0 ? .gpsVisit : .gpsSignificantChange,
+                        using: &random,
+                        jittersCoordinate: false,
+                    )
+                }
+            }
+        }
+
+        // On a very short year the ordinary recent-gap allocator can collide
+        // with the fixed detector fixtures. Reserve day one as the gap.
+        if configuration.issueCategories.contains(.missingDays), elapsedDays < 30 {
+            clear(dayOfYear: 1, in: &script)
+        }
+
+        if configuration.issueCategories.contains(.abruptChange) == false {
+            preventFixtureDaysFromCreatingAbruptChanges(
+                around: detectorFixtureDays,
+                in: &script,
+                using: &random,
+            )
+        }
+    }
+
+    private func preventFixtureDaysFromCreatingAbruptChanges(
+        around fixtureDays: Set<Int>,
+        in script: inout Script,
+        using random: inout SeededRandom,
+    ) {
+        for fixtureDay in fixtureDays.sorted() {
+            for neighbor in [fixtureDay - 1, fixtureDay + 1] {
+                guard fixtureDays.contains(neighbor) == false,
+                      contains(dayOfYear: neighbor, in: script)
+                else { continue }
+                replaceDay(neighbor, in: &script) { date in
+                    [
+                        sample(
+                            on: date,
+                            hour: 7,
+                            at: Self.newYorkPlaces[0],
+                            source: .gpsVisit,
+                            using: &random,
+                        ),
+                        sample(
+                            on: date,
+                            hour: 21,
+                            at: Self.californiaPlaces[0],
+                            source: .gpsSignificantChange,
+                            using: &random,
+                        ),
+                    ]
+                }
+            }
+        }
+    }
+
+    private static let borderDriftCoordinates = [
+        Coordinate(latitude: 40.80015, longitude: -73.99439),
+        Coordinate(latitude: 40.81084, longitude: -73.98805),
+    ]
+
+    private static let flightCoordinates = [
+        Coordinate(latitude: 40.6413, longitude: -73.7781),
+        Coordinate(latitude: 40.6413, longitude: -73.7781),
+        Coordinate(latitude: 40.29, longitude: -90.39),
+        Coordinate(latitude: 39.53, longitude: -106.16),
+        Coordinate(latitude: 38.68, longitude: -116.90),
+        Coordinate(latitude: 37.6213, longitude: -122.3790),
+        Coordinate(latitude: 37.6213, longitude: -122.3790),
+    ]
+
+    private func replaceDay(
+        _ dayOfYear: Int,
+        in script: inout Script,
+        with makeSamples: (Date) -> [LocationSample],
+    ) {
+        guard let date = date(dayOfYear: dayOfYear) else { return }
+        clear(dayOfYear: dayOfYear, in: &script)
+        script.samples.append(contentsOf: makeSamples(date))
+    }
+
+    private func clear(dayOfYear: Int, in script: inout Script) {
+        guard let date = date(dayOfYear: dayOfYear) else { return }
+        script.samples.removeAll { calendar.isDate($0.timestamp, inSameDayAs: date) }
+        script.backfills.removeAll { calendar.isDate($0.date, inSameDayAs: date) }
+        script.corrections.removeAll { calendar.isDate($0.date, inSameDayAs: date) }
+    }
+
+    private func contains(dayOfYear: Int, in script: Script) -> Bool {
+        guard let date = date(dayOfYear: dayOfYear) else { return false }
+        return script.samples.contains { calendar.isDate($0.timestamp, inSameDayAs: date) }
+            || script.backfills.contains { calendar.isDate($0.date, inSameDayAs: date) }
+            || script.corrections.contains { calendar.isDate($0.date, inSameDayAs: date) }
     }
 
     /// Days back from today to consider leaving unlogged, spaced first so the
@@ -335,10 +541,11 @@ public struct DemoDataBuilder: Sendable {
         at place: Coordinate,
         source: SampleSource,
         using random: inout SeededRandom,
+        jittersCoordinate: Bool = true,
     ) -> LocationSample {
         let coordinate = Coordinate(
-            latitude: place.latitude + jitter(using: &random),
-            longitude: place.longitude + jitter(using: &random),
+            latitude: place.latitude + (jittersCoordinate ? jitter(using: &random) : 0),
+            longitude: place.longitude + (jittersCoordinate ? jitter(using: &random) : 0),
         )
         let timestamp = calendar.date(byAdding: .hour, value: hour, to: date) ?? date
         return LocationSample(

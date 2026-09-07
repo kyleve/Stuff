@@ -1632,7 +1632,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tune card presentation live and export the result for implementation."
+            "value" : "Tune and export card content, or preview the ranked-card animation."
           }
         }
       }
@@ -2597,6 +2597,90 @@
         }
       }
     },
+    "developer.demo.cancelScheduled" : {
+      "comment" : "Button that removes a scheduled one-shot demo launch.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Cancel Scheduled Demo"
+          }
+        }
+      }
+    },
+    "developer.demo.cleanBaseline" : {
+      "comment" : "Developer menu status for a scheduled demo with no unresolved issue fixtures.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Clean baseline"
+          }
+        }
+      }
+    },
+    "developer.demo.issues.footer" : {
+      "comment" : "Footer explaining the next-launch demo issue checklist.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Selected issue types appear in Resolve. Clear every option for a clean demo year."
+          }
+        }
+      }
+    },
+    "developer.demo.issues.header" : {
+      "comment" : "Header above the next-launch demo issue checklist.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show in Resolve"
+          }
+        }
+      }
+    },
+    "developer.demo.nextLaunch" : {
+      "comment" : "Developer menu button that configures a one-shot in-memory demo for the next launch.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Demo on Next Launch"
+          }
+        }
+      }
+    },
+    "developer.demo.schedule" : {
+      "comment" : "Confirmation button that schedules the configured demo for the next launch.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Schedule"
+          }
+        }
+      }
+    },
+    "developer.demo.sheetTitle" : {
+      "comment" : "Title of the developer sheet that configures the next demo launch.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Next Launch Demo"
+          }
+        }
+      }
+    },
     "developer.dragHandle" : {
       "comment" : "Accessibility label for the handle that drags the floating developer window.",
       "extractionState" : "manual",
@@ -3271,6 +3355,18 @@
         }
       }
     },
+    "locationCard.estimateLabel" : {
+      "comment" : "Short noun labeling an annual estimate on a primary location card.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimate"
+          }
+        }
+      }
+    },
     "locationCard.estimatedDays" : {
       "comment" : "Compact label above a location card progress bar. The placeholder is an already-localized day count, for example '184 days'.",
       "extractionState" : "manual",
@@ -3361,6 +3457,40 @@
         }
       }
     },
+    "locationForecast.editor.locationChecking" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Checking your current location"
+          }
+        }
+      }
+    },
+    "locationForecast.editor.locationOutside" : {
+      "comment" : "Advisory shown when the device is outside the selected planned-stay region and its configured border-drift threshold. The first placeholder is the region name. The second is a localized distance, for example '1 km'.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your current location is not in %1$@ or within the %2$@ drift threshold. You can still save this plan."
+          }
+        }
+      }
+    },
+    "locationForecast.editor.locationUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your current location is unavailable. You can still save this plan."
+          }
+        }
+      }
+    },
     "locationForecast.editor.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3441,6 +3571,54 @@
         }
       }
     },
+    "locationWelcome.dismiss" : {
+      "comment" : "Accessibility label for the close button on the live-region welcome card.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close welcome"
+          }
+        }
+      }
+    },
+    "locationWelcome.firstTitle" : {
+      "comment" : "Title shown for the first live tracked region. The argument is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welcome to %@"
+          }
+        }
+      }
+    },
+    "locationWelcome.message" : {
+      "comment" : "Explains automatic day counting. The argument is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starting today, days Where records you here will count toward %@."
+          }
+        }
+      }
+    },
+    "locationWelcome.returnTitle" : {
+      "comment" : "Title shown after the user moves to another tracked region. The argument is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welcome back to %@"
+          }
+        }
+      }
+    },
     "locations.elsewhere.subtitle" : {
       "comment" : "Subtitle on the Locations tab's Elsewhere entry card: region count.",
       "extractionState" : "manual",
@@ -3449,6 +3627,97 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "^[%lld region](inflect: true)"
+          }
+        }
+      }
+    },
+    "locations.planning.assign" : {
+      "comment" : "Menu action for assigning the planned stay to a primary-card region. The placeholder is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plan a Stay in %@"
+          }
+        }
+      }
+    },
+    "locations.planning.assignSection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plan For"
+          }
+        }
+      }
+    },
+    "locations.planning.currentSection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Current Plan"
+          }
+        }
+      }
+    },
+    "locations.planning.currentValue" : {
+      "comment" : "Accessibility value for the Locations planning toolbar menu. The placeholder is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Current plan: %@"
+          }
+        }
+      }
+    },
+    "locations.planning.edit" : {
+      "comment" : "Menu action for editing the active planned stay. The placeholder is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Edit %@ Plan"
+          }
+        }
+      }
+    },
+    "locations.planning.menu" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plan a Stay"
+          }
+        }
+      }
+    },
+    "locations.planning.noCurrentValue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No current plan"
+          }
+        }
+      }
+    },
+    "locations.planning.removeError.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Couldn’t Remove Plan"
           }
         }
       }
@@ -4398,6 +4667,149 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Timeline"
+          }
+        }
+      }
+    },
+    "rankingAnimation.bounce" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spring Bounce"
+          }
+        }
+      }
+    },
+    "rankingAnimation.delay.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The count and card order wait 0.5 seconds, then update together."
+          }
+        }
+      }
+    },
+    "rankingAnimation.duration" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duration"
+          }
+        }
+      }
+    },
+    "rankingAnimation.lateralArc" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passing Arc"
+          }
+        }
+      }
+    },
+    "rankingAnimation.liftScale" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lift Scale"
+          }
+        }
+      }
+    },
+    "rankingAnimation.motion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Motion"
+          }
+        }
+      }
+    },
+    "rankingAnimation.play" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play Next Overtake"
+          }
+        }
+      }
+    },
+    "rankingAnimation.preview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live Preview"
+          }
+        }
+      }
+    },
+    "rankingAnimation.reduceMotion.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reduce Motion is on. The preview uses a fade instead of spatial motion."
+          }
+        }
+      }
+    },
+    "rankingAnimation.rotation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rotation"
+          }
+        }
+      }
+    },
+    "rankingAnimation.settings.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ranking animation motion cards overtake spring passport"
+          }
+        }
+      }
+    },
+    "rankingAnimation.settleScale" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stamp Compression"
+          }
+        }
+      }
+    },
+    "rankingAnimation.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ranking Animation Lab"
           }
         }
       }
@@ -5733,6 +6145,52 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Estimated time & planning"
+          }
+        }
+      }
+    },
+    "settings.appearance.locationWelcome.footer" : {
+      "comment" : "Explains when the live-region welcome card appears.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show a welcome card when Where starts counting days toward a different tracked region."
+          }
+        }
+      }
+    },
+    "settings.appearance.locationWelcome.reset.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Developer: Clear the saved welcome region, then return to Locations to show the card again."
+          }
+        }
+      }
+    },
+    "settings.appearance.locationWelcome.reset.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset Welcome Card"
+          }
+        }
+      }
+    },
+    "settings.appearance.locationWelcome.toggle" : {
+      "comment" : "Toggle that controls whether live-region welcome cards appear on the Locations tab.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Region welcome cards"
           }
         }
       }
@@ -8130,6 +8588,18 @@
         }
       }
     },
+    "settings.keywords.locationWelcome" : {
+      "comment" : "Comma-separated Settings search keywords for the live-region welcome visibility toggle.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "welcome, greeting, region, location, card, arrival"
+          }
+        }
+      }
+    },
     "settings.keywords.loggedDays" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8576,6 +9046,17 @@
         }
       }
     },
+    "settings.regions.manage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Manage Regions"
+          }
+        }
+      }
+    },
     "settings.regions.row" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8583,6 +9064,17 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Primary regions"
+          }
+        }
+      }
+    },
+    "settings.regions.saveError.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Unable to Save Regions"
           }
         }
       }

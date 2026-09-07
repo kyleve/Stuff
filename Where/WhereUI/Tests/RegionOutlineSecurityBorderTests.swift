@@ -51,4 +51,21 @@ struct RegionOutlineSecurityBorderTests {
                 && placement.rotation.isFinite
         })
     }
+
+    @Test func artworkRepeatsInSourceOrder() {
+        #expect((0 ..< 8).map {
+            RegionOutlineSecurityBorder.artworkIndex(at: $0, artworkCount: 3)
+        } == [0, 1, 2, 0, 1, 2, 0, 1])
+    }
+
+    @Test func oneArtworkFillsEveryPlacement() {
+        #expect((0 ..< 8).allSatisfy {
+            RegionOutlineSecurityBorder.artworkIndex(at: $0, artworkCount: 1) == 0
+        })
+    }
+
+    @Test func emptyArtworkHasNoSelection() {
+        #expect(RegionOutlineSecurityBorder.artworkIndex(at: 0, artworkCount: 0) == nil)
+        #expect(RegionOutlineSecurityBorder.artworkIndex(at: -1, artworkCount: 2) == nil)
+    }
 }

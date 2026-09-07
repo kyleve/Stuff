@@ -8,6 +8,7 @@ struct PresenceJourneyRow: View {
     let daysInYear: Int
     let isFirst: Bool
     let isLast: Bool
+    let cardPosition: PresenceJourneyCardPosition
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
@@ -27,6 +28,7 @@ struct PresenceJourneyRow: View {
             : AnyLayout(HStackLayout(alignment: .center, spacing: row.spacing))
         let proportionalHeight = row.baseHeight
             + row.yearScaleHeight * CGFloat(stint.dayCount) / CGFloat(daysInYear)
+        let cardShape = cardPosition.shape(cornerRadius: row.cornerRadius)
 
         HStack(spacing: rail.toCardSpacing) {
             Color.clear
@@ -56,18 +58,18 @@ struct PresenceJourneyRow: View {
             .padding(.horizontal, row.horizontalPadding)
             .padding(.vertical, row.verticalPadding)
             .background {
-                RoundedRectangle(cornerRadius: row.cornerRadius)
-                    .fill(style.tint.opacity(row.fillOpacity))
+                cardShape.fill(style.tint.opacity(row.fillOpacity))
             }
             .overlay {
-                RoundedRectangle(cornerRadius: row.cornerRadius)
-                    .stroke(
-                        style.tint.opacity(row.borderOpacity),
-                        lineWidth: row.borderWidth,
-                    )
+                PresenceJourneyCardBorder(
+                    position: cardPosition,
+                    cornerRadius: row.cornerRadius,
+                    color: style.tint.opacity(row.borderOpacity),
+                    lineWidth: row.borderWidth,
+                )
             }
         }
-        .padding(.vertical, row.gap / 2)
+        .padding(cardPosition.gapEdges, row.gap / 2)
         .background(alignment: .leading) {
             PresenceJourneyRail(
                 tint: style.tint,
@@ -99,6 +101,7 @@ struct PresenceJourneyRow: View {
                 daysInYear: report.daysInSelectedYear,
                 isFirst: true,
                 isLast: false,
+                cardPosition: .standalone,
             )
             .padding()
             .whereBroadwayRoot()

@@ -1,7 +1,6 @@
-import SFSafeSymbols
 import SwiftUI
 
-/// Forecast heading that optionally expands the compact Locations card.
+/// Forecast endorsement heading that optionally expands the Locations panel.
 struct LocationForecastHeader: View {
     let elapsedDays: Int?
     let isExpanded: Bool
@@ -10,59 +9,29 @@ struct LocationForecastHeader: View {
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .center, spacing: stylesheet.spacing.xSmall) {
-                title
-                Spacer(minLength: stylesheet.spacing.large)
-                elapsed
-            }
-
-            VStack(alignment: .leading, spacing: stylesheet.locationForecast.estimateSpacing) {
-                title
-                elapsed
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var title: some View {
         if let expansionAction {
             Button(action: expansionAction) {
-                Label {
-                    HStack(spacing: stylesheet.spacing.xSmall) {
-                        Text(String(localized: .locationForecastTitle))
-                        Image(systemSymbol: .chevronRight)
-                            .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                            .accessibilityHidden(true)
-                    }
-                } icon: {
-                    Image(systemSymbol: .chartLineUptrendXyaxis)
-                }
+                LocationForecastHeaderLabel(
+                    elapsedDays: elapsedDays,
+                    isExpanded: isExpanded,
+                    showsDisclosure: true,
+                )
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .foregroundStyle(stylesheet.locationForecast.collapsedLabelColor)
-            .frame(minHeight: 44)
+            .frame(
+                maxWidth: .infinity,
+                minHeight: stylesheet.locationForecast.header.minimumHeight,
+            )
             .accessibilityValue(String(localized: isExpanded
                     ? .locationForecastExpanded
                     : .locationForecastCollapsed))
         } else {
-            Label(
-                String(localized: .locationForecastTitle),
-                systemSymbol: .chartLineUptrendXyaxis,
+            LocationForecastHeaderLabel(
+                elapsedDays: elapsedDays,
+                isExpanded: true,
+                showsDisclosure: false,
             )
-        }
-    }
-
-    @ViewBuilder
-    private var elapsed: some View {
-        if let elapsedDays {
-            Text(WhereFormat.locationForecastElapsed(days: elapsedDays))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-                .fixedSize(horizontal: true, vertical: false)
         }
     }
 }

@@ -5,6 +5,7 @@
 #
 #   Ledger/install            build, install to /Applications, and launch
 #   Ledger/install --no-open  build and install, but don't launch
+#   Ledger/install --dry-run  validate and report without changing anything
 #   Ledger/install --help     show this help
 #
 # The app is ad-hoc code-signed, so it works without an Apple Developer account;
@@ -13,14 +14,17 @@
 set -euo pipefail
 
 APP_NAME="Ledger"
+BUNDLE_ID="com.stuff.ledger"
 DEST="/Applications/${APP_NAME}.app"
 OPEN_AFTER=1
+DRY_RUN=false
 
 for arg in "$@"; do
     case "$arg" in
         --no-open) OPEN_AFTER=0 ;;
+        --dry-run) DRY_RUN=true ;;
         -h | --help)
-            sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'
+            sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
             exit 0
             ;;
         *)
@@ -33,6 +37,36 @@ done
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
+installer() {
+    mise exec -- ruby Tools/app_installer.rb "$@" \
+        --app-name "$APP_NAME" --bundle-id "$BUNDLE_ID"
+}
+
+installed_pids() {
+    ps -ww -axo pid=,command= \
+        | installer pids --executable "$DEST/Contents/MacOS/$APP_NAME"
+}
+
+# Validate the exact replacement boundary before doing an expensive build.
+# An unrelated bundle, symlink, non-directory, or surprising destination is a
+# refusal rather than something the installer removes recursively.
+installer validate-destination --destination "$DEST"
+
+if [ "$DRY_RUN" = true ]; then
+    echo "==> Would generate the Xcode project"
+    echo "==> Would build $APP_NAME (Release)"
+    pids="$(installed_pids)"
+    if [ -n "$pids" ]; then
+        echo "==> Would terminate installed $APP_NAME process(es): $(printf '%s' "$pids" | tr '\n' ' ')"
+    fi
+    echo "==> Would stage and replace $DEST"
+    if [ "$OPEN_AFTER" -eq 1 ]; then
+        echo "==> Would launch $DEST"
+    fi
+    echo "Dry run — no project, build, process, or application was changed."
+    exit 0
+fi
+
 DERIVED="$(mktemp -d)"
 trap 'rm -rf "$DERIVED"' EXIT
 
@@ -40,9 +74,6 @@ echo "==> Generating the Xcode project"
 mise exec -- tuist generate --no-open >/dev/null
 
 echo "==> Building ${APP_NAME} (Release)"
-# Build straight through xcodebuild (not `tuist build`) so we control the
-# DerivedData path and can find the product. Ad-hoc signing keeps it
-# account-free while still satisfying SMAppService (launch-at-login) + Keychain.
 mise exec -- xcodebuild \
     -workspace "Stuff.xcworkspace" \
     -scheme "${APP_NAME}" \
@@ -55,25 +86,39 @@ mise exec -- xcodebuild \
     build
 
 BUILT="${DERIVED}/Build/Products/Release/${APP_NAME}.app"
-if [ ! -d "$BUILT" ]; then
-    echo "error: build product not found at ${BUILT}" >&2
-    exit 1
+installer validate-app --source "$BUILT"
+
+# SIGTERM gives the exact installed executable a bounded graceful shutdown.
+# Re-resolve by full argv executable on every poll; similarly named or
+# Xcode-launched copies elsewhere are never selected. Escalate only the exact
+# installed path, then prove it is gone before replacing the bundle.
+pids="$(installed_pids)"
+if [ -n "$pids" ]; then
+    echo "==> Terminating installed ${APP_NAME}"
+    read -r -a pid_array <<<"$(printf '%s' "$pids" | tr '\n' ' ')"
+    kill -TERM "${pid_array[@]}" 2>/dev/null || true
+    for _ in $(seq 1 50); do
+        [ -z "$(installed_pids)" ] && break
+        sleep 0.1
+    done
+    pids="$(installed_pids)"
+    if [ -n "$pids" ]; then
+        echo "warning: ${APP_NAME} did not terminate in 5 seconds; forcing the exact installed process" >&2
+        read -r -a pid_array <<<"$(printf '%s' "$pids" | tr '\n' ' ')"
+        kill -KILL "${pid_array[@]}" 2>/dev/null || true
+        for _ in $(seq 1 20); do
+            [ -z "$(installed_pids)" ] && break
+            sleep 0.1
+        done
+    fi
+    if [ -n "$(installed_pids)" ]; then
+        echo "error: the installed ${APP_NAME} process is still running; refusing to replace $DEST" >&2
+        exit 1
+    fi
 fi
 
 echo "==> Installing to ${DEST}"
-# Quit any running copy (an Xcode-launched one, or a previously installed one)
-# so the replace is clean. `quit` is asynchronous, so wait for the installed
-# binary to actually exit before replacing it, then force-kill as a fallback.
-INSTALLED_BIN="${DEST}/Contents/MacOS/${APP_NAME}"
-osascript -e "tell application \"${APP_NAME}\" to quit" >/dev/null 2>&1 || true
-for _ in $(seq 1 50); do
-    pgrep -f "$INSTALLED_BIN" >/dev/null 2>&1 || break
-    sleep 0.1
-done
-pkill -f "$INSTALLED_BIN" 2>/dev/null || true
-
-rm -rf "$DEST"
-cp -R "$BUILT" "$DEST"
+installer install --source "$BUILT" --destination "$DEST"
 
 echo "==> Installed ${APP_NAME} to ${DEST}"
 if [ "$OPEN_AFTER" -eq 1 ]; then

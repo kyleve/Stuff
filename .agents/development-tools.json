@@ -1,4 +1,9 @@
 {
+  "ShellCheck": {
+    "repo": "koalaman/shellcheck",
+    "ref": "aac0823e6b58f8a499e856e93738082691cbf212",
+    "version": "0.11.0"
+  },
   "TLA+ Tools": {
     "repo": "tlaplus/tlaplus",
     "ref": "5a47802b5c391f59ecdd44117981f4ff8c0656ba",

@@ -31,17 +31,17 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             #endif
         }()
 
-        private let inspectorModeController: InspectorModeController?
+        private let developerLaunchController: WhereDeveloperLaunchController?
 
         init(
             buildEnvironment: WhereBuildEnvironment,
             preferences: WherePreferences,
             effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration,
             applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging,
-            inspectorModeController: InspectorModeController? = nil,
+            developerLaunchController: WhereDeveloperLaunchController? = nil,
         ) {
             self.buildEnvironment = buildEnvironment
-            self.inspectorModeController = inspectorModeController
+            self.developerLaunchController = developerLaunchController
             intentServices = IntentServices(
                 appGroupIdentifier: buildEnvironment.appGroupIdentifier,
             )
@@ -57,6 +57,9 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
                 effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
                 applyRemoteLogging: applyRemoteLogging,
             )
+            if let configuration = developerLaunchController?.consumeDemoConfiguration() {
+                model.prepareDemoLaunch(configuration: configuration)
+            }
         }
 
     #else
@@ -146,7 +149,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
                 model: model,
                 launcher: launcher,
                 primaryAppIconName: buildEnvironment.primaryAppIconName,
-                inspectorModeController: inspectorModeController,
+                developerLaunchController: developerLaunchController,
             ))
         #else
             AnyView(RootView(

@@ -44,6 +44,8 @@ layering, and the domain rules this target merely starts up.
   audience condition must match the generated Info.plist, and the selected App
   Group, storage policy, widget refresher, App Intents handoff, and primary icon
   must be injected from that one value.
+- **A one-shot demo still selects the regular runtime.** Activate its in-memory
+  scope before the onboarding gate can resolve a real store.
 - **Release always builds `RegularApplicationRuntime`.** Boot preference reads,
   Inspector configuration, and menu integration stay under `#if DEBUG`.
 - **Wire regular launch in `didFinishLaunching`, not a SwiftUI `.task`.** When

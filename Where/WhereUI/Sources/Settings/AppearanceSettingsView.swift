@@ -3,8 +3,8 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Settings drill-in for presentation choices: theme, Locations-card overlays,
-/// and alternate app icon.
+/// Settings drill-in for presentation choices: theme, Locations-card overlays
+/// and welcomes, and alternate app icon.
 struct AppearanceSettingsView: View {
     @Environment(\.primaryAppIconName) private var primaryAppIconName
     let report: YearReportModel
@@ -54,6 +54,34 @@ struct AppearanceSettingsView: View {
                 }
 
                 Section {
+                    Toggle(isOn: $report.showsLocationWelcome) {
+                        Label(
+                            String(localized: .settingsAppearanceLocationWelcomeToggle),
+                            systemSymbol: .sparkles,
+                        )
+                    }
+                    .settingsRow(Item.locationWelcome)
+
+                    #if DEBUG
+                        Button(action: report.resetLocationWelcome) {
+                            Label(
+                                String(localized: .settingsAppearanceLocationWelcomeResetTitle),
+                                systemSymbol: .arrowCounterclockwise,
+                            )
+                        }
+                        .disabled(!report.showsLocationWelcome)
+                        .settingsRow(Item.resetLocationWelcome)
+                    #endif
+                } footer: {
+                    VStack(alignment: .leading) {
+                        Text(String(localized: .settingsAppearanceLocationWelcomeFooter))
+                        #if DEBUG
+                            Text(String(localized: .settingsAppearanceLocationWelcomeResetFooter))
+                        #endif
+                    }
+                }
+
+                Section {
                     Toggle(isOn: $estimatedTimeSettings.isEnabled) {
                         HStack {
                             Label(
@@ -98,6 +126,16 @@ struct AppearanceSettingsView: View {
                                 )
                             }
                             .settingsRow(Item.cardDesigner)
+
+                            NavigationLink {
+                                RankingAnimationLabView()
+                            } label: {
+                                Label(
+                                    String(localized: .rankingAnimationTitle),
+                                    systemSymbol: .arrowUpArrowDown,
+                                )
+                            }
+                            .settingsRow(Item.rankingAnimation)
                         } header: {
                             Text(String(localized: .cardDesignerSettingsHeader))
                         } footer: {
@@ -132,10 +170,13 @@ extension AppearanceSettingsView: SettingsSection {
     enum Item: SettingsItem {
         case theme
         case locationDots
+        case locationWelcome
         case locationForecasts
         case appIcon
         #if DEBUG
+            case resetLocationWelcome
             case cardDesigner
+            case rankingAnimation
         #endif
 
         var title: String {
@@ -143,11 +184,16 @@ extension AppearanceSettingsView: SettingsSection {
                 case .theme: String(localized: .settingsAppearanceThemeHeader)
                 case .locationDots:
                     String(localized: .settingsAppearanceLocationDotsToggle)
+                case .locationWelcome:
+                    String(localized: .settingsAppearanceLocationWelcomeToggle)
                 case .locationForecasts:
                     String(localized: .settingsAppearanceLocationForecastsToggle)
                 case .appIcon: String(localized: .settingsAppIconLink)
                 #if DEBUG
+                    case .resetLocationWelcome:
+                        String(localized: .settingsAppearanceLocationWelcomeResetTitle)
                     case .cardDesigner: String(localized: .cardDesignerTitle)
+                    case .rankingAnimation: String(localized: .rankingAnimationTitle)
                 #endif
             }
         }
@@ -158,12 +204,18 @@ extension AppearanceSettingsView: SettingsSection {
                     splitKeywords(String(localized: .settingsKeywordsTheme))
                 case .locationDots:
                     splitKeywords(String(localized: .settingsKeywordsLocationDots))
+                case .locationWelcome:
+                    splitKeywords(String(localized: .settingsKeywordsLocationWelcome))
                 case .locationForecasts:
                     splitKeywords(String(localized: .settingsKeywordsLocationForecasts))
                 case .appIcon: splitKeywords(String(localized: .settingsKeywordsAppIcon))
                 #if DEBUG
+                    case .resetLocationWelcome:
+                        splitKeywords(String(localized: .settingsKeywordsLocationWelcome))
                     case .cardDesigner:
                         splitKeywords(String(localized: .cardDesignerSettingsKeywords))
+                    case .rankingAnimation:
+                        splitKeywords(String(localized: .rankingAnimationSettingsKeywords))
                 #endif
             }
         }
@@ -182,6 +234,10 @@ extension AppearanceSettingsView: SettingsSection {
                     AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())
                 }
                 .environment(PreviewSupport.loadedModel())
+                .environment(
+                    \.cardDesignerModel,
+                    CardDesignerModel(configuration: .standard),
+                )
             }
         }
     }
@@ -199,6 +255,7 @@ extension AppearanceSettingsView: SettingsSection {
             routes: [
                 .modal(to: AppIconView.flyoverID),
                 .push(to: CardDesignerStudioView.flyoverID),
+                .push(to: RankingAnimationLabView.flyoverID),
             ],
         ) { world in
             AppearanceSettingsView(report: world.report)

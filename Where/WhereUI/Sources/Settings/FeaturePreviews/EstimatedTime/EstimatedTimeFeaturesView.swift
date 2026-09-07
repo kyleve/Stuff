@@ -116,6 +116,7 @@ private struct EstimatedTimeFeaturesContent: View {
         } else {
             LocationForecastPanel(
                 forecasts: forecasts,
+                microprintRegions: report.ranking.primary.map(\.region),
                 plannedStay: report.forecasts.activePlannedStay,
             )
         }

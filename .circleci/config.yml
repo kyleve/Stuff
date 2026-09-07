@@ -1,5 +1,11 @@
 version: 2.1
 
+parameters:
+  manual_full_gate:
+    type: enum
+    enum: ["false", "true"]
+    default: "false"
+
 executors:
   m4-pro-medium:
     macos:
@@ -60,9 +66,11 @@ commands:
       - run:
           name: Test CI helpers
           command: |
+            ./shellcheck
             python3 .circleci/Tests/test_xcresult_to_junit.py
             python3 .circleci/Tests/test_test_artifacts.py
-            python3 Tools/Tests/test_snapshot_shards.py
+            python3 -m unittest discover -s Tools/Tests -p 'test_*.py'
+            mise exec -- ruby -I Tools/Tests -e 'Dir["Tools/Tests/**/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
             ./snapshot-shards check
 
   validate_build_environment:
@@ -76,9 +84,10 @@ commands:
             echo "Architecture: $(uname -m)"
             sw_vers
             xcodebuild -version
+            expected_xcode_build="$(< .xcode-build-version)"
             xcode_build="$(xcodebuild -version | awk '/Build version/{print $3}')"
-            if [[ "$xcode_build" != "27A5228h" ]]; then
-              echo "Expected Xcode build 27A5228h, found $xcode_build" >&2
+            if [[ "$xcode_build" != "$expected_xcode_build" ]]; then
+              echo "Expected Xcode build $expected_xcode_build, found $xcode_build" >&2
               exit 1
             fi
 
@@ -429,10 +438,14 @@ jobs:
 
 workflows:
   "iOS CI":
+    # Prototype and exploratory PRs opt out with `NO-CI` in their title. Main
+    # pushes and explicit full-gate runs remain mandatory.
     when: >-
+      pipeline.parameters.manual_full_gate == "true" or
       (pipeline.event.name == "push" and pipeline.git.branch == "main") or
       (pipeline.event.name == "pull_request" and
-      pipeline.event.github.pull_request.base.ref == "main")
+      pipeline.event.github.pull_request.base.ref == "main" and
+      not (pipeline.event.github.pull_request.title matches /.*NO-CI.*/))
     jobs:
       - build-ios-tests:
           name: Build iOS Tests

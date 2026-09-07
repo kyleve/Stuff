@@ -92,7 +92,11 @@ struct CalendarContentView: View {
         // no-op in release.
         .debugLogInspectable(WhereLog.session(CalendarViewLog.self))
         .sheet(item: $plannedStayEditorTarget) { target in
-            PlannedStayEditor(region: target.region, model: report.forecasts)
+            PlannedStayEditor(
+                region: target.region,
+                model: report.forecasts,
+                driftThreshold: report.driftThreshold,
+            )
         }
     }
 
@@ -150,6 +154,7 @@ struct CalendarContentView: View {
                         if showsForecast(after: month) {
                             LocationForecastPanel(
                                 forecasts: calendarForecasts,
+                                microprintRegions: report.ranking.primary.map(\.region),
                                 plannedStay: report.forecasts.activePlannedStay,
                                 editableRegions: editableForecastRegions,
                                 editAction: { region in

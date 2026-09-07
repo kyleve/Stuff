@@ -64,18 +64,27 @@ one it belongs to rather than to a god-object:
 - **`DayJournal`** — the user-sourced writes: manual-day overlays
   (`addManualDay` / `overrideDay` / `addManualDays`), clears
   (`clearManualDay` / `clearYear` / `eraseAllData`), evidence, and issue
-  dismissals. Each write commits, then awaits its reminder reconcile + widget
-  publish so the next reader sees a fully-applied change.
+  dismissals. Writes await reminder/issue reconciliation and widget publication
+  after committing. The local fan-out does not yet refresh daily summaries;
+  that gap is tracked in [`../TODOs.md`](../TODOs.md).
 - **`PlannedStayCoordinator`** — the synced, generation-scoped last-writer register behind “I’ll
   be here through…”. Clears and expiry write tombstones, and annual forecasts consume its current
   value without coupling projection math to persistence.
+- **`PlannedStayLocationVerifier`** — gets a current location and compares it with the selected
+  region. The configured drift threshold expands the accepted area outside the region boundary.
+  A missing location or missing geometry returns an unavailable result.
+- **`CurrentRegionResolver`** — returns the current tracked region only while automatic recording
+  is authorized. It returns `nil` when no live fix exists or the fix is outside tracked regions.
 
 - **`DemoDataBuilder`** — writes the dataset the app's demo mode runs on into a
   given `WhereServices`: a plausible current year of living in New York with
   California trips, plus the backfills and corrected attributions a real year
-  has and a few recent days still unlogged, so an empty app has something true
-  to show. Bound to the current year and derived from it, so it stops at today
-  and is the same every time. Every feature is sized against the *elapsed* part
+  has. Its configuration independently includes missing-day, border-drift,
+  abrupt-change, and detected-flight fixtures; unchecked detector categories
+  stay absent. The standard onboarding demo includes missing days. Bound to the
+  current year and derived from it, so it normally stops at today and is the
+  same every time. During the first days of January, its in-memory clock moves
+  forward only far enough to hold the selected fixtures. Every feature is sized against the *elapsed* part
   of the year, so a demo entered in January has the same shape as one entered in
   December.
 
@@ -169,9 +178,9 @@ one it belongs to rather than to a god-object:
   `InstallationRecordingContextStoring` keeps the persistence adapter outside
   the domain value.
 - **`WherePreferences`** — persisted user intent (onboarding,
-  reminder / summary schedules, presentation theme, and Locations-card GPS-dot and
-  estimated-time/planning visibility) plus the
-  year-keyed Location-card counts and Codable recording-warning generation used for presentation
+  reminder / summary schedules, presentation theme, and Locations-card GPS-dot,
+  live-region welcome, and estimated-time/planning visibility) plus the
+  year-keyed Location-card counts, last welcomed region, and recording-warning generation used for presentation
   continuity, behind a `KeyValueStore`. It also owns the vendor-neutral
   `DiagnosticReportingConfiguration`: crash reports default On, replay Off,
   and remote logs Off in Release / Warning in Debug. `WherePreferences` encodes
@@ -285,7 +294,9 @@ rotates to a Reset child generation, and discards the retry queue only after com
   generation. Concurrent unjoined resets select a synthetic empty generation. An
   incomplete causal generation DAG fails closed instead of mixing old and new state.
 - **Failures surface.** Store methods are `async throws`. Errors are logged via
-  `WhereLog` and left observable — never swallowed into an empty default.
+  `WhereLog`. Most callers propagate failure or retain honest failed state.
+  The reminder badge still logs a failed scan and returns zero; that exception
+  is tracked in [`../TODOs.md`](../TODOs.md).
 ## Testing
 
 Swift Testing in [`Tests/`](Tests) (`WhereCoreTests`), hosted in `StuffTestHost`.

@@ -17,13 +17,17 @@ struct LocationForecastControls: View {
     var clearAction: (@MainActor () async throws -> Void)?
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.stylesheet) private var stylesheet
     @State private var clearState: ClearState = .idle
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let style = stylesheet.locationForecast
+        let controls = style.controls
+
+        VStack(alignment: .leading, spacing: controls.sectionSpacing) {
             let layout = dynamicTypeSize.isAccessibilitySize
-                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
-                : AnyLayout(HStackLayout(alignment: .center, spacing: 8))
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: controls.layoutSpacing))
+                : AnyLayout(HStackLayout(alignment: .center, spacing: controls.layoutSpacing))
 
             layout {
                 if editableRegions.count == 1, let region = editableRegions.first {
@@ -33,7 +37,12 @@ struct LocationForecastControls: View {
                     ) {
                         editAction(region)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(LocationForecastEndorsementButtonStyle(
+                        tint: .primary,
+                        expands: true,
+                        controls: controls,
+                        ink: style.ink,
+                    ))
                 } else {
                     Menu {
                         ForEach(editableRegions, id: \.self) { region in
@@ -47,7 +56,12 @@ struct LocationForecastControls: View {
                             systemSymbol: .calendarBadgeClock,
                         )
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(LocationForecastEndorsementButtonStyle(
+                        tint: .primary,
+                        expands: true,
+                        controls: controls,
+                        ink: style.ink,
+                    ))
                 }
 
                 if let plannedStay,
@@ -57,6 +71,7 @@ struct LocationForecastControls: View {
                     if clearState == .clearing {
                         ProgressView()
                             .controlSize(.small)
+                            .frame(maxWidth: .infinity, minHeight: controls.minimumHeight)
                             .accessibilityLabel(String(localized: .locationForecastClearingStay))
                     } else {
                         Button(
@@ -64,7 +79,12 @@ struct LocationForecastControls: View {
                             role: .destructive,
                             action: clear,
                         )
-                        .buttonStyle(.bordered)
+                        .buttonStyle(LocationForecastEndorsementButtonStyle(
+                            tint: .red,
+                            expands: dynamicTypeSize.isAccessibilitySize,
+                            controls: controls,
+                            ink: style.ink,
+                        ))
                     }
                 }
             }
@@ -103,5 +123,6 @@ struct LocationForecastControls: View {
             clearAction: {},
         )
         .padding()
+        .whereBroadwayRoot()
     }
 #endif

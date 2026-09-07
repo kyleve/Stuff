@@ -317,17 +317,39 @@
             )
         }
 
+        /// Planned-stay editor fixture whose one-shot location result is fixed.
+        @MainActor
+        public static func plannedStayEditorYearReportModel(
+            currentLocation: LocationSample?,
+            plannedStay: PlannedStay?,
+        ) -> YearReportModel {
+            let source = ScriptedLocationSource()
+            source.setNextRequestedLocation(currentLocation)
+            let model = YearReportModel(
+                services: previewServices(locationSource: source),
+                details: sampleYearReportDetails(),
+                selectedYear: year,
+                preferences: previewPreferences(),
+                now: { referenceNow },
+            )
+            model.forecasts.setActivePlannedStay(plannedStay)
+            return model
+        }
+
         /// A report stopped at the pinned "today" with a deterministic future
         /// New York stay, for forecast and planned-calendar previews.
         @MainActor
         public static func plannedStayYearReportModel(
             showsEstimatedTimeAndPlanning: Bool = true,
+            plannedRegion: Region = .newYork,
+            recordedThroughDay: CalendarDay? = nil,
+            plannedThroughDay: CalendarDay = CalendarDay(year: year, month: 8, day: 15),
         ) -> YearReportModel {
             let completeReport = sampleReport()
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
             let today = CalendarDay(from: referenceNow, in: calendar)
-            let recordedDays = completeReport.days.filter { $0.day <= today }
+            let recordedDays = completeReport.days.filter { $0.day <= recordedThroughDay ?? today }
             var recordedTotals: [Region: Int] = [:]
             for day in recordedDays {
                 for region in day.regions {
@@ -351,8 +373,8 @@
                 now: { referenceNow },
             )
             model.forecasts.setActivePlannedStay(PlannedStay(
-                region: .newYork,
-                through: CalendarDay(year: year, month: 8, day: 15),
+                region: plannedRegion,
+                through: plannedThroughDay,
             ))
             return model
         }

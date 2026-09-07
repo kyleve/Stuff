@@ -45,6 +45,37 @@ struct WhereStylesheetTests {
         #expect(style.spacing.xxxLarge == 20)
     }
 
+    @Test func locationWelcomeStyle() {
+        let welcome = style.locationWelcome
+        #expect(welcome.maxWidth == 390)
+        #expect(welcome.cornerRadius == 30)
+        #expect(welcome.padding == 24)
+        #expect(welcome.contentSpacing == 16)
+        #expect(welcome.paperOpacity == 0.92)
+        #expect(welcome.scrimOpacity == 0.28)
+        #expect(welcome.glassTintOpacity == 0.2)
+        #expect(welcome.glow == .init(opacity: 0.16, radius: 22))
+        #expect(welcome.lift == .init(opacity: 0.18, radius: 12, offsetY: 6))
+        #expect(welcome.close.offset == CGSize(width: 8, height: -8))
+        #expect(welcome.close.tintOpacity == 0.24)
+        #expect(welcome.close.glow == .init(opacity: 0.28, radius: 8))
+        #expect(welcome.close.lift == .init(opacity: 0.22, radius: 5, offsetY: 3))
+        #expect(welcome.motion == .standard)
+        #expect(welcome.motion.arrival == .init(
+            animation: .spring(duration: 0.3, bounce: 0.28),
+            scale: 1.28,
+            rotationDegrees: -9,
+            verticalOffset: -24,
+        ))
+        #expect(welcome.motion.departure == .init(
+            animation: .easeOut(duration: 0.16),
+            scale: 1.045,
+            rotationDegrees: 3,
+            verticalOffset: -10,
+        ))
+        #expect(welcome.motion.scrimAnimation == .easeOut(duration: 0.16))
+    }
+
     @Test func regularCardStyle() {
         let card = style.card.regular
         #expect(style.card.estimatedProgressOpacity == 0.3)
@@ -202,6 +233,9 @@ struct WhereStylesheetTests {
         #expect(card.dayCount == .standard)
         #expect(card.dayCount.revealDelay == .milliseconds(500))
         #expect(card.dayCount.animation == .easeOut(duration: 0.3))
+        #expect(card.estimateSticker == .standard)
+        #expect(card.estimateSticker.contentOpacity == 0.92)
+        #expect(card.estimateSticker.scale == 0.8)
         #expect(card.constellation == .init(
             gridResolution: 48,
             maximumPointCount: 96,
@@ -211,6 +245,26 @@ struct WhereStylesheetTests {
             haloRadius: 6,
             haloOpacity: 0.32,
         ))
+    }
+
+    @Test func locationCardOvertakeMotion() {
+        let motion = style.locationCardStack.overtake
+        #expect(motion == .standard)
+        #expect(motion.duration == 0.72)
+        #expect(motion.bounce == 0.18)
+        #expect(motion.lateralArc == 18)
+        #expect(motion.liftScale == 1.03)
+        #expect(motion.rotationDegrees == 1.5)
+        #expect(motion.settleScale == 0.975)
+        #expect(motion.minimumOpacity == 1)
+        #expect(motion.usesSpatialMotion)
+        #expect(WhereStylesheet.LocationCardStackStyle.OvertakeMotion.durationRange == 0.3 ... 1.2)
+        #expect(WhereStylesheet.LocationCardStackStyle.OvertakeMotion.bounceRange == 0 ... 0.5)
+        #expect(WhereStylesheet.LocationCardStackStyle.OvertakeMotion.lateralArcRange == 0 ... 48)
+        #expect(WhereStylesheet.LocationCardStackStyle.OvertakeMotion.liftScaleRange == 1 ... 1.08)
+        #expect(WhereStylesheet.LocationCardStackStyle.OvertakeMotion.rotationRange == 0 ... 6)
+        #expect(WhereStylesheet.LocationCardStackStyle.OvertakeMotion
+            .settleScaleRange == 0.92 ... 1)
     }
 
     /// The roll carries the count so it knows which way to spin the digits; the
@@ -290,14 +344,53 @@ struct WhereStylesheetTests {
         #expect(forecast.cornerRadius == 22)
         #expect(forecast.padding == 16)
         #expect(forecast.rowSpacing == 12)
-        #expect(forecast.estimateSpacing == 3)
-        #expect(forecast.collapsedLabelColor == Color.primary.opacity(0.5))
-        #expect(forecast.borderColor == Color.primary.opacity(0.06))
-        #expect(forecast.borderWidth == 0.5)
-        #expect(forecast.shadowColor == Color.black.opacity(0.06))
-        #expect(forecast.shadowRadius == 8)
-        #expect(forecast.shadowOffsetY == 2)
         #expect(forecast.expansionAnimation == .easeInOut(duration: 0.2))
+        #expect(forecast.surface == .init(
+            outlineWidth: 1.25,
+            inset: 9,
+            microprintGlyphSize: 7,
+            microprintSpacing: 10,
+            rosetteWobble: 5,
+            rosetteLineWidth: 0.75,
+            primaryRingSpacing: 10,
+            secondaryRingSpacing: 16,
+            shadowColor: Color.black.opacity(0.08),
+            shadowRadius: 10,
+            shadowOffsetY: 3,
+        ))
+        #expect(forecast.header == .init(
+            contentSpacing: 10,
+            textSpacing: 2,
+            titleFont: .system(.headline, design: .serif),
+            elapsedFont: .footnote,
+            minimumHeight: 50,
+        ))
+        #expect(forecast.row == .init(
+            cornerRadius: 14,
+            padding: 10,
+            contentSpacing: 6,
+            estimateSpacing: 2,
+            regionFont: .system(.title3, design: .serif),
+            estimateFont: .system(.headline, design: .rounded),
+            detailFont: .footnote,
+            outlineWidth: 0.75,
+        ))
+        #expect(forecast.progress == .init(
+            height: 8,
+            hatchSpacing: 6,
+            hatchLineWidth: 1,
+        ))
+        #expect(forecast.controls == .init(
+            sectionSpacing: 8,
+            layoutSpacing: 6,
+            cornerRadius: 12,
+            horizontalPadding: 10,
+            minimumHeight: 44,
+            strokeWidth: 1,
+            font: .subheadline,
+        ))
+        #expect(forecast.ink == .standard)
+        #expect(forecast.ink.microprintOpacity == 0.18)
     }
 
     @Test func appIconStyle() {
@@ -381,6 +474,12 @@ struct WhereStylesheetTests {
         #expect(planned.hatchSpacing == 8)
         #expect(planned.hatchLineWidth == 1)
         #expect(planned.labelOpacity == 0.7)
+        #expect(planned.transitionHeight == 16)
+        #expect(planned.joinedBaseHeight == 32)
+        #expect(planned.joinedVerticalPadding == 8)
+        #expect(planned.joinedLabelSpacing == 5)
+        #expect(planned.joinedCountHorizontalPadding == 8)
+        #expect(planned.joinedCountVerticalPadding == 4)
     }
 
     @Test func regionMapStyle() {
@@ -606,6 +705,7 @@ struct WhereStylesheetTests {
         #expect(privacy.outlineWidth == 1)
 
         let source = style.openSourceStamp
+        #expect(source.tint == .accentColor)
         #expect(source.padding == 16)
         #expect(source.contentSpacing == 12)
         #expect(source.titleFont == .headline)
@@ -618,6 +718,16 @@ struct WhereStylesheetTests {
             secondaryRingSpacing: 16,
         ))
         #expect(source.ink == .standard)
+
+        let warning = style.plannedStayWarningStamp
+        #expect(warning.tint == .orange)
+        #expect(warning.padding == 16)
+        #expect(warning.contentSpacing == 12)
+        #expect(warning.titleFont == .headline)
+        #expect(warning.detailFont == .subheadline)
+        #expect(warning.outlineWidth == 1.5)
+        #expect(warning.rosette == source.rosette)
+        #expect(warning.ink == .standard)
     }
 
     @Test func developerOverlayStyle() {
@@ -713,11 +823,14 @@ struct WhereStylesheetTests {
     }
 
     @MainActor
-    @Test func strengthensTheSourceStampWithDarkerSystemColors() throws {
+    @Test func strengthensSecurityInkWithDarkerSystemColors() throws {
         var context = BContext(traits: .system)
         context.traitOverrides.accessibility = BAccessibility(isDarkerSystemColorsEnabled: true)
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.locationForecast.ink == .increasedContrast)
+        #expect(resolved.locationForecast.ink.microprintOpacity == 0.4)
         #expect(resolved.openSourceStamp.ink == .increasedContrast)
+        #expect(resolved.plannedStayWarningStamp.ink == .increasedContrast)
     }
 
     @MainActor
@@ -737,6 +850,20 @@ struct WhereStylesheetTests {
         context.traitOverrides.accessibility = BAccessibility(isReduceMotionEnabled: true)
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.card.dayCount == .reducedMotion)
+        #expect(resolved.locationCardStack.overtake == .reducedMotion)
+        #expect(resolved.locationCardStack.overtake.minimumOpacity == 0.82)
+        #expect(resolved.locationCardStack.overtake.usesSpatialMotion == false)
+        #expect(resolved.locationWelcome.motion == .reduced)
+        #expect(resolved.locationWelcome.motion.usesSpatialMotion == false)
+        #expect(resolved.locationWelcome.motion.arrival == .init(
+            animation: .easeInOut(duration: 0.16),
+            scale: 1,
+            rotationDegrees: 0,
+            verticalOffset: 0,
+        ))
+        #expect(resolved.locationWelcome.motion.departure == resolved.locationWelcome.motion
+            .arrival)
+        #expect(resolved.locationWelcome.motion.scrimAnimation == .easeInOut(duration: 0.16))
         #expect(resolved.developerOverlay.menu.motion == .reduced)
         #expect(resolved.developerOverlay.menu.motion.usesSpatialMotion == false)
     }
@@ -746,6 +873,7 @@ struct WhereStylesheetTests {
         var context = BContext(traits: .system)
         context.traitOverrides.mode = .dark
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.locationForecast == style.locationForecast)
         #expect(resolved.card.securityPrint == .dark)
         #expect(resolved.featureDiscovery.siri.accent == Color(white: 0.42))
         #expect(resolved.card.securityPrint.backgroundBlendMode == .luminosity)

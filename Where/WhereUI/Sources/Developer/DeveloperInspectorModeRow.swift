@@ -1,5 +1,4 @@
 #if DEBUG
-    import Inspector
     import SFSafeSymbols
     import SwiftUI
 
@@ -9,7 +8,7 @@
     /// runtime. A selected state stays visible as the row's subtitle and makes
     /// the same control the cancellation action.
     struct DeveloperInspectorModeRow: View {
-        @Bindable var controller: InspectorModeController
+        @Bindable var controller: WhereDeveloperLaunchController
 
         @Environment(\.stylesheet) private var stylesheet
 
@@ -45,7 +44,7 @@
 
         private var title: String {
             switch controller.nextLaunch {
-                case .regularApplication:
+                case .regularApplication, .demo:
                     String(localized: .developerEnterInspectorNextLaunch)
                 case .inspector:
                     String(localized: .developerCancelInspectorNextLaunch)
@@ -54,15 +53,15 @@
 
         private var systemSymbol: SFSymbol {
             switch controller.nextLaunch {
-                case .regularApplication: .wrenchAndScrewdriver
+                case .regularApplication, .demo: .wrenchAndScrewdriver
                 case .inspector: .xmarkCircle
             }
         }
 
         private func toggleNextLaunch() {
             switch controller.nextLaunch {
-                case .regularApplication:
-                    controller.enterInspectorOnNextLaunch()
+                case .regularApplication, .demo:
+                    controller.scheduleInspector()
                 case .inspector:
                     controller.useRegularApplicationOnNextLaunch()
             }
