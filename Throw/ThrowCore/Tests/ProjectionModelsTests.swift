@@ -158,6 +158,7 @@ struct ProjectionModelsTests {
 
     @Test func experienceProjectionInputsEncodeSupportedModes() throws {
         let mapViewport = try MapViewport(radius: NauticalMiles(value: 50))
+        let transitViewport = try TransitMapViewport(radius: NauticalMiles(value: 5))
         let skyViewport = try SkyViewport(minimumElevation: ElevationAngle(degrees: 10))
         let airMap = ProjectionExperienceInput.airAndSpace(AirAndSpaceProjectionInput(
             frame: .empty,
@@ -169,7 +170,7 @@ struct ProjectionModelsTests {
         ))
         let transit = ProjectionExperienceInput.transit(TransitProjectionInput(
             frame: .empty,
-            viewport: mapViewport,
+            viewport: transitViewport,
             geography: .visible,
         ))
 
@@ -177,12 +178,12 @@ struct ProjectionModelsTests {
         #expect(airMap.requestsGeography)
         #expect(airSky.viewport == .trueSky(skyViewport))
         #expect(airSky.requestsGeography == false)
-        #expect(transit.viewport == .map(mapViewport))
+        #expect(transit.viewport == .map(transitViewport))
         #expect(transit.requestsGeography)
     }
 
     @Test func preparedInputsDiscardStaticLayersThatTheirSemanticInputCannotUse() throws {
-        let mapViewport = try MapViewport(radius: NauticalMiles(value: 50))
+        let mapViewport = try TransitMapViewport(radius: NauticalMiles(value: 5))
         let skyViewport = try SkyViewport(minimumElevation: ElevationAngle(degrees: 10))
         let geographyLines = ProjectedLineCollection<GeographyLineKind>.testing(
             id: ProjectionLineRevisionID.testing(rawValue: 1),
@@ -222,7 +223,7 @@ struct ProjectionModelsTests {
     }
 
     @Test func preparedTransitPairsARequiredNetworkWithItsProjection() throws {
-        let mapViewport = try MapViewport(radius: NauticalMiles(value: 50))
+        let mapViewport = try TransitMapViewport(radius: NauticalMiles(value: 5))
         let source = ProjectionLayerFrame<TransitNetworkLayerKind>(
             observedAt: ThrowCoreFixture.date,
             lines: [],
@@ -314,21 +315,30 @@ struct ProjectionModelsTests {
             bounds: bounds,
             coordinates: coordinates,
         )
+        let transitStyle = try transitRouteStyle()
         let transit = try ProjectionPolyline<TransitNetworkLineStyle>(
-            style: .route,
+            style: transitStyle,
             detailLevel: .wide,
             bounds: bounds,
             coordinates: coordinates,
         )
 
         #expect(geography.style == .coastline)
-        #expect(transit.style == .route)
+        #expect(transit.style == transitStyle)
     }
 
     @Test func projectedExperienceFixesTransitLayersAndMode() throws {
         let vehicleID = try #require(TransitVehicleID(rawValue: "vehicle"))
+        let vehicleDescriptor = try TransitVehicleGlyphDescriptor(
+            routeLabel: "A",
+            color: #require(TransitColor(hex: "0039A6")),
+            confidence: .feedTracked,
+        )
         let mark = try ProjectedMark(
-            element: TransitVehicleMarkElement(id: vehicleID),
+            element: TransitVehicleMarkElement.vehicle(
+                id: vehicleID,
+                descriptor: vehicleDescriptor,
+            ),
             point: ProjectionPoint(x: 0.5, y: 0.5),
             range: NauticalMiles(value: 1),
             label: nil,
@@ -338,10 +348,10 @@ struct ProjectionModelsTests {
             labelOpacity: 1,
             altitudeIsApproximate: false,
         )
-        let lines = ProjectedLineCollection<TransitNetworkLineStyle>.testing(
+        let lines = try ProjectedLineCollection<TransitNetworkLineStyle>.testing(
             id: ProjectionLineRevisionID.testing(rawValue: 7),
             segments: [ProjectedLineSegment(
-                style: .route,
+                style: transitRouteStyle(),
                 start: ProjectionPoint(x: 0.1, y: 0.2),
                 end: ProjectionPoint(x: 0.8, y: 0.9),
                 startsNewSubpath: true,
@@ -362,6 +372,16 @@ struct ProjectionModelsTests {
         }
         #expect(transit.network?.lines == lines)
         #expect(transit.vehicles?.marks == [mark])
+    }
+
+    private func transitRouteStyle() throws -> TransitRouteLineStyle {
+        try TransitRouteLineStyle(
+            routeID: #require(TransitRouteID(
+                agencyID: .mtaNewYorkCityTransit,
+                rawValue: "A",
+            )),
+            color: #require(TransitColor(hex: "0039A6")),
+        )
     }
 
     @Test func frameDescriptionsRedactMarksLabelsIdentitiesAndCoordinates() throws {

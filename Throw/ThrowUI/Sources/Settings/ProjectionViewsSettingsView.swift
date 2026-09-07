@@ -30,7 +30,7 @@ struct ProjectionViewsSettingsView: View {
             }
 
             Section(String(localized: .viewsConfigured)) {
-                ForEach(session.projectionPlaylist.entries, id: \.experienceID) { entry in
+                ForEach(session.projectionPlaylist.entries, id: \.runnableExperienceID) { entry in
                     configuredRow(entry)
                 }
                 .onMove(perform: session.moveExperience)
@@ -55,18 +55,28 @@ struct ProjectionViewsSettingsView: View {
     @ViewBuilder private func configuredRow(_ entry: ProjectionPlaylistEntry) -> some View {
         let presentation = ProjectionExperiencePresentation(id: entry.experienceID)
         VStack(alignment: .leading, spacing: 8) {
-            if entry.experienceID == .airAndSpace {
-                NavigationLink(value: ThrowSettingsDestination.airAndSpace) {
-                    experienceLabel(
-                        presentation: presentation,
-                        detail: String(localized: .viewsConfiguredStatus),
-                    )
-                }
-            } else {
-                experienceLabel(
-                    presentation: presentation,
-                    detail: String(localized: .viewsConfiguredStatus),
-                )
+            switch entry.runnableExperienceID {
+                case .airAndSpace:
+                    NavigationLink(value: ThrowSettingsDestination.airAndSpace) {
+                        experienceLabel(
+                            presentation: presentation,
+                            detail: String(localized: .viewsConfiguredStatus),
+                        )
+                    }
+                case .transit:
+                    NavigationLink(value: ThrowSettingsDestination.transit) {
+                        experienceLabel(
+                            presentation: presentation,
+                            detail: String(localized: .viewsConfiguredStatus),
+                        )
+                    }
+                #if DEBUG
+                    case .testing:
+                        experienceLabel(
+                            presentation: presentation,
+                            detail: String(localized: .viewsConfiguredStatus),
+                        )
+                #endif
             }
             FeedHealthRow(health: session.health(for: entry.experienceID))
             Stepper(
@@ -97,12 +107,15 @@ struct ProjectionViewsSettingsView: View {
 
     private var plannedTransitRow: some View {
         let presentation = ProjectionExperiencePresentation(id: .transit)
-        return experienceLabel(
-            presentation: presentation,
-            detail: String(localized: .viewsTransitPlanned),
-        )
-        .foregroundStyle(.secondary)
-        .accessibilityHint(Text(.viewsTransitPlanned))
+        return NavigationLink(value: ThrowSettingsDestination.transit) {
+            experienceLabel(
+                presentation: presentation,
+                detail: String(
+                    localized: "transit.available.detail",
+                    defaultValue: "Set up the New York City Subway view.",
+                ),
+            )
+        }
     }
 
     private func experienceLabel(

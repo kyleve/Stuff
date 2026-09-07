@@ -78,6 +78,7 @@ extension ThrowStylesheet {
         var background: Color
         var markLuminance: Double
         var aircraft: AircraftStyle
+        var transit: TransitStyle
         var activity: ActivityStyle
         var observer: ObserverStyle
         var geography: GeographyStyle
@@ -93,6 +94,7 @@ extension ThrowStylesheet {
             background: .black,
             markLuminance: 0.95,
             aircraft: .standard,
+            transit: .standard,
             activity: .standard,
             observer: .standard,
             geography: .standard,
@@ -114,6 +116,28 @@ extension ThrowStylesheet {
             experienceTransition: .standard,
             correctionDuration: 0.75,
             modeChangeDuration: 1.2,
+        )
+    }
+
+    struct TransitStyle: Equatable {
+        var vehicleDiameter: CGFloat
+        var vehicleRouteFont: Font
+        var vehicleRouteLuminance: Double
+        var stopDiameter: CGFloat
+        var stopOutlineWidth: CGFloat
+        var routeLineWidth: CGFloat
+        var routeLuminance: Double
+        var inferredOpacityMultiplier: Double
+
+        static let standard = TransitStyle(
+            vehicleDiameter: 9,
+            vehicleRouteFont: .custom("Helvetica-Bold", fixedSize: 6),
+            vehicleRouteLuminance: 1,
+            stopDiameter: 5,
+            stopOutlineWidth: 0.75,
+            routeLineWidth: 1,
+            routeLuminance: 0.26,
+            inferredOpacityMultiplier: 0.7,
         )
     }
 

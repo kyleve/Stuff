@@ -87,6 +87,41 @@ struct ThrowAboutView: View {
                 ) {
                     Link(String(localized: .aboutUSCensusTerms), destination: censusTermsURL)
                 }
+                if let nycShorelineURL = URL(
+                    string: "https://data.cityofnewyork.us/Recreation/NYC-Planimetric-Database-Shoreline/59xk-wagz",
+                ) {
+                    Link(String(localized: .aboutNYCShoreline), destination: nycShorelineURL)
+                }
+            }
+
+            Section(String(localized: "about.transitData", defaultValue: "Transit Data")) {
+                Text(String(
+                    localized: "about.transitData.description",
+                    defaultValue: "NYC Subway positions are estimates from the official MTA supplemented GTFS schedule and GTFS Realtime feeds.",
+                ))
+                .foregroundStyle(.secondary)
+                if let scheduleURL = URL(
+                    string: "https://new.mta.info/developers",
+                ) {
+                    Link(
+                        String(
+                            localized: "about.mtaDeveloper",
+                            defaultValue: "MTA Developer Resources",
+                        ),
+                        destination: scheduleURL,
+                    )
+                }
+                if let gtfsURL = URL(
+                    string: "https://api.mta.info/#/subwayRealTimeFeeds",
+                ) {
+                    Link(
+                        String(
+                            localized: "about.mtaRealtime",
+                            defaultValue: "MTA Subway Realtime Feeds",
+                        ),
+                        destination: gtfsURL,
+                    )
+                }
             }
 
             switch credits {

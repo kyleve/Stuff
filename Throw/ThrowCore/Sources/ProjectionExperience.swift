@@ -30,7 +30,7 @@ public enum ProjectionExperienceID: String, CaseIterable, Hashable, Sendable {
                 )
             case .transit:
                 ProjectionExperienceDescriptor.standard(
-                    availability: .planned(.transit),
+                    availability: .runnable(.transit),
                     supportedModes: [.map],
                     layerIDs: [.geography, .transitNetwork, .transitVehicles],
                     visibleContentKind: .vehicles,
@@ -47,6 +47,7 @@ public enum ProjectionExperienceID: String, CaseIterable, Hashable, Sendable {
 /// A projection View with a complete production runtime.
 public enum RunnableProjectionExperienceID: Hashable, Sendable {
     case airAndSpace
+    case transit
 
     #if DEBUG
         /// Lets tests exercise multi-View state machines without shipping a runtime.
@@ -56,6 +57,7 @@ public enum RunnableProjectionExperienceID: Hashable, Sendable {
     public var experienceID: ProjectionExperienceID {
         switch self {
             case .airAndSpace: .airAndSpace
+            case .transit: .transit
             #if DEBUG
                 case let .testing(id): id
             #endif

@@ -85,11 +85,19 @@ public struct LayerCatalog: Sendable {
         geographyFactory: LayerRuntimeFactory {
             GeographyLayerRuntime(dataSource: BundledGeographyDataSource())
         },
+        transitNetworkFactory: LayerRuntimeFactory {
+            TransitNetworkLayerRuntime(builder: TransitLayerFrameBuilder())
+        },
+        transitVehiclesFactory: LayerRuntimeFactory {
+            TransitVehiclesLayerRuntime(builder: TransitLayerFrameBuilder())
+        },
     )
 
     /// Typed descriptors used to construct the enabled production layers.
     public let flights: LayerDescriptor<FlightsLayerRuntime>
     public let geography: LayerDescriptor<GeographyLayerRuntime>
+    public let transitNetwork: LayerDescriptor<TransitNetworkLayerRuntime>
+    public let transitVehicles: LayerDescriptor<TransitVehiclesLayerRuntime>
 
     /// The heterogeneous catalog used for discovery and presentation only.
     public let descriptors: [AnyLayerDescriptor]
@@ -97,6 +105,8 @@ public struct LayerCatalog: Sendable {
     public init(
         flightsFactory: LayerRuntimeFactory<FlightsLayerRuntime>,
         geographyFactory: LayerRuntimeFactory<GeographyLayerRuntime>,
+        transitNetworkFactory: LayerRuntimeFactory<TransitNetworkLayerRuntime>,
+        transitVehiclesFactory: LayerRuntimeFactory<TransitVehiclesLayerRuntime>,
     ) {
         let flights = LayerDescriptor(
             availability: LayerAvailability.enabled,
@@ -119,20 +129,18 @@ public struct LayerCatalog: Sendable {
             },
         )
         let transitNetwork = LayerDescriptor(
-            availability: LayerAvailability.planned,
-            runtimeFactory: LayerRuntimeFactory {
-                EmptyLayerRuntime<TransitNetworkLayerKind>()
-            },
+            availability: LayerAvailability.enabled,
+            runtimeFactory: transitNetworkFactory,
         )
         let transitVehicles = LayerDescriptor(
-            availability: LayerAvailability.planned,
-            runtimeFactory: LayerRuntimeFactory {
-                EmptyLayerRuntime<TransitVehiclesLayerKind>()
-            },
+            availability: LayerAvailability.enabled,
+            runtimeFactory: transitVehiclesFactory,
         )
 
         self.flights = flights
         self.geography = geography
+        self.transitNetwork = transitNetwork
+        self.transitVehicles = transitVehicles
         descriptors = [
             AnyLayerDescriptor(flights),
             AnyLayerDescriptor(geography),

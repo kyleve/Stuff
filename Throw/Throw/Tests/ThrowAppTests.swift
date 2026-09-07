@@ -24,14 +24,4 @@ struct ThrowAppTests {
             RecordedControllerSceneEvent(id: id, event: .didEnterBackground),
         ])
     }
-
-    @Test func iOS27ExternalAccessoryConfigurationHasStableSceneIdentity() throws {
-        let configuration = AppDelegate.externalDisplayConfiguration()
-        let delegateClass = try #require(configuration.delegateClass)
-
-        #expect(configuration.name == "Throw External Display")
-        #expect(configuration.role == .windowExternalDisplayNonInteractive)
-        #expect(ObjectIdentifier(delegateClass) ==
-            ObjectIdentifier(ExternalDisplaySceneDelegate.self))
-    }
 }

@@ -161,6 +161,15 @@ public struct MapViewport: Hashable, Sendable {
     }
 }
 
+/// A Map radius accepted by projection after an experience validates its own viewport rules.
+public struct ProjectionMapViewport: Hashable, Sendable {
+    public let radius: NauticalMiles
+
+    public init(_ viewport: MapViewport) {
+        radius = viewport.radius
+    }
+}
+
 public struct SkyViewport: Hashable, Sendable {
     public static let allowedMinimumElevation = 0.0 ... 45.0
     public static let defaultValue = try! SkyViewport(
@@ -183,8 +192,12 @@ public struct SkyViewport: Hashable, Sendable {
 }
 
 public enum ProjectionViewport: Hashable, Sendable {
-    case map(MapViewport)
+    case map(ProjectionMapViewport)
     case trueSky(SkyViewport)
+
+    public static func map(_ viewport: MapViewport) -> Self {
+        .map(ProjectionMapViewport(viewport))
+    }
 
     public var mode: ProjectionMode {
         switch self {

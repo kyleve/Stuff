@@ -52,6 +52,8 @@ struct ThrowSettingsView: View {
                     AirAndSpaceLayersSettingsView(session: session)
                 case .airAndSpaceAppearance:
                     AppearanceSettingsView(session: session)
+                case .transit:
+                    TransitSettingsView(session: session)
                 case .location:
                     LocationSettingsView(session: session)
                 case .mapCenter:

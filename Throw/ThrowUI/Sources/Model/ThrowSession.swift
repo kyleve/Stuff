@@ -68,16 +68,29 @@ struct PreparedProjectionPresentation: Equatable {
     }
 }
 
+/// A runtime publication retained while its prepared View crosses black.
+enum ProjectionPresentationRuntimeUpdate {
+    case airAndSpace(AirAndSpaceRuntimeUpdate)
+    case transit(TransitRuntimeUpdate)
+
+    var activationLease: ProjectionActivationLease? {
+        switch self {
+            case let .airAndSpace(update): update.activationLease
+            case let .transit(update): update.activationLease
+        }
+    }
+}
+
 /// Owns one hidden projection from preparation through its black exchange.
 enum ProjectionPresentationStaging {
     case prepared(PreparedProjectionPresentation)
     case fadingOut(
         prepared: PreparedProjectionPresentation,
-        bufferedTargetUpdate: AirAndSpaceRuntimeUpdate?,
+        bufferedTargetUpdate: ProjectionPresentationRuntimeUpdate?,
     )
     case fadingIn(
         prepared: PreparedProjectionPresentation,
-        bufferedTargetUpdate: AirAndSpaceRuntimeUpdate?,
+        bufferedTargetUpdate: ProjectionPresentationRuntimeUpdate?,
     )
 
     var preparedProjection: PreparedProjectionPresentation {
@@ -108,7 +121,7 @@ enum ProjectionPresentationStaging {
         if case .fadingOut = self { true } else { false }
     }
 
-    var bufferedTargetUpdate: AirAndSpaceRuntimeUpdate? {
+    var bufferedTargetUpdate: ProjectionPresentationRuntimeUpdate? {
         switch self {
             case .prepared: nil
             case let .fadingOut(_, update), let .fadingIn(_, update):
@@ -130,9 +143,8 @@ enum ProjectionPresentationStaging {
         )
     }
 
-    func buffering(_ update: AirAndSpaceRuntimeUpdate) -> Self {
+    func buffering(_ update: ProjectionPresentationRuntimeUpdate) -> Self {
         guard isTransitioning,
-              targetLease.experienceID == .airAndSpace,
               update.activationLease == targetLease
         else { return self }
         switch self {
@@ -186,18 +198,17 @@ public final class ThrowSession {
     /// Compatibility access for Air & Space callers while health remains keyed by experience.
     public internal(set) var feedHealth: FeedHealth {
         get { experienceHealth[.airAndSpace] ?? .idle }
-        set {
-            let coordinator = experienceCoordinatorState.updatingHealth(
-                newValue,
-                for: .airAndSpace,
-            )
-            guard let presentation = projectionPresentationState.updatingCoordinator(coordinator)
-            else {
-                assertionFailure("Health metadata must not change the visible identity")
-                return
-            }
-            projectionPresentationState = presentation
+        set { publishExperienceHealth(newValue, for: .airAndSpace) }
+    }
+
+    func publishExperienceHealth(_ health: FeedHealth, for id: ProjectionExperienceID) {
+        let coordinator = experienceCoordinatorState.updatingHealth(health, for: id)
+        guard let presentation = projectionPresentationState.updatingCoordinator(coordinator)
+        else {
+            assertionFailure("Health metadata must not change the visible identity")
+            return
         }
+        projectionPresentationState = presentation
     }
 
     public internal(set) var projectionPlaylist: ProjectionPlaylist
@@ -263,6 +274,7 @@ public final class ThrowSession {
 
     public internal(set) var globalPreferences: ThrowGlobalPreferences
     public internal(set) var airAndSpacePreferences: AirAndSpacePreferences
+    public internal(set) var transitPreferences: TransitPreferences
     var calibrationPreview: ProjectionCalibration?
 
     public var projectionMode: ProjectionMode {
@@ -317,6 +329,38 @@ public final class ThrowSession {
         calibrationPreview ?? globalPreferences.calibration
     }
 
+    public var transitConfiguration: TransitConfiguration {
+        transitPreferences.configuration
+    }
+
+    public var transitMapRadius: Double {
+        transitPreferences.mapViewport.radius.value
+    }
+
+    public var transitLabelMode: TransitLabelMode {
+        transitPreferences.labelMode
+    }
+
+    public var transitGeographyEnabled: Bool {
+        transitPreferences.geography.isEnabled
+    }
+
+    public var transitGeographyIntensityPercent: Double {
+        transitPreferences.geography.intensityPercent
+    }
+
+    public var transitMarkSizePercent: Double {
+        transitPreferences.markSizePercent
+    }
+
+    public var transitNetworkIntensityPercent: Double {
+        transitPreferences.networkIntensityPercent
+    }
+
+    public var transitMapCenter: GeoCoordinate {
+        transitPreferences.mapCenter
+    }
+
     public var screenTopBearing: Double {
         projectionCalibration.screenTopBearing.degrees
     }
@@ -365,6 +409,7 @@ public final class ThrowSession {
     let credentialStore: any AircraftCredentialStore
     let sourceService: any AircraftSourceOperationServing
     let airAndSpaceRuntime: AirAndSpaceRuntime
+    let transitRuntime: TransitRuntime
     let experienceCoordinator: ProjectionExperienceCoordinator
     let dateProvider: any DateProvider
     let locationSource: any ThrowLocationSource
@@ -436,6 +481,7 @@ public final class ThrowSession {
     @ObservationIgnored var pendingLocationFix: LocationFix?
     @ObservationIgnored var mayApplyTrueHeadingHint = true
     @ObservationIgnored var pendingAirAndSpaceFrame = AirAndSpaceExperienceFrame.empty
+    @ObservationIgnored var pendingTransitFrame = TransitExperienceFrame.empty
     @ObservationIgnored var projectionPresentationStaging: ProjectionPresentationStaging?
     @ObservationIgnored var currentSnapshot: AircraftSnapshot?
     var outputDemands: Set<ProjectionOutput> = []
@@ -448,6 +494,7 @@ public final class ThrowSession {
     @ObservationIgnored var projectionSessionLocationGeneration: UInt64 = 0
     @ObservationIgnored var projectionSessionLocationGate: ProjectionSessionLocationGate = .required
     @ObservationIgnored var airAndSpaceUpdateTask: Task<Void, Never>?
+    @ObservationIgnored var transitUpdateTask: Task<Void, Never>?
     @ObservationIgnored var launchTask: Task<Void, Never>?
     @ObservationIgnored var durableLoggingTask: Task<Void, Never>?
     @ObservationIgnored var durableLoggingSession: (any ThrowDurableLoggingSession)?
@@ -459,6 +506,9 @@ public final class ThrowSession {
         ProjectionPlaylistConfiguration.Revision.initial
     @ObservationIgnored var airAndSpaceActivation = ProjectionActivationLeaseTracker(
         experienceID: .airAndSpace,
+    )
+    @ObservationIgnored var transitActivation = ProjectionActivationLeaseTracker(
+        experienceID: .transit,
     )
     @ObservationIgnored var demandTask: Task<Void, Never>?
     @ObservationIgnored var isReconcilingDemand = false
@@ -503,6 +553,10 @@ public final class ThrowSession {
         motionLogger: any ProjectionMotionLogging,
         routeResolver: FlightRouteResolver,
         routeLogger: any FlightRouteLogging,
+        transitObservationSource: any TransitObservationSource,
+        transitScheduleSource: any TransitScheduleSource,
+        transitScheduleStore: any TransitScheduleStore,
+        transitPollingClock: any TransitPollingClock,
         rotationClock: any ProjectionRotationClock,
         softwareCreditsState: SoftwareCreditsLoadState,
         durableLoggingStarter: (any ThrowDurableLoggingStarting)?,
@@ -522,6 +576,7 @@ public final class ThrowSession {
         )
         globalPreferences = preferences.global
         airAndSpacePreferences = preferences.airAndSpace
+        transitPreferences = preferences.transit
         projectionPresentationState = .initial(
             coordinator: initialCoordinator,
             preferredExperienceID: preferences.playlist.selectedExperienceID ?? .airAndSpace,
@@ -548,6 +603,15 @@ public final class ThrowSession {
             routeLogger: routeLogger,
             dateProvider: dateProvider,
             sessionFailureLogger: sessionFailureLogger,
+        )
+        transitRuntime = TransitRuntime(
+            observationSource: transitObservationSource,
+            scheduleSource: transitScheduleSource,
+            scheduleStore: transitScheduleStore,
+            networkRuntime: layerCatalog.transitNetwork.runtimeFactory(),
+            vehiclesRuntime: layerCatalog.transitVehicles.runtimeFactory(),
+            dateProvider: dateProvider,
+            clock: transitPollingClock,
         )
         experienceCoordinator = ProjectionExperienceCoordinator(
             playlist: preferences.playlist,
@@ -625,7 +689,7 @@ public final class ThrowSession {
     }
 
     public var markSizeMultiplier: Double {
-        markSizePercent / 100
+        (activeExperienceID == .transit ? transitMarkSizePercent : markSizePercent) / 100
     }
 
     public var intensityMultiplier: Double {
@@ -633,7 +697,13 @@ public final class ThrowSession {
     }
 
     public var geographyIntensityMultiplier: Double {
-        geographyIntensityPercent / 100
+        (activeExperienceID == .transit
+            ? transitGeographyIntensityPercent
+            : geographyIntensityPercent) / 100
+    }
+
+    public var transitNetworkIntensityMultiplier: Double {
+        transitNetworkIntensityPercent / 100
     }
 
     public var lastUpdate: Date? {
@@ -823,6 +893,14 @@ public final class ThrowSession {
                 await self?.applyAirAndSpaceUpdate(update)
             }
         }
+        let transitUpdates = await transitRuntime.stateUpdates()
+        transitUpdateTask?.cancel()
+        transitUpdateTask = Task(name: "Throw observe Transit runtime") { [weak self] in
+            for await update in transitUpdates {
+                guard Task.isCancelled == false else { return }
+                await self?.applyTransitUpdate(update)
+            }
+        }
         installTimeChangeObservers()
         runtimeObserversInstalled = true
     }
@@ -874,6 +952,7 @@ public final class ThrowSession {
         launchTask?.cancel()
         durableLoggingTask?.cancel()
         airAndSpaceUpdateTask?.cancel()
+        transitUpdateTask?.cancel()
         experienceStateTask?.cancel()
         experienceActionTask?.cancel()
         playlistConfigurationTask?.cancel()

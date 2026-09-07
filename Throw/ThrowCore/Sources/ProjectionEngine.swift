@@ -305,7 +305,7 @@ public struct ProjectionEngine: Sendable {
                 calibration: calibration,
                 geometry: geometry,
             )
-            let orientation = switch mark.glyph {
+            let orientation: Double? = switch mark.glyph {
                 case let .airport(descriptor): try projectedOrientation(
                         bearing: descriptor.runwayBearing,
                         anchor: prediction.mark.anchor,
@@ -324,6 +324,8 @@ public struct ProjectionEngine: Sendable {
                         geometry: geometry,
                         currentPoint: point,
                     )
+                case .transitStop:
+                    nil
             }
             let altitudeIsApproximate: Bool = switch prediction.mark.anchor {
                 case let .geodetic(anchor):
@@ -382,12 +384,22 @@ public struct ProjectionEngine: Sendable {
     ) throws -> [ProjectedLineSegment<Style>] {
         try Task.checkCancellation()
         guard case let .map(mapViewport) = viewport else { return [] }
+        let replacementStyles = Set(lines.lazy.filter { line in
+            line.detailLevel.replacesBroaderDetail &&
+                line.detailLevel.includes(mapRadius: mapViewport.radius) &&
+                line.bounds.mayIntersect(observer: mapCenter, radius: mapViewport.radius)
+        }.map(\.style))
         var segments: [ProjectedLineSegment<Style>] = []
         for (lineIndex, line) in lines.enumerated() {
             if lineIndex.isMultiple(of: 64) {
                 try Task.checkCancellation()
             }
             guard line.detailLevel.includes(mapRadius: mapViewport.radius) else {
+                continue
+            }
+            guard line.detailLevel.replacesBroaderDetail ||
+                replacementStyles.contains(line.style) == false
+            else {
                 continue
             }
             guard line.bounds.mayIntersect(
@@ -530,6 +542,22 @@ public struct ProjectionEngine: Sendable {
         calibration: ProjectionCalibration,
         geometry: ProjectionGeometry,
     ) throws -> ProjectionPoint? {
+        try mapPoint(
+            for: coordinate,
+            center: center,
+            viewport: ProjectionMapViewport(viewport),
+            calibration: calibration,
+            geometry: geometry,
+        )
+    }
+
+    public func mapPoint(
+        for coordinate: GeoCoordinate,
+        center: GeoCoordinate,
+        viewport: ProjectionMapViewport,
+        calibration: ProjectionCalibration,
+        geometry: ProjectionGeometry,
+    ) throws -> ProjectionPoint? {
         let radial = try mapRadialPosition(
             for: coordinate,
             center: center,
@@ -628,7 +656,7 @@ public struct ProjectionEngine: Sendable {
     private func mapRadialPosition(
         for coordinate: GeoCoordinate,
         center: GeoCoordinate,
-        viewport: MapViewport,
+        viewport: ProjectionMapViewport,
         screenTopBearing: Bearing,
     ) throws -> RadialPosition {
         let geographic = try greatCirclePosition(

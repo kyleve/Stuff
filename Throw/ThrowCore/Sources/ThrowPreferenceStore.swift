@@ -446,7 +446,186 @@ public struct AirAndSpacePreferences: Equatable, Sendable, CustomStringConvertib
     }
 }
 
-/// Throw's version-two preference model, grouped by global and experience ownership.
+public enum TransitConfiguration: Equatable, Sendable {
+    case unconfigured
+    case configured(cityID: TransitCityID)
+
+    public var cityID: TransitCityID? {
+        switch self {
+            case .unconfigured: nil
+            case let .configured(cityID): cityID
+        }
+    }
+}
+
+/// Preferences owned by the Transit experience.
+public struct TransitPreferences: Equatable, Sendable {
+    public static let defaultValue: TransitPreferences = {
+        do {
+            return try TransitPreferences(
+                configuration: .unconfigured,
+                mapCenter: GeoCoordinate(latitude: 40.7128, longitude: -73.98),
+                mapViewport: .defaultValue,
+                labelMode: .routeOnly,
+                geography: .defaultValue,
+                markSizePercent: 100,
+                networkIntensityPercent: 100,
+            )
+        } catch {
+            preconditionFailure("Throw's default Transit preferences must be valid: \(error)")
+        }
+    }()
+
+    public let configuration: TransitConfiguration
+    public let mapCenter: GeoCoordinate
+    public let mapViewport: TransitMapViewport
+    public let labelMode: TransitLabelMode
+    public let geography: GeographyPreferences
+    public let markSizePercent: Double
+    public let networkIntensityPercent: Double
+
+    public init(
+        configuration: TransitConfiguration,
+        mapCenter: GeoCoordinate,
+        mapViewport: TransitMapViewport,
+        labelMode: TransitLabelMode,
+        geography: GeographyPreferences,
+        markSizePercent: Double,
+        networkIntensityPercent: Double,
+    ) throws {
+        guard markSizePercent.isFinite, (50 ... 200).contains(markSizePercent),
+              networkIntensityPercent.isFinite,
+              (20 ... 100).contains(networkIntensityPercent)
+        else {
+            throw ThrowValidationError.invalidPreferencePayload
+        }
+        self.configuration = configuration
+        self.mapCenter = mapCenter
+        self.mapViewport = mapViewport
+        self.labelMode = labelMode
+        self.geography = geography
+        self.markSizePercent = markSizePercent
+        self.networkIntensityPercent = networkIntensityPercent
+    }
+
+    public func replacingConfiguration(_ configuration: TransitConfiguration) -> Self {
+        replacing(
+            configuration: configuration,
+            mapCenter: mapCenter,
+            mapViewport: mapViewport,
+            labelMode: labelMode,
+            geography: geography,
+        )
+    }
+
+    public func replacingMapCenter(_ mapCenter: GeoCoordinate) -> Self {
+        replacing(
+            configuration: configuration,
+            mapCenter: mapCenter,
+            mapViewport: mapViewport,
+            labelMode: labelMode,
+            geography: geography,
+        )
+    }
+
+    public func replacingMapViewport(_ mapViewport: TransitMapViewport) -> Self {
+        replacing(
+            configuration: configuration,
+            mapCenter: mapCenter,
+            mapViewport: mapViewport,
+            labelMode: labelMode,
+            geography: geography,
+        )
+    }
+
+    public func replacingLabelMode(_ labelMode: TransitLabelMode) -> Self {
+        replacing(
+            configuration: configuration,
+            mapCenter: mapCenter,
+            mapViewport: mapViewport,
+            labelMode: labelMode,
+            geography: geography,
+        )
+    }
+
+    public func replacingGeography(_ geography: GeographyPreferences) -> Self {
+        replacing(
+            configuration: configuration,
+            mapCenter: mapCenter,
+            mapViewport: mapViewport,
+            labelMode: labelMode,
+            geography: geography,
+        )
+    }
+
+    public func replacingMarkSizePercent(_ markSizePercent: Double) throws -> Self {
+        try Self(
+            configuration: configuration,
+            mapCenter: mapCenter,
+            mapViewport: mapViewport,
+            labelMode: labelMode,
+            geography: geography,
+            markSizePercent: markSizePercent,
+            networkIntensityPercent: networkIntensityPercent,
+        )
+    }
+
+    public func replacingNetworkIntensityPercent(
+        _ networkIntensityPercent: Double,
+    ) throws -> Self {
+        try Self(
+            configuration: configuration,
+            mapCenter: mapCenter,
+            mapViewport: mapViewport,
+            labelMode: labelMode,
+            geography: geography,
+            markSizePercent: markSizePercent,
+            networkIntensityPercent: networkIntensityPercent,
+        )
+    }
+
+    public var isConfigured: Bool {
+        configuration.cityID != nil
+    }
+
+    private func replacing(
+        configuration: TransitConfiguration,
+        mapCenter: GeoCoordinate,
+        mapViewport: TransitMapViewport,
+        labelMode: TransitLabelMode,
+        geography: GeographyPreferences,
+    ) -> Self {
+        Self(
+            validatedConfiguration: configuration,
+            mapCenter: mapCenter,
+            mapViewport: mapViewport,
+            labelMode: labelMode,
+            geography: geography,
+            markSizePercent: markSizePercent,
+            networkIntensityPercent: networkIntensityPercent,
+        )
+    }
+
+    private init(
+        validatedConfiguration configuration: TransitConfiguration,
+        mapCenter: GeoCoordinate,
+        mapViewport: TransitMapViewport,
+        labelMode: TransitLabelMode,
+        geography: GeographyPreferences,
+        markSizePercent: Double,
+        networkIntensityPercent: Double,
+    ) {
+        self.configuration = configuration
+        self.mapCenter = mapCenter
+        self.mapViewport = mapViewport
+        self.labelMode = labelMode
+        self.geography = geography
+        self.markSizePercent = markSizePercent
+        self.networkIntensityPercent = networkIntensityPercent
+    }
+}
+
+/// Throw's version-four preference model, grouped by global and experience ownership.
 public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
     CustomDebugStringConvertible
 {
@@ -480,6 +659,7 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
                 global: global,
                 playlist: playlist,
                 airAndSpace: airAndSpace,
+                transit: .defaultValue,
             )
         } catch {
             preconditionFailure("Throw's default preferences must be valid: \(error)")
@@ -490,6 +670,15 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
     public let global: ThrowGlobalPreferences
     public let playlist: ProjectionPlaylist
     public let airAndSpace: AirAndSpacePreferences
+    public let transit: TransitPreferences
+
+    public var configuredExperienceIDs: Set<RunnableProjectionExperienceID> {
+        var ids = setupState.configuredExperienceIDs
+        if transit.isConfigured {
+            ids.insert(.transit)
+        }
+        return ids
+    }
 
     public var setupCompleted: Bool {
         setupState.setupCompleted
@@ -520,8 +709,12 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
         global: ThrowGlobalPreferences,
         playlist: ProjectionPlaylist,
         airAndSpace: AirAndSpacePreferences,
+        transit: TransitPreferences,
     ) throws {
-        let configuredExperienceIDs = setupState.configuredExperienceIDs
+        var configuredExperienceIDs = setupState.configuredExperienceIDs
+        if transit.isConfigured {
+            configuredExperienceIDs.insert(.transit)
+        }
         let validatedPlaylist = try ProjectionPlaylist(
             entries: playlist.entries,
             automaticRotationEnabled: playlist.automaticRotationEnabled,
@@ -529,15 +722,18 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
             configuredExperienceIDs: configuredExperienceIDs,
             catalog: .standard,
         )
-        if setupState.setupCompleted,
-           validatedPlaylist.selectedExperienceID != .airAndSpace
-        {
-            throw ThrowValidationError.invalidPreferencePayload
+        if setupState.setupCompleted {
+            guard validatedPlaylist.entry(for: .airAndSpace) != nil,
+                  validatedPlaylist.selectedRunnableExperienceID != nil
+            else {
+                throw ThrowValidationError.invalidPreferencePayload
+            }
         }
         self.setupState = setupState
         self.global = global
         self.playlist = validatedPlaylist
         self.airAndSpace = airAndSpace
+        self.transit = transit
     }
 
     public var calibration: ProjectionCalibration {
@@ -671,6 +867,7 @@ enum ThrowPreferencesCodec {
         let global: GlobalStorage?
         let playlist: PlaylistStorage?
         let airAndSpace: AirAndSpaceStorage?
+        let transit: TransitStorage?
 
         // Version-one fields. Keep them decodable while the storage key remains stable.
         let selectedSource: SourceStorage?
@@ -692,11 +889,12 @@ enum ThrowPreferencesCodec {
         let quietInterval: QuietStorage?
 
         init(_ preferences: ThrowPreferences) {
-            version = 2
+            version = 4
             setupCompleted = preferences.setupCompleted
             global = GlobalStorage(preferences)
             playlist = PlaylistStorage(preferences.playlist)
             airAndSpace = AirAndSpaceStorage(preferences)
+            transit = TransitStorage(preferences.transit)
             selectedSource = nil
             validatedSource = nil
             locationMode = nil
@@ -722,6 +920,10 @@ enum ThrowPreferencesCodec {
                     try versionOnePreferences()
                 case 2:
                     try versionTwoPreferences()
+                case 3:
+                    try versionThreePreferences()
+                case 4:
+                    try versionFourPreferences()
                 default:
                     throw ThrowPreferenceStoreError.invalidPayload
             }
@@ -746,6 +948,61 @@ enum ThrowPreferencesCodec {
                 global: decodedGlobal.preferences,
                 playlist: projectionPlaylist,
                 airAndSpace: decodedAirAndSpace.preferences,
+                transit: .defaultValue,
+            )
+        }
+
+        private func versionThreePreferences() throws -> ThrowPreferences {
+            guard let global, let playlist, let airAndSpace, let transit else {
+                throw ThrowPreferenceStoreError.invalidPayload
+            }
+            let decodedGlobal = try global.value()
+            let decodedAirAndSpace = try airAndSpace.value()
+            let transitPreferences = try transit.versionThreeValue()
+            let setupState = try setupState(
+                sourceSelection: decodedAirAndSpace.sourceSelection,
+                locationMode: decodedGlobal.locationMode,
+                confirmedLocation: decodedGlobal.confirmedLocation,
+                selectedProjectionMode: decodedAirAndSpace.selectedProjectionMode,
+            )
+            var configuredIDs = setupState.configuredExperienceIDs
+            if transitPreferences.isConfigured {
+                configuredIDs.insert(.transit)
+            }
+            let projectionPlaylist = try playlist.value(configuredExperienceIDs: configuredIDs)
+            return try ThrowPreferences(
+                setupState: setupState,
+                global: decodedGlobal.preferences,
+                playlist: projectionPlaylist,
+                airAndSpace: decodedAirAndSpace.preferences,
+                transit: transitPreferences,
+            )
+        }
+
+        private func versionFourPreferences() throws -> ThrowPreferences {
+            guard let global, let playlist, let airAndSpace, let transit else {
+                throw ThrowPreferenceStoreError.invalidPayload
+            }
+            let decodedGlobal = try global.value()
+            let decodedAirAndSpace = try airAndSpace.value()
+            let transitPreferences = try transit.value()
+            let setupState = try setupState(
+                sourceSelection: decodedAirAndSpace.sourceSelection,
+                locationMode: decodedGlobal.locationMode,
+                confirmedLocation: decodedGlobal.confirmedLocation,
+                selectedProjectionMode: decodedAirAndSpace.selectedProjectionMode,
+            )
+            var configuredIDs = setupState.configuredExperienceIDs
+            if transitPreferences.isConfigured {
+                configuredIDs.insert(.transit)
+            }
+            let projectionPlaylist = try playlist.value(configuredExperienceIDs: configuredIDs)
+            return try ThrowPreferences(
+                setupState: setupState,
+                global: decodedGlobal.preferences,
+                playlist: projectionPlaylist,
+                airAndSpace: decodedAirAndSpace.preferences,
+                transit: transitPreferences,
             )
         }
 
@@ -830,6 +1087,7 @@ enum ThrowPreferencesCodec {
                 global: globalPreferences,
                 playlist: playlist,
                 airAndSpace: airAndSpacePreferences,
+                transit: .defaultValue,
             )
         }
 
@@ -982,6 +1240,68 @@ enum ThrowPreferencesCodec {
                     includeGroundAircraft: includeGroundAircraft,
                     markSizePercent: markSizePercent,
                 ),
+            )
+        }
+    }
+
+    private struct TransitStorage: Codable {
+        let configuredCityID: String?
+        let mapLatitude: Double
+        let mapLongitude: Double
+        let mapRadius: Double
+        let labelMode: String
+        let geography: GeographyStorage
+        let markSizePercent: Double
+        let networkIntensityPercent: Double
+
+        init(_ preferences: TransitPreferences) {
+            configuredCityID = preferences.configuration.cityID?.rawValue
+            mapLatitude = preferences.mapCenter.latitude
+            mapLongitude = preferences.mapCenter.longitude
+            mapRadius = preferences.mapViewport.radius.value
+            labelMode = preferences.labelMode.rawValue
+            geography = GeographyStorage(preferences.geography)
+            markSizePercent = preferences.markSizePercent
+            networkIntensityPercent = preferences.networkIntensityPercent
+        }
+
+        func value() throws -> TransitPreferences {
+            try value(
+                mapViewport: TransitMapViewport(radius: NauticalMiles(value: mapRadius)),
+            )
+        }
+
+        /// Version three allowed only five-NM steps from 5 through 50 NM.
+        func versionThreeValue() throws -> TransitPreferences {
+            guard (5.0 ... 50.0).contains(mapRadius),
+                  mapRadius.truncatingRemainder(dividingBy: 5) == 0
+            else {
+                throw ThrowPreferenceStoreError.invalidPayload
+            }
+            return try value(mapViewport: .defaultValue)
+        }
+
+        private func value(mapViewport: TransitMapViewport) throws -> TransitPreferences {
+            let configuration: TransitConfiguration
+            if let configuredCityID {
+                guard let cityID = TransitCityID(rawValue: configuredCityID) else {
+                    throw ThrowPreferenceStoreError.invalidPayload
+                }
+                configuration = .configured(cityID: cityID)
+            } else {
+                configuration = .unconfigured
+            }
+            guard let labelMode = TransitLabelMode(rawValue: labelMode) else {
+                throw ThrowPreferenceStoreError.invalidPayload
+            }
+            return try TransitPreferences(
+                configuration: configuration,
+                mapCenter: GeoCoordinate(latitude: mapLatitude, longitude: mapLongitude),
+                mapViewport: mapViewport,
+                labelMode: labelMode,
+                geography: geography.value(),
+                markSizePercent: markSizePercent,
+                networkIntensityPercent: networkIntensityPercent,
             )
         }
     }

@@ -21,7 +21,7 @@ does not import WhereCore or RegionKit and does not use LifecycleKit.
 
 ## Build and run
 
-Generate the workspace, then use the shared `Throw` scheme on an iOS 26 or
+Generate the workspace, then use the shared `Throw` scheme on an iOS 27 or
 newer iPhone or iPad:
 
 ```bash
@@ -46,10 +46,9 @@ Preview runs the same projection renderer on the device.
 
 ## Projection Views
 
-“View” is the user-facing name for a `ProjectionExperience`. Air & Space is the
-first enabled View. It contains Geography, Flights, and the planned Stars and
-Satellites layers. Transit is planned for nearby moving buses, trains, and
-ferries. This change does not include a live transit provider.
+“View” is the user-facing name for a `ProjectionExperience`. Air & Space contains
+Geography, Flights, and the planned Stars and Satellites layers. Transit first
+supports New York City subway trains.
 
 One playlist controls every projector, full-screen output, and Preview. Each
 View has a dwell duration. Automatic rotation starts only when two Views are
@@ -58,11 +57,31 @@ View visible until the new View has fresh data and a complete prepared frame.
 Both values must belong to the same activation. The surface fades to black,
 exchanges atomically, and fades back in. Two Views never share one frame.
 
-Air & Space is the only configurable View in this release. Automatic rotation
-therefore remains dormant. Transit stays in the display and preference formats
-as a planned View. It has no runnable identity, so release code cannot add it to
-the playlist or send it to the coordinator. A future runtime must add a new
-runnable identity and update the exhaustive activation switch.
+You can configure Air & Space and NYC Subway together. Then Throw can rotate
+between the two Views. Each View keeps its own Map center, viewport, labels,
+mark size, and context intensity.
+
+## NYC Subway
+
+The NYC Subway View uses the official supplemented GTFS schedule from the MTA.
+It polls the eight official GTFS Realtime feed partitions every 30 seconds.
+The schedule defines routes, stops, trip patterns, and route shapes. The
+realtime feeds provide assigned train runs and predicted stop times.
+
+The MTA feeds do not provide a continuous position for each train. Throw
+estimates each train position along its scheduled shape. A train becomes more
+certain after consecutive feed updates show its movement through stops.
+
+Throw downloads the schedule during setup and stores it in the local cache.
+It refreshes the schedule each hour while the View runs. A valid empty realtime
+response completes activation. If one partition fails, the other partitions
+continue to update. The failed partition keeps its last train positions for
+90 seconds. Then it fades them for 30 seconds.
+
+Transit data uses a provider-neutral schedule and observation boundary. An
+additional city can supply its own GTFS adapters without changing the Transit
+projection layers. The first release does not include San Francisco data,
+buses, ferries, service alerts, or accessibility status.
 
 ## Aircraft sources
 
@@ -135,24 +154,25 @@ when it is inside the visible Map. True Sky always uses the observer location.
 Cloud aircraft sources receive a coarse version of the Map center and the query
 radius. They do not receive the exact observer location when the centers differ.
 
-Throw bundles Natural Earth Vector 1:10m data and selected 2025 U.S. Census
-Bureau data. Map rendering does not request tiles or send a location to a map
-provider. The generated archive contains no place names or road names.
+Throw bundles Natural Earth Vector 1:10m data, selected 2025 U.S. Census Bureau
+data, and NYC's source-resolution planimetric shoreline. Map rendering does not
+request tiles or send a location to a map provider. The generated archive
+contains no place names or road names.
 
 The data is generalized and is not authoritative. Natural Earth boundaries use
 the default de facto view. Census boundaries support statistical work and are
 not legal land descriptions. See the [Natural Earth
 terms](https://www.naturalearthdata.com/about/terms-of-use/) and the [2025
 TIGER/Line documentation](https://www2.census.gov/geo/pdfs/maps-data/data/tiger/tgrshp2025/TGRSHP2025_TechDoc_Ch1.pdf).
+NYC shoreline geometry is from the [NYC Planimetric Database](https://data.cityofnewyork.us/Recreation/NYC-Planimetric-Database-Shoreline/59xk-wagz).
 
 ## External scenes
 
-iOS 26 discovers noninteractive external displays through the declared scene
-role. On iOS 27, the controller also registers a retained
-`UISceneAccessory.externalNonInteractive` adapter. The iOS 27 integration was
-compiled against the installed beta SDK and must be revalidated against the
-iOS 27 GM SDK before release. Focus, keystone, and optical registration remain
-projector responsibilities.
+Throw requires iOS 27. The controller root attaches an
+`ExternalNonInteractiveAccessory`. The system creates its external scene when
+a compatible display connects. The accessory shows the same production
+`ProjectionSurface` that Preview and the full-screen fallback use. Focus,
+keystone, and optical registration remain projector responsibilities.
 
 See [`AGENTS.md`](AGENTS.md) for the feature's editing rules and each module's
 README for its public API and limitations.

@@ -104,6 +104,27 @@ struct FlightPredictorTests {
         #expect(expired == nil)
     }
 
+    @Test func transitFailureHoldsForNinetySecondsThenFadesForThirty() throws {
+        let failureStartedAt = ThrowCoreFixture.date.addingTimeInterval(300)
+        let mark = try movingMark(
+            positionAge: 0,
+            availability: .transitRetrying(since: failureStartedAt),
+        )
+
+        #expect(try FlightPredictor.prediction(
+            for: mark,
+            at: failureStartedAt.addingTimeInterval(90),
+        )?.opacity == 1)
+        #expect(try FlightPredictor.prediction(
+            for: mark,
+            at: failureStartedAt.addingTimeInterval(105),
+        )?.opacity == 0.5)
+        #expect(try FlightPredictor.prediction(
+            for: mark,
+            at: failureStartedAt.addingTimeInterval(120),
+        ) == nil)
+    }
+
     @Test func verticalRatePredictsAltitudeWithoutHorizontalVelocity() throws {
         let mark = try mark(
             velocity: ProjectionVelocity.unavailable(

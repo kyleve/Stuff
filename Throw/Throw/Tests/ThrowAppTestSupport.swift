@@ -9,7 +9,6 @@ final class ThrowApplicationRuntimeSpy: ThrowApplicationRuntime {
     private(set) var controllerSceneEvents: [RecordedControllerSceneEvent] = []
     private(set) var connectedOutputs: [ProjectionOutput] = []
     private(set) var disconnectedOutputs: [ProjectionOutput] = []
-    private(set) var appearances: [UIUserInterfaceStyle] = []
     private(set) var outputDemandChangeCount = 0
 
     init(session: ThrowSession) {
@@ -20,10 +19,7 @@ final class ThrowApplicationRuntimeSpy: ThrowApplicationRuntime {
         self.init(session: .fixture())
     }
 
-    func projectionOutputConnected(
-        _ output: ProjectionOutput,
-        appearanceSink _: @escaping @MainActor (UIUserInterfaceStyle) -> Void,
-    ) {
+    func projectionOutputConnected(_ output: ProjectionOutput) {
         connectedOutputs.append(output)
     }
 
@@ -36,10 +32,6 @@ final class ThrowApplicationRuntimeSpy: ThrowApplicationRuntime {
         didReceive event: ControllerSceneLifecycleEvent,
     ) {
         controllerSceneEvents.append(RecordedControllerSceneEvent(id: id, event: event))
-    }
-
-    func controllerAppearanceDidChange(_ style: UIUserInterfaceStyle) {
-        appearances.append(style)
     }
 
     func sessionOutputDemandDidChange() {
