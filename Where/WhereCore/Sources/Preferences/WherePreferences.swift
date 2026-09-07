@@ -18,6 +18,12 @@ import RegionKit
 /// read/written eagerly; callers that need observation (SwiftUI) mirror them in
 /// their own observable state.
 public final class WherePreferences {
+    public struct ResetGeneration: Hashable, Sendable {
+        fileprivate let value = UUID()
+    }
+
+    /// Pending operations must not publish results into a reset installation.
+    public private(set) var resetGeneration = ResetGeneration()
     private let store: any KeyValueStore
     private let invalidValue: (String) -> Void
 
@@ -155,6 +161,11 @@ public final class WherePreferences {
         set { store.set(newValue, forKey: Keys.lastAutomaticBackupAt.rawValue) }
     }
 
+    public func recordAutomaticBackupSuccess(at date: Date, generation: ResetGeneration) {
+        guard generation == resetGeneration else { return }
+        lastAutomaticBackupAt = max(lastAutomaticBackupAt ?? date, date)
+    }
+
     /// The user's saved, vendor-neutral diagnostic-reporting choices.
     public var diagnosticReportingConfiguration: DiagnosticReportingConfiguration {
         get { diagnosticReportingConfiguration(isDebugBuild: Self.isDebugBuild) }
@@ -253,6 +264,7 @@ public final class WherePreferences {
     /// Removing the keys (rather than writing `false`/`0`) lets the
     /// default-valued getters report first-install state again.
     public func reset() {
+        resetGeneration = ResetGeneration()
         for key in Keys.allCases {
             store.removeObject(forKey: key.rawValue)
         }

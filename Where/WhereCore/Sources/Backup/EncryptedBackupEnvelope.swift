@@ -68,8 +68,8 @@ extension BackupService {
                 isDirectory: true,
             )
         let staging = root.appendingPathComponent("contents", isDirectory: true)
-        try fileManager.createDirectory(at: staging, withIntermediateDirectories: true)
         do {
+            try fileManager.createDirectory(at: staging, withIntermediateDirectories: true)
             let envelope = EncryptedBackupEnvelope(
                 keyIdentifier: recoveryKey.identifier,
                 exportedAt: exportedAt,
@@ -104,6 +104,7 @@ extension BackupService {
                 to: destination,
                 shouldKeepParent: false,
                 compressionMethod: .none,
+                progress: Self.cancellationProgress,
             )
             try Task.checkCancellation()
             return destination
@@ -129,7 +130,7 @@ extension BackupService {
         defer { Self.removeEncryptedStagingDirectory(root) }
 
         try Task.checkCancellation()
-        try fileManager.unzipItem(at: url, to: root)
+        try fileManager.unzipItem(at: url, to: root, progress: Self.cancellationProgress)
         let envelopeURL = root.appendingPathComponent("envelope.json")
         guard fileManager.fileExists(atPath: envelopeURL.path) else {
             throw EncryptedBackupError.envelopeMissing
@@ -191,7 +192,7 @@ extension BackupService {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd HH.mm.ss"
-        return "Where Automatic Backup \(formatter.string(from: date)).wherebackup"
+        return "Where Automatic Backup \(formatter.string(from: date)) \(UUID().uuidString).wherebackup"
     }
 
     private static func removeEncryptedStagingDirectory(_ url: URL) {

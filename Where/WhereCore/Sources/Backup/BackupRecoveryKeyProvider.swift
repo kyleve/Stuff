@@ -1,6 +1,6 @@
 import CryptoKit
 import Foundation
-import KeychainKit
+@_spi(Testing) import KeychainKit
 import Security
 
 /// The 256-bit secret used to encrypt automatic backups. Its Base64 form is
@@ -41,8 +41,8 @@ public struct BackupRecoveryKey: Hashable, Sendable {
     }
 }
 
-/// Loads the synchronized automatic-backup key, creating it only after the
-/// device has exposed protected data and Keychain explicitly reports absence.
+/// Pins this installation's active secret locally and preserves each secret
+/// under its own synchronized account. No synchronized secret is overwritten.
 public actor BackupRecoveryKeyProvider {
     public enum ProviderError: Error, LocalizedError, Equatable {
         case deferredUntilFirstUnlock
@@ -65,13 +65,30 @@ public actor BackupRecoveryKeyProvider {
     public static let account = "automatic-backup-recovery-key-v1"
 
     private let store: any KeychainStore
+    private let legacyStore: any KeychainStore
+    private let collection: any KeychainCollection
     private let isProtectedDataAvailable: @Sendable () async -> Bool
 
+    public init(
+        store: any KeychainStore,
+        legacyStore: any KeychainStore,
+        collection: any KeychainCollection,
+        isProtectedDataAvailable: @escaping @Sendable () async -> Bool,
+    ) {
+        self.store = store
+        self.legacyStore = legacyStore
+        self.collection = collection
+        self.isProtectedDataAvailable = isProtectedDataAvailable
+    }
+
+    @_spi(Testing)
     public init(
         store: any KeychainStore,
         isProtectedDataAvailable: @escaping @Sendable () async -> Bool,
     ) {
         self.store = store
+        legacyStore = InMemoryKeychainStore()
+        collection = InMemoryKeychainCollection()
         self.isProtectedDataAvailable = isProtectedDataAvailable
     }
 
@@ -81,7 +98,18 @@ public actor BackupRecoveryKeyProvider {
         BackupRecoveryKeyProvider(
             store: SystemKeychainStore(
                 service: service,
+                account: "automatic-backup-active-key-v2",
+                accessibility: .afterFirstUnlock,
+                synchronizesThroughICloud: false,
+            ),
+            legacyStore: SystemKeychainStore(
+                service: service,
                 account: account,
+                accessibility: .afterFirstUnlock,
+                synchronizesThroughICloud: true,
+            ),
+            collection: SystemKeychainCollection(
+                service: "com.stuff.where.automatic-backup-keys-v2",
                 accessibility: .afterFirstUnlock,
                 synchronizesThroughICloud: true,
             ),
@@ -93,27 +121,37 @@ public actor BackupRecoveryKeyProvider {
         guard await isProtectedDataAvailable() else {
             throw ProviderError.deferredUntilFirstUnlock
         }
+        try Task.checkCancellation()
 
         do {
+            let legacy = try legacyStore.read()
+            if let legacy { try preserve(BackupRecoveryKey(data: legacy)) }
             if let existing = try store.read() {
-                return try BackupRecoveryKey(data: existing)
+                let key = try BackupRecoveryKey(data: existing)
+                try preserve(key)
+                return key
             }
 
             let created = try BackupRecoveryKey(
-                data: Data((0 ..< BackupRecoveryKey.byteCount).map { _ in
+                data: legacy ?? Data((0 ..< BackupRecoveryKey.byteCount).map { _ in
                     UInt8.random(in: .min ... .max)
                 }),
             )
+            // Preserve before pinning or exporting. Two offline installations
+            // create different accounts, so later synchronization retains both.
+            try preserve(created)
             do {
                 try store.create(created.data)
                 return created
             } catch let error as KeychainError where error.status == errSecDuplicateItem {
-                // Another synchronized writer won the creation race. The
-                // winner is authoritative; never overwrite it with ours.
+                // Only the local pin can race. Both candidates remain in the
+                // synchronized collection, including the losing candidate.
                 guard let winner = try store.read() else {
                     throw ProviderError.keychain(error)
                 }
-                return try BackupRecoveryKey(data: winner)
+                let key = try BackupRecoveryKey(data: winner)
+                try preserve(key)
+                return key
             }
         } catch let error as ProviderError {
             throw error
@@ -124,17 +162,39 @@ public actor BackupRecoveryKeyProvider {
         }
     }
 
-    /// Loads an existing key without minting one. Restore uses this before it
-    /// asks the user for the copied recovery key.
-    public func loadExisting() async throws -> BackupRecoveryKey? {
+    private func preserve(_ key: BackupRecoveryKey) throws {
+        let account = KeychainAccount(key.identifier)
+        do {
+            try collection.create(key.data, account: account)
+        } catch let error as KeychainError where error.status == errSecDuplicateItem {
+            guard try collection.read(account: account) == key.data else {
+                throw ProviderError.malformedKey
+            }
+        }
+    }
+
+    /// Resolve the envelope's exact key, including keys created on another
+    /// installation. A user-entered key never goes through this write path.
+    public func loadExisting(identifier: String) async throws -> BackupRecoveryKey? {
         guard await isProtectedDataAvailable() else {
             throw ProviderError.deferredUntilFirstUnlock
         }
         do {
-            guard let data = try store.read() else { return nil }
-            return try BackupRecoveryKey(data: data)
-        } catch let error as ProviderError {
-            throw error
+            if let data = try collection.read(account: KeychainAccount(identifier)) {
+                let key = try BackupRecoveryKey(data: data)
+                guard key.identifier == identifier else { throw ProviderError.malformedKey }
+                return key
+            }
+            for candidate in try [store.read(), legacyStore.read()] {
+                if let candidate {
+                    let key = try BackupRecoveryKey(data: candidate)
+                    if key.identifier == identifier {
+                        try preserve(key)
+                        return key
+                    }
+                }
+            }
+            return nil
         } catch let error as KeychainError where error.isInteractionNotAllowed {
             throw ProviderError.deferredUntilFirstUnlock
         } catch let error as KeychainError {

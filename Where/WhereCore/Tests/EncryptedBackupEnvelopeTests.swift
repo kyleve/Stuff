@@ -3,6 +3,27 @@ import Testing
 @testable import WhereCore
 
 struct EncryptedBackupEnvelopeTests {
+    @Test func cancelledCompressionDoesNotProduceAnArchive() throws {
+        let service = BackupService()
+        let progress = Progress(totalUnitCount: 0)
+        progress.cancel()
+        #expect(throws: (any Error).self) {
+            try BackupService.$cancellationProgress.withValue(progress) {
+                try service.makeArchiveFile(
+                    samples: [],
+                    evidence: [],
+                    manualDays: [],
+                    recordingDeviceProfiles: [],
+                    recordingDeviceMetadataChanges: [],
+                    recordingDeviceRemovals: [],
+                    plannedStayRecords: [],
+                    blobs: [:],
+                    exportedAt: Date(),
+                )
+            }
+        }
+    }
+
     @Test func encryptedContainerRoundTripsAndWrongKeyIsRejected() throws {
         let service = BackupService()
         let date = Date(timeIntervalSince1970: 1_700_000_000)

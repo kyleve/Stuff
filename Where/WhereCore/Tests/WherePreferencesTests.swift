@@ -4,6 +4,19 @@ import Testing
 @testable import WhereCore
 
 struct WherePreferencesTests {
+    @Test func backupCompletionsCannotRestoreResetMetadataOrMoveItBackwards() {
+        let preferences = preferences()
+        let generation = preferences.resetGeneration
+        let newer = Date(timeIntervalSince1970: 200)
+        let older = Date(timeIntervalSince1970: 100)
+        preferences.recordAutomaticBackupSuccess(at: newer, generation: generation)
+        preferences.recordAutomaticBackupSuccess(at: older, generation: generation)
+        #expect(preferences.lastAutomaticBackupAt == newer)
+        preferences.reset()
+        preferences.recordAutomaticBackupSuccess(at: newer, generation: generation)
+        #expect(preferences.lastAutomaticBackupAt == nil)
+    }
+
     private func preferences() -> WherePreferences {
         WherePreferences(store: InMemoryKeyValueStore())
     }

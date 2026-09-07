@@ -2,9 +2,50 @@ import Foundation
 @_spi(Testing) import KeychainKit
 import Security
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 struct BackupRecoveryKeyProviderTests {
+    @Test func independentlyCreatedKeysRemainAvailableAfterSynchronization() async throws {
+        let shared = InMemoryKeychainCollection()
+        let first = BackupRecoveryKeyProvider(
+            store: InMemoryKeychainStore(),
+            legacyStore: InMemoryKeychainStore(),
+            collection: shared,
+            isProtectedDataAvailable: { true },
+        )
+        let second = BackupRecoveryKeyProvider(
+            store: InMemoryKeychainStore(),
+            legacyStore: InMemoryKeychainStore(),
+            collection: shared,
+            isProtectedDataAvailable: { true },
+        )
+        let firstKey = try await first.loadOrCreate()
+        let secondKey = try await second.loadOrCreate()
+        #expect(firstKey != secondKey)
+        #expect(try await first.loadExisting(identifier: secondKey.identifier) == secondKey)
+        #expect(try await second.loadExisting(identifier: firstKey.identifier) == firstKey)
+        #expect(try await first.loadOrCreate() == firstKey)
+        #expect(try await second.loadOrCreate() == secondKey)
+    }
+
+    @Test func preservesLegacyKeyWithoutChangingTheSynchronizedItem() async throws {
+        let data = Data(repeating: 24, count: 32)
+        let legacy = InMemoryKeychainStore(data: data)
+        let active = InMemoryKeychainStore()
+        let collection = InMemoryKeychainCollection()
+        let provider = BackupRecoveryKeyProvider(
+            store: active,
+            legacyStore: legacy,
+            collection: collection,
+            isProtectedDataAvailable: { true },
+        )
+        let key = try await provider.loadOrCreate()
+        #expect(key.data == data)
+        #expect(try active.read() == data)
+        #expect(try legacy.read() == data)
+        #expect(collection.read(account: KeychainAccount(key.identifier)) == data)
+    }
+
     private final class SynchronizedCreationRaceStore: KeychainStore, @unchecked Sendable {
         private let lock = NSLock()
         private let winningData: Data

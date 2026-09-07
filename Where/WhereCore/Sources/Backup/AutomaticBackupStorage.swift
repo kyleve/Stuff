@@ -1,5 +1,6 @@
+import CryptoKit
 import Foundation
-import os
+import ZIPFoundation
 
 /// Stores encrypted automatic backups in iCloud Drive when it can, falling
 /// back to this installation's Documents directory. Only recognized encrypted
@@ -7,12 +8,15 @@ import os
 public actor AutomaticBackupStorage {
     public enum StorageError: Error, LocalizedError {
         case documentsDirectoryUnavailable
+        case downloadPending
         case iCloudAndLocalWriteFailed(iCloud: String, local: String)
 
         public var errorDescription: String? {
             switch self {
                 case .documentsDirectoryUnavailable:
                     "The app Documents directory is unavailable."
+                case .downloadPending:
+                    "An iCloud backup has not finished downloading. Try again later."
                 case let .iCloudAndLocalWriteFailed(iCloud, local):
                     "The backup could not be saved to iCloud (\(iCloud)) or this device (\(local))."
             }
@@ -70,31 +74,31 @@ public actor AutomaticBackupStorage {
     public func store(_ stagedArchive: URL) throws -> AutomaticBackupFile {
         try Task.checkCancellation()
         var iCloudFailure: Error?
-        if let cloudRoot = try iCloudRoot() {
-            do {
-                let stored = try write(
+        do {
+            if let cloudRoot = try iCloudRoot() {
+                return try write(
                     stagedArchive,
                     to: Root(url: cloudRoot, location: .iCloudDrive),
                     coordinated: true,
                 )
-                try pruneReachableBackups()
-                return stored
-            } catch {
-                Self.logger { .iCloudAccessFailed(description: error.localizedDescription) }
-                iCloudFailure = error
+            } else {
+                Self.logger { .iCloudUnavailable }
             }
-        } else {
-            Self.logger { .iCloudUnavailable }
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            Self.logger { .iCloudAccessFailed(description: error.localizedDescription) }
+            iCloudFailure = error
         }
 
         do {
-            let stored = try write(
+            return try write(
                 stagedArchive,
                 to: Root(url: localRoot(), location: .appDocuments),
                 coordinated: false,
             )
-            try pruneReachableBackups()
-            return stored
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             if let iCloudFailure {
                 throw StorageError.iCloudAndLocalWriteFailed(
@@ -130,7 +134,10 @@ public actor AutomaticBackupStorage {
             coordinated: false,
         )
         return AutomaticBackupCatalog(
-            files: files.sorted { $0.exportedAt > $1.exportedAt },
+            files: files.sorted {
+                if $0.exportedAt == $1.exportedAt { return $0.url.path < $1.url.path }
+                return $0.exportedAt > $1.exportedAt
+            },
             isICloudUnavailable: isICloudUnavailable,
         )
     }
@@ -141,67 +148,92 @@ public actor AutomaticBackupStorage {
         coordinated: Bool,
     ) throws -> AutomaticBackupFile {
         try Task.checkCancellation()
+        let metadata = try describe(source, location: root.location)
         try fileManager.createDirectory(at: root.url, withIntermediateDirectories: true)
         let destination = root.url.appendingPathComponent(source.lastPathComponent)
-        let temporary = root.url.appendingPathComponent(".\(UUID().uuidString).tmp")
-        defer { removeStagingItemIfPresent(at: temporary) }
-
-        let operation = {
+        let operation = { (coordinatedURL: URL) in
+            let temporary = coordinatedURL.deletingLastPathComponent()
+                .appendingPathComponent(".\(UUID().uuidString).tmp")
+            defer { self.removeStagingItemIfPresent(at: temporary) }
             try self.fileManager.copyItem(at: source, to: temporary)
             try Task.checkCancellation()
-            try self.fileManager.moveItem(at: temporary, to: destination)
+            try self.fileManager.moveItem(at: temporary, to: coordinatedURL)
+            return coordinatedURL
         }
-        if coordinated {
-            try coordinateWriting(at: destination, operation: operation)
+        let storedURL: URL = if coordinated {
+            try CoordinatedBackupFileAccess.write(
+                at: destination,
+                options: [],
+                operation: operation,
+            )
         } else {
-            try operation()
+            try operation(destination)
         }
-        return try describe(destination, location: root.location)
+        // No fallible work after the atomic commit: the caller must learn that
+        // this file exists even if later catalog or retention work fails.
+        return AutomaticBackupFile(
+            url: storedURL,
+            exportedAt: metadata.exportedAt,
+            byteCount: metadata.byteCount,
+            storageLocation: root.location,
+            protection: metadata.protection,
+        )
     }
 
     private func enumerate(_ root: Root, coordinated: Bool) throws -> [AutomaticBackupFile] {
-        guard fileManager.fileExists(atPath: root.url.path) else { return [] }
-        let result = OSAllocatedUnfairLock<Result<[AutomaticBackupFile], Error>?>(
-            uncheckedState: nil,
-        )
-        let operation = {
-            let value = Result {
-                let urls = try self.fileManager.contentsOfDirectory(
-                    at: root.url,
+        let urls: [URL]
+        do {
+            let operation = { (url: URL) in
+                try self.fileManager.contentsOfDirectory(
+                    at: url,
                     includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey],
                     options: [.skipsHiddenFiles],
                 )
-                var files: [AutomaticBackupFile] = []
-                for url in urls where url.pathExtension.lowercased() == "wherebackup" {
-                    // A matching extension alone does not make this one of our
-                    // automatic files. Ignore malformed or foreign containers
-                    // so catalog and retention never delete unrecognized data.
-                    do {
-                        let file = try self.describe(url, location: root.location)
-                        files.append(file)
-                    } catch {
-                        Self.logger { .ignoredUnrecognizedFile(name: url.lastPathComponent) }
-                    }
-                }
-                return files
             }
-            result.withLock { $0 = value }
+            urls = try coordinated
+                ? CoordinatedBackupFileAccess.read(at: root.url, operation: operation)
+                : operation(root.url)
+        } catch CocoaError.fileReadNoSuchFile {
+            return []
         }
-        if coordinated {
-            try coordinateReading(at: root.url, operation: operation)
-        } else {
-            operation()
+        var files: [AutomaticBackupFile] = []
+        for url in urls where url.pathExtension.lowercased() == "wherebackup" {
+            try Task.checkCancellation()
+            // A matching extension alone does not make this one of our
+            // automatic files. Ignore malformed or foreign containers
+            // so catalog and retention never delete unrecognized data.
+            do {
+                let operation = { (coordinatedURL: URL) in
+                    try self.describe(coordinatedURL, location: root.location)
+                }
+                let file = try coordinated
+                    ? CoordinatedBackupFileAccess.read(at: url, operation: operation)
+                    : operation(url)
+                files.append(file)
+            } catch is BackupService.EncryptedBackupError {
+                Self.logger { .ignoredUnrecognizedFile(name: url.lastPathComponent) }
+            } catch is DecodingError {
+                Self.logger { .ignoredUnrecognizedFile(name: url.lastPathComponent) }
+            } catch is Archive.ArchiveError {
+                Self.logger { .ignoredUnrecognizedFile(name: url.lastPathComponent) }
+            }
         }
-        guard let value = result.withLock({ $0 }) else {
-            preconditionFailure("File coordination did not execute its read accessor.")
-        }
-        return try value.get()
+        return files
     }
 
     private func describe(
         _ url: URL,
         location: AutomaticBackupFile.StorageLocation,
     ) throws -> AutomaticBackupFile {
+        let cloudValues = try url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey])
+        if cloudValues.ubiquitousItemDownloadingStatus == .notDownloaded {
+            try fileManager.startDownloadingUbiquitousItem(at: url)
+            throw StorageError.downloadPending
+        }
+        // Archive's failable initializer cannot distinguish I/O from format
+        // errors. Check readability first so access failures remain observable.
+        let handle = try FileHandle(forReadingFrom: url)
+        try handle.close()
         let envelope = try backupService.readEncryptedEnvelope(at: url)
         let values = try? url.resourceValues(forKeys: [.fileSizeKey])
         return AutomaticBackupFile(
@@ -213,16 +245,58 @@ public actor AutomaticBackupStorage {
         )
     }
 
-    private func pruneReachableBackups() throws {
+    /// Only authenticated, readable archives with available recovery keys may
+    /// displace another recoverable archive. Unknown keys and invalid files stay.
+    public func reconcileRetention(recoveryKeys: BackupRecoveryKeyProvider) async throws {
         let catalog = try catalog()
-        for oldFile in catalog.files.dropFirst(retainedFileCount) {
+        struct VerifiedFile: Sendable {
+            let file: AutomaticBackupFile
+            let digest: SHA256.Digest
+            let exportedAt: Date
+        }
+        var verified: [VerifiedFile] = []
+        for file in catalog.files {
             try Task.checkCancellation()
-            switch oldFile.storageLocation {
-                case .iCloudDrive:
-                    try coordinateDeleting(at: oldFile.url)
-                case .appDocuments:
-                    try fileManager.removeItem(at: oldFile.url)
+            let identifier = try CoordinatedBackupFileAccess.read(at: file.url) {
+                try self.backupService.readEncryptedEnvelope(at: $0).keyIdentifier
             }
+            guard let key = try await recoveryKeys.loadExisting(identifier: identifier) else {
+                continue
+            }
+            do {
+                let candidate = try CoordinatedBackupFileAccess.read(at: file.url) { url in
+                    _ = try self.backupService.readEncryptedArchive(at: url, recoveryKey: key)
+                    return try VerifiedFile(
+                        file: file,
+                        digest: SHA256.hash(data: Data(contentsOf: url, options: .mappedIfSafe)),
+                        exportedAt: self.backupService.readEncryptedEnvelope(at: url).exportedAt,
+                    )
+                }
+                verified.append(candidate)
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                Self.logger { .ignoredUnrecognizedFile(name: file.url.lastPathComponent) }
+            }
+        }
+        let ordered = verified.sorted {
+            if $0.exportedAt == $1.exportedAt { return $0.file.url.path < $1.file.url.path }
+            return $0.exportedAt > $1.exportedAt
+        }
+        for candidate in ordered.dropFirst(retainedFileCount) {
+            try Task.checkCancellation()
+            try CoordinatedBackupFileAccess
+                .write(at: candidate.file.url, options: .forDeleting) { url in
+                    // A replaced or modified file must be reconsidered next time,
+                    // never deleted using a stale validation result.
+                    let digest = try SHA256.hash(data: Data(
+                        contentsOf: url,
+                        options: .mappedIfSafe,
+                    ))
+                    guard digest == candidate.digest else { return }
+                    try Task.checkCancellation()
+                    try self.fileManager.removeItem(at: url)
+                }
         }
     }
 
@@ -233,59 +307,5 @@ public actor AutomaticBackupStorage {
         } catch {
             Self.logger { .cleanupFailed(description: error.localizedDescription) }
         }
-    }
-
-    private func coordinateWriting(at url: URL, operation: () throws -> Void) throws {
-        var coordinationError: NSError?
-        let operationResult = OSAllocatedUnfairLock<Result<Void, Error>?>(uncheckedState: nil)
-        NSFileCoordinator(filePresenter: nil).coordinate(
-            writingItemAt: url,
-            options: .forReplacing,
-            error: &coordinationError,
-        ) { _ in
-            let result = Result { try operation() }
-            operationResult.withLock { $0 = result }
-        }
-        if let coordinationError { throw coordinationError }
-        guard let result = operationResult.withLock({ $0 }) else {
-            preconditionFailure("File coordination did not execute its write accessor.")
-        }
-        try result.get()
-    }
-
-    private func coordinateReading(at url: URL, operation: () throws -> Void) throws {
-        var coordinationError: NSError?
-        let operationResult = OSAllocatedUnfairLock<Result<Void, Error>?>(uncheckedState: nil)
-        NSFileCoordinator(filePresenter: nil).coordinate(
-            readingItemAt: url,
-            options: [],
-            error: &coordinationError,
-        ) { _ in
-            let result = Result { try operation() }
-            operationResult.withLock { $0 = result }
-        }
-        if let coordinationError { throw coordinationError }
-        guard let result = operationResult.withLock({ $0 }) else {
-            preconditionFailure("File coordination did not execute its read accessor.")
-        }
-        try result.get()
-    }
-
-    private func coordinateDeleting(at url: URL) throws {
-        var coordinationError: NSError?
-        let operationResult = OSAllocatedUnfairLock<Result<Void, Error>?>(uncheckedState: nil)
-        NSFileCoordinator(filePresenter: nil).coordinate(
-            writingItemAt: url,
-            options: .forDeleting,
-            error: &coordinationError,
-        ) { coordinatedURL in
-            let result = Result { try self.fileManager.removeItem(at: coordinatedURL) }
-            operationResult.withLock { $0 = result }
-        }
-        if let coordinationError { throw coordinationError }
-        guard let result = operationResult.withLock({ $0 }) else {
-            preconditionFailure("File coordination did not execute its delete accessor.")
-        }
-        try result.get()
     }
 }

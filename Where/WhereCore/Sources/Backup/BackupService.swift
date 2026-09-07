@@ -15,6 +15,17 @@ import ZIPFoundation
 /// SwiftData. `BackupCoordinator` owns reading the store and committing an
 /// import transaction; this type only marshals bytes to and from the zip.
 public struct BackupService: Sendable {
+    @TaskLocal static var cancellationProgress: Progress?
+
+    static func withCancellation<Value: Sendable>(
+        _ operation: @Sendable () async throws -> Value,
+    ) async throws -> Value {
+        let progress = Progress(totalUnitCount: 0)
+        return try await withTaskCancellationHandler {
+            try await $cancellationProgress.withValue(progress) { try await operation() }
+        } onCancel: { progress.cancel() }
+    }
+
     /// Header decoded before the strict current archive shape, so an older manifest reports its
     /// format version instead of failing first on a field introduced by a later format.
     private struct FormatEnvelope: Decodable {
@@ -112,8 +123,8 @@ public struct BackupService: Sendable {
             .appendingPathComponent("where-backup-\(UUID().uuidString)", isDirectory: true)
         let staging = workRoot.appendingPathComponent("contents", isDirectory: true)
         let assetsDir = staging.appendingPathComponent(Self.assetsDirectory, isDirectory: true)
-        try fileManager.createDirectory(at: assetsDir, withIntermediateDirectories: true)
         do {
+            try fileManager.createDirectory(at: assetsDir, withIntermediateDirectories: true)
             var assetEntries: [BackupAssetEntry] = []
             try Self.logger.measure(.stageAssets) {
                 for item in evidence {
@@ -162,6 +173,7 @@ public struct BackupService: Sendable {
                     to: zipURL,
                     shouldKeepParent: false,
                     compressionMethod: .deflate,
+                    progress: Self.cancellationProgress,
                 )
             }
             try Task.checkCancellation()
@@ -211,7 +223,7 @@ public struct BackupService: Sendable {
         defer { try? fileManager.removeItem(at: extractDir) }
 
         try Self.logger.measure(.readArchive) {
-            try fileManager.unzipItem(at: url, to: extractDir)
+            try fileManager.unzipItem(at: url, to: extractDir, progress: Self.cancellationProgress)
         }
 
         let manifestURL = extractDir.appendingPathComponent(Self.manifestFilename)

@@ -269,6 +269,10 @@ public actor BackupCoordinator {
                 exportedAt: exportedAt ?? Date(),
             )
         }
+        if Task.isCancelled {
+            Self.removeAutomaticStagingDirectory(url.deletingLastPathComponent())
+            throw CancellationError()
+        }
         onProgress(1)
         if stagingOwnership == .manualShare {
             previousExportDirectory = url.deletingLastPathComponent()
@@ -284,15 +288,19 @@ public actor BackupCoordinator {
         priority: TaskPriority,
         operation: @escaping @Sendable () throws -> Value,
     ) async throws -> Value {
+        let progress = Progress(totalUnitCount: 0)
         let task = Task.detached(priority: priority) {
             try Task.checkCancellation()
-            let value = try operation()
-            try Task.checkCancellation()
-            return value
+            // The operation owns cleanup until it returns. Do not throw after
+            // transferring a staging URL: the caller must receive it to clean up.
+            return try BackupService.$cancellationProgress.withValue(progress) {
+                try operation()
+            }
         }
         return try await withTaskCancellationHandler {
             try await task.value
         } onCancel: {
+            progress.cancel()
             task.cancel()
         }
     }
@@ -520,14 +528,16 @@ public actor BackupCoordinator {
 
         let backupService = backupService
         let result = try await Self.runDetached(priority: .utility) {
-            if url.pathExtension.lowercased() == "wherebackup" {
-                guard let recoveryKey else { throw RecoveryKeyRequiredError() }
-                return try backupService.readEncryptedArchive(
-                    at: url,
-                    recoveryKey: recoveryKey,
-                )
+            try CoordinatedBackupFileAccess.read(at: url) { coordinatedURL in
+                if url.pathExtension.lowercased() == "wherebackup" {
+                    guard let recoveryKey else { throw RecoveryKeyRequiredError() }
+                    return try backupService.readEncryptedArchive(
+                        at: coordinatedURL,
+                        recoveryKey: recoveryKey,
+                    )
+                }
+                return try backupService.readArchive(at: coordinatedURL)
             }
-            return try backupService.readArchive(at: url)
         }
         let archive = result.archive
         let blobs = result.blobs

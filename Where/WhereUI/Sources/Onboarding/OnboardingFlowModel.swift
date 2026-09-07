@@ -231,6 +231,7 @@ final class OnboardingFlowModel {
                 == "wherebackup"
             {
                 try await scope.services.automaticBackups?.restoreRecoveryKey(
+                    archiveURL: readyImport.url,
                     explicitBase64: enteredRecoveryKey
                         .trimmingCharacters(in: .whitespacesAndNewlines),
                 )

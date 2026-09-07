@@ -134,8 +134,8 @@ public struct SystemKeychainStore: KeychainStore, Sendable {
         }
     }
 
-    /// Inserts only when no matching item exists. Callers that mint stable
-    /// secrets use this operation so a synchronized winner is never overwritten.
+    /// Inserts only when no matching local item exists. This does not provide
+    /// mutual exclusion between devices that have not synchronized yet.
     public func create(_ data: Data) throws {
         var query = baseQuery
         query[kSecAttrAccessible as String] = accessibility.securityValue

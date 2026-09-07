@@ -418,13 +418,21 @@ public struct WhereServices: Sendable {
     /// exact old authority and backlog. Throws on persistence failure so the caller can surface
     /// it rather than silently half-erasing.
     public func reset() async throws {
-        try await recording.pause()
+        await automaticBackups?.suspend()
+        do {
+            try await recording.pause()
+        } catch {
+            await automaticBackups?.resume()
+            throw error
+        }
         do {
             try await journal.eraseAllData()
         } catch {
             await recording.resumeAfterFailedReset()
+            await automaticBackups?.resume()
             throw error
         }
+        await automaticBackups?.shutDown()
         // The erase committed even if sidecar cleanup below fails. Refresh every derived
         // projection that `DayJournal` does not already own before reporting that partial result.
         await resolution.invalidate()

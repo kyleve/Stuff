@@ -9,10 +9,24 @@ CoreLocation — **no SwiftUI or UIKit** — so all of it is unit-testable off-s
 [`Periscope`](../../Shared/Periscope) via the `WhereLog` facade.
 
 Automatic backups keep the existing inner backup schema intact, then encrypt
-that ZIP with AES-256-GCM inside a `.wherebackup` envelope. A synchronized
-Keychain recovery key protects the payload; `AutomaticBackupStorage` prefers
-iCloud Drive, falls back to app Documents, and retains the newest three
-recognized automatic files. Manual exports remain plaintext ZIPs.
+that ZIP with AES-256-GCM inside a `.wherebackup` envelope. Each installation
+keeps a local active key. An append-only Keychain collection synchronizes keys
+by identifier, so simultaneous offline creation cannot replace another key.
+Restore selects the envelope's exact key. The original single-account key is
+preserved when available. Entered recovery keys remain ephemeral.
+
+`AutomaticBackupStorage` prefers iCloud Drive and falls back to app Documents.
+It coordinates each archive access and retains the newest three authenticated,
+readable backups with available keys. Unknown or damaged files cannot displace
+recoverable backups. Files with unavailable keys remain untouched.
+Manual exports remain plaintext ZIPs.
+
+The service owns one cancellable operation shared by all triggers. It uses
+the latest preferences when scheduling. Reset suspends and drains the operation;
+a failed reset resumes scheduling. Logout permanently retires that service.
+Preference reset generations reject late success metadata from retired sessions.
+ZIP progress and pending file coordination receive cancellation. A committed
+backup remains successful if later retention fails; subsequent runs retry cleanup.
 
 Everything is reached through one `Sendable` container, **`WhereServices`**,
 which the presentation layer (`WhereUI`) and the widget extension talk to. For
