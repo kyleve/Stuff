@@ -87,6 +87,11 @@ struct ThrowAboutView: View {
                 ) {
                     Link(String(localized: .aboutUSCensusTerms), destination: censusTermsURL)
                 }
+                if let nycShorelineURL = URL(
+                    string: "https://data.cityofnewyork.us/Recreation/NYC-Planimetric-Database-Shoreline/59xk-wagz",
+                ) {
+                    Link(String(localized: .aboutNYCShoreline), destination: nycShorelineURL)
+                }
             }
 
             Section(String(localized: "about.transitData", defaultValue: "Transit Data")) {

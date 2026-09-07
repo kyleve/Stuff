@@ -161,7 +161,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Made with Natural Earth. Throw uses generalized 1:10m global data and selected 2025 U.S. Census Bureau boundaries and roads. The data is non-authoritative. Natural Earth uses its default de facto boundary view. Census boundaries support statistical work and are not legal land descriptions. TIGER/Line® is a registered trademark of the U.S. Census Bureau. Throw uses the name only to identify its source data."
+            "value" : "Made with Natural Earth. Throw uses generalized 1:10m global data, selected 2025 U.S. Census Bureau boundaries and roads, and NYC planimetric shoreline geometry. The data is non-authoritative. Natural Earth uses its default de facto boundary view. Census boundaries support statistical work and are not legal land descriptions. TIGER/Line® is a registered trademark of the U.S. Census Bureau. Throw uses the name only to identify its source data."
           }
         }
       }
@@ -206,6 +206,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "MTA Subway Realtime Feeds"
+          }
+        }
+      }
+    },
+    "about.nYCShoreline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NYC Planimetric Database: Shoreline"
           }
         }
       }

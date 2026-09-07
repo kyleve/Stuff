@@ -154,15 +154,17 @@ when it is inside the visible Map. True Sky always uses the observer location.
 Cloud aircraft sources receive a coarse version of the Map center and the query
 radius. They do not receive the exact observer location when the centers differ.
 
-Throw bundles Natural Earth Vector 1:10m data and selected 2025 U.S. Census
-Bureau data. Map rendering does not request tiles or send a location to a map
-provider. The generated archive contains no place names or road names.
+Throw bundles Natural Earth Vector 1:10m data, selected 2025 U.S. Census Bureau
+data, and NYC's source-resolution planimetric shoreline. Map rendering does not
+request tiles or send a location to a map provider. The generated archive
+contains no place names or road names.
 
 The data is generalized and is not authoritative. Natural Earth boundaries use
 the default de facto view. Census boundaries support statistical work and are
 not legal land descriptions. See the [Natural Earth
 terms](https://www.naturalearthdata.com/about/terms-of-use/) and the [2025
 TIGER/Line documentation](https://www2.census.gov/geo/pdfs/maps-data/data/tiger/tgrshp2025/TGRSHP2025_TechDoc_Ch1.pdf).
+NYC shoreline geometry is from the [NYC Planimetric Database](https://data.cityofnewyork.us/Recreation/NYC-Planimetric-Database-Shoreline/59xk-wagz).
 
 ## External scenes
 

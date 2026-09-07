@@ -186,14 +186,14 @@ Throw uses that turn rate for the first 12 seconds of a prediction.
 The runtime removes this history when the source changes or the app runtime ends.
 
 `Tools/generate-geography.rb` creates the bundled archive from pinned Natural
-Earth Vector 1:10m and U.S. Census Bureau inputs. A source manifest records each
-official URL, release, file member, and SHA-256 digest.
+Earth Vector 1:10m, U.S. Census Bureau, and NYC Open Data inputs. A source
+manifest records each official URL, release, file member, and SHA-256 digest.
 
 The generator filters features, removes names, splits antimeridian paths, and
 simplifies linework. It then quantizes coordinates and assigns wide, standard,
-local, or neighborhood visibility. Source-resolution Census coastline replaces
-broader coastline tiers at neighborhood scale. The committed archive lets every
-app build stay offline.
+local, or neighborhood visibility. Source-resolution Census coastline and NYC
+planimetric shoreline replace broader coastline tiers at neighborhood scale.
+The committed archive lets every app build stay offline.
 Raw source archives stay outside the tracked tree.
 
 `Tools/generate-aircraft-types.rb` creates the bundled ICAO type lookup from a

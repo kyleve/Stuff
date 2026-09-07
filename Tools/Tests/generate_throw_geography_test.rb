@@ -72,6 +72,9 @@ class GenerateThrowGeographyTest < Minitest::Test
     natural_earth = archive.fetch("sources").find do |source|
       source.fetch("id") == "natural-earth-vector-5-1-2"
     end
+    nyc_shoreline = archive.fetch("sources").find do |source|
+      source.fetch("id") == "nyc-planimetric-shoreline-2022"
+    end
 
     assert_equal expected.fetch("sha256"), Digest::SHA256.hexdigest(data)
     assert_equal expected.fetch("encodedBytes"), data.bytesize
@@ -82,6 +85,8 @@ class GenerateThrowGeographyTest < Minitest::Test
     assert_equal expected.fetch("coordinateCount"), coordinate_count
     assert_equal "Made with Natural Earth.", natural_earth&.fetch("credit")
     assert natural_earth&.fetch("termsURL")
+    assert_equal "NYC Office of Technology and Innovation", nyc_shoreline&.fetch("credit")
+    assert nyc_shoreline&.fetch("termsURL")
   end
 
   private
