@@ -53,6 +53,7 @@ public struct RootView: View {
         )
     #endif
     private let launcher: LifecycleRunner<WhereSession>
+    private let primaryAppIconName: String
     #if DEBUG
         private let developerLaunchController: WhereDeveloperLaunchController?
         /// Hosted snapshots have no active SwiftUI scene even though their
@@ -66,10 +67,12 @@ public struct RootView: View {
         public init(
             model: WhereModel,
             launcher: LifecycleRunner<WhereSession>,
+            primaryAppIconName: String,
             developerLaunchController: WhereDeveloperLaunchController? = nil,
         ) {
             _model = State(initialValue: model)
             self.launcher = launcher
+            self.primaryAppIconName = primaryAppIconName
             self.developerLaunchController = developerLaunchController
             presentationVisibilityOverride = nil
         }
@@ -78,10 +81,12 @@ public struct RootView: View {
         public init(
             model: WhereModel,
             launcher: LifecycleRunner<WhereSession>,
+            primaryAppIconName: String,
             presentationVisibilityOverride: Bool,
         ) {
             _model = State(initialValue: model)
             self.launcher = launcher
+            self.primaryAppIconName = primaryAppIconName
             developerLaunchController = nil
             self.presentationVisibilityOverride = presentationVisibilityOverride
         }
@@ -89,9 +94,11 @@ public struct RootView: View {
         public init(
             model: WhereModel,
             launcher: LifecycleRunner<WhereSession>,
+            primaryAppIconName: String,
         ) {
             _model = State(initialValue: model)
             self.launcher = launcher
+            self.primaryAppIconName = primaryAppIconName
         }
     #endif
 
@@ -112,6 +119,7 @@ public struct RootView: View {
                 WhereBootstrap(
                     installationContextStore: $0,
                     storeStorage: .inMemory,
+                    widgetRefresher: NoopWidgetTimelineRefresher(),
                     locationOutbox: NoOpLocationOutbox(),
                 )
             },
@@ -119,6 +127,7 @@ public struct RootView: View {
         )
         _model = State(initialValue: model)
         launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        primaryAppIconName = "AppIcon"
         #if DEBUG
             developerLaunchController = nil
             presentationVisibilityOverride = nil
@@ -145,9 +154,9 @@ public struct RootView: View {
                 },
                 failure: { WhereLifecycleFailureView(failure: $0) },
                 gates: {
-                    // The gate roots the trunk, so there is no session (and no
-                    // open store) behind it yet — onboarding builds the scope
-                    // it commits regions with, through the model.
+                    // The gate precedes every world-building step, so there is
+                    // no session (and no open store) behind it yet — onboarding
+                    // builds the scope it commits regions with, through the model.
                     GateView(for: OnboardingGate.self) { handle, _ in
                         OnboardingView(
                             gate: handle,
@@ -215,6 +224,7 @@ public struct RootView: View {
             // re-inject when a reset rebuilds it. The DEBUG developer overlay
             // reads it optionally — it can appear before login.
             .environment(model.session)
+            .environment(\.primaryAppIconName, primaryAppIconName)
         #if DEBUG
             .environment(developerLaunchController)
             .environment(\.cardDesignerModel, cardDesigner)
@@ -355,6 +365,7 @@ public struct RootView: View {
                 RootView(
                     model: model,
                     launcher: launcher,
+                    primaryAppIconName: "AppIcon",
                     presentationVisibilityOverride: true,
                 )
             }
@@ -367,6 +378,7 @@ public struct RootView: View {
                 RootView(
                     model: recordingWarningModel,
                     launcher: recordingWarningLauncher,
+                    primaryAppIconName: "AppIcon",
                     presentationVisibilityOverride: true,
                 )
             }

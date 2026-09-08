@@ -4,9 +4,10 @@ set -euo pipefail
 # icons — add or remove a selectable Where app icon, reproducibly.
 #
 # Edits only data + asset folders (never Swift):
-#   - the app's AppIcon.xcassets
-#   - WhereUI's AppIconPreviews.xcassets
-#   - AppIcons.json
+#   - the app's AppIcon.xcassets        (the appiconsets each audience can use)
+#   - WhereUI's AppIconPreviews.xcassets (the imageset the picker renders, since
+#                                         SwiftUI Image() can't load appiconsets)
+#   - AppIcons.json                      (the manifest the picker reads)
 #
 # Ruby owns validation, staging, commit, and rollback. This shell owns only the
 # stable public CLI and the pinned-tool bootstrap.
@@ -16,6 +17,7 @@ cd "$(dirname "$0")"
 APP_CATALOG="Where/Where/Resources/AppIcon.xcassets"
 PREVIEW_CATALOG="Where/WhereUI/Sources/Resources/AppIconPreviews.xcassets"
 MANIFEST="Where/WhereUI/Sources/Resources/AppIcons.json"
+PROJECT_MANIFEST="Project.swift"
 
 usage() {
     cat <<'USAGE'
@@ -39,8 +41,10 @@ rolled back.
   --tinted <png>  1024x1024 PNG for the tinted (monochrome) appearance.
   --dry-run       Validate and report the mutation without changing files.
 
-The primary "Classic" icon (AppIcon / id "classic") is reserved: it can't be
-added or removed.
+The base "Classic" icon (AppIcon / id "classic") is reserved: it can't be
+added or removed. Which appiconset is primary is selected per audience in
+Project.swift; the script refuses to remove any configured primary and manages
+the assets available to every audience.
 
 Examples:
   ./icons --add art/ocean.png --name Ocean --dark art/ocean-dark.png
@@ -102,5 +106,6 @@ fi
 
 ROOT="$PWD" MODE="$MODE" DRY_RUN="$DRY_RUN" \
     APP_CATALOG="$APP_CATALOG" PREVIEW_CATALOG="$PREVIEW_CATALOG" MANIFEST="$MANIFEST" \
+    PROJECT_MANIFEST="$PROJECT_MANIFEST" \
     LIGHT="$LIGHT" NAME="$NAME" ID="$ID" DARK="$DARK" TINTED="$TINTED" TARGET="$TARGET" \
     mise exec -- ruby Tools/icon_catalog.rb

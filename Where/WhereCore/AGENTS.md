@@ -48,6 +48,9 @@ internal shape.
   `WhereServices.forIntents(sharingStoreOf:)`. A second container over the
   same file is how a fresh install once raced the launch into failure (root
   [Composition](../../AGENTS.md#composition-create-once-inject-down)).
+- **On-disk storage always carries an explicit App Group identifier.** Audience
+  selection belongs to host targets; WhereCore must not own a production or
+  development default.
 - **Primary regions *are* the tracked-region set.** `primaryRegions()` /
   `setPrimaryRegions(_:)` read/write the same `SDTrackedRegion` rows as
   `trackedRegions()`. Picking scopes GPS attribution *and* carries each
@@ -104,11 +107,12 @@ internal shape.
 - **Filter persistent-store remote-change notifications by the Where store URL
   and the store instance's transaction author.** Never let Periscope or Where's
   own local saves enter `remoteChanges()`. Guard: `StoreRemoteChangeSourceTests`.
-- **Post-write reconciliation is defined once.** Every write and import
-  routes through `DayJournal.reconcileAfterDayDataChange()` (or its widget-less
-  subset `reconcileIssueState()`). Never copy the fan-out into a new write
-  path. Cross-collaborator hooks take a single closure wired at the
-  composition root (`BackupCoordinator.ImportLifecycle.didCommit`).
+- **Route new writes through the existing reconciliation seams.** Use
+  `DayJournal.reconcileAfterDayDataChange()` or its widget-less subset
+  `reconcileIssueState()`; cross-collaborator hooks take a single closure
+  wired at the composition root (`BackupCoordinator.ImportLifecycle.didCommit`).
+  Existing exceptions are `setPrimaryRegions` and the local summary fan-out,
+  tracked in [`../TODOs.md`](../TODOs.md). Do not copy those omissions.
 - **Detectors read aggregated input. The speed-based one needs raw fixes.**
   `DataIssueInput.daySamples` carries per-day GPS fixes only (`.gpsVisit` /
   `.gpsSignificantChange`, sorted). Manual and evidence-implied samples are

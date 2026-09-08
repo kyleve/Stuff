@@ -324,6 +324,11 @@ public actor LocationIngestor {
         isMonitoring
     }
 
+    /// Whether the current device policy authorizes automatic location samples.
+    public var isRecordingAuthorized: Bool {
+        if case .open = recordingAuthority { true } else { false }
+    }
+
     /// Number of samples currently waiting to be re-persisted. Exposed for
     /// tests; production callers should treat this as opaque.
     public var retryQueueDepth: Int {
@@ -471,7 +476,7 @@ public actor LocationIngestor {
             await closeRecordingAuthority(ifAuthorizedFor: dataGenerationID)
         } catch {
             // Persistence failures (SwiftData save, CloudKit, etc.) are surfaced
-            // via `os.Logger` rather than silently dropped. The stream keeps
+            // via typed `WhereLog` events rather than silently dropped. The stream keeps
             // running so a transient error doesn't stop tracking, and the sample
             // is queued for retry on the next save attempt.
             Self.logger(attachments: [.error(error, name: "persist-error")]) {

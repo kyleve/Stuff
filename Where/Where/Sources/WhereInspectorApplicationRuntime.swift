@@ -15,6 +15,7 @@
         private let modeController: InspectorModeController
 
         init(
+            buildEnvironment: WhereBuildEnvironment,
             modeController: InspectorModeController,
             fileManager: FileManager = .default,
             userDefaults: UserDefaults = .standard,
@@ -24,7 +25,7 @@
                 preconditionFailure("Where has no bundle identifier")
             }
             guard let groupURL = fileManager.containerURL(
-                forSecurityApplicationGroupIdentifier: SwiftDataStore.appGroupIdentifier,
+                forSecurityApplicationGroupIdentifier: buildEnvironment.appGroupIdentifier,
             ) else {
                 preconditionFailure("Where's App Group container is unavailable")
             }
@@ -34,6 +35,7 @@
                 fileManager: fileManager,
                 userDefaults: userDefaults,
                 bundleIdentifier: bundleIdentifier,
+                appGroupIdentifier: buildEnvironment.appGroupIdentifier,
                 groupURL: groupURL,
                 whereStoreURL: whereStoreURL,
                 periscopeStoreURL: PeriscopeStore.inspectorStoreURL,
@@ -46,6 +48,7 @@
             fileManager: FileManager,
             userDefaults: UserDefaults,
             bundleIdentifier: String,
+            appGroupIdentifier: String,
             groupURL: URL,
             whereStoreURL: URL,
             periscopeStoreURL: URL,
@@ -89,7 +92,9 @@
                         storeURL: whereStoreURL,
                         modelTypes: SwiftDataStore.inspectorModelTypes,
                         makeContainer: {
-                            try SwiftDataStore.makeContainer(storage: .localOnly)
+                            try SwiftDataStore.makeContainer(storage: .localOnly(
+                                appGroupIdentifier: appGroupIdentifier,
+                            ))
                         },
                     ),
                     .init(

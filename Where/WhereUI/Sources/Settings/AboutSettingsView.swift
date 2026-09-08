@@ -250,7 +250,7 @@ extension AboutSettingsView: SettingsSection {
                 // The navigation bar's scroll-edge shadow adapts after the
                 // form reaches its full-content height. Wait through that
                 // otherwise quiet transition before accessibility annotation.
-                settle: .settledAtLeast(minDuration: 0.75),
+                settle: .settledAtLeast(minDuration: 1.5),
             ) {
                 NavigationStack {
                     AboutSettingsView(

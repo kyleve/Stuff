@@ -12,7 +12,6 @@ public struct WidgetPresentationStore: Sendable {
         public init() {}
     }
 
-    private static let appGroupIdentifier = SwiftDataStore.appGroupIdentifier
     private static let fileName = "widget-presentation.json"
 
     private let directory: URL
@@ -21,7 +20,7 @@ public struct WidgetPresentationStore: Sendable {
         self.directory = directory
     }
 
-    public static func shared() throws -> WidgetPresentationStore {
+    public static func shared(appGroupIdentifier: String) throws -> WidgetPresentationStore {
         guard let container = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: appGroupIdentifier,
         ) else {

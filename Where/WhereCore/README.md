@@ -31,10 +31,12 @@ one it belongs to rather than to a god-object:
   URL, excluding other stores such as Periscope. `remoteChanges()` uses
   persistent-history transaction authors to emit only the external-import subset,
   so headless notifications and widgets rebuild without duplicating local work.
-  `SwiftDataStore.make(storage:)` opens an explicitly selected
-  CloudKit, local-only, or in-memory store. `SwiftDataStore.inMemory()` is the
-  convenience used by tests and previews. Each
-  process opens its on-disk store **once** and injects it where it's needed — 
+  `SwiftDataStore.make(storage:)` opens an explicitly selected CloudKit,
+  local-only, or in-memory store. On-disk modes carry their App Group identifier;
+  the host chooses that policy and group, so WhereCore contains no audience
+  default. `SwiftDataStore.inMemory()` is the convenience used by tests and
+  previews. Each
+  process opens its on-disk store **once** and injects it where it's needed —
   in the app, the launch's `resolve-scope` step opens it and the App Intents
   stack shares it via `WhereServices.forIntents(sharingStoreOf:)` — so two
   subsystems never race to create/open the same store file. It also
@@ -62,14 +64,17 @@ one it belongs to rather than to a god-object:
 - **`DayJournal`** — the user-sourced writes: manual-day overlays
   (`addManualDay` / `overrideDay` / `addManualDays`), clears
   (`clearManualDay` / `clearYear` / `eraseAllData`), evidence, and issue
-  dismissals. Each write commits, then awaits its reminder reconcile + widget
-  publish so the next reader sees a fully-applied change.
+  dismissals. Writes await reminder/issue reconciliation and widget publication
+  after committing. The local fan-out does not yet refresh daily summaries;
+  that gap is tracked in [`../TODOs.md`](../TODOs.md).
 - **`PlannedStayCoordinator`** — the synced, generation-scoped last-writer register behind “I’ll
   be here through…”. Clears and expiry write tombstones, and annual forecasts consume its current
   value without coupling projection math to persistence.
 - **`PlannedStayLocationVerifier`** — gets a current location and compares it with the selected
   region. The configured drift threshold expands the accepted area outside the region boundary.
   A missing location or missing geometry returns an unavailable result.
+- **`CurrentRegionResolver`** — returns the current tracked region only while automatic recording
+  is authorized. It returns `nil` when no live fix exists or the fix is outside tracked regions.
 
 - **`DemoDataBuilder`** — writes the dataset the app's demo mode runs on into a
   given `WhereServices`: a plausible current year of living in New York with
@@ -173,9 +178,9 @@ one it belongs to rather than to a god-object:
   `InstallationRecordingContextStoring` keeps the persistence adapter outside
   the domain value.
 - **`WherePreferences`** — persisted user intent (onboarding,
-  reminder / summary schedules, presentation theme, and Locations-card GPS-dot and
-  estimated-time/planning visibility) plus the
-  year-keyed Location-card counts and Codable recording-warning generation used for presentation
+  reminder / summary schedules, presentation theme, and Locations-card GPS-dot,
+  live-region welcome, and estimated-time/planning visibility) plus the
+  year-keyed Location-card counts, last welcomed region, and recording-warning generation used for presentation
   continuity, behind a `KeyValueStore`. It also owns the vendor-neutral
   `DiagnosticReportingConfiguration`: crash reports default On, replay Off,
   and remote logs Off in Release / Warning in Debug. `WherePreferences` encodes
@@ -229,7 +234,9 @@ import WhereCore
 // previews use the synchronous `@_spi(Testing)` `init` instead (an explicit
 // attributor, default four) via `@_spi(Testing) import WhereCore`.
 let services = try await WhereServices.make(
-    store: try SwiftDataStore.make(storage: .cloudKit),
+    store: try SwiftDataStore.make(storage: .cloudKit(
+        appGroupIdentifier: "group.com.stuff.where"
+    )),
     locationSource: CoreLocationSource(),
     installationContext: installationContext, // resolved once by the app composition root
 )
@@ -287,7 +294,9 @@ rotates to a Reset child generation, and discards the retry queue only after com
   generation. Concurrent unjoined resets select a synthetic empty generation. An
   incomplete causal generation DAG fails closed instead of mixing old and new state.
 - **Failures surface.** Store methods are `async throws`. Errors are logged via
-  `WhereLog` and left observable — never swallowed into an empty default.
+  `WhereLog`. Most callers propagate failure or retain honest failed state.
+  The reminder badge still logs a failed scan and returns zero; that exception
+  is tracked in [`../TODOs.md`](../TODOs.md).
 ## Testing
 
 Swift Testing in [`Tests/`](Tests) (`WhereCoreTests`), hosted in `StuffTestHost`.

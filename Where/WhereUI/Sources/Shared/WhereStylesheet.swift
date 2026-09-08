@@ -18,6 +18,7 @@ struct WhereStylesheet: BStylesheet {
     var size = Size()
     var card = CardStyles.standard
     var locationCardStack = LocationCardStackStyle.standard
+    var locationWelcome = LocationWelcomeStyle.standard
     var calendar = CalendarStyle.standard
     var appIcon = AppIconStyle.standard
     var timeline = TimelineStyle.standard
@@ -82,6 +83,7 @@ struct WhereStylesheet: BStylesheet {
         if traits.accessibility.isReduceMotionEnabled {
             card.dayCount = .reducedMotion
             locationCardStack.overtake = .reducedMotion
+            locationWelcome.motion = .reduced
             developerOverlay.menu.motion = .reduced
         }
 
@@ -96,6 +98,130 @@ struct WhereStylesheet: BStylesheet {
     /// The fixed token set: the fallback used off the `View` tree (layout
     /// helpers, tests) and when no Broadway root has seeded a context.
     static let `default` = WhereStylesheet()
+}
+
+// MARK: - Location welcome
+
+extension WhereStylesheet {
+    /// Appearance and motion for the live-region welcome over Locations.
+    struct LocationWelcomeStyle: Equatable {
+        var maxWidth: CGFloat
+        var cornerRadius: CGFloat
+        var padding: CGFloat
+        var contentSpacing: CGFloat
+        var paperOpacity: Double
+        var scrimOpacity: Double
+        var glassTintOpacity: Double
+        var glow: Shadow
+        var lift: Shadow
+        var close: Close
+        var motion: Motion
+
+        struct Shadow: Equatable {
+            var opacity: Double
+            var radius: CGFloat
+            var offsetY: CGFloat = 0
+        }
+
+        struct Close: Equatable {
+            var offset: CGSize
+            var tintOpacity: Double
+            var glow: Shadow
+            var lift: Shadow
+        }
+
+        struct Motion: Equatable {
+            var arrival: Movement
+            var departure: Movement
+            var scrimAnimation: Animation
+            var usesSpatialMotion: Bool
+
+            struct Movement: Equatable {
+                var animation: Animation
+                var scale: CGFloat
+                var rotationDegrees: Double
+                var verticalOffset: CGFloat
+
+                var transition: AnyTransition {
+                    .modifier(
+                        active: LocationWelcomeTransitionModifier(
+                            scale: scale,
+                            rotationDegrees: rotationDegrees,
+                            verticalOffset: verticalOffset,
+                        ),
+                        identity: LocationWelcomeTransitionModifier(
+                            scale: 1,
+                            rotationDegrees: 0,
+                            verticalOffset: 0,
+                        ),
+                    )
+                    .combined(with: .opacity)
+                }
+            }
+
+            var transition: AnyTransition {
+                .asymmetric(
+                    insertion: (usesSpatialMotion ? arrival.transition : .opacity)
+                        .animation(arrival.animation),
+                    removal: (usesSpatialMotion ? departure.transition : .opacity)
+                        .animation(departure.animation),
+                )
+            }
+
+            static let standard = Motion(
+                arrival: Movement(
+                    animation: .spring(duration: 0.3, bounce: 0.28),
+                    scale: 1.28,
+                    rotationDegrees: -9,
+                    verticalOffset: -24,
+                ),
+                departure: Movement(
+                    animation: .easeOut(duration: 0.16),
+                    scale: 1.045,
+                    rotationDegrees: 3,
+                    verticalOffset: -10,
+                ),
+                scrimAnimation: .easeOut(duration: 0.16),
+                usesSpatialMotion: true,
+            )
+
+            static let reduced = Motion(
+                arrival: Movement(
+                    animation: .easeInOut(duration: 0.16),
+                    scale: 1,
+                    rotationDegrees: 0,
+                    verticalOffset: 0,
+                ),
+                departure: Movement(
+                    animation: .easeInOut(duration: 0.16),
+                    scale: 1,
+                    rotationDegrees: 0,
+                    verticalOffset: 0,
+                ),
+                scrimAnimation: .easeInOut(duration: 0.16),
+                usesSpatialMotion: false,
+            )
+        }
+
+        static let standard = LocationWelcomeStyle(
+            maxWidth: 390,
+            cornerRadius: 30,
+            padding: 24,
+            contentSpacing: 16,
+            paperOpacity: 0.92,
+            scrimOpacity: 0.28,
+            glassTintOpacity: 0.2,
+            glow: Shadow(opacity: 0.16, radius: 22),
+            lift: Shadow(opacity: 0.18, radius: 12, offsetY: 6),
+            close: Close(
+                offset: CGSize(width: 8, height: -8),
+                tintOpacity: 0.24,
+                glow: .init(opacity: 0.28, radius: 8),
+                lift: .init(opacity: 0.22, radius: 5, offsetY: 3),
+            ),
+            motion: .standard,
+        )
+    }
 }
 
 // MARK: - Location card stack
@@ -1527,6 +1653,12 @@ extension WhereStylesheet {
             var hatchSpacing: CGFloat
             var hatchLineWidth: CGFloat
             var labelOpacity: Double
+            var transitionHeight: CGFloat
+            var joinedBaseHeight: CGFloat
+            var joinedVerticalPadding: CGFloat
+            var joinedLabelSpacing: CGFloat
+            var joinedCountHorizontalPadding: CGFloat
+            var joinedCountVerticalPadding: CGFloat
         }
 
         static let standard = TimelineStyle(
@@ -1582,6 +1714,12 @@ extension WhereStylesheet {
                 hatchSpacing: 8,
                 hatchLineWidth: 1,
                 labelOpacity: 0.7,
+                transitionHeight: 16,
+                joinedBaseHeight: 32,
+                joinedVerticalPadding: 8,
+                joinedLabelSpacing: 5,
+                joinedCountHorizontalPadding: 8,
+                joinedCountVerticalPadding: 4,
             ),
         )
     }

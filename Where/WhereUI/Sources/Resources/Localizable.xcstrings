@@ -3571,6 +3571,54 @@
         }
       }
     },
+    "locationWelcome.dismiss" : {
+      "comment" : "Accessibility label for the close button on the live-region welcome card.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close welcome"
+          }
+        }
+      }
+    },
+    "locationWelcome.firstTitle" : {
+      "comment" : "Title shown for the first live tracked region. The argument is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welcome to %@"
+          }
+        }
+      }
+    },
+    "locationWelcome.message" : {
+      "comment" : "Explains automatic day counting. The argument is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starting today, days Where records you here will count toward %@."
+          }
+        }
+      }
+    },
+    "locationWelcome.returnTitle" : {
+      "comment" : "Title shown after the user moves to another tracked region. The argument is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welcome back to %@"
+          }
+        }
+      }
+    },
     "locations.elsewhere.subtitle" : {
       "comment" : "Subtitle on the Locations tab's Elsewhere entry card: region count.",
       "extractionState" : "manual",
@@ -6101,6 +6149,52 @@
         }
       }
     },
+    "settings.appearance.locationWelcome.footer" : {
+      "comment" : "Explains when the live-region welcome card appears.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show a welcome card when Where starts counting days toward a different tracked region."
+          }
+        }
+      }
+    },
+    "settings.appearance.locationWelcome.reset.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Developer: Clear the saved welcome region, then return to Locations to show the card again."
+          }
+        }
+      }
+    },
+    "settings.appearance.locationWelcome.reset.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset Welcome Card"
+          }
+        }
+      }
+    },
+    "settings.appearance.locationWelcome.toggle" : {
+      "comment" : "Toggle that controls whether live-region welcome cards appear on the Locations tab.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Region welcome cards"
+          }
+        }
+      }
+    },
     "settings.appearance.theme.footer" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8494,6 +8588,18 @@
         }
       }
     },
+    "settings.keywords.locationWelcome" : {
+      "comment" : "Comma-separated Settings search keywords for the live-region welcome visibility toggle.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "welcome, greeting, region, location, card, arrival"
+          }
+        }
+      }
+    },
     "settings.keywords.loggedDays" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8940,6 +9046,17 @@
         }
       }
     },
+    "settings.regions.manage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Manage Regions"
+          }
+        }
+      }
+    },
     "settings.regions.row" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8947,6 +9064,17 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Primary regions"
+          }
+        }
+      }
+    },
+    "settings.regions.saveError.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Unable to Save Regions"
           }
         }
       }

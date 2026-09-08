@@ -45,6 +45,37 @@ struct WhereStylesheetTests {
         #expect(style.spacing.xxxLarge == 20)
     }
 
+    @Test func locationWelcomeStyle() {
+        let welcome = style.locationWelcome
+        #expect(welcome.maxWidth == 390)
+        #expect(welcome.cornerRadius == 30)
+        #expect(welcome.padding == 24)
+        #expect(welcome.contentSpacing == 16)
+        #expect(welcome.paperOpacity == 0.92)
+        #expect(welcome.scrimOpacity == 0.28)
+        #expect(welcome.glassTintOpacity == 0.2)
+        #expect(welcome.glow == .init(opacity: 0.16, radius: 22))
+        #expect(welcome.lift == .init(opacity: 0.18, radius: 12, offsetY: 6))
+        #expect(welcome.close.offset == CGSize(width: 8, height: -8))
+        #expect(welcome.close.tintOpacity == 0.24)
+        #expect(welcome.close.glow == .init(opacity: 0.28, radius: 8))
+        #expect(welcome.close.lift == .init(opacity: 0.22, radius: 5, offsetY: 3))
+        #expect(welcome.motion == .standard)
+        #expect(welcome.motion.arrival == .init(
+            animation: .spring(duration: 0.3, bounce: 0.28),
+            scale: 1.28,
+            rotationDegrees: -9,
+            verticalOffset: -24,
+        ))
+        #expect(welcome.motion.departure == .init(
+            animation: .easeOut(duration: 0.16),
+            scale: 1.045,
+            rotationDegrees: 3,
+            verticalOffset: -10,
+        ))
+        #expect(welcome.motion.scrimAnimation == .easeOut(duration: 0.16))
+    }
+
     @Test func regularCardStyle() {
         let card = style.card.regular
         #expect(style.card.estimatedProgressOpacity == 0.3)
@@ -443,6 +474,12 @@ struct WhereStylesheetTests {
         #expect(planned.hatchSpacing == 8)
         #expect(planned.hatchLineWidth == 1)
         #expect(planned.labelOpacity == 0.7)
+        #expect(planned.transitionHeight == 16)
+        #expect(planned.joinedBaseHeight == 32)
+        #expect(planned.joinedVerticalPadding == 8)
+        #expect(planned.joinedLabelSpacing == 5)
+        #expect(planned.joinedCountHorizontalPadding == 8)
+        #expect(planned.joinedCountVerticalPadding == 4)
     }
 
     @Test func regionMapStyle() {
@@ -816,6 +853,17 @@ struct WhereStylesheetTests {
         #expect(resolved.locationCardStack.overtake == .reducedMotion)
         #expect(resolved.locationCardStack.overtake.minimumOpacity == 0.82)
         #expect(resolved.locationCardStack.overtake.usesSpatialMotion == false)
+        #expect(resolved.locationWelcome.motion == .reduced)
+        #expect(resolved.locationWelcome.motion.usesSpatialMotion == false)
+        #expect(resolved.locationWelcome.motion.arrival == .init(
+            animation: .easeInOut(duration: 0.16),
+            scale: 1,
+            rotationDegrees: 0,
+            verticalOffset: 0,
+        ))
+        #expect(resolved.locationWelcome.motion.departure == resolved.locationWelcome.motion
+            .arrival)
+        #expect(resolved.locationWelcome.motion.scrimAnimation == .easeInOut(duration: 0.16))
         #expect(resolved.developerOverlay.menu.motion == .reduced)
         #expect(resolved.developerOverlay.menu.motion.usesSpatialMotion == false)
     }

@@ -35,9 +35,9 @@ struct ActivateLaunchDemoStep: BudgetedLaunchStep {
 }
 
 /// First-run onboarding and this installation's recording choice.
-/// Rooted at the trunk's head so that an install whose user hasn't chosen yet
-/// builds nothing: no store is opened, no CloudKit is contacted, and no session
-/// exists behind this.
+/// Placed after the side-effect-free demo preflight and before every step that
+/// builds the user's world: no store is opened, no CloudKit is contacted, and no
+/// session exists behind this while the user has not chosen.
 ///
 /// Unlike most gates it applies to **all** launch reasons rather than the
 /// foreground-only default. Parking a headless launch is the point here — the
