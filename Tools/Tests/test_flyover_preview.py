@@ -1,12 +1,18 @@
 import importlib.util
 import io
-import json
 import signal
 import sys
 import tempfile
 import threading
 import unittest
 from pathlib import Path
+
+try:
+    from Tools.Tests.flyover_test_support import create_flyover_artifact
+except ModuleNotFoundError as error:
+    if error.name != "Tools":
+        raise
+    from flyover_test_support import create_flyover_artifact
 
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "flyover_preview.py"
@@ -18,149 +24,42 @@ SPEC.loader.exec_module(flyover_preview)
 
 
 class FlyoverPreviewTests(unittest.TestCase):
-    def write_manifest(self, root: Path, manifest: object) -> None:
-        data = json.dumps(manifest)
-        (root / "manifest.json").write_text(data)
-        (root / "manifest.js").write_text(
-            "window.FLYOVER_MANIFEST = " + data + ";\n"
-        )
+    fixture = staticmethod(create_flyover_artifact)
 
-    def fixture(self, root: Path) -> Path:
-        (root / "assets").mkdir(parents=True)
-        image = root / "images/screen-0001/variant-0001/phone-light.png"
-        image.parent.mkdir(parents=True)
-        image.write_bytes(b"PNG")
-        (root / ".flyover-generated").write_text("schemaVersion=1\n")
-        (root / "index.html").write_text("<!doctype html>")
-        (root / "assets/app.js").write_text("")
-        (root / "assets/styles.css").write_text("")
-        self.write_manifest(
-            root,
-            {
-                "schemaVersion": 1,
-                "images": [
-                    {
-                        "relativePath": (
-                            "images/screen-0001/variant-0001/phone-light.png"
-                        )
-                    }
-                ],
-            },
-        )
-        return root
-
-    def test_validates_generated_artifact_and_builds_allowlist(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            root = self.fixture(Path(temporary))
-
-            artifact = flyover_preview.validate_artifact(root)
-
-            self.assertEqual(artifact.root, root)
-            self.assertEqual(
-                artifact.allowed_paths,
-                frozenset(
-                    {
-                        "index.html",
-                        "manifest.json",
-                        "manifest.js",
-                        "assets/app.js",
-                        "assets/styles.css",
-                        "images/screen-0001/variant-0001/phone-light.png",
-                    }
-                ),
-            )
-
-    def test_rejects_invalid_marker_and_symbolic_links(self):
+    def test_opening_an_allowlisted_file_does_not_follow_a_replacement_symlink(self):
         with tempfile.TemporaryDirectory() as temporary:
             temporary_root = Path(temporary)
             root = self.fixture(temporary_root / "atlas")
-            (root / ".flyover-generated").write_text("schemaVersion=2\n")
-            with self.assertRaisesRegex(
-                flyover_preview.FlyoverArtifactError,
-                "generated marker is unsupported",
-            ):
-                flyover_preview.validate_artifact(root)
+            artifact = flyover_preview.validate_artifact(root)
+            image = root / "images/screen-0001/variant-0001/phone-light.png"
+            outside = temporary_root / "outside"
+            outside.write_bytes(b"SECRET")
 
-            (root / ".flyover-generated").write_bytes(b"\xff")
-            with self.assertRaisesRegex(
-                flyover_preview.FlyoverArtifactError,
-                "could not read",
-            ):
-                flyover_preview.validate_artifact(root)
+            with flyover_preview._open_artifact_root(artifact) as descriptor:
+                image.unlink()
+                image.symlink_to(outside)
+                with self.assertRaises(OSError):
+                    flyover_preview._open_file_beneath(
+                        descriptor,
+                        "images/screen-0001/variant-0001/phone-light.png",
+                    )
 
-            (root / ".flyover-generated").write_text("schemaVersion=1\n")
-            (root / "leak").symlink_to(temporary_root / "outside")
-            with self.assertRaisesRegex(
-                flyover_preview.FlyoverArtifactError,
-                "contains a symbolic link",
-            ):
-                flyover_preview.validate_artifact(root)
-
-    def test_rejects_unsafe_missing_duplicate_and_extra_images(self):
-        scenarios = (
-            ("../outside.png", "unsafe image path"),
-            ("/outside.png", "unsafe image path"),
-            ("images/missing.png", "manifest image is missing"),
-        )
-        for relative_path, message in scenarios:
-            with self.subTest(relative_path=relative_path):
-                with tempfile.TemporaryDirectory() as temporary:
-                    root = self.fixture(Path(temporary))
-                    manifest_path = root / "manifest.json"
-                    manifest = json.loads(manifest_path.read_text())
-                    manifest["images"][0]["relativePath"] = relative_path
-                    self.write_manifest(root, manifest)
-                    with self.assertRaisesRegex(
-                        flyover_preview.FlyoverArtifactError,
-                        message,
-                    ):
-                        flyover_preview.validate_artifact(root)
-
+    def test_server_root_descriptor_stays_on_the_validated_directory(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root = self.fixture(Path(temporary))
-            manifest_path = root / "manifest.json"
-            manifest = json.loads(manifest_path.read_text())
-            manifest["images"].append(dict(manifest["images"][0]))
-            self.write_manifest(root, manifest)
-            with self.assertRaisesRegex(
-                flyover_preview.FlyoverArtifactError,
-                "duplicate image path",
-            ):
-                flyover_preview.validate_artifact(root)
+            temporary_root = Path(temporary)
+            root = self.fixture(temporary_root / "atlas")
+            artifact = flyover_preview.validate_artifact(root)
+            moved = temporary_root / "validated-atlas"
 
-        with tempfile.TemporaryDirectory() as temporary:
-            root = self.fixture(Path(temporary))
-            (root / "images/extra.png").write_bytes(b"PNG")
-            with self.assertRaisesRegex(
-                flyover_preview.FlyoverArtifactError,
-                "image files do not match",
-            ):
-                flyover_preview.validate_artifact(root)
-
-    def test_rejects_non_object_boolean_schema_and_mismatched_script(self):
-        scenarios = (
-            ([], "not a JSON object"),
-            ({"schemaVersion": True, "images": []}, "schemaVersion 1"),
-        )
-        for manifest, message in scenarios:
-            with self.subTest(manifest=manifest):
-                with tempfile.TemporaryDirectory() as temporary:
-                    root = self.fixture(Path(temporary))
-                    self.write_manifest(root, manifest)
-                    with self.assertRaisesRegex(
-                        flyover_preview.FlyoverArtifactError,
-                        message,
-                    ):
-                        flyover_preview.validate_artifact(root)
-
-        with tempfile.TemporaryDirectory() as temporary:
-            root = self.fixture(Path(temporary))
-            (root / "manifest.js").write_text("window.FLYOVER_MANIFEST = {};\n")
-            with self.assertRaisesRegex(
-                flyover_preview.FlyoverArtifactError,
-                "manifest.js does not match manifest.json",
-            ):
-                flyover_preview.validate_artifact(root)
+            with flyover_preview._open_artifact_root(artifact) as descriptor:
+                root.rename(moved)
+                root.mkdir()
+                (root / "manifest.json").write_bytes(b"SECRET")
+                with flyover_preview._open_file_beneath(
+                    descriptor,
+                    "manifest.json",
+                ) as manifest_file:
+                    self.assertIn(b'"schemaVersion": 1', manifest_file.read())
 
     def test_filters_and_sorts_usable_ipv4_addresses(self):
         self.assertEqual(

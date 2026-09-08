@@ -1,5 +1,6 @@
 #if DEBUG
     import Foundation
+    import SnapshotKit
     import SwiftUI
 
     /// Converts a typed Flyover catalog into a static manifest and PNG set.
@@ -123,15 +124,57 @@
                         }
 
                         let imageURL = directory.appending(path: relativePath)
+                        let thumbnailRelativePath = String(
+                            format: "images/screen-%04d/variant-%04d/%@-thumbnail.png",
+                            prepared.screenOrdinal,
+                            variantIndex + 1,
+                            profile.rawValue,
+                        )
+                        let thumbnail: FlyoverWebThumbnail
+                        do {
+                            thumbnail = try await FlyoverWebThumbnail.make(
+                                from: captured.pngData,
+                                pointSize: captured.pointSize,
+                                viewportPointSize: configuration.thumbnailViewportPointSize,
+                            )
+                        } catch is CancellationError {
+                            throw CancellationError()
+                        } catch {
+                            throw FlyoverExportError.captureFailed(
+                                group: prepared.groupTitle,
+                                screen: prepared.screen.title,
+                                variant: variant.title,
+                                profile: profile.rawValue,
+                                phase: "thumbnail generation",
+                                reason: error.localizedDescription,
+                            )
+                        }
+                        try Task.checkCancellation()
+                        let thumbnailURL = directory.appending(path: thumbnailRelativePath)
                         do {
                             try fileManager.createDirectory(
                                 at: imageURL.deletingLastPathComponent(),
                                 withIntermediateDirectories: true,
                             )
+                        } catch {
+                            throw FlyoverExportError.outputWriteFailed(
+                                path: imageURL.deletingLastPathComponent().path,
+                                reason: error.localizedDescription,
+                            )
+                        }
+                        do {
                             try captured.pngData.write(to: imageURL, options: .atomic)
                         } catch {
                             throw FlyoverExportError.outputWriteFailed(
                                 path: imageURL.path,
+                                reason: error.localizedDescription,
+                            )
+                        }
+                        do {
+                            try thumbnail.pngData.write(to: thumbnailURL, options: .atomic)
+                        } catch {
+                            throw FlyoverExportError.outputWriteFailed(
+                                path: thumbnailURL.path,
                                 reason: error.localizedDescription,
                             )
                         }
@@ -146,10 +189,13 @@
                             variantID: variant.id.rawValue,
                             profileID: profile.rawValue,
                             relativePath: relativePath,
+                            thumbnailRelativePath: thumbnailRelativePath,
                             pointWidth: Double(captured.pointSize.width),
                             pointHeight: Double(captured.pointSize.height),
                             pixelWidth: Int(captured.pixelSize.width.rounded()),
                             pixelHeight: Int(captured.pixelSize.height.rounded()),
+                            thumbnailPixelWidth: Int(thumbnail.pixelSize.width.rounded()),
+                            thumbnailPixelHeight: Int(thumbnail.pixelSize.height.rounded()),
                             scale: Double(captured.scale),
                             captureExtent: policy.captureExtent.rawValue,
                         ))
@@ -169,9 +215,10 @@
             )
             try write(manifest: manifest, to: directory)
             let actualImageCount = try pngCount(in: imagesDirectory)
-            guard actualImageCount == images.count else {
+            let expectedImageCount = images.count * 2
+            guard actualImageCount == expectedImageCount else {
                 throw FlyoverExportError.assetCountMismatch(
-                    expected: images.count,
+                    expected: expectedImageCount,
                     actual: actualImageCount,
                 )
             }
@@ -247,9 +294,9 @@
             _ variant: FlyoverVariant,
             screen: String,
         ) throws -> FlyoverExportPolicy {
-            switch variant.exportPolicyResolution {
+            let policy = switch variant.exportPolicyResolution {
                 case let .policy(policy):
-                    return policy
+                    policy
                 case let .mixed(extents):
                     throw FlyoverExportError.mixedSizingPolicy(
                         screen: screen,
@@ -257,6 +304,13 @@
                         extents: extents.map(\.rawValue),
                     )
             }
+            guard policy.captureExtent != .viewport || policy.onReadyToMeasure == nil else {
+                throw FlyoverExportError.measurementHookRequiresMeasuredSizing(
+                    screen: screen,
+                    variant: variant.id.rawValue,
+                )
+            }
+            return policy
         }
 
         private func prepareRoutes(
@@ -526,6 +580,19 @@
         private struct VariantKey: Hashable {
             let screenID: String
             let variantID: String
+        }
+    }
+
+    extension SnapshotConfiguration {
+        fileprivate var thumbnailViewportPointSize: CGSize? {
+            switch device.size {
+                case .fixed, .intrinsic:
+                    nil
+                case let .fullContent(width, minimumHeight):
+                    minimumHeight.map { CGSize(width: width, height: $0) }
+                case let .fullContent2D(minimumSize):
+                    minimumSize
+            }
         }
     }
 

@@ -1,161 +1,36 @@
-"""Validation and local HTTP serving for generated Flyover atlases."""
+"""Local HTTP serving for validated Flyover atlases."""
 
 from __future__ import annotations
 
 import argparse
 import ipaddress
-import json
+import os
 import signal
 import socket
+import stat
 import sys
 import threading
 from contextlib import contextmanager
-from dataclasses import dataclass
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path, PurePosixPath
-from typing import Callable, Iterable, Iterator, TextIO
+from typing import BinaryIO, Callable, Iterable, Iterator, Optional, TextIO
 from urllib.parse import unquote, urlsplit
 
-
-MARKER_CONTENT = "schemaVersion=1"
-REQUIRED_FILES = (
-    "index.html",
-    "manifest.json",
-    "manifest.js",
-    "assets/app.js",
-    "assets/styles.css",
-)
-
-
-class FlyoverArtifactError(ValueError):
-    """A generated atlas is incomplete or unsafe to serve."""
-
-
-@dataclass(frozen=True)
-class FlyoverArtifact:
-    root: Path
-    allowed_paths: frozenset[str]
-
-
-def validate_artifact(
-    directory: Path,
-    *,
-    require_marker: bool = True,
-) -> FlyoverArtifact:
-    """Validate a generated atlas and return its HTTP allowlist."""
-    root = directory
-    if root.is_symlink():
-        raise FlyoverArtifactError(f"the atlas directory is a symbolic link: {root}")
-    if not root.exists():
-        raise FlyoverArtifactError(
-            f"no generated atlas exists at {root}. Run ./flyover export first."
-        )
-    if not root.is_dir():
-        raise FlyoverArtifactError(f"the atlas path is not a directory: {root}")
-
-    symbolic_link = next((path for path in root.rglob("*") if path.is_symlink()), None)
-    if symbolic_link is not None:
-        relative = symbolic_link.relative_to(root)
-        raise FlyoverArtifactError(f"the atlas contains a symbolic link: {relative}")
-
-    marker = root / ".flyover-generated"
-    if require_marker:
-        if not marker.is_file():
-            raise FlyoverArtifactError(
-                f"the directory is not a generated Flyover atlas: {root}"
-            )
-        try:
-            marker_content = marker.read_text(encoding="utf-8").strip()
-        except (OSError, UnicodeError) as error:
-            raise FlyoverArtifactError(f"could not read {marker}: {error}") from error
-        if marker_content != MARKER_CONTENT:
-            raise FlyoverArtifactError(
-                f"the generated marker is unsupported: {marker_content or 'empty'}"
-            )
-
-    for relative in REQUIRED_FILES:
-        path = root / relative
-        if not path.is_file():
-            raise FlyoverArtifactError(f"the generated atlas is missing {relative}")
-
-    manifest_path = root / "manifest.json"
-    try:
-        manifest_data = manifest_path.read_bytes()
-        manifest = json.loads(manifest_data)
-    except (OSError, UnicodeError, json.JSONDecodeError) as error:
-        raise FlyoverArtifactError(f"could not read manifest.json: {error}") from error
-    if not isinstance(manifest, dict):
-        raise FlyoverArtifactError("manifest.json is not a JSON object")
-    if (
-        type(manifest.get("schemaVersion")) is not int
-        or manifest["schemaVersion"] != 1
-    ):
-        raise FlyoverArtifactError("manifest.json does not use schemaVersion 1")
-
-    manifest_script_path = root / "manifest.js"
-    try:
-        manifest_script = manifest_script_path.read_bytes()
-    except OSError as error:
-        raise FlyoverArtifactError(f"could not read manifest.js: {error}") from error
-    expected_script = b"window.FLYOVER_MANIFEST = " + manifest_data + b";\n"
-    if manifest_script != expected_script:
-        raise FlyoverArtifactError("manifest.js does not match manifest.json")
-
-    images = manifest.get("images")
-    if not isinstance(images, list):
-        raise FlyoverArtifactError("manifest.json has no image list")
-
-    image_paths: list[str] = []
-    for image in images:
-        if not isinstance(image, dict):
-            raise FlyoverArtifactError("manifest.json contains an invalid image record")
-        relative_value = image.get("relativePath")
-        if not isinstance(relative_value, str):
-            raise FlyoverArtifactError("manifest.json contains an invalid image path")
-        relative = _safe_image_path(relative_value)
-        path = root.joinpath(*relative.parts)
-        if not path.is_file():
-            raise FlyoverArtifactError(f"the manifest image is missing: {relative}")
-        image_paths.append(relative.as_posix())
-
-    if len(set(image_paths)) != len(image_paths):
-        raise FlyoverArtifactError("manifest.json contains a duplicate image path")
-
-    images_directory = root / "images"
-    if images_directory.is_dir():
-        actual_paths = {
-            path.relative_to(root).as_posix()
-            for path in images_directory.rglob("*.png")
-            if path.is_file()
-        }
-    else:
-        actual_paths = set()
-    declared_paths = set(image_paths)
-    if actual_paths != declared_paths:
-        raise FlyoverArtifactError(
-            "the image files do not match the manifest "
-            f"({len(declared_paths)} declared, {len(actual_paths)} found)"
-        )
-
-    return FlyoverArtifact(
-        root=root,
-        allowed_paths=frozenset((*REQUIRED_FILES, *image_paths)),
+try:
+    from Tools.flyover_manifest import (
+        FlyoverArtifact,
+        FlyoverArtifactError,
+        validate_artifact,
     )
-
-
-def _safe_image_path(value: str) -> PurePosixPath:
-    relative = PurePosixPath(value)
-    if (
-        not value
-        or "\\" in value
-        or relative.is_absolute()
-        or ".." in relative.parts
-        or relative.parts[:1] != ("images",)
-        or relative.suffix.lower() != ".png"
-    ):
-        raise FlyoverArtifactError(f"the manifest contains an unsafe image path: {value}")
-    return relative
+except ModuleNotFoundError as error:
+    if error.name != "Tools":
+        raise
+    from flyover_manifest import (
+        FlyoverArtifact,
+        FlyoverArtifactError,
+        validate_artifact,
+    )
 
 
 def usable_ipv4_addresses(candidates: Iterable[str]) -> tuple[str, ...]:
@@ -205,24 +80,39 @@ class FlyoverRequestHandler(SimpleHTTPRequestHandler):
     def __init__(
         self,
         *args: object,
-        directory: str,
+        root_descriptor: int,
         allowed_paths: frozenset[str],
         **kwargs: object,
     ) -> None:
+        self.root_descriptor = os.dup(root_descriptor)
         self.allowed_paths = allowed_paths
-        super().__init__(*args, directory=directory, **kwargs)
+        try:
+            super().__init__(*args, directory="/", **kwargs)
+        finally:
+            os.close(self.root_descriptor)
 
-    def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
-        if not self._request_is_allowed():
+    def send_head(self) -> Optional[BinaryIO]:
+        relative = self._allowed_relative_path()
+        if relative is None:
             self.send_error(404)
-            return
-        super().do_GET()
+            return None
+        try:
+            file = _open_file_beneath(self.root_descriptor, relative)
+        except OSError:
+            self.send_error(404)
+            return None
 
-    def do_HEAD(self) -> None:  # noqa: N802 - stdlib handler API
-        if not self._request_is_allowed():
-            self.send_error(404)
-            return
-        super().do_HEAD()
+        try:
+            status = os.fstat(file.fileno())
+            self.send_response(200)
+            self.send_header("Content-type", self.guess_type(relative))
+            self.send_header("Content-Length", str(status.st_size))
+            self.send_header("Last-Modified", self.date_time_string(status.st_mtime))
+            self.end_headers()
+            return file
+        except BaseException:
+            file.close()
+            raise
 
     def list_directory(self, path: str) -> None:
         self.send_error(404)
@@ -231,23 +121,72 @@ class FlyoverRequestHandler(SimpleHTTPRequestHandler):
     def log_message(self, message: str, *args: object) -> None:
         """Keep untrusted HTTP request data out of the terminal."""
 
-    def _request_is_allowed(self) -> bool:
+    def _allowed_relative_path(self) -> Optional[str]:
         try:
             target = urlsplit(self.path)
         except ValueError:
-            return False
+            return None
         if target.scheme or target.netloc or target.fragment:
-            return False
+            return None
         raw_path = unquote(target.path)
         if raw_path == "/":
-            return "index.html" in self.allowed_paths
+            return "index.html" if "index.html" in self.allowed_paths else None
         if not raw_path.startswith("/") or raw_path.endswith("/"):
-            return False
+            return None
         segments = raw_path[1:].split("/")
         if any(segment in ("", ".", "..") for segment in segments):
-            return False
+            return None
         relative = "/".join(segments)
-        return relative in self.allowed_paths
+        return relative if relative in self.allowed_paths else None
+
+
+def _open_file_beneath(root_descriptor: int, relative: str) -> BinaryIO:
+    """Open one allowlisted regular file without following symbolic links."""
+    flags = os.O_RDONLY | os.O_NOFOLLOW
+    directory_flags = flags | os.O_DIRECTORY
+    current_descriptor = os.dup(root_descriptor)
+    file_descriptor: Optional[int] = None
+    try:
+        parts = PurePosixPath(relative).parts
+        for part in parts[:-1]:
+            next_descriptor = os.open(
+                part,
+                directory_flags,
+                dir_fd=current_descriptor,
+            )
+            os.close(current_descriptor)
+            current_descriptor = next_descriptor
+        file_descriptor = os.open(parts[-1], flags, dir_fd=current_descriptor)
+        if not stat.S_ISREG(os.fstat(file_descriptor).st_mode):
+            raise OSError("the request target is not a regular file")
+        file = os.fdopen(file_descriptor, "rb")
+        file_descriptor = None
+        return file
+    finally:
+        if file_descriptor is not None:
+            os.close(file_descriptor)
+        os.close(current_descriptor)
+
+
+@contextmanager
+def _open_artifact_root(artifact: FlyoverArtifact) -> Iterator[int]:
+    """Pin the validated atlas directory for the server lifetime."""
+    try:
+        descriptor = os.open(
+            artifact.root,
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+        )
+    except OSError as error:
+        raise FlyoverArtifactError(
+            f"could not open the validated atlas directory {artifact.root}: {error}"
+        ) from error
+    try:
+        status = os.fstat(descriptor)
+        if (status.st_dev, status.st_ino) != (artifact.root_device, artifact.root_inode):
+            raise FlyoverArtifactError("the atlas directory changed during server startup")
+        yield descriptor
+    finally:
+        os.close(descriptor)
 
 
 ServerFactory = Callable[..., ThreadingHTTPServer]
@@ -308,33 +247,34 @@ def serve(
 ) -> None:
     artifact = validate_artifact(directory)
     host = "0.0.0.0" if lan else "127.0.0.1"
-    handler = partial(
-        FlyoverRequestHandler,
-        directory=str(artifact.root),
-        allowed_paths=artifact.allowed_paths,
-    )
-    try:
-        server = server_factory((host, port), handler)
-    except OSError as error:
-        raise FlyoverArtifactError(
-            f"could not start the preview server on {host}:{port}: {error}"
-        ) from error
+    with _open_artifact_root(artifact) as root_descriptor:
+        handler = partial(
+            FlyoverRequestHandler,
+            root_descriptor=root_descriptor,
+            allowed_paths=artifact.allowed_paths,
+        )
+        try:
+            server = server_factory((host, port), handler)
+        except OSError as error:
+            raise FlyoverArtifactError(
+                f"could not start the preview server on {host}:{port}: {error}"
+            ) from error
 
-    with server, _serve_until_interrupted(server):
-        selected_port = int(server.server_address[1])
-        print(f"Flyover preview: {artifact.root}", file=output)
-        print(f"Local:   http://127.0.0.1:{selected_port}/", file=output)
-        if lan:
-            addresses = address_provider()
-            for address in addresses:
-                print(f"Network: http://{address}:{selected_port}/", file=output)
-            if not addresses:
-                print(
-                    "Network: bound to all interfaces, but no LAN address was found.",
-                    file=output,
-                )
-            print("Warning: LAN preview has no authentication or TLS.", file=output)
-        print("Press Ctrl-C to stop.", file=output, flush=True)
+        with server, _serve_until_interrupted(server):
+            selected_port = int(server.server_address[1])
+            print(f"Flyover preview: {artifact.root}", file=output)
+            print(f"Local:   http://127.0.0.1:{selected_port}/", file=output)
+            if lan:
+                addresses = address_provider()
+                for address in addresses:
+                    print(f"Network: http://{address}:{selected_port}/", file=output)
+                if not addresses:
+                    print(
+                        "Network: bound to all interfaces, but no LAN address was found.",
+                        file=output,
+                    )
+                print("Warning: LAN preview has no authentication or TLS.", file=output)
+            print("Press Ctrl-C to stop.", file=output, flush=True)
 
 
 def _parser() -> argparse.ArgumentParser:

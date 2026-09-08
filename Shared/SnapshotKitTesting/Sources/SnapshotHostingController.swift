@@ -27,6 +27,11 @@ func makeHostingController(
     hostingController.traitOverrides.accessibilityContrast = traits.accessibilityContrast
     hostingController.traitOverrides.layoutDirection = traits.layoutDirection
     hostingController.traitOverrides.legibilityWeight = traits.legibilityWeight
+    if configuration.layoutTraits != nil {
+        hostingController.traitOverrides.userInterfaceIdiom = traits.userInterfaceIdiom
+        hostingController.traitOverrides.horizontalSizeClass = traits.horizontalSizeClass
+        hostingController.traitOverrides.verticalSizeClass = traits.verticalSizeClass
+    }
 
     switch configuration.device.size {
         case let .fixed(size):

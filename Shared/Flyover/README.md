@@ -137,10 +137,16 @@ A generated source scan would add build ordering and cache invalidation complexi
 ## Static web export
 
 `FlyoverWebExporter` converts a DEBUG catalog into a static QA atlas. It writes
-native PNG captures, `manifest.json`, and `manifest.js`. The web shell reads
+native PNG captures and card-size thumbnails. It also writes `manifest.json`
+and `manifest.js`. The exporter derives each thumbnail from its hosted native
+capture. It does not render the SwiftUI content again. The web shell reads
 `manifest.js`, so the atlas works from `file://` and any static host. The
 browser changes images and navigation state. It does not run SwiftUI or
 serialize `FlyoverControl` actions.
+
+A thumbnail uses at most 1,024 pixels on its longest axis. A full-content
+thumbnail shows the top device viewport. The inspector and raw PNG link use the
+complete capture.
 
 The exporter validates the complete plan before its first capture. The host
 provides one stable string for each typed screen ID and one capture closure.
@@ -162,7 +168,8 @@ The built-in IDs are:
 
 The first profile is the initial web selection. An empty profile list becomes
 `phone-light` followed by `phone-dark`. Fixed Flyover viewports keep their size
-while profile traits still apply.
+while profile traits still apply. Tablet and landscape profiles also apply an
+explicit interface idiom and size classes to adaptive content.
 
 Run Where's exporter from the repository root:
 
@@ -175,7 +182,10 @@ Run Where's exporter from the repository root:
 The default output is `.build/flyover/where`, resolved from the caller's
 directory. The command stages the complete site and replaces only an existing
 directory marked with `.flyover-generated`. A failed capture leaves the last
-successful atlas unchanged.
+successful atlas unchanged. Before replacement, the command validates all
+schema fields, references, image mappings, and generated PNG files. A repeated
+in-repository export excludes its prior generated directory from dirty-build
+metadata. A Git status error stops the export.
 
 ### Preview the export
 
@@ -197,6 +207,8 @@ Use `--lan` to open the preview to other devices on the local network:
 
 The command prints one URL for each network address that it finds. The other
 device must be able to reach this computer. A macOS firewall prompt can appear.
+The server pins the validated directory for its lifetime. It does not follow a
+symbolic link that replaces an allowed file or directory after startup.
 
 WARNING: LAN preview has no authentication or TLS. Any device that can reach
 the computer can view the native screenshots. Stop and restart the preview
@@ -209,19 +221,20 @@ All site URLs are relative.
 The manifest compatibility boundary is `schemaVersion: 1`. It contains the
 application and build identity, profiles, precomputed canvas geometry, groups,
 screens, routes, and image metadata. It contains no local source or account
-paths. Full-content sizing uses SnapshotKitTesting limits and convergence
-rules. A sizing failure stops the export; it never substitutes a viewport
-image.
+paths. New image records include the optional thumbnail path and pixel size.
+Older schema-1 artifacts remain readable. The web shell uses the full capture
+when thumbnail metadata is absent. Full-content sizing uses SnapshotKitTesting
+limits and convergence rules. A sizing error stops the export. The exporter
+never substitutes a viewport image.
 
 The website opens the first catalog group in canvas mode. A floating control
 dock keeps the canvas visible. The group panel and overview map move between
 groups without recalculating the graph. The canvas keeps its position when a
 state, profile, or panel changes.
 
-Canvas and list views give an active image source to every visible screenshot.
-The list can also preload nearby screenshots. This preload targets six active
-images and 24 million pixels.
-Visible screenshots override both targets.
+Canvas and list views give an active thumbnail source to every visible screen.
+The list can also preload nearby thumbnails. This preload targets six active
+images and 24 million thumbnail pixels. Visible screens override both targets.
 The inspector removes these sources while it shows one full-resolution capture.
 
 Point to or focus a card to emphasize its connected routes. The site dims

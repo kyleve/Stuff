@@ -27,6 +27,16 @@ struct SnapshotConfigurationTests {
         #expect(configs.count == 8)
     }
 
+    @Test func combinationsMultiplyAdaptiveLayoutTraits() {
+        let configs = SnapshotConfiguration.combinations(
+            devices: [.iPhone, .iPad],
+            layoutTraits: [.phonePortrait, .tabletPortrait],
+        )
+
+        #expect(configs.count == 4)
+        #expect(Set(configs.compactMap(\.layoutTraits)) == [.phonePortrait, .tabletPortrait])
+    }
+
     @Test func componentDefaultsAreAdditiveNotCartesian() {
         // baseline + dark + accessibility type size + increased contrast + a11y capture
         #expect([SnapshotConfiguration].componentDefaults.count == 5)
@@ -93,6 +103,22 @@ struct SnapshotConfigurationTests {
             .identifierParts == ["accessibility"])
         #expect(SnapshotConfiguration(device: .iPad).identifierParts == ["iPad"])
         #expect(SnapshotConfiguration(device: .iPhoneNotched).identifierParts == ["iPhoneNotched"])
+    }
+
+    @Test func adaptiveLayoutTraitsHaveStableDistinctIdentifierTokens() {
+        let phonePortrait = SnapshotConfiguration(layoutTraits: .phonePortrait)
+        let phoneLandscape = SnapshotConfiguration(layoutTraits: .phoneLandscape)
+        let tabletPortrait = SnapshotConfiguration(layoutTraits: .tabletPortrait)
+
+        #expect(phonePortrait.identifierParts == ["phone-compact-regular"])
+        #expect(phoneLandscape.identifierParts == ["phone-compact-compact"])
+        #expect(tabletPortrait.identifierParts == ["tablet-regular-regular"])
+        #expect(Set([
+            phonePortrait.identifier,
+            phoneLandscape.identifier,
+            tabletPortrait.identifier,
+        ])
+        .count == 3)
     }
 
     @Test func identifierOrdersAndJoinsPartsWithNameFirst() {

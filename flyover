@@ -8,6 +8,7 @@ OUTPUT="$DEFAULT_OUTPUT"
 PROFILES=()
 STAGING=""
 BACKUP=""
+BACKUP_CONTAINER=""
 DESTINATION=""
 COMMAND=""
 PREVIEW_LAN=false
@@ -161,6 +162,12 @@ cleanup() {
     fi
     if [ -n "$BACKUP" ] && [ -e "$BACKUP" ] && [ -n "$DESTINATION" ] && [ ! -e "$DESTINATION" ]; then
         mv "$BACKUP" "$DESTINATION"
+        BACKUP=""
+    fi
+    if [ -n "$BACKUP_CONTAINER" ] && [ -d "$BACKUP_CONTAINER" ]; then
+        if ! rmdir "$BACKUP_CONTAINER" 2>/dev/null; then
+            echo "flyover: warning: could not remove temporary replacement directory '$BACKUP_CONTAINER'" >&2
+        fi
     fi
 }
 trap cleanup EXIT INT TERM
@@ -269,7 +276,28 @@ paths_are_same "$DESTINATION" "$WORKSPACE_PATH" \
 validate_destination
 
 COMMIT="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
-if [ -n "$(git -C "$ROOT" status --porcelain 2>/dev/null || true)" ]; then
+GIT_STATUS_ARGUMENTS=(status --porcelain --untracked-files=all -- .)
+if [ -e "$DESTINATION" ] || [ -L "$DESTINATION" ]; then
+    DESTINATION_EXCLUSION="$(python3 - "$ROOT" "$DESTINATION" <<'PY'
+import pathlib, sys
+root, destination = map(pathlib.Path, sys.argv[1:])
+try:
+    relative = destination.relative_to(root)
+except ValueError:
+    pass
+else:
+    if relative.parts:
+        print(":(exclude,top,literal)" + relative.as_posix())
+PY
+)"
+    if [ -n "$DESTINATION_EXCLUSION" ]; then
+        GIT_STATUS_ARGUMENTS+=("$DESTINATION_EXCLUSION")
+    fi
+fi
+if ! GIT_STATUS="$(git -C "$ROOT" "${GIT_STATUS_ARGUMENTS[@]}" 2>/dev/null)"; then
+    error "could not read the Git working-tree status"
+fi
+if [ -n "$GIT_STATUS" ]; then
     DIRTY=true
 else
     DIRTY=false
@@ -313,7 +341,9 @@ find "$STAGING" -type f -exec chmod 0644 {} +
 
 validate_destination
 if [ -e "$DESTINATION" ] || [ -L "$DESTINATION" ]; then
-    BACKUP="$PARENT/.flyover-previous.$(basename "$DESTINATION").$$"
+    BACKUP_CONTAINER="$(mktemp -d "$PARENT/.flyover-replacement.XXXXXX")"
+    chmod 0700 "$BACKUP_CONTAINER"
+    BACKUP="$BACKUP_CONTAINER/previous"
     mv "$DESTINATION" "$BACKUP"
 fi
 mv "$STAGING" "$DESTINATION"
@@ -321,6 +351,10 @@ STAGING=""
 if [ -n "$BACKUP" ]; then
     rm -rf "$BACKUP"
     BACKUP=""
+fi
+if [ -n "$BACKUP_CONTAINER" ]; then
+    rmdir "$BACKUP_CONTAINER"
+    BACKUP_CONTAINER=""
 fi
 
 ELAPSED_SECONDS=$((SECONDS - EXPORT_STARTED_AT))

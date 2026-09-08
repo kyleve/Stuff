@@ -1,4 +1,4 @@
-import SnapshotKitTesting
+@_spi(Testing) import SnapshotKitTesting
 import SwiftUI
 import Testing
 import UIKit
@@ -29,6 +29,30 @@ struct SnapshotPNGTests {
         #expect(png.pointSize == CGSize(width: 80, height: 60))
         #expect(png.pixelSize.width == png.pointSize.width * png.scale)
         #expect(png.pixelSize.height == png.pointSize.height * png.scale)
+    }
+
+    @Test func appliesTabletLayoutTraitsToUIKitAndSwiftUI() async throws {
+        try await expectAdaptiveLayoutTraits(
+            .tabletPortrait,
+            expected: AdaptiveTraitExpectation(
+                interfaceIdiom: .pad,
+                horizontalSizeClass: .regular,
+                verticalSizeClass: .regular,
+            ),
+            captureName: "png-api-tablet-traits-probe",
+        )
+    }
+
+    @Test func appliesPhoneLandscapeLayoutTraitsToUIKitAndSwiftUI() async throws {
+        try await expectAdaptiveLayoutTraits(
+            .phoneLandscape,
+            expected: AdaptiveTraitExpectation(
+                interfaceIdiom: .phone,
+                horizontalSizeClass: .compact,
+                verticalSizeClass: .compact,
+            ),
+            captureName: "png-api-phone-landscape-traits-probe",
+        )
     }
 
     @Test func runsReadinessHooksThroughTheSharedPipeline() async throws {
@@ -226,6 +250,116 @@ struct SnapshotPNGTests {
         }
         #expect(name == "png-api-moving-probe")
         #expect(phase == "content")
+    }
+}
+
+@MainActor
+private func expectAdaptiveLayoutTraits(
+    _ layoutTraits: SnapshotConfiguration.LayoutTraits,
+    expected: AdaptiveTraitExpectation,
+    captureName: String,
+) async throws {
+    let configuration = SnapshotConfiguration(
+        layoutTraits: layoutTraits,
+        device: SnapshotConfiguration.Frame(
+            name: captureName,
+            size: .fixed(CGSize(width: 100, height: 60)),
+        ),
+    )
+    let png = try await captureSnapshotPNG(
+        of: AdaptiveTraitProbe(expected: expected),
+        configuration: configuration,
+        named: captureName,
+        sizing: .fixed,
+        safeAreaInsets: .zero,
+        measurementReadiness: .sameAsCapture,
+        onReadyToMeasure: nil,
+        settle: .immediate,
+        onReadyToSnapshot: nil,
+    )
+    let image = try #require(UIImage(data: png.data, scale: png.scale))
+    let swiftUITraits = image.probePixel(atUnitPoint: CGPoint(x: 0.25, y: 0.5))
+    let uiKitTraits = image.probePixel(atUnitPoint: CGPoint(x: 0.75, y: 0.5))
+
+    #expect(swiftUITraits.green > 0.5)
+    #expect(swiftUITraits.red < 0.5)
+    #expect(uiKitTraits.green > 0.5)
+    #expect(uiKitTraits.red < 0.5)
+}
+
+private struct AdaptiveTraitExpectation {
+    let interfaceIdiom: UIUserInterfaceIdiom
+    let horizontalSizeClass: UIUserInterfaceSizeClass
+    let verticalSizeClass: UIUserInterfaceSizeClass
+
+    var swiftUIHorizontalSizeClass: UserInterfaceSizeClass {
+        switch horizontalSizeClass {
+            case .compact: .compact
+            case .regular: .regular
+            case .unspecified: .compact
+            @unknown default: .compact
+        }
+    }
+
+    var swiftUIVerticalSizeClass: UserInterfaceSizeClass {
+        switch verticalSizeClass {
+            case .compact: .compact
+            case .regular: .regular
+            case .unspecified: .compact
+            @unknown default: .compact
+        }
+    }
+}
+
+private struct AdaptiveTraitProbe: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+
+    let expected: AdaptiveTraitExpectation
+
+    var body: some View {
+        HStack(spacing: 0) {
+            let matches = horizontalSizeClass == expected.swiftUIHorizontalSizeClass
+                && verticalSizeClass == expected.swiftUIVerticalSizeClass
+            (matches ? Color.green : Color.red)
+            UIKitAdaptiveTraitProbe(expected: expected)
+        }
+    }
+}
+
+private struct UIKitAdaptiveTraitProbe: UIViewRepresentable {
+    let expected: AdaptiveTraitExpectation
+
+    func makeUIView(context _: Context) -> UIKitAdaptiveTraitProbeView {
+        UIKitAdaptiveTraitProbeView(expected: expected)
+    }
+
+    func updateUIView(_ view: UIKitAdaptiveTraitProbeView, context _: Context) {
+        view.expected = expected
+        view.setNeedsLayout()
+    }
+}
+
+@MainActor
+private final class UIKitAdaptiveTraitProbeView: UIView {
+    var expected: AdaptiveTraitExpectation
+
+    init(expected: AdaptiveTraitExpectation) {
+        self.expected = expected
+        super.init(frame: .zero)
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        fatalError("init(coder:) is unavailable")
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let matches = traitCollection.userInterfaceIdiom == expected.interfaceIdiom
+            && traitCollection.horizontalSizeClass == expected.horizontalSizeClass
+            && traitCollection.verticalSizeClass == expected.verticalSizeClass
+        backgroundColor = matches ? .green : .red
     }
 }
 

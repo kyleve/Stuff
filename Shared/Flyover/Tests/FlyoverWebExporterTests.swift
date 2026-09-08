@@ -18,6 +18,8 @@
                 title: "Test </script> App",
                 screenIdentifier: \FlyoverTestScreen.rawValue,
             )
+            let pngData = try #require(Data(base64Encoded:
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="))
 
             let summary = try await exporter.export(
                 to: directory,
@@ -25,7 +27,7 @@
                 build: build,
             ) { request in
                 FlyoverCapturedImage(
-                    pngData: Data([0x89, 0x50, 0x4E, 0x47]),
+                    pngData: pngData,
                     pointSize: request.configuration.device.testPointSize,
                     pixelSize: CGSize(width: 1206, height: 2622),
                     scale: 3,
@@ -53,7 +55,16 @@
                     && FileManager.default.fileExists(
                         atPath: directory.appending(path: image.relativePath).path,
                     )
+                    && image.thumbnailRelativePath?.hasSuffix("-thumbnail.png") == true
+                    && image.thumbnailRelativePath.map { path in
+                        FileManager.default.fileExists(
+                            atPath: directory.appending(path: path).path,
+                        )
+                    } == true
+                    && image.thumbnailPixelWidth == 1
+                    && image.thumbnailPixelHeight == 1
             })
+            #expect(try pngCount(in: directory) == 16)
             let script = try String(
                 contentsOf: directory.appending(path: "manifest.js"),
                 encoding: .utf8,
@@ -114,6 +125,73 @@
                     screen: "root",
                     variant: "mixed",
                     extents: ["fullContent", "viewport"],
+                ))
+            } catch {
+                Issue.record("Unexpected error: \(error)")
+            }
+            #expect(captureCount == 0)
+        }
+
+        @Test func rejectsAViewportMeasurementHookBeforeAnyEarlierVariantCaptures() async throws {
+            let invalidPolicy = FlyoverExportPolicy(
+                captureExtent: .viewport,
+                measurementReadiness: .sameAsCapture,
+                settle: .settled,
+                onReadyToMeasure: {},
+                onReadyToSnapshot: nil,
+            )
+            let screen = FlyoverScreen(
+                id: FlyoverTestScreen.root,
+                title: "Root",
+                variants: [
+                    FlyoverVariant(
+                        id: FlyoverVariantID("valid"),
+                        title: "Valid",
+                    ) { EmptyView() },
+                    FlyoverVariant(
+                        id: FlyoverVariantID("invalid"),
+                        title: "Invalid",
+                        exportPolicy: invalidPolicy,
+                    ) { EmptyView() },
+                ],
+            )
+            let catalog = FlyoverCatalog(groups: [
+                FlyoverGroup(
+                    id: FlyoverGroupID("main"),
+                    title: "Main",
+                    root: .root,
+                    screens: [screen],
+                ),
+            ])
+            let directory = try makeTemporaryDirectory()
+            defer { try? FileManager.default.removeItem(at: directory) }
+            var captureCount = 0
+            let exporter = FlyoverWebExporter(
+                catalog: catalog,
+                applicationID: "test",
+                title: "Test",
+                screenIdentifier: \FlyoverTestScreen.rawValue,
+            )
+
+            do {
+                _ = try await exporter.export(
+                    to: directory,
+                    profiles: [.phoneLight],
+                    build: build,
+                ) { _ in
+                    captureCount += 1
+                    return FlyoverCapturedImage(
+                        pngData: Data([1]),
+                        pointSize: CGSize(width: 1, height: 1),
+                        pixelSize: CGSize(width: 1, height: 1),
+                        scale: 1,
+                    )
+                }
+                Issue.record("Expected the invalid measurement hook to fail preflight.")
+            } catch let error as FlyoverExportError {
+                #expect(error == .measurementHookRequiresMeasuredSizing(
+                    screen: "root",
+                    variant: "invalid",
                 ))
             } catch {
                 Issue.record("Unexpected error: \(error)")
@@ -195,6 +273,56 @@
                 atPath: directory.appending(path: "manifest.json").path,
             ) == false)
             #expect(try pngCount(in: directory) == 0)
+        }
+
+        @Test func reportsInvalidCapturedPNGAsAThumbnailGenerationFailure() async throws {
+            let directory = try makeTemporaryDirectory()
+            defer { try? FileManager.default.removeItem(at: directory) }
+            let catalog = FlyoverCatalog(groups: [
+                FlyoverGroup(
+                    id: FlyoverGroupID("main"),
+                    title: "Main",
+                    root: .root,
+                    screens: [makeFlyoverTestScreen(.root, title: "Root")],
+                ),
+            ])
+            let exporter = FlyoverWebExporter(
+                catalog: catalog,
+                applicationID: "test",
+                title: "Test",
+                screenIdentifier: \FlyoverTestScreen.rawValue,
+            )
+
+            do {
+                _ = try await exporter.export(
+                    to: directory,
+                    profiles: [.phoneLight],
+                    build: build,
+                ) { _ in
+                    FlyoverCapturedImage(
+                        pngData: Data([1]),
+                        pointSize: CGSize(width: 1, height: 1),
+                        pixelSize: CGSize(width: 1, height: 1),
+                        scale: 1,
+                    )
+                }
+                Issue.record("Expected thumbnail generation to reject the invalid PNG.")
+            } catch let error as FlyoverExportError {
+                #expect(error == .captureFailed(
+                    group: "Main",
+                    screen: "Root",
+                    variant: "Default",
+                    profile: "phone-light",
+                    phase: "thumbnail generation",
+                    reason: FlyoverWebThumbnailError.invalidPNG.localizedDescription,
+                ))
+            } catch {
+                Issue.record("Unexpected error: \(error)")
+            }
+            #expect(try pngCount(in: directory) == 0)
+            #expect(FileManager.default.fileExists(
+                atPath: directory.appending(path: "manifest.json").path,
+            ) == false)
         }
 
         private var build: FlyoverExportBuild {

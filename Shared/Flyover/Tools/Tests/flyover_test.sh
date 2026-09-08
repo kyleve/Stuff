@@ -44,14 +44,76 @@ for index, profile in enumerate(profiles, 1):
 manifest = {
     'schemaVersion': 1,
     'application': {'id': 'where', 'title': 'Where'},
-    'build': {'dirty': os.environ.get('FLYOVER_EXPORT_DIRTY') == 'true'},
-    'profiles': [{'id': profile} for profile in profiles],
-    'canvas': {},
-    'groups': [],
-    'screens': [{'id': 'screen', 'variants': [{'id': 'default', 'imagesByProfile': paths}]}],
+    'build': {
+        'commit': os.environ['FLYOVER_EXPORT_COMMIT'],
+        'dirty': os.environ.get('FLYOVER_EXPORT_DIRTY') == 'true',
+        'branch': os.environ.get('FLYOVER_EXPORT_BRANCH') or None,
+        'generatedAt': os.environ['FLYOVER_EXPORT_GENERATED_AT'],
+        'xcodeVersion': os.environ['FLYOVER_EXPORT_XCODE_VERSION'],
+        'simulatorDevice': os.environ['FLYOVER_EXPORT_SIMULATOR_DEVICE'],
+        'simulatorOS': os.environ['FLYOVER_EXPORT_SIMULATOR_OS'],
+    },
+    'profiles': [{
+        'id': profile,
+        'title': profile,
+        'device': 'phone',
+        'orientation': 'portrait',
+        'colorScheme': 'dark' if profile == 'phone-dark' else 'light',
+        'dynamicType': 'large',
+        'contrast': 'standard',
+        'layoutDirection': 'left-to-right',
+        'legibilityWeight': 'regular',
+        'snapshotType': 'standard',
+    } for profile in profiles],
+    'canvas': {
+        'size': {'width': 500, 'height': 700},
+        'initialFitSize': {'width': 500, 'height': 700},
+        'groupFrames': [{
+            'id': 'group',
+            'frame': {'x': 0, 'y': 0, 'width': 500, 'height': 700},
+        }],
+        'depthBandFrames': [{
+            'groupID': 'group',
+            'kind': 'route',
+            'depth': 0,
+            'frame': {'x': 20, 'y': 20, 'width': 460, 'height': 660},
+        }],
+        'screenFrames': [{
+            'id': 'screen',
+            'frame': {'x': 50, 'y': 50, 'width': 300, 'height': 650},
+        }],
+        'connectors': [],
+    },
+    'groups': [{
+        'id': 'group',
+        'title': 'Group',
+        'order': 0,
+        'rootScreenID': 'screen',
+        'screenIDs': ['screen'],
+    }],
+    'screens': [{
+        'id': 'screen',
+        'title': 'Screen',
+        'groupID': 'group',
+        'groupOrder': 0,
+        'screenOrder': 0,
+        'viewport': {'kind': 'device'},
+        'navigationContainer': 'stack',
+        'frame': {'x': 50, 'y': 50, 'width': 300, 'height': 650},
+        'variants': [{
+            'id': 'default',
+            'title': 'Default',
+            'captureExtent': 'viewport',
+            'imagesByProfile': paths,
+        }],
+        'incomingRouteIDs': [],
+        'outgoingRouteIDs': [],
+    }],
     'routes': [],
     'images': images,
 }
+if os.environ.get('FLYOVER_INVALID_MANIFEST') == 'missing-application':
+    del manifest['application']
 data = json.dumps(manifest, sort_keys=True, indent=2)
 (root / 'manifest.json').write_text(data)
 (root / 'manifest.js').write_text('window.FLYOVER_MANIFEST = ' + data + ';\n')
@@ -62,6 +124,13 @@ if [ -n "${FLYOVER_RACE_DESTINATION:-}" ]; then
 fi
 if [ -n "${FLYOVER_RACE_SYMLINK_DESTINATION:-}" ]; then
     ln -s "$FLYOVER_RACE_SYMLINK_DESTINATION.missing" "$FLYOVER_RACE_SYMLINK_DESTINATION"
+fi
+if [ -n "${FLYOVER_STALE_BACKUP_DESTINATION:-}" ]; then
+    stale_parent="$(dirname "$FLYOVER_STALE_BACKUP_DESTINATION")"
+    stale_name="$(basename "$FLYOVER_STALE_BACKUP_DESTINATION")"
+    stale="$stale_parent/.flyover-previous.$stale_name.$PPID"
+    mkdir -p "$stale"
+    printf '%s\n' retained >"$stale/retained"
 fi
 RUNNER
 chmod +x "$SUCCESS_RUNNER"
@@ -299,6 +368,39 @@ try:
     ).read()
     if image != b'PNG':
         raise SystemExit('preview served unexpected image data')
+
+    outside_file = pathlib.Path(directory).parent / 'outside-preview-file'
+    outside_file.write_bytes(b'SECRET')
+    image_path = (
+        pathlib.Path(directory)
+        / 'images/screen-0001/variant-0001/phone-dark.png'
+    )
+    image_path.unlink()
+    image_path.symlink_to(outside_file)
+    try:
+        urllib.request.urlopen(
+            base_url + 'images/screen-0001/variant-0001/phone-dark.png',
+            timeout=5,
+        )
+        raise SystemExit('preview followed a replacement image symbolic link')
+    except urllib.error.HTTPError as error:
+        if error.code != 404:
+            raise
+
+    original_root = pathlib.Path(directory)
+    moved_root = original_root.with_name(original_root.name + '-moved')
+    replacement_root = original_root.with_name(original_root.name + '-replacement')
+    original_root.rename(moved_root)
+    replacement_root.mkdir()
+    (replacement_root / 'manifest.json').write_bytes(b'SECRET')
+    original_root.symlink_to(replacement_root, target_is_directory=True)
+    pinned_manifest = urllib.request.urlopen(
+        base_url + 'manifest.json',
+        timeout=5,
+    ).read()
+    if b'"schemaVersion": 1' not in pinned_manifest or pinned_manifest == b'SECRET':
+        raise SystemExit('preview changed roots after server startup')
+
     try:
         urllib.request.urlopen(base_url + 'assets/', timeout=5)
         raise SystemExit('preview exposed a directory listing')
@@ -383,6 +485,7 @@ CLEAN_REPO="$TEMP/clean-repo"
 mkdir -p "$CLEAN_REPO/Shared/Flyover/Web/assets"
 mkdir -p "$CLEAN_REPO/Tools"
 cp "$ROOT/flyover" "$CLEAN_REPO/flyover"
+cp "$ROOT/Tools/flyover_manifest.py" "$CLEAN_REPO/Tools/flyover_manifest.py"
 cp "$ROOT/Tools/flyover_preview.py" "$CLEAN_REPO/Tools/flyover_preview.py"
 cp "$ROOT/Shared/Flyover/Web/index.html" "$CLEAN_REPO/Shared/Flyover/Web/index.html"
 cp "$ROOT/Shared/Flyover/Web/assets/app.js" "$CLEAN_REPO/Shared/Flyover/Web/assets/app.js"
@@ -394,12 +497,53 @@ git -C "$CLEAN_REPO" -c user.name=Flyover -c user.email=flyover@example.com \
     -c commit.gpgsign=false commit -qm fixture
 FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" FLYOVER_XCODE_VERSION_OVERRIDE=Tests \
     "$CLEAN_REPO/flyover" export --output "$CLEAN_REPO/site" >/dev/null
+FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" FLYOVER_XCODE_VERSION_OVERRIDE=Tests \
+    "$CLEAN_REPO/flyover" export --output "$CLEAN_REPO/site" >/dev/null
 python3 - "$CLEAN_REPO/site/manifest.json" <<'PY'
 import json, pathlib, sys
 dirty = json.loads(pathlib.Path(sys.argv[1]).read_text())['build']['dirty']
 if dirty:
     raise SystemExit('staging a clean in-repository export marked the source dirty')
 PY
+
+FAILING_GIT_BIN="$TEMP/failing-git-bin"
+mkdir -p "$FAILING_GIT_BIN"
+cat >"$FAILING_GIT_BIN/git" <<'GIT'
+#!/bin/bash
+for argument in "$@"; do
+    if [ "$argument" = status ]; then
+        exit 71
+    fi
+done
+exec "$FLYOVER_REAL_GIT" "$@"
+GIT
+chmod +x "$FAILING_GIT_BIN/git"
+expect_failure env PATH="$FAILING_GIT_BIN:$PATH" FLYOVER_REAL_GIT="$(command -v git)" \
+    FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" FLYOVER_XCODE_VERSION_OVERRIDE=Tests \
+    "$CLEAN_REPO/flyover" export --output "$CLEAN_REPO/status-failure"
+grep -q "could not read the Git working-tree status" "$TEMP/stderr" \
+    || fail "a Git status failure was treated as a clean source tree"
+
+printf '%s\n' retained-before-invalid >"$OUTPUT/retained-before-invalid"
+expect_failure env FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" \
+    FLYOVER_XCODE_VERSION_OVERRIDE=Tests FLYOVER_INVALID_MANIFEST=missing-application \
+    "$ROOT/flyover" export --output "$OUTPUT"
+grep -q "manifest.application is not an object" "$TEMP/stderr" \
+    || fail "an incomplete browser manifest did not report its missing section"
+[ -f "$OUTPUT/retained-before-invalid" ] \
+    || fail "an incomplete browser manifest replaced the last successful output"
+
+FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" FLYOVER_XCODE_VERSION_OVERRIDE=Tests \
+    FLYOVER_STALE_BACKUP_DESTINATION="$OUTPUT" \
+    "$ROOT/flyover" export --output "$OUTPUT" >/dev/null
+STALE_BACKUP="$(find "$TEMP" -maxdepth 1 -type d \
+    -name '.flyover-previous.output.*' -print -quit)"
+[ -n "$STALE_BACKUP" ] && [ -f "$STALE_BACKUP/retained" ] \
+    || fail "replacement removed a backup directory that it did not create"
+rm -rf "$STALE_BACKUP"
+if find "$TEMP" -maxdepth 1 -name '.flyover-replacement.*' | grep -q .; then
+    fail "a successful export left its replacement directory"
+fi
 
 printf '%s\n' old >"$OUTPUT/old-file"
 FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" FLYOVER_XCODE_VERSION_OVERRIDE=Tests \
@@ -461,11 +605,18 @@ for selector in (
     })
 require_properties('#app img', {'-webkit-user-drag': 'none'})
 
-factory_start = javascript.index('    function screenImage(screen, className = "", eager = false) {')
+factory_start = javascript.index(
+    '    function screenImage(screen, className = "", eager = false, fullResolution = false) {'
+)
 factory_end = javascript.index('\n\n    function captureViewportSize(screen) {', factory_start)
 factory = javascript[factory_start:factory_end]
 if 'image.draggable = false;' not in factory:
     raise SystemExit('screen images must disable native dragging')
+if 'fullResolution ? imagePath(screen) : thumbnailPath(screen)' not in factory:
+    raise SystemExit('atlas images must use thumbnails while allowing full-resolution inspection')
+if 'const fullImage = screenImage(screen, "", true, true);' not in javascript:
+    raise SystemExit('the inspector must request the full-resolution image')
+require_properties('.bottom-dock', {'justify-content': 'safe center'})
 
 for fragment in (
     'class="error selectable-text"',
@@ -487,28 +638,48 @@ import textwrap
 source = pathlib.Path(sys.argv[1]).read_text()
 settings_start_marker = '    const targetResidentImageCount = '
 settings_end_marker = '\n    let inspectorResizeObserver'
+image_path_start_marker = '    function screenVariant(screen) {'
+image_path_end_marker = '\n\n    function connectedRoutes(screen) {'
+image_factory_start_marker = '    function screenImage(screen, className = "", eager = false, fullResolution = false) {'
+image_factory_end_marker = '\n\n    function captureViewportSize(screen) {'
 start_marker = '    function residentScreenIDs(candidates) {'
 end_marker = '\n\n    function installCanvasPinch(viewport) {'
-fit_start_marker = '    function fitFrame(frame, behavior = "smooth") {'
+fit_start_marker = '    function setZoom(next) {'
 fit_end_marker = '\n\n    function fitAll(behavior = "smooth") {'
+fit_first_start_marker = '    function fitFirstGroup() {'
+fit_first_end_marker = '\n\n    let canvasNavigationFrame'
 settings_start = source.index(settings_start_marker)
 settings_end = source.index(settings_end_marker, settings_start)
+image_path_start = source.index(image_path_start_marker)
+image_path_end = source.index(image_path_end_marker, image_path_start)
+image_factory_start = source.index(image_factory_start_marker)
+image_factory_end = source.index(image_factory_end_marker, image_factory_start)
 start = source.index(start_marker)
 end = source.index(end_marker, start)
 fit_start = source.index(fit_start_marker)
 fit_end = source.index(fit_end_marker, fit_start)
+fit_first_start = source.index(fit_first_start_marker)
+fit_first_end = source.index(fit_first_end_marker, fit_first_start)
 settings = textwrap.dedent(source[settings_start:settings_end])
+image_paths = textwrap.dedent(source[image_path_start:image_path_end])
+image_factory = textwrap.dedent(source[image_factory_start:image_factory_end])
 residency = textwrap.dedent(source[start:end])
-fit_frame = textwrap.dedent(source[fit_start:fit_end])
-test = '''
-%s
-%s
-%s
-
+fit_functions = textwrap.dedent(source[fit_start:fit_end])
+fit_first_group = textwrap.dedent(source[fit_first_start:fit_first_end])
+test = '\n'.join((
+    settings,
+    image_paths,
+    image_factory,
+    residency,
+    fit_functions,
+    fit_first_group,
+    r'''
 let document;
 let manifest;
 let state;
 let screenByID;
+let selectedVariants;
+let imageByKey;
 const window = {
     matchMedia: () => ({ matches: true }),
 };
@@ -518,15 +689,22 @@ function requestAnimationFrame(callback) {
     return 1;
 }
 
+function element(tag, className) {
+    return {
+        tag,
+        className,
+        dataset: {},
+        getAttribute(name) { return this[name] || null; },
+        removeAttribute(name) { delete this[name]; },
+    };
+}
+
 function matchesFilters() {
     return true;
 }
 
-function imageMetadata(screen) {
-    return screen.imageMetadata;
-}
-
 function applyZoom() {}
+function captureCanvasPosition() {}
 
 function candidate(id, isVisible, imagePixels) {
     return { screen: { id }, isVisible, imagePixels };
@@ -542,6 +720,49 @@ function expectIDs(actual, expected, message) {
         throw new Error(message + ': ' + JSON.stringify(actualIDs));
     }
 }
+
+const imageScreen = {
+    id: 'screen',
+    title: 'Screen',
+    variants: [{
+        id: 'default',
+        title: 'Default',
+        captureExtent: 'viewport',
+        imagesByProfile: { 'phone-light': 'images/full.png' },
+    }],
+};
+selectedVariants = new Map([['screen', 'default']]);
+state = { profile: 'phone-light' };
+imageByKey = new Map([[
+    imageKey('screen', 'default', 'phone-light'),
+    { relativePath: 'images/full.png', thumbnailRelativePath: 'images/thumbnail.png' },
+]]);
+const cardImage = screenImage(imageScreen);
+expect(cardImage.dataset.src === 'images/thumbnail.png', 'cards must use the generated thumbnail');
+const inspectorImage = screenImage(imageScreen, '', true, true);
+expect(inspectorImage.src === 'images/full.png', 'the inspector must use the full-resolution PNG');
+imageByKey.get(imageKey('screen', 'default', 'phone-light')).thumbnailRelativePath = null;
+expect(
+    screenImage(imageScreen).dataset.src === 'images/full.png',
+    'older manifests without thumbnails must fall back to the full-resolution PNG',
+);
+imageMetadata = screen => screen.imageMetadata;
+expect(
+    screenImagePixels({
+        imageMetadata: {
+            pixelWidth: 2_500,
+            pixelHeight: 8_000,
+            thumbnailRelativePath: 'images/thumbnail.png',
+            thumbnailPixelWidth: 470,
+            thumbnailPixelHeight: 1_024,
+        },
+    }) === 481_280,
+    'residency budgets must use thumbnail dimensions',
+);
+expect(
+    screenImagePixels({ imageMetadata: { pixelWidth: 2_500, pixelHeight: 8_000 } }) === 20_000_000,
+    'older manifests must budget their full-resolution fallback',
+);
 
 const visible = Array.from(
     { length: 20 },
@@ -677,7 +898,39 @@ expect(
     residencyRefreshCount === 1,
     'fitting the canvas must refresh image residency after changing zoom',
 );
-''' % (settings, residency, fit_frame)
+
+setZoom(-1);
+expect(state.zoom === minimumManualZoom, 'manual zoom must retain its 10% floor');
+setZoom(9);
+expect(state.zoom === maximumZoom, 'manual zoom must retain its 150% ceiling');
+
+for (const width of [320, 390]) {
+    fitViewport.clientWidth = width;
+    fitViewport.clientHeight = 700;
+    state.zoom = 1;
+    fitFrame({ x: 0, y: 0, width: 8_260, height: 4_000 }, 'auto');
+    const availableWidth = width - 64;
+    expect(
+        8_260 * state.zoom <= availableWidth + 0.001,
+        'Fit All must fit the canvas at ' + width + 'px',
+    );
+    const fittedZoom = state.zoom;
+    setZoom(state.zoom - 0.1);
+    expect(
+        state.zoom === fittedZoom,
+        'zooming out from a sub-10% fit must not increase zoom',
+    );
+
+    manifest = { canvas: { initialFitSize: { width: 2_500 } } };
+    updateCanvasNavigation = () => {};
+    fitFirstGroup();
+    expect(
+        2_500 * state.zoom <= width - 32 + 0.001,
+        'the initial group must fit at ' + width + 'px',
+    );
+}
+''',
+))
 pathlib.Path(sys.argv[2]).write_text(test)
 PY
 "$JSC" "$TEMP/residency-test.js" \

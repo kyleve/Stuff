@@ -10,6 +10,7 @@
         case emptyVariantIdentifier(screen: String)
         case duplicateVariantIdentifier(screen: String, variant: String)
         case mixedSizingPolicy(screen: String, variant: String, extents: [String])
+        case measurementHookRequiresMeasuredSizing(screen: String, variant: String)
         case missingManifestGeometry(kind: String, identifier: String)
         case unknownProfile(String)
         case captureFailed(
@@ -42,6 +43,8 @@
                     "The variant export identifier \(variant) is not unique in \(screen)."
                 case let .mixedSizingPolicy(screen, variant, extents):
                     "The export policy for \(screen) / \(variant) mixes sizing classes: \(extents.joined(separator: ", "))."
+                case let .measurementHookRequiresMeasuredSizing(screen, variant):
+                    "The export policy for \(screen) / \(variant) declares onReadyToMeasure, but viewport sizing has no measured-content phase."
                 case let .missingManifestGeometry(kind, identifier):
                     "The Flyover layout has no \(kind) geometry for \(identifier)."
                 case let .unknownProfile(identifier):

@@ -128,6 +128,7 @@
                 contrast: contrast,
                 layoutDirection: layoutDirection,
                 legibilityWeight: legibilityWeight,
+                layoutTraits: layoutTraits,
                 device: frame,
                 snapshotType: snapshotType,
             )
@@ -148,6 +149,16 @@
 
         private var colorScheme: ColorScheme {
             self == .phoneDark ? .dark : .light
+        }
+
+        private var layoutTraits: SnapshotConfiguration.LayoutTraits {
+            switch self {
+                case .tabletLight: .tabletPortrait
+                case .phoneLandscape: .phoneLandscape
+                case .phoneLight, .phoneDark, .phoneSmall, .phoneXXXL,
+                     .phoneAX3, .phoneContrast, .phoneRTL, .phoneBold,
+                     .phoneVoiceOver: .phonePortrait
+            }
         }
 
         private var dynamicType: DynamicTypeSize {

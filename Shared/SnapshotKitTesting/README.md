@@ -114,10 +114,11 @@ safe-area insets, readiness hooks, and settle policy. The returned
 `SnapshotPNG` contains PNG data, point and pixel dimensions, and image scale.
 
 The operation holds the existing capture lock. It also applies snapshot traits,
-full-content measurement, accessibility annotation, settling, and PNG
-round-tripping. Call it only from a test bundle hosted by `StuffTestHost`; it
-needs the host app's key window. A rendering or encoding failure throws. The
-caller must not publish a partial artifact.
+including explicit interface idiom and size classes. It then does full-content
+measurement, accessibility annotation, settling, and PNG round-tripping. Call
+it only from a test bundle hosted by `StuffTestHost`. It needs the host app's
+key window. A rendering or encoding error throws. The caller must not publish
+a partial artifact.
 
 ## Recording
 

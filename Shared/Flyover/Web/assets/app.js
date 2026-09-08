@@ -20,6 +20,8 @@
     const defaultProfile = manifest.profiles[0]?.id;
     const targetResidentImageCount = 6;
     const targetResidentPixelCount = 24_000_000;
+    const minimumManualZoom = 0.1;
+    const maximumZoom = 1.5;
     let inspectorResizeObserver = null;
     const selectedVariants = new Map(manifest.screens.map(screen => [screen.id, screen.variants[0]?.id]));
     const state = {
@@ -121,6 +123,10 @@
     function imageMetadata(screen) {
         const variant = screenVariant(screen);
         return imageByKey.get(imageKey(screen.id, variant?.id, state.profile));
+    }
+
+    function thumbnailPath(screen) {
+        return imageMetadata(screen)?.thumbnailRelativePath || imagePath(screen);
     }
 
     function connectedRoutes(screen) {
@@ -409,12 +415,12 @@
         return links;
     }
 
-    function screenImage(screen, className = "", eager = false) {
+    function screenImage(screen, className = "", eager = false, fullResolution = false) {
         const image = element("img", className);
         image.draggable = false;
         image.loading = eager ? "eager" : "lazy";
         image.decoding = "async";
-        const source = imagePath(screen);
+        const source = fullResolution ? imagePath(screen) : thumbnailPath(screen);
         if (eager) image.src = source;
         else image.dataset.src = source;
         image.dataset.captureExtent = screenVariant(screen)?.captureExtent || "viewport";
@@ -761,7 +767,7 @@
             device.setAttribute("role", "region");
             device.setAttribute("aria-label", screen.title + " scrollable full-content capture");
         }
-        const fullImage = screenImage(screen, "", true);
+        const fullImage = screenImage(screen, "", true, true);
         if (metadata) {
             const viewportSize = captureViewportSize(screen);
             device.style.setProperty("--point-width", metadata.pointWidth + "px");
@@ -1478,7 +1484,11 @@
 
     function screenImagePixels(screen) {
         const metadata = imageMetadata(screen);
-        return metadata ? metadata.pixelWidth * metadata.pixelHeight : 0;
+        if (!metadata) return 0;
+        const usesThumbnail = Boolean(metadata.thumbnailRelativePath);
+        const width = usesThumbnail ? (metadata.thumbnailPixelWidth || metadata.pixelWidth) : metadata.pixelWidth;
+        const height = usesThumbnail ? (metadata.thumbnailPixelHeight || metadata.pixelHeight) : metadata.pixelHeight;
+        return width * height;
     }
 
     function updateCanvasImageResidency() {
@@ -1582,6 +1592,7 @@
             gesture = {
                 distance: touchDistance(event.touches),
                 zoom: state.zoom,
+                minimumZoom: Math.min(minimumManualZoom, state.zoom),
                 canvasX: (viewport.scrollLeft + midpoint.x - bounds.left) / state.zoom,
                 canvasY: (viewport.scrollTop + midpoint.y - bounds.top) / state.zoom,
             };
@@ -1591,7 +1602,7 @@
             event.preventDefault();
             const midpoint = touchMidpoint(event.touches);
             const bounds = viewport.getBoundingClientRect();
-            const nextZoom = Math.max(0.1, Math.min(1.5,
+            const nextZoom = Math.max(gesture.minimumZoom, Math.min(maximumZoom,
                 gesture.zoom * touchDistance(event.touches) / Math.max(gesture.distance, 1)));
             state.zoom = nextZoom;
             applyZoom();
@@ -1661,7 +1672,8 @@
             x: (viewport.scrollLeft + viewport.clientWidth / 2) / oldZoom,
             y: (viewport.scrollTop + viewport.clientHeight / 2) / oldZoom,
         } : null;
-        state.zoom = Math.max(0.1, Math.min(1.5, next));
+        const minimumZoom = Math.min(minimumManualZoom, oldZoom);
+        state.zoom = Math.max(minimumZoom, Math.min(maximumZoom, next));
         applyZoom();
         if (viewport && center) {
             viewport.scrollTo({
@@ -1679,7 +1691,7 @@
         const padding = Math.min(Math.max(viewport.clientWidth * 0.055, 32), 80);
         const horizontal = Math.max(viewport.clientWidth - padding * 2, 1) / Math.max(frame.width, 1);
         const vertical = Math.max(viewport.clientHeight - padding * 2, 1) / Math.max(frame.height, 1);
-        state.zoom = Math.max(0.1, Math.min(1.5, horizontal, vertical));
+        state.zoom = Math.min(maximumZoom, horizontal, vertical);
         applyZoom();
         const left = (frame.x + frame.width / 2) * state.zoom - viewport.clientWidth / 2;
         const top = (frame.y + frame.height / 2) * state.zoom - viewport.clientHeight / 2;
@@ -1708,7 +1720,7 @@
         if (!initialWidth) return;
         const framingInset = 16;
         const horizontal = Math.max(viewport.clientWidth - framingInset * 2, 1) / initialWidth;
-        state.zoom = Math.max(0.15, Math.min(1, horizontal));
+        state.zoom = Math.min(1, horizontal);
         applyZoom();
         viewport.scrollTo({ left: 0, top: 0, behavior: "auto" });
         state.canvas.scrollLeft = 0;

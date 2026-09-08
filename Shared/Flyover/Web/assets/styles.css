@@ -1950,7 +1950,8 @@ a.inspector-action {
         left: 10px;
         max-width: none;
         min-height: 56px;
-        justify-content: center;
+        justify-content: flex-start;
+        justify-content: safe center;
         gap: 2px;
         overflow-x: auto;
         padding: 6px;
