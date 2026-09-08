@@ -7,10 +7,9 @@ import SwiftUI
 ///
 /// `Hashable` so it can key a matrix, and it vends an ``identifier`` (from
 /// ``identifierParts``) that names the reference image. The identifier **omits
-/// default axes** — only a non-default color scheme, Dynamic Type size, contrast,
-/// snapshot type, or a named device shows up — so the common (light / large /
-/// standard) baseline stays terse. Treat the omission rules as a wire format:
-/// changing them renames every reference image on disk.
+/// default axes**. A named device, explicit layout traits, or a non-default
+/// appearance axis adds a token. Thus, the common baseline stays terse. Treat
+/// the omission rules as a wire format. A change renames reference images.
 public struct SnapshotConfiguration: Hashable, Sendable {
     /// The color scheme (light/dark) to render in.
     public var colorScheme: ColorScheme
@@ -22,6 +21,9 @@ public struct SnapshotConfiguration: Hashable, Sendable {
     public var layoutDirection: LayoutDirection
     /// The legibility weight (regular / bold text) to render with.
     public var legibilityWeight: LegibilityWeight
+    /// Optional device-adaptive traits. `nil` inherits the host simulator's
+    /// idiom and size classes.
+    public var layoutTraits: LayoutTraits?
     /// The frame (size + name) to render into.
     public var device: Frame
     /// Whether this is a plain image or a VoiceOver-annotated accessibility image.
@@ -36,6 +38,7 @@ public struct SnapshotConfiguration: Hashable, Sendable {
         contrast: ColorSchemeContrast = .standard,
         layoutDirection: LayoutDirection = .leftToRight,
         legibilityWeight: LegibilityWeight = .regular,
+        layoutTraits: LayoutTraits? = nil,
         device: Frame = .component,
         snapshotType: SnapshotType = .standard,
         name: String? = nil,
@@ -45,6 +48,7 @@ public struct SnapshotConfiguration: Hashable, Sendable {
         self.contrast = contrast
         self.layoutDirection = layoutDirection
         self.legibilityWeight = legibilityWeight
+        self.layoutTraits = layoutTraits
         self.device = device
         self.snapshotType = snapshotType
         self.name = name
@@ -56,6 +60,7 @@ public struct SnapshotConfiguration: Hashable, Sendable {
         var parts: [String] = []
         if let name, !name.isEmpty { parts.append(name) }
         if !device.name.isEmpty { parts.append(device.name) }
+        if let layoutTraits { parts.append(layoutTraits.snapshotToken) }
         if colorScheme == .dark { parts.append("dark") }
         if dynamicType != .large { parts.append(dynamicType.snapshotToken) }
         if contrast == .increased { parts.append("contrast") }
@@ -74,6 +79,56 @@ public struct SnapshotConfiguration: Hashable, Sendable {
 }
 
 extension SnapshotConfiguration {
+    /// A deterministic device idiom and size-class combination for adaptive
+    /// content. Omit it when the capture should inherit the host simulator.
+    public struct LayoutTraits: Hashable, Sendable {
+        public enum InterfaceIdiom: Hashable, Sendable {
+            case phone
+            case tablet
+        }
+
+        public enum SizeClass: Hashable, Sendable {
+            case compact
+            case regular
+        }
+
+        public var interfaceIdiom: InterfaceIdiom
+        public var horizontalSizeClass: SizeClass
+        public var verticalSizeClass: SizeClass
+
+        public init(
+            interfaceIdiom: InterfaceIdiom,
+            horizontalSizeClass: SizeClass,
+            verticalSizeClass: SizeClass,
+        ) {
+            self.interfaceIdiom = interfaceIdiom
+            self.horizontalSizeClass = horizontalSizeClass
+            self.verticalSizeClass = verticalSizeClass
+        }
+
+        public static let phonePortrait = LayoutTraits(
+            interfaceIdiom: .phone,
+            horizontalSizeClass: .compact,
+            verticalSizeClass: .regular,
+        )
+
+        public static let phoneLandscape = LayoutTraits(
+            interfaceIdiom: .phone,
+            horizontalSizeClass: .compact,
+            verticalSizeClass: .compact,
+        )
+
+        public static let tabletPortrait = LayoutTraits(
+            interfaceIdiom: .tablet,
+            horizontalSizeClass: .regular,
+            verticalSizeClass: .regular,
+        )
+
+        fileprivate var snapshotToken: String {
+            "\(interfaceIdiom.snapshotToken)-\(horizontalSizeClass.snapshotToken)-\(verticalSizeClass.snapshotToken)"
+        }
+    }
+
     /// Whether this configuration is a plain image or a VoiceOver-annotated one.
     public enum SnapshotType: Hashable, Sendable {
         case standard
@@ -224,6 +279,24 @@ extension SnapshotConfiguration {
         /// A minimum viewport that expands to reveal a viewport-filling scroll
         /// view in both dimensions (see ``Frame/fullContent2D(name:minimumSize:)``).
         case fullContent2D(minimumSize: CGSize)
+    }
+}
+
+extension SnapshotConfiguration.LayoutTraits.InterfaceIdiom {
+    fileprivate var snapshotToken: String {
+        switch self {
+            case .phone: "phone"
+            case .tablet: "tablet"
+        }
+    }
+}
+
+extension SnapshotConfiguration.LayoutTraits.SizeClass {
+    fileprivate var snapshotToken: String {
+        switch self {
+            case .compact: "compact"
+            case .regular: "regular"
+        }
     }
 }
 

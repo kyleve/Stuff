@@ -21,6 +21,10 @@
             typeName
         }
 
+        var exportIdentifier: String {
+            typeName
+        }
+
         static func == (lhs: Self, rhs: Self) -> Bool {
             lhs.value == rhs.value
         }
