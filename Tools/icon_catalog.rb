@@ -317,7 +317,7 @@ def icon_catalog_main
   when "remove"
     puts catalog.remove(target: ENV.fetch("TARGET"), dry_run: dry_run)
     unless dry_run
-      puts "If it was the active icon, the app falls back to Classic on next launch."
+      puts "If it was the active icon, the app falls back to the build's configured primary icon on next launch."
       puts "Run `./ide --no-open` to regenerate."
     end
     puts "Dry run — nothing was changed." if dry_run
