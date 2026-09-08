@@ -13,11 +13,12 @@ class IconCatalog
   PRIMARY_SET = "AppIcon"
   PRIMARY_ID = "classic"
 
-  def initialize(root:, app_catalog:, preview_catalog:, manifest:, transaction_factory:)
+  def initialize(root:, app_catalog:, preview_catalog:, manifest:, project_manifest:, transaction_factory:)
     @root = File.expand_path(root)
     @app_catalog = File.expand_path(app_catalog, @root)
     @preview_catalog = File.expand_path(preview_catalog, @root)
     @manifest = File.expand_path(manifest, @root)
+    @project_manifest = File.expand_path(project_manifest, @root)
     @transaction_factory = transaction_factory
   end
 
@@ -31,8 +32,12 @@ class IconCatalog
     id_width = icons.map { |icon| icon.fetch("id").length }.max
     name_width = icons.map { |icon| icon.fetch("displayName").length }.max
     icons.each do |icon|
-      alternate = icon["alternateIconName"] || "(primary)"
-      output.printf("  %-#{id_width}s  %-#{name_width}s  %s\n", icon.fetch("id"), icon.fetch("displayName"), alternate)
+      output.printf(
+        "  %-#{id_width}s  %-#{name_width}s  %s\n",
+        icon.fetch("id"),
+        icon.fetch("displayName"),
+        icon.fetch("assetName"),
+      )
     end
   end
 
@@ -55,7 +60,7 @@ class IconCatalog
     data = load_manifest
     icons = data.fetch("icons")
     raise Error, %(an icon with id "#{id}" already exists (use --id to pick another)) if icons.any? { |icon| icon.fetch("id") == id }
-    if icons.any? { |icon| icon["alternateIconName"] == set_name }
+    if icons.any? { |icon| icon["assetName"] == set_name }
       raise Error, %(an icon named "#{set_name}" already exists)
     end
 
@@ -68,7 +73,7 @@ class IconCatalog
     data["icons"] = icons + [{
       "id" => id,
       "displayName" => name,
-      "alternateIconName" => set_name,
+      "assetName" => set_name,
       "previewImageName" => set_name,
     }]
     validate_manifest(data)
@@ -101,13 +106,16 @@ class IconCatalog
     data = load_manifest
     icons = data.fetch("icons")
     match = icons.find do |icon|
-      values = [icon.fetch("id"), icon.fetch("displayName"), icon["alternateIconName"]].compact
+      values = [icon.fetch("id"), icon.fetch("displayName"), icon.fetch("assetName")]
       values.any? { |value| value.downcase == target.downcase }
     end
     raise Error, %(no icon matching "#{target}" (try ./icons --list)) unless match
-    raise Error, %(the primary "Classic" icon can't be removed) unless match["alternateIconName"]
+    raise Error, %(the base "Classic" icon can't be removed) if match.fetch("assetName") == PRIMARY_SET
 
-    set_name = match.fetch("alternateIconName")
+    set_name = match.fetch("assetName")
+    if configured_primary_sets.include?(set_name)
+      raise Error, %("#{set_name}" is configured as a Where audience primary icon; change #{relative(@project_manifest)} before removing it)
+    end
     data["icons"] = icons.reject { |icon| icon.equal?(match) }
     validate_manifest(data)
     app_target = File.join(@app_catalog, "#{set_name}.appiconset")
@@ -134,7 +142,7 @@ class IconCatalog
   private
 
   def require_layout
-    missing = [@manifest, @app_catalog, @preview_catalog].reject { |path| File.exist?(path) }
+    missing = [@manifest, @project_manifest, @app_catalog, @preview_catalog].reject { |path| File.exist?(path) }
     raise Error, "couldn't find #{missing.map { |path| relative(path) }.join(', ')} — run ./icons from the repo root" if missing.any?
   end
 
@@ -154,16 +162,23 @@ class IconCatalog
     alternates = []
     data.fetch("icons").each_with_index do |icon, index|
       raise Error, "icon #{index + 1} must be an object" unless icon.is_a?(Hash)
-      %w[id displayName previewImageName].each do |key|
+      %w[id displayName assetName previewImageName].each do |key|
         raise Error, "icon #{index + 1} has no #{key}" unless icon[key].is_a?(String) && !icon[key].empty?
       end
-      alternate = icon["alternateIconName"]
-      raise Error, "icon #{index + 1} has an invalid alternateIconName" unless alternate.nil? || (alternate.is_a?(String) && !alternate.empty?)
       ids << icon.fetch("id")
-      alternates << alternate if alternate
+      alternates << icon.fetch("assetName")
     end
     raise Error, "manifest contains duplicate icon ids" unless ids.uniq.length == ids.length
     raise Error, "manifest contains duplicate alternate icon names" unless alternates.uniq.length == alternates.length
+  end
+
+  def configured_primary_sets
+    names = File.read(@project_manifest).scan(/primaryAppIconName:\s*"([^"]+)"/).flatten.uniq
+    if names.empty?
+      raise Error, "couldn't find any Where audience primary icons in #{relative(@project_manifest)}"
+    end
+
+    names
   end
 
   def stage_app_icon(directory, set_name:, light:, dark:, tinted:)
@@ -214,7 +229,7 @@ class IconCatalog
     end
     staged_data = JSON.parse(File.read(manifest))
     validate_manifest(staged_data)
-    unless staged_data.fetch("icons").any? { |icon| icon["alternateIconName"] == set_name }
+    unless staged_data.fetch("icons").any? { |icon| icon["assetName"] == set_name }
       raise Error, "staged manifest does not include #{set_name}"
     end
   rescue JSON::ParserError, KeyError => error
@@ -282,6 +297,7 @@ def icon_catalog_main
     app_catalog: ENV.fetch("APP_CATALOG"),
     preview_catalog: ENV.fetch("PREVIEW_CATALOG"),
     manifest: ENV.fetch("MANIFEST"),
+    project_manifest: ENV.fetch("PROJECT_MANIFEST"),
     transaction_factory: -> { FileTransaction.new },
   )
   dry_run = ENV.fetch("DRY_RUN") == "true"
@@ -301,7 +317,7 @@ def icon_catalog_main
   when "remove"
     puts catalog.remove(target: ENV.fetch("TARGET"), dry_run: dry_run)
     unless dry_run
-      puts "If it was the active icon, the app falls back to Classic on next launch."
+      puts "If it was the active icon, the app falls back to the build's configured primary icon on next launch."
       puts "Run `./ide --no-open` to regenerate."
     end
     puts "Dry run — nothing was changed." if dry_run

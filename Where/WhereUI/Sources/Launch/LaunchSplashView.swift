@@ -45,6 +45,7 @@ struct LaunchSplashView: View {
     @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
     @MotionIsStatic private var motionIsStatic
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.primaryAppIconName) private var primaryAppIconName
     @State private var pulsing = false
     @State private var showCaption: Bool
 
@@ -106,7 +107,9 @@ struct LaunchSplashView: View {
     }
 
     var body: some View {
-        let imageName = injectedPreviewImageName ?? AppIconCatalog.liveSelectedPreviewImageName()
+        let imageName = injectedPreviewImageName ?? AppIconCatalog.liveSelectedPreviewImageName(
+            primaryAppIconName: primaryAppIconName,
+        )
         ZStack {
             background
             RadarPingBackground(tint: splash.iconGlow)

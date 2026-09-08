@@ -60,13 +60,16 @@ enum WhereIntentsLog: LogEvent {
     /// Indexing the tracked regions into Spotlight failed
     /// (degraded-but-handled: search integration is a nicety).
     case spotlightIndexFailed(description: String)
+    /// Reading the optional widget-snapshot fast path failed; the intent falls
+    /// back to its authoritative store report.
+    case widgetSnapshotReadFailed(description: String)
     static let eventName = "WhereIntents"
 
     var level: LogLevel {
         switch self {
             case .spotlightIndexed:
                 .info
-            case .spotlightIndexFailed:
+            case .spotlightIndexFailed, .widgetSnapshotReadFailed:
                 .warning
         }
     }
@@ -77,6 +80,8 @@ enum WhereIntentsLog: LogEvent {
                 "Indexed \(regionCount) region(s) for Spotlight"
             case let .spotlightIndexFailed(description):
                 "Failed to index regions for Spotlight: \(description)"
+            case let .widgetSnapshotReadFailed(description):
+                "Failed to read the widget snapshot: \(description)"
         }
     }
 }

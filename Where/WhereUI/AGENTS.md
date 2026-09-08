@@ -18,9 +18,12 @@ Layering, localization, preview, and testing conventions live in the feature
   [`Package.swift`](../../Package.swift).
 - WhereUI maps Core's persisted `RegionSymbol` values to SFSafeSymbols'
   `SFSymbol` and re-exports SFSafeSymbols for its presentation API consumers.
-- Composition is the one exception. `WhereScope` and `WhereModel` decide which
-  world the app is logged in to and assemble it. That is launch wiring, not
-  domain logic. See [Scopes and the launch](../AGENTS.md#scopes-and-the-launch).
+- Composition is the one exception: `WhereScope` and `WhereModel` decide which
+  world the app is logged in to and assemble it. That's launch wiring, not
+  domain logic — see [Scopes and the launch](../AGENTS.md#scopes-and-the-launch).
+- The app injects its configured primary icon name at `RootView`; icon-picker
+  code treats every manifest entry as an asset and derives primary versus
+  alternate status from that injected name.
 - Keep `FileInstallationRecordingContextStore` as the UIKit/FileManager
   adapter for Core's installation-context protocol. Resolve one instance at
   the app root. Inject it into both `WhereModel` and `WhereBootstrap`.

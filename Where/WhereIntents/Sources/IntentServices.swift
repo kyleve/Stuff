@@ -26,6 +26,8 @@ import WhereCore
 /// launch, the reset relaunch — replacing the cached stack, so intents always
 /// ride the current session's store instance.
 public actor IntentServices {
+    nonisolated let appGroupIdentifier: String
+
     /// The store-sharing services and presentation identity resolved together.
     struct Context {
         let services: WhereServices
@@ -42,7 +44,9 @@ public actor IntentServices {
     /// Create the instance the composition root owns (and tests build
     /// per-test); the app registers it with `AppDependencyManager` in
     /// `didFinishLaunching`, before the system can deliver an intent.
-    public init() {}
+    public init(appGroupIdentifier: String) {
+        self.appGroupIdentifier = appGroupIdentifier
+    }
 
     /// Install the store-sharing stack the app's composition root derived from
     /// the launch's services, resuming any parked intents. Idempotent per

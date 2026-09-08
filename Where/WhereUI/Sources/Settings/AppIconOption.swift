@@ -36,19 +36,19 @@ extension AppIconID: Codable {
 /// One selectable app icon, decoded from the bundled `AppIcons.json` manifest
 /// that the `./icons` script maintains.
 ///
-/// `alternateIconName` is the asset-catalog appiconset name passed to
-/// `setAlternateIconName`; `nil` marks the primary icon. `previewImageName`
-/// names an imageset in `AppIconPreviews.xcassets` — a parallel catalog, since
-/// SwiftUI `Image` can't load appiconset images — rendered by the picker.
+/// `assetName` is the asset-catalog appiconset name. Whether it is primary or
+/// alternate depends on the host's injected primary icon for this build.
+/// `previewImageName` names an imageset in `AppIconPreviews.xcassets` — a
+/// parallel catalog, since SwiftUI `Image` can't load appiconset images.
 struct AppIconOption: Identifiable, Hashable, Codable {
     let id: AppIconID
     let displayName: String
-    let alternateIconName: String?
+    let assetName: String
     let previewImageName: String
 
-    /// Whether this is the primary (default) icon, i.e. `setAlternateIconName(nil)`.
-    var isPrimary: Bool {
-        alternateIconName == nil
+    /// The value to pass to UIKit for a build with `primaryAppIconName`.
+    func alternateIconName(primaryAppIconName: String) -> String? {
+        assetName == primaryAppIconName ? nil : assetName
     }
 }
 
@@ -98,9 +98,12 @@ enum AppIconCatalog {
     static func selectedOption(
         in options: [AppIconOption],
         current alternateIconName: String?,
+        primaryAppIconName: String,
     ) -> AppIconOption? {
-        options.first { $0.alternateIconName == alternateIconName }
-            ?? options.first { $0.isPrimary }
+        options.first {
+            $0.alternateIconName(primaryAppIconName: primaryAppIconName) == alternateIconName
+        }
+            ?? options.first { $0.assetName == primaryAppIconName }
             ?? options.first
     }
 
@@ -109,11 +112,14 @@ enum AppIconCatalog {
     /// manifest and falling back to the bundled "Classic" art. Shared by every
     /// in-app surface that renders the selected icon (launch splash and shared
     /// loading states) so they stay in lockstep.
-    @MainActor static func liveSelectedPreviewImageName() -> String {
+    @MainActor static func liveSelectedPreviewImageName(
+        primaryAppIconName: String,
+    ) -> String {
         let options = loadedOptions()
         let selected = selectedOption(
             in: options,
             current: UIApplication.shared.alternateIconName,
+            primaryAppIconName: primaryAppIconName,
         )
         return selected?.previewImageName ?? "AppIconClassic"
     }

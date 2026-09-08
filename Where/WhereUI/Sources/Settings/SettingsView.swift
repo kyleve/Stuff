@@ -27,6 +27,7 @@ struct SettingsView: View {
     @Environment(WhereModel.self) private var model
     @Environment(\.lifecycle) private var lifecycle
     @Environment(\.isInDemoMode) private var isInDemoMode
+    @Environment(\.primaryAppIconName) private var primaryAppIconName
 
     init(
         report: YearReportModel,
@@ -298,7 +299,11 @@ struct SettingsView: View {
                     focus: route.focus,
                 )
             case .personalization:
-                PersonalizationFeaturesView(report: report, focus: route.focus)
+                PersonalizationFeaturesView(
+                    report: report,
+                    focus: route.focus,
+                    primaryAppIconName: primaryAppIconName,
+                )
             case .data:
                 DataSettingsView(report: report, backup: backup, focus: route.focus)
             case .privacyDiagnostics:

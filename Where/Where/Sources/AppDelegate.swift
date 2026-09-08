@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     private let reportingControllers: [any WhereReportingController]
 
     override init() {
+        let buildEnvironment = WhereBuildEnvironment.current()
         let preferences = WherePreferences(store: UserDefaults.standard)
         let launchConfiguration = preferences.diagnosticReportingConfiguration.effective(
             isDebugBuild: Self.isDebugBuild,
@@ -52,6 +53,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
                 fileManager: .default,
                 regular: {
                     RegularApplicationRuntime(
+                        buildEnvironment: buildEnvironment,
                         preferences: preferences,
                         effectiveDiagnosticReportingConfiguration: launchConfiguration,
                         applyRemoteLogging: applyRemoteLogging,
@@ -60,12 +62,14 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
                 },
                 inspector: {
                     WhereInspectorApplicationRuntime(
+                        buildEnvironment: buildEnvironment,
                         modeController: modeController.inspectorModeController,
                     )
                 },
             )
         #else
             let regularRuntime = RegularApplicationRuntime(
+                buildEnvironment: buildEnvironment,
                 preferences: preferences,
                 effectiveDiagnosticReportingConfiguration: launchConfiguration,
                 applyRemoteLogging: applyRemoteLogging,

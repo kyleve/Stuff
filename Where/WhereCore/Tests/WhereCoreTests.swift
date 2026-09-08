@@ -37,6 +37,17 @@ struct SwiftDataStoreFactoryTests {
         let stored = try await store.allSamples()
         #expect(stored.map(\.id) == [sample.id])
     }
+
+    @Test func onDiskStorageCarriesItsAudienceAppGroup() {
+        let development = SwiftDataStore.Storage.localOnly(
+            appGroupIdentifier: "group.com.stuff.where.development",
+        )
+        let production = SwiftDataStore.Storage.localOnly(
+            appGroupIdentifier: "group.com.stuff.where",
+        )
+
+        #expect(development != production)
+    }
 }
 
 struct SDLocationSampleTests {

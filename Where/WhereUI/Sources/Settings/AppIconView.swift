@@ -19,7 +19,14 @@ struct AppIconView: View {
     @Environment(\.stylesheet) private var stylesheet
 
     @MainActor
-    init(model: AppIconModel = AppIconModel()) {
+    init(primaryAppIconName: String) {
+        _model = State(initialValue: AppIconModel(
+            primaryAppIconName: primaryAppIconName,
+        ))
+    }
+
+    @MainActor
+    init(model: AppIconModel) {
         _model = State(initialValue: model)
     }
 
@@ -315,7 +322,9 @@ struct AppIconImage: View {
                 configurations: .fullContentScreenDefaults,
                 settle: .immediate,
             ) {
-                NavigationStack { AppIconView(model: .preview()) }
+                NavigationStack {
+                    AppIconView(model: .preview())
+                }
             }
         }
     }

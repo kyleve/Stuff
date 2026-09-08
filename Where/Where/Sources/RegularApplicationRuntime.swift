@@ -15,9 +15,9 @@ import WhereUI
 @MainActor
 final class RegularApplicationRuntime: WhereApplicationRuntime {
     let model: WhereModel
-
-    let intentServices = IntentServices()
-    private let widgetPresentationPublisher = WidgetPresentationPublisher()
+    let intentServices: IntentServices
+    private let buildEnvironment: WhereBuildEnvironment
+    private let widgetPresentationPublisher: WidgetPresentationPublisher
     private(set) var launcher: LifecycleRunner<WhereSession>!
 
     #if DEBUG
@@ -34,14 +34,23 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
         private let developerLaunchController: WhereDeveloperLaunchController?
 
         init(
+            buildEnvironment: WhereBuildEnvironment,
             preferences: WherePreferences,
             effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration,
             applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging,
             developerLaunchController: WhereDeveloperLaunchController? = nil,
         ) {
+            self.buildEnvironment = buildEnvironment
             self.developerLaunchController = developerLaunchController
+            intentServices = IntentServices(
+                appGroupIdentifier: buildEnvironment.appGroupIdentifier,
+            )
+            widgetPresentationPublisher = WidgetPresentationPublisher(
+                appGroupIdentifier: buildEnvironment.appGroupIdentifier,
+            )
             model = Self.makeModel(
-                storeStorage: Self.storeStorage(
+                buildEnvironment: buildEnvironment,
+                storeStorage: buildEnvironment.storage(
                     forCloudKitValidationBuild: Self.isCloudKitValidationBuild,
                 ),
                 preferences: preferences,
@@ -53,19 +62,23 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             }
         }
 
-        static func storeStorage(
-            forCloudKitValidationBuild validatesCloudKit: Bool,
-        ) -> SwiftDataStore.Storage {
-            validatesCloudKit ? .cloudKit : .localOnly
-        }
     #else
         init(
+            buildEnvironment: WhereBuildEnvironment,
             preferences: WherePreferences,
             effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration,
             applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging,
         ) {
+            self.buildEnvironment = buildEnvironment
+            intentServices = IntentServices(
+                appGroupIdentifier: buildEnvironment.appGroupIdentifier,
+            )
+            widgetPresentationPublisher = WidgetPresentationPublisher(
+                appGroupIdentifier: buildEnvironment.appGroupIdentifier,
+            )
             model = Self.makeModel(
-                storeStorage: .cloudKit,
+                buildEnvironment: buildEnvironment,
+                storeStorage: buildEnvironment.storage,
                 preferences: preferences,
                 effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
                 applyRemoteLogging: applyRemoteLogging,
@@ -74,6 +87,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
     #endif
 
     private static func makeModel(
+        buildEnvironment: WhereBuildEnvironment,
         storeStorage: SwiftDataStore.Storage,
         preferences: WherePreferences,
         effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration,
@@ -88,6 +102,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
                 WhereBootstrap(
                     installationContextStore: $0,
                     storeStorage: storeStorage,
+                    widgetRefresher: buildEnvironment.makeWidgetRefresher(),
                     locationOutbox: locationOutbox,
                 )
             },
@@ -133,10 +148,15 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             AnyView(RootView(
                 model: model,
                 launcher: launcher,
+                primaryAppIconName: buildEnvironment.primaryAppIconName,
                 developerLaunchController: developerLaunchController,
             ))
         #else
-            AnyView(RootView(model: model, launcher: launcher))
+            AnyView(RootView(
+                model: model,
+                launcher: launcher,
+                primaryAppIconName: buildEnvironment.primaryAppIconName,
+            ))
         #endif
     }
 }
