@@ -241,7 +241,8 @@ if [ "$COMMAND" = preview ]; then
     if [ "$PREVIEW_LAN" = true ]; then
         PREVIEW_ARGUMENTS+=(--lan)
     fi
-    exec "${FLYOVER_PREVIEW_PYTHON:-python3}" "${PREVIEW_ARGUMENTS[@]}"
+    exec env PYTHONDONTWRITEBYTECODE=1 \
+        "${FLYOVER_PREVIEW_PYTHON:-python3}" "${PREVIEW_ARGUMENTS[@]}"
 fi
 
 while [ "$#" -gt 0 ]; do
@@ -333,7 +334,8 @@ env \
     "$CAPTURE_RUNNER" --only \
         'WhereUISnapshotTests/WhereFlyoverWebExportTests/exportsRequestedAtlas()'
 
-python3 "$ROOT/Tools/flyover_preview.py" validate "$STAGING" --without-marker
+env PYTHONDONTWRITEBYTECODE=1 \
+    python3 "$ROOT/Tools/flyover_preview.py" validate "$STAGING" --without-marker
 
 printf '%s\n' 'schemaVersion=1' >"$STAGING/.flyover-generated"
 find "$STAGING" -type d -exec chmod 0755 {} +

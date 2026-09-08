@@ -259,15 +259,18 @@ if bad_directories or bad_files:
 PY
 
 PREVIEW_ARGUMENTS="$TEMP/preview-arguments"
+PREVIEW_ENVIRONMENT="$TEMP/preview-environment"
 PREVIEW_RUNNER="$TEMP/preview-runner"
 cat >"$PREVIEW_RUNNER" <<'RUNNER'
 #!/bin/bash
 set -euo pipefail
 printf '%s\n' "$@" >"$FLYOVER_PREVIEW_ARGUMENTS"
+printf '%s\n' "${PYTHONDONTWRITEBYTECODE-}" >"$FLYOVER_PREVIEW_ENVIRONMENT"
 RUNNER
 chmod +x "$PREVIEW_RUNNER"
 FLYOVER_PREVIEW_PYTHON="$PREVIEW_RUNNER" \
     FLYOVER_PREVIEW_ARGUMENTS="$PREVIEW_ARGUMENTS" \
+    FLYOVER_PREVIEW_ENVIRONMENT="$PREVIEW_ENVIRONMENT" \
     "$ROOT/flyover" preview --output "$OUTPUT" --lan --port 8080
 python3 - "$PREVIEW_ARGUMENTS" "$ROOT" "$OUTPUT" <<'PY'
 import pathlib, sys
@@ -288,6 +291,7 @@ PY
     cd "$CALLER"
     FLYOVER_PREVIEW_PYTHON="$PREVIEW_RUNNER" \
         FLYOVER_PREVIEW_ARGUMENTS="$PREVIEW_ARGUMENTS" \
+        FLYOVER_PREVIEW_ENVIRONMENT="$PREVIEW_ENVIRONMENT" \
         "$ROOT/flyover" preview --port 0
 )
 python3 - "$PREVIEW_ARGUMENTS" "$ROOT" "$CALLER/.build/flyover/where" <<'PY'
@@ -303,6 +307,8 @@ expected = [
 if arguments != expected:
     raise SystemExit(f'default preview arguments are wrong: {arguments}')
 PY
+[ "$(< "$PREVIEW_ENVIRONMENT")" = 1 ] \
+    || fail "preview Python can write bytecode into the source tree"
 
 expect_failure "$ROOT/flyover" preview --output "$UNMARKED"
 grep -q "not a generated Flyover atlas" "$TEMP/stderr" \
@@ -481,6 +487,16 @@ expect_failure "$ROOT/flyover" preview --output "$SYMLINK_PREVIEW"
 grep -q "contains a symbolic link" "$TEMP/stderr" \
     || fail "preview accepted a symbolic link"
 
+STANDARD_CACHE_PYTHON_BIN="$TEMP/standard-cache-python-bin"
+mkdir -p "$STANDARD_CACHE_PYTHON_BIN"
+cat >"$STANDARD_CACHE_PYTHON_BIN/python3" <<'PYTHON'
+#!/bin/bash
+set -euo pipefail
+exec "$FLYOVER_REAL_PYTHON" -X pycache_prefix= "$@"
+PYTHON
+chmod +x "$STANDARD_CACHE_PYTHON_BIN/python3"
+REAL_PYTHON="$(command -v python3)"
+
 CLEAN_REPO="$TEMP/clean-repo"
 mkdir -p "$CLEAN_REPO/Shared/Flyover/Web/assets"
 mkdir -p "$CLEAN_REPO/Tools"
@@ -495,9 +511,11 @@ git -C "$CLEAN_REPO" init -q
 git -C "$CLEAN_REPO" add .
 git -C "$CLEAN_REPO" -c user.name=Flyover -c user.email=flyover@example.com \
     -c commit.gpgsign=false commit -qm fixture
-FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" FLYOVER_XCODE_VERSION_OVERRIDE=Tests \
+PATH="$STANDARD_CACHE_PYTHON_BIN:$PATH" FLYOVER_REAL_PYTHON="$REAL_PYTHON" \
+    FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" FLYOVER_XCODE_VERSION_OVERRIDE=Tests \
     "$CLEAN_REPO/flyover" export --output "$CLEAN_REPO/site" >/dev/null
-FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" FLYOVER_XCODE_VERSION_OVERRIDE=Tests \
+PATH="$STANDARD_CACHE_PYTHON_BIN:$PATH" FLYOVER_REAL_PYTHON="$REAL_PYTHON" \
+    FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" FLYOVER_XCODE_VERSION_OVERRIDE=Tests \
     "$CLEAN_REPO/flyover" export --output "$CLEAN_REPO/site" >/dev/null
 python3 - "$CLEAN_REPO/site/manifest.json" <<'PY'
 import json, pathlib, sys
@@ -505,6 +523,8 @@ dirty = json.loads(pathlib.Path(sys.argv[1]).read_text())['build']['dirty']
 if dirty:
     raise SystemExit('staging a clean in-repository export marked the source dirty')
 PY
+[ ! -e "$CLEAN_REPO/Tools/__pycache__" ] \
+    || fail "Flyover Python tooling wrote bytecode into the source tree"
 
 FAILING_GIT_BIN="$TEMP/failing-git-bin"
 mkdir -p "$FAILING_GIT_BIN"
