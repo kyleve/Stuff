@@ -124,8 +124,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   demo, and completion orchestration) and **`OnboardingImportRecoveryModel`** (the sidecar/store
   recovery handshake after an interrupted onboarding import), and
   **`LocationCardsPresentationModel`** (the last primary-card counts and order
-  the user saw), and **`LocationWelcomeModel`** (the preference-gated current-region welcome and
-  its persisted acknowledgement). The Location model holds saved values until the card surface
+  the user saw), and **`LocationWelcomeModel`** (the `MainTabs`-owned,
+  preference-gated current-region acquisition, recovery, welcome, and persisted
+  acknowledgement state machine). The Location model holds saved values until the card surface
   is visible and unobscured, holds them there for another half second, then
   advances every changed number and any live two-card reversal in one animated
   beat, adding one light haptic. Decreases, first visits, hidden updates, and
@@ -135,13 +136,17 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 
 ### Reusable views & styling
 
-- **`RegionWelcomeCard`** — a centered Locations overlay that combines a region's emoji,
+- **`RegionWelcomeCard`** — an app-wide overlay over the selected tab that combines a region's emoji,
   icon, outline, Liquid Glass card treatment, and passport ink. The card stamps into place
   with a quick tilted approach and spring settle, then lifts away on dismissal.
   The scrim fades independently. Reduce Motion uses a short fade for both layers.
   Debug builds include **Reset Welcome Card** in Settings > Appearance beside the welcome-card toggle.
-  The reset clears the saved region so the next Locations visit can show the card again.
-  Welcome cards must be enabled, and the device must resolve a tracked region with recording active.
+  The reset clears the saved region so the next foreground activation can show the card again.
+  `MainTabs` requests one bounded fix on each active-scene entry. After one
+  second it shows a native tab-bar accessory; denied/restricted access and
+  disabled Precise Location remain actionable there, while transient or
+  low-confidence failures disappear. Welcome cards must be enabled, and the
+  device must confidently resolve a tracked region with recording active.
 
 - **`OnboardingView` / `OnboardingFlowModel`** — the rendered first-run flow and its view-scoped
   observable coordinator, registered for the launch's

@@ -8,8 +8,8 @@ import Foundation
 /// (Siri / Spotlight / Shortcuts), which builds its stack via
 /// `WhereServices.forIntents()`. Unlike `CoreLocationSource`, it installs no
 /// `CLLocationManager`; unlike `ScriptedLocationSource`, it has no test seams —
-/// it's simply inert. `requestCurrentLocation()` returns `nil` (the same honest
-/// "no fix" a manual entry records), so an intent-made manual day carries an
+/// it's simply inert. `requestCurrentLocation()` reports unavailable, so an
+/// intent-made manual day carries an
 /// audit with no captured location rather than a faked one.
 public final class IdleLocationSource: LocationSource {
     public init() {}
@@ -27,8 +27,8 @@ public final class IdleLocationSource: LocationSource {
     public func start() async {}
     public func stop() async {}
 
-    public func requestCurrentLocation() async -> LocationSample? {
-        nil
+    public func requestCurrentLocation() async -> CurrentLocationResult {
+        .unavailable(.authorizationUnavailable(.notDetermined))
     }
 
     /// Reports `.notDetermined`: an inert source has never prompted, and intents

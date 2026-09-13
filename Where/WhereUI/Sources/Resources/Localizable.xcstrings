@@ -3571,6 +3571,18 @@
         }
       }
     },
+    "locationWelcome.access.message" : {
+      "comment" : "Explains why the app needs location access to identify the current region.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Location off — Open Settings"
+          }
+        }
+      }
+    },
     "locationWelcome.dismiss" : {
       "comment" : "Accessibility label for the close button on the live-region welcome card.",
       "extractionState" : "manual",
@@ -3579,6 +3591,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Close welcome"
+          }
+        }
+      }
+    },
+    "locationWelcome.finding" : {
+      "comment" : "Temporary status shown while resolving the device's current tracked region.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Finding your current region…"
           }
         }
       }
@@ -3603,6 +3627,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Starting today, days Where records you here will count toward %@."
+          }
+        }
+      }
+    },
+    "locationWelcome.precise.message" : {
+      "comment" : "Explains why Precise Location is needed for confident region attribution.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Precise off — Open Settings"
           }
         }
       }

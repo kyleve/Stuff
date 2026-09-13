@@ -111,16 +111,16 @@ struct LocationIngestorTests {
         )
         source.setNextRequestedLocation(fix)
 
-        #expect(await ingestor.currentLocation() == fix)
+        #expect(await ingestor.currentLocation() == .success(fix))
     }
 
-    @Test func currentLocationIsNilWhenSourceHasNoFix() async throws {
+    @Test func currentLocationReportsTimeoutWhenSourceHasNoFix() async throws {
         let store = try SwiftDataStore.inMemory()
         let source = ScriptedLocationSource()
         let recorder = OutcomeRecorder()
         let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
 
-        #expect(await ingestor.currentLocation() == nil)
+        #expect(await ingestor.currentLocation() == .unavailable(.timeout))
     }
 
     @Test func captureTodayPersistsAndReportsFixWhenNoGPSSampleYet() async throws {
@@ -143,6 +143,50 @@ struct LocationIngestorTests {
         let stored = try await store.allSamples()
         #expect(stored.count == 1)
         #expect(stored.first?.recordingDeviceID == CurrentRecordingDevice.preview.id)
+    }
+
+    @Test func passiveSampleWithNegativeAccuracyIsDropped() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let ingestor = Self.makeIngestor(
+            store: store,
+            source: source,
+            recorder: OutcomeRecorder(),
+        )
+        let invalid = LocationSample(
+            timestamp: WhereCoreTestSupport.iso("2026-03-15T08:05:00-07:00"),
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: -1,
+            source: .gpsSignificantChange,
+        )
+        try await ingestor.start()
+
+        source.emit(invalid)
+        try await waitUntil { await ingestor.testingHasConsumedSample(id: invalid.id) }
+
+        #expect(try await store.allSamples().isEmpty)
+    }
+
+    @Test func passiveSampleAboveOneKilometerIsRetained() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let ingestor = Self.makeIngestor(
+            store: store,
+            source: source,
+            recorder: OutcomeRecorder(),
+        )
+        let coarse = LocationSample(
+            timestamp: WhereCoreTestSupport.iso("2026-03-15T08:05:00-07:00"),
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 1500,
+            source: .gpsSignificantChange,
+        )
+        try await ingestor.start()
+
+        source.emit(coarse)
+        try await waitUntil { await ingestor.testingHasConsumedSample(id: coarse.id) }
+
+        #expect(try await store.allSamples().map(\.id) == [coarse.id])
     }
 
     @Test func captureTodaySkipsWhenGPSSampleAlreadyExistsToday() async throws {
@@ -194,7 +238,7 @@ struct LocationIngestorTests {
         let source = ScriptedLocationSource(authorizationStatus: .whenInUse)
         let recorder = OutcomeRecorder()
         let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
-        // No fix scripted → `requestCurrentLocation()` returns nil.
+        // No fix scripted → `requestCurrentLocation()` reports a timeout.
         try await ingestor.authorizeRecording()
 
         await ingestor
@@ -284,7 +328,7 @@ struct LocationIngestorTests {
         try await ingestor.start()
         await ingestor.revokeRecordingAuthorization()
 
-        #expect(await ingestor.currentLocation() != nil)
+        #expect(await ingestor.currentLocation().sample != nil)
         try await waitUntil {
             guard source.didEchoFix else { return false }
             return await ingestor.testingHasConsumedSample(id: source.fixID)
@@ -810,12 +854,12 @@ private final class GatedLocationSource: LocationSource, @unchecked Sendable {
 
     func requestPermission() async throws {}
 
-    func requestCurrentLocation() async -> LocationSample? {
+    func requestCurrentLocation() async -> CurrentLocationResult {
         let shouldWait = lock.withLock {
             _requestCount += 1
             return !isOpen
         }
-        guard shouldWait else { return fix }
+        guard shouldWait else { return .success(fix) }
         await withCheckedContinuation { continuation in
             let openedBeforeRegistration = lock.withLock {
                 guard !isOpen else { return true }
@@ -824,7 +868,7 @@ private final class GatedLocationSource: LocationSource, @unchecked Sendable {
             }
             if openedBeforeRegistration { continuation.resume() }
         }
-        return fix
+        return .success(fix)
     }
 
     /// Resume every parked fix request with the scripted fix.
@@ -877,10 +921,10 @@ private final class EchoingLocationSource: LocationSource, @unchecked Sendable {
 
     func requestPermission() async throws {}
 
-    func requestCurrentLocation() async -> LocationSample? {
+    func requestCurrentLocation() async -> CurrentLocationResult {
         lock.withLock { _didEchoFix = true }
         continuation.yield(fix)
-        return fix
+        return .success(fix)
     }
 }
 

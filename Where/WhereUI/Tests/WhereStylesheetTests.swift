@@ -60,6 +60,11 @@ struct WhereStylesheetTests {
         #expect(welcome.close.tintOpacity == 0.24)
         #expect(welcome.close.glow == .init(opacity: 0.28, radius: 8))
         #expect(welcome.close.lift == .init(opacity: 0.22, radius: 5, offsetY: 3))
+        #expect(welcome.accessory.contentSpacing == 10)
+        #expect(welcome.accessory.horizontalPadding == 12)
+        #expect(welcome.accessory.verticalPadding == 8)
+        #expect(welcome.accessory.symbolSize == 16)
+        #expect(welcome.accessory.titleFont == .subheadline.weight(.semibold))
         #expect(welcome.motion == .standard)
         #expect(welcome.motion.arrival == .init(
             animation: .spring(duration: 0.3, bounce: 0.28),

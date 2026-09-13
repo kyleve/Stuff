@@ -122,7 +122,10 @@ internal shape.
   report and primary-region locations.
 - **`LocationSource` abstracts GPS.** `CoreLocationSource` runs in production.
   `ScriptedLocationSource` runs in tests/previews. `requestCurrentLocation()`
-  returns `nil`, never throws. It backs
+  returns a typed, nonthrowing outcome and coalesces concurrent waiters without
+  coupling their cancellation. Reject negative accuracy everywhere. Apply the
+  1 km, 60-second, and boundary-confidence gates only in
+  `CurrentRegionResolver`; retain other valid passive samples. It backs
   `LocationIngestor.captureTodayIfNeeded(now:)`.
 - **`DeviceRecordingController` owns this installation's local recording choice
   and physical GPS state.** Serialize mutations across awaits. Fail closed when

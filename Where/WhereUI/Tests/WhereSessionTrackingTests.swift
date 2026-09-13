@@ -366,8 +366,8 @@ private final class TrackingLocationSource: LocationSource, @unchecked Sendable 
         }
     }
 
-    func requestCurrentLocation() async -> LocationSample? {
-        nil
+    func requestCurrentLocation() async -> CurrentLocationResult {
+        .unavailable(.timeout)
     }
 
     func currentAuthorization() async -> LocationAuthorizationStatus {
@@ -397,8 +397,8 @@ private final class SuspendedPermissionLocationSource: LocationSource, @unchecke
     func start() async {}
     func stop() async {}
 
-    func requestCurrentLocation() async -> LocationSample? {
-        nil
+    func requestCurrentLocation() async -> CurrentLocationResult {
+        .unavailable(.timeout)
     }
 
     func currentAuthorization() async -> LocationAuthorizationStatus {

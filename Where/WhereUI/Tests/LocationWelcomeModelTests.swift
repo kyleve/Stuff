@@ -6,6 +6,8 @@ import Testing
 
 @MainActor
 struct LocationWelcomeModelTests {
+    private static let now = Date(timeIntervalSinceReferenceDate: 10000)
+
     @Test func firstResolvedRegionPresentsAFirstGreeting() async throws {
         let fixture = try await fixture(region: .california)
 
@@ -22,6 +24,7 @@ struct LocationWelcomeModelTests {
         let relaunched = LocationWelcomeModel(
             services: fixture.services,
             preferences: fixture.preferences,
+            now: { Self.now },
         )
         await relaunched.resolve()
 
@@ -89,7 +92,11 @@ struct LocationWelcomeModelTests {
         let preferences = WherePreferences(store: InMemoryKeyValueStore())
         let services = try Self.services(locationSource: source)
         try await services.ingestor.authorizeRecording()
-        let model = LocationWelcomeModel(services: services, preferences: preferences)
+        let model = LocationWelcomeModel(
+            services: services,
+            preferences: preferences,
+            now: { Self.now },
+        )
         let task = Task { await model.resolve() }
         await source.waitUntilRequestCount(1)
 
@@ -108,7 +115,11 @@ struct LocationWelcomeModelTests {
         let preferences = WherePreferences(store: InMemoryKeyValueStore())
         let services = try Self.services(locationSource: source)
         try await services.ingestor.authorizeRecording()
-        let model = LocationWelcomeModel(services: services, preferences: preferences)
+        let model = LocationWelcomeModel(
+            services: services,
+            preferences: preferences,
+            now: { Self.now },
+        )
         let task = Task { await model.resolve() }
         await source.waitUntilRequestCount(1)
 
@@ -122,6 +133,89 @@ struct LocationWelcomeModelTests {
         #expect(model.presentation == nil)
     }
 
+    @Test func delayedAcquisitionShowsLocatingAccessory() async throws {
+        let source = GatedCurrentLocationSource()
+        let preferences = WherePreferences(store: InMemoryKeyValueStore())
+        let services = try Self.services(locationSource: source)
+        try await services.ingestor.authorizeRecording()
+        let model = LocationWelcomeModel(
+            services: services,
+            preferences: preferences,
+            now: { Self.now },
+            findingDelay: .zero,
+        )
+        let task = Task { await model.resolve() }
+        await source.waitUntilRequestCount(1)
+        await waitUntil { model.accessory == .locating }
+
+        #expect(model.state == .locating(showsProgress: true))
+
+        task.cancel()
+        await source.resolveRequest(at: 0, with: .unavailable(.cancellation))
+        await task.value
+    }
+
+    @Test func preciseLocationFailureRequiresSettingsAction() async throws {
+        let fixture = try await fixture(result: .unavailable(.preciseLocationDisabled))
+
+        await fixture.model.resolve()
+
+        #expect(fixture.model.accessory == .actionRequired(.preciseLocation))
+    }
+
+    @Test(arguments: [LocationAuthorizationStatus.denied, .restricted])
+    func deniedOrRestrictedLocationRequiresSettingsAction(
+        status: LocationAuthorizationStatus,
+    ) async throws {
+        let fixture = try await fixture(
+            result: .unavailable(.authorizationUnavailable(status)),
+        )
+
+        await fixture.model.resolve()
+
+        #expect(fixture.model.accessory == .actionRequired(.locationAccess))
+    }
+
+    @Test(
+        arguments: [
+            CurrentLocationResult.UnavailableReason.timeout,
+            .providerFailure,
+            .cancellation,
+        ],
+    )
+    func transientFailuresReturnSilentlyToIdle(
+        reason: CurrentLocationResult.UnavailableReason,
+    ) async throws {
+        let fixture = try await fixture(result: .unavailable(reason))
+
+        await fixture.model.resolve()
+
+        #expect(fixture.model.state == .idle)
+    }
+
+    @Test func newerResolutionWinsWhenRequestsFinishOutOfOrder() async throws {
+        let source = GatedCurrentLocationSource()
+        let preferences = WherePreferences(store: InMemoryKeyValueStore())
+        let services = try Self.services(locationSource: source)
+        try await services.ingestor.authorizeRecording()
+        let model = LocationWelcomeModel(
+            services: services,
+            preferences: preferences,
+            now: { Self.now },
+        )
+        let first = Task { await model.resolve() }
+        await source.waitUntilRequestCount(1)
+        let second = Task { await model.resolve() }
+        await source.waitUntilRequestCount(2)
+
+        try await source.resolveRequest(at: 1, with: Self.sample(region: .newYork))
+        await second.value
+        try await source.resolveRequest(at: 0, with: Self.sample(region: .california))
+        await first.value
+
+        #expect(model.presentation == .init(region: .newYork, greeting: .first))
+    }
+
     private func fixture(
         region: Region,
         preferences: WherePreferences = WherePreferences(store: InMemoryKeyValueStore()),
@@ -129,6 +223,29 @@ struct LocationWelcomeModelTests {
         let fixture = try fixtureWithoutRecording(region: region, preferences: preferences)
         try await fixture.services.ingestor.authorizeRecording()
         return fixture
+    }
+
+    private func fixture(result: CurrentLocationResult) async throws -> Fixture {
+        let source = ScriptedLocationSource()
+        source.setNextRequestedLocationResult(result)
+        let preferences = WherePreferences(store: InMemoryKeyValueStore())
+        let services = try Self.services(locationSource: source)
+        try await services.ingestor.authorizeRecording()
+        return Fixture(
+            model: LocationWelcomeModel(
+                services: services,
+                preferences: preferences,
+                now: { Self.now },
+            ),
+            services: services,
+            preferences: preferences,
+        )
+    }
+
+    private func waitUntil(_ condition: @MainActor () -> Bool) async {
+        while condition() == false {
+            await Task.yield()
+        }
     }
 
     private func fixtureWithoutRecording(
@@ -139,7 +256,11 @@ struct LocationWelcomeModelTests {
         try source.setNextRequestedLocation(Self.sample(region: region))
         let services = try Self.services(locationSource: source)
         return Fixture(
-            model: LocationWelcomeModel(services: services, preferences: preferences),
+            model: LocationWelcomeModel(
+                services: services,
+                preferences: preferences,
+                now: { Self.now },
+            ),
             services: services,
             preferences: preferences,
         )
@@ -159,7 +280,7 @@ struct LocationWelcomeModelTests {
         ]
         let coordinate = try #require(coordinates[region])
         return LocationSample(
-            timestamp: Date(timeIntervalSinceReferenceDate: 0),
+            timestamp: now,
             coordinate: coordinate,
             horizontalAccuracy: 5,
             source: .gpsSignificantChange,
