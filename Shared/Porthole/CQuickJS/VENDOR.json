@@ -1,0 +1,26 @@
+{
+  "repository": "https://github.com/quickjs-ng/quickjs",
+  "version": "0.16.2",
+  "revision": "1ab8676f4b6d6d669baeb5f21790fb9734636a20",
+  "files": {
+    "LICENSE": "96f73f9d2a16c21a36b418f06073be26e7d6d5e7c1bc99756b21a4f2c74ef171",
+    "Sources/vendor/builtin-array-fromasync.h": "b4de989c7aab1ee579930e0bbf16e39d3c7ad65e4933a6ef3f86448b9819ec04",
+    "Sources/vendor/builtin-iterator-zip-keyed.h": "1ef9704d05988356d0baf6f98a7fa9a30692f42005c0dc0d34ef83867153f888",
+    "Sources/vendor/builtin-iterator-zip.h": "3c2804eb97f51d8489039f015e3bbe853c616c93a661056ef299a41c88822502",
+    "Sources/vendor/cutils.h": "810709e35fe0ece09321ad4c207dba9973aa19f91fa909e00754896b39cc3201",
+    "Sources/vendor/dtoa.c": "a8d2cf2d04db406e0c16acdd95ab0e709d309902865722f41dac07a1ba5676af",
+    "Sources/vendor/dtoa.h": "1c4a4540c0038632c8a4c225472fbc21bd476fb35c4da4a857a11965b58231b9",
+    "Sources/vendor/libregexp-opcode.h": "2a98d646089f3a72f25480116297c5fdb5b28fd9f815447273951f4ade4a115e",
+    "Sources/vendor/libregexp.c": "af13e996abb1767fe0cdfda123c45b811d53688d403a2ac47142e97bf79f1fae",
+    "Sources/vendor/libregexp.h": "53ff95a038f7001b752c455d195d998e2955f0ae4ed62a002c13eca798db3ceb",
+    "Sources/vendor/libunicode-table.h": "5840a921ac11664b505ee37b1219f518fff2a04972fe848b4bdf1e85c5a0bd83",
+    "Sources/vendor/libunicode.c": "d88f53190ad772dd09b2beb93ffb8fc3097852f4987485aac8663a00189c43eb",
+    "Sources/vendor/libunicode.h": "ad13f66aaea3fab1616e84b9c048f2a315e1bdbab628b966617a7a3e55bcba2b",
+    "Sources/vendor/list.h": "cb6e24e8ee54bccdd66234fe54cd702d1160b9841db2b9b9adeb5003afe301d5",
+    "Sources/vendor/quickjs-atom.h": "66654ae6533d15073ea527979c453709d7ed83162142c656095a10dcef737a60",
+    "Sources/vendor/quickjs-c-atomics.h": "29883c742a5c512278fce54d19b1b9af949006e1d7dfc9ffa2e0946b184d8c5c",
+    "Sources/vendor/quickjs-opcode.h": "0054b0c45fd091afa308c3fb93b5862e0b071235918d3d73e413d23fce388bbc",
+    "Sources/vendor/quickjs.c": "6762b46550b936973582c9bc8bdf7b42367242ae3840c19efdbb1dc2382bc07b",
+    "Sources/vendor/quickjs.h": "9aeb68482fdcdd461ad006933dd360d97b97d75ab0d76a7ccdde4bf52c014c70"
+  }
+}
