@@ -135,6 +135,7 @@ extension WhereStylesheet {
             var contentSpacing: CGFloat
             var horizontalPadding: CGFloat
             var verticalPadding: CGFloat
+            var minimumActionHeight: CGFloat
             var symbolSize: CGFloat
             var titleFont: Font
         }
@@ -232,6 +233,7 @@ extension WhereStylesheet {
                 contentSpacing: 10,
                 horizontalPadding: 12,
                 verticalPadding: 8,
+                minimumActionHeight: 44,
                 symbolSize: 16,
                 titleFont: .subheadline.weight(.semibold),
             ),

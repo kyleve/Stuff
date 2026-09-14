@@ -63,6 +63,7 @@ struct WhereStylesheetTests {
         #expect(welcome.accessory.contentSpacing == 10)
         #expect(welcome.accessory.horizontalPadding == 12)
         #expect(welcome.accessory.verticalPadding == 8)
+        #expect(welcome.accessory.minimumActionHeight == 44)
         #expect(welcome.accessory.symbolSize == 16)
         #expect(welcome.accessory.titleFont == .subheadline.weight(.semibold))
         #expect(welcome.motion == .standard)
