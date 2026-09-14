@@ -41,6 +41,8 @@ enum SwiftDataStoreLog: LogEvent {
     case ignoredUnknownPrimaryRegions(ids: [String])
     /// Dropped a record that failed to materialize into a domain value.
     case droppedCorruptRecord(type: String)
+    /// Preserved a valid raw position while optional motion fields were incomplete.
+    case ignoredIncompleteSampleMotion
     /// Chose a deterministic value when CloudKit delivered conflicting rows for an immutable id.
     case resolvedConflictingImmutableRecords(type: String, id: String, count: Int)
     /// Persistent history could not distinguish a local save from an external import; the
@@ -54,6 +56,7 @@ enum SwiftDataStoreLog: LogEvent {
             case .openedInMemory, .openedOnDisk: .info
             case .ignoredUnknownTrackedRegions,
                  .ignoredUnknownPrimaryRegions,
+                 .ignoredIncompleteSampleMotion,
                  .remoteChangeClassificationFailed:
                 .warning
             case .droppedCorruptRecord, .resolvedConflictingImmutableRecords: .fault
@@ -72,6 +75,8 @@ enum SwiftDataStoreLog: LogEvent {
                 "Ignored \(ids.count) unknown primary-region id(s): \(ids.joined(separator: ", "))"
             case let .droppedCorruptRecord(type):
                 "Dropped corrupt SwiftData record of type \(type)"
+            case .ignoredIncompleteSampleMotion:
+                "Preserved raw location while optional motion fields were incomplete"
             case let .resolvedConflictingImmutableRecords(type, id, count):
                 "Resolved \(count) conflicting immutable \(type) records for id \(id)"
             case let .remoteChangeClassificationFailed(description):
@@ -96,7 +101,8 @@ enum SwiftDataStoreLog: LogEvent {
                     key: RemoteLogFieldKey("conflict_count"),
                     value: .count(count),
                 )]
-            case .openedInMemory, .droppedCorruptRecord, .remoteChangeClassificationFailed:
+            case .openedInMemory, .droppedCorruptRecord, .ignoredIncompleteSampleMotion,
+                 .remoteChangeClassificationFailed:
                 []
         }
     }

@@ -9,6 +9,78 @@ import Testing
 /// covered by `StoreChangeBroadcasterTests`; here we assert the *store* fires it
 /// on a committed `perform` and stays silent on a rolled-back one.
 struct SwiftDataStoreTests {
+    enum IncompleteMotion: CaseIterable {
+        case missingSpeedValue
+        case missingSpeedAccuracy
+        case missingAltitudeValue
+        case missingAltitudeAccuracy
+        case missingPresenceFlag
+        case onlyIncompleteSpeed
+    }
+
+    @Test(arguments: IncompleteMotion.allCases)
+    @MainActor func partialOptionalMotionNeverDropsAValidRawPosition(
+        partial: IncompleteMotion,
+    ) async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let speed = LocationMotion.Speed(metersPerSecond: 240, accuracyMetersPerSecond: 2)
+        let altitude = LocationMotion.Altitude(meters: 11000, accuracyMeters: 10)
+        let sample = FlightTrajectoryFixtures.sample(
+            801,
+            minutes: 1,
+            east: 0,
+            motion: LocationMotion(speed: speed, altitude: altitude),
+        )
+        let context = ModelContext(container)
+        let row = SDLocationSample(value: sample, generationID: .initial)
+        let expectedMotion: LocationMotion?
+        switch partial {
+            case .missingSpeedValue:
+                row.speedMetersPerSecond = nil
+                expectedMotion = LocationMotion(speed: nil, altitude: altitude)
+            case .missingSpeedAccuracy:
+                row.speedAccuracyMetersPerSecond = nil
+                expectedMotion = LocationMotion(speed: nil, altitude: altitude)
+            case .missingAltitudeValue:
+                row.altitudeMeters = nil
+                expectedMotion = LocationMotion(speed: speed, altitude: nil)
+            case .missingAltitudeAccuracy:
+                row.altitudeAccuracyMeters = nil
+                expectedMotion = LocationMotion(speed: speed, altitude: nil)
+            case .missingPresenceFlag:
+                row.motionPresent = nil
+                expectedMotion = sample.motion
+            case .onlyIncompleteSpeed:
+                row.motionPresent = nil
+                row.speedAccuracyMetersPerSecond = nil
+                row.altitudeMeters = nil
+                row.altitudeAccuracyMeters = nil
+                expectedMotion = nil
+        }
+        context.insert(row)
+        try context.save()
+
+        let store = SwiftDataStore(modelContainer: container)
+        let expected = FlightTrajectoryFixtures.replacing(sample, motion: expectedMotion)
+        let interval = DateInterval(start: sample.timestamp, duration: 1)
+        #expect(try await store.samples(in: interval) == [expected])
+        #expect(try await store.allSamples() == [expected]) // Backup export's raw read.
+
+        // Reading the partial row must not erase its durable measurement fields;
+        // completing delivery makes the original motion available again.
+        let inspected = try #require(ModelContext(container)
+            .fetch(FetchDescriptor<SDLocationSample>()).first)
+        #expect(inspected.speedMetersPerSecond == row.speedMetersPerSecond)
+        #expect(inspected.speedAccuracyMetersPerSecond == row.speedAccuracyMetersPerSecond)
+        #expect(inspected.altitudeMeters == row.altitudeMeters)
+        #expect(inspected.altitudeAccuracyMeters == row.altitudeAccuracyMeters)
+        #expect(inspected.motionPresent == row.motionPresent)
+        row.update(from: sample, generationID: .initial)
+        try context.save()
+        let refreshed = SwiftDataStore(modelContainer: container)
+        #expect(try await refreshed.allSamples() == [sample])
+    }
+
     @Test func rawMotionAndAllAttributionStatesRoundTripWithoutChangingTheSample() async throws {
         let store = try SwiftDataStore.inMemory()
         let sample = LocationSample(

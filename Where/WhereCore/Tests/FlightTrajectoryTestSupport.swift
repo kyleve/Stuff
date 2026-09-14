@@ -1,0 +1,114 @@
+import Foundation
+import RegionKit
+import WhereCore
+
+/// Optional local verification inputs. Private archives and expected identities
+/// are supplied outside the checkout and never become repository fixtures.
+struct FlightArchiveVerificationConfiguration: Decodable {
+    let backupPath: String
+    let from: Date
+    let until: Date
+    let now: Date
+    let cruiseCheckAt: Date
+    let awaitingArrivalCheckAt: Date
+    let expectedArrivalAt: Date
+    let expectedArrivalConfirmedAt: Date
+    let expectedInputSampleCount: Int
+    let expectedAirborneSampleIDs: Set<UUID>
+    let expectedPreservedSampleIDs: Set<UUID>
+    let calendarTimeZoneID: String
+    let expectedResultingRegions: Set<Region>
+}
+
+/// An invented equatorial route, not exported personal location history. Its
+/// structure exercises short callbacks, a recording gap, a turning approach,
+/// and delayed arrival confirmation without retaining a real itinerary.
+enum FlightTrajectoryFixtures {
+    static let start = Date(timeIntervalSince1970: 1_767_225_600)
+    static let device = RecordingDeviceID(rawValue: sampleID(9000))
+
+    struct Trace {
+        let samples: [LocationSample]
+        let departureNoiseID: UUID
+        let shortIntervalID: UUID
+        let lastCruiseAt: Date
+        let firstGroundAt: Date
+        let readyAt: Date
+    }
+
+    static func sampleID(_ number: Int) -> UUID {
+        UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", number))!
+    }
+
+    static func date(minutes: Double) -> Date {
+        start.addingTimeInterval(minutes * 60)
+    }
+
+    static func sample(
+        _ number: Int,
+        minutes: Double,
+        east: Double,
+        north: Double = 0,
+        accuracy: Double = 5,
+        deviceID: RecordingDeviceID? = device,
+        source: SampleSource = .gpsSignificantChange,
+        motion: LocationMotion? = nil,
+    ) -> LocationSample {
+        LocationSample(
+            id: sampleID(number),
+            timestamp: date(minutes: minutes),
+            coordinate: Coordinate(latitude: north / 111.195, longitude: east / 111.195),
+            horizontalAccuracy: accuracy,
+            source: source,
+            recordingDeviceID: deviceID,
+            motion: motion,
+        )
+    }
+
+    static func turningFlight() -> Trace {
+        Trace(
+            samples: [
+                sample(1, minutes: 0, east: 0),
+                sample(2, minutes: 5, east: 0),
+                sample(3, minutes: 10, east: 0),
+                sample(4, minutes: 11, east: 1),
+                sample(5, minutes: 15, east: 5),
+                sample(6, minutes: 20, east: 45),
+                sample(7, minutes: 25, east: 120),
+                sample(8, minutes: 25 + 5.0 / 60, east: 121.25),
+                sample(9, minutes: 30, east: 195),
+                sample(10, minutes: 105, east: 1320),
+                sample(11, minutes: 110, east: 1395),
+                sample(12, minutes: 115, east: 1470),
+                // A turn away from the eventual arrival, then back toward it.
+                sample(13, minutes: 120, east: 1490, north: -5),
+                sample(14, minutes: 125, east: 1462, north: -8),
+                sample(15, minutes: 130, east: 1444, north: 8),
+                sample(16, minutes: 135, east: 1445, north: 8),
+                sample(17, minutes: 140, east: 1445, north: 8),
+                sample(18, minutes: 145, east: 1445, north: 8),
+            ],
+            departureNoiseID: sampleID(4),
+            shortIntervalID: sampleID(8),
+            lastCruiseAt: date(minutes: 115),
+            firstGroundAt: date(minutes: 130),
+            readyAt: date(minutes: 140),
+        )
+    }
+
+    static func replacing(
+        _ sample: LocationSample,
+        timestamp: Date? = nil,
+        motion: LocationMotion? = nil,
+    ) -> LocationSample {
+        LocationSample(
+            id: sample.id,
+            timestamp: timestamp ?? sample.timestamp,
+            coordinate: sample.coordinate,
+            horizontalAccuracy: sample.horizontalAccuracy,
+            source: sample.source,
+            recordingDeviceID: sample.recordingDeviceID,
+            motion: motion,
+        )
+    }
+}

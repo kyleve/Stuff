@@ -2208,6 +2208,8 @@ final class SDWhereDataGeneration {
 
 @Model
 final class SDLocationSample {
+    private static let logger = WhereLog.root(SwiftDataStoreLog.self)
+
     /// Nil belongs to the implicit initial generation, preserving rows from builds before
     /// generations.
     var generationID: UUID?
@@ -2269,10 +2271,17 @@ final class SDLocationSample {
             evidenceId: evidenceId,
             evidenceKindRaw: evidenceKindRaw,
         ) else { return nil }
-        guard (speedMetersPerSecond == nil) == (speedAccuracyMetersPerSecond == nil),
-              (altitudeMeters == nil) == (altitudeAccuracyMeters == nil),
-              motionPresent == true || (speedMetersPerSecond == nil && altitudeMeters == nil)
-        else { return nil }
+        // Optional motion may arrive partially without invalidating the raw
+        // position. Preserve each complete measurement independently, and keep
+        // these reads non-mutating so a later sync can complete the other one.
+        let hasMotionFields = speedMetersPerSecond != nil || speedAccuracyMetersPerSecond != nil
+            || altitudeMeters != nil || altitudeAccuracyMeters != nil
+        if (speedMetersPerSecond == nil) != (speedAccuracyMetersPerSecond == nil)
+            || (altitudeMeters == nil) != (altitudeAccuracyMeters == nil)
+            || (motionPresent != true && hasMotionFields)
+        {
+            Self.logger { .ignoredIncompleteSampleMotion }
+        }
         let speed: LocationMotion.Speed? = if let speedMetersPerSecond,
                                               let speedAccuracyMetersPerSecond
         {
@@ -2291,7 +2300,8 @@ final class SDLocationSample {
             horizontalAccuracy: horizontalAccuracy,
             source: source,
             recordingDeviceID: recordingDeviceID.map(RecordingDeviceID.init(rawValue:)),
-            motion: motionPresent == true ? LocationMotion(speed: speed, altitude: altitude) : nil,
+            motion: motionPresent == true || speed != nil || altitude != nil
+                ? LocationMotion(speed: speed, altitude: altitude) : nil,
         )
     }
 }

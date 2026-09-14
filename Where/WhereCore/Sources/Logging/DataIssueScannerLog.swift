@@ -13,6 +13,7 @@ struct DataIssueScannerLog: LogEvent {
     enum SpanName: Hashable, CustomStringConvertible {
         /// A full scan on a cache miss: the reads, then every detector.
         case scan
+        case assessGPS
         /// One detector's pass over the already-read input, so a scan that runs
         /// long attributes to the detector responsible rather than to "the scan".
         case detect(DataIssueCategory)
@@ -20,6 +21,7 @@ struct DataIssueScannerLog: LogEvent {
         var description: String {
             switch self {
                 case .scan: "scan"
+                case .assessGPS: "assess-gps"
                 case let .detect(category): "detect(\(category.name))"
             }
         }

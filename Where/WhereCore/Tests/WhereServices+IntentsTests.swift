@@ -40,6 +40,44 @@ struct WhereServicesIntentsTests {
 /// fresh install, is the regression this pins); only the location source
 /// differs — the stack wires the idle source, so intents never start GPS.
 struct WhereServicesForIntentsSharingTests {
+    @Test func flightCorrectionAndLaterSameDayPresenceReachReportsWidgetsAndIntents() async throws {
+        let h = try await SampleCorrectionTestSupport.completedFlight()
+        let proposal = try await h.proposal()
+        let result = try await h.coordinator.apply(proposal)
+        guard case .applied = result else {
+            Issue.record("The completed flight correction must apply")
+            return
+        }
+        let later = FlightTrajectoryFixtures.sample(501, minutes: 240, east: 1505)
+        try await h.store.perform { try await h.store.add(sample: later) }
+
+        let expected = proposal.resultingRegions.union([.canada])
+        let intents = WhereServices.forIntents(sharingStoreOf: h.services)
+        let report = try await h.reader.yearReport(for: h.day.year)
+        let intentReport = try await intents.reports.yearReport(for: h.day.year)
+        let widget = try await h.widgets.snapshot(asOf: later.timestamp)
+        #expect(report.days.first?.regions == expected)
+        #expect(intentReport.days == report.days)
+        #expect(widget.dayRegions == expected)
+        #expect(widget.totals == report.totals)
+        #expect(try await h.reader.manualDays(inYear: h.day.year).isEmpty)
+        #expect(try await h.store.sampleAttributionRevisions(for: [later.id]).isEmpty)
+
+        let maps = try await h.reader.locations(onDay: h.day)
+        #expect(maps[.canada]?.map(\.coordinate) == [later.coordinate])
+        let originalSamples = FlightTrajectoryFixtures.turningFlight().samples
+        let excludedIDs = Set(proposal.edits.filter(\.replacementRegions.isEmpty).map(\.sampleID))
+        let excludedCoordinates = Set(originalSamples.filter { excludedIDs.contains($0.id) }
+            .map(\.coordinate))
+        let mappedCoordinates = Set(maps.values.flatMap { $0.map(\.coordinate) })
+        #expect(mappedCoordinates.isDisjoint(with: excludedCoordinates))
+        #expect(try await h.reader.representativeCoordinates(for: h.day.year)[.canada] == later
+            .coordinate)
+        #expect(try await h.reader.locations(in: .canada, year: h.day.year).first?.points
+            .map(\.coordinate) == [later.coordinate])
+        #expect(try await h.store.allSamples().count == originalSamples.count + 1)
+    }
+
     @Test func sharedStackRidesTheBaseServicesStore() async throws {
         let store = try SwiftDataStore.inMemory()
         let base = try await WhereServices.makeForIntents(store: store)
