@@ -33,6 +33,41 @@ struct SnapshotReferenceDiffTests {
         #expect(url.lastPathComponent == "thing.iPhone.png")
     }
 
+    @Test(arguments: ["Awaiting response / provider", " --éclair…(pending)-- ", "_Scoped_Value"])
+    func referencePathMatchesAnUpstreamRecording(identifier: String) throws {
+        let directory = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("SnapshotReferencePath-\(UUID().uuidString)")
+        defer {
+            do { try FileManager.default.removeItem(at: directory) }
+            catch { Issue.record(error) }
+        }
+        let testName = "query result(for:)()"
+        let expected = snapshotReferenceURL(
+            testFilePath: directory.appendingPathComponent("FixtureTests.swift").path,
+            testName: testName,
+            identifier: identifier,
+        )
+        let image = solidImage(.red, size: CGSize(width: 4, height: 4))
+        let recording = verifySnapshot(
+            of: image,
+            as: .image,
+            named: identifier,
+            record: .all,
+            snapshotDirectory: expected.deletingLastPathComponent().path,
+            testName: testName,
+        )
+        #expect(recording != nil)
+        #expect(FileManager.default.fileExists(atPath: expected.path))
+        #expect(verifySnapshot(
+            of: image,
+            as: .image,
+            named: identifier,
+            record: .never,
+            snapshotDirectory: expected.deletingLastPathComponent().path,
+            testName: testName,
+        ) == nil)
+    }
+
     /// The derivation above is only useful if it lands on a real file. This
     /// repo's own Inspector reference is the fixture.
     @Test func derivedPathFindsAnActualReferenceInThisRepo() {

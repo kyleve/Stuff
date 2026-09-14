@@ -26,6 +26,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Raised-floor accessibility captures parse twice.** Settle between passes and keep only the second render (`AccessibilitySnapshotViewControllerTests`).
 - **The umbrella also links the upstream SnapshotTesting integration that this module replaces.**
 - **The compare sees on-disk bytes.** Every capture round-trips through PNG encoding before comparison.
+- **Match upstream path sanitization for test and variant names.** Guard: `SnapshotReferenceDiffTests.referencePathMatchesAnUpstreamRecording`.
 - **Removing PNG encoding re-opens the wide-gamut vs. sRGB flake.** See `renderSnapshotImage`'s doc.
 - **`CILabDeltaE` is not perceptually uniform.** The ΔE tolerance is loose by design.
 - **The verdict's metric is far steeper near black than the CIE76 it approximates.**
