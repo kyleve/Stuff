@@ -1,13 +1,34 @@
 import SwiftUI
 
-/// Draws push and modal navigation relationships behind Flyover cards.
+/// Draws navigation relationships in bounded tiles, retaining graph coordinates for every route.
 struct FlyoverConnectorCanvas<ScreenID: Hashable>: View {
     let catalog: FlyoverCatalog<ScreenID>
     let layout: FlyoverLayoutResult<ScreenID>
+    let renderPlan: FlyoverCanvasRenderPlan<ScreenID>
     @Environment(\.flyoverStylesheet) private var stylesheet
 
     var body: some View {
+        let tiles = FlyoverConnectorTilePlan(canvasSize: layout.canvasSize).tiles
+            .filter { renderPlan.shouldDisplay($0.frame) }
+
+        ZStack(alignment: .topLeading) {
+            ForEach(tiles) { tile in
+                canvas(in: tile.frame)
+                    .frame(width: tile.frame.width, height: tile.frame.height)
+                    .clipped(antialiased: false)
+                    .position(x: tile.frame.midX, y: tile.frame.midY)
+            }
+        }
+        .frame(width: layout.canvasSize.width, height: layout.canvasSize.height)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private func canvas(in frame: CGRect) -> some View {
         Canvas { context, _ in
+            // Keep one coordinate system so curves, dash phases, and labels
+            // continue unchanged across tile edges.
+            context.translateBy(x: -frame.minX, y: -frame.minY)
             for transition in catalog.transitions {
                 guard
                     let source = layout.screenFrames[transition.source],
@@ -23,9 +44,6 @@ struct FlyoverConnectorCanvas<ScreenID: Hashable>: View {
                 )
             }
         }
-        .frame(width: layout.canvasSize.width, height: layout.canvasSize.height)
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
     }
 
     private func draw(

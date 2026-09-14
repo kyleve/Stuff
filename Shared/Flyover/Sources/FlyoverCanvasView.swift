@@ -59,7 +59,11 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
                         FlyoverDepthBandBackdrop(band: band)
                     }
 
-                    FlyoverConnectorCanvas(catalog: catalog, layout: layout)
+                    FlyoverConnectorCanvas(
+                        catalog: catalog,
+                        layout: layout,
+                        renderPlan: renderPlan,
+                    )
 
                     ForEach(catalog.screens, id: \.id) { screen in
                         if let frame = layout.screenFrames[screen.id],

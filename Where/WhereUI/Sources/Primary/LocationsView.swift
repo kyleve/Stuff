@@ -507,6 +507,8 @@ private struct ResolveToolbarLabel: View {
                 .push(to: CalendarContentView.flyoverID),
                 .push(to: ElsewhereView.flyoverID),
                 .modal(to: ResolutionView.flyoverID),
+                .modal(to: PlannedStaysView.flyoverID),
+                .modal(to: PlannedStayEditor.flyoverID),
             ],
         ) { id, world in
             let state = WhereFlyoverLocationsState(report: world.report)

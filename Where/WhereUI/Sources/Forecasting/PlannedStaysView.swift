@@ -205,6 +205,7 @@ struct PlannedStaysView: View {
             PlannedStaysView.self,
             title: "Planned Stays",
             navigationContainer: .none,
+            routes: [.modal(to: PlannedStayEditor.flyoverID)],
         ) { world in
             PlannedStaysView(report: world.report)
         }

@@ -392,9 +392,10 @@ the happy path. See the feature
 ## Flyover
 
 `Sources/Developer/Flyover` owns an explicit `WhereFlyoverScreenID` catalog.
-The enum is exhaustive and completeness-tested, so adding a top-level screen
-produces one obvious registration update rather than depending on source
-scanning or a macro that cannot discover navigation across the module.
+Screen identities derive from their view types. Each view declares its own
+registration and forward routes. Catalog tests check that each registration
+appears once. The planning routes connect Locations, Planned stays, and the
+individual stay editor.
 
 Opening Flyover asynchronously builds one `WhereScope.demo` and shares its
 seeded in-memory services, preferences, and session across live frames. That
