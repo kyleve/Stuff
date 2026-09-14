@@ -5,6 +5,7 @@ import shutil
 import signal
 import stat
 import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -76,6 +77,7 @@ while True:
     def environment(self, overrides=None):
         environment = {
             "HOME": str(self.home),
+            "FIXTURE_PYTHON": str(Path(sys.executable).resolve()),
             "LC_ALL": "C",
             "PATH": f"{self.bin}:/usr/bin:/bin",
             "PROFILE_WORKDIR": str(self.profile_work),
@@ -106,10 +108,18 @@ while True:
         path.chmod(path.stat().st_mode | stat.S_IXUSR)
 
     def _write_fake_tools(self) -> None:
+        # The system Python shim can invoke Xcode setup under the isolated HOME.
+        self._write_executable(
+            self.bin / "python3",
+            '#!/bin/bash\nexec "$FIXTURE_PYTHON" "$@"\n',
+        )
         self._write_executable(
             self.bin / "mise",
             """#!/bin/bash
 printf 'mise %s\\n' "$*" >>"$TOOL_LOG"
+case "$*" in
+  *"--package-path Shared/Porthole/PortholeCertificates"*) exit "${CERTIFICATE_TEST_STATUS:-0}" ;;
+esac
 exit "${MISE_STATUS:-0}"
 """,
         )
@@ -165,7 +175,7 @@ case "${XCODE_OUTPUT:-passing}" in
     trap 'printf INT >"$XCODE_EXIT_MARKER"; exit 130' INT
     trap 'printf TERM >"$XCODE_EXIT_MARKER"; exit 143' TERM
     if [ "${SPAWN_GRANDCHILD:-0}" = 1 ]; then
-      /usr/bin/python3 "$SIGNAL_CHILD_SCRIPT" \
+      python3 "$SIGNAL_CHILD_SCRIPT" \
         "$XCODE_GRANDCHILD_PID_FILE" "$XCODE_GRANDCHILD_EXIT_MARKER" &
     fi
     while :; do
@@ -200,7 +210,7 @@ elif [ "${XCRUN_RESULT:-passed}" = failed ]; then
 else
   results='["Passed"]'
 fi
-/usr/bin/python3 -c '
+python3 -c '
 import json, sys
 results = json.loads(sys.argv[1])
 children = [
@@ -214,6 +224,23 @@ print(json.dumps({"testNodes": [{"nodeType": "Unit test bundle", "name": "CoreTe
 
 
 class XcodeCommandContractTests(unittest.TestCase):
+    def test_porthole_host_runs_both_native_package_suites_without_xcode(self):
+        fixture = self.fixture()
+        result = fixture.run("test", "--porthole-host", "--skip-architecture")
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertEqual([
+            "mise exec -- swift test --package-path Shared/Porthole",
+            "mise exec -- swift test --package-path Shared/Porthole/PortholeCertificates",
+        ], fixture.command_log().splitlines())
+
+    def test_porthole_host_propagates_either_package_failure(self):
+        for overrides, expected_calls in (({"MISE_STATUS": "41"}, 1), ({"CERTIFICATE_TEST_STATUS": "43"}, 2)):
+            with self.subTest(overrides=overrides):
+                fixture = self.fixture()
+                result = fixture.run("test", "--porthole-host", "--skip-architecture", **overrides)
+                self.assertEqual(int(next(iter(overrides.values()))), result.returncode)
+                self.assertEqual(expected_calls, len(fixture.command_log().splitlines()))
+
     def fixture(self):
         temporary = tempfile.TemporaryDirectory(prefix="stuff-xcode-contract-")
         self.addCleanup(temporary.cleanup)
@@ -237,6 +264,33 @@ class XcodeCommandContractTests(unittest.TestCase):
             result.stderr,
         )
         self.assertNotIn("test-without-building", fixture.command_log())
+
+    def test_build_jobs_reaches_only_the_build_and_preserves_failure(self):
+        fixture = self.fixture()
+        result = fixture.run(
+            "test", "--skip-architecture", "--no-generate", "--build-jobs", "2",
+            "CoreTests", BUILD_STATUS="29",
+        )
+        self.assertEqual(29, result.returncode, result.stdout + result.stderr)
+        commands = fixture.command_log().splitlines()
+        build = next(line for line in commands if "build-for-testing" in line)
+        self.assertRegex(build, r" -jobs 2(?: |$)")
+        self.assertTrue(all(" -jobs " not in line for line in commands if line != build))
+
+    def test_build_jobs_rejects_invalid_values_before_any_tool_runs(self):
+        for value in ("0", "-1", "1.5", "two", "2 -quiet", "2;exit 0"):
+            with self.subTest(value=value):
+                fixture = self.fixture()
+                result = fixture.run("test", "--build-jobs", value)
+                self.assertNotEqual(0, result.returncode)
+                self.assertIn("positive integer", result.stderr)
+                self.assertEqual("", fixture.command_log())
+
+        fixture = self.fixture()
+        result = fixture.run("test", "--build-jobs", "2", "--no-build")
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("requires a build", result.stderr)
+        self.assertEqual("", fixture.command_log())
 
     def test_unit_run_does_not_require_the_snapshot_xcode_build(self):
         fixture = self.fixture()
@@ -311,7 +365,7 @@ if [[ " $* " == *" Tools/test_runner.py progress "* ]]; then
   /bin/cat >/dev/null
   exit 52
 fi
-exec /usr/bin/python3 "$@"
+exec "$FIXTURE_PYTHON" "$@"
 """,
         )
 

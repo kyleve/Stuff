@@ -1,5 +1,6 @@
 import Observation
 import UIKit
+import WhereAssets
 
 /// Drives the app-icon picker: the list of options (from `AppIcons.json`), the
 /// currently-selected one, and applying a new choice through the
@@ -107,11 +108,10 @@ final class AppIconModel {
     }
 
     extension AppIconCatalog {
-        /// Test/preview helper: whether `name` resolves to a real imageset in
-        /// WhereUI's resource bundle (`.module` here is WhereUI's, which is the
-        /// bundle the picker renders previews from).
+        /// Test/preview helper: whether `name` resolves in the same icon-preview
+        /// resource bundle used by the picker.
         static func previewImageExists(named name: String) -> Bool {
-            UIImage(named: name, in: .module, compatibleWith: nil) != nil
+            UIImage(named: name, in: WhereAssetBundle.bundle, compatibleWith: nil) != nil
         }
     }
 

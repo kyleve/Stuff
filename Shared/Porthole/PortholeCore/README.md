@@ -33,6 +33,8 @@ Planner availability describes generated support; `PortholeCoverageState` descri
 Inactive declarations retain their planned support and conditions. Source-only and excluded-file origins stay explicit.
 An inspectable-source entry exposes declaration evidence without promising live value inspection or invocation.
 The document contains no source bodies. The source archive supplies verified text through the existing evidence tools.
+The version-one declaration kind includes `enumerationInspection` for generated enum reads, separately from `enumerationCase` constructors.
+Existing declaration kinds and fields retain their wire names. Older clients that cannot decode the new kind must update before reading these coverage pages.
 
 `PortholeCoverageClient` reads bounded module and declaration pages through ordinary capability invocation.
 Each page carries its scope generation. The client rejects replaced scopes and malformed pagination metadata.

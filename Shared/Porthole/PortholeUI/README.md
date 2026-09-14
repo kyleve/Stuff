@@ -134,7 +134,7 @@ The console records native calls and results as execution evidence. Provider cre
 
 ## Appearance and validation
 
-The public view seeds its own Broadway root on iOS.
+The public view seeds its own Broadway root on iOS and Mac Catalyst.
 Broadway currently depends on UIKit. The macOS surface uses the same stylesheet tokens through SwiftUI environment values.
 Developer-facing copy uses literal strings in every build configuration.
 
@@ -144,5 +144,4 @@ SnapshotKit matrices cover captured context, typed evidence, expired handles, ag
 Full workspace cases cover a locked publication, its reconciliation action, the saved diff, and CI results. Invocation cases cover active and unconfirmed Stop controls.
 Coverage cases include modules without active bindings, mixed declaration support, and inactive declaration details at standard and accessibility text sizes.
 These cases use validated in-memory reviews and bounded protocol fakes. Their visible dates, identifiers, and source are synthetic and fixed.
-Run `swift test --package-path Shared/Porthole --filter PortholeUITests` from the repository root.
-UIKit tests and image snapshot cases require an adopting application test graph.
+Run the module unit and snapshot bundles through the repository test command.

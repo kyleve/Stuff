@@ -7,6 +7,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build system,
 ## Scope & dependencies
 
 - **Use SwiftUI, LifecycleKit, and SFSafeSymbols only.** Do not import app code. App-specific launch UI (splashes, onboarding) lives in the consumer (for example `WhereUI`).
+- Apply the [generated-adapter exception](../../AGENTS.md#porthole-compilation) to PortholeRuntime.
 - **Keep the engine/UI split deliberate.** LifecycleKit must stay renderable-state only (no SwiftUI import). Anything that builds a `View` belongs here.
 
 ## Invariants

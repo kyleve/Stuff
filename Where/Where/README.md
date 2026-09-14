@@ -71,6 +71,12 @@ from the command line with [`./Where/install`](../install) (macOS only, needs a
 signing team — see [`Where/AGENTS.md`](../AGENTS.md#installing-to-a-device)).
 Use `./Where/install --dry-run` to resolve the exact paired physical device and
 report the build/install/launch plan without performing it.
+Use `--build-jobs 2` to limit concurrent Xcode build tasks when memory is limited.
+Without this option, Xcode selects its default concurrency.
+
+The app and its hosted `WhereTests` bundle link the same `WhereApplicationSupport`
+framework. Tests reach the application modules through that product, including
+the crash-reporting types used by the reporting-controller tests.
 
 ## CloudKit rollout and device validation
 

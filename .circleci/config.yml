@@ -163,6 +163,7 @@ commands:
           name: Generate project and resolve Swift packages
           command: |
             # Populate the immutable download caches before either test job saves them.
+            mise exec -- python3 Tools/porthole_export.py
             started="$(python3 -c 'import time; print(time.time_ns())')"
             if mise exec -- tuist generate --no-open >"$TEST_WORKDIR/generate.log" 2>&1; then
               python3 -c 'import json,sys,time; print("CI_TIMING " + json.dumps({"phase":"generate","seconds":round((time.time_ns()-int(sys.argv[1]))/1e9,3),"status":0}, separators=(",",":")))' "$started"

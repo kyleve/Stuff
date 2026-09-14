@@ -1,7 +1,28 @@
 // swift-tools-version: 6.2
+import Foundation
 import PackageDescription
 
-let package = Package(
+/// Share the existing icon catalog without making unrelated Where files target inputs.
+/// Kept paths include whole source/resource directories; only their ancestors are enumerated.
+func excludingSiblings(of keptPaths: [String], under targetPath: String) throws -> [String] {
+    let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        .appendingPathComponent(targetPath)
+    func excludedChildren(at relativePath: String) throws -> [String] {
+        try FileManager.default
+            .contentsOfDirectory(atPath: root.appendingPathComponent(relativePath).path)
+            .sorted().flatMap { child -> [String] in
+                let path = relativePath.isEmpty ? child : relativePath + "/" + child
+                if keptPaths.contains(path) { return [] }
+                if keptPaths.contains(where: { $0.hasPrefix(path + "/") }) {
+                    return try excludedChildren(at: path)
+                }
+                return [path]
+            }
+    }
+    return try excludedChildren(at: "")
+}
+
+let package = try Package(
     name: "Stuff",
     defaultLocalization: "en",
     platforms: [
@@ -9,6 +30,14 @@ let package = Package(
         .macOS(.v26),
     ],
     products: [
+        .executable(name: "porthole", targets: ["PortholeCLI"]),
+        .library(name: "PortholeUI", targets: ["PortholeUI"]),
+        .library(name: "PortholeAgent", targets: ["PortholeAgent"]),
+        .library(name: "PortholeRemote", targets: ["PortholeRemote"]),
+        .library(name: "PortholeGitHub", targets: ["PortholeGitHub"]),
+        .library(name: "PortholeJavaScript", targets: ["PortholeJavaScript"]),
+        .library(name: "PortholeCore", targets: ["PortholeCore"]),
+        .library(name: "PortholeRuntime", targets: ["PortholeRuntime"]),
         .library(name: "CreditKit", targets: ["CreditKit"]),
         .library(name: "LedgerCore", targets: ["LedgerCore"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
@@ -23,14 +52,24 @@ let package = Package(
         .library(name: "SnapshotKitTesting", targets: ["SnapshotKitTesting"]),
         .library(name: "TestHostSupport", targets: ["TestHostSupport"]),
         .library(name: "RegionKit", targets: ["RegionKit"]),
+        // Keep the host and extension dependency closure in one shared image.
+        .library(
+            name: "WhereApplicationSupport",
+            type: .dynamic,
+            targets: ["WhereUI", "WhereIntents", "WhereCrashReporting"],
+        ),
         .library(name: "WhereCrashReporting", targets: ["WhereCrashReporting"]),
         .library(name: "WhereCore", targets: ["WhereCore"]),
+        .library(name: "WhereAssets", targets: ["WhereAssets"]),
         .library(name: "WhereUI", targets: ["WhereUI"]),
         .library(name: "WhereIntents", targets: ["WhereIntents"]),
         .library(name: "BroadwayCore", targets: ["BroadwayCore"]),
         .library(name: "BroadwayUI", targets: ["BroadwayUI"]),
     ],
     dependencies: [
+        .package(url: "https://github.com/zaidmukaddam/swift-ai-sdk.git", exact: "0.3.0"),
+        .package(path: "Shared/Porthole/PortholeCertificates"),
+        .package(url: "https://github.com/swiftlang/swift-syntax.git", exact: "603.0.2"),
         .package(
             url: "https://github.com/RoyalPineapple/BumperBowling.git",
             branch: "main",
@@ -45,6 +84,86 @@ let package = Package(
         .package(url: "https://github.com/SFSafeSymbols/SFSafeSymbols", from: "7.0.0"),
     ],
     targets: [
+        .executableTarget(
+            name: "PortholeCLI",
+            dependencies: [
+                .target(name: "PortholeCore"),
+                .target(name: "PortholeRemote"),
+            ],
+            path: "Shared/Porthole/PortholeCLI/Sources",
+        ),
+        .target(
+            name: "PortholeUI",
+            dependencies: [
+                .target(name: "PortholeRuntime"),
+                .target(name: "PortholeJavaScript"),
+                .target(name: "PortholeAgent"),
+                .target(name: "PortholeGitHub"),
+                .target(name: "PortholeRemote"),
+                .target(name: "BroadwayCore", condition: .when(platforms: [.iOS, .macCatalyst])),
+                .target(
+                    name: "BroadwayUI",
+                    condition: .when(platforms: [.iOS, .macCatalyst]),
+                ),
+                .target(name: "SnapshotKit", condition: .when(platforms: [.iOS, .macCatalyst])),
+                .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
+            ],
+            path: "Shared/Porthole/PortholeUI/Sources",
+        ),
+        .target(
+            name: "PortholeAgent",
+            dependencies: [
+                .target(name: "PortholeCore"),
+                .product(name: "AI", package: "swift-ai-sdk"),
+            ],
+            path: "Shared/Porthole/PortholeAgent/Sources",
+        ),
+        .target(
+            name: "PortholeRemote",
+            dependencies: [
+                .target(name: "PortholeCore"),
+                .product(name: "PortholeCertificates", package: "PortholeCertificates"),
+            ],
+            path: "Shared/Porthole/PortholeRemote/Sources",
+        ),
+        .target(
+            name: "PortholeGitHub",
+            path: "Shared/Porthole/PortholeGitHub/Sources",
+        ),
+        .target(
+            name: "CQuickJS",
+            path: "Shared/Porthole/CQuickJS/Sources",
+            publicHeadersPath: "include",
+            cSettings: [.define("QUICKJS_NG_BUILD"), .define("_GNU_SOURCE")],
+        ),
+        .target(
+            name: "PortholeJavaScript",
+            dependencies: [.target(name: "CQuickJS"), .target(name: "PortholeCore")],
+            path: "Shared/Porthole/PortholeJavaScript/Sources",
+        ),
+        .executableTarget(
+            name: "PortholeGenerator",
+            dependencies: [
+                .product(name: "SwiftParser", package: "swift-syntax"),
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+            ],
+            path: "Shared/Porthole/PortholeGenerator/Sources",
+        ),
+        .plugin(
+            name: "PortholeBuildPlugin",
+            capability: .buildTool(),
+            dependencies: [.target(name: "PortholeGenerator")],
+            path: "Shared/Porthole/PortholeBuildPlugin",
+        ),
+        .target(
+            name: "PortholeCore",
+            path: "Shared/Porthole/PortholeCore/Sources",
+        ),
+        .target(
+            name: "PortholeRuntime",
+            dependencies: [.target(name: "PortholeCore")],
+            path: "Shared/Porthole/PortholeRuntime/Sources",
+        ),
         .target(
             name: "CreditKit",
             path: "Shared/CreditKit/Sources",
@@ -172,9 +291,21 @@ let package = Package(
             ],
         ),
         .target(
+            name: "WhereAssets",
+            path: "Where",
+            exclude: excludingSiblings(of: [
+                "WhereAssets/Sources",
+                "WhereUI/Sources/Resources/AppIconPreviews.xcassets",
+            ], under: "Where"),
+            sources: ["WhereAssets/Sources"],
+            resources: [.process("WhereUI/Sources/Resources/AppIconPreviews.xcassets")],
+        ),
+        .target(
             name: "WhereUI",
             dependencies: [
+                .target(name: "PortholeUI"),
                 .target(name: "WhereCore"),
+                .target(name: "WhereAssets"),
                 .target(name: "BroadwayCore"),
                 .target(name: "BroadwayUI"),
                 .target(name: "CreditKit"),
@@ -190,6 +321,7 @@ let package = Package(
                 .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
             ],
             path: "Where/WhereUI/Sources",
+            exclude: ["Resources/AppIconPreviews.xcassets"],
             resources: [
                 .process("Resources"),
             ],
@@ -220,3 +352,35 @@ let package = Package(
         ),
     ],
 )
+
+// Opt-in belongs to this adopting package. The reusable runtime has no unsafe
+// flags. The normal-source CI pass compiles the same source and SDK without
+// private binding bodies or disabled access control.
+let originalSourceCheck = ProcessInfo.processInfo.environment["PORTHOLE_ORIGINAL_SOURCE_CHECK"] == "1"
+var portholeModules: Set<String> = []
+@MainActor
+func includePortholeModule(_ name: String) {
+    guard !name.hasPrefix("Porthole"), !name.hasPrefix("CQuickJS"),
+          let target = package.targets.first(where: { $0.name == name }),
+          portholeModules.insert(name).inserted else { return }
+    for dependency in target.dependencies {
+        switch dependency {
+            case let .targetItem(name, _), let .byNameItem(name, _): includePortholeModule(name)
+            case .productItem: break
+            @unknown default: break
+        }
+    }
+}
+
+for root in ["WhereUI", "WhereIntents", "WhereCrashReporting"] {
+    includePortholeModule(root)
+}
+
+for target in package.targets where portholeModules.contains(target.name) {
+    target.dependencies.append(.target(name: "PortholeRuntime"))
+    target.plugins = (target.plugins ?? []) + [.plugin(name: "PortholeBuildPlugin")]
+    // Private imports preserve cross-file linkage without changing Xcode's compilation mode.
+    target.swiftSettings = (target.swiftSettings ?? []) + (originalSourceCheck
+        ? [.define("PORTHOLE_ORIGINAL_SOURCE_CHECK")]
+        : [.unsafeFlags(["-Xfrontend", "-disable-access-control", "-enable-private-imports"])])
+}

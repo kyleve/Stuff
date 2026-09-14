@@ -6,6 +6,7 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) and the group [`../AGENTS.md`](.
 
 ## Scope & invariants
 
+- Apply the [generated-adapter exception](../../../AGENTS.md#porthole-compilation) to PortholeRuntime.
 - **Keep the `BStylesheets` lookup key in sync on `BContext`.** Every `didSet` on `baseTraits`, `traitOverrides`, or `themes` must call `updateTraits` or `updateThemes`.
 - **`stylesheets` is `@EquatableIgnored`, so it stays out of equality.**
 - **Share the `BStylesheets` cache across `BContext` copies.** `get(_:)` is non-mutating.

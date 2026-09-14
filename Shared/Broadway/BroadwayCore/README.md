@@ -21,5 +21,6 @@ The cache is `@EquatableIgnored`, so two contexts compare equal on their inputs,
 ## Install
 
 Local SPM library declared in the root [`Package.swift`](../../../Package.swift).
+Generated Porthole adapters add a runtime dependency under the [repository compilation contract](../../../AGENTS.md#porthole-compilation).
 Depend on it with `.package(product: "BroadwayCore")`.
 Run tests with `./test BroadwayCoreTests`.

@@ -24,6 +24,7 @@ Layering, localization, preview, and testing conventions live in the feature
 - The app injects its configured primary icon name at `RootView`; icon-picker
   code treats every manifest entry as an asset and derives primary versus
   alternate status from that injected name.
+- Load icon-preview images from `WhereAssetBundle.bundle`. Keep string catalogs and the icon manifest in WhereUI's bundle.
 - Keep `FileInstallationRecordingContextStore` as the UIKit/FileManager
   adapter for Core's installation-context protocol. Resolve one instance at
   the app root. Inject it into both `WhereModel` and `WhereBootstrap`.
@@ -54,6 +55,13 @@ Layering, localization, preview, and testing conventions live in the feature
 - Keep the DEBUG Logs destination visible for every
   `WhereModel.logStoreState`. Opening, unavailable, and failed stores are
   diagnostics to render, not reasons to hide the tool.
+- Keep Porthole disabled until explicit activation in every build. Preserve the existing DEBUG developer tools while it is disabled.
+- Keep a ready Porthole runtime available after agent setup fails. Let the shared Ask surface own that error and its retry.
+- Capture the deepest matching screen before developer chrome opens. Preserve an application-wide capture when no screen is selected.
+- Attach the shared modal launcher to application sheets that expose captured screens. Keep Porthole presentation on the single root window anchor.
+- Freeze screenshot evidence before developer chrome opens. Keep raw UIKit capture outside this automatically exported module.
+- Invalidate Porthole object handles and disable its remote host before replacing the owning Where scope.
+- Bound captured investigation and screen-root pools. Reuse immutable investigation child handles instead of retaining new copies on repeated reads or replay.
 - Keep the DEBUG card designer's draft in one root-owned `CardDesignerModel`.
   Persist the draft. Leave its app-wide override disabled at every launch.
 - Flyover infrastructure stays under `#if DEBUG` in

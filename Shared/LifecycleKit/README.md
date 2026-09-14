@@ -12,8 +12,9 @@ a step running before the thing it needs exists, a skipped step leaving a hole d
 A thrown trunk step parks the runner in a terminal failure phase (no retry — the recovery is relaunching the app).
 Logout/erase is the same machinery run over a teardown plan.
 
-LifecycleKit depends only on Foundation + Observation — **no SwiftUI, no app code**.
+Handwritten LifecycleKit source uses Foundation and Observation, without SwiftUI or app code.
 Everything rendered lives in [LifecycleKitUI](../LifecycleKitUI).
+Generated Porthole adapters add a runtime dependency under the [repository compilation contract](../../AGENTS.md#porthole-compilation).
 
 ## Mental model
 

@@ -26,6 +26,8 @@ inspect mode live in [`PeriscopeTools`](../PeriscopeTools).
 
 ## Installation
 
+Generated Porthole adapters add a runtime dependency under the [repository compilation contract](../../../AGENTS.md#porthole-compilation).
+
 `PeriscopeCore` is a local SPM library in this repo
 (`Shared/Periscope/PeriscopeCore`). Add it to a target's dependencies in
 [`Package.swift`](../../../Package.swift):
@@ -141,6 +143,10 @@ Periscope.shared.startDefaultAmbientSources()
   `attachments(forEvent:)`, `ambientSnapshot(for:)` /
   `ambientSnapshots()`, retention
   (`pruneEvents(olderThan:/keepingNewest:)`), and a `changes()` signal.
+  Capture `latestSequence()` and keep `LogQuery.throughSequence` fixed while
+  advancing `offset`. This excludes later appends, even with older event dates.
+  Advance the live `afterSequence` cursor only after consuming all pages.
+  Concurrent pruning can still remove evidence; these pages are not a database snapshot.
   `makeContainer(storage:)`, `inspectorModelTypes`, `inspectorStoreURL`, and
   `inspectorRecoveryStorageURLs` expose the narrow schema adapter a standalone
   Inspector runtime needs without starting a logging session or exposing the

@@ -26,6 +26,19 @@ The client validates the GitHub user before it saves a token.
 Credentials stay in a device-only Keychain item and never enter a proposal.
 The host must exclude this module from automatic runtime export and expose approved operations through its native executor.
 
+## Where registration
+
+Porthole Debugger was registered on 2026-09-14 under `kyleve` and installed for `kyleve/Stuff` only.
+Its public client ID is `Iv23liAgmnpuHEZ7dbl9`. Device flow and user-token expiration are enabled; webhooks are disabled.
+The installation grants Contents and Pull requests write access, with Checks, Commit statuses, and Metadata read access.
+No client secret or private key was generated.
+
+In Porthole's Fix tab, enter that public client ID and save it. Select sign-in to start a device authorization request.
+Follow the displayed verification URL and code. Registration alone does not authorize the device.
+Device authorization, draft publication, retry reconciliation, and live CI display have not yet been qualified.
+This documentation does not preconfigure credentials or start a connection.
+Other repositories or accounts require an authorized installation or a separate GitHub App registration.
+
 ## Source and review
 
 The installed source and repository base are separate immutable values.

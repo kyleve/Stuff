@@ -1,3 +1,4 @@
+import PortholeRuntime
 import SFSafeSymbols
 import SwiftUI
 import WhereCore
@@ -53,6 +54,19 @@ struct EvidenceListView: View {
             }
             .navigationDestination(for: Evidence.self) { evidence in
                 EvidenceDetailView(evidence: evidence, report: report)
+                    .portholeScreen(
+                        "Attachment",
+                        source: .init(
+                            path: "Where/WhereUI/Sources/Evidence/EvidenceListView.swift",
+                            line: 55,
+                        ),
+                        roots: [report, evidence],
+                    ) {
+                        try .object([
+                            "evidence": .encoding(evidence),
+                            "selectedYear": .integer(Int64(report.selectedYear)),
+                        ])
+                    }
             }
             .task(id: loadID) { await model.load(for: report.selectedYear) }
             .sheet(isPresented: $showingAdd, onDismiss: reloadAfterCompose) {

@@ -2,7 +2,7 @@
 
 PortholeAgent runs the native Swift AI SDK inside the app. It supports OpenAI
 and Anthropic with an explicit, user-selected model. The dependency pin lives
-in the [native package manifest](../Package.swift).
+in the root Package.swift.
 
 Create one `PortholeAgentJournal` and one `PortholeAgentKeychain` at the debugger
 composition root. Build `PortholeAgentFactory` with the common tool dispatcher.
@@ -88,5 +88,5 @@ Provider retries are disabled. Each run has step, token, elapsed-time, stream
 buffer, and accumulated-output limits. Native tools must cooperate with
 cancellation. Provider APIs need network access; no desktop process is required.
 
-Run `swift test --package-path Shared/Porthole --filter PortholeAgentTests`. Tests use a scripted implementation of the SDK's
+Run `./test PortholeAgentTests`. Tests use a scripted implementation of the SDK's
 LanguageModel protocol. They make no provider requests.

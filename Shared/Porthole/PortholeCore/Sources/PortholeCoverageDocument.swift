@@ -52,7 +52,8 @@ public struct PortholeModuleCoverage: Sendable, Equatable, Codable {
 }
 
 public enum PortholeDeclarationKind: String, Sendable, Codable {
-    case type, function, initializer, property, propertySetter, enumerationCase, typeAlias,
+    case type, function, initializer, property, propertySetter, enumerationCase,
+         enumerationInspection, typeAlias,
          subscriptDeclaration, deinitializer, typeExtension, excludedFile
 }
 

@@ -7,6 +7,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build system,
 ## Scope & dependencies
 
 - **Use Foundation and Observation only.** Do not import SwiftUI, UIKit, WhereCore, or any app code. Views belong in LifecycleKitUI. App-specific launch logic lives in the consumer (for example `WhereUI/Sources/Launch/`).
+- Apply the [generated-adapter exception](../../AGENTS.md#porthole-compilation) to PortholeRuntime.
 - **Keep steps, gates, and the engine on `@MainActor`.** Heavy work hops to an actor inside a step's `run`. Never loosen isolation on the step.
 
 ## Invariants

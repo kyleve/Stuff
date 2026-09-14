@@ -4,7 +4,7 @@ import SwiftUI
 extension EnvironmentValues {
     /// The accumulated context, or `nil` above the first `logContext`
     /// modifier. Internal so the public accessor can supply the fallback.
-    @Entry var accumulatedLogContext: Log<Message>?
+    @Entry var accumulatedLogContext: PeriscopeCore.Log<Message>?
 
     /// The accumulated log context: every scope and tag contributed by
     /// enclosing ``SwiftUICore/View/logContext(_:)-(Log<_>)`` modifiers,
@@ -14,8 +14,8 @@ extension EnvironmentValues {
     ///
     /// Outside any `logContext` modifier this falls back to a root logger
     /// on `Periscope.shared`, mirroring `Log.current`.
-    public var logContext: Log<Message> {
-        accumulatedLogContext ?? Log<Message>()
+    public var logContext: PeriscopeCore.Log<Message> {
+        accumulatedLogContext ?? PeriscopeCore.Log<Message>()
     }
 }
 
@@ -31,7 +31,7 @@ extension View {
     ///     .logContext(model.photoLog)   // model-layer context
     ///     .logContext(screenLog)        // this screen's context
     /// ```
-    public func logContext(_ log: Log<some LogEvent>) -> some View {
+    public func logContext(_ log: PeriscopeCore.Log<some LogEvent>) -> some View {
         transformEnvironment(\.accumulatedLogContext) { current in
             let contributed = log.retyped(to: Message.self)
             current = current.map { contributed.linked(with: $0) } ?? contributed

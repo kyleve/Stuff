@@ -713,6 +713,15 @@ public actor PeriscopeStore: LogSink {
 
     // MARK: Queries
 
+    /// The highest persisted insertion sequence, or nil for an empty store.
+    public func latestSequence() throws -> Int? {
+        var descriptor = Self.readDescriptor(
+            sortBy: [SortDescriptor(\.sequence, order: .reverse)],
+        )
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first?.sequence
+    }
+
     /// Events matching `query`, newest first.
     public func events(matching query: LogQuery) throws -> [StoredLogEvent] {
         let start = query.start ?? .distantPast
@@ -738,6 +747,8 @@ public actor PeriscopeStore: LogSink {
         let externalID: String? = query.externalID
         let filtersAfterSequence = query.afterSequence != nil
         let afterSequence = query.afterSequence ?? Int.min
+        let filtersThroughSequence = query.throughSequence != nil
+        let throughSequence = query.throughSequence ?? Int.max
 
         let predicate = Self.eventsPredicate(
             start: start,
@@ -759,6 +770,8 @@ public actor PeriscopeStore: LogSink {
             tagPairs: tagPairs,
             filtersAfterSequence: filtersAfterSequence,
             afterSequence: afterSequence,
+            filtersThroughSequence: filtersThroughSequence,
+            throughSequence: throughSequence,
         )
 
         var descriptor = Self.readDescriptor(
@@ -804,6 +817,8 @@ public actor PeriscopeStore: LogSink {
         tagPairs: [String],
         filtersAfterSequence: Bool,
         afterSequence: Int,
+        filtersThroughSequence: Bool,
+        throughSequence: Int,
     ) -> Predicate<SDLogEvent> {
         Predicate<SDLogEvent>({ event in
             let afterStart = PredicateExpressions.build_Comparison(
@@ -955,6 +970,23 @@ public actor PeriscopeStore: LogSink {
                 ),
             )
 
+            let matchesThroughSequence = PredicateExpressions.build_Disjunction(
+                lhs: PredicateExpressions.build_Negation(
+                    PredicateExpressions.build_Arg(filtersThroughSequence),
+                ),
+                rhs: PredicateExpressions.build_Comparison(
+                    lhs: PredicateExpressions.build_KeyPath(
+                        root: PredicateExpressions.build_Arg(event),
+                        keyPath: \.sequence,
+                    ),
+                    rhs: PredicateExpressions.build_Arg(throughSequence),
+                    op: .lessThanOrEqual,
+                ),
+            )
+            let sequenceRange = PredicateExpressions.build_Conjunction(
+                lhs: matchesAfterSequence,
+                rhs: matchesThroughSequence,
+            )
             let dates = PredicateExpressions.build_Conjunction(
                 lhs: afterStart,
                 rhs: beforeEnd,
@@ -993,7 +1025,7 @@ public actor PeriscopeStore: LogSink {
             )
             return PredicateExpressions.build_Conjunction(
                 lhs: tagged,
-                rhs: matchesAfterSequence,
+                rhs: sequenceRange,
             )
         })
     }

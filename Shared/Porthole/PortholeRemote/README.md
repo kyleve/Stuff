@@ -87,7 +87,7 @@ Buffered requests cannot execute after the session closes.
 ## MCP and command line
 
 The `porthole` executable supports discovery, pairing, inspection, invocation, read observations, and MCP over standard input and output.
-Run `swift run --package-path Shared/Porthole porthole --help` for argument syntax.
+Run `swift run porthole --help` for argument syntax.
 Pairing reads its token from standard input to keep it out of command history.
 
 `PortholeMCPServer` implements the [MCP stdio transport](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports)
@@ -100,7 +100,7 @@ It does not advertise optional MCP resources, prompts, or task execution.
 
 ## Tests
 
-Run `swift test --package-path Shared/Porthole --filter PortholeRemoteTests`.
+Run `./test PortholeRemoteTests`.
 Tests exercise local TLS handshakes, token expiry and reuse, revocation, framing limits, exact approval proposals, stale scopes, and uncertain replies.
 Network tests use loopback listeners and generated test identities.
 They do not enroll external applications or change a user's credentials.

@@ -69,6 +69,18 @@ struct PortholeAgentSessionTests {
         for try await _ in next.stream(messages: messages + [.user(text: "Continue")]) {}
         #expect(nextModel.requests.first?.messages.contains(where: { $0.role == .tool }) == true)
         #expect(events.contains { if case .finished = $0 { true } else { false } })
+
+        // Astra rejects sampling parameters. Preserve provider defaults across all three requests.
+        let initialRequests = model.requests
+        let resumedRequests = nextModel.requests
+        #expect(initialRequests.count == 2)
+        #expect(resumedRequests.count == 1)
+        for request in initialRequests + resumedRequests {
+            #expect(request.temperature == nil)
+            #expect(request.topP == nil)
+            #expect(request.reasoning == .providerDefault)
+            #expect(request.providerOptions == nil)
+        }
     }
 
     @Test func toolFailureStopsModelAndBlocksResume() async throws {

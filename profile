@@ -134,6 +134,7 @@ tc_flags="\$(inherited) -Xfrontend -warn-long-function-bodies=$TC_THRESHOLD -Xfr
 
 echo "==> Regenerating project (tuist generate --no-open)"
 SECONDS=0
+mise exec -- python3 Tools/porthole_export.py
 mise exec -- tuist generate --no-open >/dev/null
 generation_wall=$SECONDS
 

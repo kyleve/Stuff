@@ -4,6 +4,7 @@ import PeriscopeCore
 import SwiftUI
 import UIKit
 import WhereCore
+import WhereCrashReporting
 import WhereIntents
 import WhereUI
 #if DEBUG
@@ -95,7 +96,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
     ) -> WhereModel {
         let installationContextStore = FileInstallationRecordingContextStore()
         let locationOutbox = FileLocationOutbox.applicationSupport()
-        return WhereModel(
+        let model = WhereModel(
             preferences: preferences,
             installationContextStore: installationContextStore,
             makeBootstrap: {
@@ -110,6 +111,15 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
             applyRemoteLogging: applyRemoteLogging,
         )
+        model.porthole.addModuleInstaller { registry, scope in
+            try await WhereIntents.PortholeGeneratedModule.install(in: registry, scope: scope)
+            try await WhereCrashReporting.PortholeGeneratedModule.install(
+                in: registry,
+                scope: scope,
+            )
+            try await PortholeGeneratedModule.install(in: registry, scope: scope)
+        }
+        return model
     }
 
     func didFinishLaunching(

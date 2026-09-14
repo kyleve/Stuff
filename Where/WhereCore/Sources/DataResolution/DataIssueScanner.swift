@@ -31,6 +31,29 @@ public actor DataIssueScanner {
 
     private var cache: CachedScan?
 
+    /// Describes the current cache without triggering a scan or claiming to retain its inputs.
+    public enum DiagnosticState: Sendable, Equatable, Codable {
+        case empty
+        case cached(
+            year: Int,
+            driftThresholdMeters: Double,
+            day: Date,
+            scannedAt: Date,
+            issueIDs: [DataIssueID],
+        )
+    }
+
+    public var diagnosticState: DiagnosticState {
+        guard let cache else { return .empty }
+        return .cached(
+            year: cache.year,
+            driftThresholdMeters: cache.driftThresholdMeters,
+            day: cache.day,
+            scannedAt: cache.at,
+            issueIDs: cache.issues.map(\.id),
+        )
+    }
+
     /// Drops the cache whenever the store reports a committed change. Lets the
     /// cache stay honest for `force: false` readers even when no session is
     /// alive to force a rescan (e.g. a headless background GPS ingest).

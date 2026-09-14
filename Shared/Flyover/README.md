@@ -12,6 +12,8 @@ Its chrome resolves through Broadway's trait-aware `FlyoverStylesheet`.
 
 ## Installation
 
+Generated Porthole adapters add a runtime dependency under the [repository compilation contract](../../AGENTS.md#porthole-compilation).
+
 Add the local product to a UI target:
 
 ```swift

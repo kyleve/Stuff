@@ -12,7 +12,7 @@ promise completion. PortholeJavaScript owns the runtime and its serial queue.
 Keep runtime creation, calls, and destruction on that queue.
 
 The Swift tests in PortholeJavaScript cover this bridge. Run
-`swift test --package-path Shared/Porthole --filter PortholeJavaScriptTests` from the repository root.
+`./test PortholeJavaScriptTests` from the repository root.
 
 When updating upstream, copy only the recorded core files. Preserve them without
 edits, update their hashes, and include the new license. Keep wrapper changes

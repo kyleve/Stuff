@@ -53,6 +53,7 @@ installed_pids() {
 installer validate-destination --destination "$DEST"
 
 if [ "$DRY_RUN" = true ]; then
+    echo "==> Would generate Porthole application bindings"
     echo "==> Would generate the Xcode project"
     echo "==> Would build $APP_NAME (Release)"
     pids="$(installed_pids)"
@@ -71,6 +72,7 @@ DERIVED="$(mktemp -d)"
 trap 'rm -rf "$DERIVED"' EXIT
 
 echo "==> Generating the Xcode project"
+mise exec -- python3 Tools/porthole_export.py
 mise exec -- tuist generate --no-open >/dev/null
 
 echo "==> Building ${APP_NAME} (Release)"

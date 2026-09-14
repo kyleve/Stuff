@@ -152,6 +152,12 @@ one it belongs to rather than to a god-object:
   declares the category it finds (`DataIssueDetecting.detects`), which both
   labels its scan span and lets the scanner talk about categories without
   knowing the concrete detector types.
+- **`DataIssueInvestigation`** — copied detector inputs, attribution, capture time,
+  and dismissal state from `ReportReader.investigation`. Replay runs the ordinary
+  detectors without changing the store or scanner cache. It describes current
+  data; it does not reconstruct an unrecorded earlier detector run.
+  `DataIssueScanner.diagnosticState` reports existing cache metadata without
+  triggering a scan.
 - **Reconcilers** — `ReminderReconciler` (daily logging reminder + app-icon
   badge), `DailySummaryReconciler` (year-to-date recap),
   `DataIssueAlertReconciler` ("issues to resolve").

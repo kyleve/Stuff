@@ -11,6 +11,7 @@ cd "$(dirname "$0")/.."
 WORKSPACE="Stuff.xcworkspace"
 
 CONFIGURATION="Debug"
+BUILD_JOBS=""
 SCHEME=""
 BUNDLE_ID=""
 OPTIMIZE=true
@@ -33,6 +34,8 @@ Options:
   --device NAME            Target a specific device by name (exact match),
                            UDID, or identifier (default: the sole paired iPhone)
   --configuration NAME     Debug, Beta, or Release (default: Debug)
+  --build-jobs COUNT       Limit concurrent Xcode build tasks (default:
+                           Xcode decides)
   --optimize               Force compiler optimizations on (default)
   --no-optimize            Build without forcing optimizations (use the
                            configuration's own optimization level)
@@ -48,6 +51,7 @@ Examples:
   ./Where/install
   ./Where/install --cloudkit
   ./Where/install --device "Kai's iPhone"
+  ./Where/install --build-jobs 2
   ./Where/install --configuration Beta
   ./Where/install --configuration Release
   ./Where/install --no-optimize --no-launch
@@ -66,6 +70,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --device) shift; require_value --device "${1:-}"; DEVICE="$1" ;;
         --configuration) shift; require_value --configuration "${1:-}"; CONFIGURATION="$1" ;;
+        --build-jobs) shift; BUILD_JOBS="${1:?--build-jobs requires a positive integer}" ;;
         --optimize) OPTIMIZE=true ;;
         --no-optimize) OPTIMIZE=false ;;
         --cloudkit) CLOUDKIT=true ;;
@@ -77,6 +82,15 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
+
+BUILD_JOB_ARGS=()
+if [ -n "$BUILD_JOBS" ]; then
+    if [[ ! "$BUILD_JOBS" =~ ^[1-9][0-9]*$ ]]; then
+        echo "error: --build-jobs requires a positive integer" >&2
+        exit 1
+    fi
+    BUILD_JOB_ARGS=(-jobs "$BUILD_JOBS")
+fi
 
 # Each audience has an explicit scheme while retaining the familiar underlying
 # configuration names used by build products and the build-info stamp.
@@ -137,9 +151,15 @@ if [ "$CLOUDKIT" = true ]; then
 fi
 
 if [ "$DRY_RUN" = true ]; then
+    echo "==> Would generate Porthole application bindings"
     echo "==> Would run tuist generate --no-open"
     echo "==> Would build $SCHEME ($CONFIGURATION$([ "$OPTIMIZE" = true ] && echo ', optimized')) for device"
+    if [ -n "$BUILD_JOBS" ]; then
+        echo "==> Would limit concurrent Xcode build tasks to $BUILD_JOBS"
+    fi
 else
+    echo "==> Generating Porthole application bindings"
+    mise exec -- python3 Tools/porthole_export.py
     echo "==> tuist generate --no-open"
     mise exec -- tuist generate --no-open >/dev/null
 
@@ -151,6 +171,7 @@ else
         -destination 'generic/platform=iOS' \
         -derivedDataPath "$DERIVED" \
         -allowProvisioningUpdates \
+        ${BUILD_JOB_ARGS[@]+"${BUILD_JOB_ARGS[@]}"} \
         ${OPTIMIZATION_OVERRIDES[@]+"${OPTIMIZATION_OVERRIDES[@]}"} \
         ${CLOUDKIT_OVERRIDES[@]+"${CLOUDKIT_OVERRIDES[@]}"}
 fi

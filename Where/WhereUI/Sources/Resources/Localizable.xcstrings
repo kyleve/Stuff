@@ -8766,6 +8766,50 @@
         }
       }
     },
+    "settings.porthole.enable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable Porthole"
+          }
+        }
+      }
+    },
+    "settings.porthole.failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Porthole could not start"
+          }
+        }
+      }
+    },
+    "settings.porthole.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explore this app on your device. Model connections and remote access require separate setup."
+          }
+        }
+      }
+    },
+    "settings.porthole.preparing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparing debugger…"
+          }
+        }
+      }
+    },
     "settings.privacy.crashReports" : {
       "extractionState" : "manual",
       "localizations" : {

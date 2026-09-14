@@ -765,6 +765,7 @@ struct WhereStylesheetTests {
         #expect(menu.cornerRadius == 18)
         #expect(menu.subtitleSpacing == 2)
         #expect(menu.iconWidth == 24)
+        #expect(menu.stacksLabelsAndControls == false)
         #expect(menu.motion == .standard)
         #expect(menu.motion.animation == .spring(duration: 0.42, bounce: 0.2))
         #expect(menu.motion.stagger == 0.04)
@@ -807,6 +808,7 @@ struct WhereStylesheetTests {
         #expect(resolved.timeline.overview.pinsToViewport == false)
         #expect(resolved.timeline.row.stacksDayCount)
         #expect(resolved.featureDiscovery.siri.bubble.indent == 0)
+        #expect(resolved.developerOverlay.menu.stacksLabelsAndControls)
         #expect(resolved.featureDiscovery.widgets.contentWidth(in: 834) == 320)
     }
 

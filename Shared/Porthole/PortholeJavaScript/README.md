@@ -43,4 +43,4 @@ when the command finishes.
 The VM has no filesystem, process, network, or module loader. The injected
 dispatcher owns authorization, validation, approval, and audit records.
 
-Run `swift test --package-path Shared/Porthole --filter PortholeJavaScriptTests` from the repository root.
+Run `./test PortholeJavaScriptTests` from the repository root.

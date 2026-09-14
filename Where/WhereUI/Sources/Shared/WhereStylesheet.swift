@@ -54,6 +54,7 @@ struct WhereStylesheet: BStylesheet {
             timeline.overview.pinsToViewport = false
             timeline.row.stacksDayCount = true
             featureDiscovery.siri.bubble.indent = 0
+            developerOverlay.menu.stacksLabelsAndControls = true
         }
 
         // Give every region a consistently labeled ribbon band when tint
@@ -480,7 +481,7 @@ extension WhereStylesheet {
 // MARK: - Developer overlay
 
 extension WhereStylesheet {
-    /// Appearance and motion for the DEBUG-only developer launcher, accordion,
+    /// Appearance and motion for the developer launcher, accordion,
     /// and selected-tool HUD.
     struct DeveloperOverlayStyle: Equatable {
         var edgeInset: CGFloat
@@ -534,6 +535,7 @@ extension WhereStylesheet {
             var cornerRadius: CGFloat
             var subtitleSpacing: CGFloat
             var iconWidth: CGFloat
+            var stacksLabelsAndControls: Bool
             var motion: MenuMotion
         }
 
@@ -602,6 +604,7 @@ extension WhereStylesheet {
                 cornerRadius: 18,
                 subtitleSpacing: 2,
                 iconWidth: 24,
+                stacksLabelsAndControls: false,
                 motion: .standard,
             ),
         )

@@ -64,6 +64,17 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   shows the full splash instead of expiring it offscreen. The app injects the
   launch-built model + runner (`init(model:launcher:)`). A no-arg `init()` builds
   its own for previews and the hosted UI test.
+- **Porthole** — an all-build, opt-in debugger backed by the current application scope.
+  The launcher freezes the deepest visible issue or day before developer navigation begins.
+  A launch without a selected screen keeps its application-wide context.
+  Resolve and Regions sheets carry the same developer launcher. One root window anchor presents Porthole above the active modal and returns to it on dismissal.
+  Screenshot calls reuse the image captured before the menu opened. They cannot capture Porthole's credential-bearing interface.
+  Log queries return copied evidence with bounded pages. Keep their returned upper sequence watermark fixed while paging; later appends stay outside the result.
+  Scope replacement invalidates live handles and disables remote access. It never opens another Where store.
+  Investigation captures and screen roots use bounded pools. Day inputs, attribution, and replay issues reuse handles owned by their frozen investigation.
+  Inactive inspection handles can expire without changing application state; service roots and running native arguments stay protected.
+  Agent setup failures appear in Ask with a retry action. They do not disable manual tools or prevent reopening the debugger.
+  The generic explorer, console, agent, remote controls, and proposal review live in Shared/Porthole.
 - **Developer tools** — DEBUG-only logging, span, region-map, Flyover, forced-crash,
   and next-launch Inspector/demo controls. The demo sheet selects which Resolve
   issue categories appear in a one-shot, in-memory launch. Forced crashes cover Swift traps, Objective-C
@@ -77,6 +88,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   the current audience's primary asset at `RootView`. The picker maps that one
   asset to UIKit's `nil` primary-icon value and treats every other catalogued
   asset as an alternate, so primary status may differ by build audience.
+  Preview images load from `WhereAssetBundle.bundle`; WhereUI retains the icon
+  manifest and localized strings. [WhereAssets](../WhereAssets/README.md) owns
+  catalog compilation at the existing path maintained by `./icons`.
 - **`WhereLaunch`** — the launch, reset, and exit-demo plans themselves. Every
   step declares a budget (`BudgetedLaunchStep`) and joins the
   plan through `.measured()`, so each run is one Periscope span named after

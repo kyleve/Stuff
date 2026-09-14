@@ -71,6 +71,7 @@ RECORD=""
 DO_BUILD=true
 DO_GENERATE=true
 BUILD_ARTIFACTS=""
+BUILD_JOBS=""
 TEST_ARTIFACTS=""
 ENUMERATE_SUITES=""
 HEARTBEAT=15
@@ -81,6 +82,8 @@ BASE_REF="origin/main"
 SHARED=false
 RUN_ARCHITECTURE=true
 ARCHITECTURE_ONLY=false
+PORTHOLE_GENERATOR_ONLY=false
+PORTHOLE_HOST_ONLY=false
 HAS_TEST_ARGUMENTS=false
 
 usage() {
@@ -94,6 +97,8 @@ Bumper Bowling rules, then enforces the architecture. Unit and affected scopes
 also run the fast host-side backup-upgrader regression suite.
 
 Scope:
+  --porthole-generator  The native host tests for Porthole source generation
+  --porthole-host       Native runtime, console, provider, repository, and TLS tests
   (no arguments)    Bundles affected by the diff against origin/main, including
                     uncommitted and untracked files
   BundleName ...    Named bundles only (e.g. ./test WhereCoreTests)
@@ -114,6 +119,8 @@ Running:
   --no-generate     Skip `tuist generate` (assumes the project is current)
   --build-artifacts DIR
                     Build the selected schemes into DIR without running tests
+  --build-jobs COUNT
+                    Limit concurrent Xcode build tasks (default: Xcode decides)
   --test-artifacts DIR
                     Run tests from the manifest and .xctestrun files in DIR
   --enumerate-suites PATH
@@ -148,6 +155,8 @@ USAGE
 
 while [ $# -gt 0 ]; do
     case "$1" in
+        --porthole-generator) PORTHOLE_GENERATOR_ONLY=true ;;
+        --porthole-host) PORTHOLE_HOST_ONLY=true ;;
         --all) SCOPE=all; HAS_TEST_ARGUMENTS=true ;;
         --snapshots) SCOPE=snapshots; HAS_TEST_ARGUMENTS=true ;;
         --everything) SCOPE=everything; HAS_TEST_ARGUMENTS=true ;;
@@ -170,6 +179,11 @@ while [ $# -gt 0 ]; do
             HAS_TEST_ARGUMENTS=true
             shift
             BUILD_ARTIFACTS="${1:?--build-artifacts requires a directory}"
+            ;;
+        --build-jobs)
+            HAS_TEST_ARGUMENTS=true
+            shift
+            BUILD_JOBS="${1:?--build-jobs requires a positive integer}"
             ;;
         --test-artifacts)
             HAS_TEST_ARGUMENTS=true
@@ -202,6 +216,19 @@ done
 
 cd "$(dirname "$0")"
 
+BUILD_JOB_ARGS=()
+if [ -n "$BUILD_JOBS" ]; then
+    if [[ ! "$BUILD_JOBS" =~ ^[1-9][0-9]*$ ]]; then
+        echo "error: --build-jobs requires a positive integer" >&2
+        exit 1
+    fi
+    if [ "$DO_BUILD" = false ]; then
+        echo "error: --build-jobs requires a build" >&2
+        exit 1
+    fi
+    BUILD_JOB_ARGS=(-jobs "$BUILD_JOBS")
+fi
+
 if [ -n "$ONLY_FILE" ]; then
     if [ ! -f "$ONLY_FILE" ]; then
         echo "error: --only-file does not exist: $ONLY_FILE" >&2
@@ -228,6 +255,14 @@ if [ "$ARCHITECTURE_ONLY" = true ] && [ "$RUN_ARCHITECTURE" = false ]; then
 fi
 if [ "$ARCHITECTURE_ONLY" = true ] && [ "$HAS_TEST_ARGUMENTS" = true ]; then
     echo "error: --architecture-only cannot be combined with test options or bundles" >&2
+    exit 1
+fi
+if [ "$PORTHOLE_GENERATOR_ONLY" = true ] && { [ "$HAS_TEST_ARGUMENTS" = true ] || [ "$ARCHITECTURE_ONLY" = true ]; }; then
+    echo "error: --porthole-generator cannot be combined with other test scopes" >&2
+    exit 1
+fi
+if [ "$PORTHOLE_HOST_ONLY" = true ] && { [ "$HAS_TEST_ARGUMENTS" = true ] || [ "$ARCHITECTURE_ONLY" = true ] || [ "$PORTHOLE_GENERATOR_ONLY" = true ]; }; then
+    echo "error: --porthole-host cannot be combined with other test scopes" >&2
     exit 1
 fi
 if [ -n "$BUILD_ARTIFACTS" ] && [ -n "$TEST_ARTIFACTS" ]; then
@@ -266,6 +301,14 @@ if [ "$RUN_ARCHITECTURE" = true ]; then
 fi
 if [ "$ARCHITECTURE_ONLY" = true ]; then
     exit 0
+fi
+if [ "$PORTHOLE_GENERATOR_ONLY" = true ]; then
+    exec swift test --package-path Shared/Porthole/PortholeGenerator
+fi
+if [ "$PORTHOLE_HOST_ONLY" = true ]; then
+    mise exec -- swift test --package-path Shared/Porthole
+    mise exec -- swift test --package-path Shared/Porthole/PortholeCertificates
+    exit $?
 fi
 
 WORKSPACE="Stuff.xcworkspace"
@@ -457,6 +500,8 @@ for scheme in "${SCHEMES[@]}"; do
 done
 
 if [ "$DO_GENERATE" = true ]; then
+    echo "==> Generating Porthole application bindings"
+    mise exec -- python3 Tools/porthole_export.py
     echo "==> Regenerating project (tuist generate --no-open)"
     started="$(phase_started)"
     if mise exec -- tuist generate --no-open >"$WORKDIR/generate.log" 2>&1; then
@@ -560,6 +605,7 @@ for scheme in "${SCHEMES[@]}"; do
             -scheme "$scheme" \
             -configuration Debug \
             -destination "$DESTINATION" \
+            ${BUILD_JOB_ARGS[@]+"${BUILD_JOB_ARGS[@]}"} \
             ${DERIVED_DATA_ARGS[@]+"${DERIVED_DATA_ARGS[@]}"} \
             ${BUILD_ARTIFACTS:+ARCHS=arm64} \
             ${BUILD_ARTIFACTS:+ONLY_ACTIVE_ARCH=YES} \

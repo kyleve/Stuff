@@ -29,3 +29,4 @@ This module owns the opt-in developer debugger interface. Read [README.md](READM
 - Keep recovery descriptions and actions scrollable at accessibility text sizes.
 - Share fixture models with snapshot readiness hooks. Wait for actual model state before measurement and capture; temporary rehosting must not restart completed loads.
 - Cover model state with Swift Testing and public surfaces with SnapshotKit.
+- Keep the UIKit dependency conditions on both iOS and Mac Catalyst in the root package manifest.

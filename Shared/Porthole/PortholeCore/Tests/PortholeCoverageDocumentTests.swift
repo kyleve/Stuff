@@ -3,6 +3,18 @@ import PortholeCore
 import Testing
 
 struct PortholeCoverageDocumentTests {
+    @Test func enumInspectionKindUsesItsExplicitWireName() throws {
+        let data = Data("\"enumerationInspection\"".utf8)
+        let kind = try JSONDecoder().decode(PortholeDeclarationKind.self, from: data)
+        #expect(kind == .enumerationInspection)
+        #expect(try JSONEncoder().encode(kind) == data)
+        #expect(try JSONDecoder().decode(
+            PortholeDeclarationKind.self,
+            from: Data("\"enumerationCase\"".utf8),
+        ) ==
+            .enumerationCase)
+    }
+
     @Test func documentCarriesBuildAndSourceIdentityWithoutSourceContent() throws {
         let declaration = PortholeCoverageTestSupport.declaration()
         let document = PortholeCoverageDocument(version: 1, modules: [.init(

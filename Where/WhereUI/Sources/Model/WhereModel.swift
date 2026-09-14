@@ -23,6 +23,8 @@ import PeriscopeCore
 @MainActor
 @Observable
 public final class WhereModel {
+    public let porthole: WherePortholeController
+
     /// Observable bring-up state for the active scope's durable log store.
     ///
     /// The developer surface must not infer a failed asynchronous open from a
@@ -362,6 +364,7 @@ public final class WhereModel {
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.preferences = preferences
+        porthole = WherePortholeController(preferences: preferences)
         diagnosticReporting = DiagnosticReportingSettingsModel(
             preferences: preferences,
             effectiveConfiguration: effectiveDiagnosticReportingConfiguration
@@ -412,6 +415,7 @@ public final class WhereModel {
         )
         scopeState = .real(scope)
         self.preferences = preferences
+        porthole = WherePortholeController(preferences: preferences)
         diagnosticReporting = DiagnosticReportingSettingsModel(
             preferences: preferences,
             effectiveConfiguration: effectiveDiagnosticReportingConfiguration
@@ -625,6 +629,7 @@ public final class WhereModel {
     /// false or unset, so the relaunch parks for the user before anything
     /// re-opens. The old container is long gone by the time they answer.
     private func logOut() async {
+        await porthole.invalidateScope()
         await activeScope?.stopLogRouting()
         session = nil
         scopeState = .loggedOut(bootstrap: makeBootstrap(installationContextStore))

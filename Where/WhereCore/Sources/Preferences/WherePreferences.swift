@@ -41,6 +41,12 @@ public final class WherePreferences {
         set { store.set(newValue, forKey: Keys.hasOnboarded.rawValue) }
     }
 
+    /// Local debugger activation. It opens no model connection or remote listener.
+    public var isPortholeEnabled: Bool {
+        get { store.bool(forKey: Keys.portholeEnabled.rawValue) }
+        set { store.set(newValue, forKey: Keys.portholeEnabled.rawValue) }
+    }
+
     /// Whether Locations cards render recorded GPS fixes inside their region
     /// outlines. Defaults to `true` so the visualization is visible until the
     /// user explicitly turns it off.
@@ -191,7 +197,7 @@ public final class WherePreferences {
         set { setEncodedPreference(newValue, forKey: .recordingConfigurationWarningRegistration) }
     }
 
-    /// GPS border-drift detection threshold in meters. Defaults to 10 km.
+    /// GPS border-drift detection threshold in meters. Defaults to 1,000 meters.
     public var driftThresholdMeters: Int {
         get {
             store.object(forKey: Keys.driftThresholdMeters.rawValue) as? Int
@@ -261,6 +267,7 @@ public final class WherePreferences {
     /// sync — adding a case is all it takes to have it reset.
     private enum Keys: String, CaseIterable {
         case hasOnboarded = "where.hasOnboarded"
+        case portholeEnabled = "where.porthole.enabled"
         case showsRecordedLocationDots = "where.showsRecordedLocationDots"
         case showsLocationWelcome = "where.showsLocationWelcome"
         case theme = "where.theme"

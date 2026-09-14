@@ -7,6 +7,7 @@
             #expect(
                 DeveloperDestination.available
                     == [
+                        .tool(.porthole),
                         .tool(.logs),
                         .tool(.openSpans),
                         .flyover,

@@ -15,3 +15,5 @@ Do not import X509 or link its product from application package targets.
 
 The package manifest pins its dependencies. Tests check certificate validity and malformed data.
 The Remote test suite checks the resulting identity through Security and TLS loopback connections.
+Run `./test --porthole-host` from the repository root to test both native packages.
+The same tier runs in the Porthole CI job.

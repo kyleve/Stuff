@@ -8,6 +8,54 @@ require "tmpdir"
 require File.expand_path("../../Shared/CreditKit/Tools/generate-attribution", __dir__)
 
 class GenerateAttributionTest < Minitest::Test
+  def test_wrapped_conditional_dependency_is_not_a_target_declaration
+    Dir.mktmpdir do |root|
+      File.write(File.join(root, "Package.swift"), <<~SWIFT)
+        let package = Package(targets: [
+          .target(name: "App", dependencies: [
+            .target(
+              name: "Shared",
+              condition: .when(platforms: [.iOS])
+            ),
+            // A closing parenthesis ) in a comment does not close the target.
+            /* Nor does this nested /* comment */ ). */
+            .product(name: "Symbols", package: "symbols"),
+          ], path: "Sources/(App)"),
+          .target(name: "Shared", dependencies: [
+            .product(name: "Core", package: "core"),
+          ]),
+        ])
+      SWIFT
+      targets = package_targets("Package.swift", root: root)
+      assert_equal %w[App Shared], targets.keys
+      assert_equal ["Shared"], targets.fetch("App").fetch("targets")
+      assert_equal ["symbols"], targets.fetch("App").fetch("packages")
+      assert_equal %w[symbols core], shipped_package_identities(targets, ["App"])
+    end
+  end
+
+  def test_local_products_use_their_own_manifest_source_instead_of_a_remote_pin
+    Dir.mktmpdir do |root|
+      File.write(File.join(root, "Package.swift"), <<~SWIFT)
+        let package = Package(
+          dependencies: [.package(path: "Shared/LocalCertificates")],
+          targets: [
+            .target(
+              name: "App",
+              dependencies: [
+                .product(name: "Certificates", package: "LocalCertificates"),
+                .product(name: "Other", package: "remote-package"),
+              ]
+            )
+          ]
+        )
+      SWIFT
+      targets = package_targets("Package.swift", root: root)
+      assert_equal ["remote-package"], targets.fetch("App").fetch("packages")
+      assert_equal ["remote-package"], shipped_package_identities(targets, ["App"])
+    end
+  end
+
   def test_parses_target_and_package_graph_with_shipping_reachability
     Dir.mktmpdir do |root|
       File.write(File.join(root, "Package.swift"), <<~SWIFT)

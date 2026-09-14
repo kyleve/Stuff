@@ -5,6 +5,8 @@ It provides the container that renders a `LifecycleRunner`'s observable `phase`,
 The engine itself (steps, plans, the runner) lives in LifecycleKit and knows nothing about views.
 This module owns everything rendered.
 
+Generated Porthole adapters add a runtime dependency under the [repository compilation contract](../../AGENTS.md#porthole-compilation).
+
 ## Quick start
 
 ```swift

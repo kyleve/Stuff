@@ -1,3 +1,4 @@
+import PortholeRuntime
 import SFSafeSymbols
 import SwiftUI
 import WhereCore
@@ -54,16 +55,37 @@ struct MainTabs: View {
                 value: TabID.locations,
             ) {
                 LocationsView(report: report)
+                    .portholeScreen(
+                        "Locations",
+                        source: .init(path: "Where/WhereUI/Sources/MainTabs.swift", line: #line),
+                        roots: [report],
+                    ) {
+                        .object(["selectedYear": .integer(Int64(report.selectedYear))])
+                    }
                     .reportingDeveloperTabBarInset()
             }
 
             Tab(String(localized: .tabYear), systemSymbol: .calendar, value: TabID.year) {
                 YearView(report: report)
+                    .portholeScreen(
+                        "Your Year",
+                        source: .init(path: "Where/WhereUI/Sources/MainTabs.swift", line: #line),
+                        roots: [report],
+                    ) {
+                        .object(["selectedYear": .integer(Int64(report.selectedYear))])
+                    }
                     .reportingDeveloperTabBarInset()
             }
 
             Tab(value: TabID.settings) {
                 SettingsView(report: report, recordingWarning: recordingWarning)
+                    .portholeScreen(
+                        "Settings",
+                        source: .init(path: "Where/WhereUI/Sources/MainTabs.swift", line: #line),
+                        roots: [report],
+                    ) {
+                        .object(["selectedYear": .integer(Int64(report.selectedYear))])
+                    }
                     .reportingDeveloperTabBarInset()
             } label: {
                 RecordingConfigurationWarningTabLabel(

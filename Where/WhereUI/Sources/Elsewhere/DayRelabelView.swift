@@ -1,3 +1,4 @@
+import PortholeRuntime
 import RegionKit
 import SFSafeSymbols
 import SnapshotKit
@@ -95,6 +96,22 @@ struct DayRelabelView: View {
             }
         }
         .task(id: day.day) { await loadPoints() }
+        .portholeScreen(
+            "Day: \(day.day)",
+            source: .init(
+                path: "Where/WhereUI/Sources/Elsewhere/DayRelabelView.swift",
+                line: #line,
+            ),
+            roots: [report, day],
+            when: reason == .none,
+        ) {
+            try .object([
+                "day": .encoding(day.day),
+                "regions": .encoding(day.regions),
+                "selectedYear": .integer(Int64(report.selectedYear)),
+                "primaryRegions": .encoding(report.ranking.primary.map(\.region)),
+            ])
+        }
     }
 
     private var form: some View {

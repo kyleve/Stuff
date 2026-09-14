@@ -4,9 +4,9 @@ This native executable connects to an explicitly enabled Porthole listener.
 It shares pairing, TLS, invocation, and MCP behavior with
 [PortholeRemote](../PortholeRemote/README.md).
 
-Run `swift run --package-path Shared/Porthole porthole --help` from the repository.
-Run `swift run --package-path Shared/Porthole porthole pair`, then paste the invitation shown by the application.
-Run `swift run --package-path Shared/Porthole porthole paired` to find its service name.
+Run `swift run porthole --help` from the repository.
+Run `swift run porthole pair`, then paste the invitation shown by the application.
+Run `swift run porthole paired` to find its service name.
 
 `application` prints current scopes as JSON.
 Save one scope to a JSON file and pass that file to `capabilities`.

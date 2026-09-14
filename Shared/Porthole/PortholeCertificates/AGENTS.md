@@ -8,4 +8,4 @@ the [group contract](../AGENTS.md), and the [repository contract](../../../AGENT
 - Keep Keychain, network transport, debugger types, and application code outside this package.
 - Treat key bytes as credentials. Never log or export them.
 - Keep dependency versions in this package manifest aligned with the application resolution.
-- Test generated certificates here and Security/TLS integration in PortholeRemote.
+- Test generated certificates here and Security/TLS integration in PortholeRemote through `./test --porthole-host`.

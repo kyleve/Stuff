@@ -40,6 +40,61 @@ package). Apps, app extensions, and test bundles are Tuist targets in
 references the package via `Package.local(path: .relativeToRoot("."))`. The
 two manifests are the authoritative target catalog. This file does not duplicate that catalog.
 
+Porthole has two local package boundaries under [`Shared/Porthole`](Shared/Porthole/README.md).
+Its runtime package reuses source and tests for native qualification and the CLI.
+Its dynamic certificate package owns X509 linkage in the application graph.
+Keep its pins aligned with the root resolution. Do not flatten this boundary;
+see [`PortholeCertificates`](Shared/Porthole/PortholeCertificates/README.md).
+
+### Shared Where linkage
+
+Link the Where app, widgets, and share extension through the explicit dynamic `WhereApplicationSupport` product.
+Keep their shared package dependencies behind that product. Do not add separate products from its dependency closure to these hosts.
+Embed the product only from the Where app with `.runtimeEmbedded`. Keep both extensions on the default `.runtime` linkage.
+Set `LM_SKIP_METADATA_EXTRACTION=YES` only on the widget and share targets. Keep App Intents metadata extraction enabled for the app and package targets.
+Verify app-only intent routes and absent extension metadata after changing the pinned Xcode toolchain.
+Link the app-hosted `WhereTests` bundle to that same product, without separate application-module products.
+Keep source imports and architecture rules on the existing Swift modules. The aggregate product adds no module.
+Keep debugger, store, and reporting activation in the existing composition roots. Linking the shared image must not activate them.
+After a linkage change, verify one metadata definition per process, extension resource loading, and App Intents metadata.
+Run the full iOS unit scheme and the matched optimized compiler pair before accepting the new linkage.
+
+### Porthole compilation
+
+Treat `PortholeRuntime` as a generated-adapter dependency for adopting modules.
+Module import restrictions continue to govern handwritten source.
+Permit generated adapters to import `PortholeRuntime` and use its scope-checked execution API.
+Keep this exception separate from dependencies on Porthole UI, credentials, remote transport, and agents.
+For modules without a handwritten Porthole integration, use this dependency only in generated adapters.
+Keep debugger activation and resource installation in the application composition root.
+
+After each original-source/instrumented compiler pair, run the retained packaging checker on both completed apps.
+Keep its expected app routes, resource rules, and synthetic regression fixtures with intentional module or packaging changes.
+Treat static packaging checks as separate from runtime extension and physical-device acceptance.
+
+Where's first-party module export is selected from the root package dependency
+graph. Generated adapters require `-disable-access-control` and
+`-enable-private-imports` for cross-file private symbol linkage.
+Keep these flags on adopting targets, outside reusable runtime targets. Run
+`./test --porthole-generator --skip-architecture` after exporter changes and
+`./test --porthole-host --skip-architecture` for native runtime/client checks.
+The compiler-contract CI job also builds original source without either flag
+or private binding bodies. Keep that guard and the instrumented build on the
+same SDK, optimization, compilation mode, and compiler conditions.
+Use `Tools/porthole_compiler_contract.py` for paired app builds in Debug, Beta,
+and Release, with both simulator and iPhoneOS SDKs. Preserve its per-module
+compiler evidence and bounded build concurrency.
+
+`WhereAssets` owns icon-preview compilation separately from WhereUI's string
+catalogs. Keep both Xcode-generated resource helpers in separate modules while
+private access is enabled. Preserve the catalog path owned by `./icons`;
+see [`WhereAssets`](Where/WhereAssets/README.md).
+
+`Tools/porthole_export.py` generates app bindings before project generation and
+again before app compilation. Keep its output in `.generated/Porthole`, outside
+Tuist's `Derived` directory. Use `./ide --no-open` to regenerate. The build plugin
+owns package-target adapters. Never edit either generated output by hand.
+
 `./ide` regenerates the Xcode project and does the surrounding setup. That setup includes external agent skills and `core.hooksPath`. Use `./ide` to regenerate. Do not use `tuist generate` alone. Agents must always pass `--no-open` (see [Generating the
 Xcode project](#generating-the-xcode-project)). On a fresh machine, run `./ide
 --bootstrap` first. That command installs `mise` and the pinned tools before
@@ -93,7 +148,8 @@ How the app was built is stamped by a post-build script
 ([`Where/Where/Scripts/stamp-build-info.sh`](Where/Where/Scripts/stamp-build-info.sh)).
 The script writes the commit into `WhereGitSHA` / `WhereGitStatus`. It writes how the Swift compiler
 was invoked into `WhereConfiguration` / `WhereSwiftOptimizationLevel` /
-`WhereSwiftCompilationMode`. All of it is read back by `WhereCore.BuildInfo`.
+`WhereSwiftCompilationMode`. These are read back by `WhereCore.BuildInfo`.
+`WhereSwiftCompilerVersion` records the compiler identity for Porthole's build evidence.
 Settings > About uses it. Every Periscope logging session uses it for attributes.
 The optimization level tells you if a recorded span duration means
 anything. Only the app is stamped. Tripwires: it must stay a **post** script

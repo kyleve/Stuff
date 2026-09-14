@@ -23,4 +23,4 @@ Read the [Porthole contract](../AGENTS.md) and the [repository contract](../../.
 - Keep tokens inside the credential boundary. Never log response bodies or authenticated requests.
 - Use scripted remotes for tests. The isolated Keychain test stores synthetic data only.
 
-Run `swift test --package-path Shared/Porthole --filter PortholeGitHubTests`. Keep tests paired with their source files.
+Run `./test PortholeGitHubTests`. Keep tests paired with their source files.

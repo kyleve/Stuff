@@ -7,6 +7,7 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) first. That file owns the build 
 ## Scope & dependencies
 
 - **Use Foundation, os, SwiftData, Network, CryptoKit, and JournalKit only** (plus the ObjectiveC runtime for deallocation trackers and target/selector observation. CryptoKit is used only by `ScopeID.swift`). Do not import SwiftUI or app code. Use UIKit only inside `#if canImport(UIKit)`.
+- Apply the [generated-adapter exception](../../../AGENTS.md#porthole-compilation) to PortholeRuntime.
 - **Keep layering one-way.** `PeriscopeUI` and `PeriscopeTools` depend on this module. Never the reverse.
 
 ## Invariants
@@ -17,6 +18,7 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) first. That file owns the build 
 - **Scope IDs are deterministic** (hash of parent + name). Span pairing and cross-layer links rely on the same path being the same scope across processes and launches.
 - **`sequence` is store-global and monotonic.** It resumes past the highest stored value across launches.
 - **That is what makes `LogQuery.afterSequence` a valid incremental cursor.**
+- Keep `throughSequence` fixed while paging; appends with backdated timestamps must not enter those pages (`fixedWatermarkKeepsPagesStableAcrossBackdatedAppends`).
 - **Persistence retains the full hierarchy.** Events reference scopes many-to-many. Scopes keep their parent chain.
 - **Custom levels are values, not cases.** `LogLevel` is a struct ordered by `severity`. Never switch exhaustively over "all" levels.
 - **Log change-only where the signal is chatty.** `NetworkPathAmbientSource` dedupes `NWPathMonitor`'s repeat callbacks.

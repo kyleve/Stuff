@@ -48,6 +48,9 @@ tests, and architecture lint.
 CI test jobs use `--skip-architecture` because the dedicated Bumper job owns
 that sequence. Do not use this flag for normal local validation.
 
+`./test --porthole-host` runs the native runtime/client package and the separate
+certificate package. A failure in either package fails the tier.
+
 Affected and unit-capable scopes run the backup-upgrader regression. A scope
 that contains only image bundles skips that host-side unit regression.
 
@@ -76,6 +79,10 @@ server. That makes captures slower and flaky. See
 [`Shared/SnapshotKitTesting/AGENTS.md`](../../../Shared/SnapshotKitTesting/AGENTS.md).
 
 ## Iterate faster
+
+Use `--build-jobs 2` to reduce concurrent Xcode build tasks when memory is limited.
+Keep the default when the machine has enough memory. This option does not change test parallelism.
+Set `TEST_WORKDIR` to an ignored repository directory when logs must survive a reboot.
 
 After a green build:
 

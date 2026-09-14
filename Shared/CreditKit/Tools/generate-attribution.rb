@@ -128,12 +128,55 @@ def read_json(relative_path, source_type)
   JSON.parse(File.read(path))
 end
 
-# A target declaration, as distinct from a `.target(name:)` *dependency* entry:
-# only the declaration puts `name:` on its own line. Keying off that rather than
-# indentation keeps the parse independent of how deeply the array is nested.
-TARGET_DECLARATION = /\.(?:target|testTarget|executableTarget)\(\s*\n\s*name:\s*"([^"]+)"/
-TARGET_DEPENDENCY = /\.target\(name:\s*"([^"]+)"/
+TARGET_CALL = /\.(?:target|testTarget|executableTarget)\(\s*name:\s*"([^"]+)"/
+TARGET_DEPENDENCY = /\.target\(\s*name:\s*"([^"]+)"/
 PRODUCT_DEPENDENCY = /\.product\(\s*name:\s*"[^"]+",\s*package:\s*"([^"]+)"/
+LOCAL_PACKAGE = /\.package\(\s*path:\s*"([^"]+)"/
+
+# A dependency can wrap onto several lines. Identify declarations by call
+# nesting, not whitespace. Ignore parentheses inside strings and comments.
+def swift_call_end(text, opening)
+  depth = 0
+  quoted = false
+  escaped = false
+  block_comments = 0
+  index = opening
+  while index < text.length
+    character = text[index]
+    pair = text[index, 2]
+    if block_comments.positive?
+      if pair == "/*"
+        block_comments += 1
+        index += 1
+      elsif pair == "*/"
+        block_comments -= 1
+        index += 1
+      end
+    elsif quoted
+      if escaped
+        escaped = false
+      elsif character == "\\"
+        escaped = true
+      elsif character == '"'
+        quoted = false
+      end
+    elsif pair == "//"
+      index = text.index("\n", index) || text.length
+    elsif pair == "/*"
+      block_comments = 1
+      index += 1
+    elsif character == '"'
+      quoted = true
+    elsif character == "("
+      depth += 1
+    elsif character == ")"
+      depth -= 1
+      return index if depth.zero?
+    end
+    index += 1
+  end
+  fail_with("swiftPackageManager: unterminated target call")
+end
 
 # The manifest's target graph: each target with the sibling targets and the
 # external packages (by SPM identity — the lowercased `package:` name) it links.
@@ -141,17 +184,27 @@ def package_targets(manifest_path, root: ROOT)
   path = File.expand_path(manifest_path, root)
   fail_with("swiftPackageManager: no manifest at #{manifest_path}") unless File.exist?(path)
   text = File.read(path)
-  declarations = text.to_enum(:scan, TARGET_DECLARATION).map { Regexp.last_match }
+  # Local products have no remote pin. Their own manifest is another source in
+  # the app report, so its external products retain their real shipping roots.
+  local_packages = text.scan(LOCAL_PACKAGE).flatten.map { |local| File.basename(local).downcase }
+  calls = text.to_enum(:scan, TARGET_CALL).map { Regexp.last_match }
+  declarations = []
+  enclosing_end = -1
+  calls.each do |call|
+    next if call.begin(0) < enclosing_end
+    closing = swift_call_end(text, text.index("(", call.begin(0)))
+    declarations << [call, closing]
+    enclosing_end = closing
+  end
   fail_with("swiftPackageManager: no targets found in #{manifest_path}") if declarations.empty?
 
-  declarations.each_with_index.to_h do |declaration, index|
-    # Everything up to the next declaration is this target's body.
-    body = text[declaration.end(0)...(declarations[index + 1]&.begin(0) || text.length)]
+  declarations.to_h do |declaration, closing|
+    body = text[declaration.end(0)...closing]
     [
       declaration[1],
       {
         "targets" => body.scan(TARGET_DEPENDENCY).flatten,
-        "packages" => body.scan(PRODUCT_DEPENDENCY).flatten.map(&:downcase),
+        "packages" => body.scan(PRODUCT_DEPENDENCY).flatten.map(&:downcase) - local_packages,
       },
     ]
   end
@@ -227,6 +280,14 @@ def development_tools_credits(source)
   manifest_credits(source, "developmentTools")
 end
 
+def vendored_library_credits(source)
+  metadata = read_json(source.fetch("manifest"), "vendoredLibrary")
+  slug = github_slug(metadata.fetch("repository"))
+  fail_with("vendoredLibrary: repository must be a GitHub URL") unless slug
+  [credit(name: slug.split("/").last, kind: KIND_LIBRARY,
+          version: metadata.fetch("version"), slug: slug, ref: metadata.fetch("revision"))]
+end
+
 SOURCE_TYPES = {
   "swiftPackageManager" => {
     required: %w[manifest resolved shippedFrom],
@@ -239,6 +300,10 @@ SOURCE_TYPES = {
   "developmentTools" => {
     required: %w[manifest kind],
     generate: method(:development_tools_credits),
+  },
+  "vendoredLibrary" => {
+    required: %w[manifest],
+    generate: method(:vendored_library_credits),
   },
 }.freeze
 

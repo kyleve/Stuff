@@ -214,6 +214,9 @@ if [ "$INSTALL" = true ]; then
     "$MISE" exec -- tuist install
 fi
 
+echo "==> Generate Porthole app catalog"
+"$MISE" exec -- python3 Tools/porthole_export.py
+
 echo "==> sync-agents --install"
 "$MISE" exec -- ./sync-agents --install
 
