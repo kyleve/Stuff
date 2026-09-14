@@ -38,10 +38,15 @@ The app's CloudKit container picks the write up from the shared store's history.
 `WhereShareExtension` is a Tuist app-extension target in
 [`Project.swift`](../../Project.swift), with a bundle ID and App Group selected
 by the Where audience (Development is isolated; Beta and App Store share the
-production family),
-depending on **WhereCore**, **WhereUI**, and **PeriscopeCore**. The main **Where** app
-embeds the extension with the same audience-selected App Group entitlement so
-both processes open the same SwiftData store.
+production family).
+The target links the dynamic `WhereApplicationSupport` product and loads the
+framework embedded by the Where app. Source imports stay on the existing Swift
+modules. See the root [shared linkage contract](../../AGENTS.md#shared-where-linkage).
+The app embeds the extension with the same App Group entitlement, so both
+processes open the same SwiftData store.
+
+This extension owns no App Intents routes. Its target disables metadata
+extraction; the Where app retains those registrations.
 
 ## Limitations
 

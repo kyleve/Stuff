@@ -10,11 +10,14 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 ## Scope & dependencies
 
 - **Tuist app-extension target** ([`Project.swift`](../../Project.swift), with
-  an audience-specific bundle ID and App Group), depending on **WhereCore**,
-  **WhereUI**, **PeriscopeCore**, and **SFSafeSymbols**. Embedded by the **Where**
-  app. Logs via the `WhereLog` facade (typed `ShareExtensionLog` events); as a
-  separate process its
-  `Periscope.shared` is OSLog-only (no store).
+  an audience-specific bundle ID and App Group). It links `WhereApplicationSupport`
+  from the framework embedded by the Where app.
+  Keep existing source imports and follow the root
+  [shared linkage contract](../../AGENTS.md#shared-where-linkage).
+- This extension owns no App Intents routes.
+  Keep metadata extraction disabled for this target; the Where app owns those registrations.
+- Logs via the `WhereLog` facade (typed `ShareExtensionLog` events).
+  Its separate process uses OSLog-only `Periscope.shared` logging (no store).
 - Presentation reuses WhereUI's public `EvidenceKind.symbol`/`displayName`.
   Only extension chrome lives in this target's catalog. Reference it through its
   generated `LocalizedStringResource` symbols.

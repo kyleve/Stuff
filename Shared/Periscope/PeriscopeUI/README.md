@@ -7,6 +7,7 @@ Any view can log with its full context — model and UI — inherited automatica
 ## Installation
 
 `PeriscopeUI` is a local SPM library in this repo (`Shared/Periscope/PeriscopeUI`).
+Generated Porthole adapters add a runtime dependency under the [repository compilation contract](../../../AGENTS.md#porthole-compilation).
 Add it to a target's dependencies in [`Package.swift`](../../../Package.swift):
 
 ```swift

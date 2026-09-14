@@ -48,9 +48,13 @@ Appearance changes publish only that small value before reloading timelines.
 [`Project.swift`](../../Project.swift). Its bundle ID and App Group follow the
 selected Where audience (Development is isolated; Beta and App Store share the
 production family).
-It depends on **WhereCore**, **WhereUI**, **RegionKit** (for the `Region` model
-its snapshot fixtures use), and **PeriscopeCore**. The main **Where** app embeds the
-extension and shares the App Group entitlement.
+The target links the dynamic `WhereApplicationSupport` product and loads the
+framework embedded by the Where app. Source imports stay on the existing Swift
+modules. See the root [shared linkage contract](../../AGENTS.md#shared-where-linkage).
+The app embeds the extension and shares the App Group entitlement.
+
+This extension owns no App Intents routes. Its target disables metadata
+extraction; the Where app retains those registrations.
 
 ## Previews
 

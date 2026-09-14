@@ -6,6 +6,7 @@ require "minitest/autorun"
 require "open3"
 require "pathname"
 require "rbconfig"
+require "shellwords"
 require "tmpdir"
 
 class WhereInstallCommandTest < Minitest::Test
@@ -27,6 +28,7 @@ class WhereInstallCommandTest < Minitest::Test
       assert_includes stderr, "using: Kai's iPhone (phone-one)"
       assert_includes fixture.log, "devicectl list devices"
       refute_includes fixture.log, "tuist"
+      refute_includes fixture.log, "porthole_export.py"
       refute_includes fixture.log, "xcodebuild"
       refute_includes fixture.log, "device install"
       refute_path_exists fixture.derived_data
@@ -64,6 +66,67 @@ class WhereInstallCommandTest < Minitest::Test
       assert_equal 1, status.exitstatus
       assert_includes stderr, "unsupported Where configuration"
       assert_equal "", fixture.log
+    end
+  end
+
+  def test_build_jobs_are_forwarded_as_one_exact_xcodebuild_option
+    with_fixture do |fixture|
+      fixture.write_devices(fixture.device(identifier: "phone", udid: "udid", name: "Phone"))
+
+      _stdout, stderr, status = fixture.run("--build-jobs", "2", "--yes", "--no-launch")
+
+      assert status.success?, stderr
+      arguments = fixture.build_arguments
+      assert_equal ["xcodebuild", "build"], arguments.first(2)
+      assert_equal 1, arguments.count("-jobs")
+      assert_equal "2", arguments.fetch(arguments.index("-jobs") + 1)
+      assert_includes arguments, "SWIFT_OPTIMIZATION_LEVEL=-O"
+      assert_includes arguments, "-allowProvisioningUpdates"
+    end
+  end
+
+  def test_default_keeps_xcodes_build_job_selection
+    with_fixture do |fixture|
+      fixture.write_devices(fixture.device(identifier: "phone", udid: "udid", name: "Phone"))
+
+      _stdout, stderr, status = fixture.run("--yes", "--no-launch")
+
+      assert status.success?, stderr
+      assert_equal ["xcodebuild", "build"], fixture.build_arguments.first(2)
+      refute_includes fixture.build_arguments, "-jobs"
+    end
+  end
+
+  def test_invalid_or_missing_build_jobs_fail_before_dependencies_run
+    arguments = [["--build-jobs"]] + ["", "0", "-1", "1.5", "01", "+2", "two", "2 3", "--no-launch"].map do |value|
+      ["--build-jobs", value, "--dry-run", "--yes"]
+    end
+    arguments.each do |options|
+      with_fixture do |fixture|
+        _stdout, stderr, status = fixture.run(*options)
+
+        assert_equal 1, status.exitstatus, options.inspect
+        assert_includes stderr, "--build-jobs requires a positive integer"
+        assert_equal "", fixture.log
+        refute_path_exists fixture.derived_data
+      end
+    end
+  end
+
+  def test_dry_run_reports_build_job_limit_without_building
+    with_fixture do |fixture|
+      fixture.write_devices(fixture.device(identifier: "phone", udid: "udid", name: "Phone"))
+
+      stdout, stderr, status = fixture.run("--build-jobs", "2", "--dry-run", "--yes")
+
+      assert status.success?, stderr
+      assert_includes stdout, "Would limit concurrent Xcode build tasks to 2"
+      assert_includes stdout, "Would install"
+      refute_includes fixture.log, "porthole_export.py"
+      refute_includes fixture.log, "tuist"
+      refute_includes fixture.log, "xcodebuild"
+      refute_includes fixture.log, "device install"
+      refute_path_exists fixture.derived_data
     end
   end
 
@@ -135,6 +198,7 @@ class WhereInstallCommandTest < Minitest::Test
 
   def test_child_failures_preserve_the_failing_status_and_stop_later_work
     scenarios = [
+      [{ export: 30 }, ["--yes"], 30, "python3 Tools/porthole_export.py", "tuist generate"],
       [{ list: 31 }, ["--dry-run", "--yes"], 31, "devicectl list devices", "device install"],
       [{ generate: 32 }, ["--yes"], 32, "tuist generate", "xcodebuild"],
       [{ build: 33 }, ["--yes"], 33, "xcodebuild", "devicectl list devices"],
@@ -165,6 +229,16 @@ class WhereInstallCommandTest < Minitest::Test
     end
   end
 
+  def test_application_bindings_are_exported_before_project_generation
+    with_fixture(statuses: { generate: 32 }) do |fixture|
+      _stdout, _stderr, status = fixture.run("--yes")
+
+      assert_equal 32, status.exitstatus
+      assert_operator fixture.log.index("python3 Tools/porthole_export.py"), :<, fixture.log.index("tuist generate")
+      refute_includes fixture.log, "xcodebuild"
+    end
+  end
+
   private
 
   def with_fixture(team_status: 0, team_id: "TEAM12345", statuses: {})
@@ -185,6 +259,7 @@ class WhereInstallCommandTest < Minitest::Test
       FileUtils.mkdir_p([@home, @temporary, binary])
       @devices = root / "devices.json"
       @log = root / "commands.log"
+      @build_arguments = root / "build-arguments.json"
       @derived_data = @home / "Library/Developer/Xcode/DerivedData/where-install-#{File.basename(@repository)}"
       write_fake_mise(binary / "mise", team_status, team_id)
       write_fake_xcrun(binary / "xcrun")
@@ -194,7 +269,9 @@ class WhereInstallCommandTest < Minitest::Test
         "TMPDIR" => @temporary.to_s,
         "FAKE_DEVICES" => @devices.to_s,
         "FAKE_COMMAND_LOG" => @log.to_s,
+        "FAKE_BUILD_ARGUMENTS" => @build_arguments.to_s,
         "FAKE_GENERATE_STATUS" => statuses.fetch(:generate, 0).to_s,
+        "FAKE_EXPORT_STATUS" => statuses.fetch(:export, 0).to_s,
         "FAKE_BUILD_STATUS" => statuses.fetch(:build, 0).to_s,
         "FAKE_LIST_STATUS" => statuses.fetch(:list, 0).to_s,
         "FAKE_INSTALL_STATUS" => statuses.fetch(:install, 0).to_s,
@@ -247,6 +324,10 @@ class WhereInstallCommandTest < Minitest::Test
       @log.exist? ? @log.read : ""
     end
 
+    def build_arguments
+      JSON.parse(@build_arguments.read)
+    end
+
     private
 
     def write_fake_mise(path, team_status, team_id)
@@ -268,10 +349,14 @@ class WhereInstallCommandTest < Minitest::Test
           exec #{RbConfig.ruby} "$@"
         fi
         echo "$*" >>"$FAKE_COMMAND_LOG"
+        if [ "$1" = python3 ] && [ "$2" = Tools/porthole_export.py ]; then
+          exit "$FAKE_EXPORT_STATUS"
+        fi
         if [ "$1" = tuist ]; then
           exit "$FAKE_GENERATE_STATUS"
         fi
         if [ "$1" = xcodebuild ]; then
+          #{Shellwords.escape(RbConfig.ruby)} -rjson -e 'File.write(ARGV.shift, JSON.generate(ARGV))' "$FAKE_BUILD_ARGUMENTS" "$@"
           status="$FAKE_BUILD_STATUS"
           if [ "$status" -eq 0 ]; then
             previous=""

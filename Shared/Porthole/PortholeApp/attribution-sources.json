@@ -1,0 +1,21 @@
+{
+  "output": "Shared/Porthole/PortholeApp/Resources/attribution.json",
+  "sources": [
+    {
+      "type": "swiftPackageManager",
+      "manifest": "Shared/Porthole/PortholeCertificates/Package.swift",
+      "resolved": "Package.resolved",
+      "shippedFrom": ["PortholeCertificates"]
+    },
+    {
+      "type": "vendoredLibrary",
+      "manifest": "Shared/Porthole/CQuickJS/VENDOR.json"
+    },
+    {
+      "type": "swiftPackageManager",
+      "manifest": "Package.swift",
+      "resolved": "Package.resolved",
+      "shippedFrom": ["PortholeUI", "CreditKit"]
+    }
+  ]
+}

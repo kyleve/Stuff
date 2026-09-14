@@ -7,6 +7,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build, format
 ## Scope & dependencies
 
 - **Flyover may import SwiftUI, SFSafeSymbols, BroadwayCore/BroadwayUI, and SnapshotKit.** It must not import WhereCore, WhereUI, persistence frameworks, or any app module.
+- Apply the [generated-adapter exception](../../AGENTS.md#porthole-compilation) to PortholeRuntime.
 - **Apps own their typed screen IDs, demo/synthetic state, catalog construction, and the DEBUG-only entry point** that hosts ``FlyoverView``.
 - **Use English literals for strings** in this developer-only shared tool. An app localizes the entry point it adds to its own UI.
 

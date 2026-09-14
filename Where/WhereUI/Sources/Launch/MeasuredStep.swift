@@ -43,7 +43,7 @@ extension BudgetedLaunchStep {
 /// be measured twice into nested duplicate spans.
 struct MeasuredStep<Wrapped: BudgetedLaunchStep>: LifecycleStep {
     let wrapped: Wrapped
-    private let logger: Log<WhereLaunchLog>
+    private let logger: PeriscopeCore.Log<WhereLaunchLog>
 
     var id: LaunchStepID {
         wrapped.id
@@ -60,7 +60,7 @@ struct MeasuredStep<Wrapped: BudgetedLaunchStep>: LifecycleStep {
     /// Span into `logger` rather than the app's launch logger — the seam tests
     /// use to assert the emitted pair against their own Periscope system
     /// instead of the process-wide one.
-    init(wrapping wrapped: Wrapped, spanningInto logger: Log<WhereLaunchLog>) {
+    init(wrapping wrapped: Wrapped, spanningInto logger: PeriscopeCore.Log<WhereLaunchLog>) {
         self.wrapped = wrapped
         self.logger = logger
     }

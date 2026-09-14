@@ -27,8 +27,9 @@
                     .frame(maxWidth: .infinity, alignment: .leading)
                 } icon: {
                     Image(systemSymbol: systemSymbol)
-                        .frame(width: menu.iconWidth)
+                        .frame(width: menu.stacksLabelsAndControls ? nil : menu.iconWidth)
                 }
+                .labelStyle(DeveloperMenuLabelStyle())
                 .padding(.horizontal, menu.horizontalPadding)
                 .padding(.vertical, menu.verticalPadding)
                 .frame(minHeight: menu.minRowHeight)

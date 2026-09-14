@@ -104,3 +104,6 @@ intent-services registration. Inject runtime spies without launching a second
 regular runtime. Tests may construct an `AppDelegate(runtime:)` only with such
 a spy. A second `RegularApplicationRuntime.didFinishLaunching` would
 re-register the handoff, whose behavior is undocumented.
+
+Link `WhereTests` to the host's `WhereApplicationSupport` product. Do not add
+separate copies of that product's application modules to this test bundle.

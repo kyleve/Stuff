@@ -1,5 +1,6 @@
 # Tuist managed
 Derived/
+.generated/
 
 ## Local mise overrides (e.g. TUIST_DEVELOPMENT_TEAM for on-device signing)
 mise.local.toml

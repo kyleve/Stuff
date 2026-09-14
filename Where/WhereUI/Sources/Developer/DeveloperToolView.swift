@@ -1,27 +1,31 @@
+import PeriscopeTools
+import PortholeUI
 import SFSafeSymbols
-#if DEBUG
-    import PeriscopeTools
-    import SwiftUI
-    import WhereCore
+import SwiftUI
+import WhereCore
 
-    /// Hosts one selected developer tool as the root of its own navigation stack.
-    ///
-    /// The lightweight accordion owns routing; this surface owns only the ambient
-    /// stack each tool expects. Making the selected tool the stack root removes
-    /// the redundant Developer list title/back button while preserving every
-    /// tool's own drill-ins and toolbar.
-    ///
-    /// The optional dependencies can disappear if the app resets while a tool is
-    /// open. That renders an honest unavailable state rather than retaining stale
-    /// session resources or crashing.
-    struct DeveloperToolView: View {
-        let tool: DeveloperTool
+/// Hosts one selected developer tool as the root of its own navigation stack.
+///
+/// The lightweight accordion owns routing; this surface owns only the ambient
+/// stack each tool expects. Making the selected tool the stack root removes
+/// the redundant Developer list title/back button while preserving every
+/// tool's own drill-ins and toolbar.
+///
+/// The optional dependencies can disappear if the app resets while a tool is
+/// open. That renders an honest unavailable state rather than retaining stale
+/// session resources or crashing.
+struct DeveloperToolView: View {
+    let tool: DeveloperTool
 
-        @Environment(WhereModel.self) private var model: WhereModel?
+    @Environment(WhereModel.self) private var model: WhereModel?
 
-        var body: some View {
-            NavigationStack {
-                switch tool {
+    var body: some View {
+        NavigationStack {
+            switch tool {
+                case .porthole:
+                    if let model { PortholeView(controller: model.porthole.presentation) }
+
+                #if DEBUG
                     case .crashTesting:
                         DeveloperCrashTestingView()
 
@@ -57,16 +61,18 @@ import SFSafeSymbols
                                 DeveloperToolUnavailableView(tool: tool)
                         }
 
-                    case .openSpans:
+                        case .openSpans:
                         OpenSpansView(system: .shared)
 
-                    case .regionMap:
+                        case .regionMap:
                         RegionMapView()
-                }
+                #endif
             }
         }
     }
+}
 
+#if DEBUG
     #Preview("Region map") {
         DeveloperToolView(tool: .regionMap)
             .environment(PreviewSupport.loadedModel())
@@ -76,4 +82,5 @@ import SFSafeSymbols
     #Preview("Crash testing") {
         DeveloperToolView(tool: .crashTesting)
     }
+
 #endif

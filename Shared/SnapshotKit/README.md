@@ -5,11 +5,11 @@ framework. It owns the *appearance matrix* that drives both SwiftUI previews and
 image snapshot tests, so previews and CI share configurations, traits, and
 content.
 
-It deliberately imports **only** SwiftUI / Foundation / UIKit — never the
-snapshot-comparison engine — so any UI module can depend on it (including in
-release builds) without dragging test-only machinery into a shipping app. The
-capture + comparison pipeline lives in the sibling
+Handwritten source imports SwiftUI, Foundation, and UIKit.
+UI modules can use SnapshotKit in release builds without a snapshot-comparison engine.
+The capture and comparison pipeline lives in the sibling
 [`SnapshotKitTesting`](../SnapshotKitTesting) module.
+Generated Porthole adapters add a runtime dependency under the [repository compilation contract](../../AGENTS.md#porthole-compilation).
 
 ## What's in the box
 

@@ -1,3 +1,4 @@
+import Foundation
 import ProjectDescription
 
 let destinations: Destinations = [.iPhone, .iPad]
@@ -21,6 +22,9 @@ private let sfSafeSymbolsPackage = Package.remote(
 /// and it's picked up automatically by `mise exec -- tuist generate` (i.e. `./ide`).
 /// When unset — e.g. on CI or a fresh clone — no `DEVELOPMENT_TEAM` is written and
 /// Xcode falls back to its defaults.
+private let portholeOriginalSourceCheck = Environment.portholeOriginalSourceCheck
+    .getString(default: "0") == "1"
+
 private let developmentTeam = Environment.developmentTeam.getString(default: "")
 
 private struct WhereAudience {
@@ -341,6 +345,13 @@ let project = Project(
                 "UILaunchScreen": .dictionary([:]),
                 "UIApplicationSupportsIndirectInputEvents": .boolean(true),
                 "UIBackgroundModes": .array([.string("remote-notification")]),
+                "NSLocalNetworkUsageDescription": .string(
+                    "Porthole connects to your paired debugger clients when you enable remote access.",
+                ),
+                "NSBonjourServices": .array([
+                    .string("_porthole._tcp"),
+                    .string("_porthole-pair._tcp"),
+                ]),
                 // Stated explicitly rather than left to Tuist's `1.0` / `1`
                 // defaults, because Settings > About shows them: the version a
                 // user reads off the screen should be one this manifest chose.
@@ -356,7 +367,10 @@ let project = Project(
                     "Where checks your location in the background so it can log which region you're in each day.",
                 ),
             ]),
-            sources: ["Where/Where/Sources/**"],
+            sources: [
+                "Where/Where/Sources/**",
+                ".generated/Porthole/Where/PortholeGeneratedModule.swift",
+            ],
             resources: ["Where/Where/Resources/**"],
             entitlements: whereAppEntitlements,
             // Writes `WhereGitSHA` / `WhereGitStatus` into the built Info.plist
@@ -364,6 +378,11 @@ let project = Project(
             // Info.plist" and before signing, and `basedOnDependencyAnalysis:
             // false` so an unchanged source tree still re-stamps a new commit.
             scripts: [
+                .pre(
+                    path: "Where/Where/Scripts/export-porthole.sh",
+                    name: "Export Porthole App APIs",
+                    basedOnDependencyAnalysis: false,
+                ),
                 .post(
                     path: "Where/Where/Scripts/stamp-build-info.sh",
                     name: "Stamp Build Info",
@@ -371,12 +390,7 @@ let project = Project(
                 ),
             ],
             dependencies: [
-                .package(product: "LifecycleKit"),
-                .package(product: "RegionKit"),
-                .package(product: "WhereCrashReporting"),
-                .package(product: "WhereCore"),
-                .package(product: "WhereUI"),
-                .package(product: "WhereIntents"),
+                .package(product: "WhereApplicationSupport", type: .runtimeEmbedded),
                 .target(name: "WhereWidgets"),
                 .target(name: "WhereShareExtension"),
             ],
@@ -389,6 +403,9 @@ let project = Project(
             // per-region in SwiftUI), so clear the name actool otherwise looks
             // for — an unset `AccentColor` warns.
             settings: whereHostSettings(.app, base: [
+                "OTHER_SWIFT_FLAGS": .string(portholeOriginalSourceCheck
+                    ? "$(inherited) -DPORTHOLE_ORIGINAL_SOURCE_CHECK"
+                    : "$(inherited) -Xfrontend -disable-access-control -enable-private-imports"),
                 "ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS": "YES",
                 "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "",
             ]),
@@ -411,12 +428,12 @@ let project = Project(
             resources: ["Where/WhereWidgets/Resources/**"],
             entitlements: whereAppGroupEntitlements,
             dependencies: [
-                .package(product: "PeriscopeCore"),
-                .package(product: "RegionKit"),
-                .package(product: "WhereCore"),
-                .package(product: "WhereUI"),
+                .package(product: "WhereApplicationSupport"),
             ],
-            settings: whereHostSettings(.widget),
+            // These extensions own no App Intents routes. The app extracts the shared intents.
+            settings: whereHostSettings(.widget, base: [
+                "LM_SKIP_METADATA_EXTRACTION": "YES",
+            ]),
         ),
         .target(
             name: "WhereShareExtension",
@@ -450,16 +467,41 @@ let project = Project(
             resources: ["Where/WhereShareExtension/Resources/**"],
             entitlements: whereAppGroupEntitlements,
             dependencies: [
-                .package(product: "PeriscopeCore"),
-                .package(product: "SFSafeSymbols"),
-                .package(product: "WhereCore"),
-                .package(product: "WhereUI"),
+                .package(product: "WhereApplicationSupport"),
             ],
-            settings: whereHostSettings(.share),
+            // These extensions own no App Intents routes. The app extracts the shared intents.
+            settings: whereHostSettings(.share, base: [
+                "LM_SKIP_METADATA_EXTRACTION": "YES",
+            ]),
+        ),
+        .target(
+            name: "Porthole",
+            destinations: [.iPhone, .iPad, .macCatalyst],
+            product: .app,
+            bundleId: "com.stuff.porthole",
+            deploymentTargets: deployment,
+            infoPlist: .extendingDefault(with: [
+                "UILaunchScreen": .dictionary([:]),
+                "UIApplicationSupportsIndirectInputEvents": .boolean(true),
+                "NSLocalNetworkUsageDescription": .string(
+                    "Porthole connects to debugger hosts you explicitly pair with.",
+                ),
+                "NSBonjourServices": .array([
+                    .string("_porthole._tcp"),
+                    .string("_porthole-pair._tcp"),
+                ]),
+            ]),
+            sources: ["Shared/Porthole/PortholeApp/Sources/**"],
+            resources: ["Shared/Porthole/PortholeApp/Resources/**"],
+            dependencies: [.package(product: "PortholeUI"), .package(product: "CreditKit")],
+            settings: .settings(base: [
+                "ASSETCATALOG_COMPILER_APPICON_NAME": "",
+                "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "",
+            ]),
         ),
         .target(
             name: "RegionViewer",
-            // The first (and only) target to opt into Mac Catalyst: a thin
+            // A target that opts into Mac Catalyst: a thin
             // standalone host for the WhereUI `RegionMapView` developer tool.
             // The shared `destinations` constant stays iPhone/iPad-only for
             // everything else.
@@ -548,9 +590,8 @@ let project = Project(
             sources: ["Where/Where/Tests/**"],
             dependencies: [
                 .target(name: "Where"),
-                .package(product: "LifecycleKit"),
                 .package(product: "TestHostSupport"),
-                .package(product: "WhereUI"),
+                .package(product: "WhereApplicationSupport"),
             ],
             environmentVariables: packageResourceEnvironment,
         ),
@@ -596,6 +637,51 @@ let project = Project(
                 // so hosted tests can find it via `TestHostSupport.hostKeyWindow()`.
                 .package(product: "TestHostSupport"),
             ],
+        ),
+        unitTests(
+            name: "PortholeAgentTests",
+            bundleIdSuffix: "portholeagent",
+            productDependency: "PortholeAgent",
+            sources: ["Shared/Porthole/PortholeAgent/Tests/**"],
+            extraPackageProducts: [],
+        ),
+        unitTests(
+            name: "PortholeRemoteTests",
+            bundleIdSuffix: "portholeremote",
+            productDependency: "PortholeRemote",
+            sources: ["Shared/Porthole/PortholeRemote/Tests/**"],
+            extraPackageProducts: [],
+        ),
+        unitTests(
+            name: "PortholeUITests",
+            bundleIdSuffix: "portholeui",
+            productDependency: "PortholeUI",
+            sources: ["Shared/Porthole/PortholeUI/Tests/**"],
+            extraPackageProducts: [],
+        ),
+        unitTests(
+            name: "PortholeCoreTests",
+            bundleIdSuffix: "portholecore",
+            productDependency: "PortholeCore",
+            sources: ["Shared/Porthole/PortholeCore/Tests/**"],
+        ),
+        unitTests(
+            name: "PortholeRuntimeTests",
+            bundleIdSuffix: "portholeruntime",
+            productDependency: "PortholeRuntime",
+            sources: ["Shared/Porthole/PortholeRuntime/Tests/**"],
+        ),
+        unitTests(
+            name: "PortholeGitHubTests",
+            bundleIdSuffix: "portholegithub",
+            productDependency: "PortholeGitHub",
+            sources: ["Shared/Porthole/PortholeGitHub/Tests/**"],
+        ),
+        unitTests(
+            name: "PortholeJavaScriptTests",
+            bundleIdSuffix: "portholejavascript",
+            productDependency: "PortholeJavaScript",
+            sources: ["Shared/Porthole/PortholeJavaScript/Tests/**"],
         ),
         unitTests(
             name: "CreditKitTests",
@@ -695,6 +781,12 @@ let project = Project(
             sources: ["Where/RegionKit/Tests/**"],
         ),
         unitTests(
+            name: "WhereAssetsTests",
+            bundleIdSuffix: "whereassets",
+            productDependency: "WhereAssets",
+            sources: ["Where/WhereAssets/Tests/**"],
+        ),
+        unitTests(
             name: "WhereCoreTests",
             bundleIdSuffix: "wherecore",
             productDependency: "WhereCore",
@@ -764,6 +856,14 @@ let project = Project(
         // `\.isCapturingSnapshot` read, so a toolchain that stopped coalescing
         // the two SnapshotKit copies in that bundle would fail loudly rather
         // than silently returning defaults.
+        unitTests(
+            name: "PortholeUISnapshotTests",
+            bundleIdSuffix: "portholeui.snapshot",
+            productDependency: "PortholeUI",
+            sources: ["Shared/Porthole/PortholeUI/SnapshotTests/**"],
+            extraPackageProducts: ["SnapshotKitTesting"],
+            environmentVariables: snapshotEnvironment,
+        ),
         unitTests(
             name: "WhereUISnapshotTests",
             bundleIdSuffix: "whereui.snapshot",
@@ -847,6 +947,12 @@ let project = Project(
     // WhereCoreTests` / `tuist test WhereTests` / `tuist test WhereUITests`
     // target a single bundle without building the whole workspace.
     schemes: whereAudienceSchemes + [
+        .scheme(
+            name: "Porthole",
+            shared: true,
+            buildAction: .buildAction(targets: ["Porthole"]),
+            runAction: .runAction(executable: "Porthole"),
+        ),
         // App target schemes are normally autogenerated, but declare the
         // RegionViewer one explicitly so `tuist build RegionViewer` (and a
         // Run that launches the Catalyst app) is always available.
@@ -880,8 +986,16 @@ let project = Project(
             shared: true,
             buildAction: .buildAction(targets: [
                 "Where",
+                "Porthole",
                 "RegionViewer",
                 "StuffTestHost",
+                "PortholeAgentTests",
+                "PortholeRemoteTests",
+                "PortholeUITests",
+                "PortholeCoreTests",
+                "PortholeRuntimeTests",
+                "PortholeGitHubTests",
+                "PortholeJavaScriptTests",
                 "CreditKitTests",
                 "WhereCrashReportingTests",
                 "LifecycleKitTests",
@@ -896,6 +1010,7 @@ let project = Project(
                 "SnapshotKitTestingTests",
                 "RegionKitTests",
                 "WhereCoreTests",
+                "WhereAssetsTests",
                 "WhereTests",
                 "WhereUITests",
                 "WhereIntentsTests",
@@ -906,6 +1021,13 @@ let project = Project(
             ]),
             testAction: .targets(
                 [
+                    "PortholeAgentTests",
+                    "PortholeRemoteTests",
+                    "PortholeUITests",
+                    "PortholeCoreTests",
+                    "PortholeRuntimeTests",
+                    "PortholeGitHubTests",
+                    "PortholeJavaScriptTests",
                     "CreditKitTests",
                     "WhereCrashReportingTests",
                     "LifecycleKitTests",
@@ -920,6 +1042,7 @@ let project = Project(
                     "SnapshotKitTestingTests",
                     "RegionKitTests",
                     "WhereCoreTests",
+                    "WhereAssetsTests",
                     "WhereTests",
                     "WhereUITests",
                     "WhereIntentsTests",
@@ -931,6 +1054,13 @@ let project = Project(
             ),
         ),
         testScheme(name: "LedgerCoreTests"),
+        testScheme(name: "PortholeAgentTests"),
+        testScheme(name: "PortholeRemoteTests"),
+        testScheme(name: "PortholeUITests"),
+        testScheme(name: "PortholeCoreTests"),
+        testScheme(name: "PortholeRuntimeTests"),
+        testScheme(name: "PortholeGitHubTests"),
+        testScheme(name: "PortholeJavaScriptTests"),
         testScheme(name: "CreditKitTests"),
         testScheme(name: "WhereCrashReportingTests"),
         testScheme(name: "LifecycleKitTests"),
@@ -945,6 +1075,7 @@ let project = Project(
         testScheme(name: "SnapshotKitTestingTests"),
         testScheme(name: "RegionKitTests"),
         testScheme(name: "WhereCoreTests"),
+        testScheme(name: "WhereAssetsTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),
         // Every image-snapshot bundle, in one scheme, so CI runs them all in
@@ -961,6 +1092,7 @@ let project = Project(
             shared: true,
             buildAction: .buildAction(targets: [
                 "WhereUISnapshotTests",
+                "PortholeUISnapshotTests",
                 "FlyoverSnapshotTests",
                 "PeriscopeToolsSnapshotTests",
                 "InspectorSnapshotTests",
@@ -968,6 +1100,7 @@ let project = Project(
             testAction: .targets(
                 [
                     "WhereUISnapshotTests",
+                    "PortholeUISnapshotTests",
                     "FlyoverSnapshotTests",
                     "PeriscopeToolsSnapshotTests",
                     "InspectorSnapshotTests",

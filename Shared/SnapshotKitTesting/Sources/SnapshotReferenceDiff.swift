@@ -73,14 +73,17 @@ import UIKit
     identifier: String,
 ) -> URL {
     let testFile = URL(fileURLWithPath: testFilePath)
-    // The library strips a trailing `()` from `#function`, so `year()` and the
-    // `year` directory component agree.
-    let function = testName.hasSuffix("()") ? String(testName.dropLast(2)) : testName
+    /// Match SnapshotTesting's sanitizePathComponent for both names. Spaces and
+    /// punctuation in human-readable variants otherwise look like missing files.
+    func pathComponent(_ value: String) -> String {
+        value.replacingOccurrences(of: "\\W+", with: "-", options: .regularExpression)
+            .replacingOccurrences(of: "^-|-$", with: "", options: .regularExpression)
+    }
     return testFile
         .deletingLastPathComponent()
         .appendingPathComponent("__Snapshots__")
         .appendingPathComponent(testFile.deletingPathExtension().lastPathComponent)
-        .appendingPathComponent("\(function).\(identifier).png")
+        .appendingPathComponent("\(pathComponent(testName)).\(pathComponent(identifier)).png")
 }
 
 /// Compares `capturedPNG` against the reference at `referenceURL`.

@@ -1,3 +1,5 @@
+import LifecycleKitUI
+import PortholeRuntime
 import RegionKit
 import SFSafeSymbols
 import SnapshotKit
@@ -106,9 +108,33 @@ struct SettingsView: View {
             }
             .navigationDestination(for: SettingsRoute.self) { route in
                 destination(for: route)
+                    .portholeScreen(
+                        route.destination.rowTitle,
+                        source: .init(
+                            path: "Where/WhereUI/Sources/Settings/SettingsView.swift",
+                            line: 108,
+                        ),
+                        roots: [report, backup, reminders],
+                    ) {
+                        .object([
+                            "selectedYear": .integer(Int64(report.selectedYear)),
+                            "destination": .string(String(describing: route.destination)),
+                        ])
+                    }
             }
             .sheet(isPresented: $showRegions) {
                 RegionsSettingsView(usedThisYear: regionsUsedThisYear)
+                    .portholeScreen(
+                        "Regions",
+                        source: .init(
+                            path: "Where/WhereUI/Sources/Settings/SettingsView.swift",
+                            line: 112,
+                        ),
+                        roots: [report],
+                    ) {
+                        try .object(["usedThisYear": .encoding(regionsUsedThisYear)])
+                    }
+                    .modifier(WherePortholeModalTools())
             }
         }
     }

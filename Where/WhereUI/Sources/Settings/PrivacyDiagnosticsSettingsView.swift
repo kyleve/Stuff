@@ -10,6 +10,7 @@ struct PrivacyDiagnosticsSettingsView: View {
 
     var body: some View {
         @Bindable var reporting = model.diagnosticReporting
+        @Bindable var porthole = model.porthole
         SettingsFocusScope(focus: focus) {
             Form {
                 PrivacyPassportCard(presentation: PrivacyPassportPresentation(
@@ -79,6 +80,23 @@ struct PrivacyDiagnosticsSettingsView: View {
                     Text(String(localized: .settingsDiagnosticsRemoteFooter))
                 }
 
+                Section {
+                    Toggle(String(localized: .settingsPortholeEnable), isOn: $porthole.isEnabled)
+                        .settingsRow(Item.porthole)
+                    switch porthole.state {
+                        case .disabled, .ready:
+                            EmptyView()
+                        case .preparing:
+                            LabeledContent(String(localized: .settingsPortholePreparing)) {
+                                ProgressView()
+                            }
+                        case let .failed(message):
+                            Text(message).foregroundStyle(.secondary)
+                    }
+                } footer: {
+                    Text(String(localized: .settingsPortholeFooter))
+                }
+
                 #if DEBUG
                     if reporting.selectedRemoteLevel != nil {
                         Section {
@@ -136,6 +154,7 @@ extension PrivacyDiagnosticsSettingsView: SettingsSection {
         case crashReports
         case sessionReplay
         case remoteLogging
+        case porthole
         #if DEBUG
             case fullMetadata
         #endif
@@ -145,6 +164,7 @@ extension PrivacyDiagnosticsSettingsView: SettingsSection {
                 case .crashReports: String(localized: .settingsDiagnosticsCrashReports)
                 case .sessionReplay: String(localized: .settingsDiagnosticsSessionReplay)
                 case .remoteLogging: String(localized: .settingsDiagnosticsRemoteLogging)
+                case .porthole: String(localized: .settingsPortholeEnable)
                 #if DEBUG
                     case .fullMetadata: String(localized: .settingsDiagnosticsFullMetadata)
                 #endif
@@ -159,6 +179,7 @@ extension PrivacyDiagnosticsSettingsView: SettingsSection {
                     splitKeywords(String(localized: .settingsDiagnosticsReplayKeywords))
                 case .remoteLogging:
                     splitKeywords(String(localized: .settingsDiagnosticsLoggingKeywords))
+                case .porthole: ["Porthole"]
                 #if DEBUG
                     case .fullMetadata:
                         splitKeywords(String(localized: .settingsDiagnosticsMetadataKeywords))
@@ -220,26 +241,53 @@ extension RemoteLogLevel {
                     ),
                 ),
             )
+            diagnosticSnapshot(
+                name: "PortholeEnabled",
+                saved: .defaults(isDebugBuild: false),
+                isPortholeEnabled: true,
+                configurations: SnapshotConfiguration.combinations(
+                    devices: [.iPhoneFullContent],
+                    colorSchemes: [.light, .dark],
+                    dynamicTypes: [.large, .accessibility5],
+                ),
+            )
         }
 
         private static func diagnosticSnapshot(
             name: String,
             saved: DiagnosticReportingConfiguration,
             effective: DiagnosticReportingConfiguration? = nil,
+            isPortholeEnabled: Bool = false,
+            configurations: [SnapshotConfiguration] = .fullContentPhoneLightDark,
         ) -> SnapshotCase {
             whereSnapshot(
                 name: name,
-                configurations: .fullContentPhoneLightDark,
+                configurations: configurations,
                 measurementReadiness: .immediate,
             ) {
                 NavigationStack {
                     PrivacyDiagnosticsSettingsView()
                 }
-                .environment(PreviewSupport.loadedModel(
-                    savedDiagnosticReporting: saved,
-                    effectiveDiagnosticReporting: effective ?? saved,
+                .environment(diagnosticModel(
+                    saved: saved,
+                    effective: effective ?? saved,
+                    isPortholeEnabled: isPortholeEnabled,
                 ))
             }
+        }
+
+        private static func diagnosticModel(
+            saved: DiagnosticReportingConfiguration,
+            effective: DiagnosticReportingConfiguration,
+            isPortholeEnabled: Bool,
+        ) -> WhereModel {
+            let model = PreviewSupport.loadedModel(
+                savedDiagnosticReporting: saved,
+                effectiveDiagnosticReporting: effective,
+            )
+            // This settings fixture changes the preference without activating the runtime.
+            model.porthole.isEnabled = isPortholeEnabled
+            return model
         }
     }
 

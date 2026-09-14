@@ -4,6 +4,8 @@ Inspector is a reusable SwiftUI developer runtime for inspecting and deleting an
 An app explicitly configures the resources it owns.
 Inspector discovers nothing globally and imports no app code.
 
+Generated Porthole adapters add a runtime dependency under the [repository compilation contract](../../AGENTS.md#porthole-compilation).
+
 The root `InspectorView` uses an adaptive `NavigationSplitView` with three sections:
 
 - **Files** — lazy directory browsing, hidden items, search, sorting, metadata, Quick Look, and confirmed recursive deletion.

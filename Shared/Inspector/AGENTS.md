@@ -7,6 +7,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build, format
 ## Scope and dependencies
 
 - **Depend only on SwiftUI, SwiftData, Foundation, Observation, QuickLook, SFSafeSymbols, and UIKit.** Never import Where or another app module. Applications provide every source through `InspectorConfiguration`.
+- Apply the [generated-adapter exception](../../AGENTS.md#porthole-compilation) to PortholeRuntime.
 - **Keep boot selection outside this module.** `InspectorModeController` persists next-launch choice and pending recovery erasures in one dedicated suite.
 - **Treat the entire module as developer tooling.** Consumers compile entry points behind `#if DEBUG`. Strings remain unlocalized literals.
 - **Keep `InspectorView`, `InspectorConfiguration`, `InspectorSwiftDataConfiguration`, `InspectorSwiftDataView`, and `InspectorModeController` public.** Keep other implementation types internal.

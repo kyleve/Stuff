@@ -5,6 +5,7 @@ CreditKit provides tools and types for working out what an app owes attribution 
 ## Scope & dependencies
 
 - **May import:** Foundation. Nothing else — not even logging. CreditKit is a leaf that anything may depend on.
+- Apply the [generated-adapter exception](../../AGENTS.md#porthole-compilation) to PortholeRuntime.
 - **Must not import:** any app or feature module, or any UI framework.
 - **Wired in:** `Package.swift` (`CreditKit` product) and `Project.swift` (`CreditKitTests`, in the `Stuff-iOS-Tests` scheme). Presentation belongs to the consuming UI. `Tools/generate-attribution.rb` is the only thing that writes a report.
 
@@ -28,6 +29,7 @@ CreditKit provides tools and types for working out what an app owes attribution 
 - **Anything inside that closure is a `library`.** Any other linked package is a `developmentTool`. Linking is not shipping.
 - **`shippedFrom` is the only hand-set part for SPM packages.**
 - **`agentSkills` and `developmentTools` declare `kind` in config** — both are development tools in Where today.
+- **Use `vendoredLibrary` for compiled source copied into the app.** Read its identity from the same vendor manifest that pins the source.
 
 ## Testing
 

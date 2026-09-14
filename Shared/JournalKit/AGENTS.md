@@ -7,6 +7,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns the build sys
 ## Scope & dependencies
 
 - **Use Foundation and os only.** Do not import logging types or Periscope. PeriscopeCore layers log semantics on top. Keep the journal payload-agnostic.
+- Apply the [generated-adapter exception](../../AGENTS.md#porthole-compilation) to PortholeRuntime.
 
 ## Invariants
 

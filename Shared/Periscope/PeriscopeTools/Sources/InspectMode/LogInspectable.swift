@@ -9,7 +9,10 @@ extension View {
     /// subtrees — e.g. wrap a payment row and see everything associated
     /// with that payment. With no inspector or the mode off, the view
     /// renders unchanged.
-    public func logInspectable(_ log: Log<some LogEvent>, limit: Int = 500) -> some View {
+    public func logInspectable(
+        _ log: PeriscopeCore.Log<some LogEvent>,
+        limit: Int = 500,
+    ) -> some View {
         modifier(LogInspectableModifier(scopes: log.scopes.map(\.id), limit: limit))
     }
 

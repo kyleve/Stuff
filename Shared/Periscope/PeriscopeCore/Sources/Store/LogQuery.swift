@@ -43,6 +43,10 @@ public struct LogQuery: Sendable {
     /// fetch only events appended since, instead of re-reading the store.
     /// Unset fetches from the beginning.
     public var afterSequence: Int?
+    /// Only events whose insertion sequence is at most this watermark.
+    /// Capture `PeriscopeStore.latestSequence()` before paging to exclude
+    /// later appends, including events with older timestamps.
+    public var throughSequence: Int?
     /// Page size; unset fetches everything that matches.
     public var limit: Int?
     /// Page offset into the newest-first ordering.

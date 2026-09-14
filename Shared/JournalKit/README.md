@@ -5,6 +5,8 @@ It is the write-ahead net for anything that must survive the process dying mid-f
 Periscope uses it as its log journal.
 The implementation is payload-agnostic and has no logging knowledge.
 
+Generated Porthole adapters add a runtime dependency under the [repository compilation contract](../../AGENTS.md#porthole-compilation).
+
 ## Quick start
 
 ```swift

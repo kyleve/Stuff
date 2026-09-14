@@ -10,7 +10,8 @@ tests and generated files are outside the architecture graph.
 | --- | --- | --- |
 | `RegionKit` | none | Foundation |
 | `WhereCore` | `RegionKit` | Foundation, persistence |
-| `WhereUI` | `RegionKit`, `WhereCore` | Foundation, SwiftUI, UIKit |
+| `WhereAssets` | none | Foundation |
+| `WhereUI` | `RegionKit`, `WhereCore`, `WhereAssets` | Foundation, SwiftUI, UIKit |
 | `WhereIntents` | `RegionKit`, `WhereCore`, `WhereUI` | Foundation, SwiftUI, UIKit |
 | `Where` app | `RegionKit`, `WhereCore`, `WhereUI`, `WhereIntents` | Foundation, SwiftUI, UIKit |
 | `WhereWidgets` | `RegionKit`, `WhereCore`, `WhereUI` | Foundation, SwiftUI, UIKit |

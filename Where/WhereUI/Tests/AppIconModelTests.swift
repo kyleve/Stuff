@@ -184,7 +184,7 @@ struct AppIconModelTests {
     }
 
     /// Guards the core manifest-driven invariant: every option the picker lists
-    /// must have matching preview art bundled in WhereUI, or the grid/preview
+    /// must have matching preview art bundled in WhereAssets, or the grid/preview
     /// renders blank. (The app-target appiconsets live outside this test host,
     /// so their existence is covered by the app build / CI, not here.)
     @Test func everyOptionHasBundledPreviewArt() throws {

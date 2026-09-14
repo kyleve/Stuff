@@ -3,6 +3,16 @@
   "sources": [
     {
       "type": "swiftPackageManager",
+      "manifest": "Shared/Porthole/PortholeCertificates/Package.swift",
+      "resolved": "Package.resolved",
+      "shippedFrom": ["PortholeCertificates"]
+    },
+    {
+      "type": "vendoredLibrary",
+      "manifest": "Shared/Porthole/CQuickJS/VENDOR.json"
+    },
+    {
+      "type": "swiftPackageManager",
       "manifest": "Package.swift",
       "resolved": "Package.resolved",
       "shippedFrom": ["WhereUI", "WhereIntents", "WhereCrashReporting"]

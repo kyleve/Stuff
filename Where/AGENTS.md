@@ -272,6 +272,8 @@ DEBUG-only developer surfaces survive at near-Release speed. Pass
 `--configuration Beta` for the TestFlight-style production identity or
 `--configuration Release` for the App Store audience. Options:
 `./Where/install --help`.
+Pass `--build-jobs 2` to limit concurrent Xcode build tasks when memory is limited.
+Omit the option to keep Xcode's default. Dry runs report the selected limit.
 
 ## Testing
 

@@ -1,4 +1,5 @@
 import PeriscopeCore
+import PortholeRuntime
 import RegionKit
 import SFSafeSymbols
 import SnapshotKit
@@ -52,6 +53,20 @@ struct ResolutionView: View {
         // Log View Mode: reveal an inspect badge for data-issue resolution
         // events. A no-op in release.
         .debugLogInspectable(WhereLog.session(ResolveModelLog.self))
+        .portholeScreen(
+            "Resolve",
+            source: .init(
+                path: "Where/WhereUI/Sources/Resolution/ResolutionView.swift",
+                line: #line,
+            ),
+            roots: [report, resolve],
+        ) {
+            .object([
+                "selectedYear": .integer(Int64(report.selectedYear)),
+                "issueCount": .integer(Int64(resolve.dataIssues.count)),
+            ])
+        }
+        .modifier(WherePortholeModalTools())
     }
 
     @ViewBuilder
@@ -134,6 +149,24 @@ private struct IssueRow: View {
     var body: some View {
         NavigationLink {
             destination
+                .portholeScreen(
+                    "Resolve: \(issue.category.rawValue)",
+                    source: .init(
+                        path: "Where/WhereUI/Sources/Resolution/ResolutionView.swift",
+                        line: #line,
+                    ),
+                    roots: [report, resolve, issue],
+                ) {
+                    try .object([
+                        "issueID": .encoding(issue.id),
+                        "category": .encoding(issue.category),
+                        "day": .string(issue.sortKey.description),
+                        "selectedYear": .integer(Int64(report.selectedYear)),
+                        "primaryRegions": .encoding(report.ranking.primary.map(\.region)),
+                        "driftThresholdMeters": .integer(Int64(report.preferences
+                                .driftThresholdMeters)),
+                    ])
+                }
         } label: {
             VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
                 Text(title)
@@ -230,6 +263,16 @@ private struct IssueRow: View {
                     report: PreviewSupport.loadedYearReportModel(),
                     resolve: PreviewSupport.resolveModel(seededWithIssues: false),
                 )
+            }
+            whereSnapshot(
+                name: "WithDebuggerLauncher",
+                configurations: .fullContentPhoneLightDark,
+            ) {
+                ResolutionView(
+                    report: PreviewSupport.loadedYearReportModel(),
+                    resolve: PreviewSupport.resolveModel(),
+                )
+                .environment(PreviewSupport.loadedModel())
             }
         }
     }

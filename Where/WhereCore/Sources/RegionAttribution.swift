@@ -84,6 +84,11 @@ final class RegionAttribution: RegionAttributing {
         state.withLock { $0.attributor }
     }
 
+    /// An immutable value for an explicitly isolated diagnostic replay.
+    var snapshot: RegionAttributor {
+        current
+    }
+
     func region(at coordinate: Coordinate) -> Region {
         current.region(at: coordinate)
     }

@@ -52,3 +52,11 @@ set_key WhereGitStatus "$status"
 set_key WhereConfiguration "${CONFIGURATION:-unknown}"
 set_key WhereSwiftOptimizationLevel "${SWIFT_OPTIMIZATION_LEVEL:-unknown}"
 set_key WhereSwiftCompilationMode "${SWIFT_COMPILATION_MODE:-unknown}"
+
+# The compiler's version is distinct from SWIFT_VERSION (the language mode).
+if compiler_identity=$(xcrun swiftc --version 2>/dev/null); then
+    compiler_identity=${compiler_identity//$'\n'/ }
+else
+    compiler_identity="unknown"
+fi
+set_key WhereSwiftCompilerVersion "$compiler_identity"

@@ -8,8 +8,9 @@ unit-tested in isolation.
 
 RegionKit is the lowest layer of the Where feature: `WhereCore` (and, through
 it, `WhereUI`, the widgets, and the RegionViewer) depend on RegionKit and call
-into it for lookup. RegionKit depends only on
+into it for lookup. Handwritten RegionKit source uses
 [`PeriscopeCore`](../../Shared/Periscope/PeriscopeCore) for logging.
+Generated Porthole adapters add a runtime dependency under the [repository compilation contract](../../AGENTS.md#porthole-compilation).
 
 ## What you get
 

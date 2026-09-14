@@ -14,17 +14,16 @@ import SFSafeSymbols
 
         var body: some View {
             let menu = stylesheet.developerOverlay.menu
-            Toggle(isOn: $inspector.isEnabled) {
-                Label {
+            Group {
+                if menu.stacksLabelsAndControls {
                     VStack(alignment: .leading, spacing: menu.subtitleSpacing) {
-                        Text(String(localized: .developerLogViewMode))
-                        Text(String(localized: .developerLogViewModeFooter))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                        label
+                        Toggle(String(localized: .developerLogViewMode), isOn: $inspector.isEnabled)
+                            .labelsHidden()
+                            .frame(maxWidth: .infinity, alignment: .trailing)
                     }
-                } icon: {
-                    Image(systemSymbol: .viewfinder)
-                        .frame(width: menu.iconWidth)
+                } else {
+                    Toggle(isOn: $inspector.isEnabled) { label }
                 }
             }
             .padding(.horizontal, menu.horizontalPadding)
@@ -34,6 +33,22 @@ import SFSafeSymbols
                 .regular.interactive(),
                 in: RoundedRectangle(cornerRadius: menu.cornerRadius),
             )
+        }
+
+        private var label: some View {
+            let menu = stylesheet.developerOverlay.menu
+            return Label {
+                VStack(alignment: .leading, spacing: menu.subtitleSpacing) {
+                    Text(String(localized: .developerLogViewMode))
+                    Text(String(localized: .developerLogViewModeFooter))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            } icon: {
+                Image(systemSymbol: .viewfinder)
+                    .frame(width: menu.stacksLabelsAndControls ? nil : menu.iconWidth)
+            }
+            .labelStyle(DeveloperMenuLabelStyle())
         }
     }
 

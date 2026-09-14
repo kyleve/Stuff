@@ -117,6 +117,7 @@ internal shape.
   `DataIssueInput.daySamples` carries per-day GPS fixes only (`.gpsVisit` /
   `.gpsSignificantChange`, sorted). Manual and evidence-implied samples are
   excluded so `FlightDayDetector`'s speed math is not skewed.
+- **Replay diagnostics use captured values.** `ReportReader.investigation` reads related data in one snapshot and freezes attribution. Never run the live scanner or write corrections from replay. Label results as current replay, not historical execution (`DataIssueInvestigationTests`).
 - **Read related year projections from one samples snapshot.** Use
   `ReportReader.yearReportDetails(for:primaryRegionCount:)` for the scene's
   report and primary-region locations.

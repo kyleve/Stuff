@@ -7,6 +7,7 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) first. That file owns the build 
 ## Scope & dependencies
 
 - **Use SwiftUI and PeriscopeCore only.** Do not import app code. Developer tooling views live in [`PeriscopeTools`](../PeriscopeTools), not here.
+- Apply the [generated-adapter exception](../../../AGENTS.md#porthole-compilation) to PortholeRuntime.
 - **Keep logging behavior, persistence, and policy in Core.** This module adapts Core to SwiftUI only.
 
 ## Invariants

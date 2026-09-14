@@ -1,6 +1,7 @@
 import LifecycleKit
 import LifecycleKitUI
 import PeriscopeUI
+import PortholeUI
 import SnapshotKit
 import SwiftUI
 @_spi(Testing) import WhereCore
@@ -26,15 +27,15 @@ public struct RootView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.stylesheet) private var stylesheet
     @State private var model: WhereModel
+    /// The logged-in tab bar's measured height, reported up from `MainTabs` and
+    /// handed to the sibling `DeveloperOverlay` so its button rests clear of the
+    /// tab bar. Zero when logged out (no tab bar in the tree).
+    @State private var developerTabBarInset: CGFloat = 0
+    /// The footprint the non-modal floating developer HUD occupies, reported up
+    /// from the sibling `DeveloperOverlay` and applied as extra safe area to the
+    /// app content so screens behind the HUD can scroll clear of it.
+    @State private var developerOverlayInsets = EdgeInsets()
     #if DEBUG
-        /// The logged-in tab bar's measured height, reported up from `MainTabs` and
-        /// handed to the sibling `DeveloperOverlay` so its button rests clear of the
-        /// tab bar. Zero when logged out (no tab bar in the tree).
-        @State private var developerTabBarInset: CGFloat = 0
-        /// The footprint the non-modal floating developer HUD occupies, reported up
-        /// from the sibling `DeveloperOverlay` and applied as extra safe area to the
-        /// app content so screens behind the HUD can scroll clear of it.
-        @State private var developerOverlayInsets = EdgeInsets()
         /// Periscope's "log view mode" mirror, built once the launch bootstrap has
         /// opened the log store. Injected into the environment so
         /// `debugLogInspectable(_:)` badges across the app can reveal their scopes;
@@ -189,24 +190,27 @@ public struct RootView: View {
             // scroll views behind the non-modal window inset and their last rows
             // clear it. Scoped to the content only — never the sibling overlay/toast
             // layers below — so the overlay's own geometry can't feed back on itself.
-            #if DEBUG
             .safeAreaPadding(developerOverlayInsets)
-            #endif
 
             // The floating developer launcher/accordion sits above every launch
-            // phase and tab so its tools are reachable from anywhere (even logged
-            // out). Selected tools open in its HUD. The whole surface is DEBUG-only
-            // and compiled out of release entirely.
+            // phase and tab. Development tools remain available in DEBUG; shipping
+            // builds show only Porthole after explicit activation.
             #if DEBUG
                 DeveloperOverlay(tabBarInset: developerTabBarInset)
+            #else
+                if model.porthole.isEnabled {
+                    DeveloperOverlay(tabBarInset: developerTabBarInset)
+                }
+            #endif
+            #if DEBUG
                 // High-severity log toasts float above everything, including the
                 // developer overlay, so a warning/error is visible wherever it fires.
                 DeveloperToastOverlay(center: toastCenter)
             #endif
         }
-        #if DEBUG
         .onPreferenceChange(DeveloperTabBarInsetKey.self) { developerTabBarInset = $0 }
-            .onPreferenceChange(DeveloperOverlayInsetKey.self) { developerOverlayInsets = $0 }
+        .onPreferenceChange(DeveloperOverlayInsetKey.self) { developerOverlayInsets = $0 }
+        #if DEBUG
             .environment(\.periscopeInspector, inspector)
             .task { configureDeveloperLogging() }
             .onChange(of: model.logStore.map(ObjectIdentifier.init)) { _, _ in
@@ -217,6 +221,13 @@ public struct RootView: View {
             // `\.logContext` emits under the "Where" scope rather than a bare root.
             .logContext(WhereLog.root)
             .environment(model)
+            .modifier(WherePortholePresentation(controller: model.porthole))
+            .task(id: PortholeAttachmentIdentity(
+                enabled: model.porthole.isEnabled,
+                scope: model.activeScope.map(ObjectIdentifier.init),
+            )) {
+                await model.porthole.reconcile(scope: model.activeScope)
+            }
             // The logged-in session appears once the launch's `start-session`
             // step builds it. Injected as an optional `Observable`, so the
             // `TabView`'s `@Environment(WhereSession.self)` views resolve it

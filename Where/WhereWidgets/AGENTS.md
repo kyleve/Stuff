@@ -10,8 +10,12 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 ## Scope & dependencies
 
 - **Tuist app-extension target** ([`Project.swift`](../../Project.swift), with
-  an audience-specific bundle ID and App Group), depending on **WhereCore**,
-  **WhereUI**, **RegionKit**, and **PeriscopeCore**.
+  an audience-specific bundle ID and App Group). It links `WhereApplicationSupport`
+  from the framework embedded by the Where app.
+  Keep existing source imports and follow the root
+  [shared linkage contract](../../AGENTS.md#shared-where-linkage).
+- This extension owns no App Intents routes.
+  Keep metadata extraction disabled for this target; the Where app owns those registrations.
 - Must **not** import SwiftData, open the user's store, or duplicate
   aggregation logic. The app publishes. The extension only reads and renders.
 - Logs via the `WhereLog` facade (typed `WhereWidgetsLog` events). As a

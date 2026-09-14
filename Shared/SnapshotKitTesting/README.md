@@ -138,6 +138,10 @@ the **max delta** first — it is what separates a broken render from
 sub-visible drift, and pixel count does not. The worst genuine defect found so
 far touched fewer pixels than the noisiest harmless difference in the suite.
 
+Reference lookup applies the same name sanitization as SnapshotTesting.
+Spaces and punctuation in test or variant names resolve to the recorded file.
+An upstream recording regression guards this path contract.
+
 Failure messages also print the reference and failed-capture file URLs. To get a
 ready-to-run [Kaleidoscope](https://kaleidoscope.app) command instead, forward
 `SNAPSHOT_DIFF_TOOL=ksdiff` into the test process

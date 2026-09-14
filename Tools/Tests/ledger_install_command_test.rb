@@ -19,6 +19,7 @@ class LedgerInstallCommandTest < Minitest::Test
       assert_includes stdout, "Would stage and replace /Applications/Ledger.app"
       refute_includes stdout, "Would launch"
       refute_includes fixture.log, "tuist generate"
+      refute_includes fixture.log, "porthole_export.py"
       refute_includes fixture.log, "xcodebuild"
       refute_includes fixture.log, "installer install"
       refute_includes fixture.log, "open "
@@ -26,13 +27,33 @@ class LedgerInstallCommandTest < Minitest::Test
   end
 
   def test_destination_validation_and_build_failures_preserve_status
-    [{ validate_destination: 41 }, { generate: 42 }, { build: 43 }].each do |statuses|
+    [{ validate_destination: 41 }, { export: 40 }, { generate: 42 }, { build: 43 }].each do |statuses|
       with_fixture(statuses: statuses) do |fixture|
         _stdout, _stderr, status = fixture.run("--no-open")
 
         assert_equal statuses.values.fetch(0), status.exitstatus
         refute_includes fixture.log, "installer install"
       end
+    end
+  end
+
+  def test_application_export_failure_stops_before_generation_and_build
+    with_fixture(statuses: { export: 40 }) do |fixture|
+      _stdout, _stderr, status = fixture.run("--no-open")
+
+      assert_equal 40, status.exitstatus
+      assert_includes fixture.log, "python3 Tools/porthole_export.py"
+      refute_includes fixture.log, "tuist generate"
+      refute_includes fixture.log, "xcodebuild"
+    end
+  end
+
+  def test_application_bindings_are_exported_before_project_generation
+    with_fixture(statuses: { generate: 42 }) do |fixture|
+      _stdout, _stderr, status = fixture.run("--no-open")
+
+      assert_equal 42, status.exitstatus
+      assert_operator fixture.log.index("python3 Tools/porthole_export.py"), :<, fixture.log.index("tuist generate")
     end
   end
 
@@ -111,6 +132,7 @@ class LedgerInstallCommandTest < Minitest::Test
         "FAKE_PROCESS_PID" => "",
         "FAKE_VALIDATE_DESTINATION_STATUS" => statuses.fetch(:validate_destination, 0).to_s,
         "FAKE_GENERATE_STATUS" => statuses.fetch(:generate, 0).to_s,
+        "FAKE_EXPORT_STATUS" => statuses.fetch(:export, 0).to_s,
         "FAKE_BUILD_STATUS" => statuses.fetch(:build, 0).to_s,
         "FAKE_INSTALL_STATUS" => statuses.fetch(:install, 0).to_s,
         "FAKE_OPEN_STATUS" => statuses.fetch(:open, 0).to_s,
@@ -182,6 +204,9 @@ class LedgerInstallCommandTest < Minitest::Test
           exit 91
         fi
         echo "$*" >>"$FAKE_COMMAND_LOG"
+        if [ "$1" = python3 ] && [ "$2" = Tools/porthole_export.py ]; then
+          exit "$FAKE_EXPORT_STATUS"
+        fi
         if [ "$1" = tuist ]; then
           exit "$FAKE_GENERATE_STATUS"
         fi

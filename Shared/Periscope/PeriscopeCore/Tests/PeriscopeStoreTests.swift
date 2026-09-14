@@ -145,6 +145,32 @@ struct PeriscopeStoreTests {
         #expect(try await store.events(matching: offset).map(\.message) == ["e4", "e3"])
     }
 
+    @Test func fixedWatermarkKeepsPagesStableAcrossBackdatedAppends() async throws {
+        let (store, root, _, _) = try await makeStore()
+        #expect(try await store.latestSequence() == nil)
+        await store.write([
+            makeRecord("e1", date: date(3), scopes: [root.id]),
+            makeRecord("e2", date: date(1), scopes: [root.id]),
+            makeRecord("e3", date: date(2), scopes: [root.id]),
+        ])
+        let watermark = try #require(try await store.latestSequence())
+        var page = LogQuery()
+        page.throughSequence = watermark
+        page.limit = 2
+        #expect(try await store.events(matching: page).map(\.message) == ["e1", "e3"])
+        await store.write([
+            makeRecord("late", date: date(4), scopes: [root.id]),
+            makeRecord("backdated", date: date(0), scopes: [root.id]),
+        ])
+        page.offset = 2
+        #expect(try await store.events(matching: page).map(\.message) == ["e2"])
+        page.offset = nil
+        page.afterSequence = watermark
+        #expect(try await store.events(matching: page).isEmpty)
+        page.throughSequence = nil
+        #expect(try await store.events(matching: page).map(\.message) == ["late", "backdated"])
+    }
+
     @Test func afterSequenceAtTheMaxReturnsNothing() async throws {
         let (store, root, _, _) = try await makeStore()
         await store.write([

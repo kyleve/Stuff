@@ -81,6 +81,72 @@ jobs:
           path: .build
           key: ${{ steps.bumper-cache.outputs.cache-primary-key }}
 
+  porthole-compiler:
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
+    name: Porthole compiler contracts
+    runs-on: xcode-27
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v3
+      - name: Check pinned Xcode
+        run: test "$(xcodebuild -version | awk '/Build version/{print $3}')" = "$(cat .xcode-build-version)"
+      - name: Qualify private bindings and actor isolation
+        run: ./test --porthole-generator --skip-architecture
+      - name: Qualify native Porthole runtime and clients
+        run: ./test --porthole-host --skip-architecture
+      - name: Compile the Porthole Mac Catalyst client
+        run: |
+          mkdir -p "$RUNNER_TEMP/porthole-catalyst"
+          ./ide --no-open > "$RUNNER_TEMP/porthole-catalyst/generate.log" 2>&1
+          mise exec -- xcodebuild build \
+            -workspace Stuff.xcworkspace -scheme Porthole -configuration Release \
+            -destination 'generic/platform=macOS,variant=Mac Catalyst' \
+            -derivedDataPath "$RUNNER_TEMP/porthole-catalyst/products" \
+            -jobs 2 ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO \
+            > "$RUNNER_TEMP/porthole-catalyst/build.log" 2>&1
+      - name: Upload Mac Catalyst build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: porthole-catalyst-build
+          path: ${{ runner.temp }}/porthole-catalyst/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  porthole-app-compiler:
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
+    name: Porthole compiler pair (${{ matrix.configuration }}, ${{ matrix.sdk }})
+    runs-on: xcode-27
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        configuration: [Debug, Beta, Release]
+        sdk: [iphonesimulator, iphoneos]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v3
+      - name: Build original and instrumented source with matching settings
+        run: >-
+          python3 Tools/porthole_compiler_contract.py
+          --configuration '${{ matrix.configuration }}'
+          --sdk '${{ matrix.sdk }}'
+          --jobs 2
+          --output "$RUNNER_TEMP/porthole-compiler-pair"
+      - name: Upload compiler evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: porthole-compiler-${{ matrix.configuration }}-${{ matrix.sdk }}
+          path: |
+            ${{ runner.temp }}/porthole-compiler-pair/result.json
+            ${{ runner.temp }}/porthole-compiler-pair/*-packaging.json
+            ${{ runner.temp }}/porthole-compiler-pair/*.log
+          if-no-files-found: warn
+          retention-days: 7
+
   test-macos:
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
     name: Build & Test (macOS)
@@ -96,6 +162,8 @@ jobs:
       # no single xcodebuild destination can build both — so the macOS scheme
       # runs here rather than alongside the iOS bundles. The iOS `test-ios` and
       # `snapshot` jobs live in .circleci/config.yml (PR #237).
+      - name: Generate Porthole application bindings
+        run: mise exec -- python3 Tools/porthole_export.py
       - name: Build & Test (macOS)
         run: mise exec -- tuist test Ledger-macOS-Tests --no-selective-testing -- -destination 'platform=macOS'
       # Tests can crash the host process on CI without leaving any error in

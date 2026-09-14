@@ -12,7 +12,8 @@ A second app can adopt CreditKit without inheriting the first one's credits.
 ## Install
 
 Add the `CreditKit` product to a target in the root `Package.swift`.
-It has no dependencies beyond Foundation.
+Handwritten source uses Foundation only.
+Generated Porthole adapters add a runtime dependency under the [repository compilation contract](../../AGENTS.md#porthole-compilation).
 
 ## Quick start
 
@@ -66,13 +67,14 @@ ruby Shared/CreditKit/Tools/generate-attribution.rb <config.json>   # just one
 ```
 
 Paths are relative to the repository root.
-Three source types are understood:
+Four source types are understood:
 
 | Type | Reads | Credits |
 |------|-------|---------|
 | `swiftPackageManager` | packages a target links via `.product(name:package:)`, pinned by the resolved file | one per linked package |
 | `agentSkills` | a `./sync-agents` manifest of `name -> { repo, ref }` | one per vendored skill |
 | `developmentTools` | a manifest of `name -> { repo, ref, version? }` for pinned GitHub-hosted tooling the repo uses but does not link as an SPM package | one per entry |
+| `vendoredLibrary` | a vendor manifest with `repository`, `revision`, and `version` | one compiled library, with its notice from that revision |
 
 Deriving the list rather than maintaining it is the point.
 A package linked by *any* module shows up the next time the report runs.
@@ -88,6 +90,10 @@ Linking is not shipping.
 A snapshot-testing engine linked by a test-support target is credited (the repo depends on it) but must not be described as being in the binary.
 `shippedFrom` is the only part set by hand.
 Adding a dependency cannot quietly land under the wrong kind.
+
+A `.package(path:)` product has no remote pin or third-party credit of its own.
+Add its manifest as another `swiftPackageManager` source with its shipping target
+roots. This credits the local package's external dependencies at the app's pins.
 
 `developmentTools` entries may carry an optional `version` for display.
 When omitted, the pinned ref's short prefix is used (as for agent skills).

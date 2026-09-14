@@ -1,6 +1,7 @@
 import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
+import WhereAssets
 
 /// The app-icon picker. A grid of options that flexes with the container width
 /// (two columns on phones, more on wider displays — see `AppIconLayout`).
@@ -298,7 +299,7 @@ struct AppIconImage: View {
     }
 
     var body: some View {
-        Image(name, bundle: .module)
+        Image(name, bundle: WhereAssetBundle.bundle)
             .resizable()
             .interpolation(.high)
             .scaledToFit()

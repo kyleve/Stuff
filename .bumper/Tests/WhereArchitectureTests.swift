@@ -15,13 +15,30 @@ func `Where architecture accepts downward dependencies`() throws {
                 SourceInput(
                     path: "Where/WhereUI/Sources/Screen.swift",
                     component: ComponentID(WhereComponent.whereUI.rawValue),
-                    source: "import WhereCore\nimport SwiftUI\nstruct Screen {}",
+                    source: "import WhereCore\nimport WhereAssets\nimport SwiftUI\nstruct Screen {}",
                 ),
             ],
         ),
     )
 
     #expect(report.violations.isEmpty)
+}
+
+@Test
+func `WhereAssets cannot depend on the UI layer`() throws {
+    let report = try bumper.evaluate(
+        RepositoryInput(
+            architecture: bumper.architecture,
+            files: [SourceInput(
+                path: "Where/WhereAssets/Sources/WhereAssets.swift",
+                component: ComponentID(WhereComponent.whereAssets.rawValue),
+                source: "import WhereUI\nstruct Assets {}",
+            )],
+        ),
+    )
+    let violation = try #require(report.violations.first)
+    #expect(report.violations.count == 1)
+    #expect(violation.rule.id == .componentBoundary)
 }
 
 @Test

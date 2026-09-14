@@ -15,6 +15,7 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   **not** import SwiftUI, UIKit, SwiftData, CoreLocation, or `WhereCore`. It is
   the lowest layer of the feature. `WhereCore` depends on *it*, never the
   reverse.
+- Apply the [generated-adapter exception](../../AGENTS.md#porthole-compilation) to PortholeRuntime.
 - Library target in [`Package.swift`](../../Package.swift)
   (`Where/RegionKit/Sources`). The generated catalog manifest + per-region
   polygons and the region-name string catalog ship in `Sources/Resources/`. The

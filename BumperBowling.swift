@@ -3,6 +3,7 @@ import BumperBowlingCore
 enum WhereComponent: String, ComponentKey {
     case regionKit
     case whereCore
+    case whereAssets
     case whereUI
     case whereIntents
     case app
@@ -15,6 +16,7 @@ let bumper = BumperProject {
     Included {
         "Where/RegionKit/Sources"
         "Where/WhereCore/Sources"
+        "Where/WhereAssets/Sources"
         "Where/WhereUI/Sources"
         "Where/WhereIntents/Sources"
         "Where/Where/Sources"
@@ -47,8 +49,14 @@ let bumper = BumperProject {
         Component(.whereUI) {
             Owns("Where/WhereUI/Sources")
             Modules("WhereUI")
-            MayDependOn(.regionKit, .whereCore)
+            MayDependOn(.regionKit, .whereCore, .whereAssets)
             Applies(.wherePresentationLayer)
+        }
+
+        Component(.whereAssets) {
+            Owns("Where/WhereAssets/Sources")
+            Modules("WhereAssets")
+            Applies(.whereFoundationLayer)
         }
 
         Component(.whereIntents) {
