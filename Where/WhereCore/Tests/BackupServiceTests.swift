@@ -121,17 +121,15 @@ struct BackupServiceTests {
         ]
     }
 
-    private static func plannedStayFixtures() -> [PlannedStayRecord] {
-        [
-            PlannedStayRecord(
-                id: UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD")!,
-                value: PlannedStay(
-                    region: .newYork,
-                    through: CalendarDay(year: 2026, month: 9, day: 1),
-                ),
-                updatedAt: exportDate,
-            ),
-        ]
+    private static func plannedStayFixtures() throws -> [PlannedStayRecord] {
+        let stayID = try PlannedStay.ID(rawValue: #require(UUID(
+            uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC",
+        )))
+        return try [PlannedStayTestSupport.record(
+            stay: PlannedStayTestSupport.stay(id: stayID),
+            revisionID: #require(UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD")),
+            updatedAt: exportDate,
+        )]
     }
 
     private static func archive() -> BackupArchive {
@@ -147,6 +145,7 @@ struct BackupServiceTests {
             recordingDeviceMetadataChanges: [],
             recordingDeviceRemovals: [],
             plannedStayRecords: [],
+            homeRegionRecords: [],
             assets: [],
         )
     }
@@ -221,6 +220,7 @@ struct BackupServiceTests {
             recordingDeviceMetadataChanges: recordingDeviceMetadataChanges,
             recordingDeviceRemovals: [deviceArchive],
             plannedStayRecords: Self.plannedStayFixtures(),
+            homeRegionRecords: [],
             blobs: blobs,
             exportedAt: Self.exportDate,
         )
@@ -241,7 +241,7 @@ struct BackupServiceTests {
         #expect(result.archive.recordingDeviceProfiles == recordingDeviceProfiles)
         #expect(result.archive.recordingDeviceMetadataChanges == recordingDeviceMetadataChanges)
         #expect(result.archive.recordingDeviceRemovals == [deviceArchive])
-        #expect(result.archive.plannedStayRecords == Self.plannedStayFixtures())
+        #expect(try result.archive.plannedStayRecords == Self.plannedStayFixtures())
         let encodedManifest = try #require(String(
             data: BackupService.makeEncoder().encode(result.archive),
             encoding: .utf8,
@@ -255,12 +255,12 @@ struct BackupServiceTests {
     }
 
     @Test func unsupportedFormatIsRejectedBeforeItsMissingCurrentFieldsAreDecoded() {
-        let legacyManifest = Data(#"{"formatVersion":6}"#.utf8)
+        let legacyManifest = Data(#"{"formatVersion":5}"#.utf8)
 
         do {
             _ = try BackupService.decodeManifest(legacyManifest)
             Issue.record("Expected the legacy backup format to be rejected.")
-        } catch BackupService.BackupError.unsupportedFormatVersion(6) {
+        } catch BackupService.BackupError.unsupportedFormatVersion(5) {
             // Expected: the version envelope was decoded before the strict current shape.
         } catch {
             Issue.record("Unexpected error: \(error)")
@@ -308,6 +308,7 @@ struct BackupServiceTests {
             recordingDeviceMetadataChanges: Self.recordingDeviceMetadataFixtures(),
             recordingDeviceRemovals: [],
             plannedStayRecords: [],
+            homeRegionRecords: [],
             assets: [],
         )
         var json = try #require(String(
@@ -339,6 +340,7 @@ struct BackupServiceTests {
             recordingDeviceMetadataChanges: [],
             recordingDeviceRemovals: [],
             plannedStayRecords: [],
+            homeRegionRecords: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -371,6 +373,7 @@ struct BackupServiceTests {
             recordingDeviceMetadataChanges: [],
             recordingDeviceRemovals: [],
             plannedStayRecords: [],
+            homeRegionRecords: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -393,6 +396,7 @@ struct BackupServiceTests {
             recordingDeviceMetadataChanges: [],
             recordingDeviceRemovals: [],
             plannedStayRecords: [],
+            homeRegionRecords: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -427,6 +431,7 @@ struct BackupServiceTests {
             recordingDeviceMetadataChanges: [],
             recordingDeviceRemovals: [],
             plannedStayRecords: [],
+            homeRegionRecords: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -465,6 +470,7 @@ struct BackupServiceTests {
             recordingDeviceMetadataChanges: [],
             recordingDeviceRemovals: [],
             plannedStayRecords: [],
+            homeRegionRecords: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -476,7 +482,7 @@ struct BackupServiceTests {
     }
 
     @Test func manifestRoundTripsThroughJSON() throws {
-        let archive = BackupArchive(
+        let archive = try BackupArchive(
             exportedAt: Self.exportDate,
             samples: Self.sampleFixtures(),
             evidence: Self.evidenceFixtures(),
@@ -499,6 +505,7 @@ struct BackupServiceTests {
             recordingDeviceMetadataChanges: Self.recordingDeviceMetadataFixtures(),
             recordingDeviceRemovals: [],
             plannedStayRecords: Self.plannedStayFixtures(),
+            homeRegionRecords: [],
             assets: [BackupAssetEntry(
                 evidenceId: Self.evidenceWithBlobId,
                 filename: "assets/\(Self.evidenceWithBlobId.uuidString)",
@@ -521,6 +528,81 @@ struct BackupServiceTests {
 
         #expect(throws: (any Error).self) {
             _ = try service.readArchive(at: bogus)
+        }
+    }
+
+    @Test func currentManifestRejectsInvalidPlanningBeforeImport() throws {
+        let encoder = BackupService.makeEncoder()
+        var manifest = try #require(
+            JSONSerialization.jsonObject(with: encoder.encode(Self.archive())) as? [String: Any],
+        )
+        let records = try Self.plannedStayFixtures()
+        var encodedRecords = try #require(
+            JSONSerialization.jsonObject(with: encoder.encode(records)) as? [[String: Any]],
+        )
+        var value = try #require(encodedRecords[0]["value"] as? [String: Any])
+        value["arrival"] = [
+            "earliest": ["year": 2026, "month": 11, "day": 1],
+            "latest": ["year": 2026, "month": 11, "day": 3],
+        ]
+        encodedRecords[0]["value"] = value
+        manifest["plannedStayRecords"] = encodedRecords
+
+        #expect(throws: BackupService.BackupError.invalidPlanningData) {
+            try BackupService.decodeManifest(JSONSerialization.data(withJSONObject: manifest))
+        }
+    }
+
+    @Test func currentManifestRejectsMismatchedStayIdentity() throws {
+        let encoder = BackupService.makeEncoder()
+        var manifest = try #require(
+            JSONSerialization.jsonObject(with: encoder.encode(Self.archive())) as? [String: Any],
+        )
+        var records = try #require(
+            JSONSerialization
+                .jsonObject(with: encoder.encode(Self.plannedStayFixtures())) as? [[String: Any]],
+        )
+        records[0]["stayID"] = UUID().uuidString
+        manifest["plannedStayRecords"] = records
+
+        #expect(throws: BackupService.BackupError.invalidPlanningData) {
+            try BackupService.decodeManifest(JSONSerialization.data(withJSONObject: manifest))
+        }
+    }
+
+    @Test func currentManifestRejectsUnknownHomeRegion() throws {
+        var manifest = try #require(
+            JSONSerialization.jsonObject(
+                with: BackupService.makeEncoder().encode(Self.archive()),
+            ) as? [String: Any],
+        )
+        manifest["homeRegionRecords"] = [[
+            "id": UUID().uuidString,
+            "region": "not-a-region",
+            "updatedAt": 1_700_000_000,
+        ]]
+
+        #expect(throws: BackupService.BackupError.invalidPlanningData) {
+            try BackupService.decodeManifest(JSONSerialization.data(withJSONObject: manifest))
+        }
+    }
+
+    @Test func currentManifestRejectsUnknownStayDestination() throws {
+        let encoder = BackupService.makeEncoder()
+        var manifest = try #require(
+            JSONSerialization.jsonObject(with: encoder.encode(Self.archive())) as? [String: Any],
+        )
+        var records = try #require(
+            JSONSerialization
+                .jsonObject(with: encoder.encode(Self.plannedStayFixtures())) as? [[String: Any]],
+        )
+        var value = try #require(records[0]["value"] as? [String: Any])
+        value["region"] = "not-a-region"
+        records[0]["value"] = value
+        manifest["plannedStayRecords"] = records
+
+        #expect(throws: BackupService.BackupError.invalidPlanningData) {
+            try BackupService.decodeManifest(JSONSerialization.data(withJSONObject: manifest))
         }
     }
 

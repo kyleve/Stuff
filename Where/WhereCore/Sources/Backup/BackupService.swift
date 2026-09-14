@@ -36,7 +36,7 @@ public struct BackupService: Sendable {
 
     /// Failures specific to reading a backup file. Transport / file-system
     /// errors surface as the underlying `Error` instead.
-    public enum BackupError: Error, LocalizedError {
+    public enum BackupError: Error, Equatable, LocalizedError {
         /// The zip opened but contained no `manifest.json` at its root — it
         /// is almost certainly not a Where backup.
         case manifestMissing
@@ -46,6 +46,8 @@ public struct BackupService: Sendable {
         /// Recording rows decoded structurally but violate persisted invariants (for example a
         /// a negative causal revision or incomplete removal history).
         case invalidRecordingData
+        /// Planning revisions violate identity or date-window invariants.
+        case invalidPlanningData
 
         public var errorDescription: String? {
             switch self {
@@ -55,6 +57,8 @@ public struct BackupService: Sendable {
                     String(localized: .backupErrorUnsupportedFormatVersion(version))
                 case .invalidRecordingData:
                     String(localized: .backupErrorInvalidRecordingData)
+                case .invalidPlanningData:
+                    String(localized: .backupErrorInvalidPlanningData)
             }
         }
     }
@@ -100,6 +104,7 @@ public struct BackupService: Sendable {
         recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange],
         recordingDeviceRemovals: [RecordingDeviceRemoval],
         plannedStayRecords: [PlannedStayRecord],
+        homeRegionRecords: [HomeRegionRecord],
         blobs: [UUID: Data],
         exportedAt: Date = Date(),
         archiveName: String? = nil,
@@ -107,6 +112,7 @@ public struct BackupService: Sendable {
         try Self.validateRecordingData(
             metadataChanges: recordingDeviceMetadataChanges,
         )
+        try Self.validatePlanningData(stays: plannedStayRecords, homes: homeRegionRecords)
         let fileManager = FileManager.default
         let workRoot = fileManager.temporaryDirectory
             .appendingPathComponent("where-backup-\(UUID().uuidString)", isDirectory: true)
@@ -141,6 +147,7 @@ public struct BackupService: Sendable {
             recordingDeviceMetadataChanges: recordingDeviceMetadataChanges,
             recordingDeviceRemovals: recordingDeviceRemovals,
             plannedStayRecords: plannedStayRecords,
+            homeRegionRecords: homeRegionRecords,
             assets: assetEntries,
         )
         try Self.logger.measure(.encodeManifest) {
@@ -243,7 +250,30 @@ public struct BackupService: Sendable {
         guard envelope.formatVersion == BackupArchive.currentFormatVersion else {
             throw BackupError.unsupportedFormatVersion(envelope.formatVersion)
         }
-        return try decoder.decode(BackupArchive.self, from: data)
+        let archive = try decoder.decode(BackupArchive.self, from: data)
+        try validatePlanningData(
+            stays: archive.plannedStayRecords,
+            homes: archive.homeRegionRecords,
+        )
+        return archive
+    }
+
+    /// Synthesized decoding does not call validating initializers. Reject invalid planning
+    /// before recording pauses, assets load, or an import writes any rows.
+    private static func validatePlanningData(
+        stays: [PlannedStayRecord],
+        homes: [HomeRegionRecord],
+    ) throws {
+        do {
+            for record in stays {
+                try record.validate()
+            }
+            for record in homes {
+                try record.validate()
+            }
+        } catch {
+            throw BackupError.invalidPlanningData
+        }
     }
 
     /// Validate invariants that synthesized `Decodable` cannot route through the public

@@ -10,6 +10,30 @@ import WhereCore
 /// catalog value. A removed/renamed key is caught by the compiler, so these
 /// tests focus on the runtime logic, not that every simple symbol exists.
 struct WhereFormatTests {
+    @Test func forecastBoundsPreserveExactPluralizationAndBothRangeEndpoints() {
+        #expect(WhereFormat.dayCount(DayBounds(exact: 1)) == "1 day")
+        #expect(WhereFormat.dayCount(DayBounds(lower: 94, upper: 105)) == "94–105 days")
+        #expect(WhereFormat.forecastPercentage(DayBounds(lower: 94, upper: 105), year: 2026)
+            .contains("25.8%"))
+        #expect(WhereFormat.forecastPercentage(DayBounds(lower: 94, upper: 105), year: 2026)
+            .contains("28.8%"))
+    }
+
+    @Test func plannedWindowsShowTheYearAndRespectTheInjectedTimezone() throws {
+        let window = try PlannedStay.DateWindow(
+            earliest: .init(year: 2026, month: 12, day: 31),
+            latest: .init(year: 2027, month: 1, day: 2),
+        )
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "Pacific/Honolulu"))
+        let label = WhereFormat.plannedStayWindow(window, calendar: calendar)
+        #expect(label.contains("2026"))
+        #expect(label.contains("2027"))
+        #expect(label.contains("31"))
+        #expect(WhereFormat.planningMembership(.planned(.possible)) != WhereFormat
+            .planningMembership(.homeAssumed(.possible)))
+    }
+
     @Test func generatedSymbolsResolveToCatalogValues() {
         #expect(String(localized: .tabSettings) == "Settings")
         #expect(String(localized: .commonOk) == "OK")

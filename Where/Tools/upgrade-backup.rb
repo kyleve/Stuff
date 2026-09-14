@@ -1,20 +1,25 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Reshapes a legacy Where backup into the current v5 manifest. The automatic-recording feature
+# Reshapes a legacy Where backup into the current v6 manifest. The automatic-recording feature
 # was not shipped in v1 or v2, so upgrading adds the recording tables empty; it never invents an
 # installation or recording consent. v4 expands device kinds and groups metadata edit payloads;
-# v5 adds an empty planned-stay register when the source predates it.
+# v5 adds an empty planned-stay register when the source predates it. v6 expands that register
+# into independent plans and adds the forecast home-region register.
 
 require "json"
 require "tmpdir"
 require "fileutils"
 require "time"
 require "set"
+require "date"
 
 MANIFEST_NAME = "manifest.json"
-CURRENT_FORMAT_VERSION = 5
+CURRENT_FORMAT_VERSION = 6
 SUPPORTED_SOURCE_FORMAT_VERSIONS = (1..CURRENT_FORMAT_VERSION).freeze
+# All pre-v6 records revised the same logical stay. Keep that identity across archives, including
+# clearing tombstones, so merging upgraded backups cannot revive superseded plans.
+LEGACY_PLANNED_STAY_ID = "9D6B2F5A-2C8E-4B91-9D43-E7F41A0916C0"
 
 REGION_MAP = {
   "california" => "us-CA",
@@ -32,7 +37,7 @@ ISSUE_PARAM_NAMES = {
 
 DATE_KEYS = %w[
   exportedAt timestamp capturedAt dismissedAt registeredAt changedAt removedAt recordedAt
-  lastSeenAt auditRecordedAt auditLocationTimestamp
+  lastSeenAt auditRecordedAt auditLocationTimestamp updatedAt
 ].to_set.freeze
 
 def die(message)
@@ -167,6 +172,36 @@ def source_format_version(manifest)
   version
 end
 
+def upgrade_planned_stays!(manifest, source_version)
+  return unless source_version < 6
+
+  Array(manifest["plannedStayRecords"]).each do |record|
+    record["stayID"] = LEGACY_PLANNED_STAY_ID
+    value = record["value"]
+    next if value.nil?
+
+    through = value.fetch("through")
+    departure = Date.new(through.fetch("year"), through.fetch("month"), through.fetch("day"), Date::GREGORIAN)
+    # v5 never stored arrival. The revision's UTC day is a stable inference across exports;
+    # exportedAt would give one revision conflicting payloads in backups made on different days.
+    # Clamp future clock skew and already-completed plans so arrival cannot follow departure.
+    updated_at = record.fetch("updatedAt")
+    die "planned-stay updatedAt must be a timestamp" unless updated_at.is_a?(Numeric) && updated_at.finite?
+    updated_time = Time.at(updated_at).utc
+    updated_day = Date.new(updated_time.year, updated_time.month, updated_time.day, Date::GREGORIAN)
+    arrival = [updated_day, departure].min
+    arrival_day = { "year" => arrival.year, "month" => arrival.month, "day" => arrival.day }
+    record["value"] = {
+      "id" => LEGACY_PLANNED_STAY_ID,
+      "region" => value.fetch("region"),
+      "arrival" => { "earliest" => arrival_day.dup, "latest" => arrival_day.dup },
+      "departure" => { "earliest" => through.dup, "latest" => through.dup },
+    }
+  rescue KeyError, ArgumentError, RangeError => error
+    die "could not upgrade planned stay: #{error.message}"
+  end
+end
+
 def upgrade_manifest(manifest)
   source_version = source_format_version(manifest)
   warnings = []
@@ -190,7 +225,9 @@ def upgrade_manifest(manifest)
   manifest["recordingDeviceMetadataChanges"] ||= []
   manifest["recordingDeviceRemovals"] ||= []
   manifest["plannedStayRecords"] ||= []
+  manifest["homeRegionRecords"] ||= []
   upgrade_recording_devices!(manifest, source_version)
+  upgrade_planned_stays!(manifest, source_version)
   manifest.delete("recordingDevices")
   manifest.delete("recordingDeviceCheckIns")
   manifest.delete("recordingPolicyChanges")

@@ -8,10 +8,8 @@ import WhereCore
 struct LocationForecastPanel: View {
     let forecasts: [LocationForecast]
     let microprintRegions: [Region]
-    var plannedStay: PlannedStay?
-    var editableRegions: [Region] = []
-    var editAction: ((Region) -> Void)?
-    var clearAction: (@MainActor () async throws -> Void)?
+    var homeRegion: Region?
+    var planningAction: (() -> Void)?
     var isCollapsible = false
 
     @State private var isExpanded = false
@@ -47,17 +45,17 @@ struct LocationForecastPanel: View {
                     ForEach(forecasts, id: \.region) { forecast in
                         LocationForecastRow(
                             forecast: forecast,
-                            plannedStay: plannedStay,
+                            homeRegion: homeRegion,
                         )
                     }
 
-                    if !editableRegions.isEmpty, let editAction {
-                        LocationForecastControls(
-                            editableRegions: editableRegions,
-                            plannedStay: plannedStay,
-                            editAction: editAction,
-                            clearAction: clearAction,
-                        )
+                    if forecasts.contains(where: { !$0.estimatedTotalDays.isExact }) {
+                        Text(String(localized: .forecastDateRangeExplanation))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let planningAction {
+                        LocationForecastControls(planningAction: planningAction)
                     }
                 }
                 .transition(.move(edge: .top).combined(with: .opacity))
@@ -145,10 +143,8 @@ struct LocationForecastPanel: View {
         LocationForecastPanel(
             forecasts: report.forecasts.leadingForecasts(report: report.report),
             microprintRegions: report.ranking.primary.map(\.region),
-            plannedStay: report.forecasts.activePlannedStay,
-            editableRegions: [.california, .newYork],
-            editAction: { _ in },
-            clearAction: {},
+            homeRegion: report.forecasts.planning.homeRegion,
+            planningAction: {},
         )
         .padding()
         .whereBroadwayRoot()

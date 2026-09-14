@@ -13,7 +13,8 @@ struct LocationForecastProgress: View {
         let style = stylesheet.locationForecast
         let progress = style.progress
         let recordedFraction = fraction(forecast.yearToDateDays)
-        let estimatedFraction = forecast.estimatedFractionOfYear
+        let estimatedFraction = fraction(forecast.estimatedTotalDays.upper)
+        let minimumFraction = fraction(forecast.estimatedTotalDays.lower)
 
         GeometryReader { proxy in
             let recordedWidth = proxy.size.width * recordedFraction
@@ -48,6 +49,16 @@ struct LocationForecastProgress: View {
                             }
                             .clipShape(.capsule)
                         }
+                }
+
+                if !forecast.estimatedTotalDays.isExact {
+                    Capsule()
+                        .fill(tint.opacity(style.ink.progressEstimateFillOpacity))
+                        .frame(width: proxy.size.width * minimumFraction)
+                    Rectangle()
+                        .fill(tint)
+                        .frame(width: progress.hatchLineWidth)
+                        .offset(x: proxy.size.width * minimumFraction)
                 }
 
                 if recordedWidth > 0 {

@@ -43,6 +43,7 @@ actor TestStore: WhereStore {
 
     private var shouldFailManualDay = false
     private var shouldFailPlannedStay = false
+    private var shouldFailPlanningRead = false
     private var shouldFailSamples = false
     private var shouldFailNextRecordingDeviceWrite = false
 
@@ -90,6 +91,10 @@ actor TestStore: WhereStore {
 
     func failManualDays() {
         shouldFailManualDay = true
+    }
+
+    func failPlanningReads() {
+        shouldFailPlanningRead = true
     }
 
     func failPlannedStays() {
@@ -281,7 +286,21 @@ actor TestStore: WhereStore {
     }
 
     func plannedStayRecords() async throws -> [PlannedStayRecord] {
-        try await backing.plannedStayRecords()
+        if shouldFailPlanningRead { throw PlannedStaySaveFailure() }
+        return try await backing.plannedStayRecords()
+    }
+
+    func homeRegionRecords() async throws -> [HomeRegionRecord] {
+        try await backing.homeRegionRecords()
+    }
+
+    func replaceHomeRegionRecord(with record: HomeRegionRecord) async throws {
+        if shouldFailPlannedStay { throw PlannedStaySaveFailure() }
+        try await backing.replaceHomeRegionRecord(with: record)
+    }
+
+    func restoreHomeRegionRecord(_ record: HomeRegionRecord) async throws {
+        try await backing.restoreHomeRegionRecord(record)
     }
 
     func replacePlannedStayRecord(with record: PlannedStayRecord) async throws {

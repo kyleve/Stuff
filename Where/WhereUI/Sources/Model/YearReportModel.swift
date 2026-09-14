@@ -88,6 +88,18 @@ public final class YearReportModel {
     }
 
     public private(set) var selectedYear: Int
+
+    /// Keeps future itinerary years reachable through the shared year selector.
+    /// Retain the current selection when plans are hidden or deleted.
+    var selectableYears: [Int] {
+        let currentYear = calendar.component(.year, from: referenceDate)
+        let lastPlannedYear = showsEstimatedTimeAndPlanning
+            ? forecasts.planning.stays.map(\.departure.latest.year).max() : nil
+        let firstYear = min(currentYear - 5, selectedYear)
+        let lastYear = max(currentYear, selectedYear, lastPlannedYear ?? currentYear)
+        return Array((firstYear ... lastYear).reversed())
+    }
+
     private var loadedYear: LoadedYear?
 
     public var report: YearReport? {
@@ -164,13 +176,10 @@ public final class YearReportModel {
         }
     }
 
-    /// Enable immediately, or clear the synced plan before hiding every
-    /// estimated-time surface. A failed clear leaves the preference and UI on.
+    /// Visibility is local presentation state. Saved stays and the synced Home
+    /// assumption remain available when estimates are shown again.
     func setEstimatedTimeAndPlanningEnabled(_ isEnabled: Bool) async throws {
         guard isEnabled != showsEstimatedTimeAndPlanning else { return }
-        if !isEnabled {
-            try await forecasts.clear()
-        }
         showsEstimatedTimeAndPlanning = isEnabled
     }
 

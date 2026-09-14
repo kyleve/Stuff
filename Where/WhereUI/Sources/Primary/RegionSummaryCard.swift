@@ -42,7 +42,7 @@ struct RegionSummaryCard: View {
 
     /// The forecasted total rendered behind recorded progress. Locations cards
     /// supply it when Estimated Time & Planning is visible; other cards omit it.
-    var estimatedDays: Int?
+    var estimatedDays: DayBounds?
 
     /// The calendar year being summarized, inked onto the entry stamp. Callers
     /// pass `WhereSession.selectedYear`; the default is only for previews.
@@ -111,7 +111,7 @@ struct RegionSummaryCard: View {
     }
 
     private var estimatedFraction: Double? {
-        estimatedDays.map(fraction)
+        estimatedDays.map { fraction(for: $0.upper) }
     }
 
     /// Region ink on light cards; a pale derivative on dark cards that remains
@@ -351,18 +351,33 @@ struct RegionSummaryCard: View {
                 .frame(height: barHeight)
                 .overlay(alignment: .leading) {
                     GeometryReader { proxy in
-                        Capsule()
-                            .fill(style.tint)
-                            .frame(width: proxy.size.width * recordedFraction)
-                            .background(alignment: .leading) {
-                                if let estimatedFraction {
+                        ZStack(alignment: .leading) {
+                            if let estimatedFraction {
+                                Capsule()
+                                    .fill(securityPrintTint.opacity(
+                                        cardStyles.estimatedProgressOpacity,
+                                    ))
+                                    .frame(width: proxy.size.width * estimatedFraction)
+                                if let estimatedDays, !estimatedDays.isExact {
                                     Capsule()
                                         .fill(securityPrintTint.opacity(
                                             cardStyles.estimatedProgressOpacity,
                                         ))
-                                        .frame(width: proxy.size.width * estimatedFraction)
+                                        .frame(width: proxy.size
+                                            .width * fraction(for: estimatedDays.lower))
+                                    Rectangle()
+                                        .fill(securityPrintTint)
+                                        .frame(width: barHeight / 3)
+                                        .offset(x: proxy.size
+                                            .width * fraction(for: estimatedDays.lower))
                                 }
                             }
+                            Capsule()
+                                .fill(style.tint)
+                                .frame(width: proxy.size.width * recordedFraction)
+                        }
+                        .frame(width: proxy.size.width, height: barHeight, alignment: .leading)
+                        .clipShape(.capsule)
                     }
                 }
                 .frame(height: barHeight)

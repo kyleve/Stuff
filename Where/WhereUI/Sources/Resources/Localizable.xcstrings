@@ -3294,6 +3294,83 @@
         }
       }
     },
+    "forecast.dateRangeExplanation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ranges reflect your earliest and latest dates. Their endpoints can describe different choices and do not add together."
+          }
+        }
+      }
+    },
+    "forecast.homeContribution" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ assumed at Home"
+          }
+        }
+      }
+    },
+    "forecast.patternContribution" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ from past travel"
+          }
+        }
+      }
+    },
+    "forecast.percent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ of the year"
+          }
+        }
+      }
+    },
+    "forecast.plannedContribution" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ planned"
+          }
+        }
+      }
+    },
+    "forecast.rangeDays" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@–%2$@ days"
+          }
+        }
+      }
+    },
+    "forecast.rangePercent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@–%2$@ of the year"
+          }
+        }
+      }
+    },
     "launch.accessibilityLabel" : {
       "comment" : "Spoken by VoiceOver while the launch splash is on screen (the icon and radar animation are decorative and hidden from accessibility).",
       "extractionState" : "manual",
@@ -4527,6 +4604,446 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Where have you been?"
+          }
+        }
+      }
+    },
+    "planned_stay_editor.arrival" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrival"
+          }
+        }
+      }
+    },
+    "planned_stay_editor.boundary_accessibility" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@: %2$@"
+          }
+        }
+      }
+    },
+    "planned_stay_editor.choose_region" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a region"
+          }
+        }
+      }
+    },
+    "planned_stay_editor.dates_footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The last day is included. Flexible dates produce an estimate range based on the dates you enter."
+          }
+        }
+      }
+    },
+    "planned_stay_editor.delete" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete stay"
+          }
+        }
+      }
+    },
+    "planned_stay_editor.destination" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Destination"
+          }
+        }
+      }
+    },
+    "planned_stay_editor.destination_footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plan a stay in any supported region. Your current location is not required."
+          }
+        }
+      }
+    },
+    "planned_stay_editor.destination_required" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a destination to save this stay."
+          }
+        }
+      }
+    },
+    "planned_stay_editor.earliest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Earliest"
+          }
+        }
+      }
+    },
+    "planned_stay_editor.edit_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit stay"
+          }
+        }
+      }
+    },
+    "planned_stay_editor.exact_date" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date"
+          }
+        }
+      }
+    },
+    "planned_stay_editor.flexible_dates" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flexible dates"
+          }
+        }
+      }
+    },
+    "planned_stay_editor.invalid_dates" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The latest arrival must be on or before the earliest last day."
+          }
+        }
+      }
+    },
+    "planned_stay_editor.last_day" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last day"
+          }
+        }
+      }
+    },
+    "planned_stay_editor.latest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latest"
+          }
+        }
+      }
+    },
+    "planned_stay_editor.new_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a stay"
+          }
+        }
+      }
+    },
+    "planned_stay_editor.untracked" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This region is not tracked automatically. Planning a stay does not change tracking."
+          }
+        }
+      }
+    },
+    "planned_stays.add" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a stay"
+          }
+        }
+      }
+    },
+    "planned_stays.definite_overlap" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overlaps another stay"
+          }
+        }
+      }
+    },
+    "planned_stays.edit_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit this stay independently."
+          }
+        }
+      }
+    },
+    "planned_stays.empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add stays anywhere you plan to visit."
+          }
+        }
+      }
+    },
+    "planned_stays.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Future dates in this year contribute to its estimate. Plans do not change recorded time."
+          }
+        }
+      }
+    },
+    "planned_stays.home_region" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home region"
+          }
+        }
+      }
+    },
+    "planned_stays.home_region_footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assume you are at Home on future days without a planned stay. This estimate is available all year and does not change automatic tracking."
+          }
+        }
+      }
+    },
+    "planned_stays.overlap_footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can keep overlapping plans. Each day counts once per region."
+          }
+        }
+      }
+    },
+    "planned_stays.past" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Past stays"
+          }
+        }
+      }
+    },
+    "planned_stays.past_footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Past plans stay available to edit. They do not add recorded days or fill gaps in your history."
+          }
+        }
+      }
+    },
+    "planned_stays.past_pattern" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Past travel pattern"
+          }
+        }
+      }
+    },
+    "planned_stays.past_pattern_footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimate unplanned future days from your recorded travel this year. These estimates start April 1."
+          }
+        }
+      }
+    },
+    "planned_stays.possible_overlap" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "May overlap another stay"
+          }
+        }
+      }
+    },
+    "planned_stays.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planned stays"
+          }
+        }
+      }
+    },
+    "planned_stays.unplanned_days" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimate unplanned days"
+          }
+        }
+      }
+    },
+    "planned_stays.upcoming" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current and upcoming"
+          }
+        }
+      }
+    },
+    "planning.calendar.home" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assumed at Home"
+          }
+        }
+      }
+    },
+    "planning.calendar.legend" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Future days"
+          }
+        }
+      }
+    },
+    "planning.calendar.monthSummary" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@: %2$@"
+          }
+        }
+      }
+    },
+    "planning.calendar.planned" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planned"
+          }
+        }
+      }
+    },
+    "planning.calendar.possible" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Possible"
+          }
+        }
+      }
+    },
+    "planning.calendar.possibleHome" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Possibly at Home"
+          }
+        }
+      }
+    },
+    "planning.dateWindowRange" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ – %2$@"
           }
         }
       }
@@ -7110,8 +7627,8 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "Those 9 planned days belong only to New York. Every other region adds no planned days and resumes its own pace on July 11."
+            "state" : "translated",
+            "value" : "In Past travel pattern mode, the 9 planned days replace the historical projection. Unplanned days use each region’s own recorded rate."
           }
         }
       }
@@ -7198,8 +7715,8 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "Estimated time and planning are hidden. You can turn them on from Appearance."
+            "state" : "translated",
+            "value" : "Estimates are hidden. Your stays and Home setting remain saved. Show estimates from Appearance."
           }
         }
       }
@@ -7220,8 +7737,8 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "Manage Estimated Time & Planning"
+            "state" : "translated",
+            "value" : "Manage planned stays"
           }
         }
       }
@@ -7242,8 +7759,8 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "After three complete months, Where divides each region’s year-to-date days by all elapsed calendar days. It applies that pace to unreserved days left in the year, then rounds the total to the nearest day."
+            "state" : "translated",
+            "value" : "After three complete months, Where applies each region’s recorded travel rate to unplanned days left this year. With Home selected, those days go to Home instead."
           }
         }
       }
@@ -7264,8 +7781,8 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "A plan reserves tomorrow through the selected end date, inclusive. Those days count for the chosen region; every other region’s projection pauses, then each region resumes its own historical pace."
+            "state" : "translated",
+            "value" : "Add separate stays with exact dates or flexible arrival and departure windows. Choose a Home region to fill unplanned future days, or use your past travel pattern."
           }
         }
       }
@@ -7319,8 +7836,8 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "Each region is calculated independently. A recorded travel day can count toward more than one region, and summaries may omit smaller regions, so displayed estimates may not total 365 days."
+            "state" : "translated",
+            "value" : "A travel day can count in more than one region. Flexible dates produce independent ranges for each region; adding those ranges does not describe one itinerary."
           }
         }
       }
@@ -7341,8 +7858,8 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "Estimates appear for the current year after three complete months and enough recorded history to establish a pace."
+            "state" : "translated",
+            "value" : "Historical estimates begin April 1. Choose a Home region to estimate earlier. Annual estimates cover the current year; you can plan stays for any future date."
           }
         }
       }

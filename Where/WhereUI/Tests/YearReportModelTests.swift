@@ -64,6 +64,36 @@ struct YearReportModelTests {
 
     // MARK: - Year load / stale fetches / save errors
 
+    @Test func futureItineraryYearsRemainReachableWithoutEnablingAnnualEstimates() async throws {
+        let store = try TestStore()
+        let services = PlanningModelTestSupport.services(store: store)
+        let model = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { PlanningModelTestSupport.now },
+        )
+        let stay = try PlannedStay(
+            id: .init(rawValue: UUID()),
+            region: .newYork,
+            arrival: .init(exact: CalendarDay(year: 2027, month: 12, day: 20)),
+            departure: .init(exact: CalendarDay(year: 2028, month: 1, day: 5)),
+        )
+        try await services.plannedStays.create(stay)
+        await model.forecasts.refresh()
+        #expect(model.selectableYears == Array((2021 ... 2028).reversed()))
+
+        await model.select(year: 2028)
+        #expect(model.forecasts.leadingForecasts(report: model.report).isEmpty)
+        #expect(model.forecasts.plannedIntervals(intersecting: 2028).count == 1)
+        try await model.setEstimatedTimeAndPlanningEnabled(false)
+        #expect(model.selectableYears.contains(2028))
+        await model.select(year: 2026)
+        #expect(model.selectableYears.first == 2026)
+        try await model.setEstimatedTimeAndPlanningEnabled(true)
+        #expect(model.selectableYears.first == 2028)
+    }
+
     @Test func staleYearFetchDoesNotOverwriteNewerSelection() async throws {
         let store = try TestStore()
         let services = WhereServices(

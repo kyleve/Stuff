@@ -16,6 +16,7 @@ struct FeatureEstimatedTimeCalculationExample: View {
                 Text(String(localized: .settingsExploreEstimatedTimeCalculationIntro))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 GeometryReader { geometry in
                     let segmentWidth = max(
@@ -87,6 +88,7 @@ struct FeatureEstimatedTimeCalculationExample: View {
                 Text(String(localized: .settingsExploreEstimatedTimeCalculationOtherRegions))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }

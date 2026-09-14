@@ -113,7 +113,7 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `refreshWidgetSnapshot()`). It holds no presentation state of its own.
 - **Scope-tiered models** — scene-scoped **`YearReportModel`** (the selected
   year's `YearReportDetails`, its `LoadState`, manual-day edit intents, and the shared
-  **`LocationForecastModel`** planned-stay mirror and current-location advisory), plus
+  **`LocationForecastModel`** itinerary and Home-assumption mirror), plus
   view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
   (Settings export progress and failures),
   **`RemindersSettingsModel`** (notification prefs),
@@ -335,15 +335,31 @@ invalidate the card's text or Canvas artwork. The card adds no standalone edge
 stroke. Its containing Liquid Glass surface owns the subtle outer border so
 direct and production rendering do not diverge.
 
-After three complete months, Locations can show a collapsible annual estimate from the recorded pace.
-The user can plan a stay in one of the displayed regions. The shared estimate uses an adaptive
-passport-visa endorsement. A neutral microprint border repeats the silhouettes of the two main
-location cards around the security print and annual seal. Region-tinted rows use a solid and
-hatched rule to distinguish recorded time from the projection.
-A focused region calendar puts the same open endorsement after the current month. The calendar
-shows planned future days with a continuous hatched band. This band is distinct from recorded
-presence. Appearance settings hide every estimate and planning view only after the app clears the
-synchronized plan.
+The Locations toolbar opens **Planned stays**. Each stay has an independent identity,
+a destination, and inclusive arrival and last-day windows. Exact dates use one day
+per boundary. Flexible dates use earliest and latest choices. The latest arrival
+cannot follow the earliest last day. Overlap labels identify shared dates without
+blocking a save. The planner retains completed stays in its Past section.
+
+The planner offers **Past travel pattern** or one **Home region** for future gaps.
+Home does not change the tracked-region selection. Untracked destinations link to
+region settings. Historical estimates start April 1. Home estimates are available
+throughout the current year. Plans can extend into future years. The visible-year
+selector includes those years for Calendar and Timeline navigation.
+
+The estimate panel shows recorded, planned, and assumed or projected day counts.
+Flexible plans produce independent per-region ranges. A range describes possible
+date choices, not a statistical confidence interval. The panel includes destinations
+with no recorded visits. Recorded location-card rankings remain independent of plans.
+
+Calendar and Timeline mark explicit plans, possible dates, and Home assumptions.
+Each timeline stay opens its own editor. Future intent never becomes recorded history
+as dates pass. Appearance settings can hide estimates without removing plans or Home.
+The Estimated Time settings page also opens the planner.
+
+The shared estimate retains its passport-visa endorsement. A neutral microprint border
+repeats the two main location-card silhouettes. Solid and hatched treatments distinguish
+recorded totals from projected totals. The range band shows uncertainty at its outer edge.
 
 While the Locations cards are visible, a live reversal between the same two
 primary regions holds the previous counts and order through the existing reveal
