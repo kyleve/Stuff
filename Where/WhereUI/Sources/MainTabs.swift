@@ -99,11 +99,7 @@ struct MainTabs: View {
             .badge(recordingWarning.isPresented ? 1 : 0)
         }
         .accessibilityHidden(welcomePresentation != nil)
-        .tabViewBottomAccessory {
-            if let accessory = welcomeAccessory {
-                LocationWelcomeStatusAccessory(accessory: accessory)
-            }
-        }
+        .modifier(LocationWelcomeAccessoryModifier(accessory: welcomeAccessory))
         // Keep the tab bar fixed — don't minimize it as content scrolls.
         .tabBarMinimizeBehavior(.never)
         .overlay {
@@ -207,36 +203,70 @@ struct MainTabs: View {
 #if DEBUG
     extension MainTabs: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            let configurations: [SnapshotConfiguration] = .phoneLightDark + [
-                SnapshotConfiguration(dynamicType: .accessibility5, device: .iPhone),
+            let fastConfigurations: [SnapshotConfiguration] = .phoneLightDark + [
                 SnapshotConfiguration(device: .iPhone, snapshotType: .accessibility),
+            ]
+            let largeTypeConfigurations = [
+                SnapshotConfiguration(dynamicType: .accessibility5, device: .iPhone),
             ]
             return [
                 whereSnapshot(
                     name: "WelcomeLocations",
-                    configurations: configurations,
+                    configurations: fastConfigurations,
                     measurementReadiness: .immediate,
                 ) {
                     welcomeSnapshot(selection: .locations)
                 },
                 whereSnapshot(
                     name: "WelcomeYear",
-                    configurations: configurations,
+                    configurations: fastConfigurations,
                     measurementReadiness: .immediate,
                 ) {
                     welcomeSnapshot(selection: .year)
                 },
                 whereSnapshot(
                     name: "WelcomeLocating",
-                    configurations: configurations,
+                    configurations: fastConfigurations,
                     measurementReadiness: .immediate,
                 ) {
                     accessorySnapshot(actionRequired: false)
                 },
                 whereSnapshot(
                     name: "WelcomeActionRequired",
-                    configurations: configurations,
+                    configurations: fastConfigurations,
                     measurementReadiness: .immediate,
+                ) {
+                    accessorySnapshot(actionRequired: true)
+                },
+                whereSnapshot(
+                    name: "WelcomeLocations",
+                    configurations: largeTypeConfigurations,
+                    measurementReadiness: .immediate,
+                    settle: .settledAtLeast(minDuration: 1.0),
+                ) {
+                    welcomeSnapshot(selection: .locations)
+                },
+                whereSnapshot(
+                    name: "WelcomeYear",
+                    configurations: largeTypeConfigurations,
+                    measurementReadiness: .immediate,
+                    settle: .settledAtLeast(minDuration: 1.0),
+                ) {
+                    welcomeSnapshot(selection: .year)
+                },
+                whereSnapshot(
+                    name: "WelcomeLocating",
+                    configurations: largeTypeConfigurations,
+                    measurementReadiness: .immediate,
+                    settle: .settledAtLeast(minDuration: 1.0),
+                ) {
+                    accessorySnapshot(actionRequired: false)
+                },
+                whereSnapshot(
+                    name: "WelcomeActionRequired",
+                    configurations: largeTypeConfigurations,
+                    measurementReadiness: .immediate,
+                    settle: .settledAtLeast(minDuration: 1.0),
                 ) {
                     accessorySnapshot(actionRequired: true)
                 },
