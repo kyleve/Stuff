@@ -147,6 +147,7 @@ private let whereStoreMutatingMethods: Set<String> = [
     "restoreDismissedIssue",
     "setTrackedRegion",
     "setPrimaryRegions",
+    "addSampleAttributionRevision",
 ]
 
 private let storeTransactionBoundaryRule = Rules.files(

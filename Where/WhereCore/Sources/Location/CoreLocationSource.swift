@@ -219,6 +219,29 @@ public final class CoreLocationSource: NSObject, LocationSource {
             @unknown default: .notDetermined
         }
     }
+
+    /// Normalize unavailable CLLocation measurements at the system boundary.
+    nonisolated static func motion(from location: CLLocation) -> LocationMotion? {
+        let speed: LocationMotion.Speed? = if location.speed.isFinite,
+                                              location.speed >= 0,
+                                              location.speedAccuracy.isFinite,
+                                              location.speedAccuracy >= 0
+        {
+            .init(metersPerSecond: location.speed, accuracyMetersPerSecond: location.speedAccuracy)
+        } else {
+            nil
+        }
+        let altitude: LocationMotion.Altitude? = if location.altitude.isFinite,
+                                                    location.verticalAccuracy.isFinite,
+                                                    location.verticalAccuracy > 0
+        {
+            .init(meters: location.altitude, accuracyMeters: location.verticalAccuracy)
+        } else {
+            nil
+        }
+        guard speed != nil || altitude != nil else { return nil }
+        return LocationMotion(speed: speed, altitude: altitude)
+    }
 }
 
 extension CoreLocationSource: CLLocationManagerDelegate {
@@ -236,6 +259,7 @@ extension CoreLocationSource: CLLocationManagerDelegate {
                 ),
                 horizontalAccuracy: location.horizontalAccuracy,
                 source: .gpsSignificantChange,
+                motion: Self.motion(from: location),
             )
             sampleContinuation.yield(sample)
             latest = sample

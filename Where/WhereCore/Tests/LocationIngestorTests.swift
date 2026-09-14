@@ -1009,6 +1009,20 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.allSamples()
     }
 
+    func sampleAttributionRevisions(for sampleIDs: Set<UUID>) async throws
+        -> [SampleAttributionRevision]
+    {
+        try await backing.sampleAttributionRevisions(for: sampleIDs)
+    }
+
+    func allSampleAttributionRevisions() async throws -> [SampleAttributionRevision] {
+        try await backing.allSampleAttributionRevisions()
+    }
+
+    func addSampleAttributionRevision(_ revision: SampleAttributionRevision) async throws {
+        try await backing.addSampleAttributionRevision(revision)
+    }
+
     func recordingDevices() async throws -> [RecordingDevice] {
         try await backing.recordingDevices()
     }
