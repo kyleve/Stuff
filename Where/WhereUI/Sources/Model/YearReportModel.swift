@@ -6,8 +6,8 @@ import WhereCore
 
 /// The scene-scoped presentation model for the selected year: the loaded
 /// `YearReport` and everything derived from it (ranking, missing days, the
-/// calendar inputs), the day-write intents, and the data-issue *count* the
-/// Resolve tab badge reads.
+/// calendar inputs), day-write intents, and the coherent GPS/data-issue assessment
+/// shared by notices, correction screens, and actionable badges.
 ///
 /// Unlike `WhereSession` — the always-on coordinator that lives for the whole
 /// logged-in lifetime — a `YearReportModel` is created by `MainTabs` only once the
@@ -62,12 +62,19 @@ public final class YearReportModel {
         /// the inputs and reloads the Resolve list even when nothing else
         /// (year / report / threshold) changed.
         let manualScanToken: Int
+        let evidenceRevision: UUID
+        let scanRevision: UUID?
+        let scanError: String?
     }
 
     /// Incremented by `rescanForIssues()`; folded into `dataIssueScanInputs` so a
     /// forced rescan reloads the Resolve list. Observed (so the `.task(id:)`
     /// re-fires), never persisted.
     private var manualScanToken = 0
+    private var evidenceRevision = UUID()
+    private var scanRequestID = UUID()
+    private var isActive = false
+    private var lifecycleRevision = UUID()
 
     private struct LoadedYear {
         let details: YearReportDetails
@@ -108,11 +115,45 @@ public final class YearReportModel {
     /// tracked separately from `report` (which drives residency).
     public private(set) var evidenceDayKeys: Set<CalendarDay> = []
 
-    /// Unresolved data-issue count for the selected year — the Resolve tab badge.
-    /// The full issue list lives on the view-scoped `ResolveModel`; only this
-    /// count is kept here because the badge must render before the Resolve tab
-    /// is ever materialized.
+    /// One coherent assessment drives Locations, the review list, and actionable badges.
+    public private(set) var dataIssueScan: DataIssueScanResult?
+    public private(set) var dataIssueScanError: String?
+    private var recordingDeviceNames: [RecordingDeviceID: String] = [:]
     public private(set) var dataIssueCount = 0
+
+    var correctionReviews: [GPSCorrectionReview] {
+        dataIssueScan?.reviews ?? []
+    }
+
+    /// Historical pending reviews remain accessible after their live notice expires.
+    var hasCorrectionReviews: Bool {
+        !correctionReviews.isEmpty
+    }
+
+    var liveFlightReview: GPSCorrectionReview? {
+        correctionReviews.filter { liveFlightAssessment(in: $0) != nil }.max { lhs, rhs in
+            (liveFlightAssessment(in: lhs)?.lastObservationAt ?? .distantPast)
+                < (liveFlightAssessment(in: rhs)?.lastObservationAt ?? .distantPast)
+        }
+    }
+
+    func liveFlightAssessment(in review: GPSCorrectionReview) -> FlightAssessment? {
+        review.flights.filter { flight in
+            flight.id.recordingDeviceID == services.recording.currentDevice.id
+                && now().timeIntervalSince(flight.lastObservationAt) < 24 * 60 * 60
+        }.max { $0.lastObservationAt < $1.lastObservationAt }
+    }
+
+    func flightDeviceLabel(_ flight: FlightAssessment) -> String {
+        guard let deviceID = flight.id.recordingDeviceID else {
+            return String(localized: .flightStatusDeviceLegacy)
+        }
+        if deviceID == services.recording.currentDevice.id {
+            return String(localized: .flightStatusDeviceCurrent)
+        }
+        let name = recordingDeviceNames[deviceID] ?? deviceID.rawValue.uuidString
+        return String(localized: .flightStatusDeviceNamed(name))
+    }
 
     /// The services every read/write funnels through. Exposed so sibling
     /// view-scoped models can be built from the injected `report`.
@@ -134,6 +175,7 @@ public final class YearReportModel {
     /// `nonisolated(unsafe)` so `deinit` can cancel it; every other access is on
     /// the main actor, and `deinit` runs with no other live references.
     @ObservationIgnored private nonisolated(unsafe) var dataChangeTask: Task<Void, Never>?
+    @ObservationIgnored private nonisolated(unsafe) var reassessmentTask: Task<Void, Never>?
 
     private static let logger = WhereLog.session(YearReportModelLog.self)
 
@@ -203,12 +245,7 @@ public final class YearReportModel {
         }
     #endif
 
-    /// GPS border-drift detection threshold (device setting). The setter persists
-    /// it, forces a badge recount, and — through the observed mirror — re-keys
-    /// `dataIssueScanInputs` so the Resolve list re-scans immediately, not just on
-    /// its next unrelated load. The scanner cache is keyed by `(year, threshold)`,
-    /// so the recount and the list both recompute for the new threshold no matter
-    /// which of the two concurrent scans runs first.
+    /// Persist the GPS drift threshold and refresh the scene's shared assessment.
     public var driftThreshold: DriftThreshold {
         get { driftThresholdStorage }
         set {
@@ -219,17 +256,17 @@ public final class YearReportModel {
         }
     }
 
-    /// The inputs that determine a data-issue scan's result: the selected year,
-    /// the loaded report (any committed write re-pulls it; a year switch nils
-    /// then reloads it), and the drift threshold. `ResolutionView` keys its scan
-    /// `.task(id:)` on this, so the Resolve list re-scans on exactly the triggers
-    /// the badge count recomputes on — the two can't drift apart.
+    /// Raw writes re-key mounted reviews even when region totals are equal.
+    /// Scan revision/error also propagates deadline and explicit refresh results.
     var dataIssueScanInputs: DataIssueScanInputs {
         DataIssueScanInputs(
             year: selectedYear,
             report: report,
             driftThreshold: driftThreshold,
             manualScanToken: manualScanToken,
+            evidenceRevision: evidenceRevision,
+            scanRevision: dataIssueScan?.revision,
+            scanError: dataIssueScanError,
         )
     }
 
@@ -305,14 +342,17 @@ public final class YearReportModel {
 
     deinit {
         dataChangeTask?.cancel()
+        reassessmentTask?.cancel()
     }
 
     /// Start observing committed writes and pull fresh data. Called by `MainTabs`
     /// when the scene becomes active. Safe to call repeatedly — the subscription
     /// is set up at most once until `deactivate()`.
     public func activate() async {
+        lifecycleRevision = UUID()
+        isActive = true
         observeDataChanges()
-        await refreshAll(forceDataIssueCount: false)
+        await refreshAll(forceDataIssueCount: true)
     }
 
     /// Stop observing committed writes. Called by `MainTabs` when the scene goes
@@ -320,6 +360,11 @@ public final class YearReportModel {
     /// `activate()` re-subscribes and pulls (covering the background→foreground
     /// gap).
     public func deactivate() {
+        lifecycleRevision = UUID()
+        isActive = false
+        scanRequestID = UUID()
+        reassessmentTask?.cancel()
+        reassessmentTask = nil
         dataChangeTask?.cancel()
         dataChangeTask = nil
     }
@@ -335,7 +380,9 @@ public final class YearReportModel {
         let updates = services.dataChangeUpdates()
         dataChangeTask = Task { @MainActor [weak self] in
             for await _ in updates {
-                guard let self else { break }
+                guard let self, !Task.isCancelled else { break }
+                evidenceRevision = UUID()
+                scanRequestID = UUID()
                 await refreshAll(forceDataIssueCount: true)
             }
         }
@@ -351,19 +398,23 @@ public final class YearReportModel {
         // Clear the previous year's evidence markers too, so the calendar can't
         // briefly badge the new year's days with the old year's evidence.
         evidenceDayKeys = []
+        dataIssueScan = nil
+        dataIssueCount = 0
+        dataIssueScanError = nil
         await refreshAll(forceDataIssueCount: true)
     }
 
-    /// Pull a fresh year report *and* recompute the Resolve badge count — the
-    /// common case after any committed write or a (re)activation. `refresh()`
-    /// and `refreshDataIssueCount(force:)` stay separately callable rather than
-    /// folded together, because the drift-threshold change recomputes only the
-    /// count (no report re-pull); this just names the pairing the shared sites use.
+    /// Refresh the report, forecast, evidence markers, and shared correction
+    /// assessment after a committed write or foreground activation.
     func refreshAll(forceDataIssueCount: Bool) async {
+        let requestedLifecycle = lifecycleRevision
         await Self.logger.measure(.sceneRefresh, budget: .seconds(3)) {
             await refresh()
+            guard requestedLifecycle == lifecycleRevision, !Task.isCancelled else { return }
             await forecasts.refresh()
+            guard requestedLifecycle == lifecycleRevision, !Task.isCancelled else { return }
             await refreshEvidenceDayKeys()
+            guard requestedLifecycle == lifecycleRevision, !Task.isCancelled else { return }
             await refreshDataIssueCount(force: forceDataIssueCount)
         }
     }
@@ -392,39 +443,81 @@ public final class YearReportModel {
         }
     }
 
-    /// Force a fresh data-issue scan past the ~3h throttle — the Settings "Find
-    /// issues now" action. Recomputes the badge with `force: true` (which also
-    /// refreshes the scanner's shared cache), then re-keys `dataIssueScanInputs`
-    /// so an already-open Resolve list reloads from that now-fresh cache too.
-    /// This mirrors the dual refresh a drift-threshold change performs.
+    /// Explicit refresh shares the same publication and deadline scheduling as
+    /// live writes. Its token also refreshes an already-open review after failure.
     public func rescanForIssues() async {
         await refreshDataIssueCount(force: true)
         manualScanToken += 1
     }
 
-    /// Recompute the Resolve badge count for the selected year. Uses the cached
-    /// scan (shared with the Resolve list) unless `force`.
+    /// Reassess raw evidence even if its aggregate region/day set did not change.
+    /// A later request, committed write, year switch, or deactivation prevents
+    /// an older suspended scan from publishing into the current scene.
     func refreshDataIssueCount(force: Bool) async {
-        // Capture the year this scan is for; the model is reentrant while
-        // awaiting, so a concurrent `select(year:)` could otherwise install a
-        // count under the wrong year's label.
         let requestedYear = selectedYear
+        let requestID = UUID()
+        scanRequestID = requestID
         do {
-            let issues = try await services.resolution.issues(
+            let scan = try await services.resolution.scan(
                 year: requestedYear,
                 primaryRegions: ranking.primary.map(\.region),
-                // Read the observable mirror (same value the `dataIssueScanInputs`
-                // key the Resolve list scans on uses), so the badge recount and
-                // the list can't scan against different thresholds.
                 driftThresholdMeters: Double(driftThreshold.rawValue),
                 force: force,
             )
-            guard requestedYear == selectedYear else { return }
-            if dataIssueCount != issues.count { dataIssueCount = issues.count }
+            guard requestedYear == selectedYear, scanRequestID == requestID,
+                  !Task.isCancelled else { return }
+            dataIssueScan = scan
+            dataIssueCount = scan.issues.count
+            dataIssueScanError = nil
+            scheduleReassessment()
+            await refreshRecordingDeviceNames()
+        } catch is CancellationError {
+            return
         } catch {
-            // Surface the failure and keep the last good count rather than
-            // silently blanking the badge.
+            guard requestedYear == selectedYear, scanRequestID == requestID else { return }
+            dataIssueScanError = error.localizedDescription
             Self.logger { .dataIssueScanFailed(description: error.localizedDescription) }
+        }
+    }
+
+    private func refreshRecordingDeviceNames() async {
+        do {
+            let devices = try await services.recording.devices()
+            guard !Task.isCancelled else { return }
+            recordingDeviceNames = Dictionary(uniqueKeysWithValues: devices.map {
+                ($0.id, $0.device.displayName)
+            })
+        } catch is CancellationError {
+            return
+        } catch {
+            Self.logger { .dataIssueScanFailed(description: error.localizedDescription) }
+        }
+    }
+
+    /// Only the foreground scene schedules presentation deadlines. Recording
+    /// silence changes the notice's freshness; it can never establish arrival.
+    private func scheduleReassessment() {
+        reassessmentTask?.cancel()
+        reassessmentTask = nil
+        guard isActive else { return }
+        let currentDate = now()
+        let expiryDates = correctionReviews.flatMap(\.flights).map {
+            $0.lastObservationAt.addingTimeInterval(24 * 60 * 60)
+        }
+        let deadlines = expiryDates + [dataIssueScan?.nextReassessmentAt].compactMap(\.self)
+        guard let deadline = deadlines.filter({ $0 > currentDate }).min() else { return }
+        let delay = deadline.timeIntervalSince(currentDate)
+        reassessmentTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(for: .seconds(delay))
+            } catch is CancellationError {
+                return
+            } catch {
+                Self.logger { .dataIssueScanFailed(description: error.localizedDescription) }
+                return
+            }
+            guard let self, isActive, !Task.isCancelled else { return }
+            await refreshDataIssueCount(force: true)
         }
     }
 
@@ -433,6 +526,7 @@ public final class YearReportModel {
         // awaiting `yearReportDetails`, so a rapid second `select(year:)` could
         // install a stale report under the newer year's label.
         let requestedYear = selectedYear
+        let requestedLifecycle = lifecycleRevision
         // Only surface the loading state when there's nothing on screen yet — an
         // initial load or a year switch (which nils `report` first). A background
         // refresh keeps the current report visible (no spinner flicker), and the
@@ -443,7 +537,8 @@ public final class YearReportModel {
                 for: requestedYear,
                 primaryRegionCount: RegionRanking.primaryCount,
             )
-            guard requestedYear == selectedYear else { return }
+            guard requestedYear == selectedYear, requestedLifecycle == lifecycleRevision,
+                  !Task.isCancelled else { return }
             let changed = loadedYear?.details != details
             if changed { loadedYear = LoadedYear(details: details, previous: loadedYear) }
             if loadState != .loaded { loadState = .loaded }
@@ -453,7 +548,8 @@ public final class YearReportModel {
                 }
             }
         } catch {
-            guard requestedYear == selectedYear else { return }
+            guard requestedYear == selectedYear, requestedLifecycle == lifecycleRevision,
+                  !Task.isCancelled else { return }
             loadState = .failed(.reportUnavailable(message: error.localizedDescription))
             Self.logger {
                 .reportLoadFailed(year: requestedYear, description: error.localizedDescription)
@@ -610,6 +706,11 @@ public final class YearReportModel {
 #if DEBUG
     @_spi(Testing) extension YearReportModel {
         /// Inject a badge count for previews/tests without seeding raw samples.
+        public func setDataIssueScan(_ scan: DataIssueScanResult) {
+            dataIssueScan = scan
+            dataIssueCount = scan.issues.count
+        }
+
         public func setDataIssueCount(_ count: Int) {
             dataIssueCount = count
         }

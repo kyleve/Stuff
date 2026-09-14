@@ -4,24 +4,17 @@ import PeriscopeCore
 import RegionKit
 import WhereCore
 
-/// View-scoped model for the Resolve tab: the full list of unresolved
-/// data-quality issues for the selected year, plus the dismiss action. Owned as
-/// `@State` by `ResolutionView`, so it's created when the Resolve tab is first
-/// shown and torn down with it.
-///
-/// The tab-bar badge *count* lives on the scene-scoped `YearReportModel` instead
-/// (it must render before this tab is ever materialized); this model owns the
-/// list the screen shows. `ResolutionView` drives `load(year:primaryRegions:)`
-/// from a `.task(id:)` keyed on the report's `dataIssueScanInputs`, so the list
-/// re-scans on appear, on any committed write, on a year switch, and on a
-/// drift-threshold change — all while sharing the scanner's cache with the badge
-/// recount.
+/// Mirrors the scene's coherent scan for correction navigation and dismiss actions.
+/// Standalone consumers can load through the same Core scanner.
 @MainActor
 @Observable
 public final class ResolveModel {
     /// Unresolved data-quality issues for the selected year, grouped and sorted
     /// by the scanner.
     public private(set) var dataIssues: [any DataIssue] = []
+    public private(set) var reviews: [GPSCorrectionReview] = []
+    public private(set) var loadError: String?
+    private var loadRequestID = UUID()
 
     /// Whether the first scan has completed (or a fixture was seeded). Until it
     /// has, `ResolutionView` shows a spinner rather than the "all clear" empty
@@ -54,15 +47,22 @@ public final class ResolveModel {
         #if DEBUG
             if isSeeded { return }
         #endif
+        let requestID = UUID()
+        loadRequestID = requestID
         do {
-            let issues = try await services.resolution.issues(
+            let scan = try await services.resolution.scan(
                 year: year,
                 primaryRegions: primaryRegions,
                 driftThresholdMeters: Double(preferences.driftThresholdMeters),
                 force: false,
             )
-            dataIssues = issues
+            guard loadRequestID == requestID, !Task.isCancelled else { return }
+            receive(scan: scan, error: nil)
+        } catch is CancellationError {
+            return
         } catch {
+            guard loadRequestID == requestID, !Task.isCancelled else { return }
+            loadError = error.localizedDescription
             // Surface the failure and keep the last good list rather than
             // silently blanking the tab (which would read as "all clear").
             Self.logger { .dataIssueScanFailed(description: error.localizedDescription) }
@@ -73,6 +73,32 @@ public final class ResolveModel {
         hasLoaded = true
     }
 
+    func receive(scan: DataIssueScanResult?, error: String?) {
+        #if DEBUG
+            if isSeeded { return }
+        #endif
+        loadError = error
+        if let scan {
+            dataIssues = scan.issues
+            reviews = scan.reviews
+            hasLoaded = true
+        } else if error != nil {
+            hasLoaded = true
+        }
+    }
+
+    var pendingReviews: [GPSCorrectionReview] {
+        reviews.filter(\.isPending)
+    }
+
+    var completedReviews: [GPSCorrectionReview] {
+        reviews.filter { !$0.isPending && $0.proposal == nil }
+    }
+
+    func review(for issue: any DataIssue) -> GPSCorrectionReview? {
+        reviews.first { $0.id == issue.id }
+    }
+
     public func dismiss(_ issue: any DataIssue) async {
         guard issue.isDismissible else { return }
         do {
@@ -81,6 +107,7 @@ public final class ResolveModel {
             // write pings the store-change signal, so the scene's `YearReportModel`
             // recomputes the badge count a beat later.
             dataIssues.removeAll { $0.id == issue.id }
+            reviews.removeAll { $0.id == issue.id }
         } catch {
             Self.logger {
                 .dismissFailed(
@@ -96,6 +123,12 @@ public final class ResolveModel {
     @_spi(Testing) extension ResolveModel {
         /// Inject issues for previews/tests without seeding raw samples. Marks the
         /// model seeded so a subsequent `load(...)` leaves the fixture in place.
+        public func setReviews(_ reviews: [GPSCorrectionReview]) {
+            self.reviews = reviews
+            isSeeded = true
+            hasLoaded = true
+        }
+
         public func setDataIssues(_ issues: [any DataIssue]) {
             dataIssues = issues
             isSeeded = true

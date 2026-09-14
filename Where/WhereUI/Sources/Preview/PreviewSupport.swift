@@ -544,11 +544,16 @@
         /// One data-resolution issue per category, for Resolve tab previews/tests.
         public static func sampleDataIssues() -> [any DataIssue] {
             var calendar = Calendar(identifier: .gregorian)
-            calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+            calendar.timeZone = .current
             let start = calendar.date(from: DateComponents(year: year, month: 3, day: 1))!
             let day2 = calendar.date(byAdding: .day, value: 1, to: start)!
             let day3 = calendar.date(byAdding: .day, value: 2, to: start)!
             let day4 = calendar.date(byAdding: .day, value: 3, to: start)!
+            guard let driftProposal = borderDriftReview(date: day2).proposal,
+                  let flightProposal = flightReview(state: .ready, date: day4).proposal
+            else {
+                preconditionFailure("Sample correction previews must provide actionable proposals")
+            }
             let startDay = CalendarDay(from: start, in: calendar)
             return [
                 MissingDaysIssue(range: MissingDayRange(
@@ -556,25 +561,12 @@
                     end: startDay,
                     dayCount: 1,
                 )),
-                BorderDriftIssue(
-                    day: DayPresence(date: day2, in: calendar, regions: [.other]),
-                    nearestRegion: .california,
-                    distanceMeters: 6000,
-                ),
+                SampleCorrectionIssue(proposal: driftProposal),
                 AbruptChangeIssue(
                     earlierDay: DayPresence(date: day2, in: calendar, regions: [.california]),
                     laterDay: DayPresence(date: day3, in: calendar, regions: [.newYork]),
                 ),
-                FlightDayIssue(
-                    day: DayPresence(
-                        date: day4,
-                        in: calendar,
-                        regions: [.newYork, .other, .california],
-                    ),
-                    keepRegions: [.newYork, .california],
-                    removedRegions: [.other],
-                    peakSpeedKMH: 880,
-                ),
+                SampleCorrectionIssue(proposal: flightProposal),
             ]
         }
 
@@ -595,6 +587,16 @@
                 services: previewServices(),
                 preferences: previewPreferences(),
             )
+            if seededWithIssues {
+                var calendar = Calendar(identifier: .gregorian)
+                calendar.timeZone = .current
+                let driftDay = calendar.date(from: DateComponents(year: year, month: 3, day: 2))!
+                let flightDay = calendar.date(from: DateComponents(year: year, month: 3, day: 4))!
+                resolve.setReviews([
+                    borderDriftReview(date: driftDay),
+                    flightReview(state: .ready, date: flightDay),
+                ])
+            }
             resolve.setDataIssues(seededWithIssues ? sampleDataIssues() : [])
             return resolve
         }
