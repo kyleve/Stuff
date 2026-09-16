@@ -20,6 +20,12 @@ struct SampleCorrectionAssessment {
         let byDay = Dictionary(grouping: reads.history.samples) {
             CalendarDay(from: $0.sample.timestamp, in: calendar)
         }
+        // Revisions follow a sample identity across days. A conflict anywhere
+        // in the reviewed snapshot must prevent correcting that identity.
+        let conflictingSampleIDs = Set(Dictionary(
+            grouping: reads.history.samples,
+            by: \.sample.id,
+        ).filter { Set($0.value).count > 1 }.keys)
         let revisionsBySample = Dictionary(grouping: reads.history.revisions, by: \.sampleID)
         return byDay.keys.filter { $0.year == reads.report.year }.sorted().compactMap { day in
             let start = day.startOfDay(in: calendar)
@@ -37,6 +43,7 @@ struct SampleCorrectionAssessment {
             return review(
                 day: day,
                 entries: byDay[day] ?? [],
+                conflictingSampleIDs: conflictingSampleIDs,
                 flights: flights,
                 reads: reads,
                 primaryRegions: primaryRegions,
@@ -53,6 +60,7 @@ struct SampleCorrectionAssessment {
     private func review(
         day: CalendarDay,
         entries: [AttributedLocationSample],
+        conflictingSampleIDs: Set<UUID>,
         flights: [FlightAssessment],
         reads: DataIssueReads,
         primaryRegions: [Region],
@@ -101,7 +109,13 @@ struct SampleCorrectionAssessment {
         // An explicit whole-day assertion is authoritative. Keep it intact and
         // offer only the informational completed-flight state beneath it.
         if !manuals.contains(where: \.isAuthoritative) {
-            for entry in entries where entry.sample.source.isGPS && !entry.regions.isEmpty {
+            // Concurrent imports can sync multiple physical rows for one sample.
+            // Review its identity once, retaining conflicting representations as
+            // unknown evidence instead of choosing an arbitrary row to correct.
+            for duplicates in Dictionary(grouping: entries, by: \.sample.id).values {
+                guard let entry = duplicates.first,
+                      !conflictingSampleIDs.contains(entry.sample.id),
+                      entry.sample.source.isGPS, !entry.regions.isEmpty else { continue }
                 if airborne.contains(entry.sample.id) {
                     edits.append(.init(sampleID: entry.sample.id, replacementRegions: []))
                 } else if let region = boundaryReplacement(

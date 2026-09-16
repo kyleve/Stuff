@@ -164,7 +164,9 @@ one it belongs to rather than to a god-object:
   points can be excluded only after arrival. A boundary relabel needs local
   same-device brackets in the retained region within ten minutes on both sides.
   Manual assertions, unknown fixes, ground endpoints, layovers, and later
-  destinations retain their contributions. `LocationHistoryReader.projection`
+  destinations retain their contributions. Reviews coalesce identical synced rows
+  by sample identity; conflicting representations remain uncorrected.
+  `LocationHistoryReader.projection`
   joins lossless raw samples to the effective attribution for reports, maps,
   artwork, widgets, summaries, reminders, and intents.
 - **`SampleAttributionRevision`** — an immutable, generation-scoped sample register,

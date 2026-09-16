@@ -123,6 +123,8 @@ internal shape.
   `perform(expectedDataGenerationID:)`; changed evidence returns a fresh review
   without expanding Apply (`SampleCorrectionCoordinatorTests`). Preserve manual
   and evidence-derived assertions and existing authoritative day overrides.
+  Propose at most one edit per sample ID; preserve conflicting duplicate observations
+  (`SampleCorrectionAssessmentTests`).
 - **Resolve sample attribution as a generation-scoped immutable revision register.**
   Order by timestamp then UUID; nil is a reset tombstone, an empty set excludes,
   and a populated set replaces attribution. Retain revisions arriving before
