@@ -6,6 +6,22 @@ import Testing
 /// Synthetic geography for the invented trajectory fixture. Real region polygons
 /// play no part in these persistence and projection integration tests.
 enum SampleCorrectionTestSupport {
+    struct SparseLayoverRegions: RegionAttributing {
+        let loadedRegions: [Region] = [.california, .newYork, .canada]
+
+        func region(at coordinate: Coordinate) -> Region {
+            let east = coordinate.longitude * 111.195
+            if east < 0.5 { return .california }
+            if abs(east - 150) < 0.5 { return .canada }
+            if east >= 299.5 { return .newYork }
+            return .other
+        }
+
+        func distanceToBoundary(of _: Region, from _: Coordinate) -> Double? {
+            nil
+        }
+    }
+
     struct FlightRegions: RegionAttributing {
         let loadedRegions: [Region] = [.california, .newYork, .canada]
 

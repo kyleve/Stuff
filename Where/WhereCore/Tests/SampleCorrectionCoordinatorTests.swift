@@ -4,6 +4,47 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct SampleCorrectionCoordinatorTests {
+    @Test func applyingJoinedFlightsPreservesSparseLayoverPresence() async throws {
+        let trace = FlightTrajectoryFixtures.sparseLayover()
+        let attributor = SampleCorrectionTestSupport.SparseLayoverRegions()
+        let store = try SwiftDataStore.inMemory()
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            attributor: attributor,
+            aggregator: SampleCorrectionTestSupport.aggregator,
+            now: { trace.readyAt },
+        )
+        try await store.perform {
+            for sample in trace.samples {
+                try await store.add(sample: sample)
+            }
+        }
+        let day = CalendarDay(
+            from: FlightTrajectoryFixtures.start,
+            in: SampleCorrectionTestSupport.calendar,
+        )
+        let review = try await services.corrections.review(
+            id: .flightDay(day: day),
+            year: day.year,
+            primaryRegions: attributor.loadedRegions,
+            driftThresholdMeters: 1000,
+        )
+        let proposal = try #require(review?.proposal)
+        #expect(Set(proposal.edits.map(\.sampleID)) == trace.airborneSampleIDs)
+        #expect(proposal.resultingRegions == [.california, .canada, .newYork])
+        guard case .applied = try await services.corrections.apply(proposal) else {
+            Issue.record("The completed flight review must preserve the uncertain layover")
+            return
+        }
+        #expect(try await services.reports.yearReport(for: day.year).days.first?.regions
+            == [.california, .canada, .newYork])
+        let history = try await services.reports.dataIssueReads(for: day.year).history
+        #expect(history.samples.filter { trace.layoverSampleIDs.contains($0.sample.id) }
+            .allSatisfy { $0.regions == [.canada] })
+        #expect(try await store.allSamples() == trace.samples)
+    }
+
     @Test(.disabled(
         if: ProcessInfo.processInfo.environment["WHERE_FLIGHT_VERIFICATION_CONFIG"] == nil,
         "Supply a local flight-verification configuration to replay an external backup.",

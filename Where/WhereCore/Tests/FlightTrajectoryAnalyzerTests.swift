@@ -367,6 +367,42 @@ struct FlightTrajectoryAnalyzerTests {
         #expect(flights[0].groundSampleIDs.contains(Fixtures.sampleID(4)))
     }
 
+    @Test func aSparseLayoverPreservesUnknownEndpointsBetweenCruiseSegments() throws {
+        let trace = Fixtures.sparseLayover()
+        let flights = analyzer.analyze(samples: trace.samples, now: trace.readyAt)
+        let flight = try #require(flights.first)
+        #expect(flights.count == 1)
+        #expect(flight.progress == .completed(arrivedAt: trace.firstGroundAt))
+        #expect(flight.airborneSampleIDs == trace.airborneSampleIDs)
+        #expect(flight.airborneSampleIDs.isDisjoint(with: trace.layoverSampleIDs))
+        #expect(flight.groundSampleIDs.isDisjoint(with: trace.layoverSampleIDs))
+        #expect(analyzer.analyze(samples: Array(trace.samples.reversed()), now: trace.readyAt)
+            == flights)
+    }
+
+    @Test(arguments: [-0.5, 0, 0.5])
+    func sparseLayoverEndpointCallbacksRemainUnknown(offsetSeconds: Double) throws {
+        let trace = Fixtures.sparseLayover()
+        let duplicates = [10.0, 30.0].enumerated().map { index, minutes in
+            Fixtures.sample(
+                101 + index,
+                minutes: minutes + offsetSeconds / 60,
+                east: 150,
+                source: .gpsVisit,
+            )
+        }
+        let samples = trace.samples + duplicates
+        let flights = analyzer.analyze(samples: samples, now: trace.readyAt)
+        let flight = try #require(flights.first)
+        #expect(flights.count == 1)
+        #expect(flight.progress == .completed(arrivedAt: trace.firstGroundAt))
+        #expect(flight.airborneSampleIDs == trace.airborneSampleIDs)
+        let unknownIDs = trace.layoverSampleIDs.union(duplicates.map(\.id))
+        #expect(flight.airborneSampleIDs.isDisjoint(with: unknownIDs))
+        #expect(flight.groundSampleIDs.isDisjoint(with: unknownIDs))
+        #expect(analyzer.analyze(samples: Array(samples.reversed()), now: trace.readyAt) == flights)
+    }
+
     @Test func layoverConfirmationCanShareTheNextDepartureAnchor() throws {
         let samples = [
             Fixtures.sample(1, minutes: 0, east: 0),

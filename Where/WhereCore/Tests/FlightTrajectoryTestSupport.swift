@@ -36,6 +36,14 @@ enum FlightTrajectoryFixtures {
         let readyAt: Date
     }
 
+    struct SparseLayoverTrace {
+        let samples: [LocationSample]
+        let layoverSampleIDs: Set<UUID>
+        let airborneSampleIDs: Set<UUID>
+        let firstGroundAt: Date
+        let readyAt: Date
+    }
+
     static func sampleID(_ number: Int) -> UUID {
         UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", number))!
     }
@@ -93,6 +101,27 @@ enum FlightTrajectoryFixtures {
             lastCruiseAt: date(minutes: 115),
             firstGroundAt: date(minutes: 130),
             readyAt: date(minutes: 140),
+        )
+    }
+
+    /// Two stationary observations cannot confirm a dwell, but they must keep
+    /// their presence when the surrounding cruise segments are corrected.
+    static func sparseLayover() -> SparseLayoverTrace {
+        SparseLayoverTrace(
+            samples: [
+                sample(1, minutes: 0, east: 0),
+                sample(2, minutes: 5, east: 75),
+                sample(3, minutes: 10, east: 150),
+                sample(4, minutes: 30, east: 150),
+                sample(5, minutes: 35, east: 225),
+                sample(6, minutes: 40, east: 300),
+                sample(7, minutes: 45, east: 300),
+                sample(8, minutes: 50, east: 300),
+            ],
+            layoverSampleIDs: [sampleID(3), sampleID(4)],
+            airborneSampleIDs: [sampleID(2), sampleID(5)],
+            firstGroundAt: date(minutes: 40),
+            readyAt: date(minutes: 50),
         )
     }
 

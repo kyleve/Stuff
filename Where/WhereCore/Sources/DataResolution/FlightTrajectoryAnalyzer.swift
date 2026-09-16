@@ -168,17 +168,22 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         for legIndex in supportedLegs.sorted() {
             let before = anchors[legIndex]
             let after = anchors[legIndex + 1]
+            // A gap leaves both neighboring endpoints unknown, even when the
+            // cruise cores on either side belong to one flight review.
+            let startsRun = !supportedLegs.contains(legIndex - 1)
+            let endsRun = !supportedLegs.contains(legIndex + 1)
             while sampleIndex < usable.count, usable[sampleIndex].timestamp < before.timestamp {
                 sampleIndex += 1
             }
             var candidate = sampleIndex
             while candidate < usable.count, usable[candidate].timestamp <= after.timestamp {
                 let sample = usable[candidate]
-                if sample.timestamp > earliest.timestamp, sample.timestamp < latest.timestamp,
-                   !Self.isSameObservation(sample, as: earliest),
-                   !Self.isSameObservation(sample, as: latest),
-                   !groundIDs.contains(sample.id),
-                   Self.fitsMotion(sample, from: before, to: after)
+                if !startsRun || (sample.timestamp > before.timestamp
+                    && !Self.isSameObservation(sample, as: before)),
+                    !endsRun || (sample.timestamp < after.timestamp
+                        && !Self.isSameObservation(sample, as: after)),
+                    !groundIDs.contains(sample.id),
+                    Self.fitsMotion(sample, from: before, to: after)
                 {
                     airborneIDs.insert(sample.id)
                 }
