@@ -11,10 +11,6 @@ struct LocationWelcomeAccessoryModifier: ViewModifier {
                     LocationWelcomeStatusAccessory(accessory: accessory)
                 }
             }
-        } else if let accessory {
-            content.tabViewBottomAccessory {
-                LocationWelcomeStatusAccessory(accessory: accessory)
-            }
         } else {
             content
         }

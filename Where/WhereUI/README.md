@@ -143,7 +143,8 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   Debug builds include **Reset Welcome Card** in Settings > Appearance beside the welcome-card toggle.
   The reset clears the saved region so the next foreground activation can show the card again.
   `MainTabs` requests one bounded fix on each active-scene entry. After one
-  second it shows a native tab-bar accessory; denied/restricted access and
+  second it shows a native tab-bar accessory on iOS 26.1 and later, or a
+  tab-content inset above the bar on iOS 26.0; denied/restricted access and
   disabled Precise Location remain actionable there, while transient or
   low-confidence failures disappear. Welcome cards must be enabled, and the
   device must confidently resolve a tracked region with recording active.
