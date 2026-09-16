@@ -120,7 +120,7 @@ public final class CoreLocationSource: NSObject, LocationSource {
         currentLocationDriver = SystemCurrentLocationRequestDriver(manager: manager)
         super.init()
         manager.delegate = self
-        manager.desiredAccuracy = kCLLocationAccuracyKilometer
+        manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
     }
 
     public func start() async {

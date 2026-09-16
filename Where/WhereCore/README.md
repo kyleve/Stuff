@@ -126,7 +126,9 @@ one it belongs to rather than to a god-object:
   whose nonthrowing result distinguishes permission, precision, timeout,
   provider, and cancellation outcomes. Concurrent one-shot callers coalesce;
   cancellation removes only that caller. Cached callbacks must pass the
-  one-minute freshness gate before satisfying them. The system-facing one-shot
+  one-minute freshness gate before satisfying them. The one-shot request targets
+  100 m accuracy to improve attribution near borders, while the live-region
+  decision still has a hard 1 km uncertainty cap. The system-facing one-shot
   controls use `CurrentLocationRequestDriving`; tests substitute a driver fake
   while retaining the same request coordinator.
 - **`LocationIngestor`** — monitoring, the persist-with-retry queue, and
