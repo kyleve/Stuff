@@ -1812,21 +1812,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         // Clearing history also clears its reviewed attributions. Keep reset revisions
         // so a delayed old correction cannot regain authority if its raw sample returns.
         let sampleIDs = Set(samples.compactMap(\.id))
-        let revisions = try await sampleAttributionRevisions(for: sampleIDs)
-        let clearedAt = Date()
-        for (sampleID, history) in Dictionary(grouping: revisions, by: \.sampleID) {
-            guard let latest = history.max(by: { SampleAttributionRevision.newer($1, than: $0) })
-            else {
-                preconditionFailure("A grouped correction history cannot be empty.")
-            }
-            guard latest.replacementRegions != nil else { continue }
-            try await addSampleAttributionRevision(SampleAttributionRevision(
-                id: UUID(),
-                sampleID: sampleID,
-                updatedAt: max(clearedAt, latest.updatedAt.addingTimeInterval(0.001)),
-                replacementRegions: nil,
-            ))
-        }
+        try await SampleAttributionReset.write(sampleIDs: sampleIDs, store: self, now: Date())
         for record in samples {
             context.delete(record)
         }

@@ -30,10 +30,10 @@ struct DayJournalTests {
 
         let revisions = try await h.store.allSampleAttributionRevisions()
         let resets = revisions.filter { $0.replacementRegions == nil }
-        #expect(resets.count == appliedRevisions.count)
-        #expect(Set(resets.map(\.sampleID)) == Set(proposal.edits.map(\.sampleID)))
-        #expect(try await h.reader.manualDays(inYear: h.day.year).isEmpty)
         let raw = FlightTrajectoryFixtures.turningFlight().samples
+        #expect(resets.count == raw.count)
+        #expect(Set(resets.map(\.sampleID)) == Set(raw.map(\.id)))
+        #expect(try await h.reader.manualDays(inYear: h.day.year).isEmpty)
         let originalRegions = Set(raw
             .map { SampleCorrectionTestSupport.attribution.region(at: $0.coordinate) })
         #expect(try await h.reader.yearReport(for: h.day.year).days.first?

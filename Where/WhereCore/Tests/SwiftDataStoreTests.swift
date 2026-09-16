@@ -172,6 +172,61 @@ struct SwiftDataStoreTests {
         #expect(try await store.allSamples().isEmpty)
     }
 
+    @Test(arguments: [false, true])
+    func clearingSamplesWithoutActiveCorrectionsPreventsLateResurrection(
+        previouslyReset: Bool,
+    ) async throws {
+        let store = try SwiftDataStore.inMemory()
+        let timestamp = Date(timeIntervalSince1970: 1000)
+        let sample = LocationSample(
+            timestamp: timestamp,
+            coordinate: Coordinate(latitude: 0, longitude: 0),
+            horizontalAccuracy: 10,
+            source: .gpsSignificantChange,
+        )
+        try await store.perform {
+            try await store.add(sample: sample)
+            if previouslyReset {
+                try await store.addSampleAttributionRevision(.init(
+                    id: UUID(),
+                    sampleID: sample.id,
+                    updatedAt: timestamp.addingTimeInterval(100),
+                    replacementRegions: nil,
+                ))
+            }
+        }
+        let day = CalendarDay(from: timestamp, in: Self.calendar)
+        let interval = DateInterval(start: timestamp, duration: 1)
+        try await store.perform {
+            try await store.clear(in: interval, manualDays: day ... day)
+        }
+        #expect(try await store.allSamples().isEmpty)
+
+        // An older backup or a delayed device can restore the raw observation
+        // together with a correction newer than our previous reset.
+        try await store.perform {
+            try await store.add(sample: sample)
+            try await store.addSampleAttributionRevision(.init(
+                id: UUID(),
+                sampleID: sample.id,
+                updatedAt: timestamp.addingTimeInterval(200),
+                replacementRegions: [.newYork],
+            ))
+        }
+
+        let projection = try await LocationHistoryReader(store: store).projection(
+            in: interval,
+            attributor: SampleCorrectionTestSupport.attribution,
+        )
+        #expect(projection.rawSamples == [sample])
+        #expect(projection.samples.map(\.regions) == [[.california]])
+        let revisions = try await store.allSampleAttributionRevisions()
+        #expect(revisions.count(where: { $0.replacementRegions == nil })
+            == (previouslyReset ? 2 : 1))
+        let winner = try #require(revisions.last)
+        #expect(winner.replacementRegions == nil)
+    }
+
     @Test @MainActor func attributionHistoryIsGenerationScopedAndCorruptionFailsClosed(
     ) async throws {
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)

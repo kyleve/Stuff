@@ -11,11 +11,16 @@ enum SampleAttributionReset {
                    !SampleAttributionRevision.newer(revision, than: current) { continue }
                 winners[revision.sampleID] = revision
             }
-            for revision in winners.values where revision.replacementRegions != nil {
+            // A correction can still be waiting to sync even when no local
+            // replacement is active. Every reset advances each requested register.
+            for sampleID in sampleIDs {
+                let updatedAt = winners[sampleID].map {
+                    max(now, $0.updatedAt.addingTimeInterval(0.001))
+                } ?? now
                 try await store.addSampleAttributionRevision(.init(
                     id: UUID(),
-                    sampleID: revision.sampleID,
-                    updatedAt: max(now, revision.updatedAt.addingTimeInterval(0.001)),
+                    sampleID: sampleID,
+                    updatedAt: updatedAt,
                     replacementRegions: nil,
                 ))
             }
