@@ -76,7 +76,7 @@ public final class LocationWelcomeModel {
     /// Performs one independent foreground lookup. A later lookup supersedes
     /// any earlier result that reaches the model out of order.
     func resolve() async {
-        guard preferences.showsLocationWelcome, presentation == nil else { return }
+        guard preferences.showsLocationWelcome else { return }
         let (sequence, overflow) = resolutionSequence.addingReportingOverflow(1)
         precondition(!overflow, "Location welcome resolution sequence exhausted UInt64.")
         resolutionSequence = sequence
@@ -122,10 +122,9 @@ public final class LocationWelcomeModel {
         guard
             !Task.isCancelled,
             preferences.showsLocationWelcome,
-            sequence == resolutionSequence,
-            presentation == nil
+            sequence == resolutionSequence
         else {
-            if sequence == resolutionSequence, presentation == nil { state = .idle }
+            if sequence == resolutionSequence { state = .idle }
             return
         }
 

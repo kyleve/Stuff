@@ -42,6 +42,38 @@ struct LocationWelcomeModelTests {
         #expect(fixture.model.presentation == .init(region: .newYork, greeting: .returnVisit))
     }
 
+    @Test func undismissedWelcomeIsRevalidatedOnEachActivation() async throws {
+        let source = GatedCurrentLocationSource()
+        let preferences = WherePreferences(store: InMemoryKeyValueStore())
+        let services = try Self.services(locationSource: source)
+        try await services.ingestor.authorizeRecording()
+        let model = LocationWelcomeModel(
+            services: services,
+            preferences: preferences,
+            now: { Self.now },
+        )
+
+        let first = Task { await model.resolve() }
+        await source.waitUntilRequestCount(1)
+        try await source.resolveRequest(at: 0, with: Self.sample(region: .california))
+        await first.value
+        #expect(model.presentation == .init(region: .california, greeting: .first))
+
+        let second = Task { await model.resolve() }
+        await source.waitUntilRequestCount(1)
+        #expect(model.presentation == nil)
+        try await source.resolveRequest(at: 0, with: Self.sample(region: .newYork))
+        await second.value
+        #expect(model.presentation == .init(region: .newYork, greeting: .first))
+        #expect(preferences.lastWelcomedRegion == nil)
+
+        let third = Task { await model.resolve() }
+        await source.waitUntilRequestCount(1)
+        await source.resolveRequest(at: 0, with: .unavailable(.timeout))
+        await third.value
+        #expect(model.state == .idle)
+    }
+
     @Test(arguments: [true, false])
     func appearanceResetAllowsTheSameRegionToWelcomeAgainWhenEnabled(isEnabled: Bool) async throws {
         let fixture = try await fixture(region: .california)
