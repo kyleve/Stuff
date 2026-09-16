@@ -29,6 +29,38 @@ struct RecordingDeviceSaveFailure: Error, Equatable {}
 ///
 /// Everything else forwards to the backing store so reads stay deterministic.
 actor TestStore: WhereStore {
+    /// Holds one captured planning result until the test chooses its completion order.
+    actor PlanningReadGate {
+        private enum State {
+            case waiting
+            case suspended(CheckedContinuation<Void, Never>)
+            case released
+        }
+
+        private var state: State = .waiting
+        private var hasArrived = false
+        private var arrival: CheckedContinuation<Void, Never>?
+
+        func waitUntilReached() async {
+            guard !hasArrived else { return }
+            await withCheckedContinuation { arrival = $0 }
+        }
+
+        func suspend() async {
+            precondition(!hasArrived, "A planning read gate must only suspend one read")
+            hasArrived = true
+            arrival?.resume()
+            arrival = nil
+            if case .released = state { return }
+            await withCheckedContinuation { state = .suspended($0) }
+        }
+
+        func release() {
+            if case let .suspended(continuation) = state { continuation.resume() }
+            state = .released
+        }
+    }
+
     private let backing: SwiftDataStore
 
     private var gateFirstSamplesCall = false
@@ -40,6 +72,8 @@ actor TestStore: WhereStore {
     private var recordingDevicesGateReached = false
     private var recordingDevicesGate: CheckedContinuation<Void, Never>?
     private var recordingDevicesArrival: CheckedContinuation<Void, Never>?
+
+    private var nextPlanningReadGate: PlanningReadGate?
 
     private var shouldFailManualDay = false
     private var shouldFailPlannedStay = false
@@ -95,6 +129,11 @@ actor TestStore: WhereStore {
 
     func failPlanningReads() {
         shouldFailPlanningRead = true
+    }
+
+    func gateNextPlanningRead(with gate: PlanningReadGate) {
+        precondition(nextPlanningReadGate == nil, "The next planning read already has a gate")
+        nextPlanningReadGate = gate
     }
 
     func failPlannedStays() {
@@ -286,8 +325,17 @@ actor TestStore: WhereStore {
     }
 
     func plannedStayRecords() async throws -> [PlannedStayRecord] {
-        if shouldFailPlanningRead { throw PlannedStaySaveFailure() }
-        return try await backing.plannedStayRecords()
+        let gate = nextPlanningReadGate
+        nextPlanningReadGate = nil
+        let result: Result<[PlannedStayRecord], Error>
+        do {
+            if shouldFailPlanningRead { throw PlannedStaySaveFailure() }
+            result = try await .success(backing.plannedStayRecords())
+        } catch {
+            result = .failure(error)
+        }
+        if let gate { await gate.suspend() }
+        return try result.get()
     }
 
     func homeRegionRecords() async throws -> [HomeRegionRecord] {

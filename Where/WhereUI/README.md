@@ -341,6 +341,9 @@ per boundary. Flexible dates use earliest and latest choices. The latest arrival
 cannot follow the earliest last day. Overlap labels identify shared dates without
 blocking a save. The planner retains completed stays in its Past section.
 
+The scene shares one planning snapshot. Closing the planner does not discard a
+started read or leave forecasts loading. A newer read still supersedes an older result.
+
 The planner offers **Past travel pattern** or one **Home region** for future gaps.
 Home does not change the tracked-region selection. Untracked destinations link to
 region settings. Historical estimates start April 1. Home estimates are available

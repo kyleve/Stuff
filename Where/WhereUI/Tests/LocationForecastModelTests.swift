@@ -83,6 +83,109 @@ struct LocationForecastModelTests {
         ) == nil)
     }
 
+    @Test(.timeLimit(.minutes(1)))
+    func cancellingTheNewestInitialRefreshStillPublishesItsSnapshot() async throws {
+        let store = try TestStore()
+        let model = PlanningModelTestSupport.model(store: store)
+        let firstStay = try PlanningModelTestSupport.stay(region: .newYork)
+        let secondStay = try PlanningModelTestSupport.stay(region: .california)
+        try await model.create(stay: firstStay)
+        let firstGate = TestStore.PlanningReadGate()
+        let secondGate = TestStore.PlanningReadGate()
+
+        await store.gateNextPlanningRead(with: firstGate)
+        let firstRefresh = Task { await model.refresh() }
+        await firstGate.waitUntilReached()
+        do {
+            try await model.create(stay: secondStay)
+        } catch {
+            await firstGate.release()
+            await firstRefresh.value
+            throw error
+        }
+        await store.gateNextPlanningRead(with: secondGate)
+        let secondRefresh = Task { await model.refresh() }
+        await secondGate.waitUntilReached()
+
+        secondRefresh.cancel()
+        await secondGate.release()
+        await secondRefresh.value
+        let publishedSnapshot = model.planning
+        let hasLoaded = model.hasLoaded
+        let isLoading = model.isLoading
+        await firstGate.release()
+        await firstRefresh.value
+
+        #expect(hasLoaded)
+        #expect(isLoading == false)
+        #expect(Set(publishedSnapshot.stays.map(\.id)) == [firstStay.id, secondStay.id])
+        #expect(model.planning == publishedSnapshot)
+        #expect(model.loadFailure == nil)
+        #expect(model.isLoading == false)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func cancellingTheNewestFailedRefreshRetainsLastGoodSnapshotAndShowsFailure() async throws {
+        let store = try TestStore()
+        let model = PlanningModelTestSupport.model(store: store)
+        let firstStay = try PlanningModelTestSupport.stay(region: .newYork)
+        let secondStay = try PlanningModelTestSupport.stay(region: .california)
+        try await model.create(stay: firstStay)
+        await model.refresh()
+        let lastGoodSnapshot = model.planning
+        try await model.create(stay: secondStay)
+        let firstGate = TestStore.PlanningReadGate()
+        let secondGate = TestStore.PlanningReadGate()
+
+        await store.gateNextPlanningRead(with: firstGate)
+        let firstRefresh = Task { await model.refresh() }
+        await firstGate.waitUntilReached()
+        await store.failPlanningReads()
+        await store.gateNextPlanningRead(with: secondGate)
+        let secondRefresh = Task { await model.refresh() }
+        await secondGate.waitUntilReached()
+
+        secondRefresh.cancel()
+        await secondGate.release()
+        await secondRefresh.value
+        let failure = model.loadFailure
+        let isLoading = model.isLoading
+        await firstGate.release()
+        await firstRefresh.value
+
+        #expect(failure != nil)
+        #expect(isLoading == false)
+        #expect(model.hasLoaded)
+        #expect(model.planning == lastGoodSnapshot)
+        #expect(model.loadFailure == failure)
+        #expect(model.isLoading == false)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func anAlreadyCancelledRefreshDoesNotSupersedeTheActiveRead() async throws {
+        let store = try TestStore()
+        let model = PlanningModelTestSupport.model(store: store)
+        let stay = try PlanningModelTestSupport.stay(region: .newYork)
+        try await model.create(stay: stay)
+        let gate = TestStore.PlanningReadGate()
+        await store.gateNextPlanningRead(with: gate)
+        let activeRefresh = Task { await model.refresh() }
+        await gate.waitUntilReached()
+
+        let cancelledRefresh = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            await model.refresh()
+        }
+        await cancelledRefresh.value
+        await gate.release()
+        await activeRefresh.value
+
+        #expect(model.hasLoaded)
+        #expect(model.planning.stays == [stay])
+        #expect(model.isLoading == false)
+        #expect(model.loadFailure == nil)
+    }
+
     @Test func projectsOnlyTheFutureSliceAcrossYearBoundaries() async throws {
         let store = try TestStore()
         let model = PlanningModelTestSupport.model(store: store)

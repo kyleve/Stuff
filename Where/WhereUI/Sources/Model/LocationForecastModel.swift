@@ -59,16 +59,19 @@ final class LocationForecastModel {
     }
 
     func refresh() async {
+        guard !Task.isCancelled else { return }
         refreshSequence += 1
         let sequence = refreshSequence
         let previous = loadState.snapshot
         loadState = .loading(previous: previous)
+        // This read serves the scene, even if its requesting sheet disappears.
+        // Only a newer read can supersede its success or failure.
         do {
             let snapshot = try await services.plannedStays.snapshot()
-            guard !Task.isCancelled, sequence == refreshSequence else { return }
+            guard sequence == refreshSequence else { return }
             loadState = .loaded(snapshot)
         } catch {
-            guard !Task.isCancelled, sequence == refreshSequence else { return }
+            guard sequence == refreshSequence else { return }
             Self.logger { .loadFailed(description: error.localizedDescription) }
             loadState = .failed(previous: previous, message: error.localizedDescription)
         }

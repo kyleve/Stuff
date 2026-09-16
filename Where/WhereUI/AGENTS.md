@@ -93,6 +93,7 @@ Layering, localization, preview, and testing conventions live in the feature
   interrupted, while warm resumes never replay it.
 - Keep itinerary persistence, forecast bounds, overlaps, and Home projections in WhereCore.
   `LocationForecastModel` mirrors one planning snapshot through store-change refreshes.
+  Complete the latest started read when its requesting sheet disappears; keep older results from replacing it.
 - Keep each planned stay independently editable by its stable ID. Keep Home separate from tracked regions.
 - Gate forecast visualizations with `YearReportModel.showsEstimatedTimeAndPlanning`.
   Hiding estimates must preserve every stay and the Home setting. Settings can still open the planner.
