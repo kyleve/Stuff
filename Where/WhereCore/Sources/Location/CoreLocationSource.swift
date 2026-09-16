@@ -2,6 +2,47 @@ import CoreLocation
 import Foundation
 import RegionKit
 
+/// System-facing controls for one bounded foreground fix. Tests replace the
+/// Core Location implementation without changing the request coordinator.
+@MainActor
+@_spi(Testing) public protocol CurrentLocationRequestDriving: AnyObject {
+    var authorization: LocationAuthorizationStatus { get }
+    var hasPreciseLocation: Bool { get }
+    var timeout: Duration { get }
+
+    func requestLocation()
+    func stopLocation()
+}
+
+@MainActor
+private final class SystemCurrentLocationRequestDriver: CurrentLocationRequestDriving {
+    private let manager: CLLocationManager
+
+    init(manager: CLLocationManager) {
+        self.manager = manager
+    }
+
+    var authorization: LocationAuthorizationStatus {
+        CoreLocationSource.map(manager.authorizationStatus)
+    }
+
+    var hasPreciseLocation: Bool {
+        manager.accuracyAuthorization == .fullAccuracy
+    }
+
+    var timeout: Duration {
+        .seconds(10)
+    }
+
+    func requestLocation() {
+        manager.requestLocation()
+    }
+
+    func stopLocation() {
+        manager.stopUpdatingLocation()
+    }
+}
+
 /// `LocationSource` driven by `CLLocationManager` using the two low-power
 /// signals appropriate for "what state am I in today" tracking:
 ///
@@ -39,6 +80,7 @@ public final class CoreLocationSource: NSObject, LocationSource {
     }
 
     private let manager: CLLocationManager
+    private var currentLocationDriver: any CurrentLocationRequestDriving
     private nonisolated let sampleContinuation: AsyncStream<LocationSample>.Continuation
     private nonisolated let authorizationBroadcaster = AuthorizationStatusBroadcaster()
 
@@ -60,17 +102,6 @@ public final class CoreLocationSource: NSObject, LocationSource {
     private var currentLocationRequestStartedAt: Date?
     private var currentLocationTimeoutTask: Task<Void, Never>?
 
-    #if DEBUG
-        private var testingAuthorizationStatus: LocationAuthorizationStatus?
-        private var testingHasPreciseLocation: Bool?
-        private var testingRequestLocation: (@MainActor @Sendable () -> Void)?
-        private var testingStopLocation: (@MainActor @Sendable () -> Void)?
-        private var testingCurrentLocationTimeout: Duration?
-    #endif
-
-    /// How long to wait for a one-shot fix before reporting it unavailable.
-    /// Kept short so foreground callers are not held indefinitely.
-    private static let currentLocationTimeout: Duration = .seconds(10)
     private static let maximumCurrentLocationAge: TimeInterval = 60
 
     override public init() {
@@ -84,7 +115,9 @@ public final class CoreLocationSource: NSObject, LocationSource {
         sampleStream = AsyncStream { sampleCont = $0 }
         sampleContinuation = sampleCont
 
-        manager = CLLocationManager()
+        let manager = CLLocationManager()
+        self.manager = manager
+        currentLocationDriver = SystemCurrentLocationRequestDriver(manager: manager)
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyKilometer
@@ -101,14 +134,14 @@ public final class CoreLocationSource: NSObject, LocationSource {
     }
 
     public func requestCurrentLocation() async -> CurrentLocationResult {
-        let authorization = oneShotAuthorizationStatus
+        let authorization = currentLocationDriver.authorization
         switch authorization {
             case .always, .whenInUse:
                 break
             case .denied, .restricted, .notDetermined:
                 return .unavailable(.authorizationUnavailable(authorization))
         }
-        guard hasPreciseLocation else {
+        guard currentLocationDriver.hasPreciseLocation else {
             return .unavailable(.preciseLocationDisabled)
         }
         guard !Task.isCancelled else { return .unavailable(.cancellation) }
@@ -136,8 +169,8 @@ public final class CoreLocationSource: NSObject, LocationSource {
         pendingLocationContinuations[id] = continuation
         guard pendingLocationContinuations.count == 1 else { return }
         currentLocationRequestStartedAt = Date()
-        requestUnderlyingLocation()
-        let timeout = currentLocationTimeout
+        currentLocationDriver.requestLocation()
+        let timeout = currentLocationDriver.timeout
         currentLocationTimeoutTask = Task { @MainActor [weak self] in
             do {
                 try await Task.sleep(for: timeout)
@@ -145,7 +178,7 @@ public final class CoreLocationSource: NSObject, LocationSource {
                 return
             }
             self?.resolvePendingLocation(.unavailable(.timeout))
-            self?.stopUnderlyingLocation()
+            self?.currentLocationDriver.stopLocation()
         }
     }
 
@@ -156,7 +189,7 @@ public final class CoreLocationSource: NSObject, LocationSource {
         currentLocationRequestStartedAt = nil
         currentLocationTimeoutTask?.cancel()
         currentLocationTimeoutTask = nil
-        stopUnderlyingLocation()
+        currentLocationDriver.stopLocation()
     }
 
     /// Resume (and clear) every coalesced one-shot location waiter with the same
@@ -184,61 +217,12 @@ public final class CoreLocationSource: NSObject, LocationSource {
         resolvePendingLocation(.success(freshest))
     }
 
-    private var oneShotAuthorizationStatus: LocationAuthorizationStatus {
-        #if DEBUG
-            if let testingAuthorizationStatus { return testingAuthorizationStatus }
-        #endif
-        return Self.map(manager.authorizationStatus)
-    }
-
-    private var hasPreciseLocation: Bool {
-        #if DEBUG
-            if let testingHasPreciseLocation { return testingHasPreciseLocation }
-        #endif
-        return manager.accuracyAuthorization == .fullAccuracy
-    }
-
-    private var currentLocationTimeout: Duration {
-        #if DEBUG
-            if let testingCurrentLocationTimeout { return testingCurrentLocationTimeout }
-        #endif
-        return Self.currentLocationTimeout
-    }
-
-    private func requestUnderlyingLocation() {
-        #if DEBUG
-            if let testingRequestLocation {
-                testingRequestLocation()
-                return
-            }
-        #endif
-        manager.requestLocation()
-    }
-
-    private func stopUnderlyingLocation() {
-        #if DEBUG
-            if let testingStopLocation {
-                testingStopLocation()
-                return
-            }
-        #endif
-        manager.stopUpdatingLocation()
-    }
-
     #if DEBUG
-        /// Replaces the system-facing one-shot controls for deterministic tests.
+        /// Replaces the system-facing driver for deterministic tests.
         @_spi(Testing) public func configureCurrentLocationForTesting(
-            authorization: LocationAuthorizationStatus,
-            hasPreciseLocation: Bool,
-            timeout: Duration,
-            request: @escaping @MainActor @Sendable () -> Void,
-            stop: @escaping @MainActor @Sendable () -> Void,
+            driver: any CurrentLocationRequestDriving,
         ) {
-            testingAuthorizationStatus = authorization
-            testingHasPreciseLocation = hasPreciseLocation
-            testingCurrentLocationTimeout = timeout
-            testingRequestLocation = request
-            testingStopLocation = stop
+            currentLocationDriver = driver
         }
 
         /// Delivers a test batch through the same freshness gate as Core Location.

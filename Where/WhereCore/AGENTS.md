@@ -126,7 +126,9 @@ internal shape.
   coupling their cancellation. Reject negative accuracy everywhere. Apply the
   1 km, 60-second, and boundary-confidence gates only in
   `CurrentRegionResolver`; retain other valid passive samples. It backs
-  `LocationIngestor.captureTodayIfNeeded(now:)`.
+  `LocationIngestor.captureTodayIfNeeded(now:)`. Keep the one-shot system
+  controls behind `CurrentLocationRequestDriving`, with a conforming fake in
+  `CoreLocationSourceTests`.
 - **`DeviceRecordingController` owns this installation's local recording choice
   and physical GPS state.** Serialize mutations across awaits. Fail closed when
   the current identity is removed. Stamp every ingested GPS sample with the

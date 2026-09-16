@@ -91,14 +91,12 @@ struct CoreLocationSourceTests {
         timeout: Duration = .seconds(10),
     ) -> (CoreLocationSource, LocationRequestProbe) {
         let source = CoreLocationSource()
-        let probe = LocationRequestProbe()
-        source.configureCurrentLocationForTesting(
+        let probe = LocationRequestProbe(
             authorization: authorization,
             hasPreciseLocation: hasPreciseLocation,
             timeout: timeout,
-            request: { probe.requestCount += 1 },
-            stop: { probe.stopCount += 1 },
         )
+        source.configureCurrentLocationForTesting(driver: probe)
         return (source, probe)
     }
 
@@ -122,7 +120,28 @@ struct CoreLocationSourceTests {
 }
 
 @MainActor
-private final class LocationRequestProbe {
+private final class LocationRequestProbe: CurrentLocationRequestDriving {
+    let authorization: LocationAuthorizationStatus
+    let hasPreciseLocation: Bool
+    let timeout: Duration
     var requestCount = 0
     var stopCount = 0
+
+    init(
+        authorization: LocationAuthorizationStatus,
+        hasPreciseLocation: Bool,
+        timeout: Duration,
+    ) {
+        self.authorization = authorization
+        self.hasPreciseLocation = hasPreciseLocation
+        self.timeout = timeout
+    }
+
+    func requestLocation() {
+        requestCount += 1
+    }
+
+    func stopLocation() {
+        stopCount += 1
+    }
 }
