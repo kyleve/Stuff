@@ -128,7 +128,8 @@ internal shape.
   `CurrentRegionResolver`; retain other valid passive samples. It backs
   `LocationIngestor.captureTodayIfNeeded(now:)`. Keep the one-shot system
   controls behind `CurrentLocationRequestDriving`, with a conforming fake in
-  `CoreLocationSourceTests`.
+  `CoreLocationSourceTests`. Keep coalesced waiters and their timeout in one
+  idle/pending request state; finish each waiter exactly once.
 - **`DeviceRecordingController` owns this installation's local recording choice
   and physical GPS state.** Serialize mutations across awaits. Fail closed when
   the current identity is removed. Stamp every ingested GPS sample with the

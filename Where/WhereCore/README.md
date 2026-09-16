@@ -130,7 +130,8 @@ one it belongs to rather than to a god-object:
   100 m accuracy to improve attribution near borders, while the live-region
   decision still has a hard 1 km uncertainty cap. The system-facing one-shot
   controls use `CurrentLocationRequestDriving`; tests substitute a driver fake
-  while retaining the same request coordinator.
+  while retaining the same request coordinator. Its idle/pending state owns the
+  coalesced waiters and timeout as one request.
 - **`LocationIngestor`** — monitoring, the persist-with-retry queue, and
   authorization. After each committed sample it reconciles the badge/reminders
   and republishes the widget snapshot. Every automatic sample is stamped with

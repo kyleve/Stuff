@@ -69,6 +69,17 @@ private final class SystemCurrentLocationRequestDriver: CurrentLocationRequestDr
 /// Core Location still delivers callbacks on the main run loop in practice.
 @MainActor
 public final class CoreLocationSource: NSObject, LocationSource {
+    private struct PendingCurrentLocationRequest {
+        let id: UUID
+        var waiters: [UUID: CheckedContinuation<CurrentLocationResult, Never>]
+        let timeoutTask: Task<Void, Never>
+    }
+
+    private enum CurrentLocationRequestState {
+        case idle
+        case pending(PendingCurrentLocationRequest)
+    }
+
     public nonisolated let sampleStream: AsyncStream<LocationSample>
 
     /// Each access returns an independent subscription (see
@@ -92,15 +103,9 @@ public final class CoreLocationSource: NSObject, LocationSource {
     /// thus permanently strand — the first.
     private var pendingPermissionContinuations: [CheckedContinuation<Void, Error>] = []
 
-    /// Waiters for an in-flight `requestCurrentLocation()`. Overlapping callers
-    /// coalesce onto the next delivered fix (or the shared timeout / failure);
-    /// only the first triggers `requestLocation()`. Every waiter is resumed
-    /// together, so a second caller can't strand the first.
-    private var pendingLocationContinuations: [
-        UUID: CheckedContinuation<CurrentLocationResult, Never>
-    ] = [:]
-    private var currentLocationRequestStartedAt: Date?
-    private var currentLocationTimeoutTask: Task<Void, Never>?
+    /// Only a pending request owns waiters and a timeout. Concurrent callers
+    /// join that request; each cancellation removes just its own waiter.
+    private var currentLocationRequestState: CurrentLocationRequestState = .idle
 
     private static let maximumCurrentLocationAge: TimeInterval = 60
 
@@ -166,29 +171,49 @@ public final class CoreLocationSource: NSObject, LocationSource {
             continuation.resume(returning: .unavailable(.cancellation))
             return
         }
-        pendingLocationContinuations[id] = continuation
-        guard pendingLocationContinuations.count == 1 else { return }
-        currentLocationRequestStartedAt = Date()
-        currentLocationDriver.requestLocation()
-        let timeout = currentLocationDriver.timeout
-        currentLocationTimeoutTask = Task { @MainActor [weak self] in
-            do {
-                try await Task.sleep(for: timeout)
-            } catch {
-                return
-            }
-            self?.resolvePendingLocation(.unavailable(.timeout))
-            self?.currentLocationDriver.stopLocation()
+        switch currentLocationRequestState {
+            case .idle:
+                let requestID = id
+                let timeout = currentLocationDriver.timeout
+                let timeoutTask = Task { @MainActor [weak self] in
+                    do {
+                        try await Task.sleep(for: timeout)
+                    } catch {
+                        return
+                    }
+                    self?.timeoutCurrentLocationRequest(id: requestID)
+                }
+                currentLocationRequestState = .pending(PendingCurrentLocationRequest(
+                    id: requestID,
+                    waiters: [id: continuation],
+                    timeoutTask: timeoutTask,
+                ))
+                currentLocationDriver.requestLocation()
+            case var .pending(request):
+                request.waiters[id] = continuation
+                currentLocationRequestState = .pending(request)
         }
     }
 
     private func cancelLocationWaiter(id: UUID) {
-        guard let waiter = pendingLocationContinuations.removeValue(forKey: id) else { return }
+        guard case var .pending(request) = currentLocationRequestState,
+              let waiter = request.waiters.removeValue(forKey: id)
+        else { return }
+        if request.waiters.isEmpty {
+            currentLocationRequestState = .idle
+            request.timeoutTask.cancel()
+            currentLocationDriver.stopLocation()
+        } else {
+            currentLocationRequestState = .pending(request)
+        }
         waiter.resume(returning: .unavailable(.cancellation))
-        guard pendingLocationContinuations.isEmpty else { return }
-        currentLocationRequestStartedAt = nil
-        currentLocationTimeoutTask?.cancel()
-        currentLocationTimeoutTask = nil
+    }
+
+    private func timeoutCurrentLocationRequest(id: UUID) {
+        guard case let .pending(request) = currentLocationRequestState,
+              request.id == id
+        else { return }
+        resolvePendingLocation(.unavailable(.timeout))
         currentLocationDriver.stopLocation()
     }
 
@@ -196,19 +221,16 @@ public final class CoreLocationSource: NSObject, LocationSource {
     /// result. Cleared before resuming so a fix delivered after the timeout (or
     /// vice-versa) is a no-op rather than a double-resume.
     private func resolvePendingLocation(_ result: CurrentLocationResult) {
-        guard !pendingLocationContinuations.isEmpty else { return }
-        let waiters = pendingLocationContinuations.values
-        pendingLocationContinuations.removeAll()
-        currentLocationRequestStartedAt = nil
-        currentLocationTimeoutTask?.cancel()
-        currentLocationTimeoutTask = nil
-        for waiter in waiters {
+        guard case let .pending(request) = currentLocationRequestState else { return }
+        currentLocationRequestState = .idle
+        request.timeoutTask.cancel()
+        for waiter in request.waiters.values {
             waiter.resume(returning: result)
         }
     }
 
     private func resolvePendingLocationIfFresh(_ samples: [LocationSample]) {
-        guard currentLocationRequestStartedAt != nil else { return }
+        guard case .pending = currentLocationRequestState else { return }
         let now = Date()
         guard let freshest = samples
             .filter({ abs(now.timeIntervalSince($0.timestamp)) <= Self.maximumCurrentLocationAge })

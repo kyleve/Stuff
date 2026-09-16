@@ -85,6 +85,47 @@ struct CoreLocationSourceTests {
         #expect(probe.requestCount == 1)
     }
 
+    @Test func cancellingTheLastWaiterStopsAndClearsTheRequest() async {
+        let (source, probe) = configuredSource()
+        let first = Task { await source.requestCurrentLocation() }
+        await waitUntil { probe.requestCount == 1 }
+
+        first.cancel()
+        #expect(await first.value == .unavailable(.cancellation))
+        #expect(probe.stopCount == 1)
+
+        source.deliverCurrentLocationsForTesting([sample()])
+        let second = Task { await source.requestCurrentLocation() }
+        await waitUntil { probe.requestCount == 2 }
+        let fresh = sample()
+        source.deliverCurrentLocationsForTesting([fresh])
+
+        #expect(await second.value == .success(fresh))
+    }
+
+    @Test func timedOutRequestCanStartAnotherRequest() async {
+        let (source, probe) = configuredSource(timeout: .milliseconds(1))
+        #expect(await source.requestCurrentLocation() == .unavailable(.timeout))
+        #expect(probe.stopCount == 1)
+
+        probe.timeout = .seconds(10)
+        let retry = Task { await source.requestCurrentLocation() }
+        await waitUntil { probe.requestCount == 2 }
+        let fix = sample()
+        source.deliverCurrentLocationsForTesting([fix])
+
+        #expect(await retry.value == .success(fix))
+    }
+
+    @Test func synchronousDriverCallbackCompletesTheRequest() async {
+        let (source, probe) = configuredSource(timeout: .milliseconds(1))
+        let fix = sample()
+        probe.onRequest = { source.deliverCurrentLocationsForTesting([fix]) }
+
+        #expect(await source.requestCurrentLocation() == .success(fix))
+        #expect(probe.stopCount == 0)
+    }
+
     private func configuredSource(
         authorization: LocationAuthorizationStatus = .always,
         hasPreciseLocation: Bool = true,
@@ -123,9 +164,10 @@ struct CoreLocationSourceTests {
 private final class LocationRequestProbe: CurrentLocationRequestDriving {
     let authorization: LocationAuthorizationStatus
     let hasPreciseLocation: Bool
-    let timeout: Duration
+    var timeout: Duration
     var requestCount = 0
     var stopCount = 0
+    var onRequest: (() -> Void)?
 
     init(
         authorization: LocationAuthorizationStatus,
@@ -139,6 +181,7 @@ private final class LocationRequestProbe: CurrentLocationRequestDriving {
 
     func requestLocation() {
         requestCount += 1
+        onRequest?()
     }
 
     func stopLocation() {
