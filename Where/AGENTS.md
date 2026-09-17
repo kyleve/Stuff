@@ -64,8 +64,11 @@ Rules the code enforces and agents must preserve:
   [Spans](#spans).
 - **Location comes through the `LocationSource` protocol.**
   `CoreLocationSource` runs in production. `ScriptedLocationSource` runs in
-  tests/previews. The one-shot `requestCurrentLocation()` returns `nil` rather
-  than throwing when no fix is available.
+  tests/previews. The bounded one-shot `requestCurrentLocation()` returns a
+  typed, nonthrowing acquisition outcome. Live region decisions require a fix
+  no more than 60 seconds old, with valid accuracy no worse than 1 km, whose
+  uncertainty circle stays inside one tracked region. Passive valid samples
+  remain historical evidence regardless of that live-decision cap.
 - **Automatic recording consent is installation-local.** Stamp automatic GPS
   samples with their `RecordingDeviceID`. Route user-facing reads through
   `LocationHistoryReader`. Sync profiles, nickname events, advisory check-ins,

@@ -119,6 +119,7 @@ extension WhereStylesheet {
         var glow: Shadow
         var lift: Shadow
         var close: Close
+        var accessory: Accessory
         var motion: Motion
 
         struct Shadow: Equatable {
@@ -132,6 +133,15 @@ extension WhereStylesheet {
             var tintOpacity: Double
             var glow: Shadow
             var lift: Shadow
+        }
+
+        struct Accessory: Equatable {
+            var contentSpacing: CGFloat
+            var horizontalPadding: CGFloat
+            var verticalPadding: CGFloat
+            var minimumActionHeight: CGFloat
+            var symbolSize: CGFloat
+            var titleFont: Font
         }
 
         struct Motion: Equatable {
@@ -222,6 +232,14 @@ extension WhereStylesheet {
                 tintOpacity: 0.24,
                 glow: .init(opacity: 0.28, radius: 8),
                 lift: .init(opacity: 0.22, radius: 5, offsetY: 3),
+            ),
+            accessory: Accessory(
+                contentSpacing: 10,
+                horizontalPadding: 12,
+                verticalPadding: 8,
+                minimumActionHeight: 44,
+                symbolSize: 16,
+                titleFont: .subheadline.weight(.semibold),
             ),
             motion: .standard,
         )

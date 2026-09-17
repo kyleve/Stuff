@@ -63,7 +63,7 @@ public struct WhereServices: Sendable {
     public let plannedStays: PlannedStayCoordinator
     /// Best-effort current-location verification for the planned-stay editor.
     public let plannedStayLocation: PlannedStayLocationVerifier
-    /// Best-effort live tracked-region lookup for presentation acknowledgements.
+    /// Confidence-gated live tracked-region lookup for presentation acknowledgements.
     public let currentRegion: CurrentRegionResolver
     /// Data-quality issue detection for the Resolve tab.
     public let resolution: DataIssueScanner

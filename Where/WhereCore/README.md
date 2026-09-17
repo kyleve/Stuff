@@ -79,8 +79,12 @@ one it belongs to rather than to a god-object:
   region. The configured drift threshold expands the accepted area outside the region boundary.
   A missing location or missing geometry returns an unavailable result.
   The itinerary editor does not request location verification.
-- **`CurrentRegionResolver`** — returns the current tracked region only while automatic recording
-  is authorized. It returns `nil` when no live fix exists or the fix is outside tracked regions.
+- **`CurrentRegionResolver`** — returns a typed live-region resolution only
+  while automatic recording is authorized. A successful decision requires a
+  fix no more than 60 seconds old, with valid horizontal accuracy at or below
+  1 km, inside a tracked region, and farther from its boundary than the fix's
+  uncertainty radius. Its measured outcome logs contain only reason codes and
+  coarse age/accuracy buckets.
 
 - **`DemoDataBuilder`** — writes the dataset the app's demo mode runs on into a
   given `WhereServices`: a plausible current year of living in New York with
@@ -124,8 +128,16 @@ one it belongs to rather than to a god-object:
 
 - **`LocationSource`** — the GPS abstraction: `CoreLocationSource` (Visits +
   significant-change) in production, `ScriptedLocationSource` in tests/previews.
-  Passive `sampleStream` plus a best-effort one-shot `requestCurrentLocation()`
-  (returns `nil`, never throws, when no fix is available).
+  Passive `sampleStream` plus a bounded one-shot `requestCurrentLocation()`
+  whose nonthrowing result distinguishes permission, precision, timeout,
+  provider, and cancellation outcomes. Concurrent one-shot callers coalesce;
+  cancellation removes only that caller. Cached callbacks must pass the
+  one-minute freshness gate before satisfying them. The one-shot request targets
+  100 m accuracy to improve attribution near borders, while the live-region
+  decision still has a hard 1 km uncertainty cap. The system-facing one-shot
+  controls use `CurrentLocationRequestDriving`; tests substitute a driver fake
+  while retaining the same request coordinator. Its idle/pending state owns the
+  coalesced waiters and timeout as one request.
 - **`LocationIngestor`** — monitoring, the persist-with-retry queue, and
   authorization. After each committed sample it reconciles the badge/reminders
   and republishes the widget snapshot. Every automatic sample is stamped with

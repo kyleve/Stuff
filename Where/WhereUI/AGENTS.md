@@ -168,6 +168,10 @@ worked examples.
   Location-card stack, never Card Designer persistence, exports, or app overrides.
 - Keep the Appearance welcome reset under `#if DEBUG`. Clear only the saved welcome region through `YearReportModel.resetLocationWelcome()`.
 - Keep welcome-card arrival, departure, and scrim timing in `locationWelcome.motion`. Apply spatial transitions only to the card layer.
+- Keep `LocationWelcomeModel`, its overlay, and its bottom accessory owned by
+  `MainTabs`. Resolve once per active-scene entry regardless of tab. Only denied
+  or restricted access and disabled Precise Location stay visible as recovery
+  actions; transient and confidence failures return to idle.
 
 ## Testing
 
