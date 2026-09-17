@@ -80,19 +80,16 @@ struct MainTabs: View {
             ) {
                 LocationsView(report: report)
                     .reportingDeveloperTabBarInset()
-                    .modifier(LegacyLocationWelcomeAccessoryModifier(accessory: welcomeAccessory))
             }
 
             Tab(String(localized: .tabYear), systemSymbol: .calendar, value: TabID.year) {
                 YearView(report: report)
                     .reportingDeveloperTabBarInset()
-                    .modifier(LegacyLocationWelcomeAccessoryModifier(accessory: welcomeAccessory))
             }
 
             Tab(value: TabID.settings) {
                 SettingsView(report: report, recordingWarning: recordingWarning)
                     .reportingDeveloperTabBarInset()
-                    .modifier(LegacyLocationWelcomeAccessoryModifier(accessory: welcomeAccessory))
             } label: {
                 RecordingConfigurationWarningTabLabel(
                     model: recordingWarning,

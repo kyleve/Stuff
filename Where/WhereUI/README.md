@@ -142,12 +142,13 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   The scrim fades independently. Reduce Motion uses a short fade for both layers.
   Debug builds include **Reset Welcome Card** in Settings > Appearance beside the welcome-card toggle.
   The reset clears the saved region so the next foreground activation can show the card again.
-  `MainTabs` requests one bounded fix on each active-scene entry. After one
-  second it shows a native tab-bar accessory on iOS 26.1 and later, or a
-  tab-content inset above the bar on iOS 26.0; denied/restricted access and
-  disabled Precise Location remain actionable there, while transient or
-  low-confidence failures disappear. Welcome cards must be enabled, and the
-  device must confidently resolve a tracked region with recording active.
+  `MainTabs` requests one bounded fix on each active-scene entry. On iOS 26.1
+  and later, it shows a native tab-bar accessory after one second; denied or
+  restricted access and disabled Precise Location remain actionable there,
+  while transient or low-confidence failures disappear. iOS 26.0 still runs
+  the lookup and presents the welcome card, but does not show the accessory.
+  Welcome cards must be enabled, and the device must confidently resolve a
+  tracked region with recording active.
 
 - **`OnboardingView` / `OnboardingFlowModel`** — the rendered first-run flow and its view-scoped
   observable coordinator, registered for the launch's
