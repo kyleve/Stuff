@@ -3,11 +3,12 @@ import UIKit
 
 extension SnapshotConfiguration {
     /// A `UITraitCollection` expressing this configuration's appearance axes —
-    /// interface style, content size category, contrast, layout direction, and
-    /// legibility weight. Used both by the preview cutsheet's trait override and
-    /// by the test runner to configure the capture, so the two stay in lockstep.
+    /// interface style, content size category, contrast, layout direction,
+    /// legibility weight, and any explicit device-adaptive traits. Used both by
+    /// the preview cutsheet's trait override and by the test runner to configure
+    /// the capture, so the two stay in lockstep.
     public var uiTraitCollection: UITraitCollection {
-        UITraitCollection(traitsFrom: [
+        var traits = [
             UITraitCollection(userInterfaceStyle: colorScheme == .dark ? .dark : .light),
             UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(dynamicType)),
             UITraitCollection(accessibilityContrast: contrast == .increased ? .high : .normal),
@@ -17,7 +18,33 @@ extension SnapshotConfiguration {
             UITraitCollection(
                 legibilityWeight: legibilityWeight == .bold ? .bold : .regular,
             ),
-        ])
+        ]
+        if let layoutTraits {
+            traits.append(contentsOf: [
+                UITraitCollection(userInterfaceIdiom: layoutTraits.interfaceIdiom.uiValue),
+                UITraitCollection(horizontalSizeClass: layoutTraits.horizontalSizeClass.uiValue),
+                UITraitCollection(verticalSizeClass: layoutTraits.verticalSizeClass.uiValue),
+            ])
+        }
+        return UITraitCollection(traitsFrom: traits)
+    }
+}
+
+extension SnapshotConfiguration.LayoutTraits.InterfaceIdiom {
+    fileprivate var uiValue: UIUserInterfaceIdiom {
+        switch self {
+            case .phone: .phone
+            case .tablet: .pad
+        }
+    }
+}
+
+extension SnapshotConfiguration.LayoutTraits.SizeClass {
+    fileprivate var uiValue: UIUserInterfaceSizeClass {
+        switch self {
+            case .compact: .compact
+            case .regular: .regular
+        }
     }
 }
 

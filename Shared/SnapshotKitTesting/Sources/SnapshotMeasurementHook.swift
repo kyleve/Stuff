@@ -15,6 +15,7 @@ private enum SnapshotMeasurementHookResult {
     maximumDuration: TimeInterval,
     hook: @MainActor @escaping () async -> Void,
 ) async throws {
+    try Task.checkCancellation()
     let result = await withTaskGroup(of: SnapshotMeasurementHookResult.self) { group in
         group.addTask {
             await hook()
