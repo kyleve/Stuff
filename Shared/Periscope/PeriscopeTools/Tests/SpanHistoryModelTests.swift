@@ -69,7 +69,7 @@ struct SpanHistoryModelTests {
         await store.write([
             LogRecord(
                 date: date(0),
-                event: SpanEnded(
+                event: classifiedSpanEnded(
                     spanID: orphan,
                     name: "lost",
                     duration: nil,
@@ -99,7 +99,7 @@ struct SpanHistoryModelTests {
             spanEnded(SpanID(), name: "mixed", at: date(0), duration: .seconds(2), scope: root.id),
             LogRecord(
                 date: date(1),
-                event: SpanEnded(
+                event: classifiedSpanEnded(
                     spanID: SpanID(),
                     name: "mixed",
                     duration: nil,
@@ -298,7 +298,7 @@ struct SpanHistoryModelTests {
         }
         let summaries = SpanHistoryModel.summaries(from: [
             corrupt(
-                SpanEnded(
+                classifiedSpanEnded(
                     spanID: SpanID(),
                     name: "save",
                     duration: .seconds(1),
@@ -307,7 +307,7 @@ struct SpanHistoryModelTests {
                 at: date(0),
             ),
             corrupt(
-                SpanEnded(
+                classifiedSpanEnded(
                     spanID: SpanID(),
                     name: "save",
                     duration: .seconds(9),
