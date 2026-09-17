@@ -349,9 +349,11 @@ public struct RootView: View {
         /// notification), hence the generous floor — see the flakiness ledger in
         /// `Where/TODOs.md`.
         public static var snapshots: [SnapshotCase] {
-            let model = PreviewSupport.loadedModel()
+            let model = welcomeDisabled(PreviewSupport.loadedModel())
             let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
-            let recordingWarningModel = PreviewSupport.recordingConfigurationWarningAppModel()
+            let recordingWarningModel = welcomeDisabled(
+                PreviewSupport.recordingConfigurationWarningAppModel(),
+            )
             let recordingWarningLauncher = WhereLaunch.makeLauncher(
                 model: recordingWarningModel,
                 reason: .userForeground,
@@ -382,6 +384,11 @@ public struct RootView: View {
                     presentationVisibilityOverride: true,
                 )
             }
+        }
+
+        private static func welcomeDisabled(_ model: WhereModel) -> WhereModel {
+            model.preferences.showsLocationWelcome = false
+            return model
         }
     }
 

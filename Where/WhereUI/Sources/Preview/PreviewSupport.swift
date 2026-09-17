@@ -117,7 +117,11 @@
         /// `*YearReportModel()` fixture instead.
         @MainActor
         public static func loadedSession() -> WhereSession {
-            WhereSession(services: previewServices(), preferences: previewPreferences())
+            WhereSession(
+                services: previewServices(),
+                preferences: previewPreferences(),
+                now: { referenceNow },
+            )
         }
 
         /// Current-device session whose permission must be promoted in Settings.app.
@@ -128,6 +132,7 @@
                     locationSource: ScriptedLocationSource(authorizationStatus: .whenInUse),
                 ),
                 preferences: previewPreferences(),
+                now: { referenceNow },
             )
         }
 
