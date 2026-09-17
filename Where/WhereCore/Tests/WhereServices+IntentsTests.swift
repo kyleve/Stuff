@@ -30,7 +30,10 @@ struct WhereServicesIntentsTests {
 
         // The idle source backs the ingestor, so a manual entry made from an
         // intent honestly records "no captured location" rather than a fix.
-        #expect(await services.ingestor.currentLocation() == nil)
+        #expect(
+            await services.ingestor.currentLocation()
+                == .unavailable(.authorizationUnavailable(.notDetermined)),
+        )
     }
 }
 
@@ -94,7 +97,10 @@ struct WhereServicesForIntentsSharingTests {
 
         let shared = WhereServices.forIntents(sharingStoreOf: base)
 
-        #expect(await shared.ingestor.currentLocation() == nil)
+        #expect(
+            await shared.ingestor.currentLocation()
+                == .unavailable(.authorizationUnavailable(.notDetermined)),
+        )
     }
 
     @Test func writesThroughTheSharedStackAreVisibleToTheBase() async throws {

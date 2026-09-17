@@ -2,6 +2,47 @@ import CoreLocation
 import Foundation
 import RegionKit
 
+/// System-facing controls for one bounded foreground fix. Tests replace the
+/// Core Location implementation without changing the request coordinator.
+@MainActor
+@_spi(Testing) public protocol CurrentLocationRequestDriving: AnyObject {
+    var authorization: LocationAuthorizationStatus { get }
+    var hasPreciseLocation: Bool { get }
+    var timeout: Duration { get }
+
+    func requestLocation()
+    func stopLocation()
+}
+
+@MainActor
+private final class SystemCurrentLocationRequestDriver: CurrentLocationRequestDriving {
+    private let manager: CLLocationManager
+
+    init(manager: CLLocationManager) {
+        self.manager = manager
+    }
+
+    var authorization: LocationAuthorizationStatus {
+        CoreLocationSource.map(manager.authorizationStatus)
+    }
+
+    var hasPreciseLocation: Bool {
+        manager.accuracyAuthorization == .fullAccuracy
+    }
+
+    var timeout: Duration {
+        .seconds(10)
+    }
+
+    func requestLocation() {
+        manager.requestLocation()
+    }
+
+    func stopLocation() {
+        manager.stopUpdatingLocation()
+    }
+}
+
 /// `LocationSource` driven by `CLLocationManager` using the two low-power
 /// signals appropriate for "what state am I in today" tracking:
 ///
@@ -23,12 +64,22 @@ import RegionKit
 /// that has a run loop (CoreLocation requires this). The
 /// `CLLocationManagerDelegate` methods are marked `nonisolated` because the
 /// `@objc` protocol contract doesn't permit `@MainActor` requirements; that
-/// is safe here because the delegate code paths only `yield` to
-/// `AsyncStream.Continuation` (thread-safe by construction) and never touch
-/// `@MainActor` state. CoreLocation still delivers callbacks on the main
-/// run loop, so no actual cross-thread hop occurs at runtime.
+/// is safe here because they yield through thread-safe stream continuations
+/// and explicitly hop to `MainActor` before touching one-shot request state.
+/// Core Location still delivers callbacks on the main run loop in practice.
 @MainActor
 public final class CoreLocationSource: NSObject, LocationSource {
+    private struct PendingCurrentLocationRequest {
+        let id: UUID
+        var waiters: [UUID: CheckedContinuation<CurrentLocationResult, Never>]
+        let timeoutTask: Task<Void, Never>
+    }
+
+    private enum CurrentLocationRequestState {
+        case idle
+        case pending(PendingCurrentLocationRequest)
+    }
+
     public nonisolated let sampleStream: AsyncStream<LocationSample>
 
     /// Each access returns an independent subscription (see
@@ -40,6 +91,7 @@ public final class CoreLocationSource: NSObject, LocationSource {
     }
 
     private let manager: CLLocationManager
+    private var currentLocationDriver: any CurrentLocationRequestDriving
     private nonisolated let sampleContinuation: AsyncStream<LocationSample>.Continuation
     private nonisolated let authorizationBroadcaster = AuthorizationStatusBroadcaster()
 
@@ -51,15 +103,11 @@ public final class CoreLocationSource: NSObject, LocationSource {
     /// thus permanently strand — the first.
     private var pendingPermissionContinuations: [CheckedContinuation<Void, Error>] = []
 
-    /// Waiters for an in-flight `requestCurrentLocation()`. Overlapping callers
-    /// coalesce onto the next delivered fix (or the shared timeout / failure);
-    /// only the first triggers `requestLocation()`. Every waiter is resumed
-    /// together, so a second caller can't strand the first.
-    private var pendingLocationContinuations: [CheckedContinuation<LocationSample?, Never>] = []
+    /// Only a pending request owns waiters and a timeout. Concurrent callers
+    /// join that request; each cancellation removes just its own waiter.
+    private var currentLocationRequestState: CurrentLocationRequestState = .idle
 
-    /// How long to wait for a one-shot fix before giving up and recording no
-    /// captured location. Kept short so a manual entry's Save isn't held up.
-    private static let currentLocationTimeout: Duration = .seconds(10)
+    private static let maximumCurrentLocationAge: TimeInterval = 60
 
     override public init() {
         // The "create stream, capture its continuation" two-step is
@@ -72,9 +120,12 @@ public final class CoreLocationSource: NSObject, LocationSource {
         sampleStream = AsyncStream { sampleCont = $0 }
         sampleContinuation = sampleCont
 
-        manager = CLLocationManager()
+        let manager = CLLocationManager()
+        self.manager = manager
+        currentLocationDriver = SystemCurrentLocationRequestDriver(manager: manager)
         super.init()
         manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
     }
 
     public func start() async {
@@ -87,41 +138,127 @@ public final class CoreLocationSource: NSObject, LocationSource {
         manager.stopMonitoringVisits()
     }
 
-    public func requestCurrentLocation() async -> LocationSample? {
-        // Best-effort: without a granted status `requestLocation()` just fails,
-        // so short-circuit to "no fix" rather than starting a doomed request.
-        switch manager.authorizationStatus {
-            case .authorizedAlways, .authorizedWhenInUse:
+    public func requestCurrentLocation() async -> CurrentLocationResult {
+        let authorization = currentLocationDriver.authorization
+        switch authorization {
+            case .always, .whenInUse:
                 break
             case .denied, .restricted, .notDetermined:
-                return nil
-            @unknown default:
-                return nil
+                return .unavailable(.authorizationUnavailable(authorization))
         }
+        guard currentLocationDriver.hasPreciseLocation else {
+            return .unavailable(.preciseLocationDisabled)
+        }
+        guard !Task.isCancelled else { return .unavailable(.cancellation) }
 
-        return await withCheckedContinuation { continuation in
-            pendingLocationContinuations.append(continuation)
-            guard pendingLocationContinuations.count == 1 else { return }
-            manager.requestLocation()
-            // Bound the wait so a Save never hangs on a slow/absent fix.
+        let requestID = UUID()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                registerLocationWaiter(continuation, id: requestID)
+            }
+        } onCancel: {
             Task { @MainActor [weak self] in
-                try? await Task.sleep(for: Self.currentLocationTimeout)
-                self?.resolvePendingLocation(nil)
+                self?.cancelLocationWaiter(id: requestID)
             }
         }
+    }
+
+    private func registerLocationWaiter(
+        _ continuation: CheckedContinuation<CurrentLocationResult, Never>,
+        id: UUID,
+    ) {
+        guard !Task.isCancelled else {
+            continuation.resume(returning: .unavailable(.cancellation))
+            return
+        }
+        switch currentLocationRequestState {
+            case .idle:
+                let requestID = id
+                let timeout = currentLocationDriver.timeout
+                let timeoutTask = Task { @MainActor [weak self] in
+                    do {
+                        try await Task.sleep(for: timeout)
+                    } catch {
+                        return
+                    }
+                    self?.timeoutCurrentLocationRequest(id: requestID)
+                }
+                currentLocationRequestState = .pending(PendingCurrentLocationRequest(
+                    id: requestID,
+                    waiters: [id: continuation],
+                    timeoutTask: timeoutTask,
+                ))
+                currentLocationDriver.requestLocation()
+            case var .pending(request):
+                request.waiters[id] = continuation
+                currentLocationRequestState = .pending(request)
+        }
+    }
+
+    private func cancelLocationWaiter(id: UUID) {
+        guard case var .pending(request) = currentLocationRequestState,
+              let waiter = request.waiters.removeValue(forKey: id)
+        else { return }
+        if request.waiters.isEmpty {
+            currentLocationRequestState = .idle
+            request.timeoutTask.cancel()
+            currentLocationDriver.stopLocation()
+        } else {
+            currentLocationRequestState = .pending(request)
+        }
+        waiter.resume(returning: .unavailable(.cancellation))
+    }
+
+    private func timeoutCurrentLocationRequest(id: UUID) {
+        guard case let .pending(request) = currentLocationRequestState,
+              request.id == id
+        else { return }
+        resolvePendingLocation(.unavailable(.timeout))
+        currentLocationDriver.stopLocation()
     }
 
     /// Resume (and clear) every coalesced one-shot location waiter with the same
     /// result. Cleared before resuming so a fix delivered after the timeout (or
     /// vice-versa) is a no-op rather than a double-resume.
-    private func resolvePendingLocation(_ sample: LocationSample?) {
-        guard !pendingLocationContinuations.isEmpty else { return }
-        let waiters = pendingLocationContinuations
-        pendingLocationContinuations.removeAll()
-        for waiter in waiters {
-            waiter.resume(returning: sample)
+    private func resolvePendingLocation(_ result: CurrentLocationResult) {
+        guard case let .pending(request) = currentLocationRequestState else { return }
+        currentLocationRequestState = .idle
+        request.timeoutTask.cancel()
+        for waiter in request.waiters.values {
+            waiter.resume(returning: result)
         }
     }
+
+    private func resolvePendingLocationIfFresh(_ samples: [LocationSample]) {
+        guard case .pending = currentLocationRequestState else { return }
+        let now = Date()
+        guard let freshest = samples
+            .filter({ abs(now.timeIntervalSince($0.timestamp)) <= Self.maximumCurrentLocationAge })
+            .max(by: { $0.timestamp < $1.timestamp })
+        else { return }
+        resolvePendingLocation(.success(freshest))
+    }
+
+    #if DEBUG
+        /// Replaces the system-facing driver for deterministic tests.
+        @_spi(Testing) public func configureCurrentLocationForTesting(
+            driver: any CurrentLocationRequestDriving,
+        ) {
+            currentLocationDriver = driver
+        }
+
+        /// Delivers a test batch through the same freshness gate as Core Location.
+        @_spi(Testing) public func deliverCurrentLocationsForTesting(
+            _ samples: [LocationSample],
+        ) {
+            resolvePendingLocationIfFresh(samples.filter { $0.horizontalAccuracy >= 0 })
+        }
+
+        /// Delivers a provider failure to every current one-shot waiter.
+        @_spi(Testing) public func failCurrentLocationForTesting() {
+            resolvePendingLocation(.unavailable(.providerFailure))
+        }
+    #endif
 
     public func currentAuthorization() async -> LocationAuthorizationStatus {
         Self.map(manager.authorizationStatus)
@@ -249,8 +386,9 @@ extension CoreLocationSource: CLLocationManagerDelegate {
         _: CLLocationManager,
         didUpdateLocations locations: [CLLocation],
     ) {
-        var latest: LocationSample?
+        var validSamples: [LocationSample] = []
         for location in locations {
+            guard location.horizontalAccuracy >= 0 else { continue }
             let sample = LocationSample(
                 timestamp: location.timestamp,
                 coordinate: Coordinate(
@@ -262,13 +400,13 @@ extension CoreLocationSource: CLLocationManagerDelegate {
                 motion: Self.motion(from: location),
             )
             sampleContinuation.yield(sample)
-            latest = sample
+            validSamples.append(sample)
         }
         // A one-shot `requestCurrentLocation()` is delivered here too; satisfy
         // any pending waiter with the freshest fix in this batch.
-        if let latest {
+        if !validSamples.isEmpty {
             Task { @MainActor [weak self] in
-                self?.resolvePendingLocation(latest)
+                self?.resolvePendingLocationIfFresh(validSamples)
             }
         }
     }
@@ -281,7 +419,7 @@ extension CoreLocationSource: CLLocationManagerDelegate {
         // with "no fix" (best-effort audit capture) rather than leaving it to
         // wait out the full timeout.
         Task { @MainActor [weak self] in
-            self?.resolvePendingLocation(nil)
+            self?.resolvePendingLocation(.unavailable(.providerFailure))
         }
     }
 
@@ -289,6 +427,7 @@ extension CoreLocationSource: CLLocationManagerDelegate {
         _: CLLocationManager,
         didVisit visit: CLVisit,
     ) {
+        guard visit.horizontalAccuracy >= 0 else { return }
         // Core Location may deliver visits late or with only one of the two
         // timestamps populated. Prefer arrival; fall back to departure before
         // resorting to "now", since "now" would attribute the visit to the
