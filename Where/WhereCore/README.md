@@ -26,10 +26,11 @@ one it belongs to rather than to a god-object:
   data generation use `perform(expectedDataGenerationID:)`, and multi-table reads use
   `readSnapshot { … }` so a Reset or Replace cannot split one operation across
   generations. A persistent-history boundary invalidates any external commit
-  crossing a snapshot even when its remote-change notification arrives later.
-  `changes()` emits once per local commit and external import for the Where store
-  URL, excluding other stores such as Periscope. `remoteChanges()` uses
-  persistent-history transaction authors to emit only the external-import subset,
+  crossing a snapshot even when its history observer reports the change later.
+  `changes()` emits once per local commit and external import for the Where model
+  container, excluding other stores such as Periscope. `remoteChanges()` uses
+  SwiftData's `HistoryObserver` and persistent-history transaction authors to
+  emit only the external-import subset,
   so headless notifications and widgets rebuild without duplicating local work.
   `SwiftDataStore.make(storage:)` opens an explicitly selected CloudKit,
   local-only, or in-memory store. On-disk modes carry their App Group identifier;

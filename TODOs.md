@@ -91,9 +91,6 @@ inbox rather than here.
 
 # Open issues
 
-## PX (Exploratory)
-- feat: Update the deployment target to iOS 27 — this lets us use `HistoryObserver` for CloudKit/SwiftData instead of the notification. Spans every target's minimum OS (`Package.swift`, `Project.swift`), so it sits here rather than in `Where/TODOs.md`. (human)
-
 ## P0s (Must do)
 - fix(Bumper) [quick-win]: `where.gregorian_calendar` matches only an explicit `Calendar` base, so it enforces nothing. It filters `MemberAccessExprSyntax` on `base?.trimmedDescription == "Calendar"` (`.bumper/Sources/WhereProjectRules.swift:124-125`, rule at `:117-137`, `severity: .error` at `:119`), which catches a spelled-out `Calendar.current` but not the implicit-member form (`calendar: Calendar = .current`, `startOfDay(in: .current)`) — and after the Gregorian call-site pass (`fe99dde`) the implicit form is the only one left in the tree: **still 12 sites** (re-counted 2026-08-30), four of them shipped production paths and eight in DEBUG snapshot/preview fixtures (enumerated in the `CalendarDay.displayDate` P1 in [`Where/TODOs.md`](Where/TODOs.md)). CI still hard-gates the lint and is green, which confirms the rule reports none of them — the `architecture` job at `.github/workflows/ci.yml:72-73` reaches `bumper config`/`test`/`lint` through `test:253-261`. **Why it has survived six audits:** the rule's own mutation test only ever feeds it a spelled-out `Calendar.current` (`.bumper/Tests/WhereProjectRulesTests.swift:154-196`, both rejection fixtures at `:170` and `:177`), so the test passes for the same reason the rule fails — fix both together, and add an implicit-member case to the test first. Also match a no-base `MemberAccessExprSyntax` whose contextual type is `Calendar`, or add a lexical `.current` check scoped to calendar parameters and arguments. A rule that reads as enforced but enforces nothing is worse than a documented convention, because it stops anyone from looking. (audit 2026-07-26; re-verified 2026-09-06 — still 12 implicit sites, none reported)
 
@@ -136,6 +133,9 @@ inbox rather than here.
 	- Dead end: Tuist's `PackageSettings(productTypes:)` does nothing here. The local package is wired as an `XCLocalSwiftPackageReference` and resolved by Xcode's own SPM integration, so Tuist's product-type machinery never applies — only SwiftPM's `type:`. Relatedly, `type: .dynamic` takes effect only for a product an Xcode target consumes *as a product*: WhereUI depends on the SnapshotKit *target*, so SnapshotKit stayed static despite the annotation.
 	- Trap: **a shared DerivedData reports false negatives here.** Two separate runs reported "no frameworks produced" from an incremental build that had not re-resolved the package graph. Spike this into a fresh `-derivedDataPath` or it will lie to you.
 # Completed issues
+
+## PX (Exploratory)
+- feat: Update the deployment target to iOS 27 — completed in the iOS 27 minimum and stacked HistoryObserver PRs. `Package.swift` and `Project.swift` now require iOS 27.0; WhereCore observes SwiftData history without the Core Data remote-change notification bridge. (human; closed 2026-09-17)
 
 ## P0s (Must do)
 - docs(Bumper) [quick-win]: Correct `.bumper/RULES.md:101` and `:143`, which claimed three calendar violations and some preview-coverage violations were "left visible during this bootstrap". Neither existed — the lint gate was green, and `52f0136` closed the preview ones. Closed by deleting both paragraphs after re-confirming a clean `swift run bumper lint .` ("No architecture violations found") and a green `swift run bumper test .`; re-add the calendar paragraph only if the widened rule genuinely finds drift. (audit 2026-07-26, closed 2026-07-27)

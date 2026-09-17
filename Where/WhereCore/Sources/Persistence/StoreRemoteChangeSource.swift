@@ -1,5 +1,5 @@
-import CoreData
 import Foundation
+import Observation
 import PeriscopeCore
 import SwiftData
 
@@ -10,13 +10,12 @@ import SwiftData
 /// path, regardless of who wrote).
 ///
 /// The seam exists so the whole remote-change path is exercisable off-device:
-/// production wires `PersistentStoreRemoteChangeSource` (a real Core Data
-/// notification observer), tests wire `ScriptedStoreRemoteChangeSource` and call
-/// `yield()`. Only Apple's contract — that the CloudKit mirror actually posts
-/// the notification on import — stays untested here.
+/// production wires `HistoryObserverRemoteChangeSource`, tests wire
+/// `ScriptedStoreRemoteChangeSource` and call `yield()`. Only Apple's contract
+/// that a CloudKit import reaches SwiftData's history observer stays untested here.
 ///
 /// Class-only (`AnyObject`) because every implementation owns long-lived state
-/// (a notification token, an `AsyncStream.Continuation`) that can't be
+/// (an observation task, an `AsyncStream.Continuation`) that can't be
 /// value-copied. Mirrors `LocationSource`.
 protocol StoreRemoteChangeSource: AnyObject, Sendable {
     /// Emits once per imported remote change. A bare `Void`: the store re-pings
@@ -26,67 +25,49 @@ protocol StoreRemoteChangeSource: AnyObject, Sendable {
     var remoteChanges: AsyncStream<Void> { get }
 }
 
-/// Production `StoreRemoteChangeSource`: bridges Core Data's
-/// `.NSPersistentStoreRemoteChange` notification into an `AsyncStream`. That
-/// notification fires both when the CloudKit mirror
-/// (`NSPersistentCloudKitContainer`) imports records synced from another device
-/// and when a sibling process writes to a shared App Group store (the Where
-/// share extension saving evidence) — persistent-history tracking is on for
-/// on-disk stores. Observing it and re-reading is Apple's documented way to
-/// react to remote SwiftData/CloudKit and cross-process changes.
+/// Production `StoreRemoteChangeSource`: observes SwiftData history for an
+/// on-disk container. It covers CloudKit imports and sibling App Group writes.
 ///
-/// Despite its name, Core Data posts the notification for this process's own
-/// writes too when persistent-history notifications are enabled. The source
-/// therefore stamps local `ModelContext` saves with a per-store author and
-/// consults SwiftData history before forwarding only external transactions.
+/// `HistoryObserver` filters included authors, but cannot express all authors
+/// except this store instance's author. Classify the history rows it reports
+/// before forwarding an external-only change.
 ///
-/// SwiftData doesn't expose its underlying `NSPersistentStoreCoordinator`, so
-/// notifications are scoped by Apple's `NSPersistentStoreURLKey` instead. The
-/// app also owns a separate Periscope store; its commits must not masquerade as
-/// changes to Where's domain data and trigger a refresh/logging feedback loop.
-final class PersistentStoreRemoteChangeSource: NSObject, StoreRemoteChangeSource,
-    @unchecked Sendable
-{
+/// The observer is scoped to this `ModelContainer`, so Periscope commits cannot
+/// trigger a Where refresh. A history catch-up closes the setup interval between
+/// the classifier's baseline and observation startup.
+final class HistoryObserverRemoteChangeSource: StoreRemoteChangeSource {
     private static let logger = WhereLog.root(SwiftDataStoreLog.self)
 
     let remoteChanges: AsyncStream<Void>
 
-    private let center: NotificationCenter
-    private let observedStoreURL: URL
+    private let observer: HistoryObserver
     private let continuation: AsyncStream<Void>.Continuation
     private let candidateContinuation: AsyncStream<Void>.Continuation
     private let classificationTask: Task<Void, Never>
+    private let observationTask: Task<Void, Never>
 
     convenience init(
         modelContainer: ModelContainer,
-        storeURL: URL,
         localTransactionAuthor: String,
-        center: NotificationCenter,
     ) throws {
         try self.init(
             modelContainer: modelContainer,
-            storeURL: storeURL,
             localTransactionAuthor: localTransactionAuthor,
-            center: center,
             afterHistoryBaseline: {},
         )
     }
 
     #if DEBUG
         /// Test seam for committing a transaction in the narrow interval after the history
-        /// baseline is captured but before notification observation begins.
+        /// baseline is captured but before history observation begins.
         convenience init(
             modelContainer: ModelContainer,
-            storeURL: URL,
             localTransactionAuthor: String,
-            center: NotificationCenter,
             testingAfterHistoryBaseline: () throws -> Void,
         ) throws {
             try self.init(
                 modelContainer: modelContainer,
-                storeURL: storeURL,
                 localTransactionAuthor: localTransactionAuthor,
-                center: center,
                 afterHistoryBaseline: testingAfterHistoryBaseline,
             )
         }
@@ -94,13 +75,9 @@ final class PersistentStoreRemoteChangeSource: NSObject, StoreRemoteChangeSource
 
     private init(
         modelContainer: ModelContainer,
-        storeURL: URL,
         localTransactionAuthor: String,
-        center: NotificationCenter,
         afterHistoryBaseline: () throws -> Void,
     ) throws {
-        self.center = center
-        observedStoreURL = storeURL.standardizedFileURL
         let (stream, continuation) = AsyncStream.makeStream(
             of: Void.self,
             bufferingPolicy: .bufferingNewest(1),
@@ -117,10 +94,12 @@ final class PersistentStoreRemoteChangeSource: NSObject, StoreRemoteChangeSource
             localTransactionAuthor: localTransactionAuthor,
         )
         try afterHistoryBaseline()
+        let observer = try HistoryObserver(modelContainer: modelContainer)
+        self.observer = observer
         classificationTask = Task {
             for await _ in candidates {
                 do {
-                    if try await classifier.hasExternalTransactionsSinceLastNotification() {
+                    if try await classifier.hasExternalTransactionsSinceLastCheck() {
                         continuation.yield()
                     }
                 } catch {
@@ -134,39 +113,31 @@ final class PersistentStoreRemoteChangeSource: NSObject, StoreRemoteChangeSource
                 }
             }
         }
-        super.init()
-        center.addObserver(
-            self,
-            selector: #selector(persistentStoreDidChange(_:)),
-            name: .NSPersistentStoreRemoteChange,
-            object: nil,
-        )
-        // The history baseline necessarily predates target/selector registration. Classify once
-        // after registration to close that gap: a transaction committed there already missed its
-        // notification, but its durable history row is now visible to this catch-up pass.
+        let initialCounter = observer.eventCounter
+        observationTask = Task {
+            var previousCounter = initialCounter
+            for await counter in Observations({ observer.eventCounter }) {
+                guard counter != previousCounter else { continue }
+                previousCounter = counter
+                candidateContinuation.yield()
+            }
+        }
+        // A transaction between the history baseline and observation startup
+        // may have no event left to deliver. Its durable history row is visible
+        // to this catch-up pass.
         candidateContinuation.yield()
     }
 
     deinit {
-        center.removeObserver(self)
+        observationTask.cancel()
         candidateContinuation.finish()
         classificationTask.cancel()
         continuation.finish()
     }
-
-    @objc private func persistentStoreDidChange(_ notification: Notification) {
-        guard let changedStoreURL = notification.userInfo?[NSPersistentStoreURLKey] as? URL,
-              changedStoreURL.standardizedFileURL == observedStoreURL
-        else { return }
-        candidateContinuation.yield()
-    }
 }
 
-/// Classifies persistent-store notifications through SwiftData history. Core
-/// Data posts its so-called remote notification for every write when the option
-/// is enabled, including this process's own saves; transaction authors are the
-/// durable distinction between those local commits and CloudKit/sibling-process
-/// imports.
+/// Classifies observed SwiftData history by transaction author so local saves
+/// do not duplicate the focused reconciliation their callers already await.
 private actor PersistentHistoryRemoteChangeClassifier {
     private let context: ModelContext
     private let localTransactionAuthor: String
@@ -186,7 +157,7 @@ private actor PersistentHistoryRemoteChangeClassifier {
         lastTransactionID = try context.fetchHistory(latest).first?.transactionIdentifier ?? .min
     }
 
-    func hasExternalTransactionsSinceLastNotification() throws -> Bool {
+    func hasExternalTransactionsSinceLastCheck() throws -> Bool {
         let previousTransactionID = lastTransactionID
         let descriptor = HistoryDescriptor<DefaultHistoryTransaction>(
             predicate: #Predicate { transaction in
