@@ -99,7 +99,11 @@ struct MainTabs: View {
             .badge(recordingWarning.isPresented ? 1 : 0)
         }
         .accessibilityHidden(welcomePresentation != nil)
-        .modifier(LocationWelcomeAccessoryModifier(accessory: welcomeAccessory))
+        .tabViewBottomAccessory(isEnabled: welcomeAccessory != nil) {
+            if let welcomeAccessory {
+                LocationWelcomeStatusAccessory(accessory: welcomeAccessory)
+            }
+        }
         // Keep the tab bar fixed — don't minimize it as content scrolls.
         .tabBarMinimizeBehavior(.never)
         .overlay {

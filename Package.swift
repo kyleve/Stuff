@@ -5,7 +5,7 @@ let package = Package(
     name: "Stuff",
     defaultLocalization: "en",
     platforms: [
-        .iOS(.v26),
+        .iOS("27.0"),
         .macOS(.v26),
     ],
     products: [

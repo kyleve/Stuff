@@ -47,7 +47,7 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   `onReadyToSnapshot`). 
   `.settledAtLeast(minDuration:)` raises the loop's minimum window for async
   appearance work that starts quiet and lands after the default floor (the
-  iOS 26 glass toolbar/tab bar material adaptation). `.immediate` skips the
+  native glass toolbar/tab bar material adaptation). `.immediate` skips the
   loop for content that's fully renderable after a layout pass. Intrinsic and
   full-content cases can independently set `measurementReadiness: .immediate`
   when their fixture's height is synchronous: only the sizing probe skips its
