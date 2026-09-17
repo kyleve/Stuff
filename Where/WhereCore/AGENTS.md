@@ -31,7 +31,9 @@ internal shape.
   `perform { … }` (the production store traps otherwise). Stale-decision
   writes use `perform(expectedDataGenerationID:)`. Multi-table reads use
   `readSnapshot`. Guard:
-  `SwiftDataStoreTests.readSnapshotRejectsCommitBeforeNotification`. Each
+  `SwiftDataStoreTests.readSnapshotRejectsCommitBeforeNotification`. A snapshot
+  inside a mutation pins durable history until its pre-save check; concurrent
+  commits throw `WhereStoreReadConflictError` before local edits are saved. Each
   committed transaction pings `changes()`. Never expose its `ModelContainer`
   through `WhereServices`. The separate DEBUG Inspector runtime uses
   `SwiftDataStore.makeContainer`, `inspectorModelTypes`, and
@@ -58,7 +60,8 @@ internal shape.
   persisted `RegionSymbol`. Its mapping to SFSafeSymbols and `Color` is
   presentation (WhereUI).
 - **Export backups from one `readSnapshot` and keep restorable user data
-  lossless.** Add persisted user-data shapes end-to-end and cover both import
+  lossless.** Preserve optional motion and every sample-attribution revision,
+  including reset tombstones. Add persisted user-data shapes end-to-end and cover both import
   strategies. Export no target-owned recording check-ins. Ignore any in an
   imported archive (`BackupServiceTests` / `BackupCoordinatorTests`).
 - **Backup import never adopts or changes local recording consent.** Archives
@@ -113,10 +116,30 @@ internal shape.
   wired at the composition root (`BackupCoordinator.ImportLifecycle.didCommit`).
   Existing exceptions are `setPrimaryRegions` and the local summary fan-out,
   tracked in [`../TODOs.md`](../TODOs.md). Do not copy those omissions.
-- **Detectors read aggregated input. The speed-based one needs raw fixes.**
-  `DataIssueInput.daySamples` carries per-day GPS fixes only (`.gpsVisit` /
-  `.gpsSignificantChange`, sorted). Manual and evidence-implied samples are
-  excluded so `FlightDayDetector`'s speed math is not skewed.
+- **Assess flight trajectories before calendar bucketing and per recording device.**
+  Keep legacy samples in their own track. Preserve unknown observations; silence,
+  midnight, and restart never establish arrival (`FlightTrajectoryAnalyzerTests`).
+- **Apply automatic GPS corrections to reviewed sample IDs only.** Reassess inside
+  `perform(expectedDataGenerationID:)`; changed evidence returns a fresh review
+  without expanding Apply (`SampleCorrectionCoordinatorTests`). Preserve manual
+  and evidence-derived assertions and existing authoritative day overrides.
+  Propose at most one edit per sample ID; preserve conflicting duplicate observations
+  (`SampleCorrectionAssessmentTests`).
+- **Resolve sample attribution as a generation-scoped immutable revision register.**
+  Order by timestamp then UUID; nil is a reset tombstone, an empty set excludes,
+  and a populated set replaces attribution. Retain revisions arriving before
+  samples. Reset to GPS clears manual overrides and writes newer sample tombstones
+  atomically (`DayJournalTests` / `LocationHistoryReaderTests`).
+- **Use `LocationHistoryReader.projection` for every user-facing location read.**
+  Apply removal cutoffs before correction revisions. Reports, maps, artwork,
+  widgets, summaries, reminders, and intents use effective attribution; trajectory
+  assessment and review retain raw observations. Pin live attribution to the
+  tracked set in the same store snapshot.
+- **Publish one scan revision containing issues, reviews, and its next deadline.**
+  Let flight reviews own overlapping day transitions. Pending flights do not
+  enter actionable badges or notifications. An invalidated
+  scan cannot repopulate its cache (`DataIssueScannerTests`). UI deadlines run only
+  in the foreground; do not introduce background polling.
 - **Read related year projections from one samples snapshot.** Use
   `ReportReader.yearReportDetails(for:primaryRegionCount:)` for the scene's
   report and primary-region locations.

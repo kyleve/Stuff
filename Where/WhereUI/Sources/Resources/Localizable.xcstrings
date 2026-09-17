@@ -3294,6 +3294,381 @@
         }
       }
     },
+    "flight.review.apply" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Apply GPS correction"
+          }
+        }
+      }
+    },
+    "flight.review.changeCount" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "new",
+                  "value" : "%lld GPS fix to correct"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "new",
+                  "value" : "%lld GPS fixes to correct"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "flight.review.changes.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Only the reviewed GPS fixes change. Ground visits, uncertain readings, and manual entries are preserved. Later locations can still be recorded."
+          }
+        }
+      }
+    },
+    "flight.review.changes.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "GPS changes"
+          }
+        }
+      }
+    },
+    "flight.review.evidence.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Sustained movement supports a flight. Speed and altitude readings can add context; arrival needs a sequence of nearby, slow GPS readings."
+          }
+        }
+      }
+    },
+    "flight.review.evidence.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Flight evidence"
+          }
+        }
+      }
+    },
+    "flight.review.excluded" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Exclude from region totals"
+          }
+        }
+      }
+    },
+    "flight.review.manualEdit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Edit this day manually"
+          }
+        }
+      }
+    },
+    "flight.review.noPresence" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No GPS presence remains"
+          }
+        }
+      }
+    },
+    "flight.review.peakSpeed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Peak GPS speed"
+          }
+        }
+      }
+    },
+    "flight.review.recordedAltitude" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Recorded altitude: %1$@ (±%2$@)"
+          }
+        }
+      }
+    },
+    "flight.review.recordedSpeed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Recorded speed: %1$@ (±%2$@)"
+          }
+        }
+      }
+    },
+    "flight.review.refreshed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "GPS evidence changed. Review the updated information before applying a correction."
+          }
+        }
+      }
+    },
+    "flight.review.resultingRegions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Regions after correction"
+          }
+        }
+      }
+    },
+    "flight.review.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This GPS correction is no longer available. Review the updated day or edit it manually."
+          }
+        }
+      }
+    },
+    "flight.review.unchanged" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Keep GPS attribution"
+          }
+        }
+      }
+    },
+    "flight.status.arrival.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This flight has arrival information. Corrections are waiting for the remaining flight evidence on this day."
+          }
+        }
+      }
+    },
+    "flight.status.arrival.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Arrival supported"
+          }
+        }
+      }
+    },
+    "flight.status.completed.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Arrival is supported and no GPS correction is needed."
+          }
+        }
+      }
+    },
+    "flight.status.completed.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Flight completed"
+          }
+        }
+      }
+    },
+    "flight.status.completedSection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Completed flights"
+          }
+        }
+      }
+    },
+    "flight.status.device.current" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Recorded on this device"
+          }
+        }
+      }
+    },
+    "flight.status.device.legacy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Recording device unavailable"
+          }
+        }
+      }
+    },
+    "flight.status.device.named" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Recorded on %@"
+          }
+        }
+      }
+    },
+    "flight.status.lastObservation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Last GPS reading: %@"
+          }
+        }
+      }
+    },
+    "flight.status.likely.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "GPS may include places passed over. Wait until you land to review corrections."
+          }
+        }
+      }
+    },
+    "flight.status.likely.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Flight likely"
+          }
+        }
+      }
+    },
+    "flight.status.openReview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Open flight information and GPS correction review"
+          }
+        }
+      }
+    },
+    "flight.status.pendingSection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Waiting for arrival"
+          }
+        }
+      }
+    },
+    "flight.status.ready.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Review the specific GPS changes before applying a correction."
+          }
+        }
+      }
+    },
+    "flight.status.ready.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Ready to review"
+          }
+        }
+      }
+    },
+    "flight.status.waiting.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Corrections will become available once location readings support arrival. You can still edit this day manually."
+          }
+        }
+      }
+    },
+    "flight.status.waiting.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Waiting for arrival information"
+          }
+        }
+      }
+    },
     "launch.accessibilityLabel" : {
       "comment" : "Spoken by VoiceOver while the launch splash is on screen (the icon and radar animation are decorative and hidden from accessibility).",
       "extractionState" : "manual",
@@ -5358,7 +5733,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Removes any manual correction for this day and restores the regions detected from GPS. Your raw location data is untouched."
+            "value" : "Restore the original GPS attribution by removing this day’s manual entry and GPS corrections."
           }
         }
       }

@@ -134,6 +134,23 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   services or presentation state.
   None reimplements Core rules.
 
+### Flight status and GPS corrections
+
+Locations shows a quiet notice for this installation's recent flight evidence.
+The Resolve list keeps pending and completed flight reviews separate from
+its actionable issue count. A shared review shows recording devices, the last
+observation, flight evidence, and the exact sample edits. Arrival must be
+supported before Apply is offered; manual day editing stays available.
+
+`YearReportModel` publishes one `DataIssueScanResult` for the banner, list,
+badge, and open detail. Committed raw GPS writes refresh it even when region
+totals do not change. Foreground-only deadlines update stale notices and remove
+live notices after 24 hours; unresolved historical reviews remain accessible.
+`FlightReviewModel` submits reviewed proposals to Core and keeps a changed
+proposal on screen for review instead of reporting a stale Apply as success.
+Reset to GPS restores both manual and sample attribution through the existing
+journal intent.
+
 ### Reusable views & styling
 
 - **`RegionWelcomeCard`** — an app-wide overlay over the selected tab that combines a region's emoji,

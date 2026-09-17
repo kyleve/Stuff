@@ -92,13 +92,12 @@ public struct WidgetDataReader: Sendable {
             let year = calendarDay.year
             let interval = aggregator.yearInterval(year: year)
             let dayRange = CalendarDay.yearRange(year)
-            let samples = try await history.samples(in: interval)
+            let projection = try await history.projection(in: interval, attributor: attributor)
             let manualDays = try await store.manualDays(in: dayRange)
             let report = aggregator.report(
                 for: year,
-                samples: samples,
+                history: projection.samples,
                 manualDays: manualDays,
-                attributor: attributor,
             )
             let dayRegions = report.days
                 .first { $0.day == calendarDay }?

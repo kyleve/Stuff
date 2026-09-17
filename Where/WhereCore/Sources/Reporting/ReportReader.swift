@@ -38,13 +38,12 @@ public struct ReportReader: Sendable {
         try await Self.logger.measure(.yearReport, budget: .seconds(1)) {
             try await store.readSnapshot {
                 let interval = aggregator.yearInterval(year: year)
-                let samples = try await history.samples(in: interval)
+                let projection = try await history.projection(in: interval, attributor: attributor)
                 let manuals = try await store.manualDays(in: dayRange(for: year))
                 return aggregator.report(
                     for: year,
-                    samples: samples,
+                    history: projection.samples,
                     manualDays: manuals,
-                    attributor: attributor,
                 )
             }
         }
@@ -60,15 +59,15 @@ public struct ReportReader: Sendable {
     ) async throws -> YearReportDetails {
         try await Self.logger.measure(.yearReportDetails, budget: .seconds(1)) {
             try await store.readSnapshot {
-                let samples = try await history.samples(
+                let projection = try await history.projection(
                     in: aggregator.yearInterval(year: year),
+                    attributor: attributor,
                 )
                 let manuals = try await store.manualDays(in: dayRange(for: year))
                 let report = aggregator.report(
                     for: year,
-                    samples: samples,
+                    history: projection.samples,
                     manualDays: manuals,
-                    attributor: attributor,
                 )
                 let primaryRegions = Set(Region.primaryRegions(
                     in: report.totals,
@@ -76,8 +75,7 @@ public struct ReportReader: Sendable {
                 ))
                 let locations = aggregator.locations(
                     in: primaryRegions,
-                    samples: samples,
-                    attributor: attributor,
+                    history: projection.samples,
                 )
                 return YearReportDetails(
                     report: report,
@@ -96,28 +94,44 @@ public struct ReportReader: Sendable {
     public func dataIssueReads(for year: Int) async throws -> DataIssueReads {
         try await Self.logger.measure(.dataIssueReads, budget: .seconds(2)) {
             try await store.readSnapshot {
-                let samples = try await history.samples(in: aggregator.yearInterval(year: year))
+                let interval = aggregator.yearInterval(year: year)
+                let contextInterval = DateInterval(
+                    start: interval.start.addingTimeInterval(-24 * 60 * 60),
+                    end: interval.end.addingTimeInterval(24 * 60 * 60),
+                )
+                let attribution = try await history.attributionSnapshot(attributor)
+                let projection = try await history.projection(
+                    in: contextInterval,
+                    attributor: attribution,
+                )
+                let generation = try await store.dataGeneration()
                 let manuals = try await store.manualDays(in: dayRange(for: year))
                 let report = aggregator.report(
                     for: year,
-                    samples: samples,
+                    history: projection.samples,
                     manualDays: manuals,
-                    attributor: attributor,
                 )
                 let otherLocations = aggregator.locations(
                     in: .other,
-                    samples: samples,
-                    attributor: attributor,
+                    history: projection.samples,
                 )
                 let otherDayCoordinates = Dictionary(
                     uniqueKeysWithValues: otherLocations.map {
                         ($0.day, $0.points.map(\.coordinate))
                     },
                 )
-                return DataIssueReads(
+                return try await DataIssueReads(
                     report: report,
                     otherDayCoordinates: otherDayCoordinates,
-                    daySamples: DaySamples(samples: samples, calendar: aggregator.calendar),
+                    daySamples: DaySamples(
+                        samples: projection.rawSamples,
+                        calendar: aggregator.calendar,
+                    ),
+                    history: projection,
+                    manualDays: manuals,
+                    dataGenerationID: generation.id,
+                    dismissedIssueIDs: store.dismissedIssueIDs(),
+                    attribution: attribution,
                 )
             }
         }
@@ -149,8 +163,8 @@ public struct ReportReader: Sendable {
     ) async throws -> [Region: [RegionDayLocations]] {
         try await Self.logger.measure(.regionLocations, budget: .seconds(1)) {
             let interval = aggregator.yearInterval(year: year)
-            let samples = try await history.samples(in: interval)
-            return aggregator.locations(in: regions, samples: samples, attributor: attributor)
+            let projection = try await history.projection(in: interval, attributor: attributor)
+            return aggregator.locations(in: regions, history: projection.samples)
         }
     }
 
@@ -165,8 +179,11 @@ public struct ReportReader: Sendable {
             guard let end = aggregator.calendar.date(byAdding: .day, value: 1, to: start) else {
                 return [:]
             }
-            let samples = try await history.samples(in: DateInterval(start: start, end: end))
-            return aggregator.pointsByRegion(onDay: day, samples: samples, attributor: attributor)
+            let projection = try await history.projection(
+                in: DateInterval(start: start, end: end),
+                attributor: attributor,
+            )
+            return aggregator.pointsByRegion(onDay: day, history: projection.samples)
         }
     }
 
@@ -176,8 +193,8 @@ public struct ReportReader: Sendable {
     public func representativeCoordinates(for year: Int) async throws -> [Region: Coordinate] {
         try await Self.logger.measure(.representativeCoordinates, budget: .seconds(1)) {
             let interval = aggregator.yearInterval(year: year)
-            let samples = try await history.samples(in: interval)
-            return aggregator.representativeCoordinates(samples: samples, attributor: attributor)
+            let projection = try await history.projection(in: interval, attributor: attributor)
+            return aggregator.representativeCoordinates(history: projection.samples)
         }
     }
 
@@ -193,14 +210,29 @@ public struct DataIssueReads: Sendable {
     public let report: YearReport
     public let otherDayCoordinates: [CalendarDay: [Coordinate]]
     public let daySamples: DaySamples
+    public let history: LocationHistoryProjection
+    public let manualDays: [DayPresence]
+    public let dataGenerationID: WhereDataGenerationID
+    public let dismissedIssueIDs: Set<DataIssueID>
+    public let attribution: any RegionAttributing
 
     public init(
         report: YearReport,
         otherDayCoordinates: [CalendarDay: [Coordinate]],
         daySamples: DaySamples,
+        history: LocationHistoryProjection,
+        manualDays: [DayPresence],
+        dataGenerationID: WhereDataGenerationID,
+        dismissedIssueIDs: Set<DataIssueID>,
+        attribution: any RegionAttributing,
     ) {
         self.report = report
         self.otherDayCoordinates = otherDayCoordinates
         self.daySamples = daySamples
+        self.history = history
+        self.manualDays = manualDays
+        self.dataGenerationID = dataGenerationID
+        self.dismissedIssueIDs = dismissedIssueIDs
+        self.attribution = attribution
     }
 }

@@ -51,6 +51,393 @@ struct DataIssueScannerTests {
         )
     }
 
+    private func makeReviewScanner(
+        store: SwiftDataStore,
+        now: @escaping @Sendable () -> Date,
+        attributor: any RegionAttributing = SampleCorrectionTestSupport.attribution,
+        detectors: [any DataIssueDetecting] = [],
+        storeChanges: AsyncStream<Void> = AsyncStream { $0.finish() },
+    ) -> DataIssueScanner {
+        DataIssueScanner(
+            reportReader: ReportReader(
+                store: store,
+                aggregator: SampleCorrectionTestSupport.aggregator,
+                attributor: attributor,
+            ),
+            attributor: attributor,
+            calendar: SampleCorrectionTestSupport.calendar,
+            now: now,
+            scanInterval: 3 * 60 * 60,
+            detectors: detectors,
+            storeChanges: storeChanges,
+        )
+    }
+
+    @Test func scanPublishesPendingReviewsWithoutActionableGPSIssues() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let now = FlightTrajectoryFixtures.date(minutes: 25)
+        let samples = FlightTrajectoryFixtures.turningFlight().samples
+            .filter { $0.timestamp <= now }
+        try await store.perform {
+            for sample in samples {
+                try await store.add(sample: sample)
+            }
+        }
+        let scanner = makeReviewScanner(store: store, now: { now })
+        let first = try await scanner.scan(
+            year: 2026,
+            primaryRegions: [.california, .newYork],
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        let review = try #require(first.reviews.first)
+        #expect(review.isPending)
+        #expect(review.proposal == nil)
+        #expect(review.flight?.progress == .flightLikely)
+        #expect(first.issues.isEmpty)
+        #expect(try await scanner.currentIssueCount(year: 2026, driftThresholdMeters: 1000) == 0)
+        let repeated = try await scanner.scan(
+            year: 2026,
+            primaryRegions: [.california, .newYork],
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        // The issue count's independently ranked primary set can change the key;
+        // the next call with this same key must publish one coherent result.
+        let cached = try await scanner.scan(
+            year: 2026,
+            primaryRegions: [.california, .newYork],
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        #expect(cached.revision == repeated.revision)
+        #expect(cached.reviews == repeated.reviews)
+        #expect(cached.issues.map(\.id) == repeated.issues.map(\.id))
+    }
+
+    @Test func flightFreshnessDeadlineExpiresTheCacheBeforeTheScanInterval() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let clock = MutableClock(FlightTrajectoryFixtures.date(minutes: 25))
+        let samples = FlightTrajectoryFixtures.turningFlight().samples
+            .filter { $0.timestamp <= clock.now }
+        try await store.perform {
+            for sample in samples {
+                try await store.add(sample: sample)
+            }
+        }
+        let scanner = makeReviewScanner(store: store, now: { clock.now })
+        let first = try await scanner.scan(
+            year: 2026,
+            primaryRegions: [.california, .newYork],
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        #expect(first.nextReassessmentAt == FlightTrajectoryFixtures.date(minutes: 55))
+        clock.advance(by: 1799)
+        let beforeDeadline = try await scanner.scan(
+            year: 2026,
+            primaryRegions: [.california, .newYork],
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        #expect(beforeDeadline.revision == first.revision)
+        clock.advance(by: 1)
+        let expired = try await scanner.scan(
+            year: 2026,
+            primaryRegions: [.california, .newYork],
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        #expect(expired.revision != first.revision)
+        let review = try #require(expired.reviews.first)
+        #expect(review.flight?.progress == .awaitingArrival)
+        #expect(review.isPending)
+        #expect(review.proposal == nil)
+        #expect(expired.issues.isEmpty)
+    }
+
+    @Test func midnightFlightReviewsOwnTheirTransitionBeforeAndAfterArrival() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let unrelatedEarlier = CalendarDay(year: 2026, month: 1, day: 1)
+        let unrelatedLater = CalendarDay(year: 2026, month: 1, day: 2)
+        let departureDay = CalendarDay(year: 2026, month: 1, day: 4)
+        let arrivalDay = CalendarDay(year: 2026, month: 1, day: 5)
+        let unrelatedID = DataIssueID.abruptChange(earlier: unrelatedEarlier, later: unrelatedLater)
+        let flightTransitionID = DataIssueID.abruptChange(earlier: departureDay, later: arrivalDay)
+        let clock = MutableClock(FlightTrajectoryFixtures.date(minutes: 5768))
+        // Grounded in California just before midnight, then sustained flight
+        // over Other after midnight. The resulting day sets are disjoint.
+        let samples = [
+            FlightTrajectoryFixtures.sample(1, minutes: 5750, east: 0),
+            FlightTrajectoryFixtures.sample(2, minutes: 5755, east: 0),
+            FlightTrajectoryFixtures.sample(3, minutes: 5758, east: 0),
+            FlightTrajectoryFixtures.sample(4, minutes: 5763, east: 75),
+            FlightTrajectoryFixtures.sample(5, minutes: 5768, east: 150),
+        ]
+        try await store.perform {
+            try await store.setManualDay(DayPresence(day: unrelatedEarlier, regions: [.newYork]))
+            try await store.setManualDay(DayPresence(day: unrelatedLater, regions: [.canada]))
+            for sample in samples {
+                try await store.add(sample: sample)
+            }
+        }
+        let reader = ReportReader(
+            store: store,
+            aggregator: SampleCorrectionTestSupport.aggregator,
+            attributor: SampleCorrectionTestSupport.attribution,
+        )
+        let report = try await reader.yearReport(for: 2026)
+        let abruptChanges = AbruptLocationChangeDetector().detectIssues(
+            in: DataIssueDetectorFixtures.input(days: report.days),
+        )
+        #expect(Set(abruptChanges.map(\.id)) == [unrelatedID, flightTransitionID])
+        let scanner = makeReviewScanner(
+            store: store,
+            now: { clock.now },
+            detectors: [AbruptLocationChangeDetector()],
+        )
+        let pending = try await scanner.scan(
+            year: 2026,
+            primaryRegions: [.california, .newYork],
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        #expect(Set(pending.reviews.map(\.day.day)) == [departureDay, arrivalDay])
+        let allPending = pending.reviews.allSatisfy(\.isPending)
+        #expect(allPending)
+        #expect(pending.reviews.allSatisfy { $0.flight?.progress == .flightLikely })
+        #expect(pending.issues.map(\.id) == [unrelatedID])
+
+        clock.advance(by: 30 * 60)
+        let stale = try await scanner.scan(
+            year: 2026,
+            primaryRegions: [.california, .newYork],
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        let allStillPending = stale.reviews.allSatisfy(\.isPending)
+        #expect(allStillPending)
+        #expect(stale.reviews.allSatisfy { $0.flight?.progress == .awaitingArrival })
+        #expect(stale.issues.map(\.id) == [unrelatedID])
+
+        // Late callbacks establish a real ten-minute ground dwell. Arrival
+        // exposes the precise GPS edit without reviving a whole-day rewrite.
+        try await store.perform {
+            try await store.add(sample: FlightTrajectoryFixtures.sample(
+                6,
+                minutes: 5773,
+                east: 150,
+            ))
+            try await store.add(sample: FlightTrajectoryFixtures.sample(
+                7,
+                minutes: 5778,
+                east: 150,
+            ))
+        }
+        await scanner.invalidate()
+        let completed = try await scanner.scan(
+            year: 2026,
+            primaryRegions: [.california, .newYork],
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        let hasPendingReview = completed.reviews.contains(where: \.isPending)
+        #expect(!hasPendingReview)
+        #expect(completed.reviews.allSatisfy {
+            $0.flight?
+                .progress == .completed(arrivedAt: FlightTrajectoryFixtures.date(minutes: 5768))
+        })
+        #expect(Set(completed.issues.map(\.id)) == [unrelatedID, .flightDay(day: arrivalDay)])
+        let proposal = try #require(completed.reviews.first { $0.day.day == arrivalDay }?.proposal)
+        #expect(proposal.edits.map(\.sampleID) == [FlightTrajectoryFixtures.sampleID(4)])
+    }
+
+    @Test func driftOnlyReviewDoesNotSuppressAnAbruptTransition() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let earlier = CalendarDay(year: 2026, month: 1, day: 1)
+        let later = CalendarDay(year: 2026, month: 1, day: 2)
+        let samples = [
+            SampleCorrectionAssessmentFixtures.point(1, minutes: 1440, longitude: -0.001),
+            SampleCorrectionAssessmentFixtures.point(2, minutes: 1445, longitude: 0.001),
+            SampleCorrectionAssessmentFixtures.point(3, minutes: 1450, longitude: -0.001),
+        ]
+        try await store.perform {
+            try await store.setManualDay(DayPresence(day: earlier, regions: [.newYork]))
+            for sample in samples {
+                try await store.add(sample: sample)
+            }
+        }
+        let scanner = makeReviewScanner(
+            store: store,
+            now: { FlightTrajectoryFixtures.date(minutes: 1460) },
+            attributor: SampleCorrectionAssessmentFixtures.Boundary(),
+            detectors: [AbruptLocationChangeDetector()],
+        )
+        let result = try await scanner.scan(
+            year: 2026,
+            primaryRegions: [.california, .newYork],
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        let review = try #require(result.reviews.first)
+        #expect(review.flights.isEmpty)
+        #expect(review.proposal != nil)
+        #expect(Set(result.issues.map(\.id)) == [
+            .abruptChange(earlier: earlier, later: later),
+            .borderDrift(day: later),
+        ])
+    }
+
+    @Test func primaryRegionChangesInvalidateTheCoherentResultKey() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let now = FlightTrajectoryFixtures.date(minutes: 25)
+        let scanner = makeReviewScanner(store: store, now: { now })
+        let first = try await scanner.scan(
+            year: 2026,
+            primaryRegions: [.california],
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        let changed = try await scanner.scan(
+            year: 2026,
+            primaryRegions: [.newYork],
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        #expect(changed.revision != first.revision)
+        let repeated = try await scanner.scan(
+            year: 2026,
+            primaryRegions: [.newYork],
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        #expect(repeated.revision == changed.revision)
+    }
+
+    @Test func aRawFixRefreshesReviewsWhenTheAggregateReportIsUnchanged() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let now = FlightTrajectoryFixtures.date(minutes: 30)
+        let trace = FlightTrajectoryFixtures.turningFlight()
+        let initialSamples = trace.samples.filter {
+            $0.timestamp <= FlightTrajectoryFixtures.date(minutes: 25)
+        }
+        try await store.perform {
+            for sample in initialSamples {
+                try await store.add(sample: sample)
+            }
+        }
+        let scanner = makeReviewScanner(store: store, now: { now }, storeChanges: store.changes())
+        let reader = ReportReader(
+            store: store,
+            aggregator: SampleCorrectionTestSupport.aggregator,
+            attributor: SampleCorrectionTestSupport.attribution,
+        )
+        let beforeReport = try await reader.yearReport(for: 2026)
+        let first = try await scanner.scan(
+            year: 2026,
+            primaryRegions: [.california, .newYork],
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        let denseFix = try #require(trace.samples.first { $0.id == trace.shortIntervalID })
+        try await store.perform { try await store.add(sample: denseFix) }
+        let afterReport = try await reader.yearReport(for: 2026)
+        #expect(beforeReport.days == afterReport.days)
+        #expect(beforeReport.totals == afterReport.totals)
+        try await waitUntil {
+            let scan = try await scanner.scan(
+                year: 2026,
+                primaryRegions: [.california, .newYork],
+                driftThresholdMeters: 1000,
+                force: false,
+            )
+            return scan.revision != first.revision
+        }
+        let refreshed = try await scanner.scan(
+            year: 2026,
+            primaryRegions: [.california, .newYork],
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        #expect(refreshed.revision != first.revision)
+        #expect(refreshed.reviews.first?.flight?.lastObservationAt == denseFix.timestamp)
+        #expect(refreshed.reviews.first?.flight?.lastObservationAt
+            != first.reviews.first?.flight?.lastObservationAt)
+    }
+
+    @Test func invalidationDuringASuspendedReadCannotRepublishTheOldScan() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let clock = MutableClock(FlightTrajectoryFixtures.date(minutes: 20))
+        let trace = FlightTrajectoryFixtures.turningFlight()
+        let initial = trace.samples.filter { $0.timestamp <= clock.now }
+        try await store.perform {
+            for sample in initial {
+                try await store.add(sample: sample)
+            }
+        }
+        let next = try #require(trace.samples
+            .first { $0.timestamp == FlightTrajectoryFixtures.date(minutes: 25) })
+        let (writerStarted, writerStartedContinuation) = AsyncStream.makeStream(of: Void.self)
+        let (release, releaseContinuation) = AsyncStream.makeStream(of: Void.self)
+        let (scanStarted, scanStartedContinuation) = AsyncStream.makeStream(of: Void.self)
+        defer {
+            releaseContinuation.yield()
+            releaseContinuation.finish()
+            writerStartedContinuation.finish()
+            scanStartedContinuation.finish()
+        }
+        let scanner = makeReviewScanner(store: store, now: {
+            let captured = clock.now
+            scanStartedContinuation.yield()
+            return captured
+        })
+        let writer = Task {
+            try await store.perform {
+                try await store.add(sample: next)
+                writerStartedContinuation.yield()
+                writerStartedContinuation.finish()
+                for await _ in release {
+                    break
+                }
+            }
+        }
+        for await _ in writerStarted {
+            break
+        }
+        let scan = Task {
+            try await scanner.scan(
+                year: 2026,
+                primaryRegions: [.california, .newYork],
+                driftThresholdMeters: 1000,
+                force: false,
+            )
+        }
+        for await _ in scanStarted {
+            break
+        }
+        // The scanner captured 00:20 and then suspended behind the store's
+        // exclusive writer. Actor ordering places this invalidation after its
+        // revision capture; the committed fix only becomes visible afterward.
+        clock.advance(by: 300)
+        await scanner.invalidate()
+        releaseContinuation.yield()
+        releaseContinuation.finish()
+        try await writer.value
+        let result = try await scan.value
+        let review = try #require(result.reviews.first)
+        #expect(review.isPending)
+        #expect(review.flight?.lastObservationAt == next.timestamp)
+        #expect(review.flight?.progress == .flightLikely)
+        let cached = try await scanner.scan(
+            year: 2026,
+            primaryRegions: [.california, .newYork],
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        #expect(cached.revision == result.revision)
+        #expect(cached.reviews == result.reviews)
+    }
+
     /// The speed-based `FlightDayDetector` must ignore manual and
     /// evidence-implied samples: their timestamps are user-asserted, so a speed
     /// computed across them is meaningless. The exact coast-to-coast pattern

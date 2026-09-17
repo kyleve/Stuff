@@ -106,6 +106,8 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
     /// Installation that produced an automatic GPS sample. Nil for legacy
     /// samples and user-asserted/manual data.
     public let recordingDeviceID: RecordingDeviceID?
+    /// Sensor readings when the source supplies valid speed or altitude evidence.
+    public let motion: LocationMotion?
 
     public init(
         id: UUID = UUID(),
@@ -114,6 +116,7 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
         horizontalAccuracy: Double,
         source: SampleSource,
         recordingDeviceID: RecordingDeviceID? = nil,
+        motion: LocationMotion? = nil,
     ) {
         self.id = id
         self.timestamp = timestamp
@@ -121,6 +124,7 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
         self.horizontalAccuracy = horizontalAccuracy
         self.source = source
         self.recordingDeviceID = recordingDeviceID
+        self.motion = motion
     }
 
     /// Stamp an automatic sample with the installation that received it.
@@ -134,6 +138,7 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
             horizontalAccuracy: horizontalAccuracy,
             source: source,
             recordingDeviceID: deviceID,
+            motion: motion,
         )
     }
 }

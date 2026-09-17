@@ -7,6 +7,60 @@ import Testing
 /// backfills, clears, evidence) and the reminder reconcile + widget publish
 /// each one fans out to — the work the controller delegates to `DayJournal`.
 struct DayJournalTests {
+    @Test(arguments: [false, true])
+    func resetToGPSClearsManualOverlayAndWritesCorrectionTombstones(bulk: Bool) async throws {
+        let h = try await SampleCorrectionTestSupport.completedFlight()
+        let proposal = try await h.proposal()
+        let result = try await h.coordinator.apply(proposal)
+        guard case .applied = result else {
+            Issue.record("The completed flight correction must apply")
+            return
+        }
+        let appliedRevisions = try await h.store.allSampleAttributionRevisions()
+        try await h.services.journal.overrideDay(
+            date: FlightTrajectoryFixtures.start,
+            regions: [.canada],
+            audit: nil,
+        )
+        if bulk {
+            try await h.services.journal.clearManualDays(dates: [FlightTrajectoryFixtures.start])
+        } else {
+            try await h.services.journal.clearManualDay(date: FlightTrajectoryFixtures.start)
+        }
+
+        let revisions = try await h.store.allSampleAttributionRevisions()
+        let resets = revisions.filter { $0.replacementRegions == nil }
+        let raw = FlightTrajectoryFixtures.turningFlight().samples
+        #expect(resets.count == raw.count)
+        #expect(Set(resets.map(\.sampleID)) == Set(raw.map(\.id)))
+        #expect(try await h.reader.manualDays(inYear: h.day.year).isEmpty)
+        let originalRegions = Set(raw
+            .map { SampleCorrectionTestSupport.attribution.region(at: $0.coordinate) })
+        #expect(try await h.reader.yearReport(for: h.day.year).days.first?
+            .regions == originalRegions)
+        #expect(try await Set(h.store.allSamples()) == Set(raw))
+
+        // A delayed immutable correction cannot resurrect what Reset to GPS undid.
+        let first = try #require(appliedRevisions.first)
+        try await h.store.perform {
+            try await h.store.addSampleAttributionRevision(.init(
+                id: UUID(),
+                sampleID: first.sampleID,
+                updatedAt: first.updatedAt,
+                replacementRegions: first.replacementRegions,
+            ))
+        }
+        #expect(try await h.reader.yearReport(for: h.day.year).days.first?
+            .regions == originalRegions)
+        let projection = try await LocationHistoryReader(store: h.store).projection(
+            in: h.interval,
+            attributor: SampleCorrectionTestSupport.attribution,
+        )
+        #expect(projection.samples.allSatisfy {
+            $0.regions == [SampleCorrectionTestSupport.attribution.region(at: $0.sample.coordinate)]
+        })
+    }
+
     private struct Harness {
         let journal: DayJournal
         let store: SwiftDataStore

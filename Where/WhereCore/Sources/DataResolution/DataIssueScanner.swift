@@ -1,14 +1,9 @@
 import Foundation
 import RegionKit
 
-/// Reads the persisted year + dismissals, runs the pure detectors, and returns
-/// the sorted, not-yet-dismissed issues — throttling repeat scans of the same
-/// (year, threshold, calendar day) to once per `scanInterval` and serving the
-/// cached result in between. The calendar day is part of the key because the
-/// missing-days backlog cutoff (`MissingDays.backlogCutoff`) is day-relative, so
-/// a midnight rollover must recompute even mid-throttle — the cache fully
-/// describes when it's stale, so callers just keep asking with `force: false`.
-/// An `actor` because it holds that cache; composes `ReportReader`.
+/// Publishes issues and informational GPS reviews from one evidence snapshot.
+/// Cache invalidation has its own epoch so a suspended scan cannot republish
+/// evidence that was invalidated while its reads were in flight.
 public actor DataIssueScanner {
     private static let logger = WhereLog.reporting(DataIssueScannerLog.self)
 
@@ -21,15 +16,18 @@ public actor DataIssueScanner {
 
     private struct CachedScan {
         let year: Int
+        let primaryRegions: [Region]
+        let trackedRegions: [Region]
         let driftThresholdMeters: Double
         /// Start-of-day of the `now` this scan ran against. The day-relative
         /// backlog cutoff is baked into `issues`, so a different day is a miss.
         let day: Date
         let at: Date
-        let issues: [any DataIssue]
+        let result: DataIssueScanResult
     }
 
     private var cache: CachedScan?
+    private var invalidationRevision: UInt64 = 0
 
     /// Drops the cache whenever the store reports a committed change. Lets the
     /// cache stay honest for `force: false` readers even when no session is
@@ -48,9 +46,7 @@ public actor DataIssueScanner {
         scanInterval: TimeInterval = 3 * 60 * 60,
         detectors: [any DataIssueDetecting] = [
             MissingDaysDetector(),
-            BorderDriftDetector(),
             AbruptLocationChangeDetector(),
-            FlightDayDetector(),
         ],
         // Defaults to an already-finished stream — *not* `AsyncStream { _ in }`,
         // which never yields or finishes and so would park the observation task
@@ -75,63 +71,116 @@ public actor DataIssueScanner {
         invalidationTask?.cancel()
     }
 
-    /// Throttled detection. Recomputes when `force`, when the cache is empty,
-    /// when `(year, driftThresholdMeters)` differs from the cached run, when the
-    /// calendar day has rolled over since it (the backlog cutoff is
-    /// day-relative), or when the cached run is older than `scanInterval`;
-    /// otherwise returns cached.
     public func issues(
         year: Int,
         primaryRegions: [Region],
         driftThresholdMeters: Double,
         force: Bool = false,
     ) async throws -> [any DataIssue] {
-        let currentDate = now()
-        let currentDay = calendar.startOfDay(for: currentDate)
-        if !force,
-           let cached = cache,
-           cached.year == year,
-           cached.driftThresholdMeters == driftThresholdMeters,
-           cached.day == currentDay,
-           currentDate.timeIntervalSince(cached.at) < scanInterval
-        {
-            return cached.issues
-        }
-
-        // Only a miss is spanned — a throttled hit returns above, so the span
-        // history holds real scans rather than a run of near-zero cache reads.
-        let sorted = try await Self.logger.measure(.scan, budget: .seconds(3)) {
-            let reads = try await reportReader.dataIssueReads(for: year)
-            let dismissed = try await reportReader.dismissedIssueIDs()
-            let input = DataIssueInput(
-                year: year,
-                report: reads.report,
-                otherDayCoordinates: reads.otherDayCoordinates,
-                daySamples: reads.daySamples,
-                primaryRegions: primaryRegions,
-                attributor: attributor,
-                driftThresholdMeters: driftThresholdMeters,
-                calendar: calendar,
-                now: currentDate,
-            )
-            return Self.sortIssues(
-                detectors
-                    .flatMap { detector in
-                        Self.logger.measure(.detect(detector.detects)) {
-                            detector.detectAnyIssues(in: input)
-                        }
-                    }
-                    .filter { !dismissed.contains($0.id) },
-            )
-        }
-        cache = CachedScan(
+        try await scan(
             year: year,
+            primaryRegions: primaryRegions,
             driftThresholdMeters: driftThresholdMeters,
-            day: currentDay,
-            at: currentDate,
-            issues: sorted,
-        )
-        return sorted
+            force: force,
+        ).issues
+    }
+
+    public func scan(
+        year: Int,
+        primaryRegions: [Region],
+        driftThresholdMeters: Double,
+        force: Bool,
+    ) async throws -> DataIssueScanResult {
+        while true {
+            try Task.checkCancellation()
+            let currentDate = now()
+            let currentDay = calendar.startOfDay(for: currentDate)
+            let trackedRegions = attributor.loadedRegions
+            if !force, let cached = cache,
+               cached.year == year,
+               cached.primaryRegions == primaryRegions,
+               cached.trackedRegions == trackedRegions,
+               cached.driftThresholdMeters == driftThresholdMeters,
+               cached.day == currentDay,
+               currentDate.timeIntervalSince(cached.at) < scanInterval,
+               cached.result.nextReassessmentAt.map({ currentDate < $0 }) ?? true
+            {
+                return cached.result
+            }
+            let revision = invalidationRevision
+            let result = try await Self.logger.measure(.scan, budget: .seconds(3)) {
+                let reads = try await reportReader.dataIssueReads(for: year)
+                let input = DataIssueInput(
+                    year: year,
+                    report: reads.report,
+                    otherDayCoordinates: reads.otherDayCoordinates,
+                    daySamples: reads.daySamples,
+                    primaryRegions: primaryRegions,
+                    attributor: reads.attribution,
+                    driftThresholdMeters: driftThresholdMeters,
+                    calendar: calendar,
+                    now: currentDate,
+                )
+                let reviews = Self.logger.measure(.assessGPS) {
+                    SampleCorrectionAssessment(attributor: reads.attribution, calendar: calendar)
+                        .reviews(
+                            reads: reads,
+                            primaryRegions: primaryRegions,
+                            driftThresholdMeters: driftThresholdMeters,
+                            now: currentDate,
+                        )
+                }
+                let otherIssues = detectors.flatMap { detector in
+                    Self.logger.measure(.detect(detector.detects)) {
+                        detector.detectAnyIssues(in: input)
+                    }
+                }
+                let flightDays = Set(reviews.filter { !$0.flights.isEmpty }.map(\.day.day))
+                let unexplainedIssues = otherIssues.filter { issue in
+                    // Flight reviews own these transitions before and after
+                    // arrival, including their exact-sample correction. Do not
+                    // also offer a whole-day travel correction for that flight.
+                    guard case let .markTravelDay(earlier, later, _) = issue.resolution else {
+                        return true
+                    }
+                    return !flightDays.contains(earlier.day) && !flightDays.contains(later.day)
+                }
+                let gpsIssues: [any DataIssue] = reviews.compactMap { review in
+                    review.proposal.map { SampleCorrectionIssue(proposal: $0) }
+                }
+                let issues = Self.sortIssues((unexplainedIssues + gpsIssues).filter {
+                    !reads.dismissedIssueIDs.contains($0.id)
+                })
+                let deadlines = reviews.flatMap(\.flights).flatMap { flight in
+                    [
+                        flight.nextReassessmentAt,
+                        flight.lastObservationAt.addingTimeInterval(24 * 60 * 60),
+                    ]
+                    .compactMap(\.self).filter { $0 > currentDate }
+                }
+                return DataIssueScanResult(
+                    revision: UUID(),
+                    issues: issues,
+                    reviews: reviews,
+                    nextReassessmentAt: deadlines.min(),
+                )
+            }
+            guard revision == invalidationRevision,
+                  trackedRegions == attributor.loadedRegions
+            else {
+                continue
+            }
+            cache = CachedScan(
+                year: year,
+                primaryRegions: primaryRegions,
+                trackedRegions: trackedRegions,
+                driftThresholdMeters: driftThresholdMeters,
+                day: currentDay,
+                at: currentDate,
+                result: result,
+            )
+            return result
+        }
     }
 
     /// Count of unresolved issues for `year`, for headless callers (the app-icon
@@ -161,6 +210,7 @@ public actor DataIssueScanner {
 
     /// Drop the cache so the next `issues(...)` recomputes regardless of throttle.
     public func invalidate() {
+        invalidationRevision &+= 1
         cache = nil
     }
 

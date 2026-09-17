@@ -84,6 +84,14 @@ final class RegionAttribution: RegionAttributing {
         state.withLock { $0.attributor }
     }
 
+    /// Pin attribution to the tracked set read by an enclosing store snapshot.
+    /// A pending change-stream callback must not change an authority decision.
+    func snapshot(for tracked: Set<Region>) -> RegionAttributor {
+        let existing = state.withLock { $0 }
+        if existing.trackedIDs == Set(tracked.map(\.rawValue)) { return existing.attributor }
+        return RegionAttributor(for: Region.inCanonicalOrder(tracked))
+    }
+
     func region(at coordinate: Coordinate) -> Region {
         current.region(at: coordinate)
     }
