@@ -605,7 +605,7 @@ editor when changing its schema.
 
 ## Cursor Cloud specific instructions
 
-Cloud agent VMs run **Linux**, not macOS. This repo targets **iOS 26** with
+Cloud agent VMs run **Linux**, not macOS. This repo targets **iOS 27** with
 **Xcode 27+** and **Tuist** (macOS-only). Treat Linux as a partial dev
 environment. Formatting and agent sync work on Linux. Builds, tests, and running the
 **Where** app require macOS (as in CI on the `xcode-27` runner image).

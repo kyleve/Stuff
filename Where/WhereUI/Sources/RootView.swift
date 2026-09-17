@@ -342,7 +342,7 @@ public struct RootView: View {
         /// idempotent and awaits the in-flight drive, a deterministic "reached
         /// `.ready`" signal — so the raised settle floor only has to outlast the
         /// post-ready tail: `MainTabs`' `.task` activation (empty-store re-pull +
-        /// Resolve badge) and the iOS 26 glass toolbar/tab bar material
+        /// Resolve badge) and the native glass toolbar/tab bar material
         /// adaptation, which starts quiet a few hundred ms after the chrome
         /// hosts. Those have no reachable completion signal (the scene's report
         /// model is private to `MainTabs`; the adaptation has no public

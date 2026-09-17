@@ -334,7 +334,7 @@ private struct ResolveToolbarLabel: View {
 
 #if DEBUG
     extension LocationsView: SnapshotProviding {
-        /// The raised settle floor on `Loaded` outlasts the iOS 26 glass toolbar
+        /// The raised settle floor on `Loaded` outlasts the native glass toolbar
         /// material adaptation (seen pre-adaptation once on the equivalent
         /// pre-split screen) — same mechanism as `RootView.LoggedIn`.
         static var snapshots: [SnapshotCase] {

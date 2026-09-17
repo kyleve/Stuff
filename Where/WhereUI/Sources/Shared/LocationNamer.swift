@@ -23,7 +23,7 @@ struct PlaceComponents: Equatable {
 }
 
 extension PlaceComponents {
-    /// iOS 26's MapKit geocoder folds the old `CLPlacemark` fields into
+    /// MapKit's geocoder folds the old `CLPlacemark` fields into
     /// formatted strings; `cityName` and `regionName` (the country) are the two
     /// pieces this compact teaser needs.
     init(_ representations: MKAddressRepresentations) {
