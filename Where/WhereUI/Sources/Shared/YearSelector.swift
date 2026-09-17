@@ -7,14 +7,9 @@ import WhereCore
 struct YearSelector: View {
     let report: YearReportModel
 
-    private var years: [Int] {
-        let current = WhereModel.currentYear
-        return Array((current - 5 ... current).reversed())
-    }
-
     var body: some View {
         Menu {
-            ForEach(years, id: \.self) { year in
+            ForEach(report.selectableYears, id: \.self) { year in
                 Button {
                     Task { await report.select(year: year) }
                 } label: {

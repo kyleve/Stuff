@@ -20,11 +20,12 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     ///
     /// v3 adds sample provenance, immutable installation profiles, nickname changes, and archive
     /// tombstones. v4 expands device kinds, groups metadata edit payloads, and renames the
-    /// profile's registration-generation key; v5 adds `plannedStayRecords`. There's no in-app
+    /// profile's registration-generation key; v5 adds `plannedStayRecords`. v6 adds independent
+    /// stay identities, arrival/departure windows, and `homeRegionRecords`. There is no in-app
     /// decode fallback for an older archive — it is reshaped out of band by
     /// `Tools/upgrade-backup.rb`, matching the module's no-migration-on-read rule (see
     /// `AGENTS.md`).
-    public static let currentFormatVersion = 5
+    public static let currentFormatVersion = 6
 
     public let formatVersion: Int
     public let exportedAt: Date
@@ -49,9 +50,10 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     public let recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange]
     /// Irreversible installation-removal tombstones.
     public let recordingDeviceRemovals: [RecordingDeviceRemoval]
-    /// Revisions of the synced planned-stay register, including its clearing
-    /// tombstone, so restore cannot resurrect an older active stay.
+    /// All synced stay revisions, including per-stay deletion tombstones.
     public let plannedStayRecords: [PlannedStayRecord]
+    /// Synced forecast home choices. Nil-region revisions select historical estimates.
+    public let homeRegionRecords: [HomeRegionRecord]
     /// One entry per evidence record that has blob bytes in the archive.
     /// Evidence without bytes simply has no entry here.
     public let assets: [BackupAssetEntry]
@@ -69,6 +71,7 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange],
         recordingDeviceRemovals: [RecordingDeviceRemoval],
         plannedStayRecords: [PlannedStayRecord],
+        homeRegionRecords: [HomeRegionRecord],
         assets: [BackupAssetEntry],
     ) {
         self.formatVersion = formatVersion
@@ -83,6 +86,7 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         self.recordingDeviceMetadataChanges = recordingDeviceMetadataChanges
         self.recordingDeviceRemovals = recordingDeviceRemovals
         self.plannedStayRecords = plannedStayRecords
+        self.homeRegionRecords = homeRegionRecords
         self.assets = assets
     }
 }

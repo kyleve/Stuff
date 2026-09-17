@@ -51,6 +51,10 @@ struct WhereStylesheet: BStylesheet {
         // Grow day-grid tap targets at accessibility Dynamic Type sizes.
         if traits.contentSizeCategory.isAccessibilitySize {
             calendar.day.minHeight = 56
+            calendar.day.numberFontSize = 24
+            calendar.day.numberSize = 36
+            calendar.month.weekdayFontSize = 14
+            calendar.month.stacksFooter = true
             timeline.overview.pinsToViewport = false
             timeline.row.stacksDayCount = true
             featureDiscovery.siri.bubble.indent = 0
@@ -1238,6 +1242,8 @@ extension WhereStylesheet {
             var sectionSpacing: CGFloat
             /// Spacing between day cells in the grid (both axes).
             var gridSpacing: CGFloat
+            /// Compact weekday glyphs stay on one line in the seven-column grid.
+            var weekdayFontSize: CGFloat
             var padding: CGFloat
             var cornerRadius: CGFloat
             /// Card treatment for a past month — the plain wash + rim.
@@ -1252,6 +1258,8 @@ extension WhereStylesheet {
             var footerSpacing: CGFloat
             /// Spacing within a footer row (dot ↔ label).
             var footerRowSpacing: CGFloat
+            /// Accessibility Dynamic Type places the count below its full label.
+            var stacksFooter: Bool
             /// Opacity of an unfocused footer row while a region is focused.
             var unfocusedRowOpacity: Double
 
@@ -1281,6 +1289,8 @@ extension WhereStylesheet {
             var minHeight: CGFloat
             /// Edge of the rounded day-number chip.
             var numberSize: CGFloat
+            /// Date glyph size grows with its fixed chip at accessibility sizes.
+            var numberFontSize: CGFloat
             /// Vertical gap between the day number and its dots — small so the
             /// dots tuck up close beneath the date.
             var numberDotSpacing: CGFloat
@@ -1353,6 +1363,7 @@ extension WhereStylesheet {
             month: MonthStyle(
                 sectionSpacing: 8,
                 gridSpacing: 6,
+                weekdayFontSize: 11,
                 padding: 16,
                 cornerRadius: 28,
                 plain: MonthStyle.Card(
@@ -1374,6 +1385,7 @@ extension WhereStylesheet {
                 footerDividerSpacing: 8,
                 footerSpacing: 4,
                 footerRowSpacing: 6,
+                stacksFooter: false,
                 unfocusedRowOpacity: 0.55,
             ),
             dotSize: 6,
@@ -1392,6 +1404,7 @@ extension WhereStylesheet {
             day: DayStyle(
                 minHeight: 44,
                 numberSize: 26,
+                numberFontSize: 17,
                 numberDotSpacing: 0,
                 dotSize: 8,
                 dotOverlap: 2,

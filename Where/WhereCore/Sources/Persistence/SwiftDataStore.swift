@@ -243,6 +243,46 @@ private enum GenerationScopedFetch {
         })
     }
 
+    static func plannedStays(
+        belongingTo generationID: WhereDataGenerationID,
+        stayID: PlannedStay.ID,
+    ) -> FetchDescriptor<SDPlannedStay> {
+        let membership = GenerationMembership(generationID)
+        let storedGenerationID = membership.storedID
+        let includesLegacy = membership.includesLegacy
+        let storedStayID = stayID.rawValue
+        return descriptor(predicate: #Predicate {
+            ($0.generationID == storedGenerationID ||
+                (includesLegacy && $0.generationID == nil)) && $0.stayID == storedStayID
+        })
+    }
+
+    static func homeRegions(
+        belongingTo generationID: WhereDataGenerationID,
+        sortBy: [SortDescriptor<SDHomeRegion>] = [],
+    ) -> FetchDescriptor<SDHomeRegion> {
+        let membership = GenerationMembership(generationID)
+        let storedGenerationID = membership.storedID
+        let includesLegacy = membership.includesLegacy
+        return descriptor(predicate: #Predicate {
+            $0.generationID == storedGenerationID ||
+                (includesLegacy && $0.generationID == nil)
+        }, sortBy: sortBy)
+    }
+
+    static func homeRegions(
+        belongingTo generationID: WhereDataGenerationID,
+        id: UUID,
+    ) -> FetchDescriptor<SDHomeRegion> {
+        let membership = GenerationMembership(generationID)
+        let storedGenerationID = membership.storedID
+        let includesLegacy = membership.includesLegacy
+        return descriptor(predicate: #Predicate {
+            ($0.generationID == storedGenerationID ||
+                (includesLegacy && $0.generationID == nil)) && $0.id == id
+        })
+    }
+
     static func metadataChanges(
         belongingTo generationID: WhereDataGenerationID,
         sortBy: [SortDescriptor<SDRecordingDeviceMetadataChange>] = [],
@@ -588,6 +628,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             SDDismissedIssue.self,
             SDTrackedRegion.self,
             SDPlannedStay.self,
+            SDHomeRegion.self,
             SDRecordingDeviceProfile.self,
             SDRecordingDeviceMetadataChange.self,
             SDRecordingDeviceCheckIn.self,
@@ -1204,6 +1245,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         )) {
             context.delete(record)
         }
+        for record in try context.fetch(GenerationScopedFetch.homeRegions(
+            belongingTo: generationID,
+        )) {
+            context.delete(record)
+        }
         for record in try context.fetch(GenerationScopedFetch.metadataChanges(
             belongingTo: generationID,
         )) {
@@ -1801,10 +1847,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func replacePlannedStayRecord(with record: PlannedStayRecord) async throws {
+        try record.validate()
         let context = mutationContext()
         let generationID = mutationGenerationID()
         for existing in try context.fetch(GenerationScopedFetch.plannedStays(
             belongingTo: generationID,
+            stayID: record.stayID,
         )) {
             context.delete(existing)
         }
@@ -1812,6 +1860,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func restorePlannedStayRecord(_ record: PlannedStayRecord) async throws {
+        try record.validate()
         let context = mutationContext()
         let generationID = mutationGenerationID()
         for duplicate in try context.fetch(GenerationScopedFetch.plannedStays(
@@ -1821,6 +1870,45 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             context.delete(duplicate)
         }
         context.insert(SDPlannedStay(value: record, generationID: generationID))
+    }
+
+    public func homeRegionRecords() async throws -> [HomeRegionRecord] {
+        let context = readContext()
+        let generationID = try readGenerationID(in: context)
+        let descriptor = GenerationScopedFetch.homeRegions(
+            belongingTo: generationID,
+            sortBy: [SortDescriptor(\.updatedAt), SortDescriptor(\.id)],
+        )
+        return try context.fetch(descriptor).compactMap { record in
+            let value = record.toValue()
+            if value == nil { Self.logFault(forCorrupt: record) }
+            return value
+        }
+    }
+
+    public func replaceHomeRegionRecord(with record: HomeRegionRecord) async throws {
+        try record.validate()
+        let context = mutationContext()
+        let generationID = mutationGenerationID()
+        for existing in try context.fetch(GenerationScopedFetch.homeRegions(
+            belongingTo: generationID,
+        )) {
+            context.delete(existing)
+        }
+        context.insert(SDHomeRegion(value: record, generationID: generationID))
+    }
+
+    public func restoreHomeRegionRecord(_ record: HomeRegionRecord) async throws {
+        try record.validate()
+        let context = mutationContext()
+        let generationID = mutationGenerationID()
+        for duplicate in try context.fetch(GenerationScopedFetch.homeRegions(
+            belongingTo: generationID,
+            id: record.id,
+        )) {
+            context.delete(duplicate)
+        }
+        context.insert(SDHomeRegion(value: record, generationID: generationID))
     }
 
     // MARK: - Tracked regions
@@ -2359,15 +2447,18 @@ final class SDTrackedRegion {
     }
 }
 
-/// One CloudKit-compatible revision of the single planned-stay register. Every
-/// field is optional as required by the mirrored schema. `nil` region/day
-/// together represents a tombstone; only a mismatched pair is corrupt.
+/// One revision for a stable stay identity. A fully absent payload is a tombstone;
+/// a partial payload is corrupt and never becomes an inferred plan.
 @Model
 final class SDPlannedStay {
     var generationID: UUID?
     var id: UUID?
+    var stayID: UUID?
     var regionID: String?
-    var throughDayKey: String?
+    var arrivalEarliestDayKey: String?
+    var arrivalLatestDayKey: String?
+    var departureEarliestDayKey: String?
+    var departureLatestDayKey: String?
     var updatedAt: Date?
 
     init() {}
@@ -2376,26 +2467,89 @@ final class SDPlannedStay {
         self.init()
         self.generationID = generationID.rawValue
         id = value.id
+        stayID = value.stayID.rawValue
         regionID = value.value?.region.rawValue
-        throughDayKey = value.value?.through.description
+        arrivalEarliestDayKey = value.value?.arrival.earliest.description
+        arrivalLatestDayKey = value.value?.arrival.latest.description
+        departureEarliestDayKey = value.value?.departure.earliest.description
+        departureLatestDayKey = value.value?.departure.latest.description
         updatedAt = value.updatedAt
     }
 
     func toValue() -> PlannedStayRecord? {
-        guard let id, let updatedAt else { return nil }
-        let stay: PlannedStay?
-        switch (regionID, throughDayKey) {
-            case (nil, nil):
+        guard let id, let stayID, let updatedAt else { return nil }
+        let identity = PlannedStay.ID(rawValue: stayID)
+        do {
+            let stay: PlannedStay?
+            if regionID == nil, arrivalEarliestDayKey == nil, arrivalLatestDayKey == nil,
+               departureEarliestDayKey == nil, departureLatestDayKey == nil
+            {
                 stay = nil
-            case let (regionID?, throughDayKey?):
-                guard let region = Region(rawValue: regionID),
-                      let through = CalendarDay(iso: throughDayKey)
+            } else {
+                guard let regionID, let region = Region(rawValue: regionID),
+                      let arrivalEarliestDayKey,
+                      let arrivalEarliest = CalendarDay(iso: arrivalEarliestDayKey),
+                      let arrivalLatestDayKey,
+                      let arrivalLatest = CalendarDay(iso: arrivalLatestDayKey),
+                      let departureEarliestDayKey,
+                      let departureEarliest = CalendarDay(iso: departureEarliestDayKey),
+                      let departureLatestDayKey,
+                      let departureLatest = CalendarDay(iso: departureLatestDayKey)
                 else { return nil }
-                stay = PlannedStay(region: region, through: through)
-            case (.some, nil), (nil, .some):
-                return nil
+                stay = try PlannedStay(
+                    id: identity,
+                    region: region,
+                    arrival: .init(earliest: arrivalEarliest, latest: arrivalLatest),
+                    departure: .init(earliest: departureEarliest, latest: departureLatest),
+                )
+            }
+            return try PlannedStayRecord(
+                id: id,
+                stayID: identity,
+                value: stay,
+                updatedAt: updatedAt,
+            )
+        } catch {
+            // The owning store logs every row that fails to materialize.
+            return nil
         }
-        return PlannedStayRecord(id: id, value: stay, updatedAt: updatedAt)
+    }
+}
+
+/// A CloudKit-compatible revision of the forecast home choice. Nil region means historical
+/// estimates; an unknown region or missing revision metadata is a corrupt row.
+@Model
+final class SDHomeRegion {
+    var generationID: UUID?
+    var id: UUID?
+    var regionID: String?
+    var updatedAt: Date?
+
+    init() {}
+
+    convenience init(value: HomeRegionRecord, generationID: WhereDataGenerationID) {
+        self.init()
+        self.generationID = generationID.rawValue
+        id = value.id
+        regionID = value.region?.rawValue
+        updatedAt = value.updatedAt
+    }
+
+    func toValue() -> HomeRegionRecord? {
+        guard let id, let updatedAt else { return nil }
+        let region: Region?
+        if let regionID {
+            guard let decoded = Region(rawValue: regionID) else { return nil }
+            region = decoded
+        } else {
+            region = nil
+        }
+        do {
+            return try HomeRegionRecord(id: id, region: region, updatedAt: updatedAt)
+        } catch {
+            // The owning store logs every row that fails to materialize.
+            return nil
+        }
     }
 }
 

@@ -4,130 +4,166 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Sheet for setting or removing the inclusive departure day for the currently
-/// focused region.
+/// Creates or edits one stay without changing tracking or the other stays.
 struct PlannedStayEditor: View {
-    private struct LocationCheckID: Equatable {
-        let region: Region
-        let driftThreshold: DriftThreshold
-    }
-
-    private enum SaveState: Equatable {
-        case idle
-        case saving
-        case failed(String)
-    }
-
-    let region: Region
-    let model: LocationForecastModel
-    let driftThreshold: DriftThreshold
-
+    @State private var model: PlannedStayEditorModel
+    @State private var showsManageRegions = false
     @Environment(\.dismiss) private var dismiss
-    @State private var through: Date
-    @State private var saveState: SaveState = .idle
 
     init(
-        region: Region,
-        model: LocationForecastModel,
-        driftThreshold: DriftThreshold,
+        report: YearReportModel,
+        stay: PlannedStay? = nil,
+        initialRegion: Region? = nil,
     ) {
-        self.region = region
-        self.model = model
-        self.driftThreshold = driftThreshold
-        _through = State(initialValue: model.departureDate(for: region))
+        _model = State(initialValue: PlannedStayEditorModel(
+            report: report,
+            stay: stay,
+            initialRegion: initialRegion,
+        ))
+    }
+
+    init(model: PlannedStayEditorModel) {
+        _model = State(initialValue: model)
     }
 
     var body: some View {
+        @Bindable var model = model
+
         NavigationStack {
             Form {
-                let locationCheck = model.plannedStayLocationCheck(
-                    for: region,
-                    driftThreshold: driftThreshold,
+                if let message = model.report.forecasts.loadFailure {
+                    Section {
+                        Label(message, systemSymbol: .exclamationmarkTriangleFill)
+                            .foregroundStyle(.red)
+                        Button(String(localized: .commonRetry)) {
+                            Task { await model.report.forecasts.refresh() }
+                        }
+                    }
+                }
+                destinationSection
+                PlannedStayBoundarySection(
+                    title: String(localized: .plannedStayEditorArrival),
+                    boundary: $model.arrival,
+                )
+                PlannedStayBoundarySection(
+                    title: String(localized: .plannedStayEditorLastDay),
+                    boundary: $model.departure,
                 )
                 Section {
-                    WhereDatePicker(
-                        String(localized: .locationForecastEditorDate),
-                        selection: $through,
-                        earliest: model.minimumDepartureDate,
-                        displayedComponents: .date,
-                    )
+                    if let message = model.validationMessage {
+                        Label(message, systemSymbol: .exclamationmarkCircle)
+                            .foregroundStyle(.secondary)
+                    }
                 } footer: {
-                    if locationCheck == nil || locationCheck?.status == .accepted {
-                        Text(String(localized: .locationForecastEditorFooter))
-                    }
+                    Text(String(localized: .plannedStayEditorDatesFooter))
                 }
-
-                if let locationCheck, locationCheck.status != .accepted {
+                if model.hasDefiniteOverlap || model.hasPossibleOverlap {
                     Section {
-                        PlannedStayLocationStatusRow(check: locationCheck)
+                        if model.hasDefiniteOverlap {
+                            Label(
+                                String(localized: .plannedStaysDefiniteOverlap),
+                                systemSymbol: .rectangleOnRectangle,
+                            )
+                        }
+                        if model.hasPossibleOverlap {
+                            Label(
+                                String(localized: .plannedStaysPossibleOverlap),
+                                systemSymbol: .rectangleDashed,
+                            )
+                        }
                     } footer: {
-                        Text(String(localized: .locationForecastEditorFooter))
+                        Text(String(localized: .plannedStaysOverlapFooter))
                     }
                 }
-
-                if case let .failed(message) = saveState {
+                if case let .failed(message) = model.saveState {
                     Section {
                         Label(message, systemSymbol: .exclamationmarkTriangleFill)
                             .foregroundStyle(.red)
                     }
                 }
-
-                if model.activePlannedStay?.region == region {
+                if model.isEditing {
                     Section {
-                        Button(
-                            String(localized: .locationForecastRemovePlan),
-                            role: .destructive,
-                            action: removePlan,
-                        )
+                        Button(String(localized: .plannedStayEditorDelete), role: .destructive) {
+                            Task {
+                                if await model.delete() { dismiss() }
+                            }
+                        }
                     }
                 }
             }
-            .navigationTitle(String(localized: .locationForecastEditorTitle))
+            .environment(\.calendar, model.report.calendar)
+            .environment(\.timeZone, model.report.calendar.timeZone)
+            .disabled(model.isSaving)
+            .navigationTitle(String(localized: model.isEditing
+                    ? .plannedStayEditorEditTitle
+                    : .plannedStayEditorNewTitle))
             .navigationBarTitleDisplayMode(.inline)
-            .interactiveDismissDisabled(saveState == .saving)
+            .interactiveDismissDisabled(model.isSaving)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(String(localized: .commonCancel), action: dismiss.callAsFunction)
-                        .disabled(saveState == .saving)
+                        .disabled(model.isSaving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    if saveState == .saving {
+                    if model.isSaving {
                         ProgressView()
+                            .accessibilityLabel(String(localized: .commonSave))
                     } else {
-                        Button(String(localized: .commonSave), action: save)
+                        Button(String(localized: .commonSave)) {
+                            Task {
+                                if await model.save() { dismiss() }
+                            }
+                        }
+                        .disabled(!model.canSave)
                     }
                 }
             }
-            .task(id: LocationCheckID(region: region, driftThreshold: driftThreshold)) {
-                await model.checkCurrentLocation(
-                    for: region,
-                    driftThreshold: driftThreshold,
-                )
-            }
         }
+        .sheet(isPresented: $showsManageRegions, onDismiss: {
+            Task { await model.regionSelection.load() }
+        }) {
+            RegionsSettingsView(
+                usedThisYear: Set(model.report.report?.totals.keys.map(\.self) ?? []),
+            )
+        }
+        .task { await model.load() }
     }
 
-    private func save() {
-        saveState = .saving
-        Task {
-            do {
-                try await model.set(region: region, through: through)
-                dismiss()
-            } catch {
-                saveState = .failed(error.localizedDescription)
+    private var destinationSection: some View {
+        Section {
+            NavigationLink {
+                PlanningRegionPickerView(
+                    model: model.regionSelection,
+                    title: String(localized: .plannedStayEditorDestination),
+                    selectedRegion: model.region,
+                ) { region in
+                    model.region = region
+                }
+            } label: {
+                LabeledContent(String(localized: .plannedStayEditorDestination)) {
+                    Text(model.region?
+                        .localizedName ?? String(localized: .plannedStayEditorChooseRegion))
+                }
             }
-        }
-    }
-
-    private func removePlan() {
-        saveState = .saving
-        Task {
-            do {
-                try await model.clear()
-                dismiss()
-            } catch {
-                saveState = .failed(error.localizedDescription)
+            if let region = model.region,
+               let tracked = model.regionSelection.trackedRegions,
+               !tracked.contains(region)
+            {
+                Text(String(localized: .plannedStayEditorUntracked))
+                    .foregroundStyle(.secondary)
+                Button(String(localized: .settingsRegionsManage), systemSymbol: .map) {
+                    showsManageRegions = true
+                }
             }
+            if case let .failed(message) = model.regionSelection.loadState {
+                Label(message, systemSymbol: .exclamationmarkTriangle)
+                    .foregroundStyle(.secondary)
+                Button(String(localized: .commonRetry)) {
+                    Task { await model.regionSelection.load() }
+                }
+            }
+        } footer: {
+            Text(String(localized: .plannedStayEditorDestinationFooter))
         }
     }
 }
@@ -135,89 +171,84 @@ struct PlannedStayEditor: View {
 #if DEBUG
     extension PlannedStayEditor: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "NewPlan", configurations: .screenDefaults) {
-                let model = PreviewSupport.plannedStayEditorYearReportModel(
-                    currentLocation: LocationSample(
-                        timestamp: PreviewSupport.referenceNow,
-                        coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
-                        horizontalAccuracy: 5,
-                        source: .gpsSignificantChange,
+            whereSnapshot(
+                name: "NewStay",
+                configurations: .fullContentScreenDefaults,
+            ) {
+                PlannedStayEditor(report: PreviewSupport.loadedYearReportModel())
+            }
+            whereSnapshot(name: "AnyRegion", configurations: .fullContentPhoneLightDark) {
+                PlannedStayEditor(
+                    report: PreviewSupport.loadedYearReportModel(),
+                    initialRegion: PrimaryRegionSelectionModel.usRegions.first {
+                        $0 != .newYork && $0 != .california
+                    },
+                )
+            }
+            whereSnapshot(
+                name: "FlexibleStay",
+                configurations: .fullContentScreenDefaults,
+            ) {
+                let report = PreviewSupport.itineraryYearReportModel()
+                PlannedStayEditor(report: report, stay: report.forecasts.planning.stays.first {
+                    !$0.arrival.isExact || !$0.departure.isExact
+                })
+            }
+            whereSnapshot(name: "DefiniteOverlap", configurations: .fullContentPhoneLightDark) {
+                PlannedStayEditor(model: definiteOverlapEditorModel())
+            }
+            let staleModel = flexibleEditorModel(report: PreviewSupport.itineraryYearReportModel())
+            whereSnapshot(
+                name: "DeletedWhileEditing",
+                configurations: .fullContentPhoneLightDark
+                    + SnapshotConfiguration.combinations(
+                        devices: [.iPhoneFullContent],
+                        snapshotTypes: [.accessibility],
                     ),
-                    plannedStay: nil,
-                )
-                PlannedStayEditor(
-                    region: .newYork,
-                    model: model.forecasts,
-                    driftThreshold: .km1,
-                )
-                .background {
-                    Color(.systemBackground)
-                        .ignoresSafeArea()
-                }
+                onReadyToMeasure: {
+                    // The preview mirrors an itinerary over an empty store.
+                    // Await the real rejection before measuring its error row.
+                    let saved = await staleModel.save()
+                    precondition(!saved, "The stale editor fixture must expose the save failure")
+                },
+            ) {
+                PlannedStayEditor(model: staleModel)
             }
-            whereSnapshot(name: "ExistingPlan", configurations: .phoneLightDark) {
-                let stay = PlannedStay(
-                    region: .newYork,
-                    through: CalendarDay(year: PreviewSupport.year, month: 8, day: 15),
+        }
+
+        private static func definiteOverlapEditorModel() -> PlannedStayEditorModel {
+            let report = PreviewSupport.itineraryYearReportModel()
+            let model = flexibleEditorModel(report: report)
+            guard let other = report.forecasts.planning.stays
+                .first(where: { $0.region == .california })
+            else {
+                preconditionFailure(
+                    "The itinerary fixture requires the overlapping California stay",
                 )
-                let model = PreviewSupport.plannedStayEditorYearReportModel(
-                    currentLocation: LocationSample(
-                        timestamp: PreviewSupport.referenceNow,
-                        coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
-                        horizontalAccuracy: 5,
-                        source: .gpsSignificantChange,
-                    ),
-                    plannedStay: stay,
-                )
-                PlannedStayEditor(
-                    region: .newYork,
-                    model: model.forecasts,
-                    driftThreshold: .km1,
-                )
-                .background {
-                    Color(.systemBackground)
-                        .ignoresSafeArea()
-                }
             }
-            whereSnapshot(name: "OutsideRegion", configurations: .phoneLightDark) {
-                let model = PreviewSupport.plannedStayEditorYearReportModel(
-                    currentLocation: LocationSample(
-                        timestamp: PreviewSupport.referenceNow,
-                        coordinate: Coordinate(latitude: 35.6762, longitude: 139.6503),
-                        horizontalAccuracy: 5,
-                        source: .gpsSignificantChange,
-                    ),
-                    plannedStay: nil,
-                )
-                PlannedStayEditor(
-                    region: .newYork,
-                    model: model.forecasts,
-                    driftThreshold: .km1,
-                )
-                .background {
-                    Color(.systemBackground)
-                        .ignoresSafeArea()
-                }
+            model.departure.earliest = other.arrival.earliest.startOfDay(in: report.calendar)
+            return model
+        }
+
+        private static func flexibleEditorModel(report: YearReportModel) -> PlannedStayEditorModel {
+            guard let stay = report.forecasts.planning.stays.first(where: {
+                !$0.arrival.isExact || !$0.departure.isExact
+            }) else {
+                preconditionFailure("The itinerary fixture requires a flexible stay")
             }
-            whereSnapshot(name: "UnavailableLocation", configurations: .phoneLightDark) {
-                let model = PreviewSupport.plannedStayEditorYearReportModel(
-                    currentLocation: nil,
-                    plannedStay: nil,
-                )
-                PlannedStayEditor(
-                    region: .newYork,
-                    model: model.forecasts,
-                    driftThreshold: .km1,
-                )
-                .background {
-                    Color(.systemBackground)
-                        .ignoresSafeArea()
-                }
-            }
+            return PlannedStayEditorModel(report: report, stay: stay, initialRegion: nil)
         }
     }
 
-    #Preview {
-        PlannedStayEditor.snapshotPreviews
+    #Preview { PlannedStayEditor.snapshotPreviews }
+
+    extension PlannedStayEditor: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            PlannedStayEditor.self,
+            title: "Planned Stay Editor",
+            navigationContainer: .none,
+        ) { world in
+            PlannedStayEditor(report: world.report)
+        }
     }
 #endif

@@ -41,6 +41,63 @@ enum WhereFormat {
         String(localized: .commonDayCount(count))
     }
 
+    /// Exact estimates keep ordinary pluralization; flexible estimates retain both bounds.
+    static func dayCount(_ bounds: DayBounds) -> String {
+        guard !bounds.isExact else { return dayCount(bounds.lower) }
+        return String(localized: .forecastRangeDays(
+            bounds.lower.formatted(),
+            bounds.upper.formatted(),
+        ))
+    }
+
+    static func forecastPercentage(_ bounds: DayBounds, year: Int) -> String {
+        let length = Calendar(identifier: .gregorian).dayCount(ofYear: year)
+        let lower = (Double(bounds.lower) / Double(length))
+            .formatted(.percent.precision(.fractionLength(1)))
+        guard !bounds.isExact else { return String(localized: .forecastPercent(lower)) }
+        let upper = (Double(bounds.upper) / Double(length))
+            .formatted(.percent.precision(.fractionLength(1)))
+        return String(localized: .forecastRangePercent(lower, upper))
+    }
+
+    static func plannedStayWindow(_ window: PlannedStay.DateWindow, calendar: Calendar) -> String {
+        let format = Date.FormatStyle(
+            date: .abbreviated,
+            time: .omitted,
+            calendar: calendar,
+            timeZone: calendar.timeZone,
+        )
+        let earliest = window.earliest.startOfDay(in: calendar).formatted(format)
+        guard !window.isExact else { return earliest }
+        let latest = window.latest.startOfDay(in: calendar).formatted(format)
+        return String(localized: .planningDateWindowRange(earliest, latest))
+    }
+
+    static func planningMembership(_ membership: PlanningDayPresence.Membership) -> String {
+        switch membership {
+            case .planned(.certain): String(localized: .planningCalendarPlanned)
+            case .planned(.possible): String(localized: .planningCalendarPossible)
+            case .homeAssumed(.certain): String(localized: .planningCalendarHome)
+            case .homeAssumed(.possible): String(localized: .planningCalendarPossibleHome)
+        }
+    }
+
+    static func locationForecastEstimate(region: Region, days: DayBounds) -> AttributedString {
+        AttributedString(localized: .locationForecastEstimate(region.localizedName, dayCount(days)))
+    }
+
+    static func regionDaysEstimatedAccessibility(
+        region: String,
+        recordedDays: Int,
+        estimatedDays: DayBounds,
+    ) -> String {
+        String(localized: .commonRegionDaysEstimatedAccessibility(
+            region,
+            dayCount(recordedDays),
+            dayCount(estimatedDays),
+        ))
+    }
+
     /// "day" / "days" — the bare unit, when the count is shown separately.
     static func dayUnit(_ count: Int) -> String {
         count == 1 ? String(localized: .commonDay) : String(localized: .commonDays)

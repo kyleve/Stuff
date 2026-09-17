@@ -16,32 +16,29 @@ struct PresenceTimelineList: View {
     let report: YearReportModel
 
     @Environment(\.stylesheet) private var stylesheet
-    @State private var plannedStayEditorTarget: PlannedStayEditorTarget?
-
-    private struct PlannedStayEditorTarget: Identifiable {
-        let region: Region
-
-        var id: Region {
-            region
-        }
-    }
+    @State private var planningDestination: PlannedStaysDestination?
 
     var body: some View {
         let yearReport = report.report
         let stints = yearReport.map { PresenceTimeline.stints(from: $0) } ?? []
-        let plannedInterval = report.showsEstimatedTimeAndPlanning
-            ? report.forecasts.plannedInterval(intersecting: report.selectedYear)
-            : nil
-        let joinsPlannedStay = if let plannedInterval, let currentStint = stints.last {
-            plannedInterval.region == currentStint.region
-                && CalendarDay(from: currentStint.end, in: report.calendar).adding(days: 1)
-                == plannedInterval.start
-        } else {
-            false
-        }
+        let plannedItems = report.showsEstimatedTimeAndPlanning
+            ? PlanningTimelineItem.items(
+                planning: report.forecasts.planning,
+                year: report.selectedYear,
+                today: report.forecasts.today,
+            )
+            : []
 
         Group {
-            if stints.isEmpty, plannedInterval == nil {
+            if report.report == nil, report.loadState == .loading {
+                AppIconLoadingView(caption: String(localized: .primaryLoading))
+            } else if case let .failed(error) = report.loadState {
+                ContentUnavailableView(
+                    String(localized: .commonLoadErrorTitle),
+                    systemSymbol: .exclamationmarkIcloud,
+                    description: Text(error.message),
+                )
+            } else if stints.isEmpty, plannedItems.isEmpty {
                 ContentUnavailableView {
                     Label(
                         String(localized: .timelineEmptyTitle),
@@ -70,23 +67,34 @@ struct PresenceTimelineList: View {
                                     calendar: report.calendar,
                                     daysInYear: report.daysInSelectedYear,
                                     isFirst: index == stints.startIndex,
-                                    isLast: plannedInterval == nil
+                                    isLast: plannedItems.isEmpty
                                         && index == stints.index(before: stints.endIndex),
-                                    cardPosition: joinsPlannedStay
-                                        && index == stints.index(before: stints.endIndex)
-                                        ? .top
-                                        : .standalone,
+                                    cardPosition: .standalone,
                                 )
                             }
 
-                            if let plannedInterval {
-                                PlannedPresenceJourneyRow(
-                                    interval: plannedInterval,
-                                    calendar: report.calendar,
-                                    daysInYear: report.daysInSelectedYear,
-                                    isFirst: stints.isEmpty,
-                                    cardPosition: joinsPlannedStay ? .bottom : .standalone,
-                                )
+                            ForEach(plannedItems) { item in
+                                Button {
+                                    if case let .stay(interval) = item,
+                                       let stay = report.forecasts.planning.stays
+                                       .first(where: { $0.id == interval.stayID })
+                                    {
+                                        planningDestination = .edit(stay)
+                                    } else {
+                                        planningDestination = .list
+                                    }
+                                } label: {
+                                    PlannedPresenceJourneyRow(
+                                        item: item,
+                                        calendar: report.calendar,
+                                        daysInYear: report.daysInSelectedYear,
+                                        isFirst: stints.isEmpty && item.id == plannedItems.first?
+                                            .id,
+                                        isLast: item.id == plannedItems.last?.id,
+                                        cardPosition: .standalone,
+                                    )
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
 
@@ -94,13 +102,8 @@ struct PresenceTimelineList: View {
                             LocationForecastPanel(
                                 forecasts: timelineForecasts,
                                 microprintRegions: report.ranking.primary.map(\.region),
-                                plannedStay: report.forecasts.activePlannedStay,
-                                editableRegions: report.ranking.primary.map(\.region),
-                                editAction: { region in
-                                    plannedStayEditorTarget =
-                                        PlannedStayEditorTarget(region: region)
-                                },
-                                clearAction: report.forecasts.clear,
+                                homeRegion: report.forecasts.planning.homeRegion,
+                                planningAction: { planningDestination = .list },
                             )
                         }
                     }
@@ -127,12 +130,20 @@ struct PresenceTimelineList: View {
                 .id(report.selectedYear)
             }
         }
-        .sheet(item: $plannedStayEditorTarget) { target in
-            PlannedStayEditor(
-                region: target.region,
-                model: report.forecasts,
-                driftThreshold: report.driftThreshold,
-            )
+        .sheet(item: $planningDestination) { destination in
+            PlannedStaysDestinationView(destination: destination, report: report)
+        }
+        .toolbar {
+            if report.showsEstimatedTimeAndPlanning {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(
+                        String(localized: .plannedStaysTitle),
+                        systemSymbol: .calendarBadgeClock,
+                    ) {
+                        planningDestination = .list
+                    }
+                }
+            }
         }
     }
 
@@ -141,9 +152,7 @@ struct PresenceTimelineList: View {
     }
 
     private var timelineForecasts: [LocationForecast] {
-        report.ranking.primary.compactMap {
-            report.forecasts.forecast(for: $0.region, report: report.report)
-        }
+        report.forecasts.leadingForecasts(report: report.report)
     }
 }
 
@@ -151,6 +160,11 @@ struct PresenceTimelineList: View {
     extension PresenceTimelineList: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             [
+                whereSnapshot(name: "Itinerary", configurations: .fullContentScreenDefaults) {
+                    NavigationStack {
+                        PresenceTimelineList(report: PreviewSupport.itineraryYearReportModel())
+                    }
+                },
                 whereSnapshot(
                     name: "WithData",
                     configurations: .fullContentScreenDefaults,

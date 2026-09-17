@@ -83,11 +83,14 @@
         /// `UNUserNotificationCenter` permission prompt in previews/tests.
         @MainActor
         public static func previewServices() -> WhereServices {
-            previewServices(locationSource: ScriptedLocationSource())
+            previewServices(locationSource: ScriptedLocationSource(), now: { referenceNow })
         }
 
         @MainActor
-        private static func previewServices(locationSource: any LocationSource) -> WhereServices {
+        private static func previewServices(
+            locationSource: any LocationSource,
+            now: @escaping @Sendable () -> Date,
+        ) -> WhereServices {
             WhereServices(
                 store: try! SwiftDataStore.inMemory(),
                 locationSource: locationSource,
@@ -104,7 +107,7 @@
                 // reference happened to be recorded on July 25, and it had been
                 // silently wrong on every day since — passing only because two
                 // digit glyphs fall under the pixel threshold.
-                now: { referenceNow },
+                now: now,
             )
         }
 
@@ -117,10 +120,16 @@
         /// `*YearReportModel()` fixture instead.
         @MainActor
         public static func loadedSession() -> WhereSession {
+            loadedSession(now: { referenceNow })
+        }
+
+        /// A fixture whose services and session share the same injected clock.
+        @MainActor
+        public static func loadedSession(now: @escaping @Sendable () -> Date) -> WhereSession {
             WhereSession(
-                services: previewServices(),
+                services: previewServices(locationSource: ScriptedLocationSource(), now: now),
                 preferences: previewPreferences(),
-                now: { referenceNow },
+                now: now,
             )
         }
 
@@ -130,6 +139,7 @@
             WhereSession(
                 services: previewServices(
                     locationSource: ScriptedLocationSource(authorizationStatus: .whenInUse),
+                    now: { referenceNow },
                 ),
                 preferences: previewPreferences(),
                 now: { referenceNow },
@@ -313,31 +323,14 @@
         /// into `#Preview`.
         @MainActor
         public static func loadedYearReportModel() -> YearReportModel {
-            YearReportModel(
+            let model = YearReportModel(
                 services: previewServices(),
                 details: sampleYearReportDetails(),
                 selectedYear: year,
                 preferences: previewPreferences(),
                 now: { referenceNow },
             )
-        }
-
-        /// Planned-stay editor fixture whose one-shot location result is fixed.
-        @MainActor
-        public static func plannedStayEditorYearReportModel(
-            currentLocation: LocationSample?,
-            plannedStay: PlannedStay?,
-        ) -> YearReportModel {
-            let source = ScriptedLocationSource()
-            source.setNextRequestedLocation(currentLocation)
-            let model = YearReportModel(
-                services: previewServices(locationSource: source),
-                details: sampleYearReportDetails(),
-                selectedYear: year,
-                preferences: previewPreferences(),
-                now: { referenceNow },
-            )
-            model.forecasts.setActivePlannedStay(plannedStay)
+            model.forecasts.setPlanning(PlanningSnapshot(stays: [], homeRegion: nil))
             return model
         }
 
@@ -377,10 +370,67 @@
                 preferences: preferences,
                 now: { referenceNow },
             )
-            model.forecasts.setActivePlannedStay(PlannedStay(
+            model.forecasts.setPlanning(PlanningSnapshot(stays: [plannedStay(
                 region: plannedRegion,
+                from: today,
                 through: plannedThroughDay,
-            ))
+            )], homeRegion: nil))
+            return model
+        }
+
+        /// A validated exact stay for synchronous preview fixtures.
+        public static func plannedStay(
+            region: Region,
+            from: CalendarDay,
+            through: CalendarDay,
+            id: UUID = UUID(uuidString: "2FB221D8-F4C7-4B88-9FF5-CC1B4D987370")!,
+        ) -> PlannedStay {
+            do {
+                return try PlannedStay(
+                    id: .init(rawValue: id),
+                    region: region,
+                    arrival: .init(exact: from),
+                    departure: .init(exact: through),
+                )
+            } catch { preconditionFailure("Invalid preview stay: \(error)") }
+        }
+
+        /// An itinerary with flexible windows, an overlap, and a completed stay.
+        @MainActor
+        public static func itineraryYearReportModel(homeRegion: Region? = .california)
+            -> YearReportModel
+        {
+            let model = plannedStayYearReportModel()
+            do {
+                let october = try PlannedStay(
+                    id: .init(rawValue: UUID(uuidString: "2FB221D8-F4C7-4B88-9FF5-CC1B4D987371")!),
+                    region: .newYork,
+                    arrival: .init(
+                        earliest: .init(year: year, month: 10, day: 15),
+                        latest: .init(year: year, month: 10, day: 17),
+                    ),
+                    departure: .init(
+                        earliest: .init(year: year, month: 10, day: 30),
+                        latest: .init(year: year, month: 11, day: 4),
+                    ),
+                )
+                let overlap = plannedStay(
+                    region: .california,
+                    from: .init(year: year, month: 11, day: 1),
+                    through: .init(year: year, month: 11, day: 6),
+                    id: UUID(uuidString: "2FB221D8-F4C7-4B88-9FF5-CC1B4D987372")!,
+                )
+                let past = plannedStay(
+                    region: .newYork,
+                    from: .init(year: year, month: 3, day: 1),
+                    through: .init(year: year, month: 3, day: 7),
+                    id: UUID(uuidString: "2FB221D8-F4C7-4B88-9FF5-CC1B4D987373")!,
+                )
+                model.forecasts.setPlanning(PlanningSnapshot(
+                    stays: model.forecasts.planning.stays + [october, overlap, past],
+                    homeRegion: homeRegion,
+                ))
+            } catch { preconditionFailure("Invalid itinerary fixture: \(error)") }
             return model
         }
 

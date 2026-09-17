@@ -167,6 +167,7 @@ public actor BackupCoordinator {
                     recordingDeviceMetadataChanges: store.recordingDeviceMetadataChanges(),
                     recordingDeviceRemovals: store.recordingDeviceRemovals(),
                     plannedStayRecords: store.plannedStayRecords(),
+                    homeRegionRecords: store.homeRegionRecords(),
                 )
             }
             let evidence = tables.evidence
@@ -202,6 +203,7 @@ public actor BackupCoordinator {
                 recordingDeviceMetadataChanges: tables.recordingDeviceMetadataChanges,
                 recordingDeviceRemovals: tables.recordingDeviceRemovals,
                 plannedStayRecords: tables.plannedStayRecords,
+                homeRegionRecords: tables.homeRegionRecords,
                 blobs: snapshot.blobs,
             )
         }.value
@@ -223,6 +225,7 @@ public actor BackupCoordinator {
         let recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange]
         let recordingDeviceRemovals: [RecordingDeviceRemoval]
         let plannedStayRecords: [PlannedStayRecord]
+        let homeRegionRecords: [HomeRegionRecord]
     }
 
     private struct ExportSnapshot {
@@ -415,6 +418,7 @@ public actor BackupCoordinator {
             + archive.recordingDeviceMetadataChanges.count
             + archive.recordingDeviceRemovals.count
             + archive.plannedStayRecords.count
+            + archive.homeRegionRecords.count
 
         // Decode and validate before touching live recording. Once the archive is known-good,
         // close ingestion before either merge or replace so a streamed sample cannot cross the
@@ -482,6 +486,10 @@ public actor BackupCoordinator {
                     }
                     for plannedStay in archive.plannedStayRecords {
                         try await store.restorePlannedStayRecord(plannedStay)
+                        report()
+                    }
+                    for home in archive.homeRegionRecords {
+                        try await store.restoreHomeRegionRecord(home)
                         report()
                     }
                     for profile in archive.recordingDeviceProfiles {

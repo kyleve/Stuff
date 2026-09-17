@@ -3,196 +3,158 @@ import Observation
 import RegionKit
 import WhereCore
 
-/// Scene-scoped observable state for the synced planned stay. Forecast math
-/// remains a pure WhereCore derivation so future residency goals can compare
-/// with the result without becoming persistence or UI policy.
+/// Scene-scoped mirror of the synced itinerary. Core owns date projections and
+/// estimates; committed store changes are the only production refresh path.
 @MainActor
 @Observable
 final class LocationForecastModel {
-    struct PlannedStayLocationCheck: Equatable {
-        enum Status: Equatable {
-            case checking
-            case accepted
-            case outside
-            case unavailable
-        }
+    private enum LoadState {
+        case idle
+        case loading(previous: PlanningSnapshot?)
+        case loaded(PlanningSnapshot)
+        case failed(previous: PlanningSnapshot?, message: String)
 
-        let region: Region
-        let driftThreshold: DriftThreshold
-        let status: Status
-    }
-
-    /// The future slice of a planned stay that intersects a displayed year.
-    struct PlannedInterval: Equatable {
-        let region: Region
-        let start: CalendarDay
-        let end: CalendarDay
-
-        var dayCount: Int {
-            start.days(through: end).count
+        var snapshot: PlanningSnapshot? {
+            switch self {
+                case .idle: nil
+                case let .loading(previous), let .failed(previous, _): previous
+                case let .loaded(snapshot): snapshot
+            }
         }
     }
 
-    private(set) var activePlannedStay: PlannedStay?
-    private(set) var plannedStayLocationCheck: PlannedStayLocationCheck?
-
+    private var loadState: LoadState = .idle
+    private var refreshSequence: UInt64 = 0
     private let services: WhereServices
     private let calendar: Calendar
     private let now: @Sendable () -> Date
-    private var plannedStayLocationCheckSequence: UInt64 = 0
     private static let logger = WhereLog.session(LocationForecastModelLog.self)
 
-    init(
-        services: WhereServices,
-        calendar: Calendar,
-        now: @escaping @Sendable () -> Date,
-    ) {
+    init(services: WhereServices, calendar: Calendar, now: @escaping @Sendable () -> Date) {
         self.services = services
         self.calendar = calendar
         self.now = now
     }
 
+    var planning: PlanningSnapshot {
+        loadState.snapshot ?? PlanningSnapshot(stays: [], homeRegion: nil)
+    }
+
+    var hasLoaded: Bool {
+        loadState.snapshot != nil
+    }
+
+    var isLoading: Bool {
+        if case .loading = loadState { return true }
+        return false
+    }
+
+    var loadFailure: String? {
+        guard case let .failed(_, message) = loadState else { return nil }
+        return message
+    }
+
+    var today: CalendarDay {
+        CalendarDay(from: now(), in: calendar)
+    }
+
     func refresh() async {
+        guard !Task.isCancelled else { return }
+        refreshSequence += 1
+        let sequence = refreshSequence
+        let previous = loadState.snapshot
+        loadState = .loading(previous: previous)
+        // This read serves the scene, even if its requesting sheet disappears.
+        // Only a newer read can supersede its success or failure.
         do {
-            let stay = try await services.plannedStays.active()
-            if activePlannedStay != stay { activePlannedStay = stay }
+            let snapshot = try await services.plannedStays.snapshot()
+            guard sequence == refreshSequence else { return }
+            loadState = .loaded(snapshot)
         } catch {
+            guard sequence == refreshSequence else { return }
             Self.logger { .loadFailed(description: error.localizedDescription) }
+            loadState = .failed(previous: previous, message: error.localizedDescription)
         }
     }
 
     func forecast(for region: Region, report: YearReport?) -> LocationForecast? {
-        guard let report else { return nil }
+        guard let report, hasLoaded else { return nil }
         return LocationForecast.estimate(
             region: region,
             report: report,
             asOf: now(),
             calendar: calendar,
-            plannedStay: activePlannedStay,
+            planning: planning,
         )
     }
 
-    /// Up to three present, named regions for the Locations-tab summary.
-    /// Independent from `RegionRanking.primaryCount`, which still owns the two
-    /// large cards.
-    func leadingForecasts(report: YearReport?, limit: Int = 3) -> [LocationForecast] {
+    /// Explicit destinations and Home remain visible even before a recorded
+    /// visit. Recorded card rankings remain independent of these estimates.
+    func leadingForecasts(report: YearReport?) -> [LocationForecast] {
         guard let report else { return [] }
-        return RegionRanking.ranked(report: report)
-            .filter { $0.region != .other }
-            .prefix(limit)
-            .compactMap { forecast(for: $0.region, report: report) }
-    }
-
-    func isCurrent(_ region: Region, report: YearReport?) -> Bool {
-        guard let report else { return false }
-        let today = CalendarDay(from: now(), in: calendar)
-        return report.days.first(where: { $0.day == today })?.regions.contains(region) == true
-    }
-
-    /// The user's planned region for a future calendar day. Today remains
-    /// recorded presence; the projection begins tomorrow and includes the
-    /// selected through-day.
-    func plannedRegion(on day: CalendarDay) -> Region? {
-        guard let stay = activePlannedStay else { return nil }
-        let today = CalendarDay(from: now(), in: calendar)
-        guard day > today, day <= stay.through else { return nil }
-        return stay.region
-    }
-
-    /// The active stay when its future projection intersects `year`. A stay
-    /// ending next year still occupies the rest of this year; a past report has
-    /// no overlap because projections begin tomorrow.
-    func plannedStay(intersecting year: Int) -> PlannedStay? {
-        guard plannedInterval(intersecting: year) != nil else { return nil }
-        return activePlannedStay
-    }
-
-    func plannedInterval(intersecting year: Int) -> PlannedInterval? {
-        guard let stay = activePlannedStay else { return nil }
-        let tomorrow = CalendarDay(from: now(), in: calendar).adding(days: 1)
-        let firstDay = CalendarDay(year: year, month: 1, day: 1)
-        let lastDay = CalendarDay.lastDay(ofYear: year)
-        let projectedStart = max(tomorrow, firstDay)
-        let projectedEnd = min(stay.through, lastDay)
-        guard projectedStart <= projectedEnd else { return nil }
-        return PlannedInterval(
-            region: stay.region,
-            start: projectedStart,
-            end: projectedEnd,
-        )
-    }
-
-    func departureDate(for region: Region) -> Date {
-        guard let stay = activePlannedStay, stay.region == region else {
-            return calendar.startOfDay(for: now())
+        var regions = Set(report.days.flatMap(\.regions))
+        regions.formUnion(planning.stays.filter {
+            $0.departure.latest > today && $0.arrival.earliest.year <= report.year
+        }.map(\.region))
+        if let home = planning.homeRegion { regions.insert(home) }
+        regions.remove(.other)
+        return Region.inCanonicalOrder(regions).compactMap {
+            forecast(for: $0, report: report)
+        }.sorted {
+            if $0.estimatedTotalDays.upper != $1.estimatedTotalDays.upper {
+                return $0.estimatedTotalDays.upper > $1.estimatedTotalDays.upper
+            }
+            return $0.region.rawValue < $1.region.rawValue
         }
-        return stay.through.startOfDay(in: calendar)
     }
 
-    var minimumDepartureDate: Date {
-        calendar.startOfDay(for: now())
+    func plannedPresence(on day: CalendarDay) -> PlanningDayPresence {
+        planning.plannedPresence(on: day, asOf: today)
     }
 
-    func checkCurrentLocation(
-        for region: Region,
-        driftThreshold: DriftThreshold,
-    ) async {
-        let (sequence, overflow) = plannedStayLocationCheckSequence.addingReportingOverflow(1)
-        precondition(!overflow, "Planned-stay location check sequence exhausted UInt64.")
-        plannedStayLocationCheckSequence = sequence
-        plannedStayLocationCheck = PlannedStayLocationCheck(
-            region: region,
-            driftThreshold: driftThreshold,
-            status: .checking,
-        )
-
-        let result = await services.plannedStayLocation.status(
-            for: region,
-            driftThreshold: driftThreshold,
-        )
-        guard !Task.isCancelled, sequence == plannedStayLocationCheckSequence else { return }
-
-        let status: PlannedStayLocationCheck.Status = switch result {
-            case .accepted: .accepted
-            case .outside: .outside
-            case .unavailable: .unavailable
-        }
-        plannedStayLocationCheck = PlannedStayLocationCheck(
-            region: region,
-            driftThreshold: driftThreshold,
-            status: status,
-        )
+    func plannedIntervals(intersecting year: Int) -> [PlannedStayInterval] {
+        planning.stayIntervals(intersecting: year, asOf: today)
     }
 
-    func plannedStayLocationCheck(
-        for region: Region,
-        driftThreshold: DriftThreshold,
-    ) -> PlannedStayLocationCheck? {
-        guard plannedStayLocationCheck?.region == region,
-              plannedStayLocationCheck?.driftThreshold == driftThreshold
-        else {
-            return nil
-        }
-        return plannedStayLocationCheck
+    func homeIntervals(intersecting year: Int) -> [PlannedHomeInterval] {
+        planning.homeIntervals(intersecting: year, asOf: today)
     }
 
-    func set(region: Region, through date: Date) async throws {
-        let day = CalendarDay(from: date, in: calendar)
-        do {
-            try await services.plannedStays.set(region: region, through: day)
-            activePlannedStay = PlannedStay(region: region, through: day)
-        } catch {
+    func plannedRegionSummaries(in month: CalendarMonth) -> [PlanningRegionSummary] {
+        guard let first = month.days.first, let last = month.days.last else { return [] }
+        let start = CalendarDay(from: first.date, in: calendar)
+        let end = CalendarDay(from: last.date, in: calendar)
+        return planning.regionSummaries(in: start ... end, asOf: today)
+    }
+
+    func create(stay: PlannedStay) async throws {
+        do { try await services.plannedStays.create(stay) }
+        catch {
             Self.logger { .saveFailed(description: error.localizedDescription) }
             throw error
         }
     }
 
-    func clear() async throws {
-        do {
-            try await services.plannedStays.clear()
-            activePlannedStay = nil
-        } catch {
+    func update(stay: PlannedStay) async throws {
+        do { try await services.plannedStays.update(stay) }
+        catch {
+            Self.logger { .saveFailed(description: error.localizedDescription) }
+            throw error
+        }
+    }
+
+    func delete(stayID: PlannedStay.ID) async throws {
+        do { try await services.plannedStays.delete(stayID: stayID) }
+        catch {
             Self.logger { .clearFailed(description: error.localizedDescription) }
+            throw error
+        }
+    }
+
+    func setHomeRegion(_ region: Region?) async throws {
+        do { try await services.plannedStays.setHomeRegion(region) }
+        catch {
+            Self.logger { .saveFailed(description: error.localizedDescription) }
             throw error
         }
     }
@@ -200,8 +162,8 @@ final class LocationForecastModel {
 
 #if DEBUG
     extension LocationForecastModel {
-        func setActivePlannedStay(_ stay: PlannedStay?) {
-            activePlannedStay = stay
+        @_spi(Testing) public func setPlanning(_ planning: PlanningSnapshot) {
+            loadState = .loaded(planning)
         }
     }
 #endif

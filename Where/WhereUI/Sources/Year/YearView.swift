@@ -72,9 +72,14 @@ private struct YearModePicker: View {
 
     @Namespace private var selection
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        HStack(spacing: stylesheet.spacing.xxSmall) {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: stylesheet.spacing.xxSmall))
+            : AnyLayout(HStackLayout(spacing: stylesheet.spacing.xxSmall))
+
+        layout {
             ForEach(YearMode.allCases, id: \.self) { candidate in
                 segment(candidate)
             }

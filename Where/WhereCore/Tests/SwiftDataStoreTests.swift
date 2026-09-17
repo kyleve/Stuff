@@ -9,6 +9,70 @@ import Testing
 /// covered by `StoreChangeBroadcasterTests`; here we assert the *store* fires it
 /// on a committed `perform` and stays silent on a rolled-back one.
 struct SwiftDataStoreTests {
+    @Test func planningRowsRoundTripFlexibleWindowsAndRejectPartialPayloads() throws {
+        let stay = try PlannedStay(
+            id: .init(rawValue: UUID()),
+            region: .newYork,
+            arrival: .init(
+                earliest: .init(year: 2026, month: 10, day: 10),
+                latest: .init(year: 2026, month: 10, day: 12),
+            ),
+            departure: .init(
+                earliest: .init(year: 2026, month: 10, day: 20),
+                latest: .init(year: 2026, month: 10, day: 25),
+            ),
+        )
+        let record = try PlannedStayTestSupport.record(stay: stay)
+        let row = SDPlannedStay(value: record, generationID: .initial)
+        #expect(row.toValue() == record)
+        row.departureEarliestDayKey = "2026-10-01"
+        #expect(row.toValue() == nil)
+        row.departureEarliestDayKey = nil
+        #expect(row.toValue() == nil)
+
+        let incompleteLegacy = SDPlannedStay()
+        incompleteLegacy.id = UUID()
+        incompleteLegacy.updatedAt = Date()
+        #expect(incompleteLegacy.toValue() == nil)
+    }
+
+    @Test func homeRowsDistinguishHistoricalTombstonesFromCorruption() throws {
+        let tombstone = try HomeRegionRecord(id: UUID(), region: nil, updatedAt: Date())
+        let row = SDHomeRegion(value: tombstone, generationID: .initial)
+        #expect(row.toValue() == tombstone)
+        row.regionID = "not-a-region"
+        #expect(row.toValue() == nil)
+        row.regionID = "other"
+        #expect(row.toValue() == nil)
+        row.regionID = "us-CA"
+        row.updatedAt = nil
+        #expect(row.toValue() == nil)
+    }
+
+    @Test func delayedPlanningRowsCannotReappearAcrossAReset() async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let store = SwiftDataStore(modelContainer: container)
+        let stay = try PlannedStayTestSupport.record(stay: PlannedStayTestSupport.stay())
+        let home = try HomeRegionRecord(id: UUID(), region: .california, updatedAt: Date())
+        try await store.perform {
+            try await store.restorePlannedStayRecord(stay)
+            try await store.restoreHomeRegionRecord(home)
+            _ = try await store.rotateDataGeneration(
+                reason: .accountReset,
+                changedBy: Self.generationWriterID,
+                at: Date(),
+            )
+        }
+        let remote = ModelContext(container)
+        remote.insert(SDPlannedStay(value: stay, generationID: .initial))
+        remote.insert(SDHomeRegion(value: home, generationID: .initial))
+        try remote.save()
+
+        let reader = SwiftDataStore(modelContainer: container)
+        #expect(try await reader.plannedStayRecords().isEmpty)
+        #expect(try await reader.homeRegionRecords().isEmpty)
+    }
+
     @Test func inspectorStoreURLUsesTheResolvedAppGroupRoot() {
         let groupURL = FileManager.default.temporaryDirectory.appending(
             path: "where-group-\(UUID().uuidString)",

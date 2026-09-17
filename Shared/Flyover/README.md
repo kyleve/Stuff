@@ -115,6 +115,8 @@ The initial canvas zoom fits the first group to the available width so its cards
 Reach later groups by horizontal scrolling.
 Pinching or moving the zoom slider preserves the canvas point at the center of the visible viewport.
 **Fit All** remains available for a whole-graph overview.
+Connectors use bounded drawing tiles and omit tiles outside the visible area.
+Large catalogs therefore keep their navigation lines without requiring one oversized drawing texture.
 
 ## App integration
 

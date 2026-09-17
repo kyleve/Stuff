@@ -182,12 +182,11 @@ public protocol WhereStore: Sendable {
     /// verbatim.
     func allDismissedIssues() async throws -> [DismissedIssue]
 
-    /// Every revision of the single planned-stay register. Multiple rows can
-    /// temporarily exist after CloudKit merges; callers choose the newest
-    /// `PlannedStayRecord` deterministically.
+    /// Every planned-stay revision, including deletion tombstones. Resolve the newest revision
+    /// separately for each stable stay identity after CloudKit merges.
     func plannedStayRecords() async throws -> [PlannedStayRecord]
 
-    /// Replace local planned-stay revisions with `record`, retaining tombstones
+    /// Replace local revisions for this stay identity with `record`, retaining tombstones
     /// so an older remote row cannot resurrect cleared intent. Must run inside
     /// `perform { ... }`.
     func replacePlannedStayRecord(with record: PlannedStayRecord) async throws
@@ -195,6 +194,15 @@ public protocol WhereStore: Sendable {
     /// Upsert an exact planned-stay revision during backup import. Must run
     /// inside `perform { ... }`.
     func restorePlannedStayRecord(_ record: PlannedStayRecord) async throws
+
+    /// Every revision of the forecast home choice, including historical-mode tombstones.
+    func homeRegionRecords() async throws -> [HomeRegionRecord]
+
+    /// Replace local home revisions with a newer choice. Must run inside `perform { ... }`.
+    func replaceHomeRegionRecord(with record: HomeRegionRecord) async throws
+
+    /// Restore an exact home revision during backup import. Must run inside `perform { ... }`.
+    func restoreHomeRegionRecord(_ record: HomeRegionRecord) async throws
 
     /// Persist or remove a dismissed data-resolution issue. Must run inside
     /// `perform { ... }`. Upserts when `dismissed == true` (stamping the current
@@ -310,4 +318,12 @@ extension WhereStore {
     public func replacePlannedStayRecord(with _: PlannedStayRecord) async throws {}
 
     public func restorePlannedStayRecord(_: PlannedStayRecord) async throws {}
+
+    public func homeRegionRecords() async throws -> [HomeRegionRecord] {
+        []
+    }
+
+    public func replaceHomeRegionRecord(with _: HomeRegionRecord) async throws {}
+
+    public func restoreHomeRegionRecord(_: HomeRegionRecord) async throws {}
 }

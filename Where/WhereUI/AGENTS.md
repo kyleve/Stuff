@@ -91,11 +91,16 @@ Layering, localization, preview, and testing conventions live in the feature
   minimum and active-scene visibility: the first foreground-visible `MainTabs`
   reveal stays covered when headless promotion coalesces or the first hold is
   interrupted, while warm resumes never replay it.
-- Keep planned-stay persistence, forecast math, and location verification in WhereCore.
-  `LocationForecastModel` mirrors the register and the advisory check for the Locations, calendar,
-  and timeline surfaces.
-- Hide every forecast and planned-stay visualization behind
-  `YearReportModel.showsEstimatedTimeAndPlanning`; persist Off only after clearing the synced plan.
+- Keep itinerary persistence, forecast bounds, overlaps, and Home projections in WhereCore.
+  `LocationForecastModel` mirrors one planning snapshot through store-change refreshes.
+  Complete the latest started read when its requesting sheet disappears; keep older results from replacing it.
+- Keep each planned stay independently editable by its stable ID. Keep Home separate from tracked regions.
+- Gate forecast visualizations with `YearReportModel.showsEstimatedTimeAndPlanning`.
+  Hiding estimates must preserve every stay and the Home setting. Settings can still open the planner.
+- Keep calendar and timeline projections separate from recorded history. Label possible dates and Home assumptions.
+  Guard: `LocationForecastModelTests` and `EstimatedTimeAndPlanningSettingsModelTests`.
+- Keep future itinerary years selectable while annual estimates remain current-year-only.
+  Guard: `YearReportModelTests.futureItineraryYearsRemainReachableWithoutEnablingAnnualEstimates`.
 - Continuous/looping motion (repeat-forever pulses, `TimelineView(.animation)`,
   typewriter reveals) must consult the shared `@MotionIsStatic` helper
   ([`Sources/Shared/MotionIsStatic.swift`](Sources/Shared/MotionIsStatic.swift))

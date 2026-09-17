@@ -29,18 +29,10 @@ struct MainTabs: View {
         let isEnabled: Bool
     }
 
-    private struct PlannedStayEditorTarget: Identifiable {
-        let region: Region
-
-        var id: Region {
-            region
-        }
-    }
-
     @State private var report: YearReportModel
     @State private var recordingWarning: RecordingConfigurationWarningModel
     @State private var welcome: LocationWelcomeModel
-    @State private var plannedStayEditorTarget: PlannedStayEditorTarget?
+    @State private var planningDestination: PlannedStaysDestination?
     @State private var selection: TabID = .locations
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.stylesheet) private var stylesheet
@@ -134,12 +126,8 @@ struct MainTabs: View {
                     break
             }
         }
-        .sheet(item: $plannedStayEditorTarget) { target in
-            PlannedStayEditor(
-                region: target.region,
-                model: report.forecasts,
-                driftThreshold: report.driftThreshold,
-            )
+        .sheet(item: $planningDestination) { destination in
+            PlannedStaysDestinationView(destination: destination, report: report)
         }
     }
 
@@ -169,28 +157,21 @@ struct MainTabs: View {
         withAnimation(stylesheet.locationWelcome.motion.departure.animation) {
             welcome.dismiss()
         } completion: {
-            plannedStayEditorTarget = PlannedStayEditorTarget(region: region)
+            planningDestination = .new(region)
         }
     }
 
     #if DEBUG
         private init(
             session: WhereSession,
-            initialDetails: YearReportDetails?,
-            selectedYear: Int,
+            report: YearReportModel,
             welcome: LocationWelcomeModel,
             selection: TabID,
         ) {
             let recordingWarningSource = RecordingConfigurationWarningModel.Source(session: session)
             self.recordingWarningSource = recordingWarningSource
             allowsWelcomeLookup = false
-            _report = State(initialValue: YearReportModel(
-                services: session.services,
-                details: initialDetails,
-                selectedYear: selectedYear,
-                preferences: session.preferences,
-                now: session.now,
-            ))
+            _report = State(initialValue: report)
             _recordingWarning = State(initialValue: RecordingConfigurationWarningModel(
                 preferences: recordingWarningSource.preferences,
             ))
@@ -209,105 +190,106 @@ struct MainTabs: View {
             let largeTypeConfigurations = [
                 SnapshotConfiguration(dynamicType: .accessibility5, device: .iPhone),
             ]
-            return [
-                whereSnapshot(
+            return fastConfigurations.flatMap { configuration in
+                snapshotCases(configurations: [configuration], settle: .settled)
+            } + largeTypeConfigurations.flatMap { configuration in
+                snapshotCases(
+                    configurations: [configuration],
+                    settle: .settledAtLeast(minDuration: 1.0),
+                )
+            }
+        }
+
+        private static func snapshotCases(
+            configurations: [SnapshotConfiguration],
+            settle: SnapshotSettle,
+        ) -> [SnapshotCase] {
+            [
+                snapshot(
                     name: "WelcomeLocations",
-                    configurations: fastConfigurations,
-                    measurementReadiness: .immediate,
-                ) {
-                    welcomeSnapshot(selection: .locations)
+                    configurations: configurations,
+                    settle: settle,
+                    selection: .locations,
+                ) { welcome in
+                    welcome.presentForTesting(region: .newYork, greeting: .returnVisit)
                 },
-                whereSnapshot(
+                snapshot(
                     name: "WelcomeYear",
-                    configurations: fastConfigurations,
-                    measurementReadiness: .immediate,
-                ) {
-                    welcomeSnapshot(selection: .year)
+                    configurations: configurations,
+                    settle: settle,
+                    selection: .year,
+                ) { welcome in
+                    welcome.presentForTesting(region: .newYork, greeting: .returnVisit)
                 },
-                whereSnapshot(
+                snapshot(
                     name: "WelcomeLocating",
-                    configurations: fastConfigurations,
-                    measurementReadiness: .immediate,
-                ) {
-                    accessorySnapshot(actionRequired: false)
+                    configurations: configurations,
+                    settle: settle,
+                    selection: .year,
+                ) { welcome in
+                    welcome.showLocatingForTesting()
                 },
-                whereSnapshot(
+                snapshot(
                     name: "WelcomeActionRequired",
-                    configurations: fastConfigurations,
-                    measurementReadiness: .immediate,
-                ) {
-                    accessorySnapshot(actionRequired: true)
-                },
-                whereSnapshot(
-                    name: "WelcomeLocations",
-                    configurations: largeTypeConfigurations,
-                    measurementReadiness: .immediate,
-                    settle: .settledAtLeast(minDuration: 1.0),
-                ) {
-                    welcomeSnapshot(selection: .locations)
-                },
-                whereSnapshot(
-                    name: "WelcomeYear",
-                    configurations: largeTypeConfigurations,
-                    measurementReadiness: .immediate,
-                    settle: .settledAtLeast(minDuration: 1.0),
-                ) {
-                    welcomeSnapshot(selection: .year)
-                },
-                whereSnapshot(
-                    name: "WelcomeLocating",
-                    configurations: largeTypeConfigurations,
-                    measurementReadiness: .immediate,
-                    settle: .settledAtLeast(minDuration: 1.0),
-                ) {
-                    accessorySnapshot(actionRequired: false)
-                },
-                whereSnapshot(
-                    name: "WelcomeActionRequired",
-                    configurations: largeTypeConfigurations,
-                    measurementReadiness: .immediate,
-                    settle: .settledAtLeast(minDuration: 1.0),
-                ) {
-                    accessorySnapshot(actionRequired: true)
+                    configurations: configurations,
+                    settle: settle,
+                    selection: .year,
+                ) { welcome in
+                    welcome.showPreciseLocationActionForTesting()
                 },
             ]
         }
 
-        private static func welcomeSnapshot(selection: TabID) -> some View {
-            snapshot(selection: selection) { welcome in
-                welcome.presentForTesting(region: .newYork, greeting: .returnVisit)
-            }
-        }
-
-        private static func accessorySnapshot(actionRequired: Bool) -> some View {
-            snapshot(selection: .year) { welcome in
-                if actionRequired {
-                    welcome.showPreciseLocationActionForTesting()
-                } else {
-                    welcome.showLocatingForTesting()
-                }
-            }
-        }
-
         private static func snapshot(
+            name: String,
+            configurations: [SnapshotConfiguration],
+            settle: SnapshotSettle,
             selection: TabID,
             configure: (LocationWelcomeModel) -> Void,
-        ) -> some View {
-            let session = PreviewSupport.loadedSession()
+        ) -> SnapshotCase {
+            // Shell snapshots use January to avoid unrelated long-calendar scrolling.
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+            let snapshotNow = calendar.date(from: DateComponents(
+                year: PreviewSupport.year,
+                month: 1,
+                day: 15,
+                hour: 12,
+            ))!
+            let session = PreviewSupport.loadedSession(now: { snapshotNow })
+            // Match the fixture store before mounting the tab container so a
+            // loading transition cannot race the calendar's initial positioning.
+            let report = YearReportModel(
+                services: session.services,
+                details: YearReportDetails(
+                    report: YearReport(year: PreviewSupport.year, days: [], totals: [:]),
+                    primaryRegionLocations: [:],
+                ),
+                selectedYear: PreviewSupport.year,
+                preferences: session.preferences,
+                now: session.now,
+            )
             let welcome = LocationWelcomeModel(
                 services: session.services,
                 preferences: session.preferences,
                 now: session.now,
             )
             configure(welcome)
-            return MainTabs(
-                session: session,
-                initialDetails: PreviewSupport.sampleYearReportDetails(),
-                selectedYear: PreviewSupport.year,
-                welcome: welcome,
-                selection: selection,
-            )
-            .environment(session)
+            return whereSnapshot(
+                name: name,
+                configurations: configurations,
+                measurementReadiness: .immediate,
+                settle: settle,
+                onReadyToSnapshot: { await report.activate() },
+            ) {
+                MainTabs(
+                    session: session,
+                    report: report,
+                    welcome: welcome,
+                    selection: selection,
+                )
+                .environment(session)
+            }
         }
     }
 

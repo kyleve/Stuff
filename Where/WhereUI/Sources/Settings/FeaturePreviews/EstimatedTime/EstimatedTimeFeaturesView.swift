@@ -24,6 +24,7 @@ struct EstimatedTimeFeaturesView: View {
 /// focus scope does not copy the form's full value onto the stack while a
 /// navigation push is preparing its destination.
 private struct EstimatedTimeFeaturesContent: View {
+    @State private var showingPlanner = false
     let report: YearReportModel
 
     @Environment(\.stylesheet) private var stylesheet
@@ -86,7 +87,7 @@ private struct EstimatedTimeFeaturesContent: View {
 
             Section {
                 FeatureMarketingPanel {
-                    NavigationLink(value: SettingsRoute(.appearance)) {
+                    Button { showingPlanner = true } label: {
                         Label {
                             Text(String(localized: .settingsExploreEstimatedTimeManage))
                                 .foregroundStyle(.primary)
@@ -105,6 +106,7 @@ private struct EstimatedTimeFeaturesContent: View {
         }
         .scrollContentBackground(.hidden)
         .background(FeatureDiscoveryBackground())
+        .sheet(isPresented: $showingPlanner) { PlannedStaysView(report: report) }
     }
 
     @ViewBuilder
@@ -117,7 +119,7 @@ private struct EstimatedTimeFeaturesContent: View {
             LocationForecastPanel(
                 forecasts: forecasts,
                 microprintRegions: report.ranking.primary.map(\.region),
-                plannedStay: report.forecasts.activePlannedStay,
+                homeRegion: report.forecasts.planning.homeRegion,
             )
         }
     }
