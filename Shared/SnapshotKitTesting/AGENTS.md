@@ -95,7 +95,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Immediate measurement never shortens final capture settling.** It skips only the intrinsic-sizing probe's settle for synchronously sized fixtures.
 - **The final `.settled` / `.settledAtLeast` policy still runs.** Guards: `AsyncContentCaptureTests`.
 - **A settle phase costs its floor, not its passes.**
-- **Measured 2026-07-28 with `SNAPSHOT_TIMING=1` over 260 references of the time.** The suite holds 490 as of 2026-09-06. Re-measure before acting on the split below.
+- **Measured 2026-07-28 with `SNAPSHOT_TIMING=1` over 260 references of the time.** Current inventory lives in [`MODULE_AUDIT.md`](../../MODULE_AUDIT.md). Re-measure before acting on the split below.
 - **The conclusion (the floor dominates) is what to rely on, not the seconds.**
 - **192 captures sat at 0.25-0.35s — the `minDuration` floor plus a pass or two.** The floor accounts for ~70s of the ~84s of settle time.
 - **The render passes themselves are ~14s across the whole suite.** Making passes cheaper is worth ~11%. Removing floors is worth ~54%.
