@@ -104,9 +104,9 @@ internal shape.
 - **Writes await their side effects.** `DayJournal` commits. Then it awaits
   the reminder reconcile + widget publish in sequence. A reader on the next
   `changes()` ping never observes a half-applied write.
-- **Filter persistent-store remote-change notifications by the Where store URL
-  and the store instance's transaction author.** Never let Periscope or Where's
-  own local saves enter `remoteChanges()`. Guard: `StoreRemoteChangeSourceTests`.
+- **Observe remote history through Where's `ModelContainer` and exclude this
+  store instance's transaction author.** Never let Periscope or Where's own
+  local saves enter `remoteChanges()`. Guard: `StoreRemoteChangeSourceTests`.
 - **Route new writes through the existing reconciliation seams.** Use
   `DayJournal.reconcileAfterDayDataChange()` or its widget-less subset
   `reconcileIssueState()`; cross-collaborator hooks take a single closure
