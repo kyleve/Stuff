@@ -104,7 +104,7 @@ re-recording:
 
 # Completed issues
 
-- test(WhereIntents) [quick-win]: Document the untested per-intent `perform()` glue. Closed 2026-09-21 by carrying the existing AGENTS.md caveat into `WhereIntents/README.md`: injected reader/writer and handoff tests cover domain behavior, while framework `@Dependency` resolution, snippet wiring, and error-to-dialog mapping require Siri/Shortcuts validation. This takes the item's documentation option; no new runtime coverage is claimed. (audit 2026-07-26)
+- test(WhereIntents) [quick-win]: Document the untested per-intent `perform()` glue. Closed by `a5551b6b` (2026-09-21), carrying the existing AGENTS.md caveat into `WhereIntents/README.md`: injected reader/writer and handoff tests cover domain behavior, while framework `@Dependency` resolution, snippet wiring, and error-to-dialog mapping require Siri/Shortcuts validation. This takes the item's documentation option; no new runtime coverage is claimed. (audit 2026-07-26)
 
 - fix(WhereUI) [quick-win]: Refresh the live-region welcome when the scene becomes active. Closed by PR #314 (`537fadc0`, merged 2026-09-17): `MainTabs` now owns the welcome state and keys a bounded, confidence-gated lookup to foreground activity regardless of the selected tab. The source rejects stale one-shot callbacks, the resolver enforces the 1 km and boundary confidence gates, and app-shell tests and snapshots cover cancellation, repeated resolution, actionable status, and presentation over multiple tabs. (audit 2026-09-07, PR #309)
 
