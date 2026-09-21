@@ -185,8 +185,10 @@ internal shape.
 
 Swift Testing in [`Tests/`](Tests) (`WhereCoreTests`), hosted in
 `StuffTestHost`. Drive collaborators against `SwiftDataStore.inMemory()` +
-`ScriptedLocationSource`. Never use the on-disk/CloudKit store or
-`CoreLocationSource`. The CloudKit remote-import path uses the
+`ScriptedLocationSource`. Never use the on-disk/CloudKit store or live
+Core Location requests. `CoreLocationSourceTests` must replace the source’s
+one-shot controls with a `CurrentLocationRequestDriving` fake before requesting
+a fix; never start passive monitoring in those tests. The CloudKit remote-import path uses the
 `@_spi(Testing)` `inMemory(remoteChangeSource:)` +
 `ScriptedStoreRemoteChangeSource`. Internal types are reached via
 `@testable import WhereCore`.

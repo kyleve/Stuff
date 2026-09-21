@@ -313,8 +313,11 @@ rotates to a Reset child generation, and discards the retry queue only after com
 ## Testing
 
 Swift Testing in [`Tests/`](Tests) (`WhereCoreTests`), hosted in `StuffTestHost`.
-Use `SwiftDataStore.inMemory()` + `ScriptedLocationSource` — never the
-on-disk/CloudKit store or `CoreLocationSource`. The CloudKit remote-import path
+Use `SwiftDataStore.inMemory()` + `ScriptedLocationSource` for domain tests.
+Do not open an on-disk/CloudKit store or make live Core Location requests.
+`CoreLocationSourceTests` exercises the one-shot coordinator with an injected
+`CurrentLocationRequestDriving` fake, without starting passive monitoring.
+The CloudKit remote-import path
 is exercised via the `@_spi(Testing)` `inMemory(remoteChangeSource:)` +
 `ScriptedStoreRemoteChangeSource`.
 
