@@ -645,9 +645,8 @@ external agent skills. Those skills are gitignored and absent from a bare checko
 
 Four of those rows — SwiftFormat, ShellCheck, attribution, and the Python tool
 tests — are four of the six checking steps in CI's `format` job, so a Linux agent
-can pre-flight most of it. Three carve-outs, all filed together in
-[`TODOs.md`](TODOs.md), all from the same cause — Linux ships no
-`/usr/bin/ruby`, and the pinned one is reachable only through mise. One Python
+can pre-flight most of it. Three portability carve-outs remain filed together in
+[`TODOs.md`](TODOs.md). They have distinct causes. One Python
 contract test pins macOS bash's `126` exit status for an unlaunchable command
 and reports `127` here. The Ruby retained-tool tests run each command under a
 hermetic `PATH=/usr/bin:/bin`, which resolves a `#!/usr/bin/env ruby` script
