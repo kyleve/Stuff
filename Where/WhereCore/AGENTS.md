@@ -107,9 +107,9 @@ internal shape.
 - **Writes await their side effects.** `DayJournal` commits. Then it awaits
   the reminder reconcile + widget publish in sequence. A reader on the next
   `changes()` ping never observes a half-applied write.
-- **Filter persistent-store remote-change notifications by the Where store URL
-  and the store instance's transaction author.** Never let Periscope or Where's
-  own local saves enter `remoteChanges()`. Guard: `StoreRemoteChangeSourceTests`.
+- **Observe remote history through Where's `ModelContainer` and exclude this
+  store instance's transaction author.** Never let Periscope or Where's own
+  local saves enter `remoteChanges()`. Guard: `StoreRemoteChangeSourceTests`.
 - **Route new writes through the existing reconciliation seams.** Use
   `DayJournal.reconcileAfterDayDataChange()` or its widget-less subset
   `reconcileIssueState()`; cross-collaborator hooks take a single closure
@@ -208,8 +208,10 @@ internal shape.
 
 Swift Testing in [`Tests/`](Tests) (`WhereCoreTests`), hosted in
 `StuffTestHost`. Drive collaborators against `SwiftDataStore.inMemory()` +
-`ScriptedLocationSource`. Never use the on-disk/CloudKit store or
-`CoreLocationSource`. The CloudKit remote-import path uses the
+`ScriptedLocationSource`. Never use the on-disk/CloudKit store or live
+Core Location requests. `CoreLocationSourceTests` must replace the source’s
+one-shot controls with a `CurrentLocationRequestDriving` fake before requesting
+a fix; never start passive monitoring in those tests. The CloudKit remote-import path uses the
 `@_spi(Testing)` `inMemory(remoteChangeSource:)` +
 `ScriptedStoreRemoteChangeSource`. Internal types are reached via
 `@testable import WhereCore`.

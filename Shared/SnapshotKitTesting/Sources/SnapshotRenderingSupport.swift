@@ -134,7 +134,7 @@ func settleForCapture(
 /// quiesces — e.g. a repeating pulse — doesn't hang the capture).
 ///
 /// `minDuration` also covers async appearance work that starts *quiet* and lands
-/// late: the iOS 26 glass toolbar/tab bar adapts its material to the content
+/// late: the native glass toolbar/tab bar adapts its material to the content
 /// behind it a few hundred ms after hosting, so a floor below that captures the
 /// pre-adaptation glass (seen on `primary`/`root` snapshots when the floor was
 /// 50ms).

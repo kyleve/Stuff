@@ -159,11 +159,10 @@ journal intent.
   The scrim fades independently. Reduce Motion uses a short fade for both layers.
   Debug builds include **Reset Welcome Card** in Settings > Appearance beside the welcome-card toggle.
   The reset clears the saved region so the next foreground activation can show the card again.
-  `MainTabs` requests one bounded fix on each active-scene entry. On iOS 26.1
-  and later, it shows a native tab-bar accessory after one second; denied or
-  restricted access and disabled Precise Location remain actionable there,
-  while transient or low-confidence failures disappear. iOS 26.0 still runs
-  the lookup and presents the welcome card, but does not show the accessory.
+  `MainTabs` requests one bounded fix on each active-scene entry. It shows a
+  native tab-bar accessory after one second; denied or restricted access and
+  disabled Precise Location remain actionable there, while transient or
+  low-confidence failures disappear.
   Welcome cards must be enabled, and the device must confidently resolve a
   tracked region with recording active.
 

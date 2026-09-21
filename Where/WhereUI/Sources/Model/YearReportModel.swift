@@ -227,7 +227,7 @@ public final class YearReportModel {
         }
     }
 
-    /// Whether Locations may resolve and present its live-region welcome.
+    /// Whether the app shell may resolve and present its live-region welcome.
     /// Writes persist synchronously and hide a mounted welcome immediately.
     var showsLocationWelcome: Bool {
         get { showsLocationWelcomeStorage }
@@ -239,7 +239,7 @@ public final class YearReportModel {
     }
 
     #if DEBUG
-        /// Clears the acknowledgement so the next visible Locations lookup can welcome again.
+        /// Clears the acknowledgement so the next foreground lookup can welcome again.
         func resetLocationWelcome() {
             preferences.lastWelcomedRegion = nil
         }

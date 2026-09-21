@@ -1,12 +1,11 @@
-import CoreData
 import Foundation
 import SwiftData
 import Testing
 @_spi(Testing) @testable import WhereCore
 
 /// The `StoreRemoteChangeSource` seam that makes the CloudKit remote-import path
-/// drivable off-device: the scripted double on demand, and the production source
-/// from a posted Core Data notification.
+/// drivable off-device: the scripted double on demand, and a production history
+/// observer watching a temporary on-disk store.
 struct StoreRemoteChangeSourceTests {
     /// The scripted double yields on `yield()`, so a test can drive the
     /// store-observes-remote-change path deterministically.
@@ -19,136 +18,139 @@ struct StoreRemoteChangeSourceTests {
         #expect(await firstPing(stream, within: .seconds(2)))
     }
 
-    /// The production source forwards a remote-change notification identifying
-    /// the Where store it was built to observe.
-    @Test func persistentSourceForwardsExternalAuthorForItsStore() async throws {
-        let center = NotificationCenter()
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
-        let storeURL = try #require(container.configurations.first?.url)
-        let source = try PersistentStoreRemoteChangeSource(
-            modelContainer: container,
-            storeURL: storeURL,
+    /// A second container over the same file represents a sibling process or
+    /// CloudKit import. Its transaction must reach the source without a posted
+    /// test notification.
+    @Test func historyObserverForwardsExternalAuthorForItsStore() async throws {
+        let store = try TemporaryHistoryStore()
+        defer { store.remove() }
+        let sibling = try store.makeContainer()
+        let source = try HistoryObserverRemoteChangeSource(
+            modelContainer: store.container,
             localTransactionAuthor: "where-local",
-            center: center,
         )
         let stream = source.remoteChanges
-        let external = ModelContext(container)
+        let external = ModelContext(sibling)
         external.author = "where-other-process"
         external.insert(SDTrackedRegion(regionID: "us-TX", generationID: .initial))
         try external.save()
 
-        withExtendedLifetime(source) {
-            center.post(
-                name: .NSPersistentStoreRemoteChange,
-                object: nil,
-                userInfo: [NSPersistentStoreURLKey: storeURL],
-            )
-        }
-
-        #expect(await firstPing(stream, within: .seconds(2)))
+        #expect(await firstPing(stream, within: .seconds(5)))
     }
 
-    /// Observation starts after the initial history cursor is captured. An external commit in
-    /// that setup interval has already posted its notification to nobody, so the source must run
-    /// one history catch-up after registering rather than waiting for an unrelated later write.
-    @Test func persistentSourceCatchesCommitBetweenHistoryBaselineAndObservation() async throws {
-        let center = NotificationCenter()
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
-        let storeURL = try #require(container.configurations.first?.url)
-        let source = try PersistentStoreRemoteChangeSource(
-            modelContainer: container,
-            storeURL: storeURL,
+    /// A commit between the history baseline and observer startup can miss the
+    /// observer's first event. The source's catch-up must still forward it.
+    @Test func historyObserverCatchesCommitBetweenBaselineAndObservation() async throws {
+        let store = try TemporaryHistoryStore()
+        defer { store.remove() }
+        let sibling = try store.makeContainer()
+        let source = try HistoryObserverRemoteChangeSource(
+            modelContainer: store.container,
             localTransactionAuthor: "where-local",
-            center: center,
             testingAfterHistoryBaseline: {
-                let external = ModelContext(container)
+                let external = ModelContext(sibling)
                 external.author = "where-other-process"
                 external.insert(SDTrackedRegion(regionID: "us-TX", generationID: .initial))
                 try external.save()
             },
         )
 
-        #expect(await firstPing(source.remoteChanges, within: .seconds(2)))
+        #expect(await firstPing(source.remoteChanges, within: .seconds(5)))
     }
 
-    /// Core Data posts its remote-change notification for the app's own saves
-    /// too. The transaction author prevents those local commits from running a
-    /// second, full remote reconciliation after their focused one.
-    @Test func persistentSourceSuppressesItsLocalTransactionAuthor() async throws {
-        let center = NotificationCenter()
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
-        let storeURL = try #require(container.configurations.first?.url)
+    /// The transaction author prevents local commits from running a second,
+    /// full remote reconciliation after their focused one.
+    @Test func historyObserverSuppressesItsLocalTransactionAuthor() async throws {
+        let store = try TemporaryHistoryStore()
+        defer { store.remove() }
         let localAuthor = "where-local"
-        let source = try PersistentStoreRemoteChangeSource(
-            modelContainer: container,
-            storeURL: storeURL,
+        let source = try HistoryObserverRemoteChangeSource(
+            modelContainer: store.container,
             localTransactionAuthor: localAuthor,
-            center: center,
         )
         let stream = source.remoteChanges
-        let local = ModelContext(container)
+        let local = ModelContext(store.container)
         local.author = localAuthor
         local.insert(SDTrackedRegion(regionID: "us-TX", generationID: .initial))
         try local.save()
 
-        withExtendedLifetime(source) {
-            center.post(
-                name: .NSPersistentStoreRemoteChange,
-                object: nil,
-                userInfo: [NSPersistentStoreURLKey: storeURL],
-            )
-        }
-
-        #expect(await firstPing(stream, within: .milliseconds(200)) == false)
+        #expect(await firstPing(stream, within: .milliseconds(500)) == false)
     }
 
-    /// A second SwiftData store in the process (Periscope in the app) also posts
-    /// `.NSPersistentStoreRemoteChange`; its commits must not invalidate Where's
-    /// data or the resulting refresh spans feed back into more log-store writes.
-    @Test func persistentSourceIgnoresChangeForAnotherStore() async throws {
-        let center = NotificationCenter()
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
-        let storeURL = try #require(container.configurations.first?.url)
-        let source = try PersistentStoreRemoteChangeSource(
-            modelContainer: container,
-            storeURL: storeURL,
+    /// A separate SwiftData store (Periscope in the app) must not invalidate
+    /// Where data or cause a refresh/logging feedback loop.
+    @Test func historyObserverIgnoresChangeForAnotherStore() async throws {
+        let whereStore = try TemporaryHistoryStore()
+        defer { whereStore.remove() }
+        let otherStore = try TemporaryHistoryStore()
+        defer { otherStore.remove() }
+        let source = try HistoryObserverRemoteChangeSource(
+            modelContainer: whereStore.container,
             localTransactionAuthor: "where-local",
-            center: center,
         )
         let stream = source.remoteChanges
+        let other = ModelContext(otherStore.container)
+        other.author = "periscope"
+        other.insert(SDTrackedRegion(regionID: "us-TX", generationID: .initial))
+        try other.save()
 
-        withExtendedLifetime(source) {
-            center.post(
-                name: .NSPersistentStoreRemoteChange,
-                object: nil,
-                userInfo: [
-                    NSPersistentStoreURLKey: URL(fileURLWithPath: "/Periscope.store"),
-                ],
-            )
-        }
-
-        #expect(await firstPing(stream, within: .milliseconds(200)) == false)
+        #expect(await firstPing(stream, within: .milliseconds(500)) == false)
     }
 
-    /// Target/selector observation must not make the notification center own
-    /// the source; otherwise `deinit` can never unregister or finish its tasks.
-    @Test func persistentSourceIsNotRetainedByNotificationCenter() throws {
-        let center = NotificationCenter()
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
-        let storeURL = try #require(container.configurations.first?.url)
-        weak var weakSource: PersistentStoreRemoteChangeSource?
+    /// Observation tasks must not retain the source past its owner's lifetime.
+    @Test func historyObserverSourceFinishesWhenReleased() async throws {
+        let store = try TemporaryHistoryStore()
+        defer { store.remove() }
+        weak var weakSource: HistoryObserverRemoteChangeSource?
+        let stream: AsyncStream<Void>
 
-        try autoreleasepool {
-            let source = try PersistentStoreRemoteChangeSource(
-                modelContainer: container,
-                storeURL: storeURL,
+        do {
+            let source = try HistoryObserverRemoteChangeSource(
+                modelContainer: store.container,
                 localTransactionAuthor: "where-local",
-                center: center,
             )
             weakSource = source
+            stream = source.remoteChanges
         }
 
         #expect(weakSource == nil)
+        #expect(await firstPing(stream, within: .milliseconds(500)) == false)
+    }
+}
+
+private struct TemporaryHistoryStore {
+    let directory: URL
+    let container: ModelContainer
+
+    init() throws {
+        directory = FileManager.default.temporaryDirectory.appending(
+            path: "where-history-observer-\(UUID().uuidString)",
+            directoryHint: .isDirectory,
+        )
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        container = try Self.makeContainer(in: directory)
+    }
+
+    func makeContainer() throws -> ModelContainer {
+        try Self.makeContainer(in: directory)
+    }
+
+    private static func makeContainer(in directory: URL) throws -> ModelContainer {
+        let schema = Schema(SwiftDataStore.inspectorModelTypes)
+        let configuration = ModelConfiguration(
+            schema: schema,
+            url: directory.appending(path: "Where.store"),
+            cloudKitDatabase: .none,
+        )
+        return try ModelContainer(for: schema, configurations: [configuration])
+    }
+
+    func remove() {
+        do {
+            try FileManager.default.removeItem(at: directory)
+        } catch {
+            Issue.record("Could not remove temporary history store: \(error)")
+        }
     }
 }
 

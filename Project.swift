@@ -1,7 +1,7 @@
 import ProjectDescription
 
 let destinations: Destinations = [.iPhone, .iPad]
-let deployment: DeploymentTargets = .iOS("26.0")
+let deployment: DeploymentTargets = .iOS("27.0")
 
 /// The Ledger menu bar app is the only native-macOS target; everything else
 /// stays on the shared iOS destinations above.

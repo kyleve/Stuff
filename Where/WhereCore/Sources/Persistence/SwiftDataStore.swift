@@ -418,9 +418,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
 
         /// Whether a store of this mode can receive writes from outside this
         /// process — a sibling App Group process (the share extension) for any
-        /// on-disk store, or a CloudKit sync from another device — surfaced as
-        /// `.NSPersistentStoreRemoteChange`. In-memory stores have no shared
-        /// container and no other writers, so there's nothing to observe.
+        /// on-disk store, or a CloudKit sync from another device. In-memory
+        /// stores have no shared container and no other writers to observe.
         var observesRemoteChanges: Bool {
             switch self {
                 case .inMemory: false
@@ -478,11 +477,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             case let .localOnly(appGroupIdentifier),
                  let .cloudKit(appGroupIdentifier): .identifier(appGroupIdentifier)
         }
-        // CloudKit mode backs the container with `NSPersistentCloudKitContainer`,
-        // which enables persistent-history tracking and posts
-        // `.NSPersistentStoreRemoteChange` on remote import — no extra knobs
-        // needed (and SwiftData exposes none). `make` observes that notification
-        // via `PersistentStoreRemoteChangeSource`.
+        // CloudKit and sibling App Group writes are observed through SwiftData
+        // history by `HistoryObserverRemoteChangeSource` after opening the store.
         return ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: storage == .inMemory,
@@ -543,24 +539,16 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         let store = SwiftDataStore(modelContainer: container)
         // On-disk stores live in a shared App Group container, so another process
         // (the share extension) — or, for CloudKit, a sync from another device —
-        // can commit behind our back. Both surface as
-        // `.NSPersistentStoreRemoteChange` (persistent-history tracking is on for
-        // on-disk stores). Core Data posts that notification for local saves as
-        // well, so the source filters history by this store instance's author
-        // before forwarding only external writes into `changes()`. This makes a
-        // share-extension add show up live in the running app (debug included),
-        // not just on next launch.
+        // can commit behind our back. SwiftData's history observer detects
+        // changes to this container. The source filters history by this store
+        // instance's author before forwarding only external writes into
+        // `changes()`. A share-extension add then appears live in the running
+        // app (debug included), not just on next launch.
         if storage.observesRemoteChanges {
-            if let storeURL = container.configurations.first?.url {
-                try store.startObservingRemoteChanges(PersistentStoreRemoteChangeSource(
-                    modelContainer: container,
-                    storeURL: storeURL,
-                    localTransactionAuthor: store.localTransactionAuthor,
-                    center: .default,
-                ))
-            } else {
-                assertionFailure("An on-disk Where store must have a resolved URL")
-            }
+            try store.startObservingRemoteChanges(HistoryObserverRemoteChangeSource(
+                modelContainer: container,
+                localTransactionAuthor: store.localTransactionAuthor,
+            ))
         }
         return store
     }
@@ -570,7 +558,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         /// fan-out from `remoteChangeSource`, so the remote-import path is
         /// exercisable without CloudKit or a device. The production equivalent
         /// is `make(storage: .cloudKit(appGroupIdentifier:))`, which wires a
-        /// `PersistentStoreRemoteChangeSource`. `@_spi(Testing)` (per the
+        /// `HistoryObserverRemoteChangeSource`. `@_spi(Testing)` (per the
         /// agents.md) so the remote-change wiring stays folded into a factory —
         /// there's no public `startObservingRemoteChanges` to call twice.
         @_spi(Testing)
@@ -586,7 +574,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
 
         /// Variant that exposes the shared container to persistence-boundary
         /// tests, allowing them to commit a same-generation external write before
-        /// driving the corresponding remote-change notification.
+        /// driving the corresponding scripted remote-change signal.
         @_spi(Testing)
         public static func inMemory(
             modelContainer: ModelContainer,
@@ -785,8 +773,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         return try await withExclusiveStoreOperation {
             let peer = ModelContext(modelContainer)
             // A persistent-store transaction becomes fetch-visible atomically with
-            // its history row, but Core Data is allowed to post the corresponding
-            // remote-change notification later. Bracket every table fetch with the
+            // its history row, but SwiftData may signal the observer later.
+            // Bracket every table fetch with the
             // history head from this same peer context: if an external transaction
             // lands anywhere across the block, its monotonically increasing id
             // changes and the assembled value is rejected. Our own `perform`s are
@@ -814,9 +802,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
     }
 
-    /// The durable store generation used to bracket a multi-table read. Unlike
-    /// `.NSPersistentStoreRemoteChange`, persistent history is committed in the
-    /// same transaction as the rows it describes, so it cannot lag visibility.
+    /// The durable store generation used to bracket a multi-table read. History
+    /// is committed in the same transaction as the rows it describes, so it
+    /// cannot lag change observation.
     private static func latestHistoryTransactionID(in context: ModelContext) throws -> Int64 {
         var descriptor = HistoryDescriptor<DefaultHistoryTransaction>(
             sortBy: [SortDescriptor(\.transactionIdentifier, order: .reverse)],
