@@ -16,6 +16,11 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 
 ## What you get
 
+The Elsewhere entry card uses a compact passport surface with neutral ink.
+Its count, separate background silhouettes, and microprint border share the ordered secondary regions.
+The catch-all Other region uses a background globe because it has no geographic outline.
+The card opens the existing Elsewhere list.
+
 ### App shell & view models
 
 - **`RootView`** — the app root: the typed launch plan (via

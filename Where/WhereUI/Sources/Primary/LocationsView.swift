@@ -210,7 +210,7 @@ struct LocationsView: View {
                     NavigationLink {
                         ElsewhereView(report: report)
                     } label: {
-                        ElsewhereSummaryCard(regionCount: report.ranking.secondary.count)
+                        ElsewhereSummaryCard(regions: report.ranking.secondary.map(\.region))
                     }
                     .buttonStyle(.plain)
                 }
