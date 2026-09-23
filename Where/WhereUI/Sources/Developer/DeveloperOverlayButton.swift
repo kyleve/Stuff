@@ -8,27 +8,27 @@ import SFSafeSymbols
     /// interaction as touch users. Its wrench becomes a close glyph while the
     /// accordion is open; dragging remains owned by ``DeveloperOverlay``.
     ///
-    /// It sizes itself — the diameter scales with Dynamic Type via `@ScaledMetric`
-    /// — so the number lives here once rather than being duplicated at the call
-    /// site; the overlay measures the rendered size for its drag math.
+    /// The stylesheet scales its diameter. The overlay measures the rendered
+    /// size for its drag bounds.
     struct DeveloperOverlayButton: View {
         let isMenuPresented: Bool
         let action: () -> Void
 
-        @ScaledMetric(relativeTo: .title2) private var diameter: CGFloat = 52
+        @Environment(\.stylesheet) private var stylesheet
 
         var body: some View {
+            let style = stylesheet.developerOverlay.launcher
             Button(action: action) {
                 Image(systemSymbol: isMenuPresented ? .xmark : .wrenchAndScrewdriver)
-                    .font(.system(size: diameter * 0.4, weight: .semibold))
+                    .font(.system(size: style.diameter * style.glyphRatio, weight: .semibold))
                     .foregroundStyle(.primary)
-                    .frame(width: diameter, height: diameter)
+                    .frame(width: style.diameter, height: style.diameter)
                     .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(.plain)
             .glassEffect(.regular.interactive(), in: Circle())
             .contentShape(Circle())
-            .shadow(color: .black.opacity(0.15), radius: 3, y: 1)
+            .shadow(color: style.shadowColor, radius: style.shadowRadius, y: style.shadowOffsetY)
             .accessibilityLabel(
                 isMenuPresented
                     ? String(localized: .developerMenuClose)
@@ -48,6 +48,7 @@ import SFSafeSymbols
 
             DeveloperOverlayButton(isMenuPresented: false, action: {})
         }
+        .whereBroadwayRoot()
         .environment(\.colorScheme, .light)
     }
 
@@ -62,6 +63,7 @@ import SFSafeSymbols
 
             DeveloperOverlayButton(isMenuPresented: true, action: {})
         }
+        .whereBroadwayRoot()
         .environment(\.colorScheme, .dark)
     }
 #endif
