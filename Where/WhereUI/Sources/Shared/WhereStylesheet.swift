@@ -54,6 +54,7 @@ struct WhereStylesheet: BStylesheet {
             timeline.overview.pinsToViewport = false
             timeline.row.stacksDayCount = true
             featureDiscovery.siri.bubble.indent = 0
+            elsewhereCard.stacksContent = true
         }
 
         // Give every region a consistently labeled ribbon band when tint
@@ -70,6 +71,8 @@ struct WhereStylesheet: BStylesheet {
             card.compact.glow.radius = 0
             card.constellation.haloOpacity = 0
             privacyPassportCard.disclosure.fillOpacity = 0.16
+            elsewhereCard.surface.usesOpaquePaper = true
+            elsewhereCard.surface.shadowOpacity = 0
         }
 
         if traits.accessibility.isDarkerSystemColorsEnabled {
@@ -91,6 +94,8 @@ struct WhereStylesheet: BStylesheet {
         // dark glass without changing its hue or saturation on touch.
         if traits.mode == .dark {
             card.securityPrint = .dark
+            elsewhereCard.surface.ink = Color(white: 0.78)
+            elsewhereCard.surface.paper = Color(white: 0.16)
             featureDiscovery.siri.accent = Color(white: 0.42)
         }
     }
@@ -1771,22 +1776,54 @@ extension WhereStylesheet {
 // MARK: - Elsewhere entry card
 
 extension WhereStylesheet {
-    /// The compact entry card at the bottom of the Locations tab that links to
-    /// the Elsewhere list. A small self-contained group (it doesn't borrow the
-    /// passport `CardStyle`, which is a different, heavier component).
+    /// The quieter passport surface that summarizes secondary regions.
     struct ElsewhereCardStyle: Equatable {
-        /// Corner radius of the glass card.
-        var cornerRadius: CGFloat
-        /// Inset of the card's contents from its edge.
-        var padding: CGFloat
-        /// Point size of the leading globe glyph.
-        var iconPointSize: CGFloat
-
-        static let standard = ElsewhereCardStyle(
-            cornerRadius: 22,
-            padding: 18,
-            iconPointSize: 28,
+        var cornerRadius: CGFloat = 28
+        var padding: CGFloat = 22
+        var minimumHeight: CGFloat = 104
+        var stacksContent = false
+        var titleFont: Font = .system(.title2, design: .serif, weight: .semibold)
+        var surface = Surface()
+        var artwork = Artwork()
+        var border = CardStyle.RegionShape.SecurityBorder(
+            inset: 7,
+            glyphSize: 7,
+            spacing: 12,
+            opacity: 0.18,
         )
+
+        struct Surface: Equatable {
+            var ink = Color(white: 0.36)
+            var paper = Color(white: 0.94)
+            var usesOpaquePaper = false
+            var glassTintOpacity: Double = 0.06
+            var shadowOpacity: Double = 0.06
+            var shadowRadius: CGFloat = 8
+            var shadowOffsetY: CGFloat = 3
+            var rosetteOpacity: Double = 0.035
+            var rosette = CardStyle.Rosette(
+                wobble: 0.04,
+                lineWidth: 0.5,
+                primaryRingSpacing: 12,
+                secondaryRingSpacing: 17,
+            )
+        }
+
+        struct Artwork: Equatable {
+            var widthFraction: CGFloat = 0.62
+            var inset: CGFloat = 16
+            var gap: CGFloat = 8
+            var leadingOpacity: Double = 0.18
+            var silhouette = CardStyle.RegionShape.Artwork(
+                center: CGPoint(x: 0.5, y: 0.5),
+                extent: CGSize(width: 0.9, height: 0.9),
+                scale: 1,
+                fillOpacity: 0.11,
+                stroke: .init(opacity: 0.22, width: 0.7),
+            )
+        }
+
+        static let standard = ElsewhereCardStyle()
     }
 }
 
