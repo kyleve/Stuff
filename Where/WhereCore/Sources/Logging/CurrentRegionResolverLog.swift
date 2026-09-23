@@ -3,7 +3,7 @@ import PeriscopeCore
 /// PII-free outcomes for foreground region resolution.
 @LogScope("CurrentRegionResolver")
 enum CurrentRegionResolverLog {
-    enum Reason: String, CaseIterable, Codable, Sendable {
+    enum Reason: String, CaseIterable, Codable {
         case resolved
         case recordingInactive = "recording-inactive"
         case invalidFix = "invalid-fix"
@@ -18,14 +18,14 @@ enum CurrentRegionResolverLog {
         case cancellation
     }
 
-    enum AgeBucket: String, CaseIterable, Codable, Sendable {
+    enum AgeBucket: String, CaseIterable, Codable {
         case unavailable
         case fresh = "0-10s"
         case recent = "11-60s"
         case stale = "over-60s"
     }
 
-    enum AccuracyBucket: String, CaseIterable, Codable, Sendable {
+    enum AccuracyBucket: String, CaseIterable, Codable {
         case unavailable
         case invalid
         case precise = "0-100m"

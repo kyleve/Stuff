@@ -48,4 +48,21 @@ struct WhereIntentsLogTests {
         #expect(WhereIntentsLog.IntentName.logTrip.budget > read)
         #expect(WhereIntentsLog.IntentName.logDay.budget == read)
     }
+
+    // MARK: - Events
+
+    @Test func widgetSnapshotReadFailureKeepsErrorDetailsRestricted() {
+        let event = WhereIntentsLog.WidgetSnapshotReadFailed(
+            description: .restricted(.errorDetails, "private error"),
+        )
+
+        #expect(
+            WhereIntentsLog.WidgetSnapshotReadFailed.eventName
+                == "WhereIntents.widget-snapshot-read-failed",
+        )
+        #expect(event.level == .warning)
+        #expect(event.classifiedFields == [
+            .restricted(key: LogFieldKey("description"), kind: .errorDetails),
+        ])
+    }
 }
