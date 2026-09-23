@@ -429,6 +429,14 @@ view/model boundary, reuse, binding, Broadway stylesheet, layout,
 accessibility, localization, UIKit-bridge, preview, and image-snapshot
 procedures. Module `AGENTS.md` files add only their local seams and invariants.
 
+Resolve authored appearance from available Broadway traits during stylesheet
+slicing. This includes dimensions, layout policies, colors, and motion.
+Views consume component styles, not raw styling traits or trait flags copied
+into a global style. Keep measured geometry and runtime-only inputs in views.
+Document each direct trait-read or `@ScaledMetric` exception at its declaration:
+state which required input is unavailable during slicing. A non-`Equatable`
+rendering type alone is not an exception; use an `Equatable` policy or descriptor.
+
 SF Symbols use SFSafeSymbols' `SFSymbol` and `systemSymbol` overloads. Never
 spell a symbol as a raw string or construct an unchecked `SFSymbol`. Run
 `./sf-symbols --lint`. `WhereShortcuts.swift` is the sole exception because the
