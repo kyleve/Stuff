@@ -303,7 +303,7 @@ not read Dynamic Type to select an arrangement. The slice also selects copy
 length, coordinated spacing, icon colors, and motion.
 
 Keep semantic fonts and system colors. For authored dimensions that scale,
-`WhereScaledDimension` uses system font metrics with the slice's explicit
+`BScaledDimension` uses system font metrics with the slice's explicit
 content-size category. Its hosted test compares the result with `@ScaledMetric`.
 
 Keep available width, measured chrome, and `ViewThatFits` in the layout layer.

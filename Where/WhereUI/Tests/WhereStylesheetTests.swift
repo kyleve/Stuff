@@ -12,6 +12,23 @@ import WhereCore
 /// `UIConstants`. These assertions pin those values so the migration — and any
 /// later trait-aware derivation — can't silently drift the defaults.
 struct WhereStylesheetTests {
+    @MainActor
+    @Test(arguments: DynamicTypeSize.allCases)
+    func launcherMatchesSwiftUIScaledMetric(size: DynamicTypeSize) throws {
+        let box = ScaledDimensionProbeBox()
+        let host = UIHostingController(rootView: ScaledDimensionProbe(box: box)
+            .dynamicTypeSize(size))
+        try show(host) { _ in
+            try waitFor { box.value != nil }
+            let measured = try #require(box.value)
+            var context = BContext(traits: .system)
+            context.traitOverrides.contentSizeCategory = .init(size)
+            let sheet = try context.stylesheets.get(WhereStylesheet.self)
+            let resolved = sheet.developerOverlay.launcher.diameter
+            #expect(abs(measured - resolved) < 0.01)
+        }
+    }
+
     private let style = WhereStylesheet.default
 
     @MainActor
@@ -38,7 +55,7 @@ struct WhereStylesheetTests {
             .evidenceArchive == (size.isAccessibilitySize ? .accessible : .standard))
         #expect(sheet.locationWelcome.accessory
             .copy == (size.isAccessibilitySize ? .compact : .full))
-        #expect(sheet.developerOverlay.launcher.diameter == WhereScaledDimension.value(
+        #expect(sheet.developerOverlay.launcher.diameter == BScaledDimension.value(
             52,
             relativeTo: .title2,
             category: .init(size),
@@ -1089,5 +1106,20 @@ private struct StylesheetProbe: View {
             .onChange(of: stylesheet.theme, initial: true) { _, newValue in
                 box.theme = newValue
             }
+    }
+}
+
+private final class ScaledDimensionProbeBox {
+    var value: CGFloat?
+}
+
+private struct ScaledDimensionProbe: View {
+    let box: ScaledDimensionProbeBox
+    @ScaledMetric(relativeTo: .title2) private var diameter: CGFloat = 52
+
+    var body: some View {
+        Color.clear.onChange(of: diameter, initial: true) { _, value in
+            box.value = value
+        }
     }
 }

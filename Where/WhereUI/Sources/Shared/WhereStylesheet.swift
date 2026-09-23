@@ -49,7 +49,7 @@ struct WhereStylesheet: BStylesheet {
         let traits = context.traits
         theme = context.themes[WhereTheme.self]
 
-        developerOverlay.launcher.diameter = WhereScaledDimension.value(
+        developerOverlay.launcher.diameter = BScaledDimension.value(
             developerOverlay.launcher.diameter,
             relativeTo: .title2,
             category: traits.contentSizeCategory,
