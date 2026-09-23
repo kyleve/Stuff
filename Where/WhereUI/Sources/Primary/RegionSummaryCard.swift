@@ -80,6 +80,7 @@ struct RegionSummaryCard: View {
     @Environment(\.regionStyles) private var regionStyles
     @Environment(\.regionOutlinePathCache) private var regionOutlinePathCache
     #if DEBUG
+        // The live designer draft is a runtime override, outside the cached base slice.
         @Environment(\.colorScheme) private var colorScheme
         @Environment(\.cardDesignerConfiguration) private var cardDesignerConfiguration
     #endif

@@ -16,7 +16,6 @@ struct LocationForecastControls: View {
     let editAction: (Region) -> Void
     var clearAction: (@MainActor () async throws -> Void)?
 
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.stylesheet) private var stylesheet
     @State private var clearState: ClearState = .idle
 
@@ -25,7 +24,7 @@ struct LocationForecastControls: View {
         let controls = style.controls
 
         VStack(alignment: .leading, spacing: controls.sectionSpacing) {
-            let layout = dynamicTypeSize.isAccessibilitySize
+            let layout = controls.layout == .stacked
                 ? AnyLayout(VStackLayout(alignment: .leading, spacing: controls.layoutSpacing))
                 : AnyLayout(HStackLayout(alignment: .center, spacing: controls.layoutSpacing))
 
@@ -81,7 +80,7 @@ struct LocationForecastControls: View {
                         )
                         .buttonStyle(LocationForecastEndorsementButtonStyle(
                             tint: .red,
-                            expands: dynamicTypeSize.isAccessibilitySize,
+                            expands: controls.expandsClearAction,
                             controls: controls,
                             ink: style.ink,
                         ))

@@ -15,7 +15,6 @@ struct FeatureEvidenceArchivePreview: View {
     let content: Content
 
     @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         let panelStyle = stylesheet.featureDiscovery.marketingPanel
@@ -51,13 +50,16 @@ struct FeatureEvidenceArchivePreview: View {
 
     private func archiveRow(kind: EvidenceKind, date: Date) -> some View {
         Group {
-            if dynamicTypeSize.isAccessibilitySize {
-                VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
+            if stylesheet.featureDiscovery.evidenceArchive.layout == .stacked {
+                VStack(
+                    alignment: .leading,
+                    spacing: stylesheet.featureDiscovery.evidenceArchive.spacing,
+                ) {
                     archiveIcon(kind)
                     archiveText(kind: kind, date: date)
                 }
             } else {
-                HStack(spacing: stylesheet.spacing.medium) {
+                HStack(spacing: stylesheet.featureDiscovery.evidenceArchive.spacing) {
                     archiveIcon(kind)
                     archiveText(kind: kind, date: date)
                 }
