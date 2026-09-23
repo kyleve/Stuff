@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+import platform
 import shutil
 import signal
 import stat
@@ -35,6 +36,7 @@ class XcodeCommandFixture:
             "xcode_results.py",
         ):
             self._copy(f"Tools/{module}")
+        self._copy(".circleci/test_artifacts.py")
         self._copy(".xcode-build-version")
         self.expected_xcode_build = (self.root / ".xcode-build-version").read_text().strip()
         (self.root / "Project.swift").write_text('name: "ExampleSnapshotTests"\n')
@@ -96,6 +98,29 @@ while True:
     def command_log(self) -> str:
         return self.log.read_text() if self.log.exists() else ""
 
+    def test_artifacts(self, scheme: str) -> Path:
+        root = self.root / "ci-test-build"
+        products = root / "DerivedData" / "Build" / "Products"
+        built_products = products / "Debug-iphonesimulator"
+        built_products.mkdir(parents=True)
+        xctestrun = products / f"{scheme}_fixture.xctestrun"
+        xctestrun.write_text("")
+        manifest = {
+            "architecture": platform.machine(),
+            "artifactRoot": str(root.resolve()),
+            "builtProducts": str(built_products.relative_to(root)),
+            "checkout": str(self.root.resolve()),
+            "commit": "fixture-commit",
+            "configuration": "Debug",
+            "formatVersion": 2,
+            "productsRoot": str(products.relative_to(root)),
+            "schemes": {scheme: str(xctestrun.relative_to(root))},
+            "sdkBuild": "fixture-sdk-build",
+            "xcodeBuild": self.expected_xcode_build,
+        }
+        (root / "manifest.json").write_text(json.dumps(manifest))
+        return root
+
     def _copy(self, relative: str) -> None:
         destination = self.root / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -106,6 +131,16 @@ while True:
         path.chmod(path.stat().st_mode | stat.S_IXUSR)
 
     def _write_fake_tools(self) -> None:
+        self._write_executable(
+            self.bin / "git",
+            """#!/bin/bash
+if [ "$*" = "rev-parse HEAD" ]; then
+  printf 'fixture-commit\n'
+  exit 0
+fi
+exit 0
+""",
+        )
         self._write_executable(
             self.bin / "mise",
             """#!/bin/bash
@@ -185,6 +220,10 @@ exit "${TEST_STATUS:-0}"
             self.bin / "xcrun",
             """#!/bin/bash
 printf 'xcrun %s\\n' "$*" >>"$TOOL_LOG"
+if [ "$*" = "--sdk iphonesimulator --show-sdk-build-version" ]; then
+  printf 'fixture-sdk-build\\n'
+  exit 0
+fi
 if [ "${XCRUN_OUTPUT:-valid}" = malformed ]; then
   printf '{'
   exit 0
@@ -256,6 +295,24 @@ class XcodeCommandContractTests(unittest.TestCase):
 
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertNotIn("xcodebuild -version", fixture.command_log())
+
+    def test_artifact_consumer_skips_host_checks_owned_by_builder(self):
+        fixture = self.fixture()
+        artifacts = fixture.test_artifacts("Stuff-iOS-Tests")
+
+        result = fixture.run(
+            "test",
+            "--all",
+            "--skip-architecture",
+            "--test-artifacts",
+            str(artifacts),
+            "--shared",
+            MISE_STATUS="127",
+        )
+
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertNotIn("mise ", fixture.command_log())
+        self.assertIn("test-without-building -xctestrun", fixture.command_log())
 
     def test_test_preserves_xcode_failure_through_the_progress_pipeline(self):
         fixture = self.fixture()

@@ -83,6 +83,7 @@ RUN_ARCHITECTURE=true
 ARCHITECTURE_ONLY=false
 HAS_TEST_ARGUMENTS=false
 HOST_MACROS=false
+RUN_HOST_TESTS=true
 
 usage() {
     cat <<'USAGE'
@@ -117,7 +118,8 @@ Running:
   --build-artifacts DIR
                     Build the selected schemes into DIR without running tests
   --test-artifacts DIR
-                    Run tests from the manifest and .xctestrun files in DIR
+                    Run simulator tests from the manifest and .xctestrun files
+                    in DIR; the artifact producer owns host-side checks
   --enumerate-suites PATH
                     Write the selected artifact's Bundle/Suite identifiers
   --record MODE     Re-record snapshots: all | failed | missing | never
@@ -179,6 +181,7 @@ while [ $# -gt 0 ]; do
             TEST_ARTIFACTS="${1:?--test-artifacts requires a directory}"
             DO_BUILD=false
             DO_GENERATE=false
+            RUN_HOST_TESTS=false
             ;;
         --enumerate-suites)
             HAS_TEST_ARGUMENTS=true
@@ -270,8 +273,10 @@ if [ "$ARCHITECTURE_ONLY" = true ]; then
     exit 0
 fi
 
-echo "==> Testing attribution generator"
-mise exec -- ruby Shared/CreditKit/Tools/Tests/generate_attribution_test.rb
+if [ "$RUN_HOST_TESTS" = true ]; then
+    echo "==> Testing attribution generator"
+    mise exec -- ruby Shared/CreditKit/Tools/Tests/generate_attribution_test.rb
+fi
 
 WORKSPACE="Stuff.xcworkspace"
 UNIT_SCHEME="Stuff-iOS-Tests"
@@ -449,6 +454,12 @@ if [ -n "$ONLY_FILE" ]; then
     else
         UNIT_FILTERS=("-only-testing" "@$ONLY_FILE")
     fi
+fi
+
+# Artifact consumers run only the prebuilt simulator suites. The artifact
+# producer owns host-side checks once before it persists the shared workspace.
+if [ "$RUN_HOST_TESTS" = false ]; then
+    HOST_MACROS=false
 fi
 
 if [ "${#SCHEMES[@]}" -eq 0 ] && [ "$HOST_MACROS" = false ]; then
