@@ -85,110 +85,69 @@ struct ResolveModelTests {
     @Test func loadSurfacesFlightDayIssue() async throws {
         let store = try TestStore()
         let now = date(year: 2026, month: 6, day: 15)
-        let services = flightServices(store: store, now: now)
+        let services = FlightReviewTestSupport.services(store: store, now: now)
         let resolve = ResolveModel(
             services: services,
             preferences: makePreferences(),
         )
 
-        try await seedCoastToCoastFlight(into: store)
+        try await FlightReviewTestSupport.seed(into: store, includeArrival: true)
         await resolve.load(year: 2026, primaryRegions: [.california, .newYork])
 
         let flight = try #require(resolve.dataIssues.first { $0.category == .flightDay })
-        guard case let .correctFlightDay(_, keep, removed, peak) = flight.resolution else {
-            Issue.record("expected correctFlightDay resolution")
+        guard case let .correctSamples(proposal) = flight.resolution else {
+            Issue.record("expected sample correction resolution")
             return
         }
-        #expect(keep == [.newYork, .california])
-        #expect(removed == [.other])
-        #expect(peak > 300)
+        #expect(proposal.resultingRegions == [.newYork, .california])
+        #expect(!proposal.edits.isEmpty)
+        #expect(resolve.review(for: flight)?.flight?.peakSpeedKMH ?? 0 > 450)
     }
 
-    /// Idempotence: applying the one-tap fix (an authoritative `overrideDay` to
-    /// the kept regions, exactly what `FlightDayDetailView` does) clears the
-    /// issue — a rescan no longer flags the day, so "Apply" visibly resolves it
-    /// rather than leaving a sticky row.
+    /// Applying reviewed samples clears the actionable issue while retaining
+    /// the completed flight information.
     @Test func applyingFlightFixClearsTheIssue() async throws {
         let store = try TestStore()
         let now = date(year: 2026, month: 6, day: 15)
-        let services = flightServices(store: store, now: now)
+        let services = FlightReviewTestSupport.services(store: store, now: now)
         let resolve = ResolveModel(
             services: services,
             preferences: makePreferences(),
         )
 
-        try await seedCoastToCoastFlight(into: store)
+        try await FlightReviewTestSupport.seed(into: store, includeArrival: true)
         await resolve.load(year: 2026, primaryRegions: [.california, .newYork])
 
         let flight = try #require(resolve.dataIssues.first { $0.category == .flightDay })
-        guard case let .correctFlightDay(_, keep, _, _) = flight.resolution else {
-            Issue.record("expected correctFlightDay resolution")
+        guard case let .correctSamples(proposal) = flight.resolution else {
+            Issue.record("expected sample correction resolution")
             return
         }
-
-        // Apply the fix the same way the detail view's "Apply" button does, then
-        // drop the scanner cache so the reload sees a fresh scan.
-        try await services.journal.overrideDay(
-            date: flightSampleDate(hour: 12),
-            regions: keep,
-            audit: nil,
-        )
+        let result = try await services.corrections.apply(proposal)
+        guard case .applied = result else {
+            Issue.record("expected correction to apply")
+            return
+        }
         await services.resolution.invalidate()
         await resolve.load(year: 2026, primaryRegions: [.california, .newYork])
 
         #expect(!resolve.dataIssues.contains { $0.category == .flightDay })
     }
 
-    private func flightServices(store: TestStore, now: Date) -> WhereServices {
-        WhereServices(
+    @Test func ongoingFlightRemainsReviewableWithoutAnActionableFlightIssue() async throws {
+        let store = try TestStore()
+        let services = FlightReviewTestSupport.services(
             store: store,
-            locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
-            widgetRefresher: NoopWidgetTimelineRefresher(),
-            now: { now },
+            now: FlightReviewTestSupport.date(hour: 16.5),
         )
-    }
+        let resolve = ResolveModel(services: services, preferences: makePreferences())
+        try await FlightReviewTestSupport.seed(into: store, includeArrival: false)
 
-    /// Seed the NYC→SF cruise profile as passive GPS fixes: grounded NY in the
-    /// morning, cruise-speed legs across untracked states, then grounded SFO.
-    private func seedCoastToCoastFlight(into store: TestStore) async throws {
-        let jfk = Coordinate(latitude: 40.6413, longitude: -73.7781)
-        let sfo = Coordinate(latitude: 37.6213, longitude: -122.3790)
-        let illinois = Coordinate(latitude: 40.29, longitude: -90.39)
-        let colorado = Coordinate(latitude: 39.53, longitude: -106.16)
-        let nevada = Coordinate(latitude: 38.68, longitude: -116.90)
-        let fixes: [(Double, Coordinate)] = [
-            (8.0, jfk),
-            (8.5, jfk),
-            (12.0, jfk),
-            (13.5, illinois),
-            (15.0, colorado),
-            (16.5, nevada),
-            (17.5, sfo),
-            (18.0, sfo),
-        ]
-        try await store.perform {
-            for (hour, coordinate) in fixes {
-                try await store.add(sample: LocationSample(
-                    timestamp: flightSampleDate(hour: hour),
-                    coordinate: coordinate,
-                    horizontalAccuracy: 20,
-                    source: .gpsSignificantChange,
-                ))
-            }
-        }
-    }
+        await resolve.load(year: 2026, primaryRegions: [.newYork, .california])
 
-    private func flightSampleDate(hour: Double) -> Date {
-        let wholeHour = Int(hour)
-        let minutes = Int((hour - Double(wholeHour)) * 60)
-        return Calendar.current.date(from: DateComponents(
-            year: 2026,
-            month: 3,
-            day: 15,
-            hour: wholeHour,
-            minute: minutes,
-        ))!
+        #expect(resolve.dataIssues.allSatisfy { $0.category != .flightDay })
+        #expect(resolve.pendingReviews.count == 1)
+        #expect(resolve.pendingReviews.first?.proposal == nil)
     }
 
     /// The empty-state guard: `hasLoaded` starts false and flips once the first

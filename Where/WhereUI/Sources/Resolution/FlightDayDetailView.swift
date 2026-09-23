@@ -4,191 +4,172 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Detail screen for a suspected flight day: a map of the day's recorded points
-/// (with the fly-over `.other` pins tinted apart from the grounded endpoints)
-/// above an explanation and a one-tap fix. "Apply" writes an authoritative
-/// `overrideDay` keeping only the endpoints; "Not what you expected?" hands off
-/// to the regular `DayRelabelView` (seeded from the day's *actual* regions, so a
-/// wrong guess isn't baked in); "These are all correct" dismisses the issue.
+/// Shared flight/drift review. Pending evidence leaves manual editing available;
+/// Apply submits only the exact reviewed samples to Core's guarded transaction.
 struct FlightDayDetailView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.stylesheet) private var stylesheet
-
-    let issue: any DataIssue
     let report: YearReportModel
-    let resolve: ResolveModel
+    @State private var model: FlightReviewModel
+    @Environment(\.dismiss) private var dismiss
 
-    @State private var mapPoints: [RecordedMapPoint] = []
-    @State private var applying = false
-    @State private var saveError = SaveErrorAlertState()
+    init(review: GPSCorrectionReview, report: YearReportModel) {
+        self.report = report
+        _model = State(initialValue: FlightReviewModel(review: review, report: report))
+    }
 
     var body: some View {
-        @Bindable var saveError = saveError
-
-        Group {
-            if let payload = flightPayload {
-                content(payload)
-                    .task(id: payload.day.day) { await loadPoints(for: payload.day.day) }
-            } else {
-                ContentUnavailableView(
-                    String(localized: .commonLoadErrorTitle),
-                    systemSymbol: .exclamationmarkTriangle,
-                )
-            }
-        }
-        .navigationTitle(String(localized: .resolutionFlightDetailTitle))
-        .navigationBarTitleDisplayMode(.inline)
-        .alert(
-            String(localized: .manualSaveErrorTitle),
-            isPresented: $saveError.isPresented,
-        ) {
-            Button(String(localized: .commonOk), role: .cancel) {}
-        } message: {
-            if let message = saveError.message {
-                Text(message)
-            }
-        }
-    }
-
-    private func content(_ payload: FlightPayload) -> some View {
-        VStack(spacing: 0) {
-            if !mapPoints.isEmpty {
-                RecordedPointsMap(points: mapPoints)
-            }
-            form(payload)
-        }
-        .animation(.default, value: applying)
-    }
-
-    private func form(_ payload: FlightPayload) -> some View {
         Form {
-            Section {
-                Text(WhereFormat.resolutionFlightDetailExplanation(
-                    peakSpeedKMH: payload.peakSpeedKMH,
-                    removed: payload.removed,
-                ))
-            } header: {
-                Text(dateText(payload.day))
-            }
-
-            if applying {
+            if let review = model.review {
                 Section {
-                    SavingStatusRow(text: String(localized: .manualSavingStatus))
+                    if review.flights.isEmpty {
+                        FlightStatusBanner(review: review, deviceLabel: nil)
+                            .listRowInsets(EdgeInsets())
+                    } else {
+                        ForEach(review.flights) { flight in
+                            FlightStatusBanner(
+                                review: review,
+                                deviceLabel: report.flightDeviceLabel(flight),
+                                flight: flight,
+                            )
+                            .listRowInsets(EdgeInsets())
+                        }
+                    }
+                }
+
+                if !model.mapPoints.isEmpty {
+                    Section {
+                        RecordedPointsMap(points: model.mapPoints)
+                            .listRowInsets(EdgeInsets())
+                    }
+                }
+
+                if let flight = review.flight {
+                    Section(String(localized: .flightReviewEvidenceTitle)) {
+                        LabeledContent(String(localized: .flightReviewPeakSpeed)) {
+                            Text(
+                                Measurement(
+                                    value: flight.peakSpeedKMH,
+                                    unit: UnitSpeed.kilometersPerHour,
+                                ),
+                                format: .measurement(width: .abbreviated, usage: .asProvided),
+                            )
+                        }
+                        Text(String(localized: .flightReviewEvidenceDescription))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if let proposal = review.proposal {
+                    Section(String(localized: .flightReviewChangesTitle)) {
+                        LabeledContent(String(localized: .flightReviewResultingRegions)) {
+                            Text(proposal.resultingRegions.isEmpty
+                                ? String(localized: .flightReviewNoPresence)
+                                : proposal.resultingRegions.map(\.localizedName).sorted()
+                                .joined(separator: ", "))
+                        }
+                        DisclosureGroup(String(localized: .flightReviewChangeCount(proposal.edits
+                                .count)))
+                        {
+                            ForEach(model.editedPoints, id: \.sample.id) { point in
+                                VStack(alignment: .leading) {
+                                    Text(
+                                        point.sample.timestamp,
+                                        format: .dateTime.hour().minute().second(),
+                                    )
+                                    Text(model.replacementDescription(for: point.sample.id))
+                                        .foregroundStyle(.secondary)
+                                    if let speed = WhereFormat
+                                        .recordedFlightSpeed(point.sample.motion?.speed)
+                                    {
+                                        Text(speed)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    if let altitude = WhereFormat
+                                        .recordedFlightAltitude(point.sample.motion?.altitude)
+                                    {
+                                        Text(altitude)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                        }
+                        Text(String(localized: .flightReviewChangesDescription))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } else {
+                Section {
+                    Label(String(localized: .flightReviewUnavailable), systemSymbol: .infoCircle)
                 }
             }
 
-            Section {
-                Button {
-                    apply(payload)
-                } label: {
-                    Text(WhereFormat.resolutionFlightApply(regions: payload.keep))
+            switch model.saveState {
+                case .idle, .applied:
+                    EmptyView()
+                case .applying:
+                    Section { SavingStatusRow(text: String(localized: .manualSavingStatus)) }
+                case .refreshed:
+                    Section {
+                        Label(
+                            String(localized: .flightReviewRefreshed),
+                            systemSymbol: .arrowClockwise,
+                        )
+                    }
+                case let .failed(message):
+                    Section {
+                        Label(message, systemSymbol: .exclamationmarkTriangle)
+                    }
+            }
+
+            if model.review?.proposal != nil {
+                Section {
+                    Button(String(localized: .flightReviewApply)) {
+                        Task {
+                            await model.apply()
+                            if model.saveState == .applied { dismiss() }
+                        }
+                    }
+                    .disabled(!model.canApply)
+                    .accessibilityIdentifier("where_flight_apply")
                 }
-                .disabled(applying)
             }
 
             Section {
                 NavigationLink {
-                    DayRelabelView(
-                        day: payload.day,
-                        report: report,
-                        reason: .flight(removed: payload.removed),
-                    )
+                    DayRelabelView(day: model.review?.day ?? model.initialDay, report: report)
                 } label: {
-                    Text(String(localized: .resolutionFlightManualFix))
+                    Text(String(localized: .flightReviewManualEdit))
                 }
-                .disabled(applying)
+                .disabled(model.saveState == .applying)
             } footer: {
                 Text(String(localized: .resolutionFlightManualFixFooter))
             }
-
-            Section {
-                Button(String(localized: .resolutionFlightBothRight)) {
-                    Task {
-                        await resolve.dismiss(issue)
-                        dismiss()
-                    }
-                }
-                .disabled(applying)
-            }
         }
-    }
-
-    private func dateText(_ day: DayPresence) -> String {
-        day.displayDate.formatted(.dateTime.month(.abbreviated).day().year())
-    }
-
-    private func loadPoints(for day: CalendarDay) async {
-        let byRegion = await report.locations(onDay: day)
-        guard !Task.isCancelled else { return }
-        mapPoints = byRegion.flatMap { region, points in
-            points.map {
-                RecordedMapPoint(
-                    coordinate: $0.coordinate,
-                    horizontalAccuracy: $0.horizontalAccuracy,
-                    region: region,
-                )
-            }
+        .navigationTitle(model.initialDay.displayDate
+            .formatted(.dateTime.month(.abbreviated).day().year()))
+        .navigationBarTitleDisplayMode(.inline)
+        .task(id: report.dataIssueScanInputs) {
+            model.receive(report.dataIssueScan)
         }
-    }
-
-    private func apply(_ payload: FlightPayload) {
-        applying = true
-        saveError.message = nil
-        Task {
-            do {
-                try await report.overrideDay(
-                    date: payload.day.startOfDay(in: report.calendar),
-                    regions: payload.keep,
-                )
-                dismiss()
-            } catch {
-                // Keep the screen up so the user can retry; the fix didn't land.
-                saveError.message = error.localizedDescription
-                applying = false
-            }
-        }
-    }
-
-    private var flightPayload: FlightPayload? {
-        if case let .correctFlightDay(day, keep, removed, peak) = issue.resolution {
-            return FlightPayload(day: day, keep: keep, removed: removed, peakSpeedKMH: peak)
-        }
-        return nil
-    }
-
-    /// The `.correctFlightDay` resolution unpacked for the view (a named struct
-    /// rather than a tuple, since it escapes into `content`/`form`).
-    private struct FlightPayload {
-        let day: DayPresence
-        let keep: Set<Region>
-        let removed: Set<Region>
-        let peakSpeedKMH: Double
+        .refreshable { await report.rescanForIssues() }
     }
 }
 
 #if DEBUG
     extension FlightDayDetailView: SnapshotProviding {
-        /// The flight-day fixture pins its day to `referenceNow` (a bespoke
-        /// `.now` would churn the reference daily). The preview store seeds no
-        /// raw samples, so the recorded-points map stays out of the tree and the
-        /// capture is deterministic.
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .fullContentScreenDefaults) {
-                NavigationStack {
-                    FlightDayDetailView(
-                        issue: FlightDayIssue(
-                            day: DayPresence(
-                                date: PreviewSupport.referenceNow,
-                                in: .current,
-                                regions: [.newYork, .other, .california],
-                            ),
-                            keepRegions: [.newYork, .california],
-                            removedRegions: [.other],
-                            peakSpeedKMH: 880,
-                        ),
-                        report: PreviewSupport.loadedYearReportModel(),
-                        resolve: PreviewSupport.resolveModel(),
-                    )
+            for state in FlightReviewPreviewState.allCases {
+                whereSnapshot(
+                    name: state == .ready ? "Default" : state.rawValue,
+                    configurations: .fullContentScreenDefaults,
+                ) {
+                    NavigationStack {
+                        FlightDayDetailView(
+                            review: PreviewSupport.flightReview(state: state),
+                            report: PreviewSupport.loadedYearReportModel(),
+                        )
+                    }
                 }
             }
         }
@@ -204,9 +185,7 @@ struct FlightDayDetailView: View {
         static let flyoverData = WhereFlyoverData.snapshots(
             FlightDayDetailView.self,
             title: "Flight Day",
-            routes: [
-                .push(to: DayRelabelView.flyoverID),
-            ],
+            routes: [.push(to: DayRelabelView.flyoverID)],
         )
     }
 #endif

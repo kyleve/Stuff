@@ -207,6 +207,34 @@ struct DemoDataBuilderTests {
         )
     }
 
+    @Test func currentDayFlightFixtureIncludesArrivalBeforeDemoNow() async throws {
+        let requested = WhereCoreTestSupport.iso("2026-01-01T09:30:00Z")
+        let configuration = DemoDataBuilder.Configuration(issueCategories: [.flightDay])
+        let referenceDate = configuration.referenceDate(from: requested, calendar: calendar)
+        let services = try makeServices(now: referenceDate)
+        try await DemoDataBuilder(
+            now: referenceDate,
+            calendar: calendar,
+            configuration: configuration,
+        ).seed(into: services)
+
+        let scan = try await services.resolution.scan(
+            year: 2026,
+            primaryRegions: [.newYork, .california],
+            driftThresholdMeters: DriftThreshold.default.meters,
+            force: true,
+        )
+        let review = try #require(scan.reviews.first { $0.proposal != nil })
+        let flight = try #require(review.flight)
+        guard case .completed = flight.progress else {
+            Issue.record("Expected supported arrival in current-day demo fixture")
+            return
+        }
+        #expect(flight.lastObservationAt <= referenceDate)
+        #expect(flight.id.recordingDeviceID == services.recording.currentDevice.id)
+        #expect(review.proposal?.resultingRegions == [.newYork, .california])
+    }
+
     /// The shape has to survive being entered at any point in the year, which
     /// is the bug this pins: with fixed-size trips and gaps, a January demo was
     /// more than half unlogged and a February one counted more California days

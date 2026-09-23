@@ -9,6 +9,258 @@ import Testing
 /// covered by `StoreChangeBroadcasterTests`; here we assert the *store* fires it
 /// on a committed `perform` and stays silent on a rolled-back one.
 struct SwiftDataStoreTests {
+    enum IncompleteMotion: CaseIterable {
+        case missingSpeedValue
+        case missingSpeedAccuracy
+        case missingAltitudeValue
+        case missingAltitudeAccuracy
+        case missingPresenceFlag
+        case onlyIncompleteSpeed
+    }
+
+    @Test(arguments: IncompleteMotion.allCases)
+    @MainActor func partialOptionalMotionNeverDropsAValidRawPosition(
+        partial: IncompleteMotion,
+    ) async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let speed = LocationMotion.Speed(metersPerSecond: 240, accuracyMetersPerSecond: 2)
+        let altitude = LocationMotion.Altitude(meters: 11000, accuracyMeters: 10)
+        let sample = FlightTrajectoryFixtures.sample(
+            801,
+            minutes: 1,
+            east: 0,
+            motion: LocationMotion(speed: speed, altitude: altitude),
+        )
+        let context = ModelContext(container)
+        let row = SDLocationSample(value: sample, generationID: .initial)
+        let expectedMotion: LocationMotion?
+        switch partial {
+            case .missingSpeedValue:
+                row.speedMetersPerSecond = nil
+                expectedMotion = LocationMotion(speed: nil, altitude: altitude)
+            case .missingSpeedAccuracy:
+                row.speedAccuracyMetersPerSecond = nil
+                expectedMotion = LocationMotion(speed: nil, altitude: altitude)
+            case .missingAltitudeValue:
+                row.altitudeMeters = nil
+                expectedMotion = LocationMotion(speed: speed, altitude: nil)
+            case .missingAltitudeAccuracy:
+                row.altitudeAccuracyMeters = nil
+                expectedMotion = LocationMotion(speed: speed, altitude: nil)
+            case .missingPresenceFlag:
+                row.motionPresent = nil
+                expectedMotion = sample.motion
+            case .onlyIncompleteSpeed:
+                row.motionPresent = nil
+                row.speedAccuracyMetersPerSecond = nil
+                row.altitudeMeters = nil
+                row.altitudeAccuracyMeters = nil
+                expectedMotion = nil
+        }
+        context.insert(row)
+        try context.save()
+
+        let store = SwiftDataStore(modelContainer: container)
+        let expected = FlightTrajectoryFixtures.replacing(sample, motion: expectedMotion)
+        let interval = DateInterval(start: sample.timestamp, duration: 1)
+        #expect(try await store.samples(in: interval) == [expected])
+        #expect(try await store.allSamples() == [expected]) // Backup export's raw read.
+
+        // Reading the partial row must not erase its durable measurement fields;
+        // completing delivery makes the original motion available again.
+        let inspected = try #require(ModelContext(container)
+            .fetch(FetchDescriptor<SDLocationSample>()).first)
+        #expect(inspected.speedMetersPerSecond == row.speedMetersPerSecond)
+        #expect(inspected.speedAccuracyMetersPerSecond == row.speedAccuracyMetersPerSecond)
+        #expect(inspected.altitudeMeters == row.altitudeMeters)
+        #expect(inspected.altitudeAccuracyMeters == row.altitudeAccuracyMeters)
+        #expect(inspected.motionPresent == row.motionPresent)
+        row.update(from: sample, generationID: .initial)
+        try context.save()
+        let refreshed = SwiftDataStore(modelContainer: container)
+        #expect(try await refreshed.allSamples() == [sample])
+    }
+
+    @Test func rawMotionAndAllAttributionStatesRoundTripWithoutChangingTheSample() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let sample = LocationSample(
+            timestamp: Date(timeIntervalSince1970: 1000),
+            coordinate: Coordinate(latitude: 40, longitude: -100),
+            horizontalAccuracy: 10,
+            source: .gpsSignificantChange,
+            motion: LocationMotion(
+                speed: .init(metersPerSecond: 240, accuracyMetersPerSecond: 2),
+                altitude: .init(meters: 11000, accuracyMeters: 10),
+            ),
+        )
+        let replacements: [Set<Region>?] = [[], [.newYork], nil]
+        let revisions = replacements.enumerated().map { offset, replacement in
+            SampleAttributionRevision(
+                id: UUID(),
+                sampleID: sample.id,
+                updatedAt: Date(timeIntervalSince1970: 1000 + Double(offset)),
+                replacementRegions: replacement,
+            )
+        }
+        try await store.perform {
+            // CloudKit can deliver an attribution before its raw sample.
+            for revision in revisions.reversed() {
+                try await store.addSampleAttributionRevision(revision)
+                try await store.addSampleAttributionRevision(revision)
+            }
+            try await store.add(sample: sample)
+        }
+        #expect(try await store.allSamples() == [sample])
+        #expect(try await store.sampleAttributionRevisions(for: [sample.id]) == revisions)
+        #expect(try await store.sampleAttributionRevisions(for: [UUID()]).isEmpty)
+        #expect(try await store.allSampleAttributionRevisions() == revisions)
+    }
+
+    @Test func conflictingAttributionRevisionFailsWithoutChangingTheWinner() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let revision = SampleAttributionRevision(
+            id: UUID(),
+            sampleID: UUID(),
+            updatedAt: Date(timeIntervalSince1970: 1000),
+            replacementRegions: [],
+        )
+        try await store.perform { try await store.addSampleAttributionRevision(revision) }
+        let conflict = SampleAttributionRevision(
+            id: revision.id,
+            sampleID: revision.sampleID,
+            updatedAt: revision.updatedAt,
+            replacementRegions: nil,
+        )
+        await #expect(throws: SampleAttributionPersistenceError
+            .conflictingRevision(id: revision.id))
+        {
+            try await store.perform { try await store.addSampleAttributionRevision(conflict) }
+        }
+        #expect(try await store.allSampleAttributionRevisions() == [revision])
+    }
+
+    @Test func clearingSamplesRetainsResetTombstonesAgainstLateCorrections() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let timestamp = Date(timeIntervalSince1970: 1000)
+        let sample = LocationSample(
+            timestamp: timestamp,
+            coordinate: Coordinate(latitude: 40, longitude: -100),
+            horizontalAccuracy: 10,
+            source: .gpsSignificantChange,
+        )
+        let revision = SampleAttributionRevision(
+            id: UUID(),
+            sampleID: sample.id,
+            updatedAt: timestamp,
+            replacementRegions: [],
+        )
+        try await store.perform {
+            try await store.add(sample: sample)
+            try await store.addSampleAttributionRevision(revision)
+        }
+        let day = CalendarDay(from: timestamp, in: Self.calendar)
+        try await store.perform {
+            try await store.clear(
+                in: DateInterval(start: timestamp, end: timestamp.addingTimeInterval(1)),
+                manualDays: day ... day,
+            )
+            try await store.addSampleAttributionRevision(revision)
+        }
+        let revisions = try await store.allSampleAttributionRevisions()
+        #expect(revisions.count == 2)
+        #expect(revisions.last?.replacementRegions == nil)
+        #expect(try await store.allSamples().isEmpty)
+    }
+
+    @Test(arguments: [false, true])
+    func clearingSamplesWithoutActiveCorrectionsPreventsLateResurrection(
+        previouslyReset: Bool,
+    ) async throws {
+        let store = try SwiftDataStore.inMemory()
+        let timestamp = Date(timeIntervalSince1970: 1000)
+        let sample = LocationSample(
+            timestamp: timestamp,
+            coordinate: Coordinate(latitude: 0, longitude: 0),
+            horizontalAccuracy: 10,
+            source: .gpsSignificantChange,
+        )
+        try await store.perform {
+            try await store.add(sample: sample)
+            if previouslyReset {
+                try await store.addSampleAttributionRevision(.init(
+                    id: UUID(),
+                    sampleID: sample.id,
+                    updatedAt: timestamp.addingTimeInterval(100),
+                    replacementRegions: nil,
+                ))
+            }
+        }
+        let day = CalendarDay(from: timestamp, in: Self.calendar)
+        let interval = DateInterval(start: timestamp, duration: 1)
+        try await store.perform {
+            try await store.clear(in: interval, manualDays: day ... day)
+        }
+        #expect(try await store.allSamples().isEmpty)
+
+        // An older backup or a delayed device can restore the raw observation
+        // together with a correction newer than our previous reset.
+        try await store.perform {
+            try await store.add(sample: sample)
+            try await store.addSampleAttributionRevision(.init(
+                id: UUID(),
+                sampleID: sample.id,
+                updatedAt: timestamp.addingTimeInterval(200),
+                replacementRegions: [.newYork],
+            ))
+        }
+
+        let projection = try await LocationHistoryReader(store: store).projection(
+            in: interval,
+            attributor: SampleCorrectionTestSupport.attribution,
+        )
+        #expect(projection.rawSamples == [sample])
+        #expect(projection.samples.map(\.regions) == [[.california]])
+        let revisions = try await store.allSampleAttributionRevisions()
+        #expect(revisions.count(where: { $0.replacementRegions == nil })
+            == (previouslyReset ? 2 : 1))
+        let winner = try #require(revisions.last)
+        #expect(winner.replacementRegions == nil)
+    }
+
+    @Test @MainActor func attributionHistoryIsGenerationScopedAndCorruptionFailsClosed(
+    ) async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let store = SwiftDataStore(modelContainer: container)
+        let revision = SampleAttributionRevision(
+            id: UUID(),
+            sampleID: UUID(),
+            updatedAt: Date(timeIntervalSince1970: 1000),
+            replacementRegions: [],
+        )
+        try await store.perform { try await store.addSampleAttributionRevision(revision) }
+        let current = try await store.perform {
+            try await store.rotateDataGeneration(
+                reason: .backupReplace,
+                changedBy: Self.generationWriterID,
+                at: Date(timeIntervalSince1970: 2000),
+            )
+        }
+        let context = ModelContext(container)
+        context.insert(SDSampleAttributionRevision(value: revision, generationID: .initial))
+        try context.save()
+        let reader = SwiftDataStore(modelContainer: container)
+        #expect(try await reader.allSampleAttributionRevisions().isEmpty)
+        let corrupt = SDSampleAttributionRevision()
+        corrupt.generationID = current.id.rawValue
+        corrupt.id = UUID()
+        context.insert(corrupt)
+        try context.save()
+        let corruptReader = SwiftDataStore(modelContainer: container)
+        await #expect(throws: SampleAttributionPersistenceError.incompleteHistory) {
+            try await corruptReader.allSampleAttributionRevisions()
+        }
+    }
+
     @Test func inspectorStoreURLUsesTheResolvedAppGroupRoot() {
         let groupURL = FileManager.default.temporaryDirectory.appending(
             path: "where-group-\(UUID().uuidString)",
@@ -997,6 +1249,108 @@ struct SwiftDataStoreTests {
         // The stale row may have committed before the post-save guard, but it
         // belongs to the losing generation and is never visible as active data.
         #expect(try await store.allSamples().isEmpty)
+    }
+
+    @Test(arguments: [false, true])
+    func mutationSnapshotRejectsExternalCommitWithoutSavingRevisions(
+        afterSnapshot: Bool,
+    ) async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let store = SwiftDataStore(modelContainer: container)
+        let sample = LocationSample(
+            timestamp: Date(timeIntervalSince1970: 60),
+            coordinate: Coordinate(latitude: 0, longitude: 0),
+            horizontalAccuracy: 5,
+            source: .gpsSignificantChange,
+        )
+        try await store.perform { try await store.add(sample: sample) }
+        let correction = SampleAttributionRevision(
+            id: UUID(),
+            sampleID: sample.id,
+            updatedAt: Date(timeIntervalSince1970: 600),
+            replacementRegions: [],
+        )
+        let (started, startedContinuation) = AsyncStream.makeStream(of: Void.self)
+        let (release, releaseContinuation) = AsyncStream.makeStream(of: Void.self)
+        let pause: @Sendable () async -> Void = {
+            startedContinuation.yield()
+            startedContinuation.finish()
+            for await _ in release {
+                break
+            }
+        }
+        let writer = Task {
+            try await store.perform(expectedDataGenerationID: .initial) {
+                try await store.readSnapshot {
+                    _ = try await store.allSamples()
+                    if !afterSnapshot { await pause() }
+                }
+                if afterSnapshot { await pause() }
+                // A later snapshot must retain the first snapshot's guard,
+                // even if its own reads now include the external commit.
+                try await store.readSnapshot {
+                    _ = try await store.allManualDays()
+                }
+                try await store.addSampleAttributionRevision(correction)
+            }
+        }
+        for await _ in started {
+            break
+        }
+
+        let remoteDay = DayPresence(
+            date: sample.timestamp,
+            in: Self.calendar,
+            regions: [.newYork],
+            isAuthoritative: true,
+        )
+        let remoteContext = ModelContext(container)
+        remoteContext.insert(SDManualDay(value: remoteDay, generationID: .initial))
+        try remoteContext.save()
+        // The rows are durable, but no remote notification has been delivered.
+        releaseContinuation.yield()
+        releaseContinuation.finish()
+
+        await #expect(throws: WhereStoreReadConflictError.changedDuringTransaction) {
+            try await writer.value
+        }
+        let inspectionContext = ModelContext(container)
+        #expect(try inspectionContext.fetch(FetchDescriptor<SDSampleAttributionRevision>()).isEmpty)
+        #expect(try await store.allSamples() == [sample])
+        #expect(try await store.allManualDays() == [remoteDay])
+        #expect(try await store.dataGeneration().id == .initial)
+    }
+
+    @Test func mutationSnapshotsAllowOwnStagedWritesWithoutExternalCommit() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let sample = LocationSample(
+            timestamp: Date(timeIntervalSince1970: 60),
+            coordinate: Coordinate(latitude: 0, longitude: 0),
+            horizontalAccuracy: 5,
+            source: .gpsSignificantChange,
+        )
+        let correction = SampleAttributionRevision(
+            id: UUID(),
+            sampleID: sample.id,
+            updatedAt: Date(timeIntervalSince1970: 600),
+            replacementRegions: [],
+        )
+        try await store.perform(expectedDataGenerationID: .initial) {
+            try await store.readSnapshot {
+                let samples = try await store.allSamples()
+                #expect(samples.isEmpty)
+            }
+            try await store.add(sample: sample)
+            try await store.addSampleAttributionRevision(correction)
+            try await store.readSnapshot {
+                let samples = try await store.allSamples()
+                let revisions = try await store.allSampleAttributionRevisions()
+                #expect(samples == [sample])
+                #expect(revisions == [correction])
+            }
+        }
+        #expect(try await store.allSamples() == [sample])
+        #expect(try await store.allSampleAttributionRevisions() == [correction])
     }
 
     @Test func readSnapshotRejectsCommitBeforeNotification() async throws {

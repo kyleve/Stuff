@@ -59,6 +59,30 @@ private enum GenerationScopedFetch {
         }, sortBy: sortBy)
     }
 
+    static func sampleAttributions(
+        belongingTo generationID: WhereDataGenerationID,
+    ) -> FetchDescriptor<SDSampleAttributionRevision> {
+        let membership = GenerationMembership(generationID)
+        let storedGenerationID = membership.storedID
+        let includesLegacy = membership.includesLegacy
+        return descriptor(predicate: #Predicate {
+            $0.generationID == storedGenerationID || (includesLegacy && $0.generationID == nil)
+        })
+    }
+
+    static func sampleAttributions(
+        belongingTo generationID: WhereDataGenerationID,
+        revisionID: UUID,
+    ) -> FetchDescriptor<SDSampleAttributionRevision> {
+        let membership = GenerationMembership(generationID)
+        let storedGenerationID = membership.storedID
+        let includesLegacy = membership.includesLegacy
+        return descriptor(predicate: #Predicate {
+            ($0.generationID == storedGenerationID || (includesLegacy && $0.generationID == nil)) &&
+                $0.id == revisionID
+        })
+    }
+
     static func evidence(
         belongingTo generationID: WhereDataGenerationID,
         sortBy: [SortDescriptor<SDEvidence>] = [],
@@ -571,6 +595,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             SDWhereDataGeneration.self,
             SDBackupImportReceipt.self,
             SDLocationSample.self,
+            SDSampleAttributionRevision.self,
             SDEvidence.self,
             SDManualDay.self,
             SDDismissedIssue.self,
@@ -642,6 +667,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     private struct ActiveTransaction {
         let context: ModelContext
         var generation: WhereDataGeneration.Resolution
+        /// The earliest snapshot read in this transaction determines which
+        /// external commits may invalidate the pending evidence-based writes.
+        var snapshotHistoryTransactionID: Int64?
     }
 
     private struct ActiveSnapshot {
@@ -728,9 +756,17 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         _ block: @Sendable () async throws -> T,
     ) async throws -> T {
         let storeID = ObjectIdentifier(self)
-        if Self.activeSnapshotStores.contains(storeID)
-            || Self.activeTransactionStores.contains(storeID)
-        {
+        if Self.activeTransactionStores.contains(storeID) {
+            guard let transaction = activeTransaction else {
+                preconditionFailure("A nested snapshot must retain its active transaction.")
+            }
+            if transaction.snapshotHistoryTransactionID == nil {
+                activeTransaction?.snapshotHistoryTransactionID = try Self
+                    .latestHistoryTransactionID(in: transaction.context)
+            }
+            return try await block()
+        }
+        if Self.activeSnapshotStores.contains(storeID) {
             return try await block()
         }
 
@@ -852,7 +888,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             let peer = ModelContext(modelContainer)
             peer.author = localTransactionAuthor
             let generation = try Self.resolvedDataGenerationResolution(in: peer)
-            activeTransaction = ActiveTransaction(context: peer, generation: generation)
+            activeTransaction = ActiveTransaction(
+                context: peer,
+                generation: generation,
+                snapshotHistoryTransactionID: nil,
+            )
             defer { activeTransaction = nil }
             if let expectedDataGenerationID,
                activeTransaction?.generation.current.id != expectedDataGenerationID
@@ -878,6 +918,16 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 // reaching the persistent store — a clean rollback of the entire
                 // transaction — while the enclosing scopes still clear the active
                 // state and release the gate.
+                // readSnapshot inside a mutation uses this peer, but still
+                // needs its evidence protected from same-generation CloudKit
+                // or sibling-process commits. Keep this check and save adjacent
+                // with no suspension so a conflicting read discards every write.
+                if let startingHistoryTransactionID = activeTransaction?
+                    .snapshotHistoryTransactionID,
+                    try Self.latestHistoryTransactionID(in: peer) != startingHistoryTransactionID
+                {
+                    throw WhereStoreReadConflictError.changedDuringTransaction
+                }
                 try peer.save()
                 // The persistent store can import a CloudKit reset while this
                 // asynchronous transaction body is suspended. Saving old-generation
@@ -1162,6 +1212,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         in context: ModelContext,
         belongingTo generationID: WhereDataGenerationID,
     ) throws {
+        for record in try context.fetch(GenerationScopedFetch.sampleAttributions(
+            belongingTo: generationID,
+        )) {
+            context.delete(record)
+        }
         for record in try context.fetch(GenerationScopedFetch.samples(
             belongingTo: generationID,
         )) {
@@ -1252,6 +1307,65 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             let value = record.toValue()
             if value == nil { Self.logFault(forCorrupt: record) }
             return value
+        }
+    }
+
+    // MARK: - Sample attributions
+
+    public func sampleAttributionRevisions(
+        for sampleIDs: Set<UUID>,
+    ) async throws -> [SampleAttributionRevision] {
+        guard !sampleIDs.isEmpty else { return [] }
+        return try await allSampleAttributionRevisions().filter { sampleIDs.contains($0.sampleID) }
+    }
+
+    public func allSampleAttributionRevisions() async throws -> [SampleAttributionRevision] {
+        let context = readContext()
+        let generationID = try readGenerationID(in: context)
+        let records = try context
+            .fetch(GenerationScopedFetch.sampleAttributions(belongingTo: generationID))
+        let values = try records.map { record in
+            guard let value = record.toValue() else {
+                Self.logFault(forCorrupt: record)
+                throw SampleAttributionPersistenceError.incompleteHistory
+            }
+            return value
+        }
+        return try Dictionary(grouping: values, by: \.id).map { revisionID, duplicates in
+            guard let canonical = duplicates.first else {
+                preconditionFailure("A grouped revision must contain at least one value.")
+            }
+            guard duplicates.allSatisfy({ $0 == canonical }) else {
+                Self.logImmutableConflict(
+                    type: String(describing: SampleAttributionRevision.self),
+                    id: revisionID.uuidString,
+                    count: duplicates.count,
+                )
+                throw SampleAttributionPersistenceError.conflictingRevision(id: revisionID)
+            }
+            return canonical
+        }.sorted { SampleAttributionRevision.newer($1, than: $0) }
+    }
+
+    public func addSampleAttributionRevision(_ revision: SampleAttributionRevision) async throws {
+        guard revision.updatedAt.timeIntervalSince1970.isFinite else {
+            throw SampleAttributionPersistenceError.incompleteHistory
+        }
+        let context = mutationContext()
+        let generationID = mutationGenerationID()
+        let existing = try context.fetch(GenerationScopedFetch.sampleAttributions(
+            belongingTo: generationID,
+            revisionID: revision.id,
+        ))
+        guard !existing.isEmpty else {
+            context.insert(SDSampleAttributionRevision(value: revision, generationID: generationID))
+            return
+        }
+        guard existing.allSatisfy({ $0.toValue() == revision }) else {
+            throw SampleAttributionPersistenceError.conflictingRevision(id: revision.id)
+        }
+        for duplicate in existing.dropFirst() {
+            context.delete(duplicate)
         }
     }
 
@@ -1683,6 +1797,10 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             belongingTo: generationID,
             in: interval,
         ))
+        // Clearing history also clears its reviewed attributions. Keep reset revisions
+        // so a delayed old correction cannot regain authority if its raw sample returns.
+        let sampleIDs = Set(samples.compactMap(\.id))
+        try await SampleAttributionReset.write(sampleIDs: sampleIDs, store: self, now: Date())
         for record in samples {
             context.delete(record)
         }
@@ -2064,6 +2182,8 @@ final class SDWhereDataGeneration {
 
 @Model
 final class SDLocationSample {
+    private static let logger = WhereLog.root(SwiftDataStoreLog.self)
+
     /// Nil belongs to the implicit initial generation, preserving rows from builds before
     /// generations.
     var generationID: UUID?
@@ -2084,6 +2204,12 @@ final class SDLocationSample {
     /// Installation that produced an automatic sample. Nil on legacy rows and
     /// manual/evidence-implied samples.
     var recordingDeviceID: UUID?
+    /// Retains the distinction between absent motion and a present, empty measurement bundle.
+    var motionPresent: Bool?
+    var speedMetersPerSecond: Double?
+    var speedAccuracyMetersPerSecond: Double?
+    var altitudeMeters: Double?
+    var altitudeAccuracyMeters: Double?
 
     init() {}
 
@@ -2103,6 +2229,11 @@ final class SDLocationSample {
         evidenceId = value.source.evidenceId
         evidenceKindRaw = value.source.evidenceKind?.discriminator
         recordingDeviceID = value.recordingDeviceID?.rawValue
+        motionPresent = value.motion.map { _ in true }
+        speedMetersPerSecond = value.motion?.speed?.metersPerSecond
+        speedAccuracyMetersPerSecond = value.motion?.speed?.accuracyMetersPerSecond
+        altitudeMeters = value.motion?.altitude?.meters
+        altitudeAccuracyMeters = value.motion?.altitude?.accuracyMeters
     }
 
     func toValue() -> LocationSample? {
@@ -2114,6 +2245,28 @@ final class SDLocationSample {
             evidenceId: evidenceId,
             evidenceKindRaw: evidenceKindRaw,
         ) else { return nil }
+        // Optional motion may arrive partially without invalidating the raw
+        // position. Preserve each complete measurement independently, and keep
+        // these reads non-mutating so a later sync can complete the other one.
+        let hasMotionFields = speedMetersPerSecond != nil || speedAccuracyMetersPerSecond != nil
+            || altitudeMeters != nil || altitudeAccuracyMeters != nil
+        if (speedMetersPerSecond == nil) != (speedAccuracyMetersPerSecond == nil)
+            || (altitudeMeters == nil) != (altitudeAccuracyMeters == nil)
+            || (motionPresent != true && hasMotionFields)
+        {
+            Self.logger { .ignoredIncompleteSampleMotion }
+        }
+        let speed: LocationMotion.Speed? = if let speedMetersPerSecond,
+                                              let speedAccuracyMetersPerSecond
+        {
+            .init(
+                metersPerSecond: speedMetersPerSecond,
+                accuracyMetersPerSecond: speedAccuracyMetersPerSecond,
+            )
+        } else { nil }
+        let altitude: LocationMotion.Altitude? = if let altitudeMeters, let altitudeAccuracyMeters {
+            .init(meters: altitudeMeters, accuracyMeters: altitudeAccuracyMeters)
+        } else { nil }
         return LocationSample(
             id: id,
             timestamp: timestamp,
@@ -2121,6 +2274,49 @@ final class SDLocationSample {
             horizontalAccuracy: horizontalAccuracy,
             source: source,
             recordingDeviceID: recordingDeviceID.map(RecordingDeviceID.init(rawValue:)),
+            motion: motionPresent == true || speed != nil || altitude != nil
+                ? LocationMotion(speed: speed, altitude: altitude) : nil,
+        )
+    }
+}
+
+/// Immutable, generation-scoped correction revision. An optional array preserves
+/// all three values: nil reset, empty exclusion, and explicit replacement regions.
+@Model
+final class SDSampleAttributionRevision {
+    var generationID: UUID?
+    var id: UUID?
+    var sampleID: UUID?
+    var updatedAt: Date?
+    var replacementRegionIDs: [String]?
+
+    init() {}
+
+    convenience init(value: SampleAttributionRevision, generationID: WhereDataGenerationID) {
+        self.init()
+        self.generationID = generationID.rawValue
+        id = value.id
+        sampleID = value.sampleID
+        updatedAt = value.updatedAt
+        replacementRegionIDs = value.replacementRegions.map { $0.map(\.rawValue).sorted() }
+    }
+
+    func toValue() -> SampleAttributionRevision? {
+        guard generationID != nil, let id, let sampleID, let updatedAt,
+              updatedAt.timeIntervalSince1970.isFinite else { return nil }
+        let replacementRegions: Set<Region>?
+        if let replacementRegionIDs {
+            let regions = replacementRegionIDs.compactMap { Region(rawValue: $0) }
+            guard regions.count == replacementRegionIDs.count else { return nil }
+            replacementRegions = Set(regions)
+        } else {
+            replacementRegions = nil
+        }
+        return SampleAttributionRevision(
+            id: id,
+            sampleID: sampleID,
+            updatedAt: updatedAt,
+            replacementRegions: replacementRegions,
         )
     }
 }

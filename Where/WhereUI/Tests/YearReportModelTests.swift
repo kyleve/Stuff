@@ -2,7 +2,7 @@ import Foundation
 import TestHostSupport
 import Testing
 @_spi(Testing) import WhereCore
-@testable import WhereUI
+@_spi(Testing) @testable import WhereUI
 
 /// Covers `YearReportModel`: the year report load (out-of-order year fetches, failed
 /// manual saves), the missing-day computation the banner / backfill read, the
@@ -360,6 +360,147 @@ struct YearReportModelTests {
         await report.rescanForIssues()
 
         #expect(report.dataIssueScanInputs != before)
+    }
+
+    @Test func rawGPSWriteRekeysReviewWhenYearReportIsUnchanged() async throws {
+        let store = try TestStore()
+        let now = FlightReviewTestSupport.date(hour: 18)
+        let services = FlightReviewTestSupport.services(store: store, now: now)
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { now },
+        )
+        let first = LocationSample(
+            timestamp: FlightReviewTestSupport.date(hour: 17),
+            coordinate: FlightReviewTestSupport.destination,
+            horizontalAccuracy: 20,
+            source: .gpsSignificantChange,
+        )
+        try await store.perform { try await store.add(sample: first) }
+        await report.activate()
+        defer { report.deactivate() }
+        let beforeReport = report.report
+        let beforeInputs = report.dataIssueScanInputs
+        let beforeScan = report.dataIssueScan?.revision
+        let later = LocationSample(
+            timestamp: FlightReviewTestSupport.date(hour: 17.5),
+            coordinate: FlightReviewTestSupport.destination,
+            horizontalAccuracy: 20,
+            source: .gpsSignificantChange,
+        )
+
+        try await store.perform { try await store.add(sample: later) }
+        await waitUntil { report.dataIssueScan?.revision != beforeScan }
+
+        #expect(report.report == beforeReport)
+        #expect(report.dataIssueScanInputs != beforeInputs)
+    }
+
+    @Test func liveFlightNoticeIsCurrentDeviceOnlyAndExpiresWithoutRemovingHistory() throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        let current = PreviewSupport.flightReview(state: .flightLikely)
+        let flight = try #require(current.flight)
+        let remoteFlight = FlightAssessment(
+            id: .init(
+                recordingDeviceID: RecordingDeviceID(rawValue: UUID()),
+                departureSampleID: flight.id.departureSampleID,
+            ),
+            startedAt: flight.startedAt,
+            lastObservationAt: flight.lastObservationAt,
+            lastFlightAt: flight.lastFlightAt,
+            airborneSampleIDs: flight.airborneSampleIDs,
+            groundSampleIDs: flight.groundSampleIDs,
+            peakSpeedKMH: flight.peakSpeedKMH,
+            progress: flight.progress,
+        )
+        let remote = GPSCorrectionReview(
+            id: current.id,
+            day: current.day,
+            points: [],
+            state: .pending(remoteFlight),
+        )
+        report.setDataIssueScan(DataIssueScanResult(
+            revision: UUID(),
+            issues: [],
+            reviews: [remote],
+            nextReassessmentAt: nil,
+        ))
+        #expect(report.liveFlightReview == nil)
+        #expect(report.hasCorrectionReviews)
+        #expect(report.dataIssueCount == 0)
+
+        let shared = GPSCorrectionReview(
+            id: current.id,
+            day: current.day,
+            points: [],
+            state: .pending(remoteFlight),
+            flights: [flight, remoteFlight],
+        )
+        report.setDataIssueScan(DataIssueScanResult(
+            revision: UUID(),
+            issues: [],
+            reviews: [shared],
+            nextReassessmentAt: nil,
+        ))
+        #expect(report.liveFlightReview == shared)
+        #expect(report.liveFlightAssessment(in: shared) == flight)
+
+        report.setDataIssueScan(DataIssueScanResult(
+            revision: UUID(),
+            issues: [],
+            reviews: [current],
+            nextReassessmentAt: nil,
+        ))
+        #expect(report.liveFlightReview == current)
+
+        let expiredFlight = FlightAssessment(
+            id: flight.id,
+            startedAt: flight.startedAt.addingTimeInterval(-24 * 60 * 60),
+            lastObservationAt: flight.lastObservationAt.addingTimeInterval(-24 * 60 * 60),
+            lastFlightAt: flight.lastFlightAt.addingTimeInterval(-24 * 60 * 60),
+            airborneSampleIDs: flight.airborneSampleIDs,
+            groundSampleIDs: flight.groundSampleIDs,
+            peakSpeedKMH: flight.peakSpeedKMH,
+            progress: .awaitingArrival,
+        )
+        let expired = GPSCorrectionReview(
+            id: current.id,
+            day: current.day,
+            points: [],
+            state: .pending(expiredFlight),
+        )
+        report.setDataIssueScan(DataIssueScanResult(
+            revision: UUID(),
+            issues: [],
+            reviews: [expired],
+            nextReassessmentAt: nil,
+        ))
+        #expect(report.liveFlightReview == nil)
+        #expect(report.correctionReviews == [expired])
+    }
+
+    @Test func deactivationPreventsAnInFlightActivationFromStartingNewScans() async throws {
+        let store = try TestStore()
+        let now = FlightReviewTestSupport.date(hour: 18)
+        let services = FlightReviewTestSupport.services(store: store, now: now)
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { now },
+        )
+        await store.enableFirstSamplesGate()
+        let activation = Task { await report.activate() }
+        await store.awaitFirstSamplesCall()
+
+        report.deactivate()
+        await store.releaseFirstSamplesCall()
+        await activation.value
+
+        #expect(report.report == nil)
+        #expect(report.dataIssueScan == nil)
     }
 
     // MARK: - Store-change observer

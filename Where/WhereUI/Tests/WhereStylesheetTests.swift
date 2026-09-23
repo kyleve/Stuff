@@ -138,6 +138,15 @@ struct WhereStylesheetTests {
         #expect(style.spacing.xxxLarge == 20)
     }
 
+    @Test func flightStatusStyle() {
+        #expect(style.flightStatus.padding == 14)
+        #expect(style.flightStatus.spacing == 8)
+        #expect(style.flightStatus.cornerRadius == 14)
+        #expect(style.flightStatus.titleFont == .headline)
+        #expect(style.flightStatus.bodyFont == .subheadline)
+        #expect(style.flightStatus.background == Color(uiColor: .secondarySystemGroupedBackground))
+    }
+
     @Test func locationWelcomeStyle() {
         let welcome = style.locationWelcome
         #expect(welcome.maxWidth == 390)

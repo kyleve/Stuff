@@ -5,12 +5,7 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Lists data-quality issues for the selected year and routes each to its fix
-/// flow. The scene's `YearReportModel` owns the badge *count*; this view owns the
-/// list via a view-scoped `ResolveModel`, re-scanned from a `.task(id:)` keyed
-/// on the report's `dataIssueScanInputs` (so it refreshes on appear, on any
-/// committed write, on a year switch, and on a drift-threshold change — the same
-/// triggers that recompute the badge count).
+/// Lists actionable corrections and retained flight reviews from one scene scan.
 struct ResolutionView: View {
     let report: YearReportModel
     @State private var resolve: ResolveModel
@@ -43,10 +38,11 @@ struct ResolutionView: View {
                     }
                 }
                 .task(id: report.dataIssueScanInputs) {
-                    await resolve.load(
-                        year: report.selectedYear,
-                        primaryRegions: report.ranking.primary.map(\.region),
-                    )
+                    if report.dataIssueScan == nil, report.dataIssueScanError == nil {
+                        await report.refreshDataIssueCount(force: false)
+                    }
+                    guard !Task.isCancelled else { return }
+                    resolve.receive(scan: report.dataIssueScan, error: report.dataIssueScanError)
                 }
         }
         // Log View Mode: reveal an inspect badge for data-issue resolution
@@ -74,7 +70,22 @@ struct ResolutionView: View {
                     // yet; show the loading state rather than flash "all clear"
                     // under a non-zero badge.
                     AppIconLoadingView(caption: String(localized: .primaryLoading))
-                } else if resolve.dataIssues.isEmpty {
+                } else if let error = resolve.loadError, resolve.dataIssues.isEmpty,
+                          resolve.reviews.isEmpty
+                {
+                    ContentUnavailableView {
+                        Label(
+                            String(localized: .commonLoadErrorTitle),
+                            systemSymbol: .exclamationmarkTriangle,
+                        )
+                    } description: {
+                        Text(error)
+                    } actions: {
+                        Button(String(localized: .commonRetry)) {
+                            Task { await report.rescanForIssues() }
+                        }
+                    }
+                } else if resolve.dataIssues.isEmpty, resolve.reviews.isEmpty {
                     ContentUnavailableView {
                         Label(
                             String(localized: .resolutionEmptyTitle),
@@ -91,6 +102,18 @@ struct ResolutionView: View {
 
     private var issueList: some View {
         List {
+            if let error = resolve.loadError {
+                Section {
+                    Label(error, systemSymbol: .exclamationmarkTriangle)
+                }
+            }
+            if !resolve.pendingReviews.isEmpty {
+                Section(String(localized: .flightStatusPendingSection)) {
+                    ForEach(resolve.pendingReviews) { review in
+                        reviewLink(review)
+                    }
+                }
+            }
             ForEach(DataIssueCategory.allCases, id: \.self) { category in
                 let issues = issues(in: category)
                 if !issues.isEmpty {
@@ -106,8 +129,31 @@ struct ResolutionView: View {
                     }
                 }
             }
+            if !resolve.completedReviews.isEmpty {
+                Section(String(localized: .flightStatusCompletedSection)) {
+                    ForEach(resolve.completedReviews) { review in
+                        reviewLink(review)
+                    }
+                }
+            }
         }
+        .refreshable { await report.rescanForIssues() }
         .accessibilityIdentifier("where_resolution_list")
+    }
+
+    private func reviewLink(_ review: GPSCorrectionReview) -> some View {
+        NavigationLink {
+            FlightDayDetailView(review: review, report: report)
+        } label: {
+            VStack(alignment: .leading) {
+                Text(review.day.displayDate, format: .dateTime.month(.abbreviated).day().year())
+                    .font(.headline)
+                FlightStatusBanner(
+                    review: review,
+                    deviceLabel: review.flight.map(report.flightDeviceLabel),
+                )
+            }
+        }
     }
 
     private func issues(in category: DataIssueCategory) -> [any DataIssue] {
@@ -162,17 +208,22 @@ private struct IssueRow: View {
         switch issue.resolution {
             case let .backfill(range):
                 ManualDayView(report: report, mode: .add(prefill: range))
-            case let .relabelDay(day, suggested, meters):
-                DayRelabelView(
-                    day: day,
-                    report: report,
-                    initialRegions: suggested,
-                    reason: .borderDrift(region: suggested.first ?? .other, distanceMeters: meters),
-                )
             case .markTravelDay:
                 AbruptChangeDetailView(issue: issue, report: report, resolve: resolve)
-            case .correctFlightDay:
-                FlightDayDetailView(issue: issue, report: report, resolve: resolve)
+            case let .correctSamples(proposal):
+                if let review = resolve.review(for: issue) {
+                    FlightDayDetailView(review: review, report: report)
+                } else {
+                    ContentUnavailableView {
+                        Label(String(localized: .commonLoadErrorTitle), systemSymbol: .infoCircle)
+                    } description: {
+                        Text(String(localized: .flightReviewUnavailable))
+                    } actions: {
+                        NavigationLink(String(localized: .flightReviewManualEdit)) {
+                            DayRelabelView(day: proposal.day, report: report)
+                        }
+                    }
+                }
         }
     }
 
@@ -180,15 +231,13 @@ private struct IssueRow: View {
         switch issue.resolution {
             case let .backfill(range):
                 DateRangeFormatting.abbreviated(start: range.start, end: range.end)
-            case let .relabelDay(day, _, _):
-                day.displayDate.formatted(.dateTime.month(.abbreviated).day().year())
             case let .markTravelDay(earlier, later, _):
                 WhereFormat.resolutionAbruptRowTitle(
                     earlier: earlier.regions,
                     later: later.regions,
                 )
-            case let .correctFlightDay(day, _, _, _):
-                day.displayDate.formatted(.dateTime.month(.abbreviated).day().year())
+            case let .correctSamples(proposal):
+                proposal.day.displayDate.formatted(.dateTime.month(.abbreviated).day().year())
         }
     }
 
@@ -196,23 +245,11 @@ private struct IssueRow: View {
         switch issue.resolution {
             case let .backfill(range):
                 WhereFormat.dayCount(range.dayCount)
-            case let .relabelDay(_, suggested, meters):
-                Self.relabelSubtitle(suggested: suggested, meters: meters)
             case let .markTravelDay(_, later, _):
                 later.displayDate.formatted(.dateTime.month(.abbreviated).day().year())
-            case .correctFlightDay:
-                String(localized: .resolutionFlightRowSubtitle)
+            case .correctSamples:
+                String(localized: .flightStatusReadyTitle)
         }
-    }
-
-    private static func relabelSubtitle(suggested: Set<Region>, meters: Double?) -> String {
-        if let meters {
-            let regionName = suggested.first?.localizedName ?? ""
-            let distance = Measurement(value: meters, unit: UnitLength.meters)
-                .formatted(.measurement(width: .abbreviated, usage: .road))
-            return WhereFormat.driftRowSubtitle(region: regionName, distance: distance)
-        }
-        return suggested.map(\.localizedName).sorted().joined(separator: ", ")
     }
 }
 
@@ -224,6 +261,14 @@ private struct IssueRow: View {
                     report: PreviewSupport.loadedYearReportModel(),
                     resolve: PreviewSupport.resolveModel(),
                 )
+            }
+            for state in [FlightReviewPreviewState.waiting, .ready, .completed] {
+                whereSnapshot(name: state.rawValue, configurations: .fullContentPhoneLightDark) {
+                    ResolutionView(
+                        report: PreviewSupport.flightYearReportModel(state: state),
+                        resolve: PreviewSupport.flightResolveModel(state: state),
+                    )
+                }
             }
             whereSnapshot(name: "Empty", configurations: .phoneLightDark) {
                 ResolutionView(

@@ -19,6 +19,7 @@ struct WhereStylesheet: BStylesheet {
     var card = CardStyles.standard
     var locationCardStack = LocationCardStackStyle.standard
     var locationWelcome = LocationWelcomeStyle.standard
+    var flightStatus = FlightStatusStyle()
     var calendar = CalendarStyle.standard
     var appIcon = AppIconStyle.standard
     var timeline = TimelineStyle.standard
@@ -128,6 +129,19 @@ struct WhereStylesheet: BStylesheet {
     /// The fixed token set: the fallback used off the `View` tree (layout
     /// helpers, tests) and when no Broadway root has seeded a context.
     static let `default` = WhereStylesheet()
+}
+
+// MARK: - Flight status
+
+extension WhereStylesheet {
+    struct FlightStatusStyle: Equatable {
+        var padding: CGFloat = 14
+        var spacing: CGFloat = 8
+        var cornerRadius: CGFloat = 14
+        var titleFont = Font.headline
+        var bodyFont = Font.subheadline
+        var background = Color(uiColor: .secondarySystemGroupedBackground)
+    }
 }
 
 // MARK: - Location welcome

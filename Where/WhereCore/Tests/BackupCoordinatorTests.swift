@@ -6,6 +6,66 @@ import Testing
 /// Covers export/import round-trips and the post-commit lifecycle hook the
 /// coordinator invokes once new data lands.
 struct BackupCoordinatorTests {
+    @Test(arguments: [BackupCoordinator.ImportStrategy.merge, .replace])
+    func importingPreservesMotionAndCorrectionHistoryWithStrategyAppropriateResetAuthority(
+        _ strategy: BackupCoordinator.ImportStrategy,
+    ) async throws {
+        let source = try Self.makeHarness()
+        let sample = LocationSample(
+            timestamp: Date(timeIntervalSince1970: 1000),
+            coordinate: Coordinate(latitude: 40, longitude: -100),
+            horizontalAccuracy: 10,
+            source: .gpsSignificantChange,
+            motion: LocationMotion(
+                speed: .init(metersPerSecond: 240, accuracyMetersPerSecond: 2),
+                altitude: .init(meters: 11000, accuracyMeters: 12),
+            ),
+        )
+        let replacements: [Set<Region>?] = [[], nil, [.newYork]]
+        let revisions = replacements.enumerated().map { offset, regions in
+            SampleAttributionRevision(
+                id: UUID(),
+                sampleID: sample.id,
+                updatedAt: Date(timeIntervalSince1970: 1000 + Double(offset)),
+                replacementRegions: regions,
+            )
+        }
+        try await source.store.perform {
+            try await source.store.add(sample: sample)
+            for revision in revisions {
+                try await source.store.addSampleAttributionRevision(revision)
+            }
+        }
+        let url = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let exported = try BackupService().readArchive(at: url).archive
+        #expect(exported.samples == [sample])
+        #expect(exported.sampleAttributionRevisions == revisions)
+
+        let destination = try Self.makeHarness()
+        let reset = SampleAttributionRevision(
+            id: UUID(),
+            sampleID: sample.id,
+            updatedAt: Date(timeIntervalSince1970: 2000),
+            replacementRegions: nil,
+        )
+        try await destination.store.perform {
+            try await destination.store.addSampleAttributionRevision(reset)
+        }
+        _ = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: strategy,
+        )
+        #expect(try await destination.store.allSamples() == [sample])
+        let restored = try await destination.store.allSampleAttributionRevisions()
+        switch strategy {
+            case .merge:
+                #expect(restored == revisions + [reset])
+            case .replace:
+                #expect(restored == revisions)
+        }
+    }
+
     private struct Harness {
         let coordinator: BackupCoordinator
         let store: SwiftDataStore
@@ -525,6 +585,7 @@ struct BackupCoordinatorTests {
             recordingDeviceMetadataChanges: [],
             recordingDeviceRemovals: [],
             plannedStayRecords: [],
+            sampleAttributionRevisions: [],
             blobs: [:],
         )
         defer { try? FileManager.default.removeItem(at: secondURL.deletingLastPathComponent()) }
