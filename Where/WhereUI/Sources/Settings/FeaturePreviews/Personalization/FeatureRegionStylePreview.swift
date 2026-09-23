@@ -7,7 +7,6 @@ struct FeatureRegionStylePreview: View {
     let region: Region
     let style: RegionStyle
 
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
@@ -47,10 +46,13 @@ struct FeatureRegionStylePreview: View {
     }
 
     private var previewLayout: AnyLayout {
-        if dynamicTypeSize.isAccessibilitySize {
-            AnyLayout(VStackLayout(alignment: .leading, spacing: stylesheet.spacing.small))
+        if stylesheet.featureDiscovery.regionStyle.layout == .stacked {
+            AnyLayout(VStackLayout(
+                alignment: .leading,
+                spacing: stylesheet.featureDiscovery.regionStyle.spacing,
+            ))
         } else {
-            AnyLayout(HStackLayout(spacing: stylesheet.spacing.small))
+            AnyLayout(HStackLayout(spacing: stylesheet.featureDiscovery.regionStyle.spacing))
         }
     }
 

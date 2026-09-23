@@ -147,9 +147,15 @@ and rendering coverage. Where's sheet is
 view tree. [`README.md`](README.md#design-system) documents its live API and
 worked examples.
 
-- The `motion` group keeps full-motion values a view picks between
-  (`motion.reducedReveal` over `motion.reveal`). The launch reveal's fallback
-  swaps an `AnyTransition`, which is not `Equatable` and cannot be a token.
+- Resolve component layout and motion in `WhereStylesheet.init(context:)`.
+  Keep launch style consumers beneath `whereBroadwayRoot()`. The launch slice
+  selects an `Equatable` reveal policy whose computed property builds the transition.
+- Keep scoped SwiftUI appearance overrides consistent with Broadway traits.
+  Pair `.dynamicTypeSize` limits with the corresponding content-size override.
+  Pair explicit `.colorScheme` overrides with `.bMode` for styled subtrees.
+- Keep live Card Designer and ranking-lab drafts outside the cached slice.
+  These runtime inputs compose over the resolved base style. Document their
+  direct system-trait reads at the declaration.
 - **Per-region tints stay in `RegionStyle`.** Resolve via
   `@Environment(\.regionStyles)` and seed by
   `whereBroadwayRoot(theme:regionStyles:)`. Use no global accessor or hardcoded

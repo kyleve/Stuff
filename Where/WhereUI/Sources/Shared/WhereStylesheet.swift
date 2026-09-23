@@ -31,6 +31,7 @@ struct WhereStylesheet: BStylesheet {
     var motion = Motion.standard
     var launch = LaunchStyle.standard
     var typography = Typography.standard
+    var themePicker = ThemePickerStyle()
     var settings = SettingsStyle.standard
     var featureDiscovery = FeatureDiscoveryStyle.standard
     var passportSeal = PassportSealStyle.standard
@@ -48,8 +49,27 @@ struct WhereStylesheet: BStylesheet {
         let traits = context.traits
         theme = context.themes[WhereTheme.self]
 
+        developerOverlay.launcher.diameter = WhereScaledDimension.value(
+            developerOverlay.launcher.diameter,
+            relativeTo: .title2,
+            category: traits.contentSizeCategory,
+        )
+
         // Grow day-grid tap targets at accessibility Dynamic Type sizes.
         if traits.contentSizeCategory.isAccessibilitySize {
+            locationWelcome.accessory.copy = .compact
+            locationForecast.header.layout = .stacked
+            locationForecast.row.layout = .stacked
+            locationForecast.controls.layout = .stacked
+            privacyPassportCard.headerLayout = .stacked
+            privacyPassportCard.disclosure.layout = .stacked
+            themePicker.layout = .stacked
+            openSourceStamp.layout = .stacked
+            plannedStayWarningStamp.layout = .stacked
+            featureDiscovery.appIcon.layout = .stacked
+            featureDiscovery.regionStyle.layout = .stacked
+            featureDiscovery.shareSheet = .accessible
+            featureDiscovery.evidenceArchive = .accessible
             calendar.day.minHeight = 56
             timeline.overview.pinsToViewport = false
             timeline.row.stacksDayCount = true
@@ -81,6 +101,10 @@ struct WhereStylesheet: BStylesheet {
         // Reduce Motion stops the cards' day count rolling its digits; it
         // crossfades to the new number instead.
         if traits.accessibility.isReduceMotionEnabled {
+            launch.reveal = .crossfade
+            launch.revealAnimation = motion.reducedReveal
+            launch.captionAnimation = nil
+            settings.flashAnimation = nil
             card.dayCount = .reducedMotion
             locationCardStack.overtake = .reducedMotion
             locationWelcome.motion = .reduced
@@ -90,6 +114,7 @@ struct WhereStylesheet: BStylesheet {
         // Pale, luminosity-only ink lifts the background security print off
         // dark glass without changing its hue or saturation on touch.
         if traits.mode == .dark {
+            settings.iconForeground = .black
             card.securityPrint = .dark
             featureDiscovery.siri.accent = Color(white: 0.42)
         }
@@ -132,6 +157,8 @@ extension WhereStylesheet {
         }
 
         struct Accessory: Equatable {
+            enum Copy: Equatable { case full, compact }
+            var copy = Copy.full
             var contentSpacing: CGFloat
             var horizontalPadding: CGFloat
             var verticalPadding: CGFloat
@@ -331,6 +358,7 @@ extension WhereStylesheet {
         }
 
         struct Header: Equatable {
+            var layout = ContentLayout.inline
             var contentSpacing: CGFloat
             var textSpacing: CGFloat
             var titleFont: Font
@@ -339,6 +367,7 @@ extension WhereStylesheet {
         }
 
         struct Row: Equatable {
+            var layout = ContentLayout.inline
             var cornerRadius: CGFloat
             var padding: CGFloat
             var contentSpacing: CGFloat
@@ -356,6 +385,11 @@ extension WhereStylesheet {
         }
 
         struct Controls: Equatable {
+            var layout = ContentLayout.inline
+            var expandsClearAction: Bool {
+                layout == .stacked
+            }
+
             var sectionSpacing: CGFloat
             var layoutSpacing: CGFloat
             var cornerRadius: CGFloat
@@ -501,6 +535,16 @@ extension WhereStylesheet {
     /// Appearance and motion for the DEBUG-only developer launcher, accordion,
     /// and selected-tool HUD.
     struct DeveloperOverlayStyle: Equatable {
+        var launcher = Launcher()
+
+        struct Launcher: Equatable {
+            var diameter: CGFloat = 52
+            var glyphRatio: CGFloat = 0.4
+            var shadowColor = Color.black.opacity(0.15)
+            var shadowRadius: CGFloat = 3
+            var shadowOffsetY: CGFloat = 1
+        }
+
         var edgeInset: CGFloat
         var presentationAnimation: Animation
         var floatingWindow: FloatingWindow
@@ -1793,10 +1837,8 @@ extension WhereStylesheet {
 // MARK: - Motion
 
 extension WhereStylesheet {
-    /// App-level animation tokens. Views still decide *when* to apply them and
-    /// honor Reduce Motion — they pick `reducedReveal` (a flatter crossfade) over
-    /// `reveal`, and skip `captionFade` entirely — so these carry the "full
-    /// motion" values.
+    /// Shared animation values. Component slices select their resolved motion;
+    /// views decide when to apply it.
     struct Motion: Equatable {
         /// The launch splash → app reveal.
         var reveal: Animation
@@ -1858,6 +1900,28 @@ extension WhereStylesheet {
     /// before the app reveals. Kept as tokens so the durations aren't hardcoded
     /// across the splash view and the `LifecycleContainer` seam.
     struct LaunchStyle: Equatable {
+        var reveal = Reveal.zoom
+        var revealAnimation = Motion.standard.reveal
+        var captionAnimation: Animation? = Motion.standard.captionFade
+
+        /// A slice selects the policy; SwiftUI constructs the transition at rendering time.
+        enum Reveal: Equatable {
+            case zoom
+            case crossfade
+
+            var transition: AnyTransition {
+                switch self {
+                    case .zoom:
+                        .asymmetric(
+                            insertion: .identity,
+                            removal: .scale(scale: 16).combined(with: .opacity),
+                        )
+                    case .crossfade:
+                        .opacity
+                }
+            }
+        }
+
         /// The least time the splash stays up before the app reveals, passed to
         /// `LifecycleContainer`. Optimized launches finish near-instantly, so
         /// without this the splash (and its reveal) would flash past unseen.
@@ -1876,11 +1940,10 @@ extension WhereStylesheet {
 // MARK: - Settings
 
 extension WhereStylesheet {
-    /// Appearance + motion for the Settings list. Geometry only — per-section
-    /// icon colors live on `SettingsDestination`, and the flash tint (accent) /
-    /// restored grouped-row background (a system role) / white-or-black glyph
-    /// stay inline, per the "no adaptive/accent colors in the sheet" rule.
+    /// Appearance and resolved motion for the Settings list. Per-section icon
+    /// colors live on `SettingsDestination`; semantic system roles stay inline.
     struct SettingsStyle: Equatable {
+        var iconForeground = Color.white
         /// Edge of the colored rounded-square icon chip on each top-level row.
         var iconSize: CGFloat
         /// Corner radius of that chip (continuous corners for the squircle look).
@@ -1888,7 +1951,7 @@ extension WhereStylesheet {
         /// Point size of the SF Symbol glyph inside the chip.
         var iconSymbolSize: CGFloat
         /// The animation used for both the scroll and the flash fade.
-        var flashAnimation: Animation
+        var flashAnimation: Animation?
         /// How long the row stays highlighted before it fades back.
         var flashDuration: Duration
         /// A short wait after the push lands before scrolling, so the row is laid
@@ -1912,6 +1975,49 @@ extension WhereStylesheet {
     /// Appearance for the Siri conversation cards and the miniature widget
     /// surfaces in Settings' feature explorer.
     struct FeatureDiscoveryStyle: Equatable {
+        var appIcon = AppIconPreview()
+        var regionStyle = RegionStylePreview()
+        var shareSheet = ShareSheetPreview.standard
+        var evidenceArchive = EvidenceArchivePreview.standard
+
+        struct AppIconPreview: Equatable {
+            var layout = ContentLayout.inline
+            var spacing: CGFloat = 8
+        }
+
+        struct RegionStylePreview: Equatable {
+            var layout = ContentLayout.inline
+            var spacing: CGFloat = 6
+        }
+
+        struct ShareSheetPreview: Equatable {
+            var sourcesLayout: ContentLayout
+            var sourceLayout: ContentLayout
+            var sourcesSpacing: CGFloat
+            var titleAlignment: TextAlignment
+
+            static let standard = Self(
+                sourcesLayout: .inline,
+                sourceLayout: .stacked,
+                sourcesSpacing: 12,
+                titleAlignment: .center,
+            )
+            static let accessible = Self(
+                sourcesLayout: .stacked,
+                sourceLayout: .inline,
+                sourcesSpacing: 8,
+                titleAlignment: .leading,
+            )
+        }
+
+        struct EvidenceArchivePreview: Equatable {
+            var layout: ContentLayout
+            var spacing: CGFloat
+
+            static let standard = Self(layout: .inline, spacing: 8)
+            static let accessible = Self(layout: .stacked, spacing: 6)
+        }
+
         var marketingHeader: MarketingHeader
         var marketingPanel: MarketingPanel
         var backgroundPattern: BackgroundPattern
@@ -2127,6 +2233,7 @@ extension WhereStylesheet {
 
     /// Appearance for the reflective privacy statement in Settings.
     struct PrivacyPassportCardStyle: Equatable {
+        var headerLayout = ContentLayout.inline
         var cornerRadius: CGFloat
         var padding: CGFloat
         var sectionSpacing: CGFloat
@@ -2163,6 +2270,7 @@ extension WhereStylesheet {
         }
 
         struct Disclosure: Equatable {
+            var layout = ContentLayout.inline
             var rowSpacing: CGFloat
             var cornerRadius: CGFloat
             var padding: CGFloat
@@ -2229,6 +2337,7 @@ extension WhereStylesheet {
 
     /// Appearance for a flat, single-ink stamp banner.
     struct StampBannerStyle: Equatable {
+        var layout = ContentLayout.inline
         var tint: Color
         var padding: CGFloat
         var contentSpacing: CGFloat
@@ -2444,5 +2553,18 @@ extension EnvironmentValues {
     /// so it traps in debug and falls back to `default` in release.
     var stylesheet: WhereStylesheet {
         bContext.stylesheet(WhereStylesheet.self, fallback: .default)
+    }
+}
+
+extension WhereStylesheet {
+    /// A resolved arrangement, independent of the trait that selected it.
+    enum ContentLayout: Equatable {
+        case inline
+        case stacked
+    }
+
+    struct ThemePickerStyle: Equatable {
+        var layout = ContentLayout.inline
+        var spacing: CGFloat = 12
     }
 }

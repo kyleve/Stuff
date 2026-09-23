@@ -5,7 +5,6 @@ import SwiftUI
 /// the app without pretending the gallery can launch a share with no source.
 struct FeatureShareSheetPreview: View {
     @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         let panelStyle = stylesheet.featureDiscovery.marketingPanel
@@ -18,8 +17,11 @@ struct FeatureShareSheetPreview: View {
                 .font(.headline)
 
                 Group {
-                    if dynamicTypeSize.isAccessibilitySize {
-                        VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
+                    if stylesheet.featureDiscovery.shareSheet.sourcesLayout == .stacked {
+                        VStack(
+                            alignment: .leading,
+                            spacing: stylesheet.featureDiscovery.shareSheet.sourcesSpacing,
+                        ) {
                             shareSource(
                                 .airplane,
                                 title: String(localized: .settingsExploreEvidenceSourcePass),
@@ -34,7 +36,7 @@ struct FeatureShareSheetPreview: View {
                             )
                         }
                     } else {
-                        HStack(spacing: stylesheet.spacing.large) {
+                        HStack(spacing: stylesheet.featureDiscovery.shareSheet.sourcesSpacing) {
                             shareSource(
                                 .airplane,
                                 title: String(localized: .settingsExploreEvidenceSourcePass),
@@ -73,15 +75,21 @@ struct FeatureShareSheetPreview: View {
 
     private func shareSource(_ systemSymbol: SFSymbol, title: String) -> some View {
         Group {
-            if dynamicTypeSize.isAccessibilitySize {
+            if stylesheet.featureDiscovery.shareSheet.sourceLayout == .inline {
                 HStack(spacing: stylesheet.spacing.small) {
                     sourceIcon(systemSymbol)
-                    sourceTitle(title, alignment: .leading)
+                    sourceTitle(
+                        title,
+                        alignment: stylesheet.featureDiscovery.shareSheet.titleAlignment,
+                    )
                 }
             } else {
                 VStack(spacing: stylesheet.spacing.small) {
                     sourceIcon(systemSymbol)
-                    sourceTitle(title, alignment: .center)
+                    sourceTitle(
+                        title,
+                        alignment: stylesheet.featureDiscovery.shareSheet.titleAlignment,
+                    )
                 }
             }
         }

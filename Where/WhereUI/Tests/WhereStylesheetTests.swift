@@ -15,6 +15,82 @@ struct WhereStylesheetTests {
     private let style = WhereStylesheet.default
 
     @MainActor
+    @Test(arguments: DynamicTypeSize.allCases)
+    func resolvesComponentLayouts(size: DynamicTypeSize) throws {
+        var context = BContext(traits: .system)
+        context.traitOverrides.contentSizeCategory = .init(size)
+        let sheet = try context.stylesheets.get(WhereStylesheet.self)
+        let layout: WhereStylesheet.ContentLayout = size.isAccessibilitySize ? .stacked : .inline
+        #expect(sheet.locationForecast.header.layout == layout)
+        #expect(sheet.locationForecast.row.layout == layout)
+        #expect(sheet.locationForecast.controls.layout == layout)
+        #expect(sheet.locationForecast.controls.expandsClearAction == size.isAccessibilitySize)
+        #expect(sheet.privacyPassportCard.headerLayout == layout)
+        #expect(sheet.privacyPassportCard.disclosure.layout == layout)
+        #expect(sheet.themePicker.layout == layout)
+        #expect(sheet.openSourceStamp.layout == layout)
+        #expect(sheet.plannedStayWarningStamp.layout == layout)
+        #expect(sheet.featureDiscovery.appIcon.layout == layout)
+        #expect(sheet.featureDiscovery.regionStyle.layout == layout)
+        #expect(sheet.featureDiscovery
+            .shareSheet == (size.isAccessibilitySize ? .accessible : .standard))
+        #expect(sheet.featureDiscovery
+            .evidenceArchive == (size.isAccessibilitySize ? .accessible : .standard))
+        #expect(sheet.locationWelcome.accessory
+            .copy == (size.isAccessibilitySize ? .compact : .full))
+        #expect(sheet.developerOverlay.launcher.diameter == WhereScaledDimension.value(
+            52,
+            relativeTo: .title2,
+            category: .init(size),
+        ))
+    }
+
+    @MainActor
+    @Test(arguments: [false, true], [BMode.light, .dark])
+    func resolvesAppearanceAndMotion(reducesMotion: Bool, mode: BMode) throws {
+        var context = BContext(traits: .system)
+        context.traitOverrides.mode = mode
+        context.traitOverrides.accessibility = BAccessibility(isReduceMotionEnabled: reducesMotion)
+        let sheet = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(sheet.settings.iconForeground == (mode == .dark ? Color.black : Color.white))
+        #expect(sheet.settings
+            .flashAnimation == (reducesMotion ? nil : style.settings.flashAnimation))
+        #expect(sheet.launch.captionAnimation == (reducesMotion ? nil : style.motion.captionFade))
+        #expect(sheet.launch.reveal == (reducesMotion ? .crossfade : .zoom))
+        #expect(sheet.launch
+            .revealAnimation == (reducesMotion ? style.motion.reducedReveal : style.motion.reveal))
+    }
+
+    @Test func adaptiveDefaults() {
+        #expect(style.locationForecast.header.layout == .inline)
+        #expect(style.locationForecast.row.layout == .inline)
+        #expect(style.locationForecast.controls.layout == .inline)
+        #expect(style.locationForecast.controls.expandsClearAction == false)
+        #expect(style.privacyPassportCard.headerLayout == .inline)
+        #expect(style.privacyPassportCard.disclosure.layout == .inline)
+        #expect(style.themePicker == .init())
+        #expect(style.themePicker.spacing == 12)
+        #expect(style.openSourceStamp.layout == .inline)
+        #expect(style.plannedStayWarningStamp.layout == .inline)
+        #expect(style.featureDiscovery.appIcon.layout == .inline)
+        #expect(style.featureDiscovery.appIcon.spacing == 8)
+        #expect(style.featureDiscovery.regionStyle.layout == .inline)
+        #expect(style.featureDiscovery.regionStyle.spacing == 6)
+        #expect(style.featureDiscovery.shareSheet == .standard)
+        #expect(style.featureDiscovery.evidenceArchive == .standard)
+        #expect(style.locationWelcome.accessory.copy == .full)
+        #expect(style.settings.iconForeground == .white)
+        #expect(style.launch.reveal == .zoom)
+        #expect(style.launch.revealAnimation == style.motion.reveal)
+        #expect(style.launch.captionAnimation == style.motion.captionFade)
+        #expect(style.developerOverlay.launcher.diameter == 52)
+        #expect(style.developerOverlay.launcher.glyphRatio == 0.4)
+        #expect(style.developerOverlay.launcher.shadowColor == .black.opacity(0.15))
+        #expect(style.developerOverlay.launcher.shadowRadius == 3)
+        #expect(style.developerOverlay.launcher.shadowOffsetY == 1)
+    }
+
+    @MainActor
     @Test func themesRetainDistinctIdentityWithEquivalentTokens() throws {
         var standardThemes = BThemes()
         standardThemes[WhereTheme.self] = .standard
@@ -941,6 +1017,46 @@ struct WhereStylesheetEnvironmentTests {
         }
     }
 
+    @Test func updatesResolvedStylesWithEnvironmentChanges() throws {
+        let box = StylesheetProbeBox()
+        func content(size: DynamicTypeSize, mode: ColorScheme) -> some View {
+            StylesheetProbe(box: box).whereBroadwayRoot()
+                .dynamicTypeSize(size).environment(\.colorScheme, mode)
+        }
+        let host = UIHostingController(rootView: content(size: .large, mode: .light))
+        try show(host) { _ in
+            try waitFor { box.sheet?.locationForecast.header.layout == .inline }
+            #expect(box.sheet?.settings.iconForeground == .white)
+            host.rootView = content(size: .accessibility3, mode: .dark)
+            try waitFor { box.sheet?.locationForecast.header.layout == .stacked }
+            #expect(box.sheet?.settings.iconForeground == .black)
+            host.rootView = content(size: .large, mode: .light)
+            try waitFor { box.sheet?.locationForecast.header.layout == .inline }
+            #expect(box.sheet?.settings.iconForeground == .white)
+        }
+    }
+
+    @Test func scopedTraitsResolveCoordinatedStyles() throws {
+        let box = StylesheetProbeBox()
+        let host = UIHostingController(rootView: StylesheetProbe(box: box)
+            .bContentSizeCategory(.small)
+            .bMode(.dark)
+            .bTraitOverrides { _, overrides in
+                overrides.accessibility = BAccessibility(isReduceMotionEnabled: true)
+            }
+            .whereBroadwayRoot()
+            .dynamicTypeSize(.accessibility3)
+            .environment(\.colorScheme, .light))
+        try show(host) { _ in
+            try waitFor { box.sheet != nil }
+            let sheet = try #require(box.sheet)
+            #expect(sheet.locationForecast.header.layout == .inline)
+            #expect(sheet.settings.iconForeground == .black)
+            #expect(sheet.launch.reveal == .crossfade)
+            #expect(sheet.launch.captionAnimation == nil)
+        }
+    }
+
     @Test func whereBroadwayRootSeedsThemeIdentity() throws {
         let box = StylesheetProbeBox()
         let host = UIHostingController(
@@ -956,6 +1072,7 @@ struct WhereStylesheetEnvironmentTests {
 private final class StylesheetProbeBox {
     var calendarDayMinHeight: CGFloat?
     var theme: WhereTheme?
+    var sheet: WhereStylesheet?
 }
 
 private struct StylesheetProbe: View {
@@ -965,6 +1082,7 @@ private struct StylesheetProbe: View {
 
     var body: some View {
         Color.clear
+            .onChange(of: stylesheet, initial: true) { _, value in box.sheet = value }
             .onChange(of: stylesheet.calendar.day.minHeight, initial: true) { _, newValue in
                 box.calendarDayMinHeight = newValue
             }

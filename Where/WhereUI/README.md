@@ -297,11 +297,28 @@ faces on `Typography`, and animation tokens on `Motion`.
 
 ### Trait-aware tokens
 
-Most tokens are fixed. A slice derives from the `BContext` traits in
-`init(context:)` — read the live set off that initializer. Today it grows
-day-grid tap targets at accessibility Dynamic Type sizes, flattens the card
-glow under Reduce Transparency, and crossfades the cards' day count under
-Reduce Motion.
+The stylesheet resolves trait-driven appearance in `init(context:)`. Views
+consume component styles such as `locationForecast.header.layout`. They do
+not read Dynamic Type to select an arrangement. The slice also selects copy
+length, coordinated spacing, icon colors, and motion.
+
+Keep semantic fonts and system colors. For authored dimensions that scale,
+`WhereScaledDimension` uses system font metrics with the slice's explicit
+content-size category. Its hosted test compares the result with `@ScaledMetric`.
+
+Keep available width, measured chrome, and `ViewThatFits` in the layout layer.
+Those values are unavailable during slicing. User-edited preview state and live
+designer drafts also remain runtime inputs. Each direct trait read documents
+its exception. Capture-time motion stays in `MotionIsStatic`.
+
+`launch.reveal` stores an `Equatable` policy and constructs its transition on
+access. `RootView` resolves that policy beneath its own Broadway root. A
+non-`Equatable` rendering type does not require a direct trait read.
+
+For styled subtrees, pair scoped SwiftUI appearance overrides with Broadway
+trait overrides. This keeps semantic text, assets, and resolved component
+styles consistent. The developer HUD and widget examples show content-size
+overrides; the app-icon preview shows a mode override.
 
 ### Per-region styling
 
