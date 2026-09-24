@@ -61,28 +61,29 @@ struct LocationsBackground: View {
             ZStack(alignment: .topLeading) {
                 ForEach(cells) { cell in
                     let item = items[cell.artworkIndex]
-                    let inkOpacity = item.region == .other ? style
-                        .symbolOpacity : (style.artwork.stroke?.opacity ?? 0)
+                    let inkOpacity = item.region == .other ? style.symbolOpacity : style
+                        .regionOpacity
+                    let printedInk = style.printedInk(inkOpacity: inkOpacity)
                     Group {
                         if item.region == .other {
                             Image(systemSymbol: .globeAmericas)
                                 .resizable()
                                 .scaledToFit()
                                 .fontWeight(style.symbolWeight)
-                                .foregroundStyle(style.ink.opacity(style.symbolOpacity))
+                                .foregroundStyle(printedInk)
                                 .padding(min(cell.frame.width, cell.frame.height) *
                                     (1 - style.artwork.extent.width) / 2)
                         } else {
                             RegionOutlineArtwork(
                                 path: item.path,
-                                tint: style.ink,
+                                tint: printedInk,
                                 style: style.artwork,
                             )
                         }
                     }
                     .frame(width: cell.frame.width, height: cell.frame.height)
                     .shadow(
-                        color: style.glowColor(inkOpacity: inkOpacity),
+                        color: printedInk,
                         radius: style.glow.radius,
                     )
                     .position(x: cell.frame.midX, y: cell.frame.midY)
