@@ -2494,22 +2494,23 @@ extension WhereStylesheet {
         var paper = Color(uiColor: .systemBackground)
         var ink = Color.primary
         var showsInk = true
-        var preferredCellSize: CGFloat = 48
+        var preferredCellSize: CGFloat = 64
         var symbolWeight = Font.Weight.light
         var symbolOpacity: Double = 0.03
         var artwork = CardStyle.RegionShape.Artwork(
             center: CGPoint(x: 0.5, y: 0.5),
-            extent: CGSize(width: 0.72, height: 0.72),
+            extent: CGSize(width: 0.46, height: 0.46),
             scale: 1,
             fillOpacity: 0,
             stroke: .init(opacity: 0.043, width: 1.1),
         )
-        var rosette = CardStyle.Rosette(
-            wobble: 0.04,
-            lineWidth: 0.5,
-            primaryRingSpacing: 18,
-            secondaryRingSpacing: 25,
-        )
-        var rosetteOpacity: Double = 0.015
+        var maximumAspectScale: CGFloat = 1.25
+        var rosette = Rosette()
+
+        struct Rosette: Equatable {
+            var extent: CGFloat = 0.18
+            var lineWidth: CGFloat = 0.7
+            var opacity: Double = 0.04
+        }
     }
 }

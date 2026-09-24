@@ -6,53 +6,53 @@ struct LocationsBackgroundLayoutTests {
     @Test(arguments: [1, 3, 40, 200])
     func everyRegionHasAFullyVisibleCell(count: Int) {
         let size = CGSize(width: 390, height: 844)
-        let cells = LocationsBackgroundLayout.cells(count: count, in: size, preferredCellSize: 48)
-        let viewport = CGRect(origin: .zero, size: size)
-        let fullyVisible = cells
-            .filter { viewport.insetBy(dx: -0.001, dy: -0.001).contains($0.frame) }
-        #expect(Set(fullyVisible.map(\.artworkIndex)) == Set(0 ..< count))
-        #expect(Set(cells.map(\.id)).count == cells.count)
-        for cell in cells {
-            #expect(cell.frame.minY >= 0)
-            #expect(cell.frame.maxY <= size.height + 0.001)
-            #expect(cell.frame.width > 0 && cell.frame.height > 0)
+        let cells = LocationsBackgroundLayout.cells(count: count, in: size, preferredCellSize: 64)
+        let viewport = CGRect(origin: .zero, size: size).insetBy(dx: -0.001, dy: -0.001)
+        let visibleRegions = cells.compactMap { cell -> Int? in
+            guard viewport.contains(cell.frame),
+                  case let .region(index) = cell.motif else { return nil }
+            return index
         }
+        #expect(Set(visibleRegions) == Set(0 ..< count))
+        #expect(Set(cells.map(\.id)).count == cells.count)
+        #expect(cells.allSatisfy { $0.frame.width == $0.frame.height && $0.frame.width > 0 })
     }
 
-    @Test func alternateRowsUseAHalfCellOffset() throws {
+    @Test func rosettesAlternateWithRegionsOnTheDiagonal() {
         let cells = LocationsBackgroundLayout.cells(
             count: 5,
             in: CGSize(width: 390, height: 844),
-            preferredCellSize: 48,
+            preferredCellSize: 64,
         )
-        let first = try #require(cells.first)
-        let secondRow = try #require(cells.first { $0.frame.minY > first.frame.minY })
-        let thirdRow = try #require(cells.first { $0.frame.minY > secondRow.frame.minY })
-        #expect(secondRow.frame.minX - first.frame.minX == first.frame.width / 2)
-        #expect(thirdRow.frame.minX == first.frame.minX)
-        #expect(first.frame.width < 48)
-    }
-
-    @Test func rowsContinuePastBothHorizontalEdges() {
-        let size = CGSize(width: 390, height: 844)
-        let cells = LocationsBackgroundLayout.cells(count: 5, in: size, preferredCellSize: 48)
-        let rows = Dictionary(grouping: cells, by: { $0.frame.minY })
-        for row in rows.values {
-            #expect(row.contains { $0.frame.minX < 0 && $0.frame.maxX >= 0 })
-            #expect(row.contains { $0.frame.minX <= size.width && $0.frame.maxX > size.width })
-            for (left, right) in zip(row, row.dropFirst()) {
-                #expect(abs(left.frame.maxX - right.frame.minX) < 0.001)
-                #expect(right.artworkIndex == (left.artworkIndex + 1) % 5)
+        for pair in stride(from: 0, to: cells.count, by: 2) {
+            let region = cells[pair]
+            let rosette = cells[pair + 1]
+            guard case .region = region.motif else {
+                Issue.record("Expected a region before each rosette")
+                return
             }
+            #expect(rosette.motif == .rosette)
+            #expect(abs(rosette.frame.midX - region.frame.midX - region.frame.width / 2) < 0.001)
+            #expect(abs(rosette.frame.midY - region.frame.midY - region.frame.height / 2) < 0.001)
         }
     }
 
-    @Test func smallSetsRepeatAndEmptyInputsProduceNoCells() {
+    @Test func patternExtendsBeyondEveryEdge() {
         let size = CGSize(width: 390, height: 844)
-        #expect(LocationsBackgroundLayout.cells(count: 1, in: size, preferredCellSize: 48)
-            .count > 1)
-        #expect(LocationsBackgroundLayout.cells(count: 0, in: size, preferredCellSize: 48).isEmpty)
-        #expect(LocationsBackgroundLayout.cells(count: 3, in: .zero, preferredCellSize: 48)
-            .isEmpty)
+        let cells = LocationsBackgroundLayout.cells(count: 5, in: size, preferredCellSize: 64)
+        let rosettes = cells.filter { $0.motif == .rosette }
+        #expect(rosettes.contains { $0.frame.minX < 0 && $0.frame.maxX > 0 })
+        #expect(rosettes.contains { $0.frame.minX < size.width && $0.frame.maxX > size.width })
+        #expect(rosettes.contains { $0.frame.minY < 0 && $0.frame.maxY > 0 })
+        #expect(rosettes.contains { $0.frame.minY < size.height && $0.frame.maxY > size.height })
+    }
+
+    @Test func emptyHistoryKeepsOnlyRosettesAndInvalidSizesProduceNoCells() {
+        let size = CGSize(width: 390, height: 844)
+        let cells = LocationsBackgroundLayout.cells(count: 0, in: size, preferredCellSize: 64)
+        #expect(!cells.isEmpty)
+        #expect(cells.allSatisfy { $0.motif == .rosette })
+        #expect(LocationsBackgroundLayout.cells(count: 3, in: .zero, preferredCellSize: 64).isEmpty)
+        #expect(LocationsBackgroundLayout.cells(count: 3, in: size, preferredCellSize: 0).isEmpty)
     }
 }

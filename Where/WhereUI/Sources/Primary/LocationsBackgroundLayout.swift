@@ -1,15 +1,20 @@
 import CoreGraphics
 
-/// A staggered field that repeats small sets and fits every member of large sets.
+/// A square lattice of regions interleaved with rosettes on the half-step diagonals.
 enum LocationsBackgroundLayout {
+    enum Motif: Equatable {
+        case region(Int)
+        case rosette
+    }
+
     struct Cell: Identifiable {
         let id: Int
-        let artworkIndex: Int
+        let motif: Motif
         let frame: CGRect
     }
 
     static func cells(count: Int, in size: CGSize, preferredCellSize: CGFloat) -> [Cell] {
-        guard count > 0, size.width > 0, size.height > 0, preferredCellSize > 0 else {
+        guard count >= 0, size.width > 0, size.height > 0, preferredCellSize > 0 else {
             return []
         }
         var columns = max(1, Int(size.width / preferredCellSize))
@@ -21,23 +26,35 @@ enum LocationsBackgroundLayout {
                 rows += 1
             }
         }
-        // Keep every original cell fully visible, then extend the repeat past both edges.
-        let width = size.width / (CGFloat(columns) + 0.5)
-        let height = size.height / CGFloat(rows)
-        return (0 ..< rows).flatMap { row in
-            (-1 ... columns).map { column in
-                let index = row * columns + column
-                return Cell(
-                    id: row * (columns + 2) + column + 1,
-                    artworkIndex: (index % count + count) % count,
-                    frame: CGRect(
-                        x: (CGFloat(column) + (row.isMultiple(of: 2) ? 0 : 0.5)) * width,
-                        y: CGFloat(row) * height,
-                        width: width,
-                        height: height,
-                    ),
+        let side = min(size.width / CGFloat(columns), size.height / CGFloat(rows))
+        let visibleColumns = max(1, Int((size.width / side).rounded(.down)))
+        let coveringColumns = Int((size.width / side).rounded(.up))
+        let coveringRows = Int((size.height / side).rounded(.up))
+        var cells: [Cell] = []
+        // Overscan every edge so both halves of the diagonal repeat can be clipped naturally.
+        for row in -1 ... coveringRows {
+            for column in -1 ... coveringColumns {
+                let frame = CGRect(
+                    x: CGFloat(column) * side,
+                    y: CGFloat(row) * side,
+                    width: side,
+                    height: side,
                 )
+                if count > 0 {
+                    let index = row * visibleColumns + column
+                    cells.append(Cell(
+                        id: cells.count,
+                        motif: .region((index % count + count) % count),
+                        frame: frame,
+                    ))
+                }
+                cells.append(Cell(
+                    id: cells.count,
+                    motif: .rosette,
+                    frame: frame.offsetBy(dx: side / 2, dy: side / 2),
+                ))
             }
         }
+        return cells
     }
 }

@@ -23,15 +23,6 @@ struct LocationsBackground: View {
         ZStack {
             style.paper
             if style.showsInk {
-                SecurityPrintRosette(
-                    tint: style.ink,
-                    wobble: style.rosette.wobble,
-                    lineWidth: style.rosette.lineWidth,
-                    primaryRingSpacing: style.rosette.primaryRingSpacing,
-                    secondaryRingSpacing: style.rosette.secondaryRingSpacing,
-                    primaryOpacity: style.rosetteOpacity,
-                    secondaryOpacity: style.rosetteOpacity,
-                )
                 silhouettes
             }
         }
@@ -60,22 +51,32 @@ struct LocationsBackground: View {
             )
             ZStack(alignment: .topLeading) {
                 ForEach(cells) { cell in
-                    let item = items[cell.artworkIndex]
                     Group {
-                        if item.region == .other {
-                            Image(systemSymbol: .globeAmericas)
-                                .resizable()
-                                .scaledToFit()
-                                .fontWeight(style.symbolWeight)
-                                .foregroundStyle(style.ink.opacity(style.symbolOpacity))
-                                .padding(min(cell.frame.width, cell.frame.height) *
-                                    (1 - style.artwork.extent.width) / 2)
-                        } else {
-                            RegionOutlineArtwork(
-                                path: item.path,
-                                tint: style.ink,
-                                style: style.artwork,
-                            )
+                        switch cell.motif {
+                            case let .region(index):
+                                let item = items[index]
+                                if item.region == .other {
+                                    Image(systemSymbol: .globeAmericas)
+                                        .resizable()
+                                        .scaledToFit()
+                                        .fontWeight(style.symbolWeight)
+                                        .foregroundStyle(style.ink.opacity(style.symbolOpacity))
+                                        .padding(cell.frame
+                                            .width * (1 - style.artwork.extent.width) / 2)
+                                } else {
+                                    RegionOutlineArtwork(
+                                        path: item.path,
+                                        tint: style.ink,
+                                        style: balancedArtwork(for: item.path),
+                                    )
+                                }
+                            case .rosette:
+                                LocationsMonogramRosette()
+                                    .stroke(
+                                        style.ink.opacity(style.rosette.opacity),
+                                        lineWidth: style.rosette.lineWidth,
+                                    )
+                                    .padding(cell.frame.width * (1 - style.rosette.extent) / 2)
                         }
                     }
                     .frame(width: cell.frame.width, height: cell.frame.height)
@@ -83,6 +84,45 @@ struct LocationsBackground: View {
                 }
             }
         }
+    }
+
+    private func balancedArtwork(for path: Path) -> WhereStylesheet.CardStyle.RegionShape.Artwork {
+        var artwork = style.artwork
+        let bounds = path.boundingRect
+        let shortSide = min(bounds.width, bounds.height)
+        guard shortSide > 0 else { return artwork }
+        // Give slender regions more room without changing the shared geographic projection.
+        artwork.scale *= min(
+            style.maximumAspectScale,
+            sqrt(max(bounds.width, bounds.height) / shortSide),
+        )
+        return artwork
+    }
+}
+
+/// A compact six-petal seal that anchors the repeating geographic print.
+private struct LocationsMonogramRosette: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let radius = min(rect.width, rect.height) / 2
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        for step in 0 ... 120 {
+            let angle = Double(step) / 120 * .pi * 2
+            let petalRadius = radius * (0.82 + 0.18 * cos(angle * 6))
+            let point = CGPoint(
+                x: center.x + cos(angle) * petalRadius,
+                y: center.y + sin(angle) * petalRadius,
+            )
+            if step == 0 { path.move(to: point) } else { path.addLine(to: point) }
+        }
+        path.closeSubpath()
+        path.addEllipse(in: CGRect(
+            x: center.x - radius * 0.28,
+            y: center.y - radius * 0.28,
+            width: radius * 0.56,
+            height: radius * 0.56,
+        ))
+        return path
     }
 }
 
