@@ -2494,15 +2494,15 @@ extension WhereStylesheet {
         var paper = Color(uiColor: .systemBackground)
         var ink = Color.primary
         var showsInk = true
-        var preferredCellSize: CGFloat = 140
-        var symbolWeight = Font.Weight.ultraLight
-        var symbolOpacity: Double = 0.025
+        var preferredCellSize: CGFloat = 64
+        var symbolWeight = Font.Weight.light
+        var symbolOpacity: Double = 0.035
         var artwork = CardStyle.RegionShape.Artwork(
             center: CGPoint(x: 0.5, y: 0.5),
-            extent: CGSize(width: 0.62, height: 0.62),
+            extent: CGSize(width: 0.7, height: 0.7),
             scale: 1,
             fillOpacity: 0,
-            stroke: .init(opacity: 0.05, width: 0.7),
+            stroke: .init(opacity: 0.05, width: 1.1),
         )
         var rosette = CardStyle.Rosette(
             wobble: 0.04,
