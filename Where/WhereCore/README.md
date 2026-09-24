@@ -58,15 +58,18 @@ one it belongs to rather than to a god-object:
   data generation use `perform(expectedDataGenerationID:)`, and multi-table reads use
   `readSnapshot { … }` so a Reset or Replace cannot split one operation across
   generations. A persistent-history boundary invalidates any external commit
-  crossing a snapshot even when its remote-change notification arrives later.
-  `changes()` emits once per local commit and external import for the Where store
-  URL, excluding other stores such as Periscope. `remoteChanges()` uses
-  persistent-history transaction authors to emit only the external-import subset,
+  crossing a snapshot even when its history observer reports the change later.
+  `changes()` emits once per local commit and external import for the Where model
+  container, excluding other stores such as Periscope. `remoteChanges()` uses
+  SwiftData's `HistoryObserver` and persistent-history transaction authors to
+  emit only the external-import subset,
   so headless notifications and widgets rebuild without duplicating local work.
-  `SwiftDataStore.make(storage:)` opens an explicitly selected
-  CloudKit, local-only, or in-memory store. `SwiftDataStore.inMemory()` is the
-  convenience used by tests and previews. Each
-  process opens its on-disk store **once** and injects it where it's needed — 
+  `SwiftDataStore.make(storage:)` opens an explicitly selected CloudKit,
+  local-only, or in-memory store. On-disk modes carry their App Group identifier;
+  the host chooses that policy and group, so WhereCore contains no audience
+  default. `SwiftDataStore.inMemory()` is the convenience used by tests and
+  previews. Each
+  process opens its on-disk store **once** and injects it where it's needed —
   in the app, the launch's `resolve-scope` step opens it and the App Intents
   stack shares it via `WhereServices.forIntents(sharingStoreOf:)` — so two
   subsystems never race to create/open the same store file. It also
@@ -94,14 +97,21 @@ one it belongs to rather than to a god-object:
 - **`DayJournal`** — the user-sourced writes: manual-day overlays
   (`addManualDay` / `overrideDay` / `addManualDays`), clears
   (`clearManualDay` / `clearYear` / `eraseAllData`), evidence, and issue
-  dismissals. Each write commits, then awaits its reminder reconcile + widget
-  publish so the next reader sees a fully-applied change.
+  dismissals. Writes await reminder/issue reconciliation and widget publication
+  after committing. The local fan-out does not yet refresh daily summaries;
+  that gap is tracked in [`../TODOs.md`](../TODOs.md).
 - **`PlannedStayCoordinator`** — the synced, generation-scoped last-writer register behind “I’ll
   be here through…”. Clears and expiry write tombstones, and annual forecasts consume its current
   value without coupling projection math to persistence.
 - **`PlannedStayLocationVerifier`** — gets a current location and compares it with the selected
   region. The configured drift threshold expands the accepted area outside the region boundary.
   A missing location or missing geometry returns an unavailable result.
+- **`CurrentRegionResolver`** — returns a typed live-region resolution only
+  while automatic recording is authorized. A successful decision requires a
+  fix no more than 60 seconds old, with valid horizontal accuracy at or below
+  1 km, inside a tracked region, and farther from its boundary than the fix's
+  uncertainty radius. Its measured outcome logs contain only reason codes and
+  coarse age/accuracy buckets.
 
 - **`DemoDataBuilder`** — writes the dataset the app's demo mode runs on into a
   given `WhereServices`: a plausible current year of living in New York with
@@ -145,8 +155,16 @@ one it belongs to rather than to a god-object:
 
 - **`LocationSource`** — the GPS abstraction: `CoreLocationSource` (Visits +
   significant-change) in production, `ScriptedLocationSource` in tests/previews.
-  Passive `sampleStream` plus a best-effort one-shot `requestCurrentLocation()`
-  (returns `nil`, never throws, when no fix is available).
+  Passive `sampleStream` plus a bounded one-shot `requestCurrentLocation()`
+  whose nonthrowing result distinguishes permission, precision, timeout,
+  provider, and cancellation outcomes. Concurrent one-shot callers coalesce;
+  cancellation removes only that caller. Cached callbacks must pass the
+  one-minute freshness gate before satisfying them. The one-shot request targets
+  100 m accuracy to improve attribution near borders, while the live-region
+  decision still has a hard 1 km uncertainty cap. The system-facing one-shot
+  controls use `CurrentLocationRequestDriving`; tests substitute a driver fake
+  while retaining the same request coordinator. Its idle/pending state owns the
+  coalesced waiters and timeout as one request.
 - **`LocationIngestor`** — monitoring, the persist-with-retry queue, and
   authorization. After each committed sample it reconciles the badge/reminders
   and republishes the widget snapshot. Every automatic sample is stamped with
@@ -205,9 +223,9 @@ one it belongs to rather than to a god-object:
   `InstallationRecordingContextStoring` keeps the persistence adapter outside
   the domain value.
 - **`WherePreferences`** — persisted user intent (onboarding,
-  reminder / summary schedules, presentation theme, and Locations-card GPS-dot and
-  estimated-time/planning visibility) plus the
-  year-keyed Location-card counts and Codable recording-warning generation used for presentation
+  reminder / summary schedules, presentation theme, and Locations-card GPS-dot,
+  live-region welcome, and estimated-time/planning visibility) plus the
+  year-keyed Location-card counts, last welcomed region, and recording-warning generation used for presentation
   continuity, behind a `KeyValueStore`. It also owns the vendor-neutral
   `DiagnosticReportingConfiguration`: crash reports default On, replay Off,
   and remote logs Off in Release / Warning in Debug. `WherePreferences` encodes
@@ -261,7 +279,9 @@ import WhereCore
 // previews use the synchronous `@_spi(Testing)` `init` instead (an explicit
 // attributor, default four) via `@_spi(Testing) import WhereCore`.
 let services = try await WhereServices.make(
-    store: try SwiftDataStore.make(storage: .cloudKit),
+    store: try SwiftDataStore.make(storage: .cloudKit(
+        appGroupIdentifier: "group.com.stuff.where"
+    )),
     locationSource: CoreLocationSource(),
     installationContext: installationContext, // resolved once by the app composition root
 )
@@ -319,12 +339,17 @@ rotates to a Reset child generation, and discards the retry queue only after com
   generation. Concurrent unjoined resets select a synthetic empty generation. An
   incomplete causal generation DAG fails closed instead of mixing old and new state.
 - **Failures surface.** Store methods are `async throws`. Errors are logged via
-  `WhereLog` and left observable — never swallowed into an empty default.
+  `WhereLog`. Most callers propagate failure or retain honest failed state.
+  The reminder badge still logs a failed scan and returns zero; that exception
+  is tracked in [`../TODOs.md`](../TODOs.md).
 ## Testing
 
 Swift Testing in [`Tests/`](Tests) (`WhereCoreTests`), hosted in `StuffTestHost`.
-Use `SwiftDataStore.inMemory()` + `ScriptedLocationSource` — never the
-on-disk/CloudKit store or `CoreLocationSource`. The CloudKit remote-import path
+Use `SwiftDataStore.inMemory()` + `ScriptedLocationSource` for domain tests.
+Do not open an on-disk/CloudKit store or make live Core Location requests.
+`CoreLocationSourceTests` exercises the one-shot coordinator with an injected
+`CurrentLocationRequestDriving` fake, without starting passive monitoring.
+The CloudKit remote-import path
 is exercised via the `@_spi(Testing)` `inMemory(remoteChangeSource:)` +
 `ScriptedStoreRemoteChangeSource`.
 

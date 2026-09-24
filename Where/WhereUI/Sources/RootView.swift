@@ -23,8 +23,6 @@ import SwiftUI
 /// through the environment.
 public struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.stylesheet) private var stylesheet
     @State private var model: WhereModel
     #if DEBUG
         /// The logged-in tab bar's measured height, reported up from `MainTabs` and
@@ -53,6 +51,7 @@ public struct RootView: View {
         )
     #endif
     private let launcher: LifecycleRunner<WhereSession>
+    private let primaryAppIconName: String
     #if DEBUG
         private let developerLaunchController: WhereDeveloperLaunchController?
         /// Hosted snapshots have no active SwiftUI scene even though their
@@ -66,10 +65,12 @@ public struct RootView: View {
         public init(
             model: WhereModel,
             launcher: LifecycleRunner<WhereSession>,
+            primaryAppIconName: String,
             developerLaunchController: WhereDeveloperLaunchController? = nil,
         ) {
             _model = State(initialValue: model)
             self.launcher = launcher
+            self.primaryAppIconName = primaryAppIconName
             self.developerLaunchController = developerLaunchController
             presentationVisibilityOverride = nil
         }
@@ -78,10 +79,12 @@ public struct RootView: View {
         public init(
             model: WhereModel,
             launcher: LifecycleRunner<WhereSession>,
+            primaryAppIconName: String,
             presentationVisibilityOverride: Bool,
         ) {
             _model = State(initialValue: model)
             self.launcher = launcher
+            self.primaryAppIconName = primaryAppIconName
             developerLaunchController = nil
             self.presentationVisibilityOverride = presentationVisibilityOverride
         }
@@ -89,9 +92,11 @@ public struct RootView: View {
         public init(
             model: WhereModel,
             launcher: LifecycleRunner<WhereSession>,
+            primaryAppIconName: String,
         ) {
             _model = State(initialValue: model)
             self.launcher = launcher
+            self.primaryAppIconName = primaryAppIconName
         }
     #endif
 
@@ -112,6 +117,7 @@ public struct RootView: View {
                 WhereBootstrap(
                     installationContextStore: $0,
                     storeStorage: .inMemory,
+                    widgetRefresher: NoopWidgetTimelineRefresher(),
                     locationOutbox: NoOpLocationOutbox(),
                 )
             },
@@ -119,6 +125,7 @@ public struct RootView: View {
         )
         _model = State(initialValue: model)
         launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        primaryAppIconName = "AppIcon"
         #if DEBUG
             developerLaunchController = nil
             presentationVisibilityOverride = nil
@@ -126,11 +133,21 @@ public struct RootView: View {
     }
 
     public var body: some View {
+        RootStyledContent { stylesheet in
+            rootContent(stylesheet: stylesheet)
+        }
+        .whereBroadwayRoot(
+            theme: model.theme,
+            regionStyles: model.session?.regionStyles ?? .default,
+        )
+    }
+
+    private func rootContent(stylesheet: WhereStylesheet) -> some View {
         ZStack {
             LifecycleContainer(
                 launcher,
-                transition: revealTransition,
-                animation: revealAnimation,
+                transition: stylesheet.launch.reveal.transition,
+                animation: stylesheet.launch.revealAnimation,
                 minimumSplashDuration: stylesheet.launch.minimumSplashDuration,
                 isPresentationVisible: isLifecyclePresentationVisible,
                 splash: { _ in
@@ -145,9 +162,9 @@ public struct RootView: View {
                 },
                 failure: { WhereLifecycleFailureView(failure: $0) },
                 gates: {
-                    // The gate roots the trunk, so there is no session (and no
-                    // open store) behind it yet — onboarding builds the scope
-                    // it commits regions with, through the model.
+                    // The gate precedes every world-building step, so there is
+                    // no session (and no open store) behind it yet — onboarding
+                    // builds the scope it commits regions with, through the model.
                     GateView(for: OnboardingGate.self) { handle, _ in
                         OnboardingView(
                             gate: handle,
@@ -215,6 +232,7 @@ public struct RootView: View {
             // re-inject when a reset rebuilds it. The DEBUG developer overlay
             // reads it optionally — it can appear before login.
             .environment(model.session)
+            .environment(\.primaryAppIconName, primaryAppIconName)
         #if DEBUG
             .environment(developerLaunchController)
             .environment(\.cardDesignerModel, cardDesigner)
@@ -261,34 +279,6 @@ public struct RootView: View {
                     await model.session?.appBecameActive()
                 }
             }
-            // Seed the Broadway context at the app root so descendants resolve
-            // `WhereStylesheet` (via `@Environment(\.stylesheet)`) against the live
-            // system traits and the app's themes, plus the session's live region
-            // styles (`\.regionStyles`) so cards/calendar/onboarding render the
-            // user's picked looks. `.default` before the session exists (splash) and
-            // reactive after, since reading `session.regionStyles` tracks it.
-            .whereBroadwayRoot(
-                theme: model.theme,
-                regionStyles: model.session?.regionStyles ?? .default,
-            )
-    }
-
-    /// How the launch splash gives way to the app once the runner is `.ready`:
-    /// the splash scales up and fades while the `TabView` stays put beneath it
-    /// (`insertion: .identity`), reading as the icon zooming toward the viewer to
-    /// uncover the UI. Reduce Motion swaps this for a plain crossfade.
-    private var revealTransition: AnyTransition {
-        if reduceMotion {
-            return .opacity
-        }
-        return .asymmetric(
-            insertion: .identity,
-            removal: .scale(scale: 16).combined(with: .opacity),
-        )
-    }
-
-    private var revealAnimation: Animation {
-        reduceMotion ? stylesheet.motion.reducedReveal : stylesheet.motion.reveal
     }
 
     private var isLifecyclePresentationVisible: Bool {
@@ -332,16 +322,18 @@ public struct RootView: View {
         /// idempotent and awaits the in-flight drive, a deterministic "reached
         /// `.ready`" signal — so the raised settle floor only has to outlast the
         /// post-ready tail: `MainTabs`' `.task` activation (empty-store re-pull +
-        /// Resolve badge) and the iOS 26 glass toolbar/tab bar material
+        /// Resolve badge) and the native glass toolbar/tab bar material
         /// adaptation, which starts quiet a few hundred ms after the chrome
         /// hosts. Those have no reachable completion signal (the scene's report
         /// model is private to `MainTabs`; the adaptation has no public
         /// notification), hence the generous floor — see the flakiness ledger in
         /// `Where/TODOs.md`.
         public static var snapshots: [SnapshotCase] {
-            let model = PreviewSupport.loadedModel()
+            let model = welcomeDisabled(PreviewSupport.loadedModel())
             let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
-            let recordingWarningModel = PreviewSupport.recordingConfigurationWarningAppModel()
+            let recordingWarningModel = welcomeDisabled(
+                PreviewSupport.recordingConfigurationWarningAppModel(),
+            )
             let recordingWarningLauncher = WhereLaunch.makeLauncher(
                 model: recordingWarningModel,
                 reason: .userForeground,
@@ -355,6 +347,7 @@ public struct RootView: View {
                 RootView(
                     model: model,
                     launcher: launcher,
+                    primaryAppIconName: "AppIcon",
                     presentationVisibilityOverride: true,
                 )
             }
@@ -367,9 +360,15 @@ public struct RootView: View {
                 RootView(
                     model: recordingWarningModel,
                     launcher: recordingWarningLauncher,
+                    primaryAppIconName: "AppIcon",
                     presentationVisibilityOverride: true,
                 )
             }
+        }
+
+        private static func welcomeDisabled(_ model: WhereModel) -> WhereModel {
+            model.preferences.showsLocationWelcome = false
+            return model
         }
     }
 
@@ -384,3 +383,13 @@ public struct RootView: View {
         RootView.snapshotPreviews
     }
 #endif
+
+/// Resolves launch appearance beneath the root that owns its Broadway context.
+private struct RootStyledContent<Content: View>: View {
+    @Environment(\.stylesheet) private var stylesheet
+    @ViewBuilder let content: (WhereStylesheet) -> Content
+
+    var body: some View {
+        content(stylesheet)
+    }
+}

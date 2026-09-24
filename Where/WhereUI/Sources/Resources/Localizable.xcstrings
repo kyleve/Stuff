@@ -3571,14 +3571,134 @@
         }
       }
     },
-    "locations.elsewhere.subtitle" : {
-      "comment" : "Subtitle on the Locations tab's Elsewhere entry card: region count.",
+    "locationWelcome.access.compact" : {
+      "comment" : "Compact reason shown at accessibility text sizes when location access is unavailable.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Location off — Settings"
+          }
+        }
+      }
+    },
+    "locationWelcome.access.message" : {
+      "comment" : "Explains why the app needs location access to identify the current region.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Location off — Open Settings"
+          }
+        }
+      }
+    },
+    "locationWelcome.dismiss" : {
+      "comment" : "Accessibility label for the close button on the live-region welcome card.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "^[%lld region](inflect: true)"
+            "value" : "Close welcome"
+          }
+        }
+      }
+    },
+    "locationWelcome.finding" : {
+      "comment" : "Temporary status shown while resolving the device's current tracked region.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Finding your current region…"
+          }
+        }
+      }
+    },
+    "locationWelcome.firstTitle" : {
+      "comment" : "Title shown for the first live tracked region. The argument is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welcome to %@"
+          }
+        }
+      }
+    },
+    "locationWelcome.message" : {
+      "comment" : "Explains automatic day counting. The argument is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starting today, days Where records you here will count toward %@."
+          }
+        }
+      }
+    },
+    "locationWelcome.precise.compact" : {
+      "comment" : "Compact reason shown at accessibility text sizes when Precise Location is disabled.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Precise off — Settings"
+          }
+        }
+      }
+    },
+    "locationWelcome.precise.message" : {
+      "comment" : "Explains why Precise Location is needed for confident region attribution.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Precise off — Open Settings"
+          }
+        }
+      }
+    },
+    "locationWelcome.returnTitle" : {
+      "comment" : "Title shown after the user moves to another tracked region. The argument is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welcome back to %@"
+          }
+        }
+      }
+    },
+    "locations.elsewhere.subtitle" : {
+      "comment" : "Subtitle on the Locations tab's Elsewhere entry card: region count.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld region"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld regions"
+                }
+              }
+            }
           }
         }
       }
@@ -6141,6 +6261,52 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Estimated time & planning"
+          }
+        }
+      }
+    },
+    "settings.appearance.locationWelcome.footer" : {
+      "comment" : "Explains when the live-region welcome card appears.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show a welcome card when Where starts counting days toward a different tracked region."
+          }
+        }
+      }
+    },
+    "settings.appearance.locationWelcome.reset.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Developer: Clear the saved welcome region, then return to Locations to show the card again."
+          }
+        }
+      }
+    },
+    "settings.appearance.locationWelcome.reset.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset Welcome Card"
+          }
+        }
+      }
+    },
+    "settings.appearance.locationWelcome.toggle" : {
+      "comment" : "Toggle that controls whether live-region welcome cards appear on the Locations tab.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Region welcome cards"
           }
         }
       }
@@ -8793,6 +8959,18 @@
         }
       }
     },
+    "settings.keywords.locationWelcome" : {
+      "comment" : "Comma-separated Settings search keywords for the live-region welcome visibility toggle.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "welcome, greeting, region, location, card, arrival"
+          }
+        }
+      }
+    },
     "settings.keywords.loggedDays" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -9250,6 +9428,17 @@
         }
       }
     },
+    "settings.regions.manage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Manage Regions"
+          }
+        }
+      }
+    },
     "settings.regions.row" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -9257,6 +9446,17 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Primary regions"
+          }
+        }
+      }
+    },
+    "settings.regions.saveError.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Unable to Save Regions"
           }
         }
       }

@@ -19,7 +19,9 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Stuff keeps AccessibilitySnapshot's annotation renderer in the test-only `SnapshotKitTesting` product.** It does not link into shipping UI modules.
 - **Accessibility configs only render as snapshot tests.** Do not "fix" previews to include them without a preview-only dependency boundary.
 - **Keep `SnapshotCase` content builders lazy.** Constructing a provider's descriptor array must not instantiate every view or model.
-- **Each content access creates the independent value rendered by that configuration.**
+- **Do not assume captured models are isolated between configurations.** The current
+  `SnapshotKitTesting` runner evaluates content once per case and re-hosts it;
+  per-configuration model isolation remains in [`TODOs.md`](TODOs.md).
 - **Use `\.isCapturingSnapshot` for motion end-states only.** A view may read it only to freeze motion at a deterministic phase.
 - **Never use it to change layout, content, or behavior.**
 - **One carve-out (documented on the property):** content no settle window can make deterministic may substitute a placeholder of identical layout.

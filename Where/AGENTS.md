@@ -64,8 +64,11 @@ Rules the code enforces and agents must preserve:
   [Spans](#spans).
 - **Location comes through the `LocationSource` protocol.**
   `CoreLocationSource` runs in production. `ScriptedLocationSource` runs in
-  tests/previews. The one-shot `requestCurrentLocation()` returns `nil` rather
-  than throwing when no fix is available.
+  tests/previews. The bounded one-shot `requestCurrentLocation()` returns a
+  typed, nonthrowing acquisition outcome. Live region decisions require a fix
+  no more than 60 seconds old, with valid accuracy no worse than 1 km, whose
+  uncertainty circle stays inside one tracked region. Passive valid samples
+  remain historical evidence regardless of that live-decision cap.
 - **Automatic recording consent is installation-local.** Stamp automatic GPS
   samples with their `RecordingDeviceID`. Route user-facing reads through
   `LocationHistoryReader`. Sync profiles, nickname events, advisory check-ins,
@@ -266,9 +269,12 @@ synchronous, in-memory fixtures. Never use disk, CloudKit, or CoreLocation.
 ## Installing to a device
 
 `./Where/install` builds, signs, and installs the app onto a connected iPhone
-from the CLI. It is macOS-only. It needs one-time `./ide --team-id <id>` setup.
-It defaults to Debug with compiler optimizations forced on. DEBUG-only developer
-surfaces survive at near-Release speed. Options: `./Where/install --help`.
+from the CLI — macOS-only, one-time `./ide --team-id <id>` setup. It defaults
+to the **Where Development** scheme with compiler optimizations forced on, so
+DEBUG-only developer surfaces survive at near-Release speed. Pass
+`--configuration Beta` for the TestFlight-style production identity or
+`--configuration Release` for the App Store audience. Options:
+`./Where/install --help`.
 
 ## Testing
 

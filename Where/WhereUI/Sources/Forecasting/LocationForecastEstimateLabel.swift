@@ -6,13 +6,12 @@ struct LocationForecastEstimateLabel: View {
     let forecast: LocationForecast
     let tint: Color
 
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
         let row = stylesheet.locationForecast.row
 
-        if dynamicTypeSize.isAccessibilitySize {
+        if row.layout == .stacked {
             VStack(alignment: .leading, spacing: row.estimateSpacing) {
                 regionLabel
                 estimateLabel

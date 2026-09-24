@@ -16,6 +16,11 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 
 ## What you get
 
+The Elsewhere entry card uses a compact passport surface with neutral ink.
+Its count, separate background silhouettes, and microprint border share the ordered secondary regions.
+The catch-all Other region uses a background globe because it has no geographic outline.
+The card opens the existing Elsewhere list.
+
 ### App shell & view models
 
 - **`RootView`** — the app root: the typed launch plan (via
@@ -73,6 +78,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   developer relaunches. The Logs destination is always present. Before its
   durable store is ready it reports whether the open is still running,
   unavailable, or failed with the actual error.
+- **App icons** — `AppIcons.json` catalogs asset names, while the host injects
+  the current audience's primary asset at `RootView`. The picker maps that one
+  asset to UIKit's `nil` primary-icon value and treats every other catalogued
+  asset as an alternate, so primary status may differ by build audience.
 - **`WhereLaunch`** — the launch, reset, and exit-demo plans themselves. First-unlock
   preparation precedes demo activation and onboarding. Every work
   step declares a budget (`BudgetedLaunchStep`) and joins the
@@ -120,7 +129,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   demo, and completion orchestration) and **`OnboardingImportRecoveryModel`** (the sidecar/store
   recovery handshake after an interrupted onboarding import), and
   **`LocationCardsPresentationModel`** (the last primary-card counts and order
-  the user saw). The Location model holds saved values until the card surface
+  the user saw), and **`LocationWelcomeModel`** (the `MainTabs`-owned,
+  preference-gated current-region acquisition, recovery, welcome, and persisted
+  acknowledgement state machine). The Location model holds saved values until the card surface
   is visible and unobscured, holds them there for another half second, then
   advances every changed number and any live two-card reversal in one animated
   beat, adding one light haptic. Decreases, first visits, hidden updates, and
@@ -130,10 +141,24 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 
 ### Reusable views & styling
 
+- **`RegionWelcomeCard`** — an app-wide overlay over the selected tab that combines a region's emoji,
+  icon, outline, Liquid Glass card treatment, and passport ink. The card stamps into place
+  with a quick tilted approach and spring settle, then lifts away on dismissal.
+  The scrim fades independently. Reduce Motion uses a short fade for both layers.
+  Debug builds include **Reset Welcome Card** in Settings > Appearance beside the welcome-card toggle.
+  The reset clears the saved region so the next foreground activation can show the card again.
+  `MainTabs` requests one bounded fix on each active-scene entry. It shows a
+  native tab-bar accessory after one second; denied or restricted access and
+  disabled Precise Location remain actionable there, while transient or
+  low-confidence failures disappear.
+  Welcome cards must be enabled, and the device must confidently resolve a
+  tracked region with recording active.
+
 - **`OnboardingView` / `OnboardingFlowModel`** — the rendered first-run flow and its view-scoped
   observable coordinator, registered for the launch's
-  `OnboardingGate` and handed its `LifecycleGateHandle`. The gate roots the
-  trunk, so there is no session behind it: a paged intro,
+  `OnboardingGate` and handed its `LifecycleGateHandle`. The gate follows the
+  side-effect-free demo preflight and precedes every world-building step, so
+  there is no session behind it: a paged intro,
   then picking up to five primary US regions (map or searchable list) and
   giving each a look, then verifying this installation's automatic-recording
   choice. The final page opens the real store in a dormant state to inspect recent synced advisory
@@ -165,9 +190,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `BackupSettingsSection` owns these lifecycle actions. Its shared display child,
   `BackupSettingsContent`, lets snapshots pin visible states without simulating scene changes.
 - **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
-  picker (segmented map/list) and per-region color/emoji/icon customization,
-  backed by `PrimaryRegionSelectionModel`. Reused by onboarding and the Settings
-  `RegionsSettingsView` editor.
+  picker (segmented map/list) and the stepped color/emoji/icon editor for onboarding.
+  `PrimaryRegionSelectionModel` contains their shared state. The `RegionsSettingsView`
+  screen opens on selected regions and edits one appearance at a time. It uses the shared
+  picker for membership changes.
 - **`DevicesSettingsView`** — Settings’ installation rows for local recording choice, synced
   nicknames, advisory activity/permission status, and irreversible removal. Only the current row
   can toggle recording. Remote rows can be renamed or removed while preserving their earlier
@@ -282,11 +308,28 @@ faces on `Typography`, and animation tokens on `Motion`.
 
 ### Trait-aware tokens
 
-Most tokens are fixed. A slice derives from the `BContext` traits in
-`init(context:)` — read the live set off that initializer. Today it grows
-day-grid tap targets at accessibility Dynamic Type sizes, flattens the card
-glow under Reduce Transparency, and crossfades the cards' day count under
-Reduce Motion.
+The stylesheet resolves trait-driven appearance in `init(context:)`. Views
+consume component styles such as `locationForecast.header.layout`. They do
+not read Dynamic Type to select an arrangement. The slice also selects copy
+length, coordinated spacing, icon colors, and motion.
+
+Keep semantic fonts and system colors. For authored dimensions that scale,
+`BScaledDimension` uses system font metrics with the slice's explicit
+content-size category. Its hosted test compares the result with `@ScaledMetric`.
+
+Keep available width, measured chrome, and `ViewThatFits` in the layout layer.
+Those values are unavailable during slicing. User-edited preview state and live
+designer drafts also remain runtime inputs. Each direct trait read documents
+its exception. Capture-time motion stays in `MotionIsStatic`.
+
+`launch.reveal` stores an `Equatable` policy and constructs its transition on
+access. `RootView` resolves that policy beneath its own Broadway root. A
+non-`Equatable` rendering type does not require a direct trait read.
+
+For styled subtrees, pair scoped SwiftUI appearance overrides with Broadway
+trait overrides. This keeps semantic text, assets, and resolved component
+styles consistent. The developer HUD and widget examples show content-size
+overrides; the app-icon preview shows a mode override.
 
 ### Per-region styling
 

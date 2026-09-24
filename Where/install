@@ -9,10 +9,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 WORKSPACE="Stuff.xcworkspace"
-SCHEME="Where"
-BUNDLE_ID="com.stuff.where"
 
 CONFIGURATION="Debug"
+SCHEME=""
+BUNDLE_ID=""
 OPTIMIZE=true
 DEVICE=""
 LAUNCH=true
@@ -32,7 +32,7 @@ while running at roughly Release speed — and launches the app.
 Options:
   --device NAME            Target a specific device by name (exact match),
                            UDID, or identifier (default: the sole paired iPhone)
-  --configuration NAME     Build configuration (default: Debug)
+  --configuration NAME     Debug, Beta, or Release (default: Debug)
   --optimize               Force compiler optimizations on (default)
   --no-optimize            Build without forcing optimizations (use the
                            configuration's own optimization level)
@@ -48,6 +48,7 @@ Examples:
   ./Where/install
   ./Where/install --cloudkit
   ./Where/install --device "Kai's iPhone"
+  ./Where/install --configuration Beta
   ./Where/install --configuration Release
   ./Where/install --no-optimize --no-launch
   ./Where/install --device "Kai's iPhone" --dry-run
@@ -76,6 +77,27 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
+
+# Each audience has an explicit scheme while retaining the familiar underlying
+# configuration names used by build products and the build-info stamp.
+case "$CONFIGURATION" in
+    Debug)
+        SCHEME="Where Development"
+        BUNDLE_ID="com.stuff.where.development"
+        ;;
+    Beta)
+        SCHEME="Where Beta"
+        BUNDLE_ID="com.stuff.where"
+        ;;
+    Release)
+        SCHEME="Where App Store"
+        BUNDLE_ID="com.stuff.where"
+        ;;
+    *)
+        echo "error: unsupported Where configuration '$CONFIGURATION' (expected Debug, Beta, or Release)" >&2
+        exit 1
+        ;;
+esac
 
 # A device build must be signed by a real team. Preserve mise failures so a
 # malformed configuration remains distinguishable from an unset variable.
@@ -121,7 +143,7 @@ else
     echo "==> tuist generate --no-open"
     mise exec -- tuist generate --no-open >/dev/null
 
-    echo "==> xcodebuild ($CONFIGURATION$([ "$OPTIMIZE" = true ] && echo ', optimized')) for device"
+    echo "==> xcodebuild $SCHEME ($CONFIGURATION$([ "$OPTIMIZE" = true ] && echo ', optimized')) for device"
     mise exec -- xcodebuild build \
         -workspace "$WORKSPACE" \
         -scheme "$SCHEME" \

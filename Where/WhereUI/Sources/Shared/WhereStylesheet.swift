@@ -18,6 +18,7 @@ struct WhereStylesheet: BStylesheet {
     var size = Size()
     var card = CardStyles.standard
     var locationCardStack = LocationCardStackStyle.standard
+    var locationWelcome = LocationWelcomeStyle.standard
     var calendar = CalendarStyle.standard
     var appIcon = AppIconStyle.standard
     var timeline = TimelineStyle.standard
@@ -30,6 +31,7 @@ struct WhereStylesheet: BStylesheet {
     var motion = Motion.standard
     var launch = LaunchStyle.standard
     var typography = Typography.standard
+    var themePicker = ThemePickerStyle()
     var settings = SettingsStyle.standard
     var featureDiscovery = FeatureDiscoveryStyle.standard
     var passportSeal = PassportSealStyle.standard
@@ -47,12 +49,32 @@ struct WhereStylesheet: BStylesheet {
         let traits = context.traits
         theme = context.themes[WhereTheme.self]
 
+        developerOverlay.launcher.diameter = BScaledDimension.value(
+            developerOverlay.launcher.diameter,
+            relativeTo: .title2,
+            category: traits.contentSizeCategory,
+        )
+
         // Grow day-grid tap targets at accessibility Dynamic Type sizes.
         if traits.contentSizeCategory.isAccessibilitySize {
+            locationWelcome.accessory.copy = .compact
+            locationForecast.header.layout = .stacked
+            locationForecast.row.layout = .stacked
+            locationForecast.controls.layout = .stacked
+            privacyPassportCard.headerLayout = .stacked
+            privacyPassportCard.disclosure.layout = .stacked
+            themePicker.layout = .stacked
+            openSourceStamp.layout = .stacked
+            plannedStayWarningStamp.layout = .stacked
+            featureDiscovery.appIcon.layout = .stacked
+            featureDiscovery.regionStyle.layout = .stacked
+            featureDiscovery.shareSheet = .accessible
+            featureDiscovery.evidenceArchive = .accessible
             calendar.day.minHeight = 56
             timeline.overview.pinsToViewport = false
             timeline.row.stacksDayCount = true
             featureDiscovery.siri.bubble.indent = 0
+            elsewhereCard.stacksContent = true
         }
 
         // Give every region a consistently labeled ribbon band when tint
@@ -69,6 +91,8 @@ struct WhereStylesheet: BStylesheet {
             card.compact.glow.radius = 0
             card.constellation.haloOpacity = 0
             privacyPassportCard.disclosure.fillOpacity = 0.16
+            elsewhereCard.surface.usesOpaquePaper = true
+            elsewhereCard.surface.shadowOpacity = 0
         }
 
         if traits.accessibility.isDarkerSystemColorsEnabled {
@@ -80,15 +104,23 @@ struct WhereStylesheet: BStylesheet {
         // Reduce Motion stops the cards' day count rolling its digits; it
         // crossfades to the new number instead.
         if traits.accessibility.isReduceMotionEnabled {
+            launch.reveal = .crossfade
+            launch.revealAnimation = motion.reducedReveal
+            launch.captionAnimation = nil
+            settings.flashAnimation = nil
             card.dayCount = .reducedMotion
             locationCardStack.overtake = .reducedMotion
+            locationWelcome.motion = .reduced
             developerOverlay.menu.motion = .reduced
         }
 
         // Pale, luminosity-only ink lifts the background security print off
         // dark glass without changing its hue or saturation on touch.
         if traits.mode == .dark {
+            settings.iconForeground = .black
             card.securityPrint = .dark
+            elsewhereCard.surface.ink = Color(white: 0.78)
+            elsewhereCard.surface.paper = Color(white: 0.16)
             featureDiscovery.siri.accent = Color(white: 0.42)
         }
     }
@@ -96,6 +128,150 @@ struct WhereStylesheet: BStylesheet {
     /// The fixed token set: the fallback used off the `View` tree (layout
     /// helpers, tests) and when no Broadway root has seeded a context.
     static let `default` = WhereStylesheet()
+}
+
+// MARK: - Location welcome
+
+extension WhereStylesheet {
+    /// Appearance and motion for the live-region welcome over Locations.
+    struct LocationWelcomeStyle: Equatable {
+        var maxWidth: CGFloat
+        var cornerRadius: CGFloat
+        var padding: CGFloat
+        var contentSpacing: CGFloat
+        var paperOpacity: Double
+        var scrimOpacity: Double
+        var glassTintOpacity: Double
+        var glow: Shadow
+        var lift: Shadow
+        var close: Close
+        var accessory: Accessory
+        var motion: Motion
+
+        struct Shadow: Equatable {
+            var opacity: Double
+            var radius: CGFloat
+            var offsetY: CGFloat = 0
+        }
+
+        struct Close: Equatable {
+            var offset: CGSize
+            var tintOpacity: Double
+            var glow: Shadow
+            var lift: Shadow
+        }
+
+        struct Accessory: Equatable {
+            enum Copy: Equatable { case full, compact }
+            var copy = Copy.full
+            var contentSpacing: CGFloat
+            var horizontalPadding: CGFloat
+            var verticalPadding: CGFloat
+            var minimumActionHeight: CGFloat
+            var symbolSize: CGFloat
+            var titleFont: Font
+        }
+
+        struct Motion: Equatable {
+            var arrival: Movement
+            var departure: Movement
+            var scrimAnimation: Animation
+            var usesSpatialMotion: Bool
+
+            struct Movement: Equatable {
+                var animation: Animation
+                var scale: CGFloat
+                var rotationDegrees: Double
+                var verticalOffset: CGFloat
+
+                var transition: AnyTransition {
+                    .modifier(
+                        active: LocationWelcomeTransitionModifier(
+                            scale: scale,
+                            rotationDegrees: rotationDegrees,
+                            verticalOffset: verticalOffset,
+                        ),
+                        identity: LocationWelcomeTransitionModifier(
+                            scale: 1,
+                            rotationDegrees: 0,
+                            verticalOffset: 0,
+                        ),
+                    )
+                    .combined(with: .opacity)
+                }
+            }
+
+            var transition: AnyTransition {
+                .asymmetric(
+                    insertion: (usesSpatialMotion ? arrival.transition : .opacity)
+                        .animation(arrival.animation),
+                    removal: (usesSpatialMotion ? departure.transition : .opacity)
+                        .animation(departure.animation),
+                )
+            }
+
+            static let standard = Motion(
+                arrival: Movement(
+                    animation: .spring(duration: 0.3, bounce: 0.28),
+                    scale: 1.28,
+                    rotationDegrees: -9,
+                    verticalOffset: -24,
+                ),
+                departure: Movement(
+                    animation: .easeOut(duration: 0.16),
+                    scale: 1.045,
+                    rotationDegrees: 3,
+                    verticalOffset: -10,
+                ),
+                scrimAnimation: .easeOut(duration: 0.16),
+                usesSpatialMotion: true,
+            )
+
+            static let reduced = Motion(
+                arrival: Movement(
+                    animation: .easeInOut(duration: 0.16),
+                    scale: 1,
+                    rotationDegrees: 0,
+                    verticalOffset: 0,
+                ),
+                departure: Movement(
+                    animation: .easeInOut(duration: 0.16),
+                    scale: 1,
+                    rotationDegrees: 0,
+                    verticalOffset: 0,
+                ),
+                scrimAnimation: .easeInOut(duration: 0.16),
+                usesSpatialMotion: false,
+            )
+        }
+
+        static let standard = LocationWelcomeStyle(
+            maxWidth: 390,
+            cornerRadius: 30,
+            padding: 24,
+            contentSpacing: 16,
+            paperOpacity: 0.92,
+            scrimOpacity: 0.28,
+            glassTintOpacity: 0.2,
+            glow: Shadow(opacity: 0.16, radius: 22),
+            lift: Shadow(opacity: 0.18, radius: 12, offsetY: 6),
+            close: Close(
+                offset: CGSize(width: 8, height: -8),
+                tintOpacity: 0.24,
+                glow: .init(opacity: 0.28, radius: 8),
+                lift: .init(opacity: 0.22, radius: 5, offsetY: 3),
+            ),
+            accessory: Accessory(
+                contentSpacing: 10,
+                horizontalPadding: 12,
+                verticalPadding: 8,
+                minimumActionHeight: 44,
+                symbolSize: 16,
+                titleFont: .subheadline.weight(.semibold),
+            ),
+            motion: .standard,
+        )
+    }
 }
 
 // MARK: - Location card stack
@@ -187,6 +363,7 @@ extension WhereStylesheet {
         }
 
         struct Header: Equatable {
+            var layout = ContentLayout.inline
             var contentSpacing: CGFloat
             var textSpacing: CGFloat
             var titleFont: Font
@@ -195,6 +372,7 @@ extension WhereStylesheet {
         }
 
         struct Row: Equatable {
+            var layout = ContentLayout.inline
             var cornerRadius: CGFloat
             var padding: CGFloat
             var contentSpacing: CGFloat
@@ -212,6 +390,11 @@ extension WhereStylesheet {
         }
 
         struct Controls: Equatable {
+            var layout = ContentLayout.inline
+            var expandsClearAction: Bool {
+                layout == .stacked
+            }
+
             var sectionSpacing: CGFloat
             var layoutSpacing: CGFloat
             var cornerRadius: CGFloat
@@ -357,6 +540,16 @@ extension WhereStylesheet {
     /// Appearance and motion for the DEBUG-only developer launcher, accordion,
     /// and selected-tool HUD.
     struct DeveloperOverlayStyle: Equatable {
+        var launcher = Launcher()
+
+        struct Launcher: Equatable {
+            var diameter: CGFloat = 52
+            var glyphRatio: CGFloat = 0.4
+            var shadowColor = Color.black.opacity(0.15)
+            var shadowRadius: CGFloat = 3
+            var shadowOffsetY: CGFloat = 1
+        }
+
         var edgeInset: CGFloat
         var presentationAnimation: Animation
         var floatingWindow: FloatingWindow
@@ -1527,6 +1720,12 @@ extension WhereStylesheet {
             var hatchSpacing: CGFloat
             var hatchLineWidth: CGFloat
             var labelOpacity: Double
+            var transitionHeight: CGFloat
+            var joinedBaseHeight: CGFloat
+            var joinedVerticalPadding: CGFloat
+            var joinedLabelSpacing: CGFloat
+            var joinedCountHorizontalPadding: CGFloat
+            var joinedCountVerticalPadding: CGFloat
         }
 
         static let standard = TimelineStyle(
@@ -1582,6 +1781,12 @@ extension WhereStylesheet {
                 hatchSpacing: 8,
                 hatchLineWidth: 1,
                 labelOpacity: 0.7,
+                transitionHeight: 16,
+                joinedBaseHeight: 32,
+                joinedVerticalPadding: 8,
+                joinedLabelSpacing: 5,
+                joinedCountHorizontalPadding: 8,
+                joinedCountVerticalPadding: 4,
             ),
         )
     }
@@ -1615,32 +1820,62 @@ extension WhereStylesheet {
 // MARK: - Elsewhere entry card
 
 extension WhereStylesheet {
-    /// The compact entry card at the bottom of the Locations tab that links to
-    /// the Elsewhere list. A small self-contained group (it doesn't borrow the
-    /// passport `CardStyle`, which is a different, heavier component).
+    /// The quieter passport surface that summarizes secondary regions.
     struct ElsewhereCardStyle: Equatable {
-        /// Corner radius of the glass card.
-        var cornerRadius: CGFloat
-        /// Inset of the card's contents from its edge.
-        var padding: CGFloat
-        /// Point size of the leading globe glyph.
-        var iconPointSize: CGFloat
-
-        static let standard = ElsewhereCardStyle(
-            cornerRadius: 22,
-            padding: 18,
-            iconPointSize: 28,
+        var cornerRadius: CGFloat = 28
+        var padding: CGFloat = 22
+        var minimumHeight: CGFloat = 104
+        var stacksContent = false
+        var titleFont: Font = .system(.title2, design: .serif, weight: .semibold)
+        var surface = Surface()
+        var artwork = Artwork()
+        var border = CardStyle.RegionShape.SecurityBorder(
+            inset: 7,
+            glyphSize: 7,
+            spacing: 12,
+            opacity: 0.18,
         )
+
+        struct Surface: Equatable {
+            var ink = Color(white: 0.36)
+            var paper = Color(white: 0.94)
+            var usesOpaquePaper = false
+            var glassTintOpacity: Double = 0.06
+            var shadowOpacity: Double = 0.06
+            var shadowRadius: CGFloat = 8
+            var shadowOffsetY: CGFloat = 3
+            var rosetteOpacity: Double = 0.035
+            var rosette = CardStyle.Rosette(
+                wobble: 0.04,
+                lineWidth: 0.5,
+                primaryRingSpacing: 12,
+                secondaryRingSpacing: 17,
+            )
+        }
+
+        struct Artwork: Equatable {
+            var widthFraction: CGFloat = 0.62
+            var inset: CGFloat = 16
+            var gap: CGFloat = 8
+            var leadingOpacity: Double = 0.18
+            var silhouette = CardStyle.RegionShape.Artwork(
+                center: CGPoint(x: 0.5, y: 0.5),
+                extent: CGSize(width: 0.9, height: 0.9),
+                scale: 1,
+                fillOpacity: 0.11,
+                stroke: .init(opacity: 0.22, width: 0.7),
+            )
+        }
+
+        static let standard = ElsewhereCardStyle()
     }
 }
 
 // MARK: - Motion
 
 extension WhereStylesheet {
-    /// App-level animation tokens. Views still decide *when* to apply them and
-    /// honor Reduce Motion — they pick `reducedReveal` (a flatter crossfade) over
-    /// `reveal`, and skip `captionFade` entirely — so these carry the "full
-    /// motion" values.
+    /// Shared animation values. Component slices select their resolved motion;
+    /// views decide when to apply it.
     struct Motion: Equatable {
         /// The launch splash → app reveal.
         var reveal: Animation
@@ -1702,6 +1937,28 @@ extension WhereStylesheet {
     /// before the app reveals. Kept as tokens so the durations aren't hardcoded
     /// across the splash view and the `LifecycleContainer` seam.
     struct LaunchStyle: Equatable {
+        var reveal = Reveal.zoom
+        var revealAnimation = Motion.standard.reveal
+        var captionAnimation: Animation? = Motion.standard.captionFade
+
+        /// A slice selects the policy; SwiftUI constructs the transition at rendering time.
+        enum Reveal: Equatable {
+            case zoom
+            case crossfade
+
+            var transition: AnyTransition {
+                switch self {
+                    case .zoom:
+                        .asymmetric(
+                            insertion: .identity,
+                            removal: .scale(scale: 16).combined(with: .opacity),
+                        )
+                    case .crossfade:
+                        .opacity
+                }
+            }
+        }
+
         /// The least time the splash stays up before the app reveals, passed to
         /// `LifecycleContainer`. Optimized launches finish near-instantly, so
         /// without this the splash (and its reveal) would flash past unseen.
@@ -1720,11 +1977,10 @@ extension WhereStylesheet {
 // MARK: - Settings
 
 extension WhereStylesheet {
-    /// Appearance + motion for the Settings list. Geometry only — per-section
-    /// icon colors live on `SettingsDestination`, and the flash tint (accent) /
-    /// restored grouped-row background (a system role) / white-or-black glyph
-    /// stay inline, per the "no adaptive/accent colors in the sheet" rule.
+    /// Appearance and resolved motion for the Settings list. Per-section icon
+    /// colors live on `SettingsDestination`; semantic system roles stay inline.
     struct SettingsStyle: Equatable {
+        var iconForeground = Color.white
         /// Edge of the colored rounded-square icon chip on each top-level row.
         var iconSize: CGFloat
         /// Corner radius of that chip (continuous corners for the squircle look).
@@ -1732,7 +1988,7 @@ extension WhereStylesheet {
         /// Point size of the SF Symbol glyph inside the chip.
         var iconSymbolSize: CGFloat
         /// The animation used for both the scroll and the flash fade.
-        var flashAnimation: Animation
+        var flashAnimation: Animation?
         /// How long the row stays highlighted before it fades back.
         var flashDuration: Duration
         /// A short wait after the push lands before scrolling, so the row is laid
@@ -1756,6 +2012,49 @@ extension WhereStylesheet {
     /// Appearance for the Siri conversation cards and the miniature widget
     /// surfaces in Settings' feature explorer.
     struct FeatureDiscoveryStyle: Equatable {
+        var appIcon = AppIconPreview()
+        var regionStyle = RegionStylePreview()
+        var shareSheet = ShareSheetPreview.standard
+        var evidenceArchive = EvidenceArchivePreview.standard
+
+        struct AppIconPreview: Equatable {
+            var layout = ContentLayout.inline
+            var spacing: CGFloat = 8
+        }
+
+        struct RegionStylePreview: Equatable {
+            var layout = ContentLayout.inline
+            var spacing: CGFloat = 6
+        }
+
+        struct ShareSheetPreview: Equatable {
+            var sourcesLayout: ContentLayout
+            var sourceLayout: ContentLayout
+            var sourcesSpacing: CGFloat
+            var titleAlignment: TextAlignment
+
+            static let standard = Self(
+                sourcesLayout: .inline,
+                sourceLayout: .stacked,
+                sourcesSpacing: 12,
+                titleAlignment: .center,
+            )
+            static let accessible = Self(
+                sourcesLayout: .stacked,
+                sourceLayout: .inline,
+                sourcesSpacing: 8,
+                titleAlignment: .leading,
+            )
+        }
+
+        struct EvidenceArchivePreview: Equatable {
+            var layout: ContentLayout
+            var spacing: CGFloat
+
+            static let standard = Self(layout: .inline, spacing: 8)
+            static let accessible = Self(layout: .stacked, spacing: 6)
+        }
+
         var marketingHeader: MarketingHeader
         var marketingPanel: MarketingPanel
         var backgroundPattern: BackgroundPattern
@@ -1971,6 +2270,7 @@ extension WhereStylesheet {
 
     /// Appearance for the reflective privacy statement in Settings.
     struct PrivacyPassportCardStyle: Equatable {
+        var headerLayout = ContentLayout.inline
         var cornerRadius: CGFloat
         var padding: CGFloat
         var sectionSpacing: CGFloat
@@ -2007,6 +2307,7 @@ extension WhereStylesheet {
         }
 
         struct Disclosure: Equatable {
+            var layout = ContentLayout.inline
             var rowSpacing: CGFloat
             var cornerRadius: CGFloat
             var padding: CGFloat
@@ -2073,6 +2374,7 @@ extension WhereStylesheet {
 
     /// Appearance for a flat, single-ink stamp banner.
     struct StampBannerStyle: Equatable {
+        var layout = ContentLayout.inline
         var tint: Color
         var padding: CGFloat
         var contentSpacing: CGFloat
@@ -2288,5 +2590,18 @@ extension EnvironmentValues {
     /// so it traps in debug and falls back to `default` in release.
     var stylesheet: WhereStylesheet {
         bContext.stylesheet(WhereStylesheet.self, fallback: .default)
+    }
+}
+
+extension WhereStylesheet {
+    /// A resolved arrangement, independent of the trait that selected it.
+    enum ContentLayout: Equatable {
+        case inline
+        case stacked
+    }
+
+    struct ThemePickerStyle: Equatable {
+        var layout = ContentLayout.inline
+        var spacing: CGFloat = 12
     }
 }

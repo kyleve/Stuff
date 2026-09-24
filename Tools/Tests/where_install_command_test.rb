@@ -20,16 +20,50 @@ class WhereInstallCommandTest < Minitest::Test
 
       assert status.success?, stderr
       assert_includes stdout, "Would run tuist generate"
-      assert_includes stdout, "Would build Where"
+      assert_includes stdout, "Would build Where Development"
       assert_includes stdout, "Would install"
       assert_includes stdout, "phone-one"
-      assert_includes stdout, "Would launch com.stuff.where"
+      assert_includes stdout, "Would launch com.stuff.where.development"
       assert_includes stderr, "using: Kai's iPhone (phone-one)"
       assert_includes fixture.log, "devicectl list devices"
       refute_includes fixture.log, "tuist"
       refute_includes fixture.log, "xcodebuild"
       refute_includes fixture.log, "device install"
       refute_path_exists fixture.derived_data
+    end
+  end
+
+  def test_dry_run_maps_each_configuration_to_its_audience_scheme_and_bundle
+    expectations = [
+      ["Debug", "Where Development", "com.stuff.where.development"],
+      ["Beta", "Where Beta", "com.stuff.where"],
+      ["Release", "Where App Store", "com.stuff.where"],
+    ]
+
+    expectations.each do |configuration, scheme, bundle_id|
+      with_fixture do |fixture|
+        fixture.write_devices(fixture.device(identifier: "phone", udid: "udid", name: "Phone"))
+
+        stdout, stderr, status = fixture.run(
+          "--configuration", configuration,
+          "--dry-run",
+          "--yes",
+        )
+
+        assert status.success?, stderr
+        assert_includes stdout, "Would build #{scheme} (#{configuration}, optimized)"
+        assert_includes stdout, "Would launch #{bundle_id}"
+      end
+    end
+  end
+
+  def test_unsupported_configuration_fails_before_dependencies_run
+    with_fixture do |fixture|
+      _stdout, stderr, status = fixture.run("--configuration", "AdHoc", "--dry-run", "--yes")
+
+      assert_equal 1, status.exitstatus
+      assert_includes stderr, "unsupported Where configuration"
+      assert_equal "", fixture.log
     end
   end
 

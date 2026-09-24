@@ -8,8 +8,10 @@ public actor WidgetPresentationPublisher {
     private let reloadTimelines: @Sendable () -> Void
     private var lastPublishedTheme: WhereTheme?
 
-    public init() {
-        makeStore = { try WidgetPresentationStore.shared() }
+    public init(appGroupIdentifier: String) {
+        makeStore = {
+            try WidgetPresentationStore.shared(appGroupIdentifier: appGroupIdentifier)
+        }
         reloadTimelines = { WidgetCenter.shared.reloadAllTimelines() }
     }
 

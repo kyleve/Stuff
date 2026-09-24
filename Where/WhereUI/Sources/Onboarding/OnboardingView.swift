@@ -6,14 +6,15 @@ import SwiftUI
 import UniformTypeIdentifiers
 @_spi(Testing) import WhereCore
 
-/// First-run onboarding, run as the launch's opening gate. A short paged
+/// First-run onboarding, run as the launch's user-facing gate. A short paged
 /// intro to the passport concept, then picking the primary regions you spend
 /// time in and giving each a look, then confirming whether this device should
 /// record automatically. Enabling it requests background-location permission
 /// here, rather than burying that decision in Settings.
 ///
-/// No session exists behind this screen: the gate roots the trunk. The final choice may prepare
-/// and retain the real store solely to discover synced authority; services and GPS remain dormant.
+/// No session exists behind this screen: the gate precedes every step that builds
+/// the user's world. The final choice may prepare and retain the real store solely
+/// to discover synced authority; services and GPS remain dormant.
 /// Onboarding is what brings the
 /// user's world into being — restoring a backup or finishing the flow logs in
 /// to the real scope (`WhereModel.resolveScope()`, which performs the app's one

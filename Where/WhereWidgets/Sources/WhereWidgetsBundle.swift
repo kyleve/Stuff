@@ -6,15 +6,17 @@ import WidgetKit
 /// the app writes; see `WhereWidgetProvider` for the data path.
 @main
 struct WhereWidgetsBundle: WidgetBundle {
+    private let buildEnvironment = WhereWidgetBuildEnvironment.current()
+
     var body: some Widget {
-        TodayWidget()
-        YearTotalsWidget()
+        TodayWidget(appGroupIdentifier: buildEnvironment.appGroupIdentifier)
+        YearTotalsWidget(appGroupIdentifier: buildEnvironment.appGroupIdentifier)
     }
 }
 
 #if DEBUG
     #Preview("Where widgets", as: .systemSmall) {
-        TodayWidget()
+        TodayWidget(appGroupIdentifier: "group.com.stuff.where.preview")
     } timeline: {
         WhereWidgetEntry.sample
     }

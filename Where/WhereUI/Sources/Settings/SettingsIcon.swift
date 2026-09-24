@@ -10,13 +10,12 @@ struct SettingsIcon: View {
     let color: Color
 
     @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         let settings = stylesheet.settings
         Image(systemSymbol: systemSymbol)
             .font(.system(size: settings.iconSymbolSize, weight: .semibold))
-            .foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
+            .foregroundStyle(settings.iconForeground)
             .frame(width: settings.iconSize, height: settings.iconSize)
             .background(
                 color,

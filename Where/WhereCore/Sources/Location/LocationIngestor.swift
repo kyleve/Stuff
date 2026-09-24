@@ -324,6 +324,11 @@ public actor LocationIngestor {
         isMonitoring
     }
 
+    /// Whether the current device policy authorizes automatic location samples.
+    public var isRecordingAuthorized: Bool {
+        if case .open = recordingAuthority { true } else { false }
+    }
+
     /// Number of samples currently waiting to be re-persisted. Exposed for
     /// tests; production callers should treat this as opaque.
     public var retryQueueDepth: Int {
@@ -334,12 +339,9 @@ public actor LocationIngestor {
         try await locationSource.requestPermission()
     }
 
-    /// Best-effort one-shot GPS fix for "where is the device right now", used to
-    /// stamp a manual entry's audit trail. Returns `nil` when no fix is
-    /// available (permission not granted, timeout); the caller records the entry
-    /// either way. Routed through the ingestor so the UI never touches the
-    /// `LocationSource` directly.
-    public func currentLocation() async -> LocationSample? {
+    /// Bounded one-shot GPS fix for "where is the device right now". Routed
+    /// through the ingestor so presentation never touches `LocationSource`.
+    public func currentLocation() async -> CurrentLocationResult {
         await locationSource.requestCurrentLocation()
     }
 
@@ -391,7 +393,7 @@ public actor LocationIngestor {
         let fix = await Self.logger.measure(.acquireFix, budget: .seconds(10)) {
             await locationSource.requestCurrentLocation()
         }
-        guard let sample = fix else { return }
+        guard case let .success(sample) = fix else { return }
         // The ~10s fix may have straddled a `pause()`; re-check the gate before
         // persisting, mirroring `ingest(_:)`. The guard and the `capturePersistTask`
         // assignment to the capture task is synchronous (no `await` between), so a concurrent
@@ -440,7 +442,7 @@ public actor LocationIngestor {
 
     private func accepts(_ sample: LocationSample) -> Bool {
         guard case let .open(_, effectiveAt) = recordingAuthority else { return false }
-        return sample.timestamp >= effectiveAt
+        return sample.horizontalAccuracy >= 0 && sample.timestamp >= effectiveAt
     }
 
     /// Persist one GPS-sourced sample, falling back to the retry queue on
@@ -471,7 +473,7 @@ public actor LocationIngestor {
             await closeRecordingAuthority(ifAuthorizedFor: dataGenerationID)
         } catch {
             // Persistence failures (SwiftData save, CloudKit, etc.) are surfaced
-            // via `os.Logger` rather than silently dropped. The stream keeps
+            // via typed `WhereLog` events rather than silently dropped. The stream keeps
             // running so a transient error doesn't stop tracking, and the sample
             // is queued for retry on the next save attempt.
             Self.logger(attachments: [.error(error, name: "persist-error")]) {

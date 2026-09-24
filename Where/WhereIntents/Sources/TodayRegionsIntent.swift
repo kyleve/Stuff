@@ -25,7 +25,23 @@ public struct TodayRegionsIntent: AppIntent {
         let context = try await intentServices.currentContext()
         let services = context.services
         let regions = try await measureIntent(.todayRegions) {
-            try await WhereIntentReader(services: services).todayRegions()
+            try await WhereIntentReader(
+                services: services,
+                todaySnapshot: { [appGroupIdentifier = intentServices.appGroupIdentifier] in
+                    do {
+                        return try WidgetSnapshotStore.shared(
+                            appGroupIdentifier: appGroupIdentifier,
+                        ).read()
+                    } catch {
+                        WhereIntentsLog.logger(
+                            attachments: [.error(error, name: "snapshot-read-error")],
+                        ) {
+                            .widgetSnapshotReadFailed(description: String(describing: error))
+                        }
+                        return nil
+                    }
+                },
+            ).todayRegions()
         }
         let ordered = orderedRegions(regions)
         return .result(

@@ -34,6 +34,7 @@ struct LocationsView: View {
         isCardSurfaceVisible
             && !showingResolution
             && plannedStayEditorTarget == nil
+            && !planning.isShowingError
     }
 
     init(report: YearReportModel) {
@@ -209,7 +210,7 @@ struct LocationsView: View {
                     NavigationLink {
                         ElsewhereView(report: report)
                     } label: {
-                        ElsewhereSummaryCard(regionCount: report.ranking.secondary.count)
+                        ElsewhereSummaryCard(regions: report.ranking.secondary.map(\.region))
                     }
                     .buttonStyle(.plain)
                 }
@@ -333,7 +334,7 @@ private struct ResolveToolbarLabel: View {
 
 #if DEBUG
     extension LocationsView: SnapshotProviding {
-        /// The raised settle floor on `Loaded` outlasts the iOS 26 glass toolbar
+        /// The raised settle floor on `Loaded` outlasts the native glass toolbar
         /// material adaptation (seen pre-adaptation once on the equivalent
         /// pre-split screen) — same mechanism as `RootView.LoggedIn`.
         static var snapshots: [SnapshotCase] {

@@ -128,6 +128,27 @@ struct PrimaryRegionSelectionModelTests {
         #expect(try await session.services.trackedRegions() == [.california])
     }
 
+    @Test func editingOneAppearancePreservesOtherRegionsAndOrder() async throws {
+        let session = PreviewSupport.loadedSession()
+        let california = RegionAppearance(color: .orange, emoji: "🌴", symbolName: .sunMaxFill)
+        let newYork = RegionAppearance(color: .indigo, emoji: "🗽", symbolName: .building2Fill)
+        try await session.services.setPrimaryRegions([
+            PrimaryRegion(region: .california, appearance: california, order: 0),
+            PrimaryRegion(region: .newYork, appearance: newYork, order: 1),
+        ])
+
+        let existing = try await session.services.primaryRegions()
+        let model = PrimaryRegionSelectionModel(existing: existing)
+        model.setEmoji("🌉", for: .california)
+        try await model.commit(using: session)
+
+        let saved = try await session.services.primaryRegions()
+        #expect(saved.map(\.region) == [.california, .newYork])
+        #expect(saved[0].appearance?.emoji == "🌉")
+        #expect(saved[0].appearance?.color == california.color)
+        #expect(saved[1].appearance == newYork)
+    }
+
     @Test func editingTheDefaultSetConvergesToUSOnly() async throws {
         // A fresh install has no stored rows, so `primaryRegions()` returns the
         // legacy default set (CA / NY / Canada / EU). Opening the editor drops

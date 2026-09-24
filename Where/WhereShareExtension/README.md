@@ -14,7 +14,7 @@ Host app Share sheet
             └─▶ SharedItemLoader           (extract bytes from NSItemProviders)
             └─▶ ShareEvidenceView + Model  (SwiftUI compose sheet)
                     └─▶ SwiftDataStore.perform { write(evidence:blob:) }
-                            └─▶ App Group store (group.com.stuff.where)
+                            └─▶ audience-selected App Group store
 ```
 
 - **`SharedItemLoader`** takes one attachment per `NSItemProvider` that yields bytes (so a multi-item share — the activation rule allows up to 20 — keeps them all), preferring the most preview-friendly representation each registered: PDF → image → concrete file (`.pkpass`, `.eml`, …) → text → URL (kept as its string). A share with nothing loadable still composes as a metadata-only note, with whatever reason the provider gave logged as a warning. The whole load is one Periscope span, since it is what the wait between tapping Share and seeing the compose form is spent on.
@@ -35,8 +35,13 @@ The app's CloudKit container picks the write up from the shared store's history.
 
 ## Installation
 
-`WhereShareExtension` is a Tuist app-extension target in [`Project.swift`](../../Project.swift) (bundle ID `com.stuff.where.share`), depending on **WhereCore**, **WhereUI**, and **PeriscopeCore**.
-The main **Where** app embeds the extension and shares the `group.com.stuff.where` App Group entitlement so both processes open the same SwiftData store.
+`WhereShareExtension` is a Tuist app-extension target in
+[`Project.swift`](../../Project.swift), with a bundle ID and App Group selected
+by the Where audience (Development is isolated; Beta and App Store share the
+production family),
+depending on **WhereCore**, **WhereUI**, and **PeriscopeCore**. The main **Where** app
+embeds the extension with the same audience-selected App Group entitlement so
+both processes open the same SwiftData store.
 
 ## Limitations
 

@@ -27,12 +27,15 @@ public struct NoopWidgetTimelineRefresher: WidgetTimelineRefreshing {
 /// same snapshot, so any committed change can affect all of them.
 public struct WidgetCenterTimelineRefresher: WidgetTimelineRefreshing {
     private static let logger = WhereLog.widgets(WidgetTimelineRefresherLog.self)
+    private let appGroupIdentifier: String
 
-    public init() {}
+    public init(appGroupIdentifier: String) {
+        self.appGroupIdentifier = appGroupIdentifier
+    }
 
     public func publish(_ snapshot: WidgetSnapshot) async {
         do {
-            try WidgetSnapshotStore.shared().write(snapshot)
+            try WidgetSnapshotStore.shared(appGroupIdentifier: appGroupIdentifier).write(snapshot)
             Self.logger { .wroteSnapshot }
         } catch {
             Self.logger { .publishFailed(description: error.localizedDescription) }

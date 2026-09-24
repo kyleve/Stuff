@@ -1,3 +1,4 @@
+import BroadwayUI
 import SwiftUI
 import WhereCore
 
@@ -38,6 +39,12 @@ struct FeatureLockScreenExample: View {
         }
         .foregroundStyle(.white)
         .dynamicTypeSize(...style.widgets.device.dynamicTypeLimit)
+        .bTraitOverrides { traits, overrides in
+            overrides.contentSizeCategory = min(
+                traits.contentSizeCategory,
+                .init(style.widgets.device.dynamicTypeLimit),
+            )
+        }
         .containerRelativeFrame(.horizontal) { length, _ in
             style.widgets.contentWidth(in: length)
         }
@@ -52,6 +59,7 @@ struct FeatureLockScreenExample: View {
             in: .rect(cornerRadius: style.widgets.device.cornerRadius),
         )
         .environment(\.colorScheme, .dark)
+        .bMode(.dark)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(String(localized: .settingsExploreWidgetsLockPreviewLabel))
     }

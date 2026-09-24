@@ -265,6 +265,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
 
     private let installationContextStore: any InstallationRecordingContextStoring
     private let storeStorage: SwiftDataStore.Storage
+    private let widgetRefresher: any WidgetTimelineRefreshing
     private let locationOutbox: any LocationOutbox
     private let backupRecoveryKeys: BackupRecoveryKeyProvider?
     private let automaticBackupStorage: AutomaticBackupStorage?
@@ -275,6 +276,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
     public init(
         installationContextStore: any InstallationRecordingContextStoring,
         storeStorage: SwiftDataStore.Storage,
+        widgetRefresher: any WidgetTimelineRefreshing,
         locationOutbox: any LocationOutbox,
         backupRecoveryKeys: BackupRecoveryKeyProvider? = nil,
         automaticBackupStorage: AutomaticBackupStorage? = nil,
@@ -283,6 +285,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
     ) {
         self.installationContextStore = installationContextStore
         self.storeStorage = storeStorage
+        self.widgetRefresher = widgetRefresher
         self.locationOutbox = locationOutbox
         self.backupRecoveryKeys = backupRecoveryKeys
         self.automaticBackupStorage = automaticBackupStorage
@@ -333,7 +336,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
                 reminderScheduler: UserNotificationReminderScheduler(),
                 summaryScheduler: UserNotificationDailySummaryScheduler(),
                 issueAlertScheduler: UserNotificationDataIssueAlertScheduler(),
-                widgetRefresher: WidgetCenterTimelineRefresher(),
+                widgetRefresher: widgetRefresher,
                 locationOutbox: locationOutbox,
                 importRecoveryPersistence: installationContextStore,
                 backupRecoveryKeys: backupRecoveryKeys,
@@ -352,9 +355,9 @@ public final class WhereBootstrap: WhereScopeAssembling {
 
     public func discoverRecordingDevices() async throws -> [RecordingDevice] {
         let readiness = CloudKitImportReadiness()
-        if storeStorage == .cloudKit { readiness.start() }
+        if storeStorage.usesCloudKit { readiness.start() }
         let store = try await prepareStore()
-        if storeStorage == .cloudKit, await readiness.waitForImport() == false {
+        if storeStorage.usesCloudKit, await readiness.waitForImport() == false {
             throw CloudKitImportReadiness.Timeout()
         }
         return try await store.recordingDevices()

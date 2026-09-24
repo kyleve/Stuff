@@ -1,12 +1,13 @@
 import PeriscopeCore
 import RegionKit
+import SFSafeSymbols
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Settings screen for editing your primary regions after onboarding: reuses
-/// the same picker and per-region customization the first run uses. Loads the
-/// current picks, lets you add/remove (up to the cap) and re-style each, and
-/// commits on Save.
+/// Settings screen for editing primary regions after onboarding. It opens on
+/// the current regions, lets one region's appearance be edited at a time, and
+/// keeps add/remove work behind a separate route to the shared picker.
 struct RegionsSettingsView: View {
     /// Regions with days in the selected year, so the picker can surface a
     /// "used this year" group. Passed by `SettingsView` from the report.
@@ -15,29 +16,31 @@ struct RegionsSettingsView: View {
     @Environment(WhereSession.self) private var session
     @Environment(\.dismiss) private var dismiss
 
-    /// The picker/customization model, built once the current picks load.
+    /// The shared membership and appearance draft, built once the current picks load.
     @State private var model: PrimaryRegionSelectionModel?
-    @State private var phase: Phase = .pick
     @State private var isSaving = false
+    @State private var saveError = SaveErrorAlertState()
 
-    private enum Phase: Hashable {
-        case pick
-        case customize
+    private enum Destination: Hashable {
+        case appearance(Region)
+        case manage
     }
 
     private static let logger = WhereLog.session(RegionsSettingsViewLog.self)
 
     var body: some View {
+        @Bindable var saveError = saveError
+
         // Presented as a sheet from Settings, so it owns its navigation stack and
         // explicit Cancel/Done points — making the commit boundary clear.
         NavigationStack {
             Group {
                 if let model {
-                    content(model)
+                    overview(model)
                 } else {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .navigationTitle(String(localized: .regionsManageTitle))
+                        .navigationTitle(String(localized: .settingsRegionsSection))
                         .toolbar {
                             ToolbarItem(placement: .cancellationAction) {
                                 Button(String(localized: .commonCancel)) { dismiss() }
@@ -45,36 +48,103 @@ struct RegionsSettingsView: View {
                         }
                 }
             }
+            .navigationDestination(for: Destination.self) { destination in
+                if let model {
+                    destinationView(destination, model: model)
+                }
+            }
         }
         .task { await loadIfNeeded() }
+        .interactiveDismissDisabled(isSaving)
+        .alert(
+            String(localized: .settingsRegionsSaveErrorTitle),
+            isPresented: $saveError.isPresented,
+        ) {
+            Button(String(localized: .commonOk), role: .cancel) {}
+        } message: {
+            if let message = saveError.message {
+                Text(message)
+            }
+        }
         // Log View Mode: reveal an inspect badge for the region-editor events. A
         // no-op in release.
         .debugLogInspectable(WhereLog.session(RegionsSettingsViewLog.self))
     }
 
-    @ViewBuilder
-    private func content(_ model: PrimaryRegionSelectionModel) -> some View {
-        switch phase {
-            case .pick:
-                RegionPickerView(model: model)
-                    .navigationTitle(String(localized: .regionsManageTitle))
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button(String(localized: .commonCancel)) { dismiss() }
-                        }
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button(String(localized: .onboardingNext)) { phase = .customize }
-                                .disabled(!model.hasSelection)
+    private func overview(_ model: PrimaryRegionSelectionModel) -> some View {
+        List {
+            Section(String(localized: .regionGroupYours)) {
+                if model.selectedRegions.isEmpty {
+                    Text(String(localized: .settingsRegionsEmpty))
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(model.selectedRegions, id: \.self) { region in
+                        NavigationLink(value: Destination.appearance(region)) {
+                            regionRow(region, model: model)
                         }
                     }
-            case .customize:
-                // `RegionCustomizeView` supplies its own Back/Done toolbar; Back
-                // returns to the pick phase, Done saves.
-                RegionCustomizeView(
-                    model: model,
-                    onBack: { phase = .pick },
-                    onFinish: { save(model) },
-                )
+                }
+            }
+
+            Section {
+                NavigationLink(value: Destination.manage) {
+                    Label(
+                        String(localized: .settingsRegionsManage),
+                        systemSymbol: .map,
+                    )
+                }
+            }
+        }
+        .disabled(isSaving)
+        .navigationTitle(String(localized: .settingsRegionsSection))
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button(String(localized: .commonCancel)) { dismiss() }
+                    .disabled(isSaving)
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                if isSaving {
+                    ProgressView()
+                        .accessibilityLabel(String(localized: .commonSave))
+                } else {
+                    Button(String(localized: .commonDone)) { save(model) }
+                        .disabled(!model.hasSelection)
+                }
+            }
+        }
+    }
+
+    private func regionRow(
+        _ region: Region,
+        model: PrimaryRegionSelectionModel,
+    ) -> some View {
+        let appearance = model.appearance(for: region)
+        return HStack {
+            Text(appearance.emoji)
+                .accessibilityHidden(true)
+            Text(region.localizedName)
+            Spacer(minLength: 0)
+            Image(systemSymbol: appearance.symbolName.sfSymbol)
+                .foregroundStyle(appearance.color.color)
+                .accessibilityHidden(true)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private func destinationView(
+        _ destination: Destination,
+        model: PrimaryRegionSelectionModel,
+    ) -> some View {
+        switch destination {
+            case let .appearance(region):
+                RegionAppearanceEditor(model: model, region: region)
+                    .navigationTitle(region.localizedName)
+                    .navigationBarTitleDisplayMode(.inline)
+            case .manage:
+                RegionPickerView(model: model)
+                    .navigationTitle(String(localized: .settingsRegionsManage))
+                    .navigationBarTitleDisplayMode(.inline)
         }
     }
 
@@ -98,16 +168,19 @@ struct RegionsSettingsView: View {
 
     private func save(_ model: PrimaryRegionSelectionModel) {
         guard !isSaving else { return }
+        saveError.message = nil
         isSaving = true
         Task {
             do {
                 try await model.commit(using: session)
+                dismiss()
             } catch {
                 Self.logger(attachments: [.error(error, name: "save-error")]) {
                     .primaryRegionsSaveFailed(description: error.localizedDescription)
                 }
+                saveError.message = error.localizedDescription
+                isSaving = false
             }
-            dismiss()
         }
     }
 }
@@ -135,10 +208,20 @@ extension RegionsSettingsView: SettingsSection {
 }
 
 #if DEBUG
+    extension RegionsSettingsView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "Overview",
+                configurations: .fullContentScreenDefaults,
+            ) {
+                RegionsSettingsView()
+                    .environment(PreviewSupport.loadedSession())
+            }
+        }
+    }
+
     #Preview {
-        RegionsSettingsView()
-            .environment(PreviewSupport.loadedSession())
-            .whereBroadwayRoot()
+        RegionsSettingsView.snapshotPreviews
     }
 #endif
 

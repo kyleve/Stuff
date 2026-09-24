@@ -294,6 +294,21 @@ struct YearReportModelTests {
         #expect(preferences.showsEstimatedTimeAndPlanning)
     }
 
+    @Test func locationWelcomeVisibilityMirrorsAndPersists() throws {
+        let preferences = makePreferences()
+        preferences.showsLocationWelcome = false
+        let report = try YearReportModel(
+            services: makeServices(),
+            selectedYear: 2026,
+            preferences: preferences,
+        )
+
+        #expect(report.showsLocationWelcome == false)
+
+        report.showsLocationWelcome = true
+        #expect(preferences.showsLocationWelcome)
+    }
+
     /// The Resolve list keys its scan `.task(id:)` on `dataIssueScanInputs`, so a
     /// drift-threshold change must change that identity — otherwise the list keeps
     /// a stale scan while the badge count moves and the two visibly disagree. The

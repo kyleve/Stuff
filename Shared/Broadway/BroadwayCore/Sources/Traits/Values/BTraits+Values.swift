@@ -82,6 +82,24 @@ public enum BContentSizeCategory: Equatable, Hashable, Comparable, Sendable {
     case accessibilityExtraExtraLarge
     case accessibilityExtraExtraExtraLarge
 
+    /// The UIKit category corresponding to this resolved Broadway trait.
+    public var uiContentSizeCategory: UIContentSizeCategory {
+        switch self {
+            case .extraSmall: .extraSmall
+            case .small: .small
+            case .medium: .medium
+            case .large: .large
+            case .extraLarge: .extraLarge
+            case .extraExtraLarge: .extraExtraLarge
+            case .extraExtraExtraLarge: .extraExtraExtraLarge
+            case .accessibilityMedium: .accessibilityMedium
+            case .accessibilityLarge: .accessibilityLarge
+            case .accessibilityExtraLarge: .accessibilityExtraLarge
+            case .accessibilityExtraExtraLarge: .accessibilityExtraExtraLarge
+            case .accessibilityExtraExtraExtraLarge: .accessibilityExtraExtraExtraLarge
+        }
+    }
+
     public var isAccessibilitySize: Bool {
         self >= Self.accessibilityMedium
     }

@@ -52,7 +52,10 @@ capture + comparison pipeline lives in the sibling
 - **`SnapshotProviding`** — a type declares its variants via
   `static var snapshots: [SnapshotCase]`.
 - **`SnapshotCase`** — a named group of configurations plus a lazy content
-  builder. declaring a matrix does not instantiate its views or models. It is
+  builder. Declaring a matrix does not instantiate its views or models. The
+  current test runner evaluates the builder once per case and re-hosts that
+  value across configurations, so captured reference models are shared (see
+  [`TODOs.md`](TODOs.md)). It is
   also a `View`, so `snapshotPreviews` can render the whole matrix as a
   scrollable cutsheet inside a `#Preview`. Its `settle` axis
   (`SnapshotSettle`) declares whether the content needs the capture pipeline's
@@ -60,7 +63,7 @@ capture + comparison pipeline lives in the sibling
   layout pass (`.immediate` — skips the loop, so static content captures fast).
   `.settledAtLeast(minDuration:)` is `.settled` with a raised minimum window,
   for async appearance work that starts quiet and lands after the default floor
-  (the iOS 26 glass toolbar/tab bar material adaptation).
+  (the native glass toolbar/tab bar material adaptation).
   Intrinsic/full-content cases also have a `measurementReadiness` axis. Its
   default, `.sameAsCapture`, preserves the existing behavior for content whose
   loaded state changes its height. Deterministically sized fixtures may use
