@@ -532,7 +532,7 @@ struct WhereStylesheetTests {
         #expect(background.ink == Color.primary)
         #expect(background.showsInk)
         #expect(background.preferredCellSize == 48)
-        #expect(background.symbolWeight == .light)
+        #expect(background.symbolWeight == .regular)
         #expect(background.symbolOpacity == 0.03)
         #expect(background.regionOpacity == 0.043)
         #expect(background.artwork == .init(
@@ -540,7 +540,7 @@ struct WhereStylesheetTests {
             extent: CGSize(width: 0.72, height: 0.72),
             scale: 1,
             fillOpacity: 0,
-            stroke: .init(opacity: 1, width: 1.1),
+            stroke: .init(opacity: 1, width: 4),
         ))
         #expect(background.rosette == .init(
             wobble: 0.04,
@@ -549,7 +549,7 @@ struct WhereStylesheetTests {
             secondaryRingSpacing: 25,
         ))
         #expect(background.rosetteOpacity == 0.015)
-        #expect(background.glow.radius == 1.75)
+        #expect(background.diffusionRadius == 4)
     }
 
     @Test func elsewhereCardStyle() {

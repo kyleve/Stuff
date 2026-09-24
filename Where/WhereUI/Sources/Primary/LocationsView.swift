@@ -348,15 +348,14 @@ private struct ResolveToolbarLabel: View {
 
 #if DEBUG
     extension LocationsView: SnapshotProviding {
-        /// The raised settle floor on `Loaded` outlasts the native glass toolbar
-        /// material adaptation (seen pre-adaptation once on the equivalent
-        /// pre-split screen) — same mechanism as `RootView.LoggedIn`.
+        /// Allow native glass adaptation and the background artwork to settle before capture.
         static var snapshots: [SnapshotCase] {
             loadedSnapshot()
             whereSnapshot(
                 name: "PlannedStay",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: PreviewSupport.plannedStayYearReportModel())
             }
@@ -364,6 +363,7 @@ private struct ResolveToolbarLabel: View {
                 name: "ForecastsHidden",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: forecastsHiddenReport())
             }
@@ -371,6 +371,7 @@ private struct ResolveToolbarLabel: View {
                 name: "Empty",
                 configurations: .phoneLightDark,
                 measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: PreviewSupport.emptyYearReportModel())
             }
@@ -378,6 +379,7 @@ private struct ResolveToolbarLabel: View {
                 name: "MissingDays",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: PreviewSupport.missingDaysYearReportModel())
             }
@@ -385,6 +387,7 @@ private struct ResolveToolbarLabel: View {
                 name: "ElsewhereOnly",
                 configurations: .phoneLightDark,
                 measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: PreviewSupport.elsewhereOnlyYearReportModel())
             }
@@ -392,6 +395,7 @@ private struct ResolveToolbarLabel: View {
                 name: "DotsHidden",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(
                     report: PreviewSupport.loadedYearReportModelWithLocationDotsHidden(),
