@@ -50,6 +50,11 @@ struct LocationsView: View {
 
         NavigationStack {
             screen
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background {
+                    LocationsBackground(regions: backgroundRegions)
+                        .ignoresSafeArea()
+                }
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarTrailing) {
@@ -235,6 +240,15 @@ struct LocationsView: View {
             presentation: cardPresentation,
             motion: stylesheet.locationCardStack.overtake,
         )
+    }
+
+    private var backgroundRegions: [Region] {
+        switch report.loadState {
+            case .failed:
+                []
+            case .idle, .loaded, .loading:
+                LocationsBackgroundArtwork.regions(in: report.ranking)
+        }
     }
 
     private var primaryRegions: [Region] {

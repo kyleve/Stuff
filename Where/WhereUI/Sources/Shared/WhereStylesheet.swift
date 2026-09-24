@@ -17,6 +17,7 @@ struct WhereStylesheet: BStylesheet {
     var spacing = Spacing()
     var size = Size()
     var card = CardStyles.standard
+    var locationsBackground = LocationsBackgroundStyle()
     var locationCardStack = LocationCardStackStyle.standard
     var locationWelcome = LocationWelcomeStyle.standard
     var calendar = CalendarStyle.standard
@@ -67,6 +68,7 @@ struct WhereStylesheet: BStylesheet {
         // Reduce Transparency flattens the cards: drop the decorative rim-glow
         // layer (the translucent halo) on both card variants.
         if traits.accessibility.isReduceTransparencyEnabled {
+            locationsBackground.showsInk = false
             card.regular.glow.radius = 0
             card.compact.glow.radius = 0
             card.constellation.haloOpacity = 0
@@ -2481,5 +2483,33 @@ extension EnvironmentValues {
     /// so it traps in debug and falls back to `default` in release.
     var stylesheet: WhereStylesheet {
         bContext.stylesheet(WhereStylesheet.self, fallback: .default)
+    }
+}
+
+// MARK: - Locations background
+
+extension WhereStylesheet {
+    /// Flat security print behind the selected year's Locations content.
+    struct LocationsBackgroundStyle: Equatable {
+        var paper = Color(uiColor: .systemBackground)
+        var ink = Color.primary
+        var showsInk = true
+        var preferredCellSize: CGFloat = 140
+        var symbolWeight = Font.Weight.ultraLight
+        var symbolOpacity: Double = 0.025
+        var artwork = CardStyle.RegionShape.Artwork(
+            center: CGPoint(x: 0.5, y: 0.5),
+            extent: CGSize(width: 0.62, height: 0.62),
+            scale: 1,
+            fillOpacity: 0,
+            stroke: .init(opacity: 0.05, width: 0.7),
+        )
+        var rosette = CardStyle.Rosette(
+            wobble: 0.04,
+            lineWidth: 0.5,
+            primaryRingSpacing: 18,
+            secondaryRingSpacing: 25,
+        )
+        var rosetteOpacity: Double = 0.015
     }
 }

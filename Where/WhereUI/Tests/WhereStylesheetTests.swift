@@ -526,6 +526,30 @@ struct WhereStylesheetTests {
         #expect(evidence.loadingMinHeight == 200)
     }
 
+    @Test func locationsBackgroundStyle() {
+        let background = style.locationsBackground
+        #expect(background.paper == Color(uiColor: .systemBackground))
+        #expect(background.ink == Color.primary)
+        #expect(background.showsInk)
+        #expect(background.preferredCellSize == 140)
+        #expect(background.symbolWeight == .ultraLight)
+        #expect(background.symbolOpacity == 0.025)
+        #expect(background.artwork == .init(
+            center: CGPoint(x: 0.5, y: 0.5),
+            extent: CGSize(width: 0.62, height: 0.62),
+            scale: 1,
+            fillOpacity: 0,
+            stroke: .init(opacity: 0.05, width: 0.7),
+        ))
+        #expect(background.rosette == .init(
+            wobble: 0.04,
+            lineWidth: 0.5,
+            primaryRingSpacing: 18,
+            secondaryRingSpacing: 25,
+        ))
+        #expect(background.rosetteOpacity == 0.015)
+    }
+
     @Test func elsewhereCardStyle() {
         let card = style.elsewhereCard
         #expect(card.cornerRadius == 28)
@@ -855,6 +879,7 @@ struct WhereStylesheetTests {
         #expect(resolved.card.constellation.haloOpacity == 0)
         #expect(resolved.card.constellation.coreOpacity == 0.92)
         #expect(resolved.privacyPassportCard.disclosure.fillOpacity == 0.16)
+        #expect(resolved.locationsBackground.showsInk == false)
         #expect(resolved.elsewhereCard.surface.usesOpaquePaper)
         #expect(resolved.elsewhereCard.surface.shadowOpacity == 0)
     }

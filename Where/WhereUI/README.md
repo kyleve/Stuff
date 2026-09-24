@@ -410,6 +410,16 @@ interactive viewport. Flyover's appearance, device, Dynamic Type, contrast,
 layout-direction, and bold-text choices are session-only and apply only to
 registered content.
 
+### Locations background
+
+The Locations root screen uses a stationary monochrome pattern of all regions
+visited in the selected year, including manually recorded visits and Elsewhere.
+Catalog order keeps the pattern stable when card rankings change. Planned stays
+do not contribute. The shared outline cache supplies the region paths, and the
+shared rosette renderer supplies the finer background lines. Appearance belongs
+to `WhereStylesheet.locationsBackground`; Reduce Transparency hides the ink.
+Empty, initial-loading, and failed screens show only the rosette texture.
+
 ## Testing
 
 Swift Testing in [`Tests/`](Tests) (`WhereUITests`), hosted in `StuffTestHost`
