@@ -61,61 +61,27 @@ struct LocationsBackground: View {
             ZStack(alignment: .topLeading) {
                 ForEach(cells) { cell in
                     let item = items[cell.artworkIndex]
-                    let inkOpacity = item.region == .other ? style.symbolOpacity : style
-                        .regionOpacity
-                    let printedInk = style.printedInk(inkOpacity: inkOpacity)
                     Group {
                         if item.region == .other {
                             Image(systemSymbol: .globeAmericas)
                                 .resizable()
                                 .scaledToFit()
                                 .fontWeight(style.symbolWeight)
-                                .foregroundStyle(printedInk)
+                                .foregroundStyle(style.ink.opacity(style.symbolOpacity))
                                 .padding(min(cell.frame.width, cell.frame.height) *
                                     (1 - style.artwork.extent.width) / 2)
                         } else {
                             RegionOutlineArtwork(
                                 path: item.path,
-                                tint: printedInk,
+                                tint: style.ink,
                                 style: style.artwork,
                             )
                         }
                     }
                     .frame(width: cell.frame.width, height: cell.frame.height)
-                    .blur(radius: style.diffusionRadius)
-                    .mask { exteriorMask(for: item) }
                     .position(x: cell.frame.midX, y: cell.frame.midY)
                 }
             }
-        }
-    }
-
-    /// Cut the interior out after blurring so ink spreads only into the surrounding paper.
-    private func exteriorMask(for item: LocationsBackgroundArtwork.Item) -> some View {
-        GeometryReader { proxy in
-            Path { mask in
-                let size = proxy.size
-                mask.addRect(CGRect(origin: .zero, size: size))
-                if item.region == .other {
-                    let diameter = min(size.width, size.height) * style.artwork.extent.width
-                    mask.addEllipse(in: CGRect(
-                        x: (size.width - diameter) / 2,
-                        y: (size.height - diameter) / 2,
-                        width: diameter,
-                        height: diameter,
-                    ))
-                } else if let transform = RegionArtworkTransform(
-                    path: item.path,
-                    size: size,
-                    style: style.artwork,
-                ) {
-                    mask.addPath(item.path, transform: CGAffineTransform(
-                        scaleX: transform.scale,
-                        y: transform.scale,
-                    ).translatedBy(x: transform.translation.x, y: transform.translation.y))
-                }
-            }
-            .fill(.white, style: FillStyle(eoFill: true))
         }
     }
 }

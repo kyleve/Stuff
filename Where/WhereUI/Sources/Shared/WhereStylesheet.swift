@@ -2495,15 +2495,14 @@ extension WhereStylesheet {
         var ink = Color.primary
         var showsInk = true
         var preferredCellSize: CGFloat = 48
-        var symbolWeight = Font.Weight.regular
+        var symbolWeight = Font.Weight.light
         var symbolOpacity: Double = 0.03
-        var regionOpacity: Double = 0.043
         var artwork = CardStyle.RegionShape.Artwork(
             center: CGPoint(x: 0.5, y: 0.5),
             extent: CGSize(width: 0.72, height: 0.72),
             scale: 1,
             fillOpacity: 0,
-            stroke: .init(opacity: 1, width: 4),
+            stroke: .init(opacity: 0.043, width: 1.1),
         )
         var rosette = CardStyle.Rosette(
             wobble: 0.04,
@@ -2512,11 +2511,5 @@ extension WhereStylesheet {
             secondaryRingSpacing: 25,
         )
         var rosetteOpacity: Double = 0.015
-        var diffusionRadius: CGFloat = 4
-
-        /// Bake the faint ink tone into an opaque color before diffusing its shape.
-        func printedInk(inkOpacity: Double) -> Color {
-            paper.mix(with: ink, by: inkOpacity, in: .device)
-        }
     }
 }
