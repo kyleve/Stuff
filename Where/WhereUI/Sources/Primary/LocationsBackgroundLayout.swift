@@ -21,22 +21,23 @@ enum LocationsBackgroundLayout {
                 rows += 1
             }
         }
-        // Half a cell of extra horizontal space keeps staggered rows inside the viewport.
+        // Keep every original cell fully visible, then extend the repeat past both edges.
         let width = size.width / (CGFloat(columns) + 0.5)
         let height = size.height / CGFloat(rows)
-        return (0 ..< columns * rows).map { index in
-            let row = index / columns
-            let column = index % columns
-            return Cell(
-                id: index,
-                artworkIndex: index % count,
-                frame: CGRect(
-                    x: (CGFloat(column) + (row.isMultiple(of: 2) ? 0 : 0.5)) * width,
-                    y: CGFloat(row) * height,
-                    width: width,
-                    height: height,
-                ),
-            )
+        return (0 ..< rows).flatMap { row in
+            (-1 ... columns).map { column in
+                let index = row * columns + column
+                return Cell(
+                    id: row * (columns + 2) + column + 1,
+                    artworkIndex: (index % count + count) % count,
+                    frame: CGRect(
+                        x: (CGFloat(column) + (row.isMultiple(of: 2) ? 0 : 0.5)) * width,
+                        y: CGFloat(row) * height,
+                        width: width,
+                        height: height,
+                    ),
+                )
+            }
         }
     }
 }

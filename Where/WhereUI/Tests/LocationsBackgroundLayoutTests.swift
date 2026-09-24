@@ -4,15 +4,16 @@ import Testing
 
 struct LocationsBackgroundLayoutTests {
     @Test(arguments: [1, 3, 40, 200])
-    func everyRegionFitsInsideTheViewport(count: Int) {
+    func everyRegionHasAFullyVisibleCell(count: Int) {
         let size = CGSize(width: 390, height: 844)
         let cells = LocationsBackgroundLayout.cells(count: count, in: size, preferredCellSize: 48)
-        #expect(Set(cells.map(\.artworkIndex)) == Set(0 ..< count))
+        let viewport = CGRect(origin: .zero, size: size)
+        let fullyVisible = cells
+            .filter { viewport.insetBy(dx: -0.001, dy: -0.001).contains($0.frame) }
+        #expect(Set(fullyVisible.map(\.artworkIndex)) == Set(0 ..< count))
         #expect(Set(cells.map(\.id)).count == cells.count)
         for cell in cells {
-            #expect(cell.frame.minX >= 0)
             #expect(cell.frame.minY >= 0)
-            #expect(cell.frame.maxX <= size.width + 0.001)
             #expect(cell.frame.maxY <= size.height + 0.001)
             #expect(cell.frame.width > 0 && cell.frame.height > 0)
         }
@@ -30,6 +31,20 @@ struct LocationsBackgroundLayoutTests {
         #expect(secondRow.frame.minX - first.frame.minX == first.frame.width / 2)
         #expect(thirdRow.frame.minX == first.frame.minX)
         #expect(first.frame.width < 48)
+    }
+
+    @Test func rowsContinuePastBothHorizontalEdges() {
+        let size = CGSize(width: 390, height: 844)
+        let cells = LocationsBackgroundLayout.cells(count: 5, in: size, preferredCellSize: 48)
+        let rows = Dictionary(grouping: cells, by: { $0.frame.minY })
+        for row in rows.values {
+            #expect(row.contains { $0.frame.minX < 0 && $0.frame.maxX >= 0 })
+            #expect(row.contains { $0.frame.minX <= size.width && $0.frame.maxX > size.width })
+            for (left, right) in zip(row, row.dropFirst()) {
+                #expect(abs(left.frame.maxX - right.frame.minX) < 0.001)
+                #expect(right.artworkIndex == (left.artworkIndex + 1) % 5)
+            }
+        }
     }
 
     @Test func smallSetsRepeatAndEmptyInputsProduceNoCells() {
