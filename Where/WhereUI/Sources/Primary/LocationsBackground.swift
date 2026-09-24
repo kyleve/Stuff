@@ -79,6 +79,10 @@ struct LocationsBackground: View {
                         }
                     }
                     .frame(width: cell.frame.width, height: cell.frame.height)
+                    .shadow(
+                        color: style.ink.opacity(style.glow.opacity),
+                        radius: style.glow.radius,
+                    )
                     .position(x: cell.frame.midX, y: cell.frame.midY)
                 }
             }

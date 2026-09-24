@@ -352,14 +352,7 @@ private struct ResolveToolbarLabel: View {
         /// material adaptation (seen pre-adaptation once on the equivalent
         /// pre-split screen) — same mechanism as `RootView.LoggedIn`.
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(
-                name: "Loaded",
-                configurations: .fullContentScreenDefaults,
-                measurementReadiness: .immediate,
-                settle: .settledAtLeast(minDuration: 1.0),
-            ) {
-                LocationsView(report: PreviewSupport.loadedYearReportModel())
-            }
+            loadedSnapshot()
             whereSnapshot(
                 name: "PlannedStay",
                 configurations: .fullContentPhoneLightDark,
@@ -403,6 +396,30 @@ private struct ResolveToolbarLabel: View {
                 LocationsView(
                     report: PreviewSupport.loadedYearReportModelWithLocationDotsHidden(),
                 )
+            }
+        }
+
+        private static func loadedSnapshot() -> SnapshotCase {
+            let report = PreviewSupport.loadedYearReportModel()
+            let cache = RegionOutlinePathCache()
+            let regions = LocationsBackgroundArtwork.regions(in: report.ranking)
+            return whereSnapshot(
+                name: "Loaded",
+                configurations: .fullContentScreenDefaults,
+                measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
+                onReadyToSnapshot: {
+                    // Keep geometry ready across the accessibility renderer's reparenting.
+                    // Pixel stability alone can settle on the unloaded symbol fallback.
+                    for region in regions {
+                        _ = await cache.path(for: region, resolution: .small)
+                        _ = await cache.path(for: region, resolution: .medium)
+                        _ = await cache.path(for: region, resolution: .micro)
+                    }
+                },
+            ) {
+                LocationsView(report: report)
+                    .environment(\.regionOutlinePathCache, cache)
             }
         }
 
