@@ -548,7 +548,6 @@ struct WhereStylesheetTests {
             secondaryRingSpacing: 25,
         ))
         #expect(background.rosetteOpacity == 0.015)
-        #expect(background.glow.opacity == 0.65)
         #expect(background.glow.radius == 1.75)
     }
 

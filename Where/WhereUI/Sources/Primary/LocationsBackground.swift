@@ -61,6 +61,8 @@ struct LocationsBackground: View {
             ZStack(alignment: .topLeading) {
                 ForEach(cells) { cell in
                     let item = items[cell.artworkIndex]
+                    let inkOpacity = item.region == .other ? style
+                        .symbolOpacity : (style.artwork.stroke?.opacity ?? 0)
                     Group {
                         if item.region == .other {
                             Image(systemSymbol: .globeAmericas)
@@ -80,7 +82,7 @@ struct LocationsBackground: View {
                     }
                     .frame(width: cell.frame.width, height: cell.frame.height)
                     .shadow(
-                        color: style.ink.opacity(style.glow.opacity),
+                        color: style.glowColor(inkOpacity: inkOpacity),
                         radius: style.glow.radius,
                     )
                     .position(x: cell.frame.midX, y: cell.frame.midY)

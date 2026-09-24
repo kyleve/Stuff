@@ -2513,8 +2513,12 @@ extension WhereStylesheet {
         var rosetteOpacity: Double = 0.015
         var glow = Glow()
 
+        /// Match the translucent ink after it has composited onto the opaque paper.
+        func glowColor(inkOpacity: Double) -> Color {
+            paper.mix(with: ink, by: inkOpacity, in: .device)
+        }
+
         struct Glow: Equatable {
-            var opacity: Double = 0.65
             var radius: CGFloat = 1.75
         }
     }
