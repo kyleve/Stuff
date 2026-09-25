@@ -50,6 +50,11 @@ struct LocationsView: View {
 
         NavigationStack {
             screen
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background {
+                    LocationsBackground(regions: backgroundRegions)
+                        .ignoresSafeArea()
+                }
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarTrailing) {
@@ -237,6 +242,15 @@ struct LocationsView: View {
         )
     }
 
+    private var backgroundRegions: [Region] {
+        switch report.loadState {
+            case .failed:
+                []
+            case .idle, .loaded, .loading:
+                LocationsBackgroundArtwork.regions(in: report.ranking)
+        }
+    }
+
     private var primaryRegions: [Region] {
         report.ranking.primary.map(\.region).filter { $0 != .other }
     }
@@ -334,22 +348,14 @@ private struct ResolveToolbarLabel: View {
 
 #if DEBUG
     extension LocationsView: SnapshotProviding {
-        /// The raised settle floor on `Loaded` outlasts the native glass toolbar
-        /// material adaptation (seen pre-adaptation once on the equivalent
-        /// pre-split screen) — same mechanism as `RootView.LoggedIn`.
+        /// Allow native glass adaptation and the background artwork to settle before capture.
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(
-                name: "Loaded",
-                configurations: .fullContentScreenDefaults,
-                measurementReadiness: .immediate,
-                settle: .settledAtLeast(minDuration: 1.0),
-            ) {
-                LocationsView(report: PreviewSupport.loadedYearReportModel())
-            }
+            loadedSnapshot()
             whereSnapshot(
                 name: "PlannedStay",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: PreviewSupport.plannedStayYearReportModel())
             }
@@ -357,6 +363,7 @@ private struct ResolveToolbarLabel: View {
                 name: "ForecastsHidden",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: forecastsHiddenReport())
             }
@@ -364,6 +371,7 @@ private struct ResolveToolbarLabel: View {
                 name: "Empty",
                 configurations: .phoneLightDark,
                 measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: PreviewSupport.emptyYearReportModel())
             }
@@ -371,6 +379,7 @@ private struct ResolveToolbarLabel: View {
                 name: "MissingDays",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: PreviewSupport.missingDaysYearReportModel())
             }
@@ -378,6 +387,7 @@ private struct ResolveToolbarLabel: View {
                 name: "ElsewhereOnly",
                 configurations: .phoneLightDark,
                 measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: PreviewSupport.elsewhereOnlyYearReportModel())
             }
@@ -385,10 +395,35 @@ private struct ResolveToolbarLabel: View {
                 name: "DotsHidden",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(
                     report: PreviewSupport.loadedYearReportModelWithLocationDotsHidden(),
                 )
+            }
+        }
+
+        private static func loadedSnapshot() -> SnapshotCase {
+            let report = PreviewSupport.loadedYearReportModel()
+            let cache = RegionOutlinePathCache()
+            let regions = LocationsBackgroundArtwork.regions(in: report.ranking)
+            return whereSnapshot(
+                name: "Loaded",
+                configurations: .fullContentScreenDefaults,
+                measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
+                onReadyToSnapshot: {
+                    // Keep geometry ready across the accessibility renderer's reparenting.
+                    // Pixel stability alone can settle on the unloaded symbol fallback.
+                    for region in regions {
+                        _ = await cache.path(for: region, resolution: .small)
+                        _ = await cache.path(for: region, resolution: .medium)
+                        _ = await cache.path(for: region, resolution: .micro)
+                    }
+                },
+            ) {
+                LocationsView(report: report)
+                    .environment(\.regionOutlinePathCache, cache)
             }
         }
 

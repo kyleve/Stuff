@@ -85,6 +85,9 @@ Layering, localization, preview, and testing conventions live in the feature
   Project Locations-card GPS points through the cache's shared
   `RegionArtworkProjection`. Never project, simplify, or spatially reduce
   artwork in a card's `body`.
+- Keep the Locations background on the selected year’s complete visited-region set,
+  in catalog order independent of card rank. Omit the catch-all Other entry from
+  the print. Use the injected outline cache.
 - Keep the Elsewhere summary count and artwork on the same secondary-region input.
   Use its own stylesheet tokens and the shared outline renderers.
 - Keep Locations-card points on `YearReportModel`'s loaded
