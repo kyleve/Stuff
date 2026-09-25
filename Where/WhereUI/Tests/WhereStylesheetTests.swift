@@ -531,12 +531,12 @@ struct WhereStylesheetTests {
         #expect(background.paper == Color(uiColor: .systemBackground))
         #expect(background.ink == Color.primary)
         #expect(background.showsInk)
-        #expect(background.preferredCellSize == 64)
+        #expect(background.preferredCellSize == 54)
         #expect(background.symbolWeight == .light)
         #expect(background.symbolOpacity == 0.03)
         #expect(background.artwork == .init(
             center: CGPoint(x: 0.5, y: 0.5),
-            extent: CGSize(width: 0.46, height: 0.46),
+            extent: CGSize(width: 0.545, height: 0.545),
             scale: 1,
             fillOpacity: 0,
             stroke: .init(opacity: 0.043, width: 1.1),
