@@ -523,7 +523,7 @@ struct PeriscopeTests {
                 LogRecord(
                     id: record.id,
                     date: record.date,
-                    event: Message(level: record.level, "[redacted]"),
+                    event: makeMessage("[redacted]", level: record.level),
                     scopes: record.scopes,
                 )
             }),
@@ -1170,7 +1170,7 @@ struct PeriscopeTests {
     @Test func ambientStateStampsOntoEverySubsequentRecord() async throws {
         let system = makeSystem()
         let ambient = Log<AmbientEvent>(system: system)
-        ambient { AmbientEvent(kind: .network, value: ["status": "satisfied"]) }
+        ambient { makeAmbientEvent(kind: .network, value: ["status": "satisfied"]) }
         Log<AppLogs>(system: system).info("after")
         await system.flush()
 
@@ -1183,8 +1183,8 @@ struct PeriscopeTests {
     @Test func anAmbientEventCarriesTheStateItAnnounces() async {
         let system = makeSystem()
         let ambient = Log<AmbientEvent>(system: system)
-        ambient { AmbientEvent(kind: .thermalState, value: ["level": "nominal"]) }
-        ambient { AmbientEvent(kind: .thermalState, value: ["level": "serious"]) }
+        ambient { makeAmbientEvent(kind: .thermalState, value: ["level": "nominal"]) }
+        ambient { makeAmbientEvent(kind: .thermalState, value: ["level": "serious"]) }
         await system.flush()
 
         let changes = sink.records.filter { $0.eventName == AmbientEvent.eventName }
@@ -1197,9 +1197,9 @@ struct PeriscopeTests {
     @Test func momentaryAmbientEventsDoNotStickToLaterRecords() async throws {
         let system = makeSystem()
         let ambient = Log<AmbientEvent>(system: system)
-        ambient { AmbientEvent(kind: .network, value: ["status": "satisfied"]) }
+        ambient { makeAmbientEvent(kind: .network, value: ["status": "satisfied"]) }
         ambient {
-            AmbientEvent(
+            makeAmbientEvent(
                 kind: .memory,
                 value: ["pressure": "warning"],
                 level: .warning,
@@ -1220,9 +1220,9 @@ struct PeriscopeTests {
         let system = makeSystem()
         let ambient = Log<AmbientEvent>(system: system)
         let log = Log<AppLogs>(system: system)
-        ambient { AmbientEvent(kind: .network, value: ["status": "satisfied"]) }
+        ambient { makeAmbientEvent(kind: .network, value: ["status": "satisfied"]) }
         log.info("one")
-        ambient { AmbientEvent(kind: .network, value: ["status": "satisfied"]) }
+        ambient { makeAmbientEvent(kind: .network, value: ["status": "satisfied"]) }
         log.info("two")
         await system.flush()
 
@@ -1234,7 +1234,7 @@ struct PeriscopeTests {
     @Test func spanRecordsCarryAmbientState() async {
         let system = makeSystem()
         let ambient = Log<AmbientEvent>(system: system)
-        ambient { AmbientEvent(kind: .powerMode, value: ["low-power": true]) }
+        ambient { makeAmbientEvent(kind: .powerMode, value: ["low-power": true]) }
         Log<AppLogs>(system: system).measure("work") {}
         await system.flush()
 
@@ -1254,7 +1254,7 @@ struct PeriscopeTests {
         )
         let log = Log<AppLogs>(system: system)
         let ambient = Log<AmbientEvent>(system: system)
-        ambient { AmbientEvent(kind: .network, value: ["status": "unsatisfied"]) }
+        ambient { makeAmbientEvent(kind: .network, value: ["status": "unsatisfied"]) }
 
         log.info("r0")
         let drainBlocked = await waitUntil { gate.batchCount >= 1 }
@@ -1274,7 +1274,7 @@ struct PeriscopeTests {
     @Test func liveObserversSeeTheStampedRecord() async throws {
         let system = makeSystem()
         let ambient = Log<AmbientEvent>(system: system)
-        ambient { AmbientEvent(kind: .network, value: ["status": "satisfied"]) }
+        ambient { makeAmbientEvent(kind: .network, value: ["status": "satisfied"]) }
         let records = system.liveRecords()
 
         Log<AppLogs>(system: system).info("live")
@@ -1289,11 +1289,11 @@ struct PeriscopeTests {
     @Test func flooredAmbientEventsStillFoldIntoTheSnapshot() async throws {
         let system = makeSystem()
         let ambient = Log<AmbientEvent>(system: system)
-        ambient { AmbientEvent(kind: .network, value: ["status": "satisfied"]) }
+        ambient { makeAmbientEvent(kind: .network, value: ["status": "satisfied"]) }
         system.minimumLevel = .warning
 
         // .info — floored.
-        ambient { AmbientEvent(kind: .network, value: ["status": "unsatisfied"]) }
+        ambient { makeAmbientEvent(kind: .network, value: ["status": "unsatisfied"]) }
         Log<AppLogs>(system: system).warning("after")
         await system.flush()
 
@@ -1316,11 +1316,11 @@ struct PeriscopeTests {
             sinks: [sink],
         )
         let ambient = Log<AmbientEvent>(system: system)
-        ambient { AmbientEvent(kind: .network, value: ["ssid": "wifi-public"]) }
-        ambient { AmbientEvent(kind: .thermalState, value: ["level": "nominal"]) }
+        ambient { makeAmbientEvent(kind: .network, value: ["ssid": "wifi-public"]) }
+        ambient { makeAmbientEvent(kind: .thermalState, value: ["level": "nominal"]) }
 
         // Suppressed by the redaction hook.
-        ambient { AmbientEvent(kind: .network, value: ["ssid": "wifi-secret"]) }
+        ambient { makeAmbientEvent(kind: .network, value: ["ssid": "wifi-secret"]) }
         Log<AppLogs>(system: system).info("after")
         await system.flush()
 

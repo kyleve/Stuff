@@ -183,7 +183,10 @@ extension PeriscopeStore {
         if recovery.droppedOlderEntries {
             text += "; older entries were dropped by the journal's byte budget"
         }
-        let notice = Message(level: hasGaps ? .warning : .notice, text)
+        let notice = Message(
+            level: .restricted(.technicalState, hasGaps ? .warning : .notice),
+            text: .restricted(.arbitraryText, text),
+        )
         let marker = try SDLogEvent(
             eventID: UUID(),
             date: Date(),

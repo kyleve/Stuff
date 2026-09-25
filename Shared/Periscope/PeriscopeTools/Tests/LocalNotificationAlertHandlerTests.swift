@@ -58,7 +58,7 @@ struct LocalNotificationAlertHandlerTests {
     private func makeRecord(_ message: String) -> LogRecord {
         LogRecord(
             date: Date(),
-            event: Message(level: .error, message),
+            event: classifiedMessage(message, level: .error),
             scopes: [LogScope.root(named: "app").id],
         )
     }
@@ -66,13 +66,13 @@ struct LocalNotificationAlertHandlerTests {
     @Test func requestsCarryTheRecordsSeverityAndMessage() {
         let record = LogRecord(
             date: Date(),
-            event: Message(level: .error, "Upload failed"),
+            event: classifiedMessage("Upload failed", level: .error),
             scopes: [LogScope.root(named: "app").id],
         )
 
         let request = LocalNotificationAlertHandler.request(for: record)
 
-        #expect(request.content.title == "Error: message")
+        #expect(request.content.title == "Error: message.message")
         #expect(request.content.body == "Upload failed")
         #expect(request.identifier == "periscope-alert-\(record.id.uuidString)")
         #expect(request.trigger == nil)
