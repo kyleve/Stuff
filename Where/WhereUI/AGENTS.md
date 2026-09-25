@@ -85,6 +85,9 @@ Layering, localization, preview, and testing conventions live in the feature
   Project Locations-card GPS points through the cache's shared
   `RegionArtworkProjection`. Never project, simplify, or spatially reduce
   artwork in a card's `body`.
+- Use `regionArtworkTask` and `RegionArtworkModel` for cached artwork loading.
+  Keep request identity complete; use a broader display key only when retaining
+  compatible artwork during refresh is intentional.
 - Keep the Locations background on the selected year’s complete visited-region set,
   in catalog order independent of card rank. Omit the catch-all Other entry from
   the print. Use the injected outline cache.

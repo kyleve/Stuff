@@ -10,8 +10,7 @@ struct ElsewhereSummaryCard: View {
     let regions: [Region]
 
     @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.regionOutlinePathCache) private var regionOutlinePathCache
-    @State private var artwork: ElsewhereRegionArtwork?
+    @State private var artworkModel = RegionArtworkModel<[Region], ElsewhereRegionArtwork>()
 
     private var style: WhereStylesheet.ElsewhereCardStyle {
         stylesheet.elsewhereCard
@@ -22,7 +21,7 @@ struct ElsewhereSummaryCard: View {
     }
 
     private var visibleArtwork: [ElsewhereRegionArtwork.Item] {
-        artwork?.items(for: regions) ?? []
+        artworkModel.artwork(for: regions)?.items(for: regions) ?? []
     }
 
     var body: some View {
@@ -71,15 +70,8 @@ struct ElsewhereSummaryCard: View {
             y: style.surface.shadowOffsetY,
         )
         .accessibilityElement(children: .combine)
-        .task(id: regions) {
-            guard let regionOutlinePathCache else { return }
-            if let loaded = await ElsewhereRegionArtwork.load(
-                regions: regions,
-                cache: regionOutlinePathCache,
-            ) {
-                guard !Task.isCancelled else { return }
-                artwork = loaded
-            }
+        .regionArtworkTask(id: regions, model: artworkModel) { cache in
+            await ElsewhereRegionArtwork.load(regions: regions, cache: cache)
         }
     }
 
