@@ -1,26 +1,16 @@
 import PeriscopeCore
 
-/// Structured events for `WidgetCenterTimelineRefresher`, which writes the
-/// snapshot to the App Group and reloads WidgetKit timelines.
-enum WidgetTimelineRefresherLog: LogEvent {
-    case wroteSnapshot
-    case publishFailed(description: String)
+@LogScope("WidgetRefresher")
+enum WidgetTimelineRefresherLog {
+    @LogEvent("wrote-snapshot", message: "Wrote widget snapshot to App Group; reloading timelines")
+    struct WroteSnapshot {}
 
-    static let eventName = "WidgetRefresher"
-
-    var level: LogLevel {
-        switch self {
-            case .wroteSnapshot: .info
-            case .publishFailed: .error
-        }
-    }
-
-    var message: String {
-        switch self {
-            case .wroteSnapshot:
-                "Wrote widget snapshot to App Group; reloading timelines"
-            case let .publishFailed(description):
-                "Failed to publish widget snapshot: \(description)"
+    @LogEvent("publish-failed", level: .error)
+    struct PublishFailed {
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
+        var message: String {
+            "Failed to publish widget snapshot: \(description)"
         }
     }
 }

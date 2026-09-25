@@ -1,16 +1,21 @@
 import PeriscopeCore
 
 /// Shared fixture events for the UI suites.
-struct AppLogs: LogEvent {
-    var message: String {
-        "app"
-    }
+@LogScope("AppLogs")
+enum AppLogs {
+    @LogEvent("event", message: "app")
+    struct Event {}
 }
 
-struct PhotoLogs: LogEvent {
-    var photoID: String
-    var message: String {
-        "photo \(photoID)"
+@LogScope("PhotoLogs")
+enum PhotoLogs {
+    @LogEvent("event")
+    struct Event {
+        @LogField("photo_id", exposure: .restricted, kind: .identifier)
+        var photoID: String
+        var message: String {
+            "photo \(photoID)"
+        }
     }
 }
 

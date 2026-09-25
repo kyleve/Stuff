@@ -25,17 +25,6 @@ public struct LogContext: Sendable {
         Log<FreeformLogScope>(scopes: scopes, tags: tags, recorder: recorder)(Scope.self)
     }
 
-    /// Derives a legacy event scope and records one event in a single expression.
-    public func callAsFunction<Event: LogEvent>(
-        _ type: Event.Type,
-        function: StaticString = #function,
-        fileID: StaticString = #fileID,
-        _ event: () -> Event,
-    ) {
-        let child = callAsFunction(type)
-        child.record(event(), function: function, fileID: fileID)
-    }
-
     /// Links another context after this context while preserving this primary scope.
     public func linked(with other: LogContext) -> LogContext {
         var merged = scopes

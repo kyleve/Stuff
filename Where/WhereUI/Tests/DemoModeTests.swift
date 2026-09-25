@@ -363,8 +363,5 @@ struct DemoModeTests {
 
 /// A freeform probe event, so the routing tests can emit something they can
 /// then look for in a specific store.
-private struct DemoProbeLog: LogEvent {
-    var message: String {
-        ""
-    }
-}
+@LogScope("DemoProbe")
+private enum DemoProbeLog {}

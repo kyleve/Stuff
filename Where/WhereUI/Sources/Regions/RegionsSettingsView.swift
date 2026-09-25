@@ -155,9 +155,10 @@ struct RegionsSettingsView: View {
             let existing = try await session.services.primaryRegions()
             built = PrimaryRegionSelectionModel(existing: existing)
         } catch {
-            Self.logger(attachments: [.error(error, name: "load-error")]) {
-                .primaryRegionsLoadFailed(description: error.localizedDescription)
-            }
+            Self.logger.primaryRegionsLoadFailed(
+                description: .restricted(.errorDetails, error.localizedDescription),
+                attachments: [.error(error, name: "load-error")],
+            )
             // Fall back to an empty picker rather than a stuck spinner.
             built = PrimaryRegionSelectionModel()
         }
@@ -175,9 +176,10 @@ struct RegionsSettingsView: View {
                 try await model.commit(using: session)
                 dismiss()
             } catch {
-                Self.logger(attachments: [.error(error, name: "save-error")]) {
-                    .primaryRegionsSaveFailed(description: error.localizedDescription)
-                }
+                Self.logger.primaryRegionsSaveFailed(
+                    description: .restricted(.errorDetails, error.localizedDescription),
+                    attachments: [.error(error, name: "save-error")],
+                )
                 saveError.message = error.localizedDescription
                 isSaving = false
             }

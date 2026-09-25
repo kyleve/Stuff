@@ -57,7 +57,9 @@ final class LocationForecastModel {
             let stay = try await services.plannedStays.active()
             if activePlannedStay != stay { activePlannedStay = stay }
         } catch {
-            Self.logger { .loadFailed(description: error.localizedDescription) }
+            Self.logger.loadFailed(
+                description: .restricted(.errorDetails, error.localizedDescription),
+            )
         }
     }
 
@@ -182,7 +184,9 @@ final class LocationForecastModel {
             try await services.plannedStays.set(region: region, through: day)
             activePlannedStay = PlannedStay(region: region, through: day)
         } catch {
-            Self.logger { .saveFailed(description: error.localizedDescription) }
+            Self.logger.saveFailed(
+                description: .restricted(.errorDetails, error.localizedDescription),
+            )
             throw error
         }
     }
@@ -192,7 +196,9 @@ final class LocationForecastModel {
             try await services.plannedStays.clear()
             activePlannedStay = nil
         } catch {
-            Self.logger { .clearFailed(description: error.localizedDescription) }
+            Self.logger.clearFailed(
+                description: .restricted(.errorDetails, error.localizedDescription),
+            )
             throw error
         }
     }

@@ -1,23 +1,11 @@
 import PeriscopeCore
 
-/// Structured events for the app launch sequence (`WhereLaunch` /
-/// `WhereBootstrap`), including the process-global log-store bootstrap.
-enum WhereLaunchLog: LogEvent {
-    /// Names the launch spans — one budgeted span per measured launch or
-    /// teardown step (see `MeasuredStep`), plus the two log-store chores the
-    /// bootstrap runs off the critical path.
-    ///
-    /// `description` is spelled out rather than left to `String(describing:)`
-    /// because ``step(_:)`` carries a payload: reflection would render it
-    /// `step(WhereUI.LaunchStepID.resolveScope)`, leaking the module and the Swift
-    /// case name into a span name the tools group by. The hand-written form
-    /// yields `step(open-store)`, matching the step IDs everywhere else.
+/// Structured events and spans for the app launch sequence.
+@LogScope("WhereLaunch")
+enum WhereLaunchLog {
     enum SpanName: Hashable, CustomStringConvertible {
-        /// One measured step of the launch or reset plan.
         case step(LaunchStepID)
-        /// Opening the durable Periscope store and attaching it as a sink.
         case openLogStore
-        /// Trimming persisted log history past the retention window.
         case pruneHistory
 
         var description: String {
@@ -29,89 +17,66 @@ enum WhereLaunchLog: LogEvent {
         }
     }
 
-    case runnerCreated(reason: String)
-    case servicesAssembled
-    /// Assembling the service layer (store open + `WhereServices.make`) failed;
-    /// the `resolve-scope` step surfaces it and the launch parks in `.failed`.
-    case servicesAssemblyFailed(description: String)
-    /// The durable log store opened and became the active scope's sink. Fired
-    /// as soon as the store is browsable — retention pruning runs after, off the
-    /// ready path (see ``historyPruned``).
-    case loggingStoreReady
-    /// Opening the durable log store failed; logging continues through the
-    /// OSLog sink only, with no persisted history this launch.
-    case loggingStoreUnavailable(description: String)
-    /// Retention pruning finished. The two counts are reported separately
-    /// because they mean different things: `expiredEventCount` is routine, while
-    /// a nonzero `overflowEventCount` says this install out-logs its retention
-    /// window and is being held to the size cap instead. Runs after
-    /// ``loggingStoreReady``, so it never delays readiness.
-    case historyPruned(expiredEventCount: Int, overflowEventCount: Int)
-    /// Retention pruning failed; the store is still usable (last good history
-    /// preserved), it just isn't trimmed this launch.
-    case historyPruneFailed(description: String)
-    /// A detached (fire-and-forget) launch step failed. Never fatal — the
-    /// launch reaches `.ready` regardless and the runner records it on
-    /// `detachedFailures` — but it must be visible in logs too, not just on
-    /// observable state nothing renders (see `DetachedFailureReporter`).
-    case detachedStepFailed(stepID: String, description: String)
-
-    static let eventName = "WhereLaunch"
-
-    var level: LogLevel {
-        switch self {
-            case .runnerCreated, .servicesAssembled, .loggingStoreReady, .historyPruned:
-                .info
-            // The store is still usable when pruning fails (degraded-but-handled),
-            // unlike an outright open failure. A detached-step failure is the
-            // same shape: the launch stays healthy, one best-effort fan-out
-            // didn't land.
-            case .historyPruneFailed, .detachedStepFailed:
-                .warning
-            case .servicesAssemblyFailed, .loggingStoreUnavailable:
-                .error
+    @LogEvent("runner-created")
+    struct RunnerCreated {
+        @LogField("reason", exposure: .restricted, kind: .technicalState) var reason: String
+        var message: String {
+            "Lifecycle runner created (reason: \(reason))"
         }
     }
 
-    var message: String {
-        switch self {
-            case let .runnerCreated(reason):
-                "Lifecycle runner created (reason: \(reason))"
-            case .servicesAssembled:
-                "WhereServices assembled"
-            case let .servicesAssemblyFailed(description):
-                "Failed to assemble WhereServices: \(description)"
-            case .loggingStoreReady:
-                "Log store ready"
-            case let .loggingStoreUnavailable(description):
-                "Log store unavailable: \(description)"
-            case let .historyPruned(expiredEventCount, overflowEventCount):
-                "Pruned \(expiredEventCount) log event(s) past retention"
-                    + " and \(overflowEventCount) past the size cap"
-            case let .historyPruneFailed(description):
-                "Failed to prune log history: \(description)"
-            case let .detachedStepFailed(stepID, description):
-                "Detached launch step '\(stepID)' failed: \(description)"
+    @LogEvent("services-assembled", message: "WhereServices assembled")
+    struct ServicesAssembled {}
+
+    @LogEvent("services-assembly-failed", level: .error)
+    struct ServicesAssemblyFailed {
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
+        var message: String {
+            "Failed to assemble WhereServices: \(description)"
         }
     }
 
-    var remoteFields: [RemoteLogField] {
-        switch self {
-            case let .historyPruned(expiredEventCount, overflowEventCount):
-                [
-                    RemoteLogField(
-                        key: RemoteLogFieldKey("expired_event_count"),
-                        value: .count(expiredEventCount),
-                    ),
-                    RemoteLogField(
-                        key: RemoteLogFieldKey("overflow_event_count"),
-                        value: .count(overflowEventCount),
-                    ),
-                ]
-            case .runnerCreated, .servicesAssembled, .servicesAssemblyFailed,
-                 .loggingStoreReady, .loggingStoreUnavailable, .historyPruneFailed,
-                 .detachedStepFailed:
-                []
+    @LogEvent("logging-store-ready", message: "Log store ready")
+    struct LoggingStoreReady {}
+
+    @LogEvent("logging-store-unavailable", level: .error)
+    struct LoggingStoreUnavailable {
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
+        var message: String {
+            "Log store unavailable: \(description)"
+        }
+    }
+
+    @LogEvent("history-pruned")
+    struct HistoryPruned {
+        @LogField("expired_event_count", exposure: .shareable, kind: .count)
+        var expiredEventCount: Int
+        @LogField("overflow_event_count", exposure: .shareable, kind: .count)
+        var overflowEventCount: Int
+        var message: String {
+            "Pruned \(expiredEventCount) log event(s) past retention"
+                + " and \(overflowEventCount) past the size cap"
+        }
+    }
+
+    @LogEvent("history-prune-failed", level: .warning)
+    struct HistoryPruneFailed {
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
+        var message: String {
+            "Failed to prune log history: \(description)"
+        }
+    }
+
+    @LogEvent("detached-step-failed", level: .warning)
+    struct DetachedStepFailed {
+        @LogField("step_id", exposure: .restricted, kind: .identifier) var stepID: String
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
+        var message: String {
+            "Detached launch step '\(stepID)' failed: \(description)"
         }
     }
 }
