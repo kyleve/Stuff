@@ -108,7 +108,11 @@ public struct FlightTrajectoryAnalyzer: Sendable {
                 legs: legs,
                 usable: usable,
                 grounds: grounds,
-                nextStart: index + 1 < groups.count ? groups[index + 1][0].start : anchors.count,
+                nextStart: index + 1 < groups.count ? Self.transitionStart(
+                    for: groups[index + 1][0],
+                    anchors: anchors,
+                    legs: legs,
+                ) : anchors.count,
                 deviceID: deviceID,
                 now: now,
             )
@@ -131,16 +135,8 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         let departure = grounds.last { $0.confirmation <= first.start }
         var supportedLegs: Set<Int> = []
         for core in cores {
-            supportedLegs.formUnion(core.start ..< core.end)
-            var before = core.start
-            while before > 0,
-                  legs[before - 1].isTransition,
-                  anchors[core.start].timestamp.timeIntervalSince(anchors[before - 1].timestamp)
-                  <= Policy.transitionDuration
-            {
-                before -= 1
-                supportedLegs.insert(before)
-            }
+            let before = Self.transitionStart(for: core, anchors: anchors, legs: legs)
+            supportedLegs.formUnion(before ..< core.end)
             var after = core.end
             let limit = arrival?.start ?? nextStart - 1
             while after < limit,
@@ -197,7 +193,13 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         } else {
             now
         }
-        let lastObservation = usable.last { $0.timestamp <= observationLimit } ?? latest
+        // A later flight owns its first observation, including its supported
+        // takeoff transition. It cannot extend an older unresolved review.
+        let lastObservation = usable.last {
+            $0.timestamp <= observationLimit
+                && (arrival != nil || nextStart == anchors.count
+                    || $0.timestamp < anchors[nextStart].timestamp)
+        } ?? latest
         let trailingMotionIsPlausible = anchors.last(where: {
             $0.timestamp <= lastObservation.timestamp
         }).map { Self.isPlausible(lastObservation, relativeTo: $0) } ?? false
@@ -227,6 +229,22 @@ public struct FlightTrajectoryAnalyzer: Sendable {
                 .max() ?? 0,
             progress: progress,
         )
+    }
+
+    private static func transitionStart(
+        for core: Core,
+        anchors: [LocationSample],
+        legs: [Leg],
+    ) -> Int {
+        var start = core.start
+        while start > 0,
+              legs[start - 1].isTransition,
+              anchors[core.start].timestamp.timeIntervalSince(anchors[start - 1].timestamp)
+              <= Policy.transitionDuration
+        {
+            start -= 1
+        }
+        return start
     }
 
     private static func cores(anchors: [LocationSample], legs: [Leg]) -> [Core] {

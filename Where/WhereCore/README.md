@@ -162,6 +162,8 @@ one it belongs to rather than to a god-object:
   boundary cleanup use one sample assessment. Supported flight transitions stay
   in that review instead of producing a separate whole-day abrupt-change suggestion.
   Pending flights remain reviewable without adding to correction badges or notifications.
+  A later trip's observations do not extend an older pending flight or block the
+  later trip's corrections.
 - **`FlightTrajectoryAnalyzer`** — a pure, per-device GPS analysis before day
   bucketing, with 24 hours of report-boundary context. It uses independent fixes
   at least 60 seconds apart, positional uncertainty, sustained jet-speed progress,

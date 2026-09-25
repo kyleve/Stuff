@@ -125,6 +125,36 @@ enum FlightTrajectoryFixtures {
         )
     }
 
+    struct SeparatedFlightsTrace {
+        let samples: [LocationSample]
+        let earlierLastObservationAt: Date
+        let laterStartedAt: Date
+        let laterFirstGroundAt: Date
+        let readyAt: Date
+    }
+
+    /// Recording stops during one flight and resumes on a separate trip three days later.
+    static func separatedFlights(laterStartsWithTransition: Bool) -> SeparatedFlightsTrace {
+        let earlier = turningFlight()
+        let laterStart = 3.0 * 24 * 60
+        var later = [
+            sample(101, minutes: laterStart, east: 0),
+            sample(102, minutes: laterStart + 5, east: 20),
+            sample(103, minutes: laterStart + 10, east: 95),
+            sample(104, minutes: laterStart + 15, east: 170),
+            sample(105, minutes: laterStart + 20, east: 170),
+            sample(106, minutes: laterStart + 25, east: 170),
+        ]
+        if !laterStartsWithTransition { later.removeFirst() }
+        return SeparatedFlightsTrace(
+            samples: earlier.samples.filter { $0.timestamp <= earlier.lastCruiseAt } + later,
+            earlierLastObservationAt: earlier.lastCruiseAt,
+            laterStartedAt: date(minutes: laterStart + (laterStartsWithTransition ? 0 : 5)),
+            laterFirstGroundAt: date(minutes: laterStart + 15),
+            readyAt: date(minutes: laterStart + 25),
+        )
+    }
+
     static func replacing(
         _ sample: LocationSample,
         timestamp: Date? = nil,

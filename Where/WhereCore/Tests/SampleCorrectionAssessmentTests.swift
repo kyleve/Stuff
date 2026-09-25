@@ -182,6 +182,30 @@ struct SampleCorrectionAssessmentTests {
         #expect(!ready.edits.contains { $0.sampleID == trace.departureNoiseID })
     }
 
+    @Test(arguments: [false, true])
+    func completedLaterTripRemainsCorrectable(laterStartsWithTransition: Bool) throws {
+        let trace = FlightTrajectoryFixtures.separatedFlights(
+            laterStartsWithTransition: laterStartsWithTransition,
+        )
+        let reviews = F.reviews(
+            trace.samples,
+            attributor: SampleCorrectionTestSupport.attribution,
+            now: trace.readyAt,
+        )
+        let calendar = SampleCorrectionTestSupport.calendar
+        let earlierDay = CalendarDay(from: trace.earlierLastObservationAt, in: calendar)
+        let laterDay = CalendarDay(from: trace.readyAt, in: calendar)
+        let earlier = try #require(reviews.first { $0.day.day == earlierDay })
+        #expect(earlier.isPending)
+        #expect(earlier.proposal == nil)
+        let later = try #require(reviews.first { $0.day.day == laterDay })
+        #expect(!later.isPending)
+        #expect(later.flights.count == 1)
+        let proposal = try #require(later.proposal)
+        #expect(!proposal.edits.isEmpty)
+        #expect(Set(proposal.edits.map(\.sampleID)) == later.flight?.airborneSampleIDs)
+    }
+
     @Test func historicalSilenceStaysPendingWithoutAnActionableProposal() throws {
         let trace = FlightTrajectoryFixtures.turningFlight()
         let review = try #require(F.reviews(

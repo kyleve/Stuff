@@ -118,7 +118,8 @@ internal shape.
   tracked in [`../TODOs.md`](../TODOs.md). Do not copy those omissions.
 - **Assess flight trajectories before calendar bucketing and per recording device.**
   Keep legacy samples in their own track. Preserve unknown observations; silence,
-  midnight, and restart never establish arrival (`FlightTrajectoryAnalyzerTests`).
+  midnight, and restart never establish arrival. Keep later flight observations out
+  of older pending assessments (`FlightTrajectoryAnalyzerTests`).
 - **Apply automatic GPS corrections to reviewed sample IDs only.** Reassess inside
   `perform(expectedDataGenerationID:)`; changed evidence returns a fresh review
   without expanding Apply (`SampleCorrectionCoordinatorTests`). Preserve manual

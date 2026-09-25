@@ -86,6 +86,18 @@ struct FlightTrajectoryAnalyzerTests {
         #expect(cruise.id == taxi.id)
     }
 
+    @Test(arguments: [false, true])
+    func laterFlightDoesNotExtendAnUnconfirmedTrip(laterStartsWithTransition: Bool) throws {
+        let trace = Fixtures.separatedFlights(laterStartsWithTransition: laterStartsWithTransition)
+        let flights = analyzer.analyze(samples: trace.samples, now: trace.readyAt)
+        try #require(flights.count == 2)
+        #expect(flights[0].progress == .awaitingArrival)
+        #expect(flights[0].lastObservationAt == trace.earlierLastObservationAt)
+        #expect(flights[1].startedAt == trace.laterStartedAt)
+        #expect(flights[1].progress == .completed(arrivedAt: trace.laterFirstGroundAt))
+        #expect(flights[0].airborneSampleIDs.isDisjoint(with: flights[1].airborneSampleIDs))
+    }
+
     @Test func silenceChangesFreshnessWithoutInventingArrival() throws {
         let trace = Fixtures.turningFlight()
         let prefix = trace.samples.filter { $0.timestamp <= trace.lastCruiseAt }
