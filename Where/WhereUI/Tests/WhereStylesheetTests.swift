@@ -542,9 +542,13 @@ struct WhereStylesheetTests {
             stroke: .init(opacity: 0.043, width: 1.1),
         ))
         #expect(background.maximumAspectScale == 1.25)
-        #expect(background.rosette.extent == 0.18)
-        #expect(background.rosette.lineWidth == 0.7)
-        #expect(background.rosette.opacity == 0.04)
+        #expect(background.rosette == .init(
+            wobble: 0.04,
+            lineWidth: 0.5,
+            primaryRingSpacing: 18,
+            secondaryRingSpacing: 25,
+        ))
+        #expect(background.rosetteOpacity == 0.015)
     }
 
     @Test func elsewhereCardStyle() {

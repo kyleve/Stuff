@@ -415,12 +415,12 @@ registered content.
 The Locations root screen uses a stationary monochrome pattern of all regions
 visited in the selected year, including manually recorded visits and Elsewhere.
 Catalog order keeps the pattern stable when card rankings change. Planned stays
-do not contribute. The shared outline cache supplies the region paths. Small
-six-petal rosettes alternate with regions on a square diagonal lattice. Slender
+do not contribute. The shared outline cache supplies the region paths. Full-view
+rosette rings sit behind staggered region outlines with a half-cell row offset. Slender
 regions receive a bounded size adjustment to balance their visual weight. The
 monochrome ink uses faint strokes without a shadow or blur. Appearance belongs
 to `WhereStylesheet.locationsBackground`; Reduce Transparency hides the ink.
-Empty, initial-loading, and failed screens show only the repeating rosettes.
+Empty, initial-loading, and failed screens show only the full-view rosette texture.
 
 ## Testing
 

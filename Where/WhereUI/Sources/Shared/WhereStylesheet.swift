@@ -2505,12 +2505,12 @@ extension WhereStylesheet {
             stroke: .init(opacity: 0.043, width: 1.1),
         )
         var maximumAspectScale: CGFloat = 1.25
-        var rosette = Rosette()
-
-        struct Rosette: Equatable {
-            var extent: CGFloat = 0.18
-            var lineWidth: CGFloat = 0.7
-            var opacity: Double = 0.04
-        }
+        var rosette = CardStyle.Rosette(
+            wobble: 0.04,
+            lineWidth: 0.5,
+            primaryRingSpacing: 18,
+            secondaryRingSpacing: 25,
+        )
+        var rosetteOpacity: Double = 0.015
     }
 }
