@@ -73,6 +73,81 @@ struct DataIssueScannerTests {
         )
     }
 
+    @Test(arguments: [false, true])
+    func dismissalRemovesReadyReviewWithItsIssue(isFlight: Bool) async throws {
+        let store = try SwiftDataStore.inMemory()
+        let samples = isFlight ? FlightTrajectoryFixtures.turningFlight().samples : [
+            SampleCorrectionAssessmentFixtures.point(101, minutes: 0, longitude: -0.001),
+            SampleCorrectionAssessmentFixtures.point(102, minutes: 5, longitude: 0.0005),
+            SampleCorrectionAssessmentFixtures.point(103, minutes: 10, longitude: -0.001),
+        ]
+        try await store.perform {
+            for sample in samples {
+                try await store.add(sample: sample)
+            }
+        }
+        let attributor: any RegionAttributing = isFlight
+            ? SampleCorrectionTestSupport.attribution : SampleCorrectionAssessmentFixtures
+            .Boundary()
+        let scanner = makeReviewScanner(
+            store: store,
+            now: { FlightTrajectoryFixtures.date(minutes: 150) },
+            attributor: attributor,
+        )
+        let initial = try await scanner.scan(
+            year: 2026,
+            primaryRegions: attributor.loadedRegions,
+            driftThresholdMeters: 1000,
+            force: true,
+        )
+        let issue = try #require(initial.issues.first)
+        try #require(initial.reviews.first?.proposal != nil)
+        try await store.perform { try await store.setIssueDismissed(true, id: issue.id) }
+        let dismissed = try await scanner.scan(
+            year: 2026,
+            primaryRegions: attributor.loadedRegions,
+            driftThresholdMeters: 1000,
+            force: true,
+        )
+        #expect(dismissed.issues.isEmpty)
+        #expect(dismissed.reviews.isEmpty)
+        #expect(dismissed.nextReassessmentAt == nil)
+    }
+
+    @Test(arguments: [false, true])
+    func dismissalRetainsInformationalFlightReviews(isCompleted: Bool) async throws {
+        let store = try SwiftDataStore.inMemory()
+        let trace = FlightTrajectoryFixtures.turningFlight()
+        let now = isCompleted ? trace.readyAt : trace.lastCruiseAt
+        let day = CalendarDay(from: now, in: SampleCorrectionTestSupport.calendar)
+        let reviewID = DataIssueID.flightDay(day: day)
+        try await store.perform {
+            for sample in trace.samples where sample.timestamp <= now {
+                try await store.add(sample: sample)
+            }
+            if isCompleted {
+                try await store.setManualDay(DayPresence(
+                    day: day,
+                    regions: [.california],
+                    isAuthoritative: true,
+                ))
+            }
+            try await store.setIssueDismissed(true, id: reviewID)
+        }
+        let scanner = makeReviewScanner(store: store, now: { now })
+        let scan = try await scanner.scan(
+            year: 2026,
+            primaryRegions: [.california, .newYork],
+            driftThresholdMeters: 1000,
+            force: true,
+        )
+        #expect(scan.issues.isEmpty)
+        let review = try #require(scan.reviews.first)
+        #expect(review.id == reviewID)
+        #expect(review.proposal == nil)
+        #expect(review.isPending == !isCompleted)
+    }
+
     @Test func scanPublishesPendingReviewsWithoutActionableGPSIssues() async throws {
         let store = try SwiftDataStore.inMemory()
         let now = FlightTrajectoryFixtures.date(minutes: 25)

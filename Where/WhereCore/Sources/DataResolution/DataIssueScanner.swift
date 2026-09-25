@@ -121,7 +121,7 @@ public actor DataIssueScanner {
                     calendar: calendar,
                     now: currentDate,
                 )
-                let reviews = Self.logger.measure(.assessGPS) {
+                let assessedReviews = Self.logger.measure(.assessGPS) {
                     SampleCorrectionAssessment(attributor: reads.attribution, calendar: calendar)
                         .reviews(
                             reads: reads,
@@ -135,7 +135,7 @@ public actor DataIssueScanner {
                         detector.detectAnyIssues(in: input)
                     }
                 }
-                let flightDays = Set(reviews.filter { !$0.flights.isEmpty }.map(\.day.day))
+                let flightDays = Set(assessedReviews.filter { !$0.flights.isEmpty }.map(\.day.day))
                 let unexplainedIssues = otherIssues.filter { issue in
                     // Flight reviews own these transitions before and after
                     // arrival, including their exact-sample correction. Do not
@@ -144,6 +144,12 @@ public actor DataIssueScanner {
                         return true
                     }
                     return !flightDays.contains(earlier.day) && !flightDays.contains(later.day)
+                }
+                // Dismissal hides an actionable review together with its issue.
+                // Keep informational reviews and use all assessed flights above
+                // so dismissal cannot revive an overlapping whole-day rewrite.
+                let reviews = assessedReviews.filter {
+                    $0.proposal == nil || !reads.dismissedIssueIDs.contains($0.id)
                 }
                 let gpsIssues: [any DataIssue] = reviews.compactMap { review in
                     review.proposal.map { SampleCorrectionIssue(proposal: $0) }

@@ -138,7 +138,8 @@ internal shape.
   tracked set in the same store snapshot.
 - **Publish one scan revision containing issues, reviews, and its next deadline.**
   Let flight reviews own overlapping day transitions. Pending flights do not
-  enter actionable badges or notifications. An invalidated
+  enter actionable badges or notifications. Exclude dismissed ready reviews alongside
+  their issues; retain informational reviews (`DataIssueScannerTests`). An invalidated
   scan cannot repopulate its cache (`DataIssueScannerTests`). UI deadlines run only
   in the foreground; do not introduce background polling.
 - **Read related year projections from one samples snapshot.** Use
