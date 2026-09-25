@@ -7,8 +7,7 @@ struct LocationsBackground: View {
     let regions: [Region]
 
     @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.regionOutlinePathCache) private var cache
-    @State private var artwork: LocationsBackgroundArtwork?
+    @State private var artworkModel = RegionArtworkModel<[Region], LocationsBackgroundArtwork>()
 
     private var style: WhereStylesheet.LocationsBackgroundStyle {
         stylesheet.locationsBackground
@@ -37,21 +36,15 @@ struct LocationsBackground: View {
         .clipped()
         .allowsHitTesting(false)
         .accessibilityHidden(true)
-        .task(id: requestedRegions) {
-            guard let cache else { return }
-            if let loaded = await LocationsBackgroundArtwork.load(
-                regions: requestedRegions,
-                cache: cache,
-            ) {
-                guard !Task.isCancelled else { return }
-                artwork = loaded
-            }
+        .regionArtworkTask(id: requestedRegions, model: artworkModel) { cache in
+            await LocationsBackgroundArtwork.load(regions: requestedRegions, cache: cache)
         }
     }
 
     private var silhouettes: some View {
         GeometryReader { proxy in
-            let items = artwork?.items(for: requestedRegions) ?? []
+            let items = artworkModel.artwork(for: requestedRegions)?
+                .items(for: requestedRegions) ?? []
             let cells = LocationsBackgroundLayout.cells(
                 count: items.count,
                 in: proxy.size,

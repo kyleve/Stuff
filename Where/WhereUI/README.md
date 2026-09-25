@@ -427,6 +427,14 @@ interactive viewport. Flyover's appearance, device, Dynamic Type, contrast,
 layout-direction, and bold-text choices are session-only and apply only to
 registered content.
 
+### Artwork loading
+
+`regionArtworkTask` reads the root-injected outline cache and ties loading to the
+view's request identity. `RegionArtworkModel` publishes only complete results
+from the latest uncancelled operation and hides artwork for mismatched display
+keys. Region cards use a separate static-artwork key to retain their outlines
+while recorded points refresh. Each surface owns its resolutions and rendering.
+
 ### Locations background
 
 The Locations root screen uses a stationary monochrome pattern of all regions
