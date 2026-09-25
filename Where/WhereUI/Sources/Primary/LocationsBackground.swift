@@ -1,6 +1,5 @@
 import BroadwayUI
 import RegionKit
-import SFSafeSymbols
 import SwiftUI
 
 /// Stationary, noninteractive paper texture for the root Locations viewport.
@@ -16,7 +15,7 @@ struct LocationsBackground: View {
     }
 
     private var requestedRegions: [Region] {
-        style.showsInk ? regions : []
+        style.showsInk ? regions.filter { $0 != .other } : []
     }
 
     var body: some View {
@@ -61,22 +60,11 @@ struct LocationsBackground: View {
             ZStack(alignment: .topLeading) {
                 ForEach(cells) { cell in
                     let item = items[cell.artworkIndex]
-                    Group {
-                        if item.region == .other {
-                            Image(systemSymbol: .globeAmericas)
-                                .resizable()
-                                .scaledToFit()
-                                .fontWeight(style.symbolWeight)
-                                .foregroundStyle(style.ink.opacity(style.symbolOpacity))
-                                .padding(cell.frame.width * (1 - style.artwork.extent.width) / 2)
-                        } else {
-                            RegionOutlineArtwork(
-                                path: item.path,
-                                tint: style.ink,
-                                style: balancedArtwork(for: item.path),
-                            )
-                        }
-                    }
+                    RegionOutlineArtwork(
+                        path: item.path,
+                        tint: style.ink,
+                        style: balancedArtwork(for: item.path),
+                    )
                     .frame(width: cell.frame.width, height: cell.frame.height)
                     .position(x: cell.frame.midX, y: cell.frame.midY)
                 }

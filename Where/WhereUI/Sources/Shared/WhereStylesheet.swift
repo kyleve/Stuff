@@ -2495,8 +2495,6 @@ extension WhereStylesheet {
         var ink = Color.primary
         var showsInk = true
         var preferredCellSize: CGFloat = 54
-        var symbolWeight = Font.Weight.light
-        var symbolOpacity: Double = 0.03
         var artwork = CardStyle.RegionShape.Artwork(
             center: CGPoint(x: 0.5, y: 0.5),
             extent: CGSize(width: 0.545, height: 0.545),

@@ -414,6 +414,7 @@ registered content.
 
 The Locations root screen uses a stationary monochrome pattern of all regions
 visited in the selected year, including manually recorded visits and Elsewhere.
+The catch-all Other entry is omitted because it has no geographic outline.
 Catalog order keeps the pattern stable when card rankings change. Planned stays
 do not contribute. The shared outline cache supplies the region paths. Full-view
 rosette rings sit behind staggered region outlines with a half-cell row offset. Slender
