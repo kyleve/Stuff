@@ -43,12 +43,30 @@ struct InsightsAccuracyFeaturesView: View {
                             }
                             .featureMarketingRow(order: 2)
                         }
+                    }
+                    Section {
+                        FeatureGuidePanel(
+                            title: .settingsExploreInsightsCorrectionsTitle,
+                            detail: .settingsExploreInsightsCorrectionsDetail,
+                            symbol: .checklist,
+                        ) {}
+                            .featureMarketingRow(order: 3)
+                            .settingsRow(Item.corrections, restingBackground: .clear)
+                        FeatureSettingsLink(destination: .loggedDays).featureMarketingRow(order: 4)
+                        FeatureGuidePanel(
+                            title: .settingsExploreInsightsAlertsTitle,
+                            detail: .settingsExploreInsightsAlertsDetail,
+                            symbol: .bellBadge,
+                        ) {}
+                            .featureMarketingRow(order: 5)
+                            .settingsRow(Item.alerts, restingBackground: .clear)
+                        FeatureSettingsLink(destination: .alerts).featureMarketingRow(order: 6)
                     } footer: {
                         VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
                             Text(String(localized: .settingsExploreInsightsFooter))
                             FeatureDiscoveryDataFooter()
                         }
-                        .staggeredReveal(order: 3)
+                        .staggeredReveal(order: 7)
                     }
                 }
                 .scrollContentBackground(.hidden)
@@ -84,9 +102,15 @@ extension InsightsAccuracyFeaturesView: SettingsSection {
 
     enum Item: SettingsItem {
         case dataAccuracy
+        case corrections
+        case alerts
 
         var title: String {
-            String(localized: .settingsExploreInsightsAccuracyTitle)
+            switch self {
+                case .dataAccuracy: String(localized: .settingsExploreInsightsAccuracyTitle)
+                case .corrections: String(localized: .settingsExploreInsightsCorrectionsTitle)
+                case .alerts: String(localized: .settingsExploreInsightsAlertsTitle)
+            }
         }
 
         var keywords: [String] {
@@ -105,6 +129,16 @@ extension InsightsAccuracyFeaturesView: SettingsSection {
             ) {
                 InsightsAccuracyFeaturesView(
                     report: reportWithIssues(),
+                    focus: nil,
+                )
+            }
+            whereSnapshot(
+                name: "NoIssues",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                InsightsAccuracyFeaturesView(
+                    report: PreviewSupport.emptyYearReportModel(),
                     focus: nil,
                 )
             }
@@ -128,7 +162,11 @@ extension InsightsAccuracyFeaturesView: SettingsSection {
         static let flyoverData = WhereFlyoverData.snapshots(
             InsightsAccuracyFeaturesView.self,
             title: "Insights & Accuracy",
-            routes: [.modal(to: ResolutionView.flyoverID)],
+            routes: [
+                .modal(to: ResolutionView.flyoverID),
+                .push(to: LoggedDaysView.flyoverID),
+                .push(to: AlertsSettingsView.flyoverID),
+            ],
         )
     }
 #endif

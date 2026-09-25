@@ -78,12 +78,22 @@ struct PersonalizationFeaturesView: View {
                             }
                             .featureMarketingRow(order: 4)
                         }
+                    }
+                    Section {
+                        FeatureGuidePanel(
+                            title: .settingsExplorePersonalizationAppearanceTitle,
+                            detail: .settingsExplorePersonalizationAppearanceDetail,
+                            symbol: .paintbrushFill,
+                        ) {}
+                            .featureMarketingRow(order: 5)
+                            .settingsRow(Item.appearance, restingBackground: .clear)
+                        FeatureSettingsLink(destination: .appearance).featureMarketingRow(order: 6)
                     } footer: {
                         VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
                             Text(String(localized: .settingsExplorePersonalizationFooter))
                             FeatureDiscoveryDataFooter()
                         }
-                        .staggeredReveal(order: 5)
+                        .staggeredReveal(order: 7)
                     }
                 }
                 .scrollContentBackground(.hidden)
@@ -149,11 +159,13 @@ extension PersonalizationFeaturesView: SettingsSection {
     enum Item: SettingsItem {
         case regions
         case appIcon
+        case appearance
 
         var title: String {
             switch self {
                 case .regions: String(localized: .settingsExplorePersonalizationRegionsTitle)
                 case .appIcon: String(localized: .settingsExplorePersonalizationIconTitle)
+                case .appearance: String(localized: .settingsExplorePersonalizationAppearanceTitle)
             }
         }
 
@@ -197,6 +209,7 @@ extension PersonalizationFeaturesView: SettingsSection {
             routes: [
                 .modal(to: RegionsSettingsView.flyoverID),
                 .modal(to: AppIconView.flyoverID),
+                .push(to: AppearanceSettingsView.flyoverID),
             ],
         )
     }

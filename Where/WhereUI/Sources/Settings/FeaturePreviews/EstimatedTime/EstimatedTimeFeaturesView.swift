@@ -85,22 +85,19 @@ private struct EstimatedTimeFeaturesContent: View {
             }
 
             Section {
-                FeatureMarketingPanel {
-                    NavigationLink(value: SettingsRoute(.appearance)) {
-                        Label {
-                            Text(String(localized: .settingsExploreEstimatedTimeManage))
-                                .foregroundStyle(.primary)
-                        } icon: {
-                            Image(systemSymbol: .paintbrushFill)
-                                .foregroundStyle(SettingsDestination.estimatedTime.iconColor)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                FeatureGuidePanel(
+                    title: .settingsExploreEstimatedTimeSurfacesTitle,
+                    detail: .settingsExploreEstimatedTimeSurfacesDetail,
+                    symbol: .calendarDayTimelineLeft,
+                ) {
+                    FeatureTimelinePreview(report: report)
                 }
                 .featureMarketingRow(order: 6)
+                .settingsRow(EstimatedTimeFeaturesView.Item.surfaces, restingBackground: .clear)
+                FeatureSettingsLink(destination: .appearance).featureMarketingRow(order: 7)
             } footer: {
                 FeatureDiscoveryDataFooter()
-                    .staggeredReveal(order: 7)
+                    .staggeredReveal(order: 8)
             }
         }
         .scrollContentBackground(.hidden)
@@ -154,6 +151,7 @@ extension EstimatedTimeFeaturesView: SettingsSection {
         case planning
         case calculation
         case totals
+        case surfaces
 
         var title: String {
             switch self {
@@ -162,6 +160,7 @@ extension EstimatedTimeFeaturesView: SettingsSection {
                 case .planning: String(localized: .settingsExploreEstimatedTimePlanTitle)
                 case .calculation:
                     String(localized: .settingsExploreEstimatedTimeCalculationTitle)
+                case .surfaces: String(localized: .settingsExploreEstimatedTimeSurfacesTitle)
                 case .totals: String(localized: .settingsExploreEstimatedTimeTotalsTitle)
             }
         }
