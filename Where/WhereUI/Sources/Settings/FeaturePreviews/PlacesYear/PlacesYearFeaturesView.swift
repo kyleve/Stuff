@@ -47,7 +47,7 @@ struct PlacesYearFeaturesView: View {
                 detail: .settingsExplorePlacesTimelineDetail,
                 symbol: .calendarDayTimelineLeft,
             ) {
-                FeatureTimelinePreview(report: report)
+                PresenceTimelineList(report: report, presentation: .excerpt)
             }
             .featureMarketingRow(order: 3)
             .settingsRow(Item.timeline, restingBackground: .clear)

@@ -98,7 +98,7 @@ private struct EstimatedTimeFeaturesContent: View {
                     detail: .settingsExploreEstimatedTimeSurfacesDetail,
                     symbol: .calendarDayTimelineLeft,
                 ) {
-                    FeatureTimelinePreview(report: report)
+                    PresenceTimelineList(report: report, presentation: .excerpt)
                 }
                 .featureMarketingRow(order: 6)
                 .settingsRow(EstimatedTimeFeaturesView.Item.surfaces, restingBackground: .clear)

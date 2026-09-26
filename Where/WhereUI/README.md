@@ -43,6 +43,9 @@ The card opens the existing Elsewhere list.
   running a scan merely to render the gallery. Estimated Time & Planning explains the live annual projection with a
   worked pace-and-plan calculation, production Timeline rows, and planned stays.
   It also explains why overlapping travel days do not sum neatly to one year.
+  Both Timeline galleries use `PresenceTimelineList` with its `.excerpt` presentation.
+  This presentation shows the last two stays without scrolling or editing controls.
+  The full Timeline and excerpts share row rendering, rail continuity, and planned-stay joins.
   These galleries use a shared marketing header, quiet patterned backdrop, and
   staged entrance that resolves immediately for Reduce Motion and snapshot
   capture. Once the selected report has 14 recorded days, the Siri, Spotlight,
