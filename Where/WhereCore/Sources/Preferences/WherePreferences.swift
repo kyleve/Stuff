@@ -18,6 +18,12 @@ import RegionKit
 /// read/written eagerly; callers that need observation (SwiftUI) mirror them in
 /// their own observable state.
 public final class WherePreferences {
+    public struct ResetGeneration: Hashable, Sendable {
+        fileprivate let value = UUID()
+    }
+
+    /// Pending operations must not publish results into a reset installation.
+    public private(set) var resetGeneration = ResetGeneration()
     private let store: any KeyValueStore
     private let invalidValue: (String) -> Void
 
@@ -137,6 +143,36 @@ public final class WherePreferences {
         set { store.set(newValue, forKey: Keys.issueAlertsEnabled.rawValue) }
     }
 
+    /// The user's automatic-backup intent. Recording state gates its effective
+    /// behavior without erasing this choice, so re-enabling recording restores it.
+    public var automaticBackupsEnabled: Bool {
+        get { store.object(forKey: Keys.automaticBackupsEnabled.rawValue) as? Bool ?? true }
+        set { store.set(newValue, forKey: Keys.automaticBackupsEnabled.rawValue) }
+    }
+
+    /// The requested automatic-backup cadence. Defaults to weekly.
+    public var automaticBackupInterval: AutomaticBackupInterval {
+        get {
+            guard let rawValue = store
+                .object(forKey: Keys.automaticBackupInterval.rawValue) as? String
+            else { return .weekly }
+            return AutomaticBackupInterval(rawValue: rawValue) ?? .weekly
+        }
+        set { store.set(newValue.rawValue, forKey: Keys.automaticBackupInterval.rawValue) }
+    }
+
+    /// The last fully written automatic backup. Failed or deferred attempts do
+    /// not advance this timestamp.
+    public var lastAutomaticBackupAt: Date? {
+        get { store.object(forKey: Keys.lastAutomaticBackupAt.rawValue) as? Date }
+        set { store.set(newValue, forKey: Keys.lastAutomaticBackupAt.rawValue) }
+    }
+
+    public func recordAutomaticBackupSuccess(at date: Date, generation: ResetGeneration) {
+        guard generation == resetGeneration else { return }
+        lastAutomaticBackupAt = max(lastAutomaticBackupAt ?? date, date)
+    }
+
     /// The user's saved, vendor-neutral diagnostic-reporting choices.
     public var diagnosticReportingConfiguration: DiagnosticReportingConfiguration {
         get { diagnosticReportingConfiguration(isDebugBuild: Self.isDebugBuild) }
@@ -251,6 +287,7 @@ public final class WherePreferences {
     /// Removing the keys (rather than writing `false`/`0`) lets the
     /// default-valued getters report first-install state again.
     public func reset() {
+        resetGeneration = ResetGeneration()
         for key in Keys.allCases {
             store.removeObject(forKey: key.rawValue)
         }
@@ -272,6 +309,9 @@ public final class WherePreferences {
         case summaryHour = "where.summaryHour"
         case summaryMinute = "where.summaryMinute"
         case issueAlertsEnabled = "where.issueAlertsEnabled"
+        case automaticBackupsEnabled = "where.automaticBackupsEnabled"
+        case automaticBackupInterval = "where.automaticBackupInterval"
+        case lastAutomaticBackupAt = "where.lastAutomaticBackupAt"
         case diagnosticReportingConfiguration = "where.diagnostics.configuration"
         case recordingConfigurationWarningRegistration =
             "where.recordingConfigurationWarningRegistration"

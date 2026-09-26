@@ -90,13 +90,13 @@ The card opens the existing Elsewhere list.
   the current audience's primary asset at `RootView`. The picker maps that one
   asset to UIKit's `nil` primary-icon value and treats every other catalogued
   asset as an alternate, so primary status may differ by build audience.
-- **`WhereLaunch`** — the launch, reset, and exit-demo plans themselves. Every
+- **`WhereLaunch`** — the launch, reset, and exit-demo plans themselves. First-unlock
+  preparation precedes demo activation and onboarding. Every work
   step declares a budget (`BudgetedLaunchStep`) and joins the
   plan through `.measured()`, so each run is one Periscope span named after
   the step (`step(resolve-scope)`) that warns while it overruns its budget — 
   the launch's cost breaks down per step instead of arriving as one slow
-  splash. (The onboarding gate is the one unmeasured node: it parks on the
-  user.)
+  splash. First-unlock and onboarding waits are unmeasured because they wait on the user.
 - **`WhereScope`** — what the app is logged in *to*: one open store's
   `WhereServices`, the `WherePreferences` driving it, and the durable log store
   they record into, created whole and never reconfigured. `WhereModel` owns
@@ -190,7 +190,13 @@ The card opens the existing Elsewhere list.
   that onboarding marker before handing services to App Intents or registering
   the recording device, so Replace cleanup finishes before GPS can reopen or
   drain an obsolete outbox. `OnboardingImportRecoveryModel` owns that reconciliation rather than
-  the process-wide `WhereModel`. Settings offers export only.
+  the process-wide `WhereModel`. Encrypted `.wherebackup` files select the synchronized key by envelope identifier and
+  prompt for the copied recovery key if needed. Settings offers manual export plus automatic-backup
+  cadence, recovery-key, and read-only catalog controls; restore remains onboarding-only.
+  Hiding the recovery key also invalidates pending reveals, so a late Keychain
+  response cannot expose the key after the page closes or the scene becomes inactive.
+  `BackupSettingsSection` owns these lifecycle actions. Its shared display child,
+  `BackupSettingsContent`, lets snapshots pin visible states without simulating scene changes.
 - **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
   picker (segmented map/list) and the stepped color/emoji/icon editor for onboarding.
   `PrimaryRegionSelectionModel` contains their shared state. The `RegionsSettingsView`
@@ -475,6 +481,11 @@ suite per view, so each view's references live in their own `__Snapshots__/`
 directory. They build as this module's own `WhereUISnapshotTests` bundle, which
 runs alongside the other modules' image suites in the shared
 `StuffSnapshotTests` scheme and its CI job.
+
+The `whereSnapshot` helper supplies the Broadway root and forwards readiness
+hooks. Prepare size-changing state with `onReadyToMeasure`. Use
+`onReadyToSnapshot` to restore that same state after capture rehosts the view.
+
 To re-record after an intentional UI change (see the
 [SnapshotKitTesting README](../../Shared/SnapshotKitTesting/README.md#recording)
 for the mode values):

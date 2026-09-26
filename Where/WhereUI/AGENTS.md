@@ -27,6 +27,8 @@ Layering, localization, preview, and testing conventions live in the feature
 - Keep `FileInstallationRecordingContextStore` as the UIKit/FileManager
   adapter for Core's installation-context protocol. Resolve one instance at
   the app root. Inject it into both `WhereModel` and `WhereBootstrap`.
+  Defer its file access until the shared launch plan passes first unlock
+  (`InstallationRecordingContextStoreTests` / `PrepareProtectedDataStepTests`).
 - Persist the installation identity, recording choice with its current-On
   timestamp, stable profile/policy IDs and timestamps, two-phase backup-import
   recovery, and the independent terminal onboarding-import tombstone together
@@ -40,8 +42,12 @@ Layering, localization, preview, and testing conventions live in the feature
   handoff or recording. Reconcile onboarding imports before offering Restore.
   Acknowledge their preference independently of cleanup. Retain the marker
   through any failure (`WhereLaunchTests`).
-- Keep backup import onboarding-only. Settings exports archives but never
-  starts or resumes an import (`BackupModelTests`).
+- Keep backup import onboarding-only. Settings exports archives and presents automatic-backup
+  status but never starts or resumes an import (`BackupModelTests`).
+- Invalidate pending recovery-key reveals when the Data page hides its key.
+  A late response must not reveal it again (`BackupModelTests`).
+  Snapshot the shared `BackupSettingsContent`; test lifecycle hiding through
+  `BackupSettingsSection` and `BackupModel` rather than capture rehosting.
 - Keep diagnostic reporting's saved, process-effective, applying, and failed
   states distinct. Crash and replay choices stay pending until relaunch.
   Remote-log revisions apply live. A runtime failure invalidates in-flight
@@ -114,6 +120,7 @@ Layering, localization, preview, and testing conventions live in the feature
   owns log retention. `LogHistoryPruner` bounds the store by age *and* event
   count. Both bounds are load-bearing. An age window alone leaves a
   heavy-logging device unbounded inside it.
+  Keep user waits (first unlock and onboarding) outside work budgets.
 - A compact form `DatePicker` goes through `WhereDatePicker`
   ([`Sources/Shared/WhereDatePicker.swift`](Sources/Shared/WhereDatePicker.swift)).
   It substitutes a deterministic stand-in under capture. The live control

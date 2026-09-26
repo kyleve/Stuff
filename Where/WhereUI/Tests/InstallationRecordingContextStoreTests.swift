@@ -6,6 +6,29 @@ import UIKit
 
 @MainActor
 struct InstallationRecordingContextStoreTests {
+    @Test func constructionDefersReadingIdentityAndResetCleanupUntilFirstUnlock() throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        let original = fixture.makeStore()
+        let confirmed = try original.confirmInitialRecording(isEnabled: true)
+        let deferred = fixture.makeStore(defersLoading: true)
+        #expect(deferred.onboardingContext.automaticRecordingEnabled == nil)
+        #expect(throws: CocoaError(.fileReadNoPermission)) { try deferred.resolve() }
+
+        // The first unlocked preparation reads the existing identity, not the
+        // proposed one cached while its protected directory was inaccessible.
+        try deferred.prepareAfterFirstUnlock()
+        #expect(try deferred.resolve() == confirmed)
+        try deferred.prepareAfterFirstUnlock()
+        #expect(try deferred.resolve() == confirmed)
+
+        try FileManager.default.moveItem(at: fixture.directory, to: fixture.resetPendingURL)
+        let pendingReset = fixture.makeStore(defersLoading: true)
+        #expect(fixture.resetPendingExists)
+        try pendingReset.prepareAfterFirstUnlock()
+        #expect(fixture.resetPendingExists == false)
+    }
+
     @Test func mapsInterfaceIdiomsToRecordingKinds() {
         #expect(FileInstallationRecordingContextStore.kind(for: .phone) == .phone)
         #expect(FileInstallationRecordingContextStore.kind(for: .pad) == .tablet)
@@ -381,6 +404,7 @@ struct InstallationRecordingContextStoreTests {
         @MainActor
         func makeStore(
             fileManager: FileManager = .default,
+            defersLoading: Bool = false,
         ) -> FileInstallationRecordingContextStore {
             let sequence = IDSequence(ids)
             let clock = DateSequence(dates)
@@ -391,6 +415,7 @@ struct InstallationRecordingContextStoreTests {
                 kind: .phone,
                 makeUUID: sequence.next,
                 now: clock.next,
+                defersLoading: defersLoading,
             )
         }
 

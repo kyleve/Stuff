@@ -92,6 +92,19 @@ These use Bumper's standard `constructionOwnership` shaper. TheButtonHeist's
 as the analogous lower-level ownership check and retained; the standard shaper
 fully expresses Where's constructor facts.
 
+## Protected installation context
+
+`where.installation_context_ownership` keeps sidecar construction in
+`RegularApplicationRuntime`. `where.installation_context_preparation` keeps
+`prepareAfterFirstUnlock()` calls there too. The runtime injects one instance
+and prepares it through the shared launch plan before onboarding or store access.
+
+Repair a violation by using the injected context or shared launch barrier.
+The rules constrain ownership, not temporal ordering. `FirstUnlockAvailabilityTests`
+and the backup lifecycle model check the wait and preparation protocol.
+The `.bumper/Tests` mutations reject competing construction and preparation owners.
+Change these rules only when first-unlock ownership changes in `Where/Where/AGENTS.md`.
+
 ## Gregorian calendar
 
 `where.gregorian_calendar` rejects `Calendar.current` throughout Where's

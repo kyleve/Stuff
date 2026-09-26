@@ -1,19 +1,9 @@
 import Foundation
-import Security
+import KeychainKit
 
 /// A failure reading or writing the Keychain. Wraps the raw `OSStatus` so a
 /// caller can log something actionable rather than swallowing the error.
-public struct KeychainError: LocalizedError, Equatable, Sendable {
-    public let status: OSStatus
-    public init(status: OSStatus) {
-        self.status = status
-    }
-
-    public var errorDescription: String? {
-        let message = SecCopyErrorMessageString(status, nil) as String? ?? "Keychain error"
-        return "\(message) (OSStatus \(status))"
-    }
-}
+public typealias KeychainError = KeychainKit.KeychainError
 
 /// Stores a single secret string (a pasted Cursor session token) securely.
 /// The seam is a protocol so tests use an in-memory fake — the real Keychain
@@ -35,44 +25,21 @@ public protocol KeychainStore: Sendable {
 /// old Foreman app), so it reaches the default login Keychain without a
 /// keychain-access-group entitlement.
 public struct SystemKeychainStore: KeychainStore {
-    private let service: String
-    private let account: String
+    private let backing: KeychainKit.SystemKeychainStore
 
     /// Defaults to the app's bundle-style service and a fixed account name;
     /// there is only ever one secret (a pasted session token).
     public init(service: String = "com.stuff.ledger", account: String = "session-token") {
-        self.service = service
-        self.account = account
-    }
-
-    private var baseQuery: [String: Any] {
-        [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
+        backing = KeychainKit.SystemKeychainStore(
+            service: service,
+            account: account,
+            accessibility: .whenUnlocked,
+            synchronizesThroughICloud: false,
+        )
     }
 
     public func read() throws -> String? {
-        var query = baseQuery
-        query[kSecReturnData as String] = true
-        query[kSecMatchLimit as String] = kSecMatchLimitOne
-
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
-        switch status {
-            case errSecSuccess:
-                guard let data = item as? Data,
-                      let string = String(data: data, encoding: .utf8)
-                else {
-                    return nil
-                }
-                return string
-            case errSecItemNotFound:
-                return nil
-            default:
-                throw KeychainError(status: status)
-        }
+        try backing.readString()
     }
 
     public func write(_ secret: String) throws {
@@ -82,29 +49,10 @@ public struct SystemKeychainStore: KeychainStore {
             return
         }
 
-        let data = Data(trimmed.utf8)
-        let attributes: [String: Any] = [kSecValueData as String: data]
-
-        let updateStatus = SecItemUpdate(baseQuery as CFDictionary, attributes as CFDictionary)
-        switch updateStatus {
-            case errSecSuccess:
-                return
-            case errSecItemNotFound:
-                var addQuery = baseQuery
-                addQuery[kSecValueData as String] = data
-                let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
-                guard addStatus == errSecSuccess else {
-                    throw KeychainError(status: addStatus)
-                }
-            default:
-                throw KeychainError(status: updateStatus)
-        }
+        try backing.write(trimmed)
     }
 
     public func remove() throws {
-        let status = SecItemDelete(baseQuery as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw KeychainError(status: status)
-        }
+        try backing.remove()
     }
 }

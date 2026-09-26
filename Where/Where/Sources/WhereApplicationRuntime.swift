@@ -15,4 +15,9 @@ protocol WhereApplicationRuntime: AnyObject {
     ) -> Bool
 
     func makeRootView() -> AnyView
+    func protectedDataDidBecomeAvailable()
+}
+
+extension WhereApplicationRuntime {
+    func protectedDataDidBecomeAvailable() {}
 }

@@ -32,10 +32,14 @@ A missing file/key is simply "no auto-token", surfaced as `LoadError.missingCred
 - `LedgerServices` — the `@MainActor @Observable` root: `loadState`, `lastUpdated`, `hasManualToken`, `autoTokenAvailable`, `settings`, `startsAtLogin`, `refresh()`, `setManualToken(_:)` / `clearManualToken()`, `start()` / `stop()`.
 - `SessionToken` / `SessionTokenSource` / `CursorLocalTokenSource` — the auth seam.
 - `DashboardProvider` + `CursorDashboardAPI` — the network seam.
-- `ModelName` — parses a raw model id (`claude-opus-4-8-thinking-xhigh`, `github_bugbot`, …) into a friendly `displayName` + `badges` (effort/speed/mode).
-- `UsageSummary`, `UsageEvent`/`UsageEventsPage`, `SpendSnapshot` — the wire + view models (cents are integers).
-- `KeychainStore` / `SystemKeychainStore` — a pasted token's storage.
-- `LedgerSettings` / `LedgerConfiguration` / `LedgerConfigStore` — the persisted refresh interval (no secrets).
+- `ModelName` — parses a raw model id (`claude-opus-4-8-thinking-xhigh`,
+  `github_bugbot`, …) into a friendly `displayName` + `badges` (effort/speed/mode).
+- `UsageSummary`, `UsageEvent`/`UsageEventsPage`, `SpendSnapshot` — the wire + view models
+  (cents are integers).
+- `KeychainStore` / `SystemKeychainStore` — a thin string adapter over shared
+  `KeychainKit` for a pasted token's storage.
+- `LedgerSettings` / `LedgerConfiguration` / `LedgerConfigStore` — the persisted
+  refresh interval (no secrets).
 - `LoginItemController` — launch-at-login via `SMAppService`.
 - **`LedgerLog`** — the Periscope logging facade: a `"Ledger"` root scope with grouping scopes (`services`, `dashboard`), emitted into `Periscope.shared`.
 
