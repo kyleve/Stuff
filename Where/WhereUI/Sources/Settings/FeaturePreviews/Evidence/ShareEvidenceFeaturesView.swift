@@ -11,7 +11,6 @@ struct ShareEvidenceFeaturesView: View {
     let presentation: FeatureDiscoveryPresentation
 
     @State private var evidence: EvidenceListModel
-    @Environment(\.stylesheet) private var stylesheet
     private let loadsLiveEvidence: Bool
 
     init(
@@ -44,57 +43,11 @@ struct ShareEvidenceFeaturesView: View {
     var body: some View {
         StaggeredRevealScope {
             SettingsFocusScope(focus: focus) {
-                Form {
-                    FeatureMarketingHeader(
-                        title: String(localized: .settingsExploreEvidenceTitle),
-                        tagline: String(localized: .settingsExploreEvidenceTagline),
-                        systemSymbol: SettingsDestination.shareEvidence.systemSymbol,
-                        tint: SettingsDestination.shareEvidence.iconColor,
-                    )
-                    .listRowInsets(.init())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                    .staggeredReveal(order: 0)
-
-                    Section {
-                        FeatureShareSheetPreview()
-                            .featureMarketingRow(order: 1)
-                            .settingsRow(Item.shareSheet, restingBackground: .clear)
-                        FeatureEvidenceComposePreview(date: presentation.lockScreenDate)
-                            .featureMarketingRow(order: 2)
-                            .settingsRow(Item.compose, restingBackground: .clear)
-                        FeatureEvidenceArchivePreview(content: archiveContent)
-                            .featureMarketingRow(order: 3)
-                            .settingsRow(Item.archive, restingBackground: .clear)
-                        FeatureMarketingPanel {
-                            NavigationLink(value: Route.archive) {
-                                Label {
-                                    Text(String(localized: .settingsExploreEvidenceOpenArchive))
-                                        .foregroundStyle(.primary)
-                                } icon: {
-                                    Image(systemSymbol: .paperclip)
-                                        .foregroundStyle(SettingsDestination.shareEvidence
-                                            .iconColor)
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .featureMarketingRow(order: 4)
-                    } footer: {
-                        VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
-                            Text(String(localized: .settingsExploreEvidenceFooter))
-                            FeatureDiscoveryDataFooter()
-                        }
-                        .staggeredReveal(order: 5)
-                    }
-                }
-                .scrollContentBackground(.hidden)
-                .background(FeatureDiscoveryBackground())
-                .navigationDestination(for: Route.self) { route in
-                    switch route {
-                        case .archive: EvidenceListView(report: report)
-                    }
-                }
+                ShareEvidenceFeaturesContent(
+                    report: report,
+                    presentation: presentation,
+                    archiveContent: archiveContent,
+                )
             }
         }
         .navigationTitle("")
@@ -114,10 +67,6 @@ struct ShareEvidenceFeaturesView: View {
             case .empty: .example(presentation.lockScreenDate)
             case .failed: .failed(presentation.lockScreenDate)
         }
-    }
-
-    private enum Route: Hashable {
-        case archive
     }
 }
 

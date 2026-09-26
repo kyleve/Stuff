@@ -220,7 +220,9 @@ The card opens the existing Elsewhere list.
   evidence, private insights, data accuracy, and personalization with shared
   patterned chrome and Reduce Motion-aware staged reveals. The examples reuse
   already-loaded user data when it is representative and link to the existing
-  feature surfaces for any action.
+  feature surfaces for any action. Gallery rows and Forms have separate view
+  boundaries. These boundaries limit stack copies during navigation. The gallery
+  view-size tests guard this constraint.
 - **`whereBroadwayRoot()`** — seeds the selected `WhereTheme` and Broadway
   design-system context so descendants resolve the `WhereStylesheet` tokens (see [Design
   system](#design-system)). Applied by `RootView` and by each widget.
