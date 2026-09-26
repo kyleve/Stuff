@@ -41,6 +41,13 @@ private struct EstimatedTimeFeaturesContent: View {
             .listRowSeparator(.hidden)
             .staggeredReveal(order: 0)
 
+            if !report.showsEstimatedTimeAndPlanning {
+                Section {
+                    FeatureEstimatedTimeStatusPreview(state: .disabled)
+                        .featureMarketingRow(order: 1)
+                }
+            }
+
             Section {
                 preview
                     .featureMarketingRow(order: 1)
@@ -67,6 +74,7 @@ private struct EstimatedTimeFeaturesContent: View {
 
             Section {
                 FeatureEstimatedTimeCalculationExample()
+                    .saturation(report.showsEstimatedTimeAndPlanning ? 1 : 0)
                     .featureMarketingRow(order: 4)
                     .settingsRow(
                         EstimatedTimeFeaturesView.Item.calculation,
@@ -85,22 +93,19 @@ private struct EstimatedTimeFeaturesContent: View {
             }
 
             Section {
-                FeatureMarketingPanel {
-                    NavigationLink(value: SettingsRoute(.appearance)) {
-                        Label {
-                            Text(String(localized: .settingsExploreEstimatedTimeManage))
-                                .foregroundStyle(.primary)
-                        } icon: {
-                            Image(systemSymbol: .paintbrushFill)
-                                .foregroundStyle(SettingsDestination.estimatedTime.iconColor)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                FeatureGuidePanel(
+                    title: .settingsExploreEstimatedTimeSurfacesTitle,
+                    detail: .settingsExploreEstimatedTimeSurfacesDetail,
+                    symbol: .calendarDayTimelineLeft,
+                ) {
+                    PresenceTimelineList(report: report, presentation: .excerpt)
                 }
                 .featureMarketingRow(order: 6)
+                .settingsRow(EstimatedTimeFeaturesView.Item.surfaces, restingBackground: .clear)
+                FeatureSettingsLink(destination: .appearance).featureMarketingRow(order: 7)
             } footer: {
                 FeatureDiscoveryDataFooter()
-                    .staggeredReveal(order: 7)
+                    .staggeredReveal(order: 8)
             }
         }
         .scrollContentBackground(.hidden)
@@ -109,9 +114,7 @@ private struct EstimatedTimeFeaturesContent: View {
 
     @ViewBuilder
     private var preview: some View {
-        if !report.showsEstimatedTimeAndPlanning {
-            FeatureEstimatedTimeStatusPreview(state: .disabled)
-        } else if forecasts.isEmpty {
+        if forecasts.isEmpty {
             FeatureEstimatedTimeStatusPreview(state: .unavailable)
         } else {
             LocationForecastPanel(
@@ -119,6 +122,7 @@ private struct EstimatedTimeFeaturesContent: View {
                 microprintRegions: report.ranking.primary.map(\.region),
                 plannedStay: report.forecasts.activePlannedStay,
             )
+            .saturation(report.showsEstimatedTimeAndPlanning ? 1 : 0)
         }
     }
 
@@ -154,6 +158,7 @@ extension EstimatedTimeFeaturesView: SettingsSection {
         case planning
         case calculation
         case totals
+        case surfaces
 
         var title: String {
             switch self {
@@ -162,6 +167,7 @@ extension EstimatedTimeFeaturesView: SettingsSection {
                 case .planning: String(localized: .settingsExploreEstimatedTimePlanTitle)
                 case .calculation:
                     String(localized: .settingsExploreEstimatedTimeCalculationTitle)
+                case .surfaces: String(localized: .settingsExploreEstimatedTimeSurfacesTitle)
                 case .totals: String(localized: .settingsExploreEstimatedTimeTotalsTitle)
             }
         }

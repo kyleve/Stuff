@@ -182,6 +182,13 @@ worked examples.
   or restricted access and disabled Precise Location stay visible as recovery
   actions; transient and confidence failures return to idle.
 
+## Feature discovery
+
+Keep Explore Features browsing read-only. Use production presentation components and explicit actions into existing editors.
+Use `PresenceTimelineList` with `.excerpt` for embedded Timeline galleries; keep row layout and planned-stay joins in that view.
+Use process-effective diagnostics for privacy claims. Hide gallery links whose destinations are unavailable in demo mode.
+Use the [`update-explore-features`](../../.agents/skills/update-explore-features/SKILL.md) skill for periodic coverage updates.
+
 ## Testing
 
 `WhereStylesheetTests` pins every token default and trait-aware derivation.

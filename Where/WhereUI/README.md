@@ -29,21 +29,29 @@ The card opens the existing Elsewhere list.
   `MainTabs`, the Liquid Glass tab bar over three tabs — Locations, Your Year,
   Settings. Elsewhere is an entry card on Locations, Resolve a Locations toolbar
   button, and the data screens (attachments, logged days, regions) sit in the
-  Settings "Data" group. The **Explore Features** group demonstrates all five
-  Siri/Shortcuts intents as example conversations, demonstrates tracked-region
+  Settings "Data" group. **Explore Features** starts with Your Places & Your Year
+  and Recording & Devices. These guides explain cards, Elsewhere, calendars,
+  Timeline, welcomes, automatic recording, and manual entries.
+  Privacy & Backups explains effective diagnostics choices, archive export,
+  and onboarding-only restore. Its links respect demo availability.
+  The group also demonstrates all five Siri/Shortcuts intents as example conversations, demonstrates tracked-region
   results in Spotlight, and renders every supported
   widget family on miniature Home Screen and Lock Screen surfaces. A Share &
   Evidence walkthrough also reveals the system Share-sheet extension and links
   into the saved attachment archive. Insights & Accuracy introduces the
-  automatic issue detectors without running them merely to render the gallery,
-  while Estimated Time & Planning explains the live annual projection with a
-  worked pace-and-plan calculation, planned stays, and why overlapping travel
-  days do not sum neatly to one year.
+  automatic issue detectors, correction flows, and notification choices without
+  running a scan merely to render the gallery. Estimated Time & Planning explains the live annual projection with a
+  worked pace-and-plan calculation, production Timeline rows, and planned stays.
+  It also explains why overlapping travel days do not sum neatly to one year.
+  Both Timeline galleries use `PresenceTimelineList` with its `.excerpt` presentation.
+  This presentation shows the last two stays without scrolling or editing controls.
+  The full Timeline and excerpts share row rendering, rail continuity, and planned-stay joins.
   These galleries use a shared marketing header, quiet patterned backdrop, and
   staged entrance that resolves immediately for Reduce Motion and snapshot
   capture. Once the selected report has 14 recorded days, the Siri, Spotlight,
-  widget, and evidence examples use its real regions, counts, and dates. Sparse
-  reports keep the illustrative Siri copy and empty widget state.
+  and widget examples use its real regions, counts, and dates. Evidence uses
+  the latest available attachment, or a labeled example when none is available.
+  Sparse reports keep the illustrative Siri copy and empty widget state.
   Backup and destructive data management share one Data drill-in. Data is
   followed by a persisted **Privacy & Diagnostics** screen for crash reports,
   redacted session replay, remote-log threshold, and Debug-only full metadata.
