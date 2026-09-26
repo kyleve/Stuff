@@ -38,7 +38,18 @@ struct PlacesYearFeaturesView: View {
                 detail: .settingsExplorePlacesCalendarDetail,
                 symbol: .calendar,
             ) {
-                FeatureYearHistoryPreview(report: report)
+                if let loaded = report.report {
+                    YearRibbon(
+                        days: loaded.days,
+                        year: report.selectedYear,
+                        calendar: report.calendar,
+                    )
+                    if loaded.days.isEmpty {
+                        Text(.settingsExploreHistoryEmpty).font(.subheadline)
+                    }
+                } else {
+                    Text(.settingsExploreHistoryUnavailable).font(.subheadline)
+                }
             }
             .featureMarketingRow(order: 2)
             .settingsRow(Item.calendar, restingBackground: .clear)
