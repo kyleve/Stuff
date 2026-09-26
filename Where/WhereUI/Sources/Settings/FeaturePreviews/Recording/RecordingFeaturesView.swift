@@ -15,32 +15,10 @@ struct RecordingFeaturesView: View {
             tagline: .settingsExploreRecordingTagline,
             focus: focus,
         ) {
-            FeatureGuidePanel(
-                title: .settingsExploreRecordingAutomaticTitle,
-                detail: .settingsExploreRecordingAutomaticDetail,
-                symbol: .locationFill,
-            ) {
-                LocationStatusRow(status: authorizationStatus, isTracking: isTracking)
-            }
-            .featureMarketingRow(order: 1)
-            .settingsRow(Item.automatic, restingBackground: .clear)
-            FeatureGuidePanel(
-                title: .settingsExploreRecordingDevicesTitle,
-                detail: .settingsExploreRecordingDevicesDetail,
-                symbol: .iphoneAndArrowForward,
-            ) {}
-                .featureMarketingRow(order: 2)
-                .settingsRow(Item.devices, restingBackground: .clear)
-            FeatureGuidePanel(
-                title: .settingsExploreRecordingManualTitle,
-                detail: .settingsExploreRecordingManualDetail,
-                symbol: .calendarBadgePlus,
-            ) {}
-                .featureMarketingRow(order: 3)
-                .settingsRow(Item.manual, restingBackground: .clear)
-            FeatureSettingsLink(destination: .devices).featureMarketingRow(order: 4)
-            FeatureSettingsLink(destination: .loggedDays).featureMarketingRow(order: 5)
-            FeatureSettingsLink(destination: .siri).featureMarketingRow(order: 6)
+            RecordingFeaturesContent(
+                authorizationStatus: authorizationStatus,
+                isTracking: isTracking,
+            )
         }
     }
 }
