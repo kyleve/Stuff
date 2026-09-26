@@ -331,6 +331,60 @@ let project = Project(
     settings: projectSettings,
     targets: [
         .target(
+            name: "Daylight",
+            destinations: [.iPhone],
+            product: .app,
+            bundleId: "com.stuff.daylight",
+            deploymentTargets: deployment,
+            infoPlist: .extendingDefault(with: [
+                "UILaunchScreen": .dictionary([:]),
+                "CFBundleShortVersionString": .string("1.0"),
+                "CFBundleVersion": .string("1"),
+                "NSCameraUsageDescription": .string(
+                    "Daylight photographs the view during your sunrise and sunset sequences.",
+                ),
+                "NSPhotoLibraryUsageDescription": .string(
+                    "Daylight saves your captured photographs and checks interrupted saves.",
+                ),
+                "NSPhotoLibraryAddUsageDescription": .string(
+                    "Daylight saves your captured photographs to Photos.",
+                ),
+            ]),
+            sources: ["Daylight/Daylight/Sources/**"],
+            resources: ["Daylight/Daylight/Resources/**"],
+            dependencies: [.package(product: "DaylightUI")],
+            settings: .settings(base: [
+                "SWIFT_VERSION": "6.0",
+                "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "",
+            ]),
+        ),
+        unitTests(
+            name: "DaylightUITests",
+            bundleIdSuffix: "daylight.ui",
+            productDependency: "DaylightUI",
+            sources: ["Daylight/DaylightUI/Tests/**"],
+        ),
+        unitTests(
+            name: "DaylightUISnapshotTests",
+            bundleIdSuffix: "daylight.ui.snapshots",
+            productDependency: "DaylightUI",
+            sources: ["Daylight/DaylightUI/SnapshotTests/**"],
+            extraPackageProducts: ["SnapshotKitTesting"],
+            environmentVariables: snapshotEnvironment,
+        ),
+        unitTests(
+            name: "DaylightMastodonTests",
+            bundleIdSuffix: "daylight.mastodon",
+            productDependency: "DaylightMastodon",
+            sources: ["Daylight/DaylightMastodon/Tests/**"],
+        ),
+        unitTests(
+            name: "DaylightCoreTests",
+            bundleIdSuffix: "daylight.core",
+            productDependency: "DaylightCore",
+            sources: ["Daylight/DaylightCore/Tests/**"],
+        ),
+        .target(
             name: "Where",
             destinations: destinations,
             product: .app,
@@ -879,6 +933,10 @@ let project = Project(
             name: "Stuff-iOS-Tests",
             shared: true,
             buildAction: .buildAction(targets: [
+                "DaylightUITests",
+                "DaylightMastodonTests",
+                "DaylightCoreTests",
+                "Daylight",
                 "Where",
                 "RegionViewer",
                 "StuffTestHost",
@@ -906,6 +964,9 @@ let project = Project(
             ]),
             testAction: .targets(
                 [
+                    "DaylightUITests",
+                    "DaylightMastodonTests",
+                    "DaylightCoreTests",
                     "CreditKitTests",
                     "WhereCrashReportingTests",
                     "LifecycleKitTests",
@@ -930,6 +991,9 @@ let project = Project(
                 arguments: .arguments(environmentVariables: packageResourceEnvironment),
             ),
         ),
+        testScheme(name: "DaylightMastodonTests"),
+        testScheme(name: "DaylightUITests"),
+        testScheme(name: "DaylightCoreTests"),
         testScheme(name: "LedgerCoreTests"),
         testScheme(name: "CreditKitTests"),
         testScheme(name: "WhereCrashReportingTests"),
@@ -960,6 +1024,7 @@ let project = Project(
             name: "StuffSnapshotTests",
             shared: true,
             buildAction: .buildAction(targets: [
+                "DaylightUISnapshotTests",
                 "WhereUISnapshotTests",
                 "FlyoverSnapshotTests",
                 "PeriscopeToolsSnapshotTests",
@@ -967,6 +1032,7 @@ let project = Project(
             ]),
             testAction: .targets(
                 [
+                    "DaylightUISnapshotTests",
                     "WhereUISnapshotTests",
                     "FlyoverSnapshotTests",
                     "PeriscopeToolsSnapshotTests",
