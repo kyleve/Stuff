@@ -8,6 +8,8 @@ struct PrivacyBackupsFeaturesView: View {
     let configuration: DiagnosticReportingConfiguration
     let focus: SettingsFocus?
 
+    @Environment(\.stylesheet) private var stylesheet
+
     var body: some View {
         FeatureGuidePage(
             destination: .privacyBackups,
@@ -25,7 +27,9 @@ struct PrivacyBackupsFeaturesView: View {
                 presentation: PrivacyPassportPresentation(configuration: configuration),
                 disclosureInteraction: .staticContent,
             )
+            .frame(maxWidth: stylesheet.featureDiscovery.marketingPanel.maxWidth)
             .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity)
             .featureMarketingRow(order: 2)
             FeatureGuidePanel(
                 title: .settingsExplorePrivacyBackupsExportTitle,
