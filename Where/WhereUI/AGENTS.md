@@ -18,9 +18,12 @@ Layering, localization, preview, and testing conventions live in the feature
   [`Package.swift`](../../Package.swift).
 - WhereUI maps Core's persisted `RegionSymbol` values to SFSafeSymbols'
   `SFSymbol` and re-exports SFSafeSymbols for its presentation API consumers.
-- Composition is the one exception. `WhereScope` and `WhereModel` decide which
-  world the app is logged in to and assemble it. That is launch wiring, not
-  domain logic. See [Scopes and the launch](../AGENTS.md#scopes-and-the-launch).
+- Composition is the one exception: `WhereScope` and `WhereModel` decide which
+  world the app is logged in to and assemble it. That's launch wiring, not
+  domain logic — see [Scopes and the launch](../AGENTS.md#scopes-and-the-launch).
+- The app injects its configured primary icon name at `RootView`; icon-picker
+  code treats every manifest entry as an asset and derives primary versus
+  alternate status from that injected name.
 - Keep `FileInstallationRecordingContextStore` as the UIKit/FileManager
   adapter for Core's installation-context protocol. Resolve one instance at
   the app root. Inject it into both `WhereModel` and `WhereBootstrap`.
@@ -82,6 +85,14 @@ Layering, localization, preview, and testing conventions live in the feature
   Project Locations-card GPS points through the cache's shared
   `RegionArtworkProjection`. Never project, simplify, or spatially reduce
   artwork in a card's `body`.
+- Use `regionArtworkTask` and `RegionArtworkModel` for cached artwork loading.
+  Keep request identity complete; use a broader display key only when retaining
+  compatible artwork during refresh is intentional.
+- Keep the Locations background on the selected year’s complete visited-region set,
+  in catalog order independent of card rank. Omit the catch-all Other entry from
+  the print. Use the injected outline cache.
+- Keep the Elsewhere summary count and artwork on the same secondary-region input.
+  Use its own stylesheet tokens and the shared outline renderers.
 - Keep Locations-card points on `YearReportModel`'s loaded
   `YearReportDetails`.
 - Keep `RootView` passing LifecycleKitUI the stylesheet's positive splash
@@ -144,9 +155,15 @@ and rendering coverage. Where's sheet is
 view tree. [`README.md`](README.md#design-system) documents its live API and
 worked examples.
 
-- The `motion` group keeps full-motion values a view picks between
-  (`motion.reducedReveal` over `motion.reveal`). The launch reveal's fallback
-  swaps an `AnyTransition`, which is not `Equatable` and cannot be a token.
+- Resolve component layout and motion in `WhereStylesheet.init(context:)`.
+  Keep launch style consumers beneath `whereBroadwayRoot()`. The launch slice
+  selects an `Equatable` reveal policy whose computed property builds the transition.
+- Keep scoped SwiftUI appearance overrides consistent with Broadway traits.
+  Pair `.dynamicTypeSize` limits with the corresponding content-size override.
+  Pair explicit `.colorScheme` overrides with `.bMode` for styled subtrees.
+- Keep live Card Designer and ranking-lab drafts outside the cached slice.
+  These runtime inputs compose over the resolved base style. Document their
+  direct system-trait reads at the declaration.
 - **Per-region tints stay in `RegionStyle`.** Resolve via
   `@Environment(\.regionStyles)` and seed by
   `whereBroadwayRoot(theme:regionStyles:)`. Use no global accessor or hardcoded
@@ -160,6 +177,10 @@ worked examples.
   Location-card stack, never Card Designer persistence, exports, or app overrides.
 - Keep the Appearance welcome reset under `#if DEBUG`. Clear only the saved welcome region through `YearReportModel.resetLocationWelcome()`.
 - Keep welcome-card arrival, departure, and scrim timing in `locationWelcome.motion`. Apply spatial transitions only to the card layer.
+- Keep `LocationWelcomeModel`, its overlay, and its bottom accessory owned by
+  `MainTabs`. Resolve once per active-scene entry regardless of tab. Only denied
+  or restricted access and disabled Precise Location stay visible as recovery
+  actions; transient and confidence failures return to idle.
 
 ## Testing
 

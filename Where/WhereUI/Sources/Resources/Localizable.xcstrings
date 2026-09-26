@@ -3571,6 +3571,30 @@
         }
       }
     },
+    "locationWelcome.access.compact" : {
+      "comment" : "Compact reason shown at accessibility text sizes when location access is unavailable.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Location off — Settings"
+          }
+        }
+      }
+    },
+    "locationWelcome.access.message" : {
+      "comment" : "Explains why the app needs location access to identify the current region.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Location off — Open Settings"
+          }
+        }
+      }
+    },
     "locationWelcome.dismiss" : {
       "comment" : "Accessibility label for the close button on the live-region welcome card.",
       "extractionState" : "manual",
@@ -3579,6 +3603,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Close welcome"
+          }
+        }
+      }
+    },
+    "locationWelcome.finding" : {
+      "comment" : "Temporary status shown while resolving the device's current tracked region.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Finding your current region…"
           }
         }
       }
@@ -3607,6 +3643,30 @@
         }
       }
     },
+    "locationWelcome.precise.compact" : {
+      "comment" : "Compact reason shown at accessibility text sizes when Precise Location is disabled.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Precise off — Settings"
+          }
+        }
+      }
+    },
+    "locationWelcome.precise.message" : {
+      "comment" : "Explains why Precise Location is needed for confident region attribution.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Precise off — Open Settings"
+          }
+        }
+      }
+    },
     "locationWelcome.returnTitle" : {
       "comment" : "Title shown after the user moves to another tracked region. The argument is the localized region name.",
       "extractionState" : "manual",
@@ -3624,9 +3684,21 @@
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "^[%lld region](inflect: true)"
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld region"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld regions"
+                }
+              }
+            }
           }
         }
       }

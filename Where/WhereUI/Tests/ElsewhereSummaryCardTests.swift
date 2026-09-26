@@ -6,7 +6,11 @@ import Testing
 @MainActor
 struct ElsewhereSummaryCardTests {
     @Test func hosts() throws {
-        try show(UIHostingController(rootView: ElsewhereSummaryCard(regionCount: 3))) { hosted in
+        try show(UIHostingController(rootView: ElsewhereSummaryCard(regions: [
+            .canada,
+            .europeanUnion,
+            .other,
+        ]))) { hosted in
             #expect(hosted.view != nil)
         }
     }

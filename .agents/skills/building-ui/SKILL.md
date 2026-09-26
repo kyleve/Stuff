@@ -82,12 +82,57 @@ Organize tokens by ownership:
 - Leave adaptive system roles such as `.secondary` and `.accentColor` inline
   when they are semantic rather than authored design tokens.
 
-Derive coordinated accessibility changes in the stylesheet through
-`SlicingContext.traits`: content-size category, Reduce Motion, Reduce
-Transparency, and Differentiate Without Color. Vend one resolved component
-style when a setting changes several values together. Keep an explicit helper
-only when the result cannot be an `Equatable` token, such as a transition or a
-capture-time static motion phase.
+Resolve appearance from `SlicingContext.traits` before rendering. This covers
+Dynamic Type, color scheme, Reduce Motion, Reduce Transparency, and
+Differentiate Without Color. Resolve each component's layout policy, spacing,
+alignment, copy length, and motion together. Do not export a global raw trait
+flag such as `isAccessibilitySize` for views to interpret again.
+
+For example:
+
+```swift
+// Before: the view interprets a system trait.
+@Environment(\.dynamicTypeSize) private var dynamicTypeSize
+// body: if dynamicTypeSize.isAccessibilitySize { ... }
+
+// After: the slice resolves a component policy.
+// WhereStylesheet.init(context:)
+if context.traits.contentSizeCategory.isAccessibilitySize {
+    locationForecast.header.layout = .stacked
+}
+// View: if stylesheet.locationForecast.header.layout == .stacked { ... }
+```
+
+Keep rendering types out of stored tokens when they cannot be `Equatable`.
+Store an `Equatable` descriptor and construct `AnyLayout` or `AnyTransition`
+from it. That type constraint does not justify reading traits in a view.
+
+For authored dimensions, use system font metrics with the slice's explicit
+content-size category. Do not resolve against ambient UIKit traits. Use
+`@ScaledMetric` in production only when a required input is unavailable during
+slicing. Document that input at the declaration. Keep semantic fonts intact.
+
+Keep actual content fit, measured chrome, and container geometry in views or
+layout helpers. Preserve `ViewThatFits`. Keep capture-time motion in the shared
+static-motion helper. User-controlled preview state and live designer drafts
+remain runtime inputs that compose over resolved base styles.
+
+Resolve styles beneath the Broadway root that supplies their traits. For
+styled subtrees, pair scoped SwiftUI appearance overrides with Broadway trait
+overrides. Preserve the same category limits and color mode in both systems.
+
+Before finishing a UI change:
+
+1. Search changed views for `dynamicTypeSize`, `sizeCategory`, `@ScaledMetric`,
+   color scheme, size classes, and accessibility environment reads.
+2. Move decisions supported by slicing inputs into the owning component style.
+3. Document each remaining direct read and its runtime-only input. Infrastructure
+   that bridges system traits and snapshot configuration can read them directly.
+4. Test the standard/accessibility boundary, trait updates, scoped overrides,
+   and affected rendered states. Compare scaled geometry with system metrics.
+
+These repository rules override generic SwiftUI skill advice about direct
+trait reads and `@ScaledMetric`. Do not modify downloaded external skills.
 
 See the WhereUI [design-system guide](../../../Where/WhereUI/README.md#design-system)
 for the fullest production example and PeriscopeTools/Flyover for smaller
@@ -137,9 +182,9 @@ and regression history in PRs [#48](https://github.com/kyleve/Stuff/pull/48),
 - When real chrome must be measured, use a focused preference or
   `onGeometryChange`. Compute expensive layout once into state rather than on
   every `body` pass.
-- Use semantic fonts and scale authored dimensions with `@ScaledMetric` when
-  the whole element must grow. If a glyph sits inside a fixed
-  container, give it an intentional fixed font. If its text scales, grow or
+- Use semantic fonts. Resolve authored dimension scaling in the stylesheet,
+  subject to the documented runtime-input exception. If a glyph sits inside a
+  fixed container, give it an intentional fixed font. If text scales, grow or
   restack the surrounding layout rather than truncate or squeeze it.
 - Preserve navigation bars, toolbars, search, safe-area insets, and modal chrome
   when introducing custom containers or scroll behavior.

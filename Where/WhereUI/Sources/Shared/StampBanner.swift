@@ -8,13 +8,11 @@ struct StampBanner<Content: View>: View {
     let showsAccessory: Bool
     @ViewBuilder let content: Content
 
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
     var body: some View {
         let ink = style.ink
         let shape = ContainerRelativeShape()
         Group {
-            if dynamicTypeSize.isAccessibilitySize {
+            if style.layout == .stacked {
                 VStack(alignment: .leading, spacing: style.contentSpacing) {
                     HStack {
                         PassportSeal(

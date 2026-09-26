@@ -7,14 +7,13 @@ struct LocationForecastHeaderLabel: View {
     let isExpanded: Bool
     let showsDisclosure: Bool
 
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
         let style = stylesheet.locationForecast
         let header = style.header
 
-        if dynamicTypeSize.isAccessibilitySize {
+        if header.layout == .stacked {
             VStack(alignment: .leading, spacing: header.contentSpacing) {
                 HStack {
                     PassportSeal(

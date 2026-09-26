@@ -12,13 +12,13 @@ actor GatedCurrentLocationSource: LocationSource {
         continuation.finish()
     }
 
-    private var requests: [CheckedContinuation<LocationSample?, Never>] = []
+    private var requests: [CheckedContinuation<CurrentLocationResult, Never>] = []
     private var requestCountWaiters: [Int: [CheckedContinuation<Void, Never>]] = [:]
 
     func start() async {}
     func stop() async {}
 
-    func requestCurrentLocation() async -> LocationSample? {
+    func requestCurrentLocation() async -> CurrentLocationResult {
         await withCheckedContinuation { continuation in
             requests.append(continuation)
             let count = requests.count
@@ -40,6 +40,11 @@ actor GatedCurrentLocationSource: LocationSource {
     }
 
     func resolveRequest(at index: Int, with sample: LocationSample?) {
-        requests.remove(at: index).resume(returning: sample)
+        requests.remove(at: index).resume(returning: sample.map(CurrentLocationResult.success)
+            ?? .unavailable(.timeout))
+    }
+
+    func resolveRequest(at index: Int, with result: CurrentLocationResult) {
+        requests.remove(at: index).resume(returning: result)
     }
 }

@@ -5,7 +5,7 @@ Random apps and stuff.
 ## Requirements
 
 - Xcode 27+ (a full Xcode.app, not the Command Line Tools)
-- iOS 26.0+
+- iOS 27.0+
 - [mise](https://mise.jdx.dev) pins Tuist, SwiftFormat, and Ruby.
   `./ide --bootstrap` installs it for you (see below).
 
@@ -57,6 +57,9 @@ It streams progress while tests run:
 ```
 
 See `./test --help` for the rest, including `--timings` and `--review` for reading a snapshot run.
+
+CircleCI also compiles the `Where Beta` and `Where App Store` schemes on two
+build-only shards. These shards do not run tests or start a simulator.
 
 Each checkout gets a device of its own (a second clone, a worktree, and so on).
 Two runs on one machine never fight over booting, installing to, or erasing the same simulator.

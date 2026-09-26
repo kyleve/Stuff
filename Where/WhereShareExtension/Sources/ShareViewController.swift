@@ -19,7 +19,13 @@ final class ShareViewController: UIViewController {
         let items = (extensionContext?.inputItems as? [NSExtensionItem]) ?? []
         Self.logger { .opened(itemCount: items.count) }
 
-        let model = ShareEvidenceModel(items: items)
+        let buildEnvironment = WhereShareBuildEnvironment.current()
+        let model = ShareEvidenceModel(
+            items: items,
+            storage: .localOnly(
+                appGroupIdentifier: buildEnvironment.appGroupIdentifier,
+            ),
+        )
         let root = ShareEvidenceView(
             model: model,
             onSave: { [weak self] in self?.complete() },

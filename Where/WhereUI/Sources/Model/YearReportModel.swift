@@ -185,7 +185,7 @@ public final class YearReportModel {
         }
     }
 
-    /// Whether Locations may resolve and present its live-region welcome.
+    /// Whether the app shell may resolve and present its live-region welcome.
     /// Writes persist synchronously and hide a mounted welcome immediately.
     var showsLocationWelcome: Bool {
         get { showsLocationWelcomeStorage }
@@ -197,7 +197,7 @@ public final class YearReportModel {
     }
 
     #if DEBUG
-        /// Clears the acknowledgement so the next visible Locations lookup can welcome again.
+        /// Clears the acknowledgement so the next foreground lookup can welcome again.
         func resetLocationWelcome() {
             preferences.lastWelcomedRegion = nil
         }
@@ -502,8 +502,7 @@ public final class YearReportModel {
     /// GPS fix for where the entry was made. A missing fix is recorded honestly
     /// (`location == nil`) rather than blocking the entry.
     private func makeEntryAudit(note: String?) async -> ManualEntryAudit {
-        let sample = await services.ingestor.currentLocation()
-        let location = sample.map { sample in
+        let location = await services.ingestor.currentLocation().sample.map { sample in
             CapturedLocation(
                 coordinate: sample.coordinate,
                 horizontalAccuracy: sample.horizontalAccuracy,

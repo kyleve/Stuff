@@ -48,6 +48,9 @@ internal shape.
   `WhereServices.forIntents(sharingStoreOf:)`. A second container over the
   same file is how a fresh install once raced the launch into failure (root
   [Composition](../../AGENTS.md#composition-create-once-inject-down)).
+- **On-disk storage always carries an explicit App Group identifier.** Audience
+  selection belongs to host targets; WhereCore must not own a production or
+  development default.
 - **Primary regions *are* the tracked-region set.** `primaryRegions()` /
   `setPrimaryRegions(_:)` read/write the same `SDTrackedRegion` rows as
   `trackedRegions()`. Picking scopes GPS attribution *and* carries each
@@ -101,9 +104,9 @@ internal shape.
 - **Writes await their side effects.** `DayJournal` commits. Then it awaits
   the reminder reconcile + widget publish in sequence. A reader on the next
   `changes()` ping never observes a half-applied write.
-- **Filter persistent-store remote-change notifications by the Where store URL
-  and the store instance's transaction author.** Never let Periscope or Where's
-  own local saves enter `remoteChanges()`. Guard: `StoreRemoteChangeSourceTests`.
+- **Observe remote history through Where's `ModelContainer` and exclude this
+  store instance's transaction author.** Never let Periscope or Where's own
+  local saves enter `remoteChanges()`. Guard: `StoreRemoteChangeSourceTests`.
 - **Route new writes through the existing reconciliation seams.** Use
   `DayJournal.reconcileAfterDayDataChange()` or its widget-less subset
   `reconcileIssueState()`; cross-collaborator hooks take a single closure
@@ -119,8 +122,14 @@ internal shape.
   report and primary-region locations.
 - **`LocationSource` abstracts GPS.** `CoreLocationSource` runs in production.
   `ScriptedLocationSource` runs in tests/previews. `requestCurrentLocation()`
-  returns `nil`, never throws. It backs
-  `LocationIngestor.captureTodayIfNeeded(now:)`.
+  returns a typed, nonthrowing outcome and coalesces concurrent waiters without
+  coupling their cancellation. Reject negative accuracy everywhere. Apply the
+  1 km, 60-second, and boundary-confidence gates only in
+  `CurrentRegionResolver`; retain other valid passive samples. It backs
+  `LocationIngestor.captureTodayIfNeeded(now:)`. Keep the one-shot system
+  controls behind `CurrentLocationRequestDriving`, with a conforming fake in
+  `CoreLocationSourceTests`. Keep coalesced waiters and their timeout in one
+  idle/pending request state; finish each waiter exactly once.
 - **`DeviceRecordingController` owns this installation's local recording choice
   and physical GPS state.** Serialize mutations across awaits. Fail closed when
   the current identity is removed. Stamp every ingested GPS sample with the
@@ -176,8 +185,10 @@ internal shape.
 
 Swift Testing in [`Tests/`](Tests) (`WhereCoreTests`), hosted in
 `StuffTestHost`. Drive collaborators against `SwiftDataStore.inMemory()` +
-`ScriptedLocationSource`. Never use the on-disk/CloudKit store or
-`CoreLocationSource`. The CloudKit remote-import path uses the
+`ScriptedLocationSource`. Never use the on-disk/CloudKit store or live
+Core Location requests. `CoreLocationSourceTests` must replace the source’s
+one-shot controls with a `CurrentLocationRequestDriving` fake before requesting
+a fix; never start passive monitoring in those tests. The CloudKit remote-import path uses the
 `@_spi(Testing)` `inMemory(remoteChangeSource:)` +
 `ScriptedStoreRemoteChangeSource`. Internal types are reached via
 `@testable import WhereCore`.

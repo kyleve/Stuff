@@ -39,7 +39,7 @@ class IconCatalogTest < Minitest::Test
       manifest = JSON.parse(File.read(fixture.manifest))
       assert_equal 3, manifest.fetch("formatVersion")
       assert_equal({ "contrast" => "high" }, manifest.fetch("icons").first.fetch("extensionMetadata"))
-      assert_equal "AppIconOcean", manifest.fetch("icons").last.fetch("alternateIconName")
+      assert_equal "AppIconOcean", manifest.fetch("icons").last.fetch("assetName")
       assert_path_exists File.join(fixture.app_catalog, "AppIconOcean.appiconset", "AppIconOcean-Tinted.png")
       assert_path_exists File.join(fixture.preview_catalog, "AppIconOcean.imageset", "AppIconOcean-Dark.png")
     end
@@ -98,6 +98,21 @@ class IconCatalogTest < Minitest::Test
       manifest = JSON.parse(File.read(fixture.manifest))
       assert_equal ["classic"], manifest.fetch("icons").map { |icon| icon.fetch("id") }
       assert_equal({ "contrast" => "high" }, manifest.fetch("icons").first.fetch("extensionMetadata"))
+    end
+  end
+
+  def test_remove_rejects_every_configured_audience_primary
+    with_fixture do |fixture|
+      fixture.add_existing_ocean
+      fixture.configure_primary("AppIconOcean")
+      before = fixture.snapshot
+
+      error = assert_raises(IconCatalog::Error) do
+        fixture.catalog.remove(target: "ocean", dry_run: false)
+      end
+
+      assert_includes error.message, "configured as a Where audience primary icon"
+      assert_equal before, fixture.snapshot
     end
   end
 
@@ -196,13 +211,14 @@ class IconCatalogTest < Minitest::Test
   end
 
   class Fixture
-    attr_reader :root, :app_catalog, :preview_catalog, :manifest, :png, :catalog
+    attr_reader :root, :app_catalog, :preview_catalog, :manifest, :project_manifest, :png, :catalog
 
     def initialize(root, transaction_factory:, app_catalog: nil)
       @root = root
       @app_catalog = app_catalog || File.join(root, "AppIcon.xcassets")
       @preview_catalog = File.join(root, "AppIconPreviews.xcassets")
       @manifest = File.join(root, "AppIcons.json")
+      @project_manifest = File.join(root, "Project.swift")
       @png = File.join(root, "icon.png")
       FileUtils.mkdir_p([@app_catalog, @preview_catalog])
       File.binwrite(png, "\x89PNG\r\n\x1A\n".b + ("\0" * 8) + [1024, 1024].pack("NN"))
@@ -211,16 +227,18 @@ class IconCatalogTest < Minitest::Test
         "icons" => [{
           "id" => "classic",
           "displayName" => "Classic",
-          "alternateIconName" => nil,
+          "assetName" => "AppIcon",
           "previewImageName" => "AppIconClassic",
           "extensionMetadata" => { "contrast" => "high" },
         }],
       ) + "\n")
+      configure_primary("AppIcon")
       @catalog = IconCatalog.new(
         root: root,
         app_catalog: @app_catalog,
         preview_catalog: @preview_catalog,
         manifest: @manifest,
+        project_manifest: @project_manifest,
         transaction_factory: transaction_factory,
       )
     end
@@ -235,10 +253,14 @@ class IconCatalogTest < Minitest::Test
       data.fetch("icons") << {
         "id" => "ocean",
         "displayName" => "Ocean",
-        "alternateIconName" => "AppIconOcean",
+        "assetName" => "AppIconOcean",
         "previewImageName" => "AppIconOcean",
       }
       File.write(manifest, JSON.pretty_generate(data) + "\n")
+    end
+
+    def configure_primary(asset_name)
+      File.write(project_manifest, %(primaryAppIconName: "#{asset_name}"\n))
     end
 
     def snapshot

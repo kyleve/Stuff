@@ -1,3 +1,4 @@
+import BroadwayUI
 import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
@@ -14,12 +15,20 @@ struct AppIconView: View {
     @State private var previewMode: ColorScheme = .light
     @State private var appearanceToggles = 0
     @State private var dragOffset: CGFloat = 0
+    // Seeds user-editable preview state at selection time; that state is not a slice input.
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
     @Environment(\.stylesheet) private var stylesheet
 
     @MainActor
-    init(model: AppIconModel = AppIconModel()) {
+    init(primaryAppIconName: String) {
+        _model = State(initialValue: AppIconModel(
+            primaryAppIconName: primaryAppIconName,
+        ))
+    }
+
+    @MainActor
+    init(model: AppIconModel) {
         _model = State(initialValue: model)
     }
 
@@ -199,6 +208,7 @@ struct AppIconView: View {
             .ignoresSafeArea(edges: .bottom)
         }
         .environment(\.colorScheme, previewMode)
+        .bMode(.init(previewMode))
         .offset(y: max(dragOffset, 0))
         .gesture(dragToDismiss)
     }
@@ -315,7 +325,9 @@ struct AppIconImage: View {
                 configurations: .fullContentScreenDefaults,
                 settle: .immediate,
             ) {
-                NavigationStack { AppIconView(model: .preview()) }
+                NavigationStack {
+                    AppIconView(model: .preview())
+                }
             }
         }
     }

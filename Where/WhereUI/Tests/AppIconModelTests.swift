@@ -9,13 +9,13 @@ struct AppIconModelTests {
             AppIconOption(
                 id: AppIconID("classic"),
                 displayName: "Classic",
-                alternateIconName: nil,
+                assetName: "AppIcon",
                 previewImageName: "AppIconClassic",
             ),
             AppIconOption(
                 id: AppIconID("ocean"),
                 displayName: "Ocean",
-                alternateIconName: "AppIconOcean",
+                assetName: "AppIconOcean",
                 previewImageName: "AppIconOcean",
             ),
         ]
@@ -23,36 +23,71 @@ struct AppIconModelTests {
 
     @Test func initialSelectionDerivesFromTheLiveIcon() {
         let setter = FakeIconSetter(alternateIconName: "AppIconOcean")
-        let model = AppIconModel(options: options(), setter: setter)
+        let model = AppIconModel(
+            primaryAppIconName: "AppIcon",
+            options: options(),
+            setter: setter,
+        )
         #expect(model.selectedID == AppIconID("ocean"))
     }
 
     @Test func initialSelectionFallsBackToThePrimary() {
         let setter = FakeIconSetter(alternateIconName: nil)
-        let model = AppIconModel(options: options(), setter: setter)
+        let model = AppIconModel(
+            primaryAppIconName: "AppIcon",
+            options: options(),
+            setter: setter,
+        )
         #expect(model.selectedID == AppIconID("classic"))
     }
 
+    @Test func nilLiveNameResolvesToANonClassicBuildPrimary() {
+        let setter = FakeIconSetter(alternateIconName: nil)
+        let model = AppIconModel(
+            primaryAppIconName: "AppIconOcean",
+            options: options(),
+            setter: setter,
+        )
+
+        #expect(model.selectedID == AppIconID("ocean"))
+    }
+
     @Test func selectedOptionMatchesTheLiveAlternateName() {
-        let selected = AppIconCatalog.selectedOption(in: options(), current: "AppIconOcean")
+        let selected = AppIconCatalog.selectedOption(
+            in: options(),
+            current: "AppIconOcean",
+            primaryAppIconName: "AppIcon",
+        )
         #expect(selected?.id == AppIconID("ocean"))
     }
 
     @Test func selectedOptionFallsBackToThePrimaryWhenNil() {
-        let selected = AppIconCatalog.selectedOption(in: options(), current: nil)
+        let selected = AppIconCatalog.selectedOption(
+            in: options(),
+            current: nil,
+            primaryAppIconName: "AppIcon",
+        )
         #expect(selected?.id == AppIconID("classic"))
     }
 
     @Test func selectedOptionFallsBackToThePrimaryForAnUnknownName() {
         // An alternate icon set by an older build but since dropped from the
         // manifest resolves to the primary rather than nothing.
-        let selected = AppIconCatalog.selectedOption(in: options(), current: "AppIconGone")
+        let selected = AppIconCatalog.selectedOption(
+            in: options(),
+            current: "AppIconGone",
+            primaryAppIconName: "AppIcon",
+        )
         #expect(selected?.id == AppIconID("classic"))
     }
 
     @Test func applySetsTheIconAndUpdatesSelection() async {
         let setter = FakeIconSetter(alternateIconName: nil)
-        let model = AppIconModel(options: options(), setter: setter)
+        let model = AppIconModel(
+            primaryAppIconName: "AppIcon",
+            options: options(),
+            setter: setter,
+        )
 
         await model.apply(options()[1])
 
@@ -63,7 +98,11 @@ struct AppIconModelTests {
 
     @Test func applyingThePrimaryClearsTheAlternateIcon() async {
         let setter = FakeIconSetter(alternateIconName: "AppIconOcean")
-        let model = AppIconModel(options: options(), setter: setter)
+        let model = AppIconModel(
+            primaryAppIconName: "AppIcon",
+            options: options(),
+            setter: setter,
+        )
 
         await model.apply(options()[0])
 
@@ -71,9 +110,27 @@ struct AppIconModelTests {
         #expect(model.selectedID == AppIconID("classic"))
     }
 
+    @Test func classicIsAnAlternateWhenAnotherAssetIsPrimary() async {
+        let setter = FakeIconSetter(alternateIconName: nil)
+        let model = AppIconModel(
+            primaryAppIconName: "AppIconOcean",
+            options: options(),
+            setter: setter,
+        )
+
+        await model.apply(options()[0])
+
+        #expect(setter.alternateIconName == "AppIcon")
+        #expect(model.selectedID == AppIconID("classic"))
+    }
+
     @Test func applyIsANoOpWhenAlreadySelected() async {
         let setter = FakeIconSetter(alternateIconName: nil)
-        let model = AppIconModel(options: options(), setter: setter)
+        let model = AppIconModel(
+            primaryAppIconName: "AppIcon",
+            options: options(),
+            setter: setter,
+        )
 
         await model.apply(options()[0])
 
@@ -83,7 +140,11 @@ struct AppIconModelTests {
     @Test func applySurfacesErrorsAndLeavesSelectionUnchanged() async {
         let setter = FakeIconSetter(alternateIconName: nil)
         setter.errorToThrow = FakeIconError.boom
-        let model = AppIconModel(options: options(), setter: setter)
+        let model = AppIconModel(
+            primaryAppIconName: "AppIcon",
+            options: options(),
+            setter: setter,
+        )
 
         await model.apply(options()[1])
 
@@ -97,7 +158,11 @@ struct AppIconModelTests {
 
     @Test func unsupportedDevicesDoNotAttemptAChange() async {
         let setter = FakeIconSetter(supportsAlternateIcons: false, alternateIconName: nil)
-        let model = AppIconModel(options: options(), setter: setter)
+        let model = AppIconModel(
+            primaryAppIconName: "AppIcon",
+            options: options(),
+            setter: setter,
+        )
 
         await model.apply(options()[1])
 
@@ -108,12 +173,14 @@ struct AppIconModelTests {
     @Test func bundledManifestLoadsAndIsConsistent() throws {
         let options = try AppIconCatalog.load()
 
-        #expect(!options.isEmpty)
+        #expect(options.isEmpty == false)
         #expect(options.contains { $0.id == AppIconID("classic") })
-        #expect(options.filter(\.isPrimary).count == 1)
+        #expect(options.contains { $0.assetName == "AppIcon" })
 
         let ids = options.map(\.id)
         #expect(Set(ids).count == ids.count)
+        let assetNames = options.map(\.assetName)
+        #expect(Set(assetNames).count == assetNames.count)
     }
 
     /// Guards the core manifest-driven invariant: every option the picker lists
