@@ -41,6 +41,13 @@ private struct EstimatedTimeFeaturesContent: View {
             .listRowSeparator(.hidden)
             .staggeredReveal(order: 0)
 
+            if !report.showsEstimatedTimeAndPlanning {
+                Section {
+                    FeatureEstimatedTimeStatusPreview(state: .disabled)
+                        .featureMarketingRow(order: 1)
+                }
+            }
+
             Section {
                 preview
                     .featureMarketingRow(order: 1)
@@ -67,6 +74,7 @@ private struct EstimatedTimeFeaturesContent: View {
 
             Section {
                 FeatureEstimatedTimeCalculationExample()
+                    .saturation(report.showsEstimatedTimeAndPlanning ? 1 : 0)
                     .featureMarketingRow(order: 4)
                     .settingsRow(
                         EstimatedTimeFeaturesView.Item.calculation,
@@ -106,9 +114,7 @@ private struct EstimatedTimeFeaturesContent: View {
 
     @ViewBuilder
     private var preview: some View {
-        if !report.showsEstimatedTimeAndPlanning {
-            FeatureEstimatedTimeStatusPreview(state: .disabled)
-        } else if forecasts.isEmpty {
+        if forecasts.isEmpty {
             FeatureEstimatedTimeStatusPreview(state: .unavailable)
         } else {
             LocationForecastPanel(
@@ -116,6 +122,7 @@ private struct EstimatedTimeFeaturesContent: View {
                 microprintRegions: report.ranking.primary.map(\.region),
                 plannedStay: report.forecasts.activePlannedStay,
             )
+            .saturation(report.showsEstimatedTimeAndPlanning ? 1 : 0)
         }
     }
 

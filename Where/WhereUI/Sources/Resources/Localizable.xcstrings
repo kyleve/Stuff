@@ -7271,7 +7271,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Estimated time and planning are hidden. You can turn them on from Appearance."
+            "value" : "Estimated time and planning are off. The examples below appear in gray. Turn the feature on from Appearance."
           }
         }
       }
