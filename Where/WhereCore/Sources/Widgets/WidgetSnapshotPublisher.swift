@@ -81,12 +81,10 @@ public actor WidgetSnapshotPublisher {
                 let snapshot = try await widgetReader.snapshot(asOf: now())
                 await widgetRefresher.publish(snapshot)
                 lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: now())
-                Self.logger {
-                    .published(
-                        day: dayLogLabel(snapshot.day),
-                        regionCount: snapshot.dayRegions.count,
-                    )
-                }
+                Self.logger.published(
+                    day: .restricted(.dateTime, dayLogLabel(snapshot.day)),
+                    regionCount: .shared(.count, snapshot.dayRegions.count),
+                )
             } catch let error as RecordingPersistenceError {
                 // Generation/policy gaps mean a destructive CloudKit change may already be known
                 // even
@@ -102,9 +100,13 @@ public actor WidgetSnapshotPublisher {
                 )
                 await widgetRefresher.publish(snapshot)
                 lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: date)
-                Self.logger { .buildFailed(description: error.localizedDescription) }
+                Self.logger.buildFailed(
+                    description: .restricted(.errorDetails, error.localizedDescription),
+                )
             } catch {
-                Self.logger { .buildFailed(description: error.localizedDescription) }
+                Self.logger.buildFailed(
+                    description: .restricted(.errorDetails, error.localizedDescription),
+                )
             }
         }
     }

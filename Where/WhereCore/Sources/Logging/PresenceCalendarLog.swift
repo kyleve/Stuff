@@ -8,7 +8,8 @@ import PeriscopeCore
 /// "emit a `PresenceCalendarLog`" is unspellable and the type can only ever name
 /// a scope and its spans. (It can't be an uninhabited enum — `LogEvent` is
 /// `Codable`, which the compiler won't synthesize for one.)
-struct PresenceCalendarLog: LogEvent {
+@LogScope("PresenceCalendar")
+enum PresenceCalendarLog {
     /// Names the layout spans (`log.measure(.layoutYear) { … }`).
     enum SpanName: Hashable {
         /// Laying out a whole year's month grids. Pure CPU on an already-loaded
@@ -18,12 +19,4 @@ struct PresenceCalendarLog: LogEvent {
         /// record than they'd explain.
         case layoutYear
     }
-
-    static let eventName = "PresenceCalendar"
-
-    var message: String {
-        ""
-    }
-
-    private init() {}
 }

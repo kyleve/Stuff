@@ -114,7 +114,9 @@ final class RegionAttribution: RegionAttributing {
             // Degraded-but-handled: keep the last-good attributor rather than
             // silently freezing on an empty/stale set, and surface the failure so
             // a persistent read error is observable instead of invisible.
-            Self.logger { .trackedRegionsReadFailed(description: String(describing: error)) }
+            Self.logger.trackedRegionsReadFailed(
+                description: .restricted(.errorDetails, String(describing: error)),
+            )
             return
         }
         let ids = Set(tracked.map(\.rawValue))

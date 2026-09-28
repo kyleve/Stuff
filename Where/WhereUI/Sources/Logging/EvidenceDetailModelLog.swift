@@ -1,27 +1,22 @@
 import PeriscopeCore
 import WhereCore
 
-/// Structured events for `EvidenceDetailModel`. The evidence id rides on
-/// `externalID` so blob-load failures trace to their row.
-enum EvidenceDetailModelLog: LogEvent {
-    case blobLoadFailed(evidenceID: String, description: String)
+@LogScope("EvidenceDetailModel")
+enum EvidenceDetailModelLog {
+    @LogEvent("blob-load-failed", level: .warning)
+    struct BlobLoadFailed {
+        @LogField("evidence_id", exposure: .restricted, kind: .identifier)
+        var evidenceID: String
 
-    static let eventName = "EvidenceDetailModel"
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
 
-    var level: LogLevel {
-        .warning
-    }
-
-    var message: String {
-        switch self {
-            case let .blobLoadFailed(evidenceID, description):
-                "Failed to load evidence blob for \(evidenceID): \(description)"
+        var message: String {
+            "Failed to load evidence blob for \(evidenceID): \(description)"
         }
-    }
 
-    var externalID: String? {
-        switch self {
-            case let .blobLoadFailed(evidenceID, _): WhereStoreID.evidence(evidenceID)
+        var externalID: String? {
+            WhereStoreID.evidence(evidenceID)
         }
     }
 }

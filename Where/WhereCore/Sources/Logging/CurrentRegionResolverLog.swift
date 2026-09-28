@@ -1,11 +1,8 @@
 import PeriscopeCore
 
 /// PII-free outcomes for foreground region resolution.
-enum CurrentRegionResolverLog: LogEvent {
-    enum Kind: String, CaseIterable, Codable {
-        case finished
-    }
-
+@LogScope("CurrentRegionResolver")
+enum CurrentRegionResolverLog {
     enum Reason: String, CaseIterable, Codable {
         case resolved
         case recordingInactive = "recording-inactive"
@@ -40,42 +37,23 @@ enum CurrentRegionResolverLog: LogEvent {
         case resolve
     }
 
-    case finished(reason: Reason, ageBucket: AgeBucket, accuracyBucket: AccuracyBucket)
+    @LogEvent("finished")
+    struct Finished {
+        @LogField("reason", exposure: .shareable, kind: .category)
+        var reason: Reason
 
-    static let eventName = "CurrentRegionResolver"
+        @LogField("age_bucket", exposure: .shareable, kind: .category)
+        var ageBucket: AgeBucket
 
-    var level: LogLevel {
-        switch self {
-            case let .finished(reason, _, _):
-                reason == .resolved ? .info : .warning
+        @LogField("accuracy_bucket", exposure: .shareable, kind: .category)
+        var accuracyBucket: AccuracyBucket
+
+        var level: LogLevel {
+            reason == .resolved ? .info : .warning
         }
-    }
 
-    var message: String {
-        switch self {
-            case let .finished(reason, ageBucket, accuracyBucket):
-                "Current region resolution finished: \(reason.rawValue), age \(ageBucket.rawValue), accuracy \(accuracyBucket.rawValue)"
-        }
-    }
-
-    var remoteFields: [RemoteLogField] {
-        switch self {
-            case let .finished(reason, ageBucket, accuracyBucket):
-                [
-                    .eventKind(Kind.finished),
-                    RemoteLogField(
-                        key: RemoteLogFieldKey("reason"),
-                        value: .category(RemoteLogCategory(reason)),
-                    ),
-                    RemoteLogField(
-                        key: RemoteLogFieldKey("age_bucket"),
-                        value: .category(RemoteLogCategory(ageBucket)),
-                    ),
-                    RemoteLogField(
-                        key: RemoteLogFieldKey("accuracy_bucket"),
-                        value: .category(RemoteLogCategory(accuracyBucket)),
-                    ),
-                ]
+        var message: String {
+            "Current region resolution finished: \(reason.rawValue), age \(ageBucket.rawValue), accuracy \(accuracyBucket.rawValue)"
         }
     }
 }

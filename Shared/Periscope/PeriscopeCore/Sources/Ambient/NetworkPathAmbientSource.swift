@@ -27,7 +27,7 @@ public final class NetworkPathAmbientSource: AmbientEventSource {
 
     public init() {}
 
-    public func start(log: Log<AmbientEvent>) {
+    public func start(log: Log<AmbientLog>) {
         let started = NWPathMonitor()
         started.pathUpdateHandler = { [weak self] path in
             self?.emit(Self.describe(path), to: log)
@@ -62,21 +62,19 @@ public final class NetworkPathAmbientSource: AmbientEventSource {
     /// flooding the log. Exposed for tests via `@_spi(Testing)` so the
     /// coalescing is covered without a live monitor (an `NWPath` can't be
     /// constructed in a test).
-    @_spi(Testing) public func emit(_ value: [String: AmbientValue], to log: Log<AmbientEvent>) {
+    @_spi(Testing) public func emit(_ value: [String: AmbientValue], to log: Log<AmbientLog>) {
         let changed = state.withLockUnchecked { state -> Bool in
             guard state.lastValue != value else { return false }
             state.lastValue = value
             return true
         }
         guard changed else { return }
-        log {
-            AmbientEvent(
-                kind: .restricted(.technicalState, .network),
-                value: .restricted(.domainValue, value),
-                level: .restricted(.technicalState, .info),
-                reporting: .restricted(.technicalState, .state),
-            )
-        }
+        log.event(
+            kind: .restricted(.technicalState, .network),
+            value: .restricted(.domainValue, value),
+            level: .restricted(.technicalState, .info),
+            reporting: .restricted(.technicalState, .state),
+        )
     }
 
     private static func describe(_ path: NWPath) -> [String: AmbientValue] {

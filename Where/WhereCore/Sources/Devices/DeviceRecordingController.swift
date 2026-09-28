@@ -292,9 +292,10 @@ public actor DeviceRecordingController {
             needsReconciliation = true
             await ingestor.revokeRecordingAuthorization()
             publishRuntimeState(.unavailable)
-            Self.logger(attachments: [.error(error, name: "import-recovery-error")]) {
-                .importRecoveryFailed(description: error.localizedDescription)
-            }
+            Self.logger.importRecoveryFailed(
+                description: .restricted(.errorDetails, error.localizedDescription),
+                attachments: [.error(error, name: "import-recovery-error")],
+            )
         }
         endExclusive()
     }
@@ -350,9 +351,10 @@ public actor DeviceRecordingController {
             needsReconciliation = true
             await ingestor.revokeRecordingAuthorization()
             publishRuntimeState(.unavailable)
-            Self.logger(attachments: [.error(error, name: "rollback-recovery-error")]) {
-                .rollbackRecoveryFailed(description: error.localizedDescription)
-            }
+            Self.logger.rollbackRecoveryFailed(
+                description: .restricted(.errorDetails, error.localizedDescription),
+                attachments: [.error(error, name: "rollback-recovery-error")],
+            )
         }
     }
 
@@ -560,9 +562,10 @@ public actor DeviceRecordingController {
             needsReconciliation = true
             await ingestor.revokeRecordingAuthorization()
             publishRuntimeState(.unavailable)
-            Self.logger(attachments: [.error(error, name: "policy-observation-error")]) {
-                .policyObservationFailed(description: error.localizedDescription)
-            }
+            Self.logger.policyObservationFailed(
+                description: .restricted(.errorDetails, error.localizedDescription),
+                attachments: [.error(error, name: "policy-observation-error")],
+            )
         }
         endExclusive()
     }

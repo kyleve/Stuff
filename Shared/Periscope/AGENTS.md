@@ -21,7 +21,7 @@ Durability sits below the stack in [`JournalKit`](../JournalKit). It is payload-
 
 - **A consumer owns its own root scope. Periscope owns the system.**
 - **An app declares a facade over a root `Log` scope** (Where has `WhereLog`, RegionKit `RegionLog`).
-- **Emit typed `LogEvent`s through it.** Never emit a raw string. Never add a second logging system.
+- **Declare repository events with `@LogScope`, `@LogEvent`, and `@LogField`.** Emit them through generated classified methods. Never write a direct `LogEvent` conformance.
 - **Those separate roots all record into the one process-wide `Periscope.shared`.**
 - **Then a single store sink and a single viewer see every scope subtree.**
 - **Attaching the store is the host app's job, once.** `PeriscopeStore.make` is `async`.
@@ -33,7 +33,7 @@ Durability sits below the stack in [`JournalKit`](../JournalKit). It is payload-
 - **A bundle that was not stamped contributes no attributes rather than a build called `unknown`.**
 - **Where fills them from `BuildInfo.logSessionAttributes`.**
 - **Tests never touch `Periscope.shared`.** Build a fresh system with an in-memory store per test. Pass it explicitly.
-- **`Log<Event>()` defaults to `.shared`.** An omitted `system:` silently joins the process-wide one.
+- **`Log<Scope>()` defaults to `.shared`.** An omitted `system:` silently joins the process-wide one.
 
 ## Testing
 

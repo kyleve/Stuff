@@ -4,6 +4,19 @@ import Testing
 
 private struct InjectedSaveFailure: Error {}
 
+@LogScope("StoreExternalIDTest")
+private enum StoreExternalIDLog {
+    @LogEvent("photo-uploaded", message: "uploaded")
+    struct PhotoUploaded {
+        @LogField("photo_uri", exposure: .restricted, kind: .identifier)
+        var photoURI: String
+
+        var externalID: String? {
+            photoURI
+        }
+    }
+}
+
 struct PeriscopeStoreTests {
     /// A store with a small defined hierarchy: app → photos → album-1.
     private func makeStore() async throws -> (
@@ -53,13 +66,13 @@ struct PeriscopeStoreTests {
     @Test func payloadsDecodeBackToTheirEventTypes() async throws {
         let (store, root, _, _) = try await makeStore()
         await store.write([
-            LogRecord(date: date(1), event: PhotoLogs(photoID: "p1"), scopes: [root.id]),
+            LogRecord(date: date(1), event: makePhotoEvent("p1"), scopes: [root.id]),
         ])
 
         let event = try #require(try await store.events(matching: LogQuery()).first)
-        #expect(event.eventName == "PhotoLogs")
+        #expect(event.eventName == "PhotoLogs.event")
         #expect(event.eventVersion == 1)
-        #expect(try event.decode(PhotoLogs.self).photoID == "p1")
+        #expect(try event.decode(PhotoLogs.Event.self).photoID == "p1")
     }
 
     @Test func minimumLevelFiltersBySeverity() async throws {
@@ -186,11 +199,11 @@ struct PeriscopeStoreTests {
         let (store, root, _, _) = try await makeStore()
         await store.write([
             makeRecord("plain", date: date(1), scopes: [root.id]),
-            LogRecord(date: date(2), event: PhotoLogs(photoID: "p1"), scopes: [root.id]),
+            LogRecord(date: date(2), event: makePhotoEvent("p1"), scopes: [root.id]),
         ])
 
         var query = LogQuery()
-        query.eventName = PhotoLogs.eventName
+        query.eventName = PhotoLogs.Event.eventName
         let events = try await store.events(matching: query)
         #expect(events.map(\.message) == ["photo p1"])
     }
@@ -603,27 +616,20 @@ struct PeriscopeStoreTests {
     }
 
     @Test func externalIDsPersistAndFilter() async throws {
-        struct PhotoUploaded: LogEvent {
-            var photoURI: String
-            var message: String {
-                "uploaded"
-            }
-
-            var externalID: String? {
-                photoURI
-            }
-        }
-
         let (store, root, _, _) = try await makeStore()
         await store.write([
             LogRecord(
                 date: date(1),
-                event: PhotoUploaded(photoURI: "photos://p1"),
+                event: StoreExternalIDLog.PhotoUploaded(
+                    photoURI: .restricted(.identifier, "photos://p1"),
+                ),
                 scopes: [root.id],
             ),
             LogRecord(
                 date: date(2),
-                event: PhotoUploaded(photoURI: "photos://p2"),
+                event: StoreExternalIDLog.PhotoUploaded(
+                    photoURI: .restricted(.identifier, "photos://p2"),
+                ),
                 scopes: [root.id],
             ),
             makeRecord("no object", date: date(3), scopes: [root.id]),
@@ -897,8 +903,8 @@ struct PeriscopeStoreTests {
         let system = Periscope(configuration: Periscope.Configuration(), sinks: [])
         system.add(sink: store)
 
-        let ambient = Log<AmbientEvent>(system: system)
-        ambient { makeAmbientEvent(kind: .powerMode, value: ["low-power": true]) }
+        let ambient = Log<AmbientLog>(system: system)
+        ambient.record(makeAmbientEvent(kind: .powerMode, value: ["low-power": true]))
         Log<AppLogs>(system: system).error("slow while saving battery")
         await system.flush()
 
@@ -1074,7 +1080,7 @@ struct PeriscopeStoreTests {
         let system = Periscope(configuration: Periscope.Configuration(), sinks: [store])
         let photos = Log<AppLogs>(system: system)(PhotoLogs.self)
 
-        photos { PhotoLogs(photoID: "p1") }
+        photos.event(photoID: .restricted(.identifier, "p1"))
         photos.warning("degraded")
         await system.flush()
 
