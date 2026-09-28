@@ -8,45 +8,13 @@ struct PrivacyBackupsFeaturesView: View {
     let configuration: DiagnosticReportingConfiguration
     let focus: SettingsFocus?
 
-    @Environment(\.stylesheet) private var stylesheet
-
     var body: some View {
         FeatureGuidePage(
             destination: .privacyBackups,
             tagline: .settingsExplorePrivacyBackupsTagline,
             focus: focus,
         ) {
-            FeatureGuidePanel(
-                title: .settingsExplorePrivacyBackupsPrivacyTitle,
-                detail: .settingsExplorePrivacyBackupsPrivacyDetail,
-                symbol: .lockShieldFill,
-            ) {}
-                .featureMarketingRow(order: 1)
-                .settingsRow(Item.privacy, restingBackground: .clear)
-            PrivacyPassportCard(
-                presentation: PrivacyPassportPresentation(configuration: configuration),
-                disclosureInteraction: .staticContent,
-            )
-            .frame(maxWidth: stylesheet.featureDiscovery.marketingPanel.maxWidth)
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity)
-            .featureMarketingRow(order: 2)
-            FeatureGuidePanel(
-                title: .settingsExplorePrivacyBackupsExportTitle,
-                detail: .settingsExplorePrivacyBackupsExportDetail,
-                symbol: .externaldriveFill,
-            ) {}
-                .featureMarketingRow(order: 3)
-                .settingsRow(Item.export, restingBackground: .clear)
-            FeatureGuidePanel(
-                title: .settingsExplorePrivacyBackupsRestoreTitle,
-                detail: .settingsExplorePrivacyBackupsRestoreDetail,
-                symbol: .squareAndArrowDownFill,
-            ) {}
-                .featureMarketingRow(order: 4)
-                .settingsRow(Item.restore, restingBackground: .clear)
-            FeatureSettingsLink(destination: .data).featureMarketingRow(order: 5)
-            FeatureSettingsLink(destination: .privacyDiagnostics).featureMarketingRow(order: 6)
+            PrivacyBackupsFeaturesContent(configuration: configuration)
         }
     }
 }

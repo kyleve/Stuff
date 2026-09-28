@@ -11,9 +11,6 @@ struct PersonalizationFeaturesView: View {
 
     @State private var iconModel: AppIconModel
     @State private var presentedSheet: Sheet?
-    @Environment(\.isInDemoMode) private var isInDemoMode
-    @Environment(\.regionStyles) private var regionStyles
-    @Environment(\.stylesheet) private var stylesheet
 
     @MainActor
     init(
@@ -32,72 +29,12 @@ struct PersonalizationFeaturesView: View {
     var body: some View {
         StaggeredRevealScope {
             SettingsFocusScope(focus: focus) {
-                Form {
-                    FeatureMarketingHeader(
-                        title: String(localized: .settingsExplorePersonalizationTitle),
-                        tagline: String(localized: .settingsExplorePersonalizationTagline),
-                        systemSymbol: SettingsDestination.personalization.systemSymbol,
-                        tint: SettingsDestination.personalization.iconColor,
-                    )
-                    .listRowInsets(.init())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                    .staggeredReveal(order: 0)
-
-                    Section {
-                        FeatureRegionStylePreview(region: featuredRegion, style: featuredStyle)
-                            .featureMarketingRow(order: 1)
-                            .settingsRow(Item.regions, restingBackground: .clear)
-
-                        FeatureMarketingPanel {
-                            Button(action: showRegions) {
-                                actionLabel(
-                                    String(localized: .settingsExplorePersonalizationOpenRegions),
-                                    systemSymbol: .paintpalette,
-                                )
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .featureMarketingRow(order: 2)
-                    }
-
-                    Section {
-                        FeatureAppIconPreview(model: iconModel)
-                            .featureMarketingRow(order: 3)
-                            .settingsRow(Item.appIcon, restingBackground: .clear)
-
-                        if !isInDemoMode {
-                            FeatureMarketingPanel {
-                                Button(action: showAppIcons) {
-                                    actionLabel(
-                                        String(localized: .settingsExplorePersonalizationOpenIcon),
-                                        systemSymbol: .appBadge,
-                                    )
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                            .featureMarketingRow(order: 4)
-                        }
-                    }
-                    Section {
-                        FeatureGuidePanel(
-                            title: .settingsExplorePersonalizationAppearanceTitle,
-                            detail: .settingsExplorePersonalizationAppearanceDetail,
-                            symbol: .paintbrushFill,
-                        ) {}
-                            .featureMarketingRow(order: 5)
-                            .settingsRow(Item.appearance, restingBackground: .clear)
-                        FeatureSettingsLink(destination: .appearance).featureMarketingRow(order: 6)
-                    } footer: {
-                        VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
-                            Text(String(localized: .settingsExplorePersonalizationFooter))
-                            FeatureDiscoveryDataFooter()
-                        }
-                        .staggeredReveal(order: 7)
-                    }
-                }
-                .scrollContentBackground(.hidden)
-                .background(FeatureDiscoveryBackground())
+                PersonalizationFeaturesContent(
+                    report: report,
+                    iconModel: iconModel,
+                    showRegions: showRegions,
+                    showAppIcons: showAppIcons,
+                )
             }
         }
         .navigationTitle("")
@@ -110,27 +47,9 @@ struct PersonalizationFeaturesView: View {
         }
     }
 
-    private var featuredRegion: Region {
-        report.ranking.primary.first?.region ?? .california
-    }
-
-    private var featuredStyle: RegionStyle {
-        regionStyles.style(for: featuredRegion)
-    }
-
     private var regionsUsedThisYear: Set<Region> {
         guard let totals = report.report?.totals else { return [] }
         return Set(totals.filter { $0.key != .other && $0.value > 0 }.map(\.key))
-    }
-
-    private func actionLabel(_ title: String, systemSymbol: SFSymbol) -> some View {
-        Label {
-            Text(title)
-                .foregroundStyle(.primary)
-        } icon: {
-            Image(systemSymbol: systemSymbol)
-                .foregroundStyle(SettingsDestination.personalization.iconColor)
-        }
     }
 
     private func showRegions() {

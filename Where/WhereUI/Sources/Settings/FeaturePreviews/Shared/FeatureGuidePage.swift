@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Common gallery chrome. Content stays in each screen's own small view.
+/// Common gallery chrome. Pass a small nominal view as content; constructing
+/// rows here stores their combined value in both enclosing scopes.
 struct FeatureGuidePage<Content: View>: View {
     let destination: SettingsDestination
     let tagline: LocalizedStringResource
@@ -10,22 +11,9 @@ struct FeatureGuidePage<Content: View>: View {
     var body: some View {
         StaggeredRevealScope {
             SettingsFocusScope(focus: focus) {
-                Form {
-                    FeatureMarketingHeader(
-                        title: destination.rowTitle,
-                        tagline: String(localized: tagline),
-                        systemSymbol: destination.systemSymbol,
-                        tint: destination.iconColor,
-                    )
-                    .listRowInsets(.init())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                    .staggeredReveal(order: 0)
+                FeatureGuideForm(destination: destination, tagline: tagline) {
                     content
-                    Section {} footer: { FeatureDiscoveryDataFooter() }
                 }
-                .scrollContentBackground(.hidden)
-                .background(FeatureDiscoveryBackground())
             }
         }
         .navigationTitle("")

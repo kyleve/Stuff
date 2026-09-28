@@ -184,6 +184,7 @@ worked examples.
 
 ## Feature discovery
 
+Keep gallery rows and Forms behind small named views inside focus and reveal scopes. Guard: `FeatureGuidePageTests` and the gallery view-size tests.
 Keep Explore Features browsing read-only. Use production presentation components and explicit actions into existing editors.
 Use `PresenceTimelineList` with `.excerpt` for embedded Timeline galleries; keep row layout and planned-stay joins in that view.
 Use process-effective diagnostics for privacy claims. Hide gallery links whose destinations are unavailable in demo mode.
