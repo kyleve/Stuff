@@ -111,51 +111,65 @@ extension [String: AmbientValue] {
     }
 }
 
-/// The standard event ambient sources emit: environmental context —
-/// backgrounding, memory pressure, connectivity, thermal state — that helps
-/// diagnose what the system was doing around an error.
-public struct AmbientEvent: LogEvent, Hashable {
-    public static let eventName = "ambient"
+/// The built-in scope for environmental state and occurrence events.
+@LogScope("ambient")
+public enum AmbientLog {
+    /// The standard event ambient sources emit: environmental context —
+    /// backgrounding, memory pressure, connectivity, thermal state — that helps
+    /// diagnose what the system was doing around an error.
+    @LogEvent("event")
+    public struct Event: Hashable {
+        /// Whether an event announces a lasting condition or a passing moment.
+        ///
+        /// Only `state` folds into the ``AmbientSnapshot`` every later record is
+        /// stamped with. A memory warning describes an instant, not a condition
+        /// the app stays in, so it must not stick to everything after it.
+        ///
+        /// The case names are the persisted wire values — renaming one rewrites
+        /// the format for stored rows.
+        public enum Reporting: String, Hashable, Sendable, Codable {
+            /// A lasting condition: the newest value replaces the previous one
+            /// and describes the app until it changes again.
+            case state
+            /// A momentary occurrence, meaningful only at its own timestamp.
+            case occurrence
+        }
 
-    /// Whether an event announces a lasting condition or a passing moment.
-    ///
-    /// Only `state` folds into the ``AmbientSnapshot`` every later record is
-    /// stamped with. A memory warning describes an instant, not a condition
-    /// the app stays in, so it must not stick to everything after it.
-    ///
-    /// The case names are the persisted wire values — renaming one rewrites
-    /// the format for stored rows.
-    public enum Reporting: String, Hashable, Sendable, Codable {
-        /// A lasting condition: the newest value replaces the previous one
-        /// and describes the app until it changes again.
-        case state
-        /// A momentary occurrence, meaningful only at its own timestamp.
-        case occurrence
-    }
+        @LogField(
+            "kind",
+            exposure: .restricted,
+            kind: .technicalState,
+        )
+        public var kind: AmbientKind
 
-    public var kind: AmbientKind
-    /// The state as named fields (`["level": "serious"]`,
-    /// `["voiceover": false]`) — a JSON object in the payload, not a
-    /// formatted sentence the tooling would have to parse back apart.
-    public var value: [String: AmbientValue]
-    public var level: LogLevel
-    /// Defaults to ``Reporting/state`` — "ambient" means a surrounding
-    /// condition, and a source that reports moments is the exception.
-    public var reporting: Reporting
+        /// The state as named fields (`["level": "serious"]`,
+        /// `["voiceover": false]`) — a JSON object in the payload, not a
+        /// formatted sentence the tooling would have to parse back apart.
+        @LogField(
+            "value",
+            exposure: .restricted,
+            kind: .domainValue,
+        )
+        public var value: [String: AmbientValue]
 
-    public var message: String {
-        "\(kind): \(value.ambientDescription)"
-    }
+        @LogField(
+            "level",
+            exposure: .restricted,
+            kind: .technicalState,
+        )
+        public var level: LogLevel
 
-    public init(
-        kind: AmbientKind,
-        value: [String: AmbientValue],
-        level: LogLevel = .info,
-        reporting: Reporting = .state,
-    ) {
-        self.kind = kind
-        self.value = value
-        self.level = level
-        self.reporting = reporting
+        @LogField(
+            "reporting",
+            exposure: .restricted,
+            kind: .technicalState,
+        )
+        public var reporting: AmbientLog.Event.Reporting
+
+        public var message: String {
+            "\(kind): \(value.ambientDescription)"
+        }
     }
 }
+
+public typealias AmbientEvent = AmbientLog.Event

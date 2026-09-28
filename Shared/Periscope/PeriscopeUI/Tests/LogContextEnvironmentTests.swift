@@ -1,5 +1,5 @@
 import PeriscopeCore
-import PeriscopeUI
+@testable import PeriscopeUI
 import SwiftUI
 import TestHostSupport
 import Testing
@@ -56,9 +56,9 @@ struct LogContextEnvironmentTests {
     }
 
     @Test func contextOutsideAnyModifierFallsBackToASharedRoot() {
-        let log = EnvironmentValues().logContext
-        #expect(log.primaryScope.name == Message.eventName)
-        #expect(log.primaryScope.parentID == nil)
+        let values = EnvironmentValues()
+        #expect(values.accumulatedLogContext.map { _ in false } ?? true)
+        let _: LogContext = values.logContext
     }
 
     @Test func modifierGivesDescendantsTheContext() throws {

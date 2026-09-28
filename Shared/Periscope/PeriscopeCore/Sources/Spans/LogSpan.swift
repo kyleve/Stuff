@@ -29,129 +29,145 @@ extension SpanID: Codable {
     }
 }
 
-/// Marks the start of a timed span (`Log.measure` / `Log.begin(for:)`).
-/// Carries the span's lifetime and relaunch policy so the watchdog and the
-/// relaunch sweep can honor them from the persisted payload alone.
-public struct SpanBegan: LogEvent {
-    public static let eventName = "span-began"
-    public static let eventVersion = 2
-    /// Half of a span pair — see `LogEvent.isProtectedFromDropping`.
-    public static let isProtectedFromDropping = true
-
-    public let spanID: SpanID
-    public let name: String
-    public let lifetime: SpanLifetime
-    public let relaunchPolicy: SpanRelaunchPolicy
-
-    public var message: String {
-        "▶ \(name)"
-    }
-
-    public var remoteFields: [RemoteLogField] {
-        var fields = [RemoteLogField(
-            key: RemoteLogFieldKey("relaunch_policy"),
-            value: .category(RemoteLogCategory(relaunchPolicy)),
-        )]
-        if case let .bounded(budget) = lifetime {
-            fields.append(RemoteLogField(
-                key: RemoteLogFieldKey("budget_ms"),
-                value: .durationMilliseconds(budget.milliseconds),
-            ))
+/// The built-in scope for timed operation events.
+@LogScope("span")
+public enum SpanLog {
+    /// Marks the start of a timed span (`Log.measure` / `Log.begin(for:)`).
+    /// Carries the span's lifetime and relaunch policy so the watchdog and the
+    /// relaunch sweep can honor them from the persisted payload alone.
+    @LogEvent("began")
+    public struct Began {
+        public enum LifetimeMode: String, CaseIterable, Codable, Sendable {
+            case scoped
+            case bounded
+            case indefinite
         }
-        return fields
+
+        /// Half of a span pair — see `LogEvent.isProtectedFromDropping`.
+        public static let isProtectedFromDropping = true
+
+        @LogField("span_id", exposure: .restricted, kind: .identifier)
+        public var spanID: SpanID
+
+        @LogField("name", exposure: .restricted, kind: .technicalState)
+        public var name: String
+
+        @LogField("lifetime", exposure: .restricted, kind: .technicalState)
+        public var lifetimeMode: SpanLog.Began.LifetimeMode
+
+        @LogField("budget_ms", exposure: .shareable, kind: .duration)
+        public var budget: Duration?
+
+        @LogField("relaunch_policy", exposure: .shareable, kind: .category)
+        public var relaunchPolicy: SpanRelaunchPolicy
+
+        public var lifetime: SpanLifetime {
+            switch lifetimeMode {
+                case .scoped: .scoped
+                case .bounded: .bounded(budget: budget ?? .zero)
+                case .indefinite: .indefinite
+            }
+        }
+
+        public var message: String {
+            "▶ \(name)"
+        }
     }
 
-    public init(
-        spanID: SpanID,
-        name: String,
-        lifetime: SpanLifetime,
-        relaunchPolicy: SpanRelaunchPolicy,
-    ) {
-        self.spanID = spanID
-        self.name = name
-        self.lifetime = lifetime
-        self.relaunchPolicy = relaunchPolicy
+    /// Marks the end of a timed span: the measured duration and how it ended.
+    @LogEvent("ended")
+    public struct Ended {
+        /// Half of a span pair — see `LogEvent.isProtectedFromDropping`.
+        public static let isProtectedFromDropping = true
+
+        @LogField("span_id", exposure: .restricted, kind: .identifier)
+        public var spanID: SpanID
+
+        @LogField("name", exposure: .restricted, kind: .technicalState)
+        public var name: String
+
+        @LogField("duration_ms", exposure: .shareable, kind: .duration)
+        public var duration: Duration?
+
+        @LogField("exit", exposure: .shareable, kind: .category)
+        public var exitMode: SpanExit.Mode
+
+        @LogField("exit_reason", exposure: .restricted, kind: .errorDetails)
+        public var exitReason: String?
+
+        public var exit: SpanExit {
+            SpanExit(mode: exitMode, reason: exitReason)
+        }
+
+        public var level: LogLevel {
+            switch exitMode {
+                case .success, .cancelled: .info
+                case .failure, .superseded, .expired, .orphaned: .warning
+            }
+        }
+
+        public var message: String {
+            var text = "◀ \(name) \(exitMode.described)"
+            if let exitReason {
+                text += ": \(exitReason)"
+            }
+            if let duration {
+                text += " (\(duration.formatted()))"
+            }
+            return text
+        }
+
+        /// Best-effort recovery of the span name from a rendered ``message``.
+        public static func nameRecovered(
+            fromMessage message: String,
+            exit mode: SpanExit.Mode?,
+        ) -> String {
+            var text = message.hasPrefix("◀ ") ? String(message.dropFirst(2)) : message
+            if let mode, let exitWord = text.range(of: " " + mode.described) {
+                text = String(text[..<exitWord.lowerBound])
+            } else if text.hasSuffix(")"),
+                      let duration = text.range(of: " (", options: .backwards)
+            {
+                text = String(text[..<duration.lowerBound])
+            }
+            return text
+        }
+    }
+
+    /// Emitted while a budgeted `measure` closure is still running past its budget.
+    @LogEvent("overdue", level: .warning)
+    public struct Overdue {
+        @LogField("span_id", exposure: .restricted, kind: .identifier)
+        public var spanID: SpanID
+
+        @LogField("name", exposure: .restricted, kind: .technicalState)
+        public var name: String
+
+        @LogField("budget_ms", exposure: .shareable, kind: .duration)
+        public var budget: Duration
+
+        public var message: String {
+            "⏰ \(name) still running past its \(budget.formatted()) budget"
+        }
     }
 }
 
-/// Marks the end of a timed span: the measured duration (monotonic —
-/// `ContinuousClock`; `nil` when unknowable, i.e. orphaned across process
-/// death) and how it ended.
-///
-/// Abnormal exits (`superseded`, `expired`, `orphaned`, `failure`) log at
-/// `.warning`; `success` and `cancelled` (a normal lifecycle outcome) stay
-/// at `.info`.
-public struct SpanEnded: LogEvent {
-    public static let eventName = "span-ended"
-    public static let eventVersion = 2
-    /// Half of a span pair — see `LogEvent.isProtectedFromDropping`.
-    public static let isProtectedFromDropping = true
+public typealias SpanBegan = SpanLog.Began
+public typealias SpanEnded = SpanLog.Ended
+public typealias SpanOverdue = SpanLog.Overdue
 
-    public let spanID: SpanID
-    public let name: String
-    public let duration: Duration?
-    public let exit: SpanExit
-
-    public var level: LogLevel {
-        switch exit.mode {
-            case .success, .cancelled: .info
-            case .failure, .superseded, .expired, .orphaned: .warning
+extension SpanLifetime {
+    fileprivate var classifiedMode: SpanBegan.LifetimeMode {
+        switch self {
+            case .scoped: .scoped
+            case .bounded: .bounded
+            case .indefinite: .indefinite
         }
     }
 
-    public var message: String {
-        var text = "◀ \(name) \(exit.mode.described)"
-        if let reason = exit.reason {
-            text += ": \(reason)"
-        }
-        if let duration {
-            text += " (\(duration.formatted()))"
-        }
-        return text
-    }
-
-    public var remoteFields: [RemoteLogField] {
-        var fields = [RemoteLogField(
-            key: RemoteLogFieldKey("exit"),
-            value: .category(RemoteLogCategory(exit.mode)),
-        )]
-        if let duration {
-            fields.append(RemoteLogField(
-                key: RemoteLogFieldKey("duration_ms"),
-                value: .durationMilliseconds(duration.milliseconds),
-            ))
-        }
-        return fields
-    }
-
-    public init(spanID: SpanID, name: String, duration: Duration?, exit: SpanExit) {
-        self.spanID = spanID
-        self.name = name
-        self.duration = duration
-        self.exit = exit
-    }
-
-    /// Best-effort recovery of the span name from a rendered ``message``,
-    /// for stored rows whose payload no longer decodes. The inverse of the
-    /// `message` format, kept beside it so the two can't drift: strips the
-    /// leading marker and everything from the exit word on — the reason and
-    /// duration vary per instance, so leaving them in would fragment any
-    /// grouping done on the result into a bucket per row.
-    public static func nameRecovered(
-        fromMessage message: String,
-        exit mode: SpanExit.Mode?,
-    ) -> String {
-        var text = message.hasPrefix("◀ ") ? String(message.dropFirst(2)) : message
-        if let mode, let exitWord = text.range(of: " " + mode.described) {
-            text = String(text[..<exitWord.lowerBound])
-        } else if text.hasSuffix(")"),
-                  let duration = text.range(of: " (", options: .backwards)
-        {
-            // No usable exit column: at least the trailing duration
-            // parenthetical — the per-instance fragmenter — can go.
-            text = String(text[..<duration.lowerBound])
-        }
-        return text
+    fileprivate var classifiedBudget: Duration? {
+        guard case let .bounded(budget) = self else { return nil }
+        return budget
     }
 }
 
@@ -177,46 +193,6 @@ protocol SpanCarrying {
 extension SpanBegan: SpanCarrying {}
 extension SpanEnded: SpanCarrying {}
 
-/// Emitted while a budgeted `measure` closure is still running past its
-/// budget — the mid-hang signal. Unlike a bounded span's `.expired` close,
-/// the span stays open and ends normally when (if) the closure returns.
-public struct SpanOverdue: LogEvent {
-    public static let eventName = "span-overdue"
-
-    public let spanID: SpanID
-    public let name: String
-    public let budget: Duration
-
-    public var level: LogLevel {
-        .warning
-    }
-
-    public var message: String {
-        "⏰ \(name) still running past its \(budget.formatted()) budget"
-    }
-
-    public var remoteFields: [RemoteLogField] {
-        [RemoteLogField(
-            key: RemoteLogFieldKey("budget_ms"),
-            value: .durationMilliseconds(budget.milliseconds),
-        )]
-    }
-
-    public init(spanID: SpanID, name: String, budget: Duration) {
-        self.spanID = spanID
-        self.name = name
-        self.budget = budget
-    }
-}
-
-extension Duration {
-    fileprivate var milliseconds: Double {
-        let components = components
-        return Double(components.seconds) * 1000
-            + Double(components.attoseconds) / 1_000_000_000_000_000
-    }
-}
-
 extension SpanOverdue: SpanCarrying {}
 
 extension LogRecord {
@@ -230,10 +206,11 @@ extension LogRecord {
         var strippedEvent: any LogEvent = event
         if let ended = event as? SpanEnded {
             strippedEvent = SpanEnded(
-                spanID: ended.spanID,
-                name: ended.name,
-                duration: ended.duration,
-                exit: SpanExit(mode: ended.exit.mode, reason: nil),
+                spanID: .restricted(.identifier, ended.spanID),
+                name: .restricted(.technicalState, ended.name),
+                duration: .shared(.duration, ended.duration),
+                exitMode: .shared(.category, ended.exitMode),
+                exitReason: .restricted(.errorDetails, nil),
             )
         }
         var stripped = LogRecord(
@@ -347,7 +324,7 @@ enum SpanSignposts {
 }
 
 /// Timing: measure closures, and open-ended begin/end spans keyed by
-/// identifier. Span names resolve against `Event.SpanName`, which defaults
+/// identifier. Span names resolve against `Scope.SpanName`, which defaults
 /// to `String` — declare a `SpanName` enum on the event type for
 /// compiler-checked tokens (`log.measure(.saveEvent)`), the recommended
 /// style for structured events; freeform loggers measure ad hoc.
@@ -356,10 +333,10 @@ extension Log {
     /// sharing one ``SpanID``. The exit is derived automatically: return →
     /// `.success`, throw → `.failure` (with the error described),
     /// `CancellationError` → `.cancelled`. Names resolve against
-    /// `Event.SpanName`, so typed events get leading-dot tokens
+    /// `Scope.SpanName`, so typed scopes get leading-dot tokens
     /// (`log.measure(.saveEvent) { … }`).
     @discardableResult
-    public func measure<R>(_ name: Event.SpanName, _ body: () throws -> R) rethrows -> R {
+    public func measure<R>(_ name: Scope.SpanName, _ body: () throws -> R) rethrows -> R {
         try timedSpan(named: String(describing: name), budget: nil, body)
     }
 
@@ -368,7 +345,7 @@ extension Log {
     /// span itself still ends normally with its derived exit.
     @discardableResult
     public func measure<R>(
-        _ name: Event.SpanName,
+        _ name: Scope.SpanName,
         budget: Duration,
         _ body: () throws -> R,
     ) rethrows -> R {
@@ -378,7 +355,7 @@ extension Log {
     /// The `async` form of `measure`; preserves the caller's isolation.
     @discardableResult
     public func measure<R>(
-        _ name: Event.SpanName,
+        _ name: Scope.SpanName,
         isolation: isolated (any Actor)? = #isolation,
         _ body: () async throws -> R,
     ) async rethrows -> R {
@@ -393,7 +370,7 @@ extension Log {
     /// The `async` form of the budgeted `measure`.
     @discardableResult
     public func measure<R>(
-        _ name: Event.SpanName,
+        _ name: Scope.SpanName,
         budget: Duration,
         isolation: isolated (any Actor)? = #isolation,
         _ body: () async throws -> R,
@@ -505,7 +482,11 @@ extension Log {
             guard !Task.isCancelled else { return }
             gate.withLock { ended in
                 guard !ended else { return }
-                emit(SpanOverdue(spanID: span, name: name, budget: budget))
+                emit(SpanOverdue(
+                    spanID: .restricted(.identifier, span),
+                    name: .restricted(.technicalState, name),
+                    budget: .shared(.duration, budget),
+                ))
             }
         }
     }
@@ -516,10 +497,11 @@ extension Log {
     /// floors hid.
     private func beginMeasuredSpan(_ span: SpanID, name: String) -> Bool {
         let began = SpanBegan(
-            spanID: span,
-            name: name,
-            lifetime: .scoped,
-            relaunchPolicy: .endsWithProcess,
+            spanID: .restricted(.identifier, span),
+            name: .restricted(.technicalState, name),
+            lifetimeMode: .restricted(.technicalState, .scoped),
+            budget: .shared(.duration, nil),
+            relaunchPolicy: .shared(.category, .endsWithProcess),
         )
         let recorded = recorder.shouldRecord(level: began.level, scopes: scopes.map(\.id))
         SpanSignposts.begin(span, name: name)
@@ -539,7 +521,13 @@ extension Log {
     ) {
         SpanSignposts.end(span)
         guard recorded else { return }
-        let ended = SpanEnded(spanID: span, name: name, duration: duration, exit: exit)
+        let ended = SpanEnded(
+            spanID: .restricted(.identifier, span),
+            name: .restricted(.technicalState, name),
+            duration: .shared(.duration, duration),
+            exitMode: .shared(.category, exit.mode),
+            exitReason: .restricted(.errorDetails, exit.reason),
+        )
         if let overdueGate {
             // MARK: - and-emit under the gate: after this, the sentinel stays
 
@@ -575,10 +563,11 @@ extension Log {
         let name = String(describing: id)
         let key = SpanKey(scope: primaryScope.id, identifier: name)
         let began = SpanBegan(
-            spanID: SpanID(),
-            name: name,
-            lifetime: lifetime,
-            relaunchPolicy: relaunch,
+            spanID: .restricted(.identifier, SpanID()),
+            name: .restricted(.technicalState, name),
+            lifetimeMode: .restricted(.technicalState, lifetime.classifiedMode),
+            budget: .shared(.duration, lifetime.classifiedBudget),
+            relaunchPolicy: .shared(.category, relaunch),
         )
         // The floor decision is made once, here, for the whole pair: a
         // recorded began always gets its end (even if floors rise
@@ -617,10 +606,11 @@ extension Log {
                 var closing = LogRecord(
                     date: Date(),
                     event: SpanEnded(
-                        spanID: superseded.id,
-                        name: superseded.name,
-                        duration: span.start - superseded.start,
-                        exit: .superseded,
+                        spanID: .restricted(.identifier, superseded.id),
+                        name: .restricted(.technicalState, superseded.name),
+                        duration: .shared(.duration, span.start - superseded.start),
+                        exitMode: .shared(.category, .superseded),
+                        exitReason: .restricted(.errorDetails, nil),
                     ),
                     scopes: superseded.scopes,
                     tags: superseded.tags,
@@ -647,10 +637,11 @@ extension Log {
         guard open.beganRecorded else { return }
         emit(
             SpanEnded(
-                spanID: open.id,
-                name: open.name,
-                duration: ContinuousClock().now - open.start,
-                exit: exit,
+                spanID: .restricted(.identifier, open.id),
+                name: .restricted(.technicalState, open.name),
+                duration: .shared(.duration, ContinuousClock().now - open.start),
+                exitMode: .shared(.category, exit.mode),
+                exitReason: .restricted(.errorDetails, exit.reason),
             ),
             bypassingFloors: true,
         )
