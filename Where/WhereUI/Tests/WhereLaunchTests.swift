@@ -159,6 +159,7 @@ struct WhereLaunchTests {
         let model = try makeModel(preferences: makePreferences())
         let ids = WhereLaunch.plan(for: model).nodeIDs
         #expect(ids == [
+            .protectedData,
             .activateDemo,
             .onboarding,
             .resolveScope,

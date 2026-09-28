@@ -15,6 +15,17 @@ import ZIPFoundation
 /// SwiftData. `BackupCoordinator` owns reading the store and committing an
 /// import transaction; this type only marshals bytes to and from the zip.
 public struct BackupService: Sendable {
+    @TaskLocal static var cancellationProgress: Progress?
+
+    static func withCancellation<Value: Sendable>(
+        _ operation: @Sendable () async throws -> Value,
+    ) async throws -> Value {
+        let progress = Progress(totalUnitCount: 0)
+        return try await withTaskCancellationHandler {
+            try await $cancellationProgress.withValue(progress) { try await operation() }
+        } onCancel: { progress.cancel() }
+    }
+
     /// Header decoded before the strict current archive shape, so an older manifest reports its
     /// format version instead of failing first on a field introduced by a later format.
     private struct FormatEnvelope: Decodable {
@@ -112,62 +123,80 @@ public struct BackupService: Sendable {
             .appendingPathComponent("where-backup-\(UUID().uuidString)", isDirectory: true)
         let staging = workRoot.appendingPathComponent("contents", isDirectory: true)
         let assetsDir = staging.appendingPathComponent(Self.assetsDirectory, isDirectory: true)
-        try fileManager.createDirectory(at: assetsDir, withIntermediateDirectories: true)
-
-        var assetEntries: [BackupAssetEntry] = []
-        try Self.logger.measure(.stageAssets) {
-            for item in evidence {
-                guard let blob = blobs[item.id] else { continue }
-                // Drain each write's file-I/O scratch (URL/Data bridging) per
-                // iteration so a large evidence set doesn't pile up autoreleased
-                // temporaries until the whole export finishes.
-                try autoreleasepool {
-                    let filename = "\(Self.assetsDirectory)/\(item.id.uuidString)"
-                    try blob.write(to: staging.appendingPathComponent(filename))
-                    assetEntries.append(BackupAssetEntry(evidenceId: item.id, filename: filename))
+        do {
+            try fileManager.createDirectory(at: assetsDir, withIntermediateDirectories: true)
+            var assetEntries: [BackupAssetEntry] = []
+            try Self.logger.measure(.stageAssets) {
+                for item in evidence {
+                    try Task.checkCancellation()
+                    guard let blob = blobs[item.id] else { continue }
+                    // Drain each write's file-I/O scratch (URL/Data bridging) per
+                    // iteration so a large evidence set doesn't pile up autoreleased
+                    // temporaries until the whole export finishes.
+                    try autoreleasepool {
+                        let filename = "\(Self.assetsDirectory)/\(item.id.uuidString)"
+                        try blob.write(to: staging.appendingPathComponent(filename))
+                        assetEntries.append(BackupAssetEntry(
+                            evidenceId: item.id,
+                            filename: filename,
+                        ))
+                    }
                 }
             }
-        }
 
-        let archive = BackupArchive(
-            exportedAt: exportedAt,
-            samples: samples,
-            evidence: evidence,
-            manualDays: manualDays,
-            dismissedIssues: dismissedIssues,
-            trackedRegions: trackedRegions,
-            primaryRegions: primaryRegions,
-            recordingDeviceProfiles: recordingDeviceProfiles,
-            recordingDeviceMetadataChanges: recordingDeviceMetadataChanges,
-            recordingDeviceRemovals: recordingDeviceRemovals,
-            plannedStayRecords: plannedStayRecords,
-            assets: assetEntries,
-        )
-        try Self.logger.measure(.encodeManifest) {
-            let manifestData = try Self.makeEncoder().encode(archive)
-            try manifestData.write(to: staging.appendingPathComponent(Self.manifestFilename))
-        }
+            try Task.checkCancellation()
+            let archive = BackupArchive(
+                exportedAt: exportedAt,
+                samples: samples,
+                evidence: evidence,
+                manualDays: manualDays,
+                dismissedIssues: dismissedIssues,
+                trackedRegions: trackedRegions,
+                primaryRegions: primaryRegions,
+                recordingDeviceProfiles: recordingDeviceProfiles,
+                recordingDeviceMetadataChanges: recordingDeviceMetadataChanges,
+                recordingDeviceRemovals: recordingDeviceRemovals,
+                plannedStayRecords: plannedStayRecords,
+                assets: assetEntries,
+            )
+            try Self.logger.measure(.encodeManifest) {
+                let manifestData = try Self.makeEncoder().encode(archive)
+                try manifestData.write(to: staging.appendingPathComponent(Self.manifestFilename))
+            }
 
-        let name = archiveName ?? Self.defaultArchiveName(for: exportedAt)
-        let zipURL = workRoot.appendingPathComponent(name)
-        try Self.logger.measure(.writeArchive) {
-            try fileManager.zipItem(
-                at: staging,
-                to: zipURL,
-                shouldKeepParent: false,
-                compressionMethod: .deflate,
-            )
+            try Task.checkCancellation()
+            let name = archiveName ?? Self.defaultArchiveName(for: exportedAt)
+            let zipURL = workRoot.appendingPathComponent(name)
+            try Self.logger.measure(.writeArchive) {
+                try fileManager.zipItem(
+                    at: staging,
+                    to: zipURL,
+                    shouldKeepParent: false,
+                    compressionMethod: .deflate,
+                    progress: Self.cancellationProgress,
+                )
+            }
+            try Task.checkCancellation()
+            Self.logger {
+                .wroteBackup(
+                    sampleCount: samples.count,
+                    evidenceCount: evidence.count,
+                    manualDayCount: manualDays.count,
+                    dismissedIssueCount: dismissedIssues.count,
+                    trackedRegionCount: trackedRegions.count,
+                )
+            }
+            return zipURL
+        } catch {
+            do {
+                try fileManager.removeItem(at: workRoot)
+            } catch let cleanupError {
+                Self.logger {
+                    .stagingCleanupFailed(description: cleanupError.localizedDescription)
+                }
+            }
+            throw error
         }
-        Self.logger {
-            .wroteBackup(
-                sampleCount: samples.count,
-                evidenceCount: evidence.count,
-                manualDayCount: manualDays.count,
-                dismissedIssueCount: dismissedIssues.count,
-                trackedRegionCount: trackedRegions.count,
-            )
-        }
-        return zipURL
     }
 
     /// A human-friendly, email-ready filename like
@@ -194,7 +223,7 @@ public struct BackupService: Sendable {
         defer { try? fileManager.removeItem(at: extractDir) }
 
         try Self.logger.measure(.readArchive) {
-            try fileManager.unzipItem(at: url, to: extractDir)
+            try fileManager.unzipItem(at: url, to: extractDir, progress: Self.cancellationProgress)
         }
 
         let manifestURL = extractDir.appendingPathComponent(Self.manifestFilename)
@@ -220,6 +249,7 @@ public struct BackupService: Sendable {
         var blobs: [UUID: Data] = [:]
         try Self.logger.measure(.loadAssets) {
             for entry in entries {
+                try Task.checkCancellation()
                 // Drain the per-read bridging scratch each iteration so walking a
                 // large asset set doesn't accumulate transient temporaries (the
                 // decoded blobs themselves are retained in `blobs`).

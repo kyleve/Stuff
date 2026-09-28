@@ -8,6 +8,38 @@ CoreLocation — **no SwiftUI or UIKit** — so all of it is unit-testable off-s
 [`RegionKit`](../RegionKit) for coordinate→region lookup and logs through
 [`Periscope`](../../Shared/Periscope) via the `WhereLog` facade.
 
+Automatic backups keep the existing inner backup schema intact, then encrypt
+that ZIP with AES-256-GCM inside a `.wherebackup` envelope. Each installation
+keeps a local active key. An append-only Keychain collection synchronizes keys
+by identifier, so simultaneous offline creation cannot replace another key.
+Restore selects the envelope's exact key. The original single-account key is
+preserved when available. Entered recovery keys remain ephemeral.
+
+`AutomaticBackupStorage` prefers iCloud Drive and falls back to app Documents.
+It coordinates each archive access and retains the newest three authenticated,
+readable backups with available keys. Unknown or damaged files cannot displace
+recoverable backups. Files with unavailable keys remain untouched.
+Deletion coordinates the candidate and all three retained files together.
+Changed or unavailable retained files prevent deletion until a later scan.
+Manual exports remain plaintext ZIPs.
+
+Catalog reads run outside the storage actor with independent cancellation.
+They check download metadata before requesting content access, so evicted iCloud
+files produce a partial listing without hiding accessible cloud or local files.
+
+The service owns one cancellable operation shared by all triggers. Callers
+choose cancellation authority explicitly. Background expiration cancels execution;
+Data-page disappearance waits for its result without cancelling the export.
+The UI caller still records successful metadata before returning. The service uses
+the latest preferences when scheduling. Reset suspends and drains the operation;
+a failed reset resumes scheduling. Logout permanently retires that service.
+Preference reset generations reject late success metadata from retired sessions.
+ZIP progress and pending file coordination receive cancellation. A committed
+backup remains successful if later retention fails; subsequent runs retry cleanup.
+
+Bounded [backup specifications](../Specifications/README.md) check these lifecycle,
+key-publication, and retention protocols. Their READMEs define the proof boundaries.
+
 Everything is reached through one `Sendable` container, **`WhereServices`**,
 which the presentation layer (`WhereUI`) and the widget extension talk to. For
 the domain/presentation layering and the rules this module enforces, see the

@@ -36,6 +36,17 @@ generated module. The run directory retains the module, TLC logs and state, and
 `summary.json`. The checker verifies that the tracked source's SHA-256 is
 unchanged before returning.
 
+## Scheduled backup models
+
+The scheduled-backup models are documented separately:
+
+- [Automatic backup lifecycle](AutomaticBackupLifecycle/README.md): first unlock, cancellation ownership, commit, and retirement.
+- [Recovery key publication](RecoveryKeyPublication/README.md): independent creation and append-only synchronization.
+- [Automatic backup retention](AutomaticBackupRetention/README.md): storage fallback, authentication, and coordinated pruning.
+
+Run all three with `./tla-check AutomaticBackupLifecycle RecoveryKeyPublication AutomaticBackupRetention`.
+Their READMEs state the bounds, controls, Swift correspondence, and limitations.
+
 ## PlusCal migration result
 
 The nine raw-TLA models at commit `2a6c695bdb8d` on 2026-08-13 were checked

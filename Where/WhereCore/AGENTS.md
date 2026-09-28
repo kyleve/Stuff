@@ -61,6 +61,26 @@ internal shape.
   lossless.** Add persisted user-data shapes end-to-end and cover both import
   strategies. Export no target-owned recording check-ins. Ignore any in an
   imported archive (`BackupServiceTests` / `BackupCoordinatorTests`).
+- **Keep manual exports plaintext and automatic backups encrypted.** Wrap the unchanged backup ZIP
+  in the authenticated `.wherebackup` envelope; never create a replacement recovery key while
+  protected data or the Keychain item is inaccessible (`EncryptedBackupEnvelopeTests` /
+  `BackupRecoveryKeyProviderTests`).
+- **Preserve recovery secrets under immutable synchronized identifiers.** Keep
+  the active key local. Select restore keys by envelope identifier and never
+  persist an entered key (`BackupRecoveryKeyProviderTests`).
+- **Authenticate archives before counting them toward retention.** Preserve
+  unknown keys and invalid files. Do not repeat a committed write because
+  retention failed (`AutomaticBackupStorageTests`).
+  Recheck the candidate and all retained archive digests in one coordinated
+  operation before deleting (`AutomaticBackupRetentionTests`).
+- **Own automatic execution outside the launch trunk.** Cancel and drain it
+  before reset or logout. Reconcile scheduling from the latest configuration
+  (`AutomaticBackupServiceTests`). `CoordinatedBackupFileAccess` may send only
+  `NSFileCoordinator.cancel()` across threads, as permitted by Apple's contract.
+  Give UI callers no cancellation authority over the shared export.
+- **Keep catalog I/O outside the storage actor.** Preflight download status
+  before content coordination. Cancel pending reads with their owning view and
+  preserve accessible entries when iCloud is partial (`AutomaticBackupStorageTests`).
 - **Backup import never adopts or changes local recording consent.** Archives
   omit that device-local choice. Replace preserves it and every existing
   removal tombstone while rotating the data generation and discarding the local
