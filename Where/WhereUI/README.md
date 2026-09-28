@@ -42,7 +42,9 @@ The card opens the existing Elsewhere list.
   automatic issue detectors, correction flows, and notification choices without
   running a scan merely to render the gallery. Estimated Time & Planning explains the live annual projection with a
   worked pace-and-plan calculation, production Timeline rows, and planned stays.
-  It also explains why overlapping travel days do not sum neatly to one year.
+  When estimates are Off, the gallery retains explanatory forecast examples in
+  grayscale while live planning remains disabled. It also explains why
+  overlapping travel days do not sum neatly to one year.
   Both Timeline galleries use `PresenceTimelineList` with its `.excerpt` presentation.
   This presentation shows the last two stays without scrolling or editing controls.
   The full Timeline and excerpts share row rendering, rail continuity, and planned-stay joins.

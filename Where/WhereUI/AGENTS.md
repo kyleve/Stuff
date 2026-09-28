@@ -102,8 +102,10 @@ Layering, localization, preview, and testing conventions live in the feature
 - Keep planned-stay persistence, forecast math, and location verification in WhereCore.
   `LocationForecastModel` mirrors the register and the advisory check for the Locations, calendar,
   and timeline surfaces.
-- Hide every forecast and planned-stay visualization behind
+- Gate live forecast and planned-stay surfaces on
   `YearReportModel.showsEstimatedTimeAndPlanning`; persist Off only after clearing the synced plan.
+  The read-only Estimated Time gallery keeps explanatory forecast examples
+  visible in grayscale when Off; it must not activate planning.
 - Continuous/looping motion (repeat-forever pulses, `TimelineView(.animation)`,
   typewriter reveals) must consult the shared `@MotionIsStatic` helper
   ([`Sources/Shared/MotionIsStatic.swift`](Sources/Shared/MotionIsStatic.swift))
