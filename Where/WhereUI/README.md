@@ -29,21 +29,31 @@ The card opens the existing Elsewhere list.
   `MainTabs`, the Liquid Glass tab bar over three tabs — Locations, Your Year,
   Settings. Elsewhere is an entry card on Locations, Resolve a Locations toolbar
   button, and the data screens (attachments, logged days, regions) sit in the
-  Settings "Data" group. The **Explore Features** group demonstrates all five
-  Siri/Shortcuts intents as example conversations, demonstrates tracked-region
+  Settings "Data" group. **Explore Features** starts with Your Places & Your Year
+  and Recording & Devices. These guides explain cards, Elsewhere, calendars,
+  Timeline, welcomes, automatic recording, and manual entries.
+  Privacy & Backups explains effective diagnostics choices, archive export,
+  and onboarding-only restore. Its links respect demo availability.
+  The group also demonstrates all five Siri/Shortcuts intents as example conversations, demonstrates tracked-region
   results in Spotlight, and renders every supported
   widget family on miniature Home Screen and Lock Screen surfaces. A Share &
   Evidence walkthrough also reveals the system Share-sheet extension and links
   into the saved attachment archive. Insights & Accuracy introduces the
-  automatic issue detectors without running them merely to render the gallery,
-  while Estimated Time & Planning explains the live annual projection with a
-  worked pace-and-plan calculation, planned stays, and why overlapping travel
-  days do not sum neatly to one year.
+  automatic issue detectors, correction flows, and notification choices without
+  running a scan merely to render the gallery. Estimated Time & Planning explains the live annual projection with a
+  worked pace-and-plan calculation, production Timeline rows, and planned stays.
+  When estimates are Off, the gallery retains explanatory forecast examples in
+  grayscale while live planning remains disabled. It also explains why
+  overlapping travel days do not sum neatly to one year.
+  Both Timeline galleries use `PresenceTimelineList` with its `.excerpt` presentation.
+  This presentation shows the last two stays without scrolling or editing controls.
+  The full Timeline and excerpts share row rendering, rail continuity, and planned-stay joins.
   These galleries use a shared marketing header, quiet patterned backdrop, and
   staged entrance that resolves immediately for Reduce Motion and snapshot
   capture. Once the selected report has 14 recorded days, the Siri, Spotlight,
-  widget, and evidence examples use its real regions, counts, and dates. Sparse
-  reports keep the illustrative Siri copy and empty widget state.
+  and widget examples use its real regions, counts, and dates. Evidence uses
+  the latest available attachment, or a labeled example when none is available.
+  Sparse reports keep the illustrative Siri copy and empty widget state.
   Backup and destructive data management share one Data drill-in. Data is
   followed by a persisted **Privacy & Diagnostics** screen for crash reports,
   redacted session replay, remote-log threshold, and Debug-only full metadata.
@@ -229,7 +239,9 @@ journal intent.
   evidence, private insights, data accuracy, and personalization with shared
   patterned chrome and Reduce Motion-aware staged reveals. The examples reuse
   already-loaded user data when it is representative and link to the existing
-  feature surfaces for any action.
+  feature surfaces for any action. Gallery rows and Forms have separate view
+  boundaries. These boundaries limit stack copies during navigation. The gallery
+  view-size tests guard this constraint.
 - **`whereBroadwayRoot()`** — seeds the selected `WhereTheme` and Broadway
   design-system context so descendants resolve the `WhereStylesheet` tokens (see [Design
   system](#design-system)). Applied by `RootView` and by each widget.
@@ -443,6 +455,27 @@ out. Selecting the inspect button opens the same screen in a full-screen
 interactive viewport. Flyover's appearance, device, Dynamic Type, contrast,
 layout-direction, and bold-text choices are session-only and apply only to
 registered content.
+
+### Artwork loading
+
+`regionArtworkTask` reads the root-injected outline cache and ties loading to the
+view's request identity. `RegionArtworkModel` publishes only complete results
+from the latest uncancelled operation and hides artwork for mismatched display
+keys. Region cards use a separate static-artwork key to retain their outlines
+while recorded points refresh. Each surface owns its resolutions and rendering.
+
+### Locations background
+
+The Locations root screen uses a stationary monochrome pattern of all regions
+visited in the selected year, including manually recorded visits and Elsewhere.
+The catch-all Other entry is omitted because it has no geographic outline.
+Catalog order keeps the pattern stable when card rankings change. Planned stays
+do not contribute. The shared outline cache supplies the region paths. Full-view
+rosette rings sit behind staggered region outlines with a half-cell row offset. Slender
+regions receive a bounded size adjustment to balance their visual weight. The
+monochrome ink uses faint strokes without a shadow or blur. Appearance belongs
+to `WhereStylesheet.locationsBackground`; Reduce Transparency hides the ink.
+Empty, initial-loading, and failed screens show only the full-view rosette texture.
 
 ## Testing
 

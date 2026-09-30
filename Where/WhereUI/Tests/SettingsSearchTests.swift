@@ -118,6 +118,50 @@ struct SettingsSearchTests {
         #expect(estimatedTime < insights)
     }
 
+    @Test func discoveryFollowsTheUserWorkflow() {
+        #expect(SettingsListSection.exploreFeatures.destinations == [
+            .placesYear,
+            .recording,
+            .estimatedTime,
+            .insightsAccuracy,
+            .shareEvidence,
+            .siri,
+            .widgets,
+            .personalization,
+            .privacyBackups,
+        ])
+        let availableInDemo = SettingsListSection.exploreFeatures.destinations
+            .allSatisfy(\.isAvailableInDemoMode)
+        #expect(availableInDemo)
+    }
+
+    @Test func newGuideSearchResultsFocusTheirOwningSection() throws {
+        let timeline = try #require(SettingsCatalog.results(matching: "journey").first {
+            $0.focus == SettingsFocus(PlacesYearFeaturesView.Item.timeline)
+        })
+        let manual = try #require(SettingsCatalog.results(matching: "manual").first {
+            $0.destination == .recording
+        })
+        let restore = try #require(SettingsCatalog.results(matching: "restore").first {
+            $0.destination == .privacyBackups
+        })
+        #expect(SettingsRoute(timeline).destination == .placesYear)
+        #expect(SettingsRoute(timeline)
+            .focus == SettingsFocus(PlacesYearFeaturesView.Item.timeline))
+        #expect(SettingsRoute(manual).focus == SettingsFocus(RecordingFeaturesView.Item.manual))
+        #expect(SettingsRoute(restore)
+            .focus == SettingsFocus(PrivacyBackupsFeaturesView.Item.restore))
+    }
+
+    @Test func refreshedGuidesExposeTheirNewTopics() {
+        #expect(SettingsCatalog.results(matching: "reminder")
+            .contains { $0.destination == .insightsAccuracy })
+        #expect(SettingsCatalog.results(matching: "theme")
+            .contains { $0.destination == .personalization })
+        #expect(SettingsCatalog.results(matching: "Timeline")
+            .contains { $0.destination == .estimatedTime })
+    }
+
     @Test func focusedRouteCarriesTheResultsDestinationAndFocus() throws {
         let result = try #require(SettingsCatalog.results.first)
         let route = SettingsRoute(result)

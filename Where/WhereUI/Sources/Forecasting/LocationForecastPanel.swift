@@ -15,10 +15,13 @@ struct LocationForecastPanel: View {
     var isCollapsible = false
 
     @State private var isExpanded = false
-    @State private var regionBorderPaths: [Path] = []
+    @State private var artworkModel = RegionArtworkModel<[Region], [Path]>()
+
+    private var regionBorderPaths: [Path] {
+        artworkModel.artwork(for: microprintRegions) ?? []
+    }
 
     @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.regionOutlinePathCache) private var regionOutlinePathCache
 
     private var style: WhereStylesheet.LocationForecastStyle {
         stylesheet.locationForecast
@@ -113,23 +116,22 @@ struct LocationForecastPanel: View {
             radius: style.surface.shadowRadius,
             y: style.surface.shadowOffsetY,
         )
-        .task(id: microprintRegions, loadRegionBorderPaths)
+        .regionArtworkTask(id: microprintRegions, model: artworkModel, load: loadRegionBorderPaths)
     }
 
     /// Loads the complete ordered pattern before publishing it so a changing
     /// forecast never shows a partial or stale sequence around the panel.
-    private func loadRegionBorderPaths() async {
-        regionBorderPaths = []
-        guard let regionOutlinePathCache else { return }
-
+    private func loadRegionBorderPaths(_ regionOutlinePathCache: RegionOutlinePathCache) async
+        -> [Path]?
+    {
         var loadedPaths: [Path] = []
         loadedPaths.reserveCapacity(microprintRegions.count)
         for region in microprintRegions {
             let path = await regionOutlinePathCache.path(for: region, resolution: .micro)
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled else { return nil }
             loadedPaths.append(path)
         }
-        regionBorderPaths = loadedPaths
+        return loadedPaths
     }
 
     private func toggleExpansion() {

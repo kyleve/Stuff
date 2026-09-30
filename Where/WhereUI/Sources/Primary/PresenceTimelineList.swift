@@ -13,7 +13,13 @@ import WhereCore
 /// year — "California, Jan 1 – Feb 3", "New York, Feb 3 – Mar 10", and so on.
 /// Hosted as the Timeline segment of the Your Year tab.
 struct PresenceTimelineList: View {
+    enum Presentation {
+        case full
+        case excerpt
+    }
+
     let report: YearReportModel
+    var presentation: Presentation = .full
 
     @Environment(\.stylesheet) private var stylesheet
     @State private var plannedStayEditorTarget: PlannedStayEditorTarget?
@@ -28,20 +34,27 @@ struct PresenceTimelineList: View {
 
     var body: some View {
         let yearReport = report.report
-        let stints = yearReport.map { PresenceTimeline.stints(from: $0) } ?? []
+        let stints = yearReport
+            .map { PresenceTimeline.stints(from: $0, calendar: report.calendar) } ?? []
         let plannedInterval = report.showsEstimatedTimeAndPlanning
             ? report.forecasts.plannedInterval(intersecting: report.selectedYear)
             : nil
-        let joinsPlannedStay = if let plannedInterval, let currentStint = stints.last {
-            plannedInterval.region == currentStint.region
-                && CalendarDay(from: currentStint.end, in: report.calendar).adding(days: 1)
-                == plannedInterval.start
-        } else {
-            false
-        }
 
         Group {
-            if stints.isEmpty, plannedInterval == nil {
+            if presentation == .excerpt {
+                if yearReport == nil {
+                    Text(.settingsExploreHistoryUnavailable).font(.subheadline)
+                } else if stints.isEmpty, plannedInterval == nil {
+                    Text(.settingsExploreHistoryEmpty).font(.subheadline)
+                } else {
+                    VStack(spacing: 0) {
+                        journeyRows(
+                            stints: Array(stints.suffix(2)),
+                            plannedInterval: plannedInterval,
+                        )
+                    }
+                }
+            } else if stints.isEmpty, plannedInterval == nil {
                 ContentUnavailableView {
                     Label(
                         String(localized: .timelineEmptyTitle),
@@ -64,30 +77,7 @@ struct PresenceTimelineList: View {
                         }
 
                         LazyVStack(spacing: 0) {
-                            ForEach(stints.enumerated(), id: \.element.id) { index, stint in
-                                PresenceJourneyRow(
-                                    stint: stint,
-                                    calendar: report.calendar,
-                                    daysInYear: report.daysInSelectedYear,
-                                    isFirst: index == stints.startIndex,
-                                    isLast: plannedInterval == nil
-                                        && index == stints.index(before: stints.endIndex),
-                                    cardPosition: joinsPlannedStay
-                                        && index == stints.index(before: stints.endIndex)
-                                        ? .top
-                                        : .standalone,
-                                )
-                            }
-
-                            if let plannedInterval {
-                                PlannedPresenceJourneyRow(
-                                    interval: plannedInterval,
-                                    calendar: report.calendar,
-                                    daysInYear: report.daysInSelectedYear,
-                                    isFirst: stints.isEmpty,
-                                    cardPosition: joinsPlannedStay ? .bottom : .standalone,
-                                )
-                            }
+                            journeyRows(stints: stints, plannedInterval: plannedInterval)
                         }
 
                         if showsForecast {
@@ -133,6 +123,44 @@ struct PresenceTimelineList: View {
                 model: report.forecasts,
                 driftThreshold: report.driftThreshold,
             )
+        }
+    }
+
+    /// Both presentations share rail continuity, card joins, and row rendering.
+    @ViewBuilder
+    private func journeyRows(
+        stints: [RegionStint],
+        plannedInterval: LocationForecastModel.PlannedInterval?,
+    ) -> some View {
+        let joinsPlannedStay = if let plannedInterval, let currentStint = stints.last {
+            plannedInterval.region == currentStint.region
+                && CalendarDay(from: currentStint.end, in: report.calendar).adding(days: 1)
+                == plannedInterval.start
+        } else {
+            false
+        }
+
+        ForEach(stints) { stint in
+            PresenceJourneyRow(
+                stint: stint,
+                calendar: report.calendar,
+                daysInYear: report.daysInSelectedYear,
+                isFirst: stint.id == stints.first?.id,
+                isLast: plannedInterval == nil && stint.id == stints.last?.id,
+                cardPosition: joinsPlannedStay && stint.id == stints.last?.id
+                    ? .top : .standalone,
+            )
+            .fixedSize(horizontal: false, vertical: presentation == .excerpt)
+        }
+        if let plannedInterval {
+            PlannedPresenceJourneyRow(
+                interval: plannedInterval,
+                calendar: report.calendar,
+                daysInYear: report.daysInSelectedYear,
+                isFirst: stints.isEmpty,
+                cardPosition: joinsPlannedStay ? .bottom : .standalone,
+            )
+            .fixedSize(horizontal: false, vertical: presentation == .excerpt)
         }
     }
 

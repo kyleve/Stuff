@@ -8,10 +8,14 @@ struct RegionWelcomeCard: View {
     let dismissAction: () -> Void
     let planStayAction: ((Region) -> Void)?
 
-    @State private var regionPaths: ArtworkPaths?
+    @State private var artworkModel = RegionArtworkModel<Region, ArtworkPaths>()
+
+    private var regionPaths: ArtworkPaths? {
+        artworkModel.artwork(for: presentation.region)
+    }
+
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
-    @Environment(\.regionOutlinePathCache) private var regionOutlinePathCache
 
     private var welcome: WhereStylesheet.LocationWelcomeStyle {
         stylesheet.locationWelcome
@@ -171,8 +175,7 @@ struct RegionWelcomeCard: View {
             radius: welcome.lift.radius,
             y: welcome.lift.offsetY,
         )
-        .task(id: presentation.region) {
-            guard let regionOutlinePathCache else { return }
+        .regionArtworkTask(id: presentation.region, model: artworkModel) { regionOutlinePathCache in
             let region = presentation.region
             async let watermark = regionOutlinePathCache.path(
                 for: region,
@@ -183,12 +186,10 @@ struct RegionWelcomeCard: View {
                 resolution: .micro,
             )
             let (watermarkPath, microprintPath) = await (watermark, microprint)
-            let loaded = ArtworkPaths(
+            return ArtworkPaths(
                 watermark: watermarkPath,
                 microprint: microprintPath,
             )
-            guard !Task.isCancelled else { return }
-            regionPaths = loaded
         }
     }
 
