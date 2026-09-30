@@ -72,14 +72,15 @@ private enum GenerationScopedFetch {
 
     static func sampleAttributions(
         belongingTo generationID: WhereDataGenerationID,
-        revisionID: UUID,
+        revisionID: SampleAttributionRevision.ID,
     ) -> FetchDescriptor<SDSampleAttributionRevision> {
         let membership = GenerationMembership(generationID)
         let storedGenerationID = membership.storedID
         let includesLegacy = membership.includesLegacy
+        let storedRevisionID = revisionID.rawValue
         return descriptor(predicate: #Predicate {
             ($0.generationID == storedGenerationID || (includesLegacy && $0.generationID == nil)) &&
-                $0.id == revisionID
+                $0.id == storedRevisionID
         })
     }
 
@@ -1338,7 +1339,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             guard duplicates.allSatisfy({ $0 == canonical }) else {
                 Self.logImmutableConflict(
                     type: String(describing: SampleAttributionRevision.self),
-                    id: revisionID.uuidString,
+                    id: revisionID.rawValue.uuidString,
                     count: duplicates.count,
                 )
                 throw SampleAttributionPersistenceError.conflictingRevision(id: revisionID)
@@ -2295,7 +2296,7 @@ final class SDSampleAttributionRevision {
     convenience init(value: SampleAttributionRevision, generationID: WhereDataGenerationID) {
         self.init()
         self.generationID = generationID.rawValue
-        id = value.id
+        id = value.id.rawValue
         sampleID = value.sampleID
         updatedAt = value.updatedAt
         replacementRegionIDs = value.replacementRegions.map { $0.map(\.rawValue).sorted() }
@@ -2313,7 +2314,7 @@ final class SDSampleAttributionRevision {
             replacementRegions = nil
         }
         return SampleAttributionRevision(
-            id: id,
+            id: .init(rawValue: id),
             sampleID: sampleID,
             updatedAt: updatedAt,
             replacementRegions: replacementRegions,

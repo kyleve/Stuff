@@ -61,9 +61,12 @@ public struct SampleCorrectionCoordinator: Sendable {
                 for edit in proposal.edits {
                     let prior = revisions.filter { $0.sampleID == edit.sampleID }
                         .max { SampleAttributionRevision.newer($1, than: $0) }
-                    let timestamp = max(now(), prior?.updatedAt.addingTimeInterval(0.001) ?? now())
+                    let timestamp = SampleAttributionRevision.nextUpdatedAt(
+                        now: now(),
+                        after: prior,
+                    )
                     try await store.addSampleAttributionRevision(.init(
-                        id: UUID(),
+                        id: .init(rawValue: UUID()),
                         sampleID: edit.sampleID,
                         updatedAt: timestamp,
                         replacementRegions: edit.replacementRegions,

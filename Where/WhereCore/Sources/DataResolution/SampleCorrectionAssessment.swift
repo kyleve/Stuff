@@ -51,7 +51,7 @@ struct SampleCorrectionAssessment {
                 context: LocationHistoryProjection(
                     samples: context,
                     revisions: context.flatMap { revisionsBySample[$0.sample.id] ?? [] }
-                        .sorted { $0.id.uuidString < $1.id.uuidString },
+                        .sorted { $0.id < $1.id },
                 ),
             )
         }

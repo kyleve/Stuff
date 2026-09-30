@@ -29,7 +29,7 @@ struct SampleAttributionResetTests {
         // is newer than the tombstone we already knew about.
         try await h.store.perform {
             try await h.store.addSampleAttributionRevision(.init(
-                id: UUID(),
+                id: .init(rawValue: UUID()),
                 sampleID: sample.id,
                 updatedAt: FlightTrajectoryFixtures.date(minutes: 20),
                 replacementRegions: [.newYork],
@@ -54,7 +54,7 @@ struct SampleAttributionResetTests {
         let store = try SwiftDataStore.inMemory()
         let sampleID = UUID()
         let prior = SampleAttributionRevision(
-            id: UUID(),
+            id: .init(rawValue: UUID()),
             sampleID: sampleID,
             updatedAt: FlightTrajectoryFixtures.date(minutes: 30),
             replacementRegions: alreadyReset ? nil : [.newYork],

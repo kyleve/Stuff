@@ -96,7 +96,7 @@ struct SwiftDataStoreTests {
         let replacements: [Set<Region>?] = [[], [.newYork], nil]
         let revisions = replacements.enumerated().map { offset, replacement in
             SampleAttributionRevision(
-                id: UUID(),
+                id: .init(rawValue: UUID()),
                 sampleID: sample.id,
                 updatedAt: Date(timeIntervalSince1970: 1000 + Double(offset)),
                 replacementRegions: replacement,
@@ -116,10 +116,35 @@ struct SwiftDataStoreTests {
         #expect(try await store.allSampleAttributionRevisions() == revisions)
     }
 
+    @Test func attributionRevisionsRetainUUIDTieOrderingAfterPersistence() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let sampleID = UUID()
+        let timestamp = Date(timeIntervalSince1970: 1000)
+        let lower = try SampleAttributionRevision(
+            id: .init(rawValue: #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))),
+            sampleID: sampleID,
+            updatedAt: timestamp,
+            replacementRegions: [],
+        )
+        let higher = try SampleAttributionRevision(
+            id: .init(rawValue: #require(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))),
+            sampleID: sampleID,
+            updatedAt: timestamp,
+            replacementRegions: nil,
+        )
+        try await store.perform {
+            try await store.addSampleAttributionRevision(higher)
+            try await store.addSampleAttributionRevision(lower)
+            try await store.addSampleAttributionRevision(higher)
+        }
+
+        #expect(try await store.sampleAttributionRevisions(for: [sampleID]) == [lower, higher])
+    }
+
     @Test func conflictingAttributionRevisionFailsWithoutChangingTheWinner() async throws {
         let store = try SwiftDataStore.inMemory()
         let revision = SampleAttributionRevision(
-            id: UUID(),
+            id: .init(rawValue: UUID()),
             sampleID: UUID(),
             updatedAt: Date(timeIntervalSince1970: 1000),
             replacementRegions: [],
@@ -149,7 +174,7 @@ struct SwiftDataStoreTests {
             source: .gpsSignificantChange,
         )
         let revision = SampleAttributionRevision(
-            id: UUID(),
+            id: .init(rawValue: UUID()),
             sampleID: sample.id,
             updatedAt: timestamp,
             replacementRegions: [],
@@ -188,7 +213,7 @@ struct SwiftDataStoreTests {
             try await store.add(sample: sample)
             if previouslyReset {
                 try await store.addSampleAttributionRevision(.init(
-                    id: UUID(),
+                    id: .init(rawValue: UUID()),
                     sampleID: sample.id,
                     updatedAt: timestamp.addingTimeInterval(100),
                     replacementRegions: nil,
@@ -207,7 +232,7 @@ struct SwiftDataStoreTests {
         try await store.perform {
             try await store.add(sample: sample)
             try await store.addSampleAttributionRevision(.init(
-                id: UUID(),
+                id: .init(rawValue: UUID()),
                 sampleID: sample.id,
                 updatedAt: timestamp.addingTimeInterval(200),
                 replacementRegions: [.newYork],
@@ -232,7 +257,7 @@ struct SwiftDataStoreTests {
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)
         let store = SwiftDataStore(modelContainer: container)
         let revision = SampleAttributionRevision(
-            id: UUID(),
+            id: .init(rawValue: UUID()),
             sampleID: UUID(),
             updatedAt: Date(timeIntervalSince1970: 1000),
             replacementRegions: [],
@@ -1265,7 +1290,7 @@ struct SwiftDataStoreTests {
         )
         try await store.perform { try await store.add(sample: sample) }
         let correction = SampleAttributionRevision(
-            id: UUID(),
+            id: .init(rawValue: UUID()),
             sampleID: sample.id,
             updatedAt: Date(timeIntervalSince1970: 600),
             replacementRegions: [],
@@ -1330,7 +1355,7 @@ struct SwiftDataStoreTests {
             source: .gpsSignificantChange,
         )
         let correction = SampleAttributionRevision(
-            id: UUID(),
+            id: .init(rawValue: UUID()),
             sampleID: sample.id,
             updatedAt: Date(timeIntervalSince1970: 600),
             replacementRegions: [],

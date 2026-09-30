@@ -44,7 +44,7 @@ struct DayJournalTests {
         let first = try #require(appliedRevisions.first)
         try await h.store.perform {
             try await h.store.addSampleAttributionRevision(.init(
-                id: UUID(),
+                id: .init(rawValue: UUID()),
                 sampleID: first.sampleID,
                 updatedAt: first.updatedAt,
                 replacementRegions: first.replacementRegions,

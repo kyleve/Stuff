@@ -40,7 +40,7 @@ public struct LocationHistoryReader: Sendable {
                     return lhs.id.uuidString < rhs.id.uuidString
                 }
             let revisions = try await store.sampleAttributionRevisions(for: Set(visible.map(\.id)))
-                .sorted { $0.id.uuidString < $1.id.uuidString }
+                .sorted { $0.id < $1.id }
             var winners: [UUID: SampleAttributionRevision] = [:]
             for revision in revisions {
                 if let current = winners[revision.sampleID],

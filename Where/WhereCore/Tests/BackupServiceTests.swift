@@ -166,7 +166,7 @@ struct BackupServiceTests {
         let replacements: [Set<Region>?] = [[], [.newYork], nil]
         return replacements.enumerated().map { offset, regions in
             SampleAttributionRevision(
-                id: UUID(),
+                id: .init(rawValue: UUID()),
                 sampleID: sampleID,
                 updatedAt: exportDate.addingTimeInterval(Double(offset)),
                 replacementRegions: regions,

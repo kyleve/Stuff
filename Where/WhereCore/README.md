@@ -186,7 +186,9 @@ one it belongs to rather than to a god-object:
   joins lossless raw samples to the effective attribution for reports, maps,
   artwork, widgets, summaries, reminders, and intents.
 - **`SampleAttributionRevision`** — an immutable, generation-scoped sample register,
-  resolved by timestamp then UUID. A nil replacement restores GPS attribution,
+  resolved by timestamp then UUID. Its dedicated `ID` preserves the bare UUID backup format.
+  Correction and reset writes share a timestamp helper that advances observed history by at least one millisecond.
+  A nil replacement restores GPS attribution,
   an empty set excludes the sample, and a populated set replaces its regions.
   Reset to GPS clears the day's manual override and writes newer tombstones in
   one transaction. Revisions can arrive before their samples; device-removal

@@ -24,7 +24,7 @@ struct BackupCoordinatorTests {
         let replacements: [Set<Region>?] = [[], nil, [.newYork]]
         let revisions = replacements.enumerated().map { offset, regions in
             SampleAttributionRevision(
-                id: UUID(),
+                id: .init(rawValue: UUID()),
                 sampleID: sample.id,
                 updatedAt: Date(timeIntervalSince1970: 1000 + Double(offset)),
                 replacementRegions: regions,
@@ -44,7 +44,7 @@ struct BackupCoordinatorTests {
 
         let destination = try Self.makeHarness()
         let reset = SampleAttributionRevision(
-            id: UUID(),
+            id: .init(rawValue: UUID()),
             sampleID: sample.id,
             updatedAt: Date(timeIntervalSince1970: 2000),
             replacementRegions: nil,

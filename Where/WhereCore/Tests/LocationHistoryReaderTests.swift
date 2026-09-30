@@ -11,13 +11,13 @@ struct LocationHistoryReaderTests {
             FlightTrajectoryFixtures.sample(102, minutes: 2, east: 0),
         ]
         let override = SampleAttributionRevision(
-            id: FlightTrajectoryFixtures.sampleID(201),
+            id: .init(rawValue: FlightTrajectoryFixtures.sampleID(201)),
             sampleID: samples[0].id,
             updatedAt: FlightTrajectoryFixtures.date(minutes: 3),
             replacementRegions: [.newYork],
         )
         let exclusion = SampleAttributionRevision(
-            id: FlightTrajectoryFixtures.sampleID(202),
+            id: .init(rawValue: FlightTrajectoryFixtures.sampleID(202)),
             sampleID: samples[1].id,
             updatedAt: FlightTrajectoryFixtures.date(minutes: 3),
             replacementRegions: [],
@@ -43,7 +43,7 @@ struct LocationHistoryReaderTests {
         // A previously unseen older revision arrives after reset, as with offline sync.
         try await h.store.perform {
             try await h.store.addSampleAttributionRevision(.init(
-                id: FlightTrajectoryFixtures.sampleID(203),
+                id: .init(rawValue: FlightTrajectoryFixtures.sampleID(203)),
                 sampleID: samples[0].id,
                 updatedAt: FlightTrajectoryFixtures.date(minutes: 4),
                 replacementRegions: [],
@@ -77,7 +77,7 @@ struct LocationHistoryReaderTests {
             for sample in samples {
                 try await h.store.add(sample: sample)
                 try await h.store.addSampleAttributionRevision(.init(
-                    id: UUID(),
+                    id: .init(rawValue: UUID()),
                     sampleID: sample.id,
                     updatedAt: FlightTrajectoryFixtures.date(minutes: 10),
                     replacementRegions: [.newYork],

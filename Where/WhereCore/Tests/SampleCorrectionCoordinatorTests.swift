@@ -217,7 +217,7 @@ struct SampleCorrectionCoordinatorTests {
                     ))
                 case .revision:
                     try await h.store.addSampleAttributionRevision(.init(
-                        id: UUID(),
+                        id: .init(rawValue: UUID()),
                         sampleID: FlightTrajectoryFixtures.sampleID(1),
                         updatedAt: FlightTrajectoryFixtures.date(minutes: 149),
                         replacementRegions: [.california],

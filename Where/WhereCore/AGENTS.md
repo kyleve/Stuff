@@ -127,6 +127,8 @@ internal shape.
   Propose at most one edit per sample ID; preserve conflicting duplicate observations
   (`SampleCorrectionAssessmentTests`).
 - **Resolve sample attribution as a generation-scoped immutable revision register.**
+  Keep revision identity typed as `SampleAttributionRevision.ID` through domain APIs.
+  Preserve its bare UUID backup encoding and use its shared timestamp helper for correction and reset writes.
   Order by timestamp then UUID; nil is a reset tombstone, an empty set excludes,
   and a populated set replaces attribution. Retain revisions arriving before
   samples. Reset to GPS clears manual overrides and writes newer sample tombstones

@@ -1,6 +1,7 @@
 import Foundation
 
-/// Writes reset tombstones, joining the caller’s transaction when resetting a day.
+/// Writes nil revisions through the same immutable register as corrections.
+/// A nested day reset joins its caller's transaction so manual and GPS resets commit together.
 enum SampleAttributionReset {
     static func write(sampleIDs: Set<UUID>, store: any WhereStore, now: Date) async throws {
         try await store.performInCurrentGeneration {
@@ -14,11 +15,12 @@ enum SampleAttributionReset {
             // A correction can still be waiting to sync even when no local
             // replacement is active. Every reset advances each requested register.
             for sampleID in sampleIDs {
-                let updatedAt = winners[sampleID].map {
-                    max(now, $0.updatedAt.addingTimeInterval(0.001))
-                } ?? now
+                let updatedAt = SampleAttributionRevision.nextUpdatedAt(
+                    now: now,
+                    after: winners[sampleID],
+                )
                 try await store.addSampleAttributionRevision(.init(
-                    id: UUID(),
+                    id: .init(rawValue: UUID()),
                     sampleID: sampleID,
                     updatedAt: updatedAt,
                     replacementRegions: nil,
