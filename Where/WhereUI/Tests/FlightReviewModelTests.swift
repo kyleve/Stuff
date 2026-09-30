@@ -6,6 +6,37 @@ import Testing
 
 @MainActor
 struct FlightReviewModelTests {
+    @Test func duplicateSyncedPointsDisplayOneRowPerEdit() async throws {
+        let store = try TestStore()
+        let now = FlightReviewTestSupport.date(hour: 18)
+        let report = YearReportModel(
+            services: FlightReviewTestSupport.services(store: store, now: now),
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { now },
+        )
+        try await FlightReviewTestSupport.seed(into: store, includeArrival: true)
+        await report.refresh()
+        await report.rescanForIssues()
+        let review = try #require(report.correctionReviews.first { $0.proposal != nil })
+        let proposal = try #require(review.proposal)
+        let duplicated = GPSCorrectionReview(
+            id: review.id,
+            day: review.day,
+            points: Array(review.points.reversed()) + review.points,
+            state: review.state,
+            flights: review.flights,
+        )
+        let model = FlightReviewModel(review: duplicated, report: report)
+
+        let displayed = model.editedPoints
+        #expect(displayed.count == proposal.edits.count)
+        #expect(Set(displayed.map(\.sample.id)) == Set(proposal.edits.map(\.sampleID)))
+        #expect(displayed.map(\.sample.timestamp) == displayed.map(\.sample.timestamp).sorted())
+        #expect(model.editedPoints == displayed)
+        #expect(model.review?.points == duplicated.points)
+    }
+
     @Test func pendingFlightCannotApply() async throws {
         let store = try TestStore()
         let now = FlightReviewTestSupport.date(hour: 16.5)

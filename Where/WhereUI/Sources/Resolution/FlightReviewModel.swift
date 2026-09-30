@@ -49,8 +49,9 @@ final class FlightReviewModel {
 
     var editedPoints: [SampleCorrectionPoint] {
         guard let review, let proposal = review.proposal else { return [] }
-        let editedIDs = Set(proposal.edits.map(\.sampleID))
-        return review.points.filter { editedIDs.contains($0.sample.id) }
+        // Synced physical rows can share one logical sample and proposal edit.
+        var remainingEditedIDs = Set(proposal.edits.map(\.sampleID))
+        return review.points.filter { remainingEditedIDs.remove($0.sample.id) != nil }
             .sorted { $0.sample.timestamp < $1.sample.timestamp }
     }
 
