@@ -27,6 +27,8 @@ public actor DataIssueScanner {
     }
 
     private var cache: CachedScan?
+    /// Zero identifies the initial epoch; scans compare only equality. Change
+    /// it even when the cache is empty so suspended scans detect invalidation.
     private var invalidationRevision: UInt64 = 0
 
     /// Drops the cache whenever the store reports a committed change. Lets the
@@ -85,6 +87,8 @@ public actor DataIssueScanner {
         ).issues
     }
 
+    /// A cache miss builds a complete replacement publication. Overlapping
+    /// misses may recompute independently; each returns its own complete result.
     public func scan(
         year: Int,
         primaryRegions: [Region],
@@ -160,7 +164,9 @@ public actor DataIssueScanner {
                 let deadlines = reviews.flatMap(\.flights).flatMap { flight in
                     [
                         flight.nextReassessmentAt,
-                        flight.lastObservationAt.addingTimeInterval(24 * 60 * 60),
+                        flight.lastObservationAt.addingTimeInterval(
+                            GPSCorrectionPolicy.Presentation.liveNoticeRetentionInterval,
+                        ),
                     ]
                     .compactMap(\.self).filter { $0 > currentDate }
                 }

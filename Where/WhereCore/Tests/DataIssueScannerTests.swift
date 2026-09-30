@@ -190,6 +190,109 @@ struct DataIssueScannerTests {
         #expect(cached.issues.map(\.id) == repeated.issues.map(\.id))
     }
 
+    @Test(arguments: [false, true])
+    func repeatedScansPreserveOneReadyReviewAndIssue(force: Bool) async throws {
+        let harness = try await SampleCorrectionTestSupport.completedFlight()
+        let scanner = makeReviewScanner(
+            store: harness.store,
+            now: { FlightTrajectoryFixtures.date(minutes: 150) },
+        )
+        let first = try await scanner.scan(
+            year: 2026,
+            primaryRegions: SampleCorrectionTestSupport.attribution.loadedRegions,
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        let proposal = try #require(first.reviews.first?.proposal)
+        try #require(!proposal.edits.isEmpty)
+        #expect(first.issues.map(\.id) == [proposal.reviewID])
+        #expect(first.reviews.map(\.id) == [proposal.reviewID])
+
+        let repeated = try await scanner.scan(
+            year: 2026,
+            primaryRegions: SampleCorrectionTestSupport.attribution.loadedRegions,
+            driftThresholdMeters: 1000,
+            force: force,
+        )
+        #expect((repeated.revision == first.revision) == !force)
+        #expect(repeated.issues.map(\.id) == first.issues.map(\.id))
+        #expect(repeated.reviews == first.reviews)
+        #expect(repeated.nextReassessmentAt == first.nextReassessmentAt)
+        #expect(try await harness.store.allSampleAttributionRevisions().isEmpty)
+        #expect(try await Set(harness.store.allSamples())
+            == Set(FlightTrajectoryFixtures.turningFlight().samples))
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func overlappingColdScansReplaceTheCacheWithoutAccumulatingResults() async throws {
+        let harness = try await SampleCorrectionTestSupport.completedFlight()
+        let (writerStarted, writerStartedContinuation) = AsyncStream.makeStream(of: Void.self)
+        let (release, releaseContinuation) = AsyncStream.makeStream(of: Void.self)
+        let (scanStarted, scanStartedContinuation) = AsyncStream.makeStream(of: Void.self)
+        defer {
+            releaseContinuation.yield()
+            releaseContinuation.finish()
+            writerStartedContinuation.finish()
+            scanStartedContinuation.finish()
+        }
+        let scanner = makeReviewScanner(store: harness.store, now: {
+            scanStartedContinuation.yield()
+            return FlightTrajectoryFixtures.date(minutes: 150)
+        })
+        async let writer: Void = harness.store.perform {
+            writerStartedContinuation.yield()
+            writerStartedContinuation.finish()
+            for await _ in release {
+                break
+            }
+        }
+        for await _ in writerStarted {
+            break
+        }
+        // Both scans capture an empty cache before their reads can pass the
+        // exclusive writer. Releasing it makes both independent misses finish.
+        async let first = scanner.scan(
+            year: 2026,
+            primaryRegions: SampleCorrectionTestSupport.attribution.loadedRegions,
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        async let second = scanner.scan(
+            year: 2026,
+            primaryRegions: SampleCorrectionTestSupport.attribution.loadedRegions,
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        var startedScans = 0
+        for await _ in scanStarted {
+            startedScans += 1
+            if startedScans == 2 { break }
+        }
+        releaseContinuation.yield()
+        releaseContinuation.finish()
+        try await writer
+        let firstResult = try await first
+        let secondResult = try await second
+        let proposal = try #require(firstResult.reviews.first?.proposal)
+        try #require(!proposal.edits.isEmpty)
+        for result in [firstResult, secondResult] {
+            #expect(result.issues.map(\.id) == [proposal.reviewID])
+            #expect(result.reviews.map(\.id) == [proposal.reviewID])
+            #expect(result.reviews == firstResult.reviews)
+            #expect(result.nextReassessmentAt == firstResult.nextReassessmentAt)
+        }
+        let cached = try await scanner.scan(
+            year: 2026,
+            primaryRegions: SampleCorrectionTestSupport.attribution.loadedRegions,
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        #expect([firstResult.revision, secondResult.revision].contains(cached.revision))
+        #expect(cached.issues.map(\.id) == [proposal.reviewID])
+        #expect(cached.reviews == firstResult.reviews)
+        #expect(try await harness.store.allSampleAttributionRevisions().isEmpty)
+    }
+
     @Test func flightFreshnessDeadlineExpiresTheCacheBeforeTheScanInterval() async throws {
         let store = try SwiftDataStore.inMemory()
         let clock = MutableClock(FlightTrajectoryFixtures.date(minutes: 25))
