@@ -4,6 +4,8 @@ import RegionKit
 /// Combines trajectory and local boundary evidence into exact, reversible GPS
 /// edits. Unknown observations and user assertions always retain their support.
 struct SampleCorrectionAssessment {
+    private typealias BoundaryPolicy = GPSCorrectionPolicy.Boundary
+
     let attributor: any RegionAttributing
     let calendar: Calendar
 
@@ -13,10 +15,14 @@ struct SampleCorrectionAssessment {
         driftThresholdMeters: Double,
         now: Date,
     ) -> [GPSCorrectionReview] {
+        // Infer flights from raw observations across midnight. Existing corrections
+        // must not erase the evidence that explains why those samples were edited.
         let flights = FlightTrajectoryAnalyzer().analyze(
             samples: reads.history.rawSamples,
             now: now,
         )
+        // Bucket effective attribution only after trajectory analysis. This keeps
+        // flight inference independent of the calendar used to show the review.
         let byDay = Dictionary(grouping: reads.history.samples) {
             CalendarDay(from: $0.sample.timestamp, in: calendar)
         }
@@ -27,14 +33,18 @@ struct SampleCorrectionAssessment {
             by: \.sample.id,
         ).filter { Set($0.value).count > 1 }.keys)
         let revisionsBySample = Dictionary(grouping: reads.history.revisions, by: \.sampleID)
+        // Produce one review per report day. Adjacent-day observations provide
+        // corroborating neighbors without adding edits outside that reviewed day.
         return byDay.keys.filter { $0.year == reads.report.year }.sorted().compactMap { day in
             let start = day.startOfDay(in: calendar)
             guard let end = calendar.date(byAdding: .day, value: 1, to: start) else {
                 assertionFailure("Cannot derive a calendar day's successor")
                 return nil
             }
-            let contextStart = start.addingTimeInterval(-24 * 60 * 60)
-            let contextEnd = end.addingTimeInterval(24 * 60 * 60)
+            let contextStart = start
+                .addingTimeInterval(-GPSCorrectionPolicy.Review.contextPaddingInterval)
+            let contextEnd = end
+                .addingTimeInterval(GPSCorrectionPolicy.Review.contextPaddingInterval)
             let contextDays = CalendarDay(from: contextStart, in: calendar)
                 .days(through: CalendarDay(from: contextEnd, in: calendar))
             let context = contextDays.flatMap { byDay[$0] ?? [] }.filter {
@@ -72,6 +82,8 @@ struct SampleCorrectionAssessment {
             assertionFailure("Cannot derive the end of a Gregorian day")
             return nil
         }
+        // Keep every flight intersecting the local day, including an unfinished
+        // flight whose last observation extends beyond its last supported leg.
         let dayFlights = flights.filter { flight in
             let last: Date = switch flight.progress {
                 case let .completed(arrivedAt): arrivedAt
@@ -84,6 +96,8 @@ struct SampleCorrectionAssessment {
         let points = entries.map { SampleCorrectionPoint(sample: $0.sample, regions: $0.regions) }
         let reviewID: DataIssueID = dayFlights
             .isEmpty ? .borderDrift(day: day) : .flightDay(day: day)
+        // An unfinished flight can still gain arrival evidence. Publish its status
+        // without proposing edits that would turn uncertain travel into absence.
         if let pending = dayFlights.last(where: {
             switch $0.progress {
                 case .flightLikely, .awaitingArrival: true
@@ -99,9 +113,13 @@ struct SampleCorrectionAssessment {
             )
         }
 
+        // Boundary corroboration stays on one recording device. Samples from a
+        // second device cannot establish where this device was before or after.
         let boundaryEvidence = Dictionary(grouping: context.samples.filter {
             $0.sample.source.isGPS && usable($0.sample)
         }, by: \.sample.recordingDeviceID)
+        // Edit only airborne samples from this day's completed flights. Exclude
+        // all flights from boundary corroboration, including flights on nearby days.
         let airborne = dayFlights.reduce(into: Set<UUID>()) { $0.formUnion($1.airborneSampleIDs) }
         let allAirborne = flights.reduce(into: Set<UUID>()) { $0.formUnion($1.airborneSampleIDs) }
         let manuals = reads.manualDays.filter { $0.day == day }
@@ -117,6 +135,8 @@ struct SampleCorrectionAssessment {
                       !conflictingSampleIDs.contains(entry.sample.id),
                       entry.sample.source.isGPS, !entry.regions.isEmpty else { continue }
                 if airborne.contains(entry.sample.id) {
+                    // Empty attribution removes presence from an airborne GPS sample.
+                    // Raw coordinates and timestamps remain available for future review.
                     edits.append(.init(sampleID: entry.sample.id, replacementRegions: []))
                 } else if let region = boundaryReplacement(
                     for: entry,
@@ -129,11 +149,14 @@ struct SampleCorrectionAssessment {
                 }
             }
         }
+        // Stable edit ordering keeps the reviewed proposal reproducible after sync.
         edits.sort { $0.sampleID.uuidString < $1.sampleID.uuidString }
         let replacement = Dictionary(uniqueKeysWithValues: edits.map { (
             $0.sampleID,
             $0.replacementRegions,
         ) })
+        // Compute the displayed result through the ordinary day aggregator so
+        // manual assertions retain the same precedence as the eventual Apply.
         let corrected = entries.map {
             AttributedLocationSample(
                 sample: $0.sample,
@@ -144,6 +167,8 @@ struct SampleCorrectionAssessment {
             .report(for: day.year, history: corrected, manualDays: manuals)
             .days.first { $0.day == day }?.regions ?? []
 
+        // Capture all decision inputs with the proposal. Apply must reassess them
+        // inside its store transaction before writing these exact sample edits.
         if !edits.isEmpty {
             let proposal = SampleCorrectionProposal(
                 reviewID: reviewID,
@@ -169,6 +194,8 @@ struct SampleCorrectionAssessment {
                 flights: dayFlights,
             )
         }
+        // A landed flight without GPS edits remains an informational review.
+        // A day without flight evidence or edits needs no review.
         guard let flight = dayFlights.last else { return nil }
         return GPSCorrectionReview(
             id: reviewID,
@@ -187,28 +214,38 @@ struct SampleCorrectionAssessment {
         threshold: Double,
     ) -> Region? {
         let sample = entry.sample
+        // Correct only an unresolved coordinate outside the tracked polygons.
+        // Valid regional attribution and supported airborne observations remain intact.
         guard entry.regions.contains(.other),
               usable(sample),
               attributor.region(at: sample.coordinate) == .other,
               !airborne.contains(sample.id) else { return nil }
+        // Find the closest independent observations on each side. Near-simultaneous
+        // callbacks cannot count as separate evidence of a stable local visit.
         let beforeIndex = insertionIndex(
             in: neighbors,
-            at: sample.timestamp.addingTimeInterval(-1),
+            at: sample.timestamp.addingTimeInterval(-BoundaryPolicy.neighborExclusionInterval),
             afterEqual: true,
         ) - 1
         let afterIndex = insertionIndex(
             in: neighbors,
-            at: sample.timestamp.addingTimeInterval(1),
+            at: sample.timestamp.addingTimeInterval(BoundaryPolicy.neighborExclusionInterval),
             afterEqual: false,
         )
         guard beforeIndex >= 0, afterIndex < neighbors.count else { return nil }
         let before = neighbors[beforeIndex]
         let after = neighbors[afterIndex]
-        guard sample.timestamp.timeIntervalSince(before.sample.timestamp) <= 10 * 60,
-              after.sample.timestamp.timeIntervalSince(sample.timestamp) <= 10 * 60,
-              !airborne.contains(before.sample.id), !airborne.contains(after.sample.id),
-              localMovement(before.sample, sample),
-              localMovement(sample, after.sample) else { return nil }
+        // Ten minutes bounds each side of the visit. Longer gaps or fast motion
+        // can hide genuine travel, so those samples must remain uncorrected.
+        guard sample.timestamp.timeIntervalSince(before.sample.timestamp)
+            <= BoundaryPolicy.maximumNeighborInterval,
+            after.sample.timestamp.timeIntervalSince(sample.timestamp)
+            <= BoundaryPolicy.maximumNeighborInterval,
+            !airborne.contains(before.sample.id), !airborne.contains(after.sample.id),
+            localMovement(before.sample, sample),
+            localMovement(sample, after.sample) else { return nil }
+        // Both raw coordinates and effective attribution must support the same
+        // primary region. The user's drift threshold is the final distance limit.
         let region = attributor.region(at: before.sample.coordinate)
         guard region != .other,
               primaryRegions.contains(region),
@@ -243,9 +280,12 @@ struct SampleCorrectionAssessment {
     private func localMovement(_ before: LocationSample, _ after: LocationSample) -> Bool {
         let seconds = after.timestamp.timeIntervalSince(before.timestamp)
         guard seconds > 0 else { return false }
+        // Use the upper distance bound, including both accuracy circles. Boundary
+        // cleanup requires local movement even under the least favorable GPS error.
         let upperDistance = before.coordinate.distance(to: after.coordinate)
             + before.horizontalAccuracy + after.horizontalAccuracy
-        return upperDistance / seconds * 3.6 < 150
+        return GPSCorrectionPolicy.kilometersPerHour(fromMetersPerSecond: upperDistance / seconds)
+            < BoundaryPolicy.maximumLocalSpeedKMH
     }
 
     private func usable(_ sample: LocationSample) -> Bool {
@@ -253,6 +293,8 @@ struct SampleCorrectionAssessment {
             && sample.coordinate.latitude.isFinite && sample.coordinate.longitude.isFinite
             && (-90 ... 90).contains(sample.coordinate.latitude)
             && (-180 ... 180).contains(sample.coordinate.longitude)
-            && sample.horizontalAccuracy.isFinite && (0 ... 250).contains(sample.horizontalAccuracy)
+            && sample.horizontalAccuracy.isFinite
+            && (0 ... GPSCorrectionPolicy.maximumHorizontalAccuracyMeters)
+            .contains(sample.horizontalAccuracy)
     }
 }

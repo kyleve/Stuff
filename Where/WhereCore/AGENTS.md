@@ -117,6 +117,8 @@ internal shape.
   Existing exceptions are `setPrimaryRegions` and the local summary fan-out,
   tracked in [`../TODOs.md`](../TODOs.md). Do not copy those omissions.
 - **Assess flight trajectories before calendar bucketing and per recording device.**
+  Name shared inference limits in `GPSCorrectionPolicy`; keep flight-only types
+  in `DataResolution/Flights` and explain the main evidence decisions in the algorithms.
   Keep legacy samples in their own track. Preserve unknown observations; silence,
   midnight, and restart never establish arrival. Keep later flight observations out
   of older pending assessments (`FlightTrajectoryAnalyzerTests`).

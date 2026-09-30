@@ -168,12 +168,20 @@ one it belongs to rather than to a god-object:
 - **`FlightTrajectoryAnalyzer`** — a pure, per-device GPS analysis before day
   bucketing, with 24 hours of report-boundary context. It uses independent fixes
   at least 60 seconds apart, positional uncertainty, sustained jet-speed progress,
-  turning departure/approach segments, and an observed ground dwell. The initial
-  policy is defined in its source: three anchors spanning three minutes at
-  450–1,500 km/h, then three ground anchors spanning ten minutes within 2 km and
-  at most 50 km/h. Motion measurements can corroborate speed and contradict ground
+  turning departure/approach segments, and an observed ground dwell. Flight-only
+  types live in [`DataResolution/Flights`](Sources/DataResolution/Flights).
+  [`GPSCorrectionPolicy`](Sources/DataResolution/GPSCorrectionPolicy.swift) names
+  the shared inference limits: three anchors spanning three minutes, with each
+  leg's uncertainty-adjusted average speed at 450–1,500 km/h. Arrival requires
+  three ground anchors spanning ten minutes within 2 km and at most 50 km/h.
+  A qualifying dwell confirms arrival immediately. The 30-minute freshness limit
+  only changes live-notice presentation. Motion measurements can corroborate speed and contradict ground
   dwell; altitude is context only. Missing or stale updates never establish
   arrival. Slower aircraft and sparse recordings can remain uncertain.
+- **`SampleCorrectionAssessment`** — shares the raw-evidence assessment for flights
+  and border drift. Its named policy includes 24-hour report context and local
+  boundary brackets within ten minutes on each side. These conservative limits
+  leave longer gaps uncorrected because they can hide real travel.
 - **`SampleCorrectionCoordinator`** — reviews exact GPS edits and reassesses them
   in the guarded store transaction before Apply. Any changed evidence refreshes
   the review instead of expanding the reviewed sample set. Supported airborne

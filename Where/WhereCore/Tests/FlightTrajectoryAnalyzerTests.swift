@@ -47,6 +47,73 @@ struct FlightTrajectoryAnalyzerTests {
         #expect(awaiting.progress == .awaitingArrival)
     }
 
+    @Test(arguments: [0, 1, 2])
+    func tracksWithoutThreeAnchorsRemainUnassessed(sampleCount: Int) {
+        let samples = (0 ..< sampleCount).map { index in
+            Fixtures.sample(index + 1, minutes: Double(index) * 5, east: Double(index) * 75)
+        }
+        #expect(analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 20)).isEmpty)
+    }
+
+    @Test(arguments: [0.0, 0.5, 20.0])
+    func denseCallbacksCannotSupplyIndependentCruiseAnchors(intervalSeconds: Double) {
+        let samples = (0 ..< 3).map { index in
+            Fixtures.sample(
+                index + 1,
+                minutes: Double(index) * intervalSeconds / 60,
+                east: Double(index) * 75,
+            )
+        }
+        #expect(analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 20)).isEmpty)
+    }
+
+    @Test func malformedObservationsPreserveTheValidAssessment() throws {
+        let trace = Fixtures.turningFlight()
+        let invalid = [
+            Fixtures.sample(101, minutes: .nan, east: 120),
+            Fixtures.sample(102, minutes: .infinity, east: 120),
+            Fixtures.sample(103, minutes: 25, east: .nan),
+            Fixtures.sample(104, minutes: 25, east: .infinity),
+            Fixtures.sample(105, minutes: 25, east: 120, north: .nan),
+            Fixtures.sample(106, minutes: 25, east: 20100),
+            Fixtures.sample(107, minutes: 25, east: 120, north: 10100),
+            Fixtures.sample(108, minutes: 25, east: 120, accuracy: .nan),
+            Fixtures.sample(109, minutes: 25, east: 120, accuracy: .infinity),
+            Fixtures.sample(110, minutes: 25, east: 120, accuracy: -1),
+            Fixtures.sample(111, minutes: 25, east: 120, accuracy: 251),
+        ]
+        let expected = analyzer.analyze(samples: trace.samples, now: trace.readyAt)
+        let actual = analyzer.analyze(samples: trace.samples + invalid, now: trace.readyAt)
+        let flight = try #require(actual.first)
+        #expect(actual == expected)
+        let invalidIDs = Set(invalid.map(\.id))
+        #expect(flight.airborneSampleIDs.isDisjoint(with: invalidIDs))
+        #expect(flight.groundSampleIDs.isDisjoint(with: invalidIDs))
+        #expect(analyzer.analyze(samples: invalid, now: trace.readyAt).isEmpty)
+    }
+
+    @Test func arrivalCompletesAtDwellConfirmationBeforeFlightFreshnessExpires() throws {
+        let samples = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 5, east: 75),
+            Fixtures.sample(3, minutes: 10, east: 150),
+            Fixtures.sample(4, minutes: 15, east: 150),
+            Fixtures.sample(5, minutes: 20, east: 150),
+        ]
+        let beforeConfirmation = try #require(analyzer.analyze(
+            samples: samples,
+            now: Fixtures.date(minutes: 20).addingTimeInterval(-1),
+        ).first)
+        #expect(beforeConfirmation.progress == .awaitingArrival)
+        let confirmed = try #require(analyzer.analyze(
+            samples: samples,
+            now: Fixtures.date(minutes: 20),
+        ).first)
+        #expect(confirmed.progress == .completed(arrivedAt: Fixtures.date(minutes: 10)))
+        #expect(confirmed.lastObservationAt == Fixtures.date(minutes: 20))
+        #expect(confirmed.nextReassessmentAt == nil)
+    }
+
     @Test func recognizesTheSyntheticCruiseAndTurningApproachAfterDwell() throws {
         let trace = Fixtures.turningFlight()
         let assessments = analyzer.analyze(samples: trace.samples, now: trace.readyAt)
@@ -272,6 +339,16 @@ struct FlightTrajectoryAnalyzerTests {
             Fixtures.sample(3, minutes: 10, east: 60),
             Fixtures.sample(4, minutes: 15, east: 90),
         ]
+        #expect(analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 20)).isEmpty)
+    }
+
+    @Test func highAverageSpeedCannotCompensateForASlowCruiseLeg() {
+        let samples = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 5, east: 75),
+            Fixtures.sample(3, minutes: 10, east: 105),
+        ]
+        // The run averages about 630 km/h, but its second leg is only 360 km/h.
         #expect(analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 20)).isEmpty)
     }
 
