@@ -283,9 +283,7 @@ public struct RootView: View {
             .onChange(of: scenePhase) { _, newPhase in
                 guard newPhase == .active else { return }
                 Task {
-                    guard await model.refreshCompatibility() else { return }
-                    await launcher.enterForeground()
-                    await model.session?.appBecameActive()
+                    await WhereLaunch.enterForeground(launcher, model: model)
                 }
             }
     }

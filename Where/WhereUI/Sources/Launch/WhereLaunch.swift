@@ -95,6 +95,17 @@ public enum WhereLaunch {
         system.startDefaultAmbientSources()
     }
 
+    /// Scene activation must promote a headless runner even while compatibility waits for Retry.
+    static func enterForeground(
+        _ launcher: LifecycleRunner<WhereSession>,
+        model: WhereModel,
+    ) async {
+        let allowsData = await model.refreshCompatibility()
+        await launcher.enterForeground()
+        guard allowsData else { return }
+        await model.session?.appBecameActive()
+    }
+
     /// Build the runner for `model`, launching for `reason`.
     ///
     /// `initializePrerequisites` runs the synchronous, must-exist-now launch
