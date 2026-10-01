@@ -314,6 +314,7 @@ public struct WhereServices: Sendable {
             recording: recording,
             resolution: resolution,
             outputs: preparedCompatibility.outputs,
+            widgets: widgets,
         )
         self.journal = journal
         self.backup = backup

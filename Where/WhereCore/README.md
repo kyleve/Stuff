@@ -240,7 +240,9 @@ App Store, or combined links. The host currently selects `.noBuildsPublished`.
   badge), `DailySummaryReconciler` (year-to-date recap),
   `DataIssueAlertReconciler` ("issues to resolve").
 - **`WidgetSnapshotPublisher`** — republishes the App Group snapshot the widgets
-  read, with a freshness policy for the independently aggregated data.
+  read, with a freshness policy for the independently aggregated data. Compatibility
+  suspension clears freshness so recovery republishes immediately. An earlier publication
+  cannot restore the cleared cache.
 - **`WidgetPresentationPublisher`** — atomically writes the device-local `WhereTheme`
   to its own App Group file and reloads WidgetKit without reading or rebuilding widget data.
 - **`BackupCoordinator`** — ZIP export/import via `ZIPFoundation`. Export pins

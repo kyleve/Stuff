@@ -73,15 +73,25 @@ enum CompatibilityOutputTestSupport {
 
     actor Widgets: WidgetTimelineRefreshing {
         private var publicationFails = false
+        private var nextPublicationGate: Gate?
+
+        func holdNextPublication(_ gate: Gate) {
+            nextPublicationGate = gate
+        }
+
         func failPublication() {
             publicationFails = true
         }
 
         private(set) var snapshots: [WidgetSnapshot] = []
         private(set) var compatibility: [WidgetCompatibilitySnapshot] = []
-        func publish(_ snapshot: WidgetSnapshot) throws {
+        func publish(_ snapshot: WidgetSnapshot) async throws {
             struct PublicationFailure: Error {}
             if publicationFails { throw PublicationFailure() }
+            if let gate = nextPublicationGate {
+                nextPublicationGate = nil
+                await gate.suspend()
+            }
             snapshots.append(snapshot)
         }
 

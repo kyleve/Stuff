@@ -24,6 +24,7 @@ public actor WidgetSnapshotPublisher {
     private let maxAge: TimeInterval
 
     private var lastPublished: PublishedWidgetSnapshot?
+    private var cacheRevision = UUID()
 
     private struct PublishedWidgetSnapshot {
         let snapshot: WidgetSnapshot
@@ -55,6 +56,12 @@ public actor WidgetSnapshotPublisher {
         self.maxAge = maxAge
     }
 
+    /// Withdrawn outputs must be rebuilt after recovery, including when an older publish resumes.
+    func invalidate() {
+        cacheRevision = UUID()
+        lastPublished = nil
+    }
+
     /// Recompute and publish the snapshot from whatever the store currently
     /// holds, without needing a mutation first, but skip the rebuild when a
     /// current-day snapshot was published recently. A new day, a snapshot older
@@ -77,12 +84,14 @@ public actor WidgetSnapshotPublisher {
     /// can change what a widget shows. Failed publication is logged and retried
     /// on the next refresh. Compatibility failures withdraw cached content.
     func publish() async {
+        let revision = cacheRevision
         guard await hasDataAccess() else { return }
         await Self.logger.measure(.publish, budget: .seconds(2)) {
             do {
                 let snapshot = try await widgetReader.snapshot(asOf: now())
                 try await widgetRefresher.publish(snapshot)
                 guard await hasDataAccess() else { return }
+                guard revision == cacheRevision else { return }
                 lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: now())
                 Self.logger {
                     .published(
@@ -109,13 +118,14 @@ public actor WidgetSnapshotPublisher {
                 do {
                     try await widgetRefresher.publish(snapshot)
                     guard await hasDataAccess() else { return }
+                    guard revision == cacheRevision else { return }
                     lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: date)
                 } catch {
                     Self.logger { .buildFailed(description: error.localizedDescription) }
                 }
                 Self.logger { .buildFailed(description: error.localizedDescription) }
             } catch {
-                lastPublished = nil
+                invalidate()
                 Self.logger { .buildFailed(description: error.localizedDescription) }
             }
         }
@@ -156,7 +166,7 @@ public actor WidgetSnapshotPublisher {
             try await widgetReader.requireDataAccess()
             return true
         } catch {
-            lastPublished = nil
+            invalidate()
             let requirement: DataCompatibilityVersion? = if case let DataCompatibilityError
                 .updateRequired(status) = error
             {

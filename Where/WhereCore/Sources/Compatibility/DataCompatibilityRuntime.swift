@@ -5,11 +5,13 @@ public struct DataCompatibilityRuntime: Sendable {
     let recording: DeviceRecordingController
     let resolution: DataIssueScanner
     let outputs: DataCompatibilityOutputs
+    let widgets: WidgetSnapshotPublisher
 
     public func suspend() async {
         async let paused: Void = recording.suspendForCompatibility()
         await resolution.invalidate()
         await outputs.withdraw()
         await paused
+        await widgets.invalidate()
     }
 }

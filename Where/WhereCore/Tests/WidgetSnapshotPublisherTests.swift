@@ -2,7 +2,7 @@ import Foundation
 import RegionKit
 import SwiftData
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 /// Covers the freshness gate (`refreshIfStale`) and the hot-path change
 /// detection (`publishAfterIngest`) the controller delegates every widget
@@ -112,6 +112,28 @@ struct WidgetSnapshotPublisherTests {
         // Same day, within maxAge → no second publish.
         await publisher.refreshIfStale()
         #expect(await refresher.publishCount == 1)
+    }
+
+    @Test func invalidationPreventsAnInFlightPublicationFromRestoringFreshness() async throws {
+        let world = try CompatibilityOutputTestSupport.makeWorld()
+        let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
+        let services = WhereServices(
+            store: world.store,
+            compatibilityServices: world.services,
+            locationSource: ScriptedLocationSource(),
+            now: { now },
+        )
+        let gate = CompatibilityOutputTestSupport.Gate()
+        await world.widgets.holdNextPublication(gate)
+        let publication = Task { await services.widgets.publish() }
+        await gate.waitUntilEntered()
+        await services.widgets.invalidate()
+        gate.resume()
+        await publication.value
+
+        await services.widgets.refreshIfStale()
+
+        #expect(await world.widgets.snapshots.count == 2)
     }
 
     @Test func refreshIfStaleRepublishesOncePastTheFreshnessWindow() async throws {
