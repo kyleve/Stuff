@@ -31,7 +31,8 @@ struct TodayWidget: Widget {
                 // carries so `\.regionStyles` renders the user's picks.
                 .whereBroadwayRoot(
                     theme: entry.theme,
-                    regionStyles: RegionStyleResolver(appearances: entry.snapshot.appearances),
+                    regionStyles: RegionStyleResolver(appearances: entry.snapshot?
+                        .appearances ?? [:]),
                 )
         }
         .configurationDisplayName(String(localized: .widgetGalleryTodayName))
@@ -46,27 +47,31 @@ private struct TodayWidgetContent: View {
     let entry: WhereWidgetEntry
 
     var body: some View {
-        switch family {
-            case .accessoryInline:
-                // Inline draws no container; the background modifier is
-                // still required for the widget to render on iOS 17+.
-                TodayInlineAccessoryView(snapshot: entry.snapshot)
-                    .containerBackground(.clear, for: .widget)
-            case .accessoryCircular:
-                // `TodayCircularAccessoryView` supplies its own
-                // `AccessoryWidgetBackground`.
-                TodayCircularAccessoryView(snapshot: entry.snapshot)
-                    .containerBackground(.clear, for: .widget)
-            case .systemSmall:
-                TodayWidgetView(snapshot: entry.snapshot)
-                    .containerBackground(.background, for: .widget)
-            case .systemMedium, .systemLarge, .systemExtraLarge, .systemExtraLargePortrait,
-                 .accessoryRectangular, .accessoryCorner:
-                TodayWidgetView(snapshot: entry.snapshot)
-                    .containerBackground(.background, for: .widget)
-            @unknown default:
-                TodayWidgetView(snapshot: entry.snapshot)
-                    .containerBackground(.background, for: .widget)
+        if let snapshot = entry.snapshot {
+            switch family {
+                case .accessoryInline:
+                    // Inline draws no container; the background modifier is
+                    // still required for the widget to render on iOS 17+.
+                    TodayInlineAccessoryView(snapshot: snapshot)
+                        .containerBackground(.clear, for: .widget)
+                case .accessoryCircular:
+                    // `TodayCircularAccessoryView` supplies its own
+                    // `AccessoryWidgetBackground`.
+                    TodayCircularAccessoryView(snapshot: snapshot)
+                        .containerBackground(.clear, for: .widget)
+                case .systemSmall:
+                    TodayWidgetView(snapshot: snapshot)
+                        .containerBackground(.background, for: .widget)
+                case .systemMedium, .systemLarge, .systemExtraLarge, .systemExtraLargePortrait,
+                     .accessoryRectangular, .accessoryCorner:
+                    TodayWidgetView(snapshot: snapshot)
+                        .containerBackground(.background, for: .widget)
+                @unknown default:
+                    TodayWidgetView(snapshot: snapshot)
+                        .containerBackground(.background, for: .widget)
+            }
+        } else {
+            WidgetUnavailableView().containerBackground(.background, for: .widget)
         }
     }
 }

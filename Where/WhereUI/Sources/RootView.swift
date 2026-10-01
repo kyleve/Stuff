@@ -144,53 +144,61 @@ public struct RootView: View {
 
     private func rootContent(stylesheet: WhereStylesheet) -> some View {
         ZStack {
-            LifecycleContainer(
-                launcher,
-                transition: stylesheet.launch.reveal.transition,
-                animation: stylesheet.launch.revealAnimation,
-                minimumSplashDuration: stylesheet.launch.minimumSplashDuration,
-                isPresentationVisible: isLifecyclePresentationVisible,
-                splash: { _ in
-                    if model.isBuildingLaunchDemo {
-                        LaunchSplashView(caption: .work(
-                            title: String(localized: .demoBuildingTitle),
-                            subtitle: String(localized: .demoBuildingSubtitle),
-                        ))
-                    } else {
-                        LaunchSplashView()
+            Group {
+                if let state = model.compatibility.state, !state.allowsData, state != .checking {
+                    DataCompatibilityView(state: state, updates: model.updateAvailability) {
+                        _ = await model.refreshCompatibility()
                     }
-                },
-                failure: { WhereLifecycleFailureView(failure: $0) },
-                gates: {
-                    // The gate precedes every world-building step, so there is
-                    // no session (and no open store) behind it yet — onboarding
-                    // builds the scope it commits regions with, through the model.
-                    GateView(for: OnboardingGate.self) { handle, _ in
-                        OnboardingView(
-                            gate: handle,
-                            installationContext: model.installationRecordingContext,
-                            startsAtRecordingChoice: model.hasOnboarded,
-                            initialTheme: model.theme,
-                        )
-                    }
-                },
-            ) { session in
-                // `.ready` carries the session the launch produced — the app
-                // surface cannot render without it. `MainTabs` owns the
-                // scene-scoped `YearReportModel` and gets a fresh one whenever
-                // a reset rebuilds the session. Keyed on the session's
-                // monotonic `id` (never reused within the process) rather than
-                // its address, so a rebuilt session can't collide with a freed
-                // one and skip the rebuild.
-                if session.isCurrentDeviceRemoved {
-                    RemovedDeviceView(model: model, session: session)
                 } else {
-                    MainTabs(
-                        session: session,
-                        initialDetails: model.initialYearDetails,
-                        selectedYear: model.initialSelectedYear,
-                    )
-                    .id(session.id)
+                    LifecycleContainer(
+                        launcher,
+                        transition: stylesheet.launch.reveal.transition,
+                        animation: stylesheet.launch.revealAnimation,
+                        minimumSplashDuration: stylesheet.launch.minimumSplashDuration,
+                        isPresentationVisible: isLifecyclePresentationVisible,
+                        splash: { _ in
+                            if model.isBuildingLaunchDemo {
+                                LaunchSplashView(caption: .work(
+                                    title: String(localized: .demoBuildingTitle),
+                                    subtitle: String(localized: .demoBuildingSubtitle),
+                                ))
+                            } else {
+                                LaunchSplashView()
+                            }
+                        },
+                        failure: { WhereLifecycleFailureView(failure: $0) },
+                        gates: {
+                            // The gate precedes every world-building step, so there is
+                            // no session (and no open store) behind it yet — onboarding
+                            // builds the scope it commits regions with, through the model.
+                            GateView(for: OnboardingGate.self) { handle, _ in
+                                OnboardingView(
+                                    gate: handle,
+                                    installationContext: model.installationRecordingContext,
+                                    startsAtRecordingChoice: model.hasOnboarded,
+                                    initialTheme: model.theme,
+                                )
+                            }
+                        },
+                    ) { session in
+                        // `.ready` carries the session the launch produced — the app
+                        // surface cannot render without it. `MainTabs` owns the
+                        // scene-scoped `YearReportModel` and gets a fresh one whenever
+                        // a reset rebuilds the session. Keyed on the session's
+                        // monotonic `id` (never reused within the process) rather than
+                        // its address, so a rebuilt session can't collide with a freed
+                        // one and skip the rebuild.
+                        if session.isCurrentDeviceRemoved {
+                            RemovedDeviceView(model: model, session: session)
+                        } else {
+                            MainTabs(
+                                session: session,
+                                initialDetails: model.initialYearDetails,
+                                selectedYear: model.initialSelectedYear,
+                            )
+                            .id(session.id)
+                        }
+                    }
                 }
             }
             // Extend the app content's safe area by the floating HUD's footprint so
@@ -275,6 +283,7 @@ public struct RootView: View {
             .onChange(of: scenePhase) { _, newPhase in
                 guard newPhase == .active else { return }
                 Task {
+                    guard await model.refreshCompatibility() else { return }
                     await launcher.enterForeground()
                     await model.session?.appBecameActive()
                 }

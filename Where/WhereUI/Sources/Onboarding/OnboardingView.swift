@@ -95,6 +95,15 @@ public struct OnboardingView: View {
             .ignoresSafeArea(),
         )
         .animation(stylesheet.motion.reducedReveal, value: flow.phase)
+        .sheet(isPresented: $flow.isShowingCompatibilityReview) {
+            if let review = flow.compatibilityReview {
+                DataCompatibilityActivationView(
+                    review: review,
+                    wait: flow.waitForDeviceUpdates,
+                    continueAnyway: { flow.continueAfterCompatibilityReview(using: model) },
+                )
+            }
+        }
         .onDisappear { flow.discardPendingRestore() }
         // Log View Mode: reveal an inspect badge for onboarding events (region
         // commit / backup restore). A no-op in release.

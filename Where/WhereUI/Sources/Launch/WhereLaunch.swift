@@ -229,6 +229,9 @@ public protocol WhereScopeAssembling {
     /// **one** store open.
     func makeServices() async throws -> WhereServices
 
+    /// Retain the shared compatibility resources before exposing any domain services.
+    func prepareCompatibility() async throws -> DataCompatibilityServices
+
     /// Open and retain the real store while onboarding remains dormant, then read synced device
     /// status without constructing services or activating location/App Intents.
     func discoverRecordingDevices() async throws -> [RecordingDevice]
@@ -259,7 +262,19 @@ public final class WhereBootstrap: WhereScopeAssembling {
     private let widgetRefresher: any WidgetTimelineRefreshing
     private let locationOutbox: any LocationOutbox
     private var locationSource: CoreLocationSource?
-    private var preparedStore: SwiftDataStore?
+    private struct PendingStore {
+        let token: UUID
+        let task: Task<SwiftDataStore, Error>
+    }
+
+    private enum StorePreparation {
+        case unopened
+        case opening(PendingStore)
+        case ready(SwiftDataStore)
+    }
+
+    private var storePreparation = StorePreparation.unopened
+    private var preparedCompatibility: DataCompatibilityServices?
 
     public init(
         installationContextStore: any InstallationRecordingContextStoring,
@@ -297,6 +312,8 @@ public final class WhereBootstrap: WhereScopeAssembling {
     /// `.failed`, so without this line the failure would leave no trace
     /// anywhere.
     public func makeServices() async throws -> WhereServices {
+        let compatibility = try await prepareCompatibility()
+        try await compatibility.coordinator.requireAccess()
         let source = locationSource ?? CoreLocationSource()
         locationSource = nil
         do {
@@ -310,14 +327,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
                 store: store,
                 locationSource: source,
                 installationContext: installationContext,
-                // The real world's seams, named here because this is the only
-                // place that wants them: the demo scope builds the same stack
-                // out of no-ops, and every test and preview gets no-ops by
-                // default.
-                reminderScheduler: UserNotificationReminderScheduler(),
-                summaryScheduler: UserNotificationDailySummaryScheduler(),
-                issueAlertScheduler: UserNotificationDataIssueAlertScheduler(),
-                widgetRefresher: widgetRefresher,
+                compatibilityServices: compatibility,
                 locationOutbox: locationOutbox,
                 importRecoveryPersistence: installationContextStore,
             )
@@ -341,14 +351,80 @@ public final class WhereBootstrap: WhereScopeAssembling {
         return try await store.recordingDevices()
     }
 
+    public func prepareCompatibility() async throws -> DataCompatibilityServices {
+        if let preparedCompatibility { return preparedCompatibility }
+        let store: SwiftDataStore
+        do {
+            store = try await prepareStore()
+        } catch {
+            // No coordinator can be created when opening the store fails. Withdraw the
+            // previous process's outputs before showing the retryable verification failure.
+            do {
+                try await widgetRefresher.publishCompatibility(.init(requiredVersion: nil))
+            } catch {
+                Self.logger(attachments: [.error(error, name: "widget-withdrawal-error")]) {
+                    .servicesAssemblyFailed(description: error.localizedDescription)
+                }
+            }
+            async let reminders: Void = UserNotificationReminderScheduler().reconcile(
+                badgeCount: 0,
+                scheduleDays: [],
+                reminderTime: .defaultEvening,
+                enabled: false,
+            )
+            async let summary: Void = UserNotificationDailySummaryScheduler().reconcile(
+                enabled: false,
+                time: .defaultMorning,
+                body: "",
+            )
+            async let issues: Void = UserNotificationDataIssueAlertScheduler().reconcile(
+                enabled: false,
+                time: .defaultEvening,
+                body: "",
+            )
+            _ = await (reminders, summary, issues)
+            throw DataCompatibilityError.verificationFailed(description: error.localizedDescription)
+        }
+        if let preparedCompatibility { return preparedCompatibility }
+        let value = DataCompatibilityServices(
+            store: store,
+            currentDeviceID: installationContextStore.onboardingContext.currentDevice.id,
+            reminderScheduler: UserNotificationReminderScheduler(),
+            summaryScheduler: UserNotificationDailySummaryScheduler(),
+            issueAlertScheduler: UserNotificationDataIssueAlertScheduler(),
+            widgetRefresher: widgetRefresher,
+        )
+        preparedCompatibility = value
+        return value
+    }
+
     private func prepareStore() async throws -> SwiftDataStore {
-        if let preparedStore { return preparedStore }
-        let storeStorage = storeStorage
-        let store = try await Task.detached(priority: .userInitiated) {
-            try SwiftDataStore.make(storage: storeStorage)
-        }.value
-        preparedStore = store
-        return store
+        let pending: PendingStore
+        switch storePreparation {
+            case let .ready(store): return store
+            case let .opening(value): pending = value
+            case .unopened:
+                let storage = storeStorage
+                pending = PendingStore(
+                    token: UUID(),
+                    task: Task.detached(priority: .userInitiated) {
+                        try SwiftDataStore.make(storage: storage)
+                    },
+                )
+                storePreparation = .opening(pending)
+        }
+        do {
+            let store = try await pending.task.value
+            if case let .opening(current) = storePreparation, current.token == pending.token {
+                storePreparation = .ready(store)
+            }
+            return store
+        } catch {
+            if case let .opening(current) = storePreparation, current.token == pending.token {
+                storePreparation = .unopened
+            }
+            throw error
+        }
     }
 
     /// Open the app's durable log store: `Periscope.store` on disk, plus this

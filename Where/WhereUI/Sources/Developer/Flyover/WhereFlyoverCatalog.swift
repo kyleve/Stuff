@@ -62,6 +62,8 @@
             [
                 LaunchSplashView.flyoverData,
                 WhereLifecycleFailureView.flyoverData,
+                DataCompatibilityView.flyoverData,
+                DataCompatibilityActivationView.flyoverData,
                 OnboardingView.flyoverData,
                 RegionPickerView.flyoverData,
                 RegionCustomizeView.flyoverData,
@@ -123,6 +125,7 @@
         private static var widgetRegistrations: [WhereFlyoverData] {
             [
                 TodayWidgetView.flyoverData,
+                WidgetUnavailableView.flyoverData,
                 TodayInlineAccessoryView.flyoverData,
                 TodayCircularAccessoryView.flyoverData,
                 YearTotalsWidgetView.flyoverData,

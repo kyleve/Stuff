@@ -36,6 +36,25 @@ final class OnboardingFlowModel {
     var intro = OnboardingIntroState()
     var showImporter = false
     var showRestoreStrategyDialog = false
+    var compatibilityReview: DataCompatibilityActivationReview?
+
+    var isShowingCompatibilityReview: Bool {
+        get { compatibilityReview != nil }
+        set { if !newValue { waitForDeviceUpdates() } }
+    }
+
+    func waitForDeviceUpdates() {
+        compatibilityReview = nil
+        isFinishing = false
+        intro.activity = .browsing
+        phase = .location
+    }
+
+    func continueAfterCompatibilityReview(using model: WhereModel) {
+        guard let review = compatibilityReview else { return }
+        compatibilityReview = nil
+        finish(using: model, compatibilityApproval: .continueAnyway(review))
+    }
 
     private static let demoBuildDisplayTime = Duration.seconds(2)
     private static let logger = WhereLog.session(OnboardingViewLog.self)
@@ -94,6 +113,13 @@ final class OnboardingFlowModel {
     }
 
     func finish(using model: WhereModel) {
+        finish(using: model, compatibilityApproval: .readyDevicesOnly)
+    }
+
+    private func finish(
+        using model: WhereModel,
+        compatibilityApproval: DataCompatibilityActivationApproval,
+    ) {
         guard !isFinishing else { return }
         let readyImport = restoreSelection.readyImport
         if restoreSelection.selectedURL != nil {
@@ -134,7 +160,12 @@ final class OnboardingFlowModel {
             }
 
             if let readyImport {
-                guard await importBackup(readyImport, into: scope, using: model) else { return }
+                guard await importBackup(
+                    readyImport,
+                    into: scope,
+                    using: model,
+                    approval: compatibilityApproval,
+                ) else { return }
             }
 
             do {
@@ -223,12 +254,13 @@ final class OnboardingFlowModel {
         _ readyImport: OnboardingRestoreSelection.ReadyImport,
         into scope: WhereScope,
         using model: WhereModel,
+        approval: DataCompatibilityActivationApproval,
     ) async -> Bool {
         do {
             let summary = try await scope.services.backup.importBackup(
                 from: readyImport.url,
                 strategy: readyImport.strategy,
-                compatibilityApproval: .readyDevicesOnly,
+                compatibilityApproval: approval,
             ) { _ in }
             restoreSelection.markCommitted(summary)
             model.completeOnboarding()
@@ -242,6 +274,12 @@ final class OnboardingFlowModel {
                 return false
             }
             return true
+        } catch let DataCompatibilityError.confirmationRequired(review) {
+            compatibilityReview = review
+            isFinishing = false
+            intro.activity = .browsing
+            phase = .location
+            return false
         } catch let error as BackupCoordinator.CommittedImportCleanupError {
             restoreSelection.markCommitted(error.summary)
             model.completeOnboarding()

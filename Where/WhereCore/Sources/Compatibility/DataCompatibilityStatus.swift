@@ -26,6 +26,21 @@ public struct DataCompatibilityStatus: Sendable, Hashable {
 public enum DataCompatibilityError: Error, Sendable, Equatable {
     case updateRequired(DataCompatibilityStatus)
     case invalidMetadata
+    case verificationFailed(description: String)
     case metadataTransactionCannotWriteDomainData
     case confirmationRequired(DataCompatibilityActivationReview)
+}
+
+extension DataCompatibilityError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+            case .updateRequired: String(localized: .compatibilityErrorUpdateRequired)
+            case .invalidMetadata,
+                 .verificationFailed: String(localized: .compatibilityErrorVerificationFailed)
+            case .confirmationRequired: String(localized: .compatibilityErrorConfirmationRequired)
+            case .metadataTransactionCannotWriteDomainData: String(
+                    localized: .compatibilityErrorMetadataWrite,
+                )
+        }
+    }
 }

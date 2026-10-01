@@ -6,6 +6,20 @@ import Testing
 
 @MainActor
 struct OnboardingFlowModelTests {
+    @Test func waitingPreservesTheSelectedArchiveAndDoesNotAuthorizeIt() {
+        let model = makeModel(startsAtRecordingChoice: true)
+        let url = URL(fileURLWithPath: "/tmp/compatibility-review.zip")
+        model.handleRestoreSelection(.success(url))
+        model.chooseRestoreStrategy(.replace)
+        model.compatibilityReview = .preview
+        model.waitForDeviceUpdates()
+        #expect(model.compatibilityReview == nil)
+        #expect(model.restoreSelection.readyImport?.url == url)
+        #expect(model.restoreSelection.readyImport?.strategy == .replace)
+        #expect(!model.isFinishing)
+        #expect(model.phase == .location)
+    }
+
     @Test func startsAtTheRequestedPhaseAndUsesTheHardwareRecommendation() {
         let model = makeModel(startsAtRecordingChoice: true)
 

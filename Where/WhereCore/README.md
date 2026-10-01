@@ -18,6 +18,24 @@ feature [`Where/AGENTS.md`](../AGENTS.md). This file is the human-facing tour.
 `WhereServices` is a small struct of focused collaborators — add behavior to the
 one it belongs to rather than to a god-object:
 
+### Compatibility suspension
+
+`DataCompatibilityRuntime` stops automatic recording and one-shot capture without
+changing local consent or discarding queued samples. Store checks also reject late
+callbacks, suspended transactions, cached issue scans, and Intent reads.
+
+`DataCompatibilityOutputs` serializes notifications and widget publications with
+withdrawal. If compatibility changes during an external await, a post-publication check cancels outputs. Saved notification preferences stay unchanged.
+
+Widgets read a separate `widget-compatibility.json` record before cached locations.
+Missing, malformed, or unsupported metadata shows update guidance. Only a fresh data
+publication can reopen the widget. `WidgetTimelineRefreshing` throws on publication
+failure so stale content cannot become visible again. CloudKit delivery and WidgetKit
+refresh remain asynchronous. They do not provide an instantaneous account-wide stop.
+
+`AppUpdateAvailability` carries either `.noBuildsPublished` or nonempty TestFlight,
+App Store, or combined links. The host currently selects `.noBuildsPublished`.
+
 ### Persistence & writes
 
 - **Data compatibility** — `DataCompatibilityCoordinator` checks the current build
@@ -29,7 +47,7 @@ one it belongs to rather than to a god-object:
   raising the shared requirement. A feature calls the coordinator's `perform(requiring:approval:)`.
   Devices with outdated or missing capability reports require explicit confirmation.
   The transaction rechecks that review and saves the requirement with the dependent data.
-  Capability reports use the latest installation-owned revision, so downgrades are visible.
+  Capability reports are immutable. Resolve the latest installation-owned revision, so delayed messages cannot undo a downgrade.
   Reports are advisory and do not establish a primary recording device or prove remote
   state while offline.
 
@@ -301,7 +319,7 @@ target's dependencies in [`Package.swift`](../../Package.swift):
 ## Quick start
 
 Assemble a `WhereServices` (the app does this in its launch `resolve-scope` step)
-and talk to the collaborators:
+and talk to the collaborators. The composition root first prepares compatibility over the same store:
 
 ```swift
 import WhereCore
@@ -310,12 +328,25 @@ import WhereCore
 // attributor, so `make(...)` is the one public entry and is async. Tests and
 // previews use the synchronous `@_spi(Testing)` `init` instead (an explicit
 // attributor, default four) via `@_spi(Testing) import WhereCore`.
+let store = try SwiftDataStore.make(storage: .cloudKit(
+    appGroupIdentifier: "group.com.stuff.where"
+))
+let compatibility = DataCompatibilityServices(
+    store: store,
+    currentDeviceID: installationContext.currentDevice.id,
+    reminderScheduler: UserNotificationReminderScheduler(),
+    summaryScheduler: UserNotificationDailySummaryScheduler(),
+    issueAlertScheduler: UserNotificationDataIssueAlertScheduler(),
+    widgetRefresher: widgetRefresher,
+)
+try await compatibility.coordinator.publishCapability(at: Date())
+try await compatibility.coordinator.requireAccess()
 let services = try await WhereServices.make(
-    store: try SwiftDataStore.make(storage: .cloudKit(
-        appGroupIdentifier: "group.com.stuff.where"
-    )),
+    store: store,
     locationSource: CoreLocationSource(),
     installationContext: installationContext, // resolved once by the app composition root
+    compatibilityServices: compatibility,
+    importRecoveryPersistence: installationContextStore,
 )
 
 // Read a year, aggregated with the injected calendar + region attribution.

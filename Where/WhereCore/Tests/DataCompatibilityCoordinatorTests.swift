@@ -1,8 +1,55 @@
 import Foundation
+import SwiftData
 import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct DataCompatibilityCoordinatorTests {
+    @Test @MainActor func readinessChangesDuringTheWriteReturnANewReviewWithoutSaving(
+    ) async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let store = SwiftDataStore(modelContainer: container)
+        let version = CompatibilityTestSupport.nextVersion
+        await store.setSupportedDataCompatibilityVersionForTesting(version)
+        let phone = RecordingDeviceID(rawValue: UUID())
+        try await store.perform {
+            try await store.addRecordingDeviceProfile(.init(
+                id: phone,
+                systemName: "Phone",
+                kind: .phone,
+                registeredAt: CompatibilityTestSupport.now,
+                registrationGenerationID: .initial,
+            ))
+        }
+        let coordinator = DataCompatibilityCoordinator(
+            store: store,
+            currentDeviceID: .init(rawValue: UUID()),
+        )
+        let review = try await coordinator.reviewActivation(requiring: version)
+        let gate = CompatibilityOutputTestSupport.Gate()
+        let writer = Task {
+            try await coordinator.perform(requiring: version, approval: .continueAnyway(review)) {
+                try await store.add(sample: CompatibilityTestSupport.sample)
+                await gate.suspend()
+            }
+        }
+        await gate.waitUntilEntered()
+        let remote = ModelContext(container)
+        remote.insert(SDDeviceDataCapability(value: .init(
+            deviceID: phone,
+            supportedVersion: .initial,
+            revision: 0,
+            reportedAt: CompatibilityTestSupport.now,
+        )))
+        try remote.save()
+        gate.resume()
+        let fresh = try await coordinator.reviewActivation(requiring: version)
+        await #expect(throws: DataCompatibilityError.confirmationRequired(fresh)) {
+            try await writer.value
+        }
+        #expect(try await store.allSamples().isEmpty)
+        #expect(try await store.dataCompatibility().requiredVersion == .initial)
+    }
+
     @Test func secondaryUpdatePublishesSupportWithoutUpgradingSharedData() async throws {
         let world = try await CompatibilityTestSupport.makeWorld()
         try await world.coordinator.publishCapability(at: CompatibilityTestSupport.now)

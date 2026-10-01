@@ -39,6 +39,10 @@ final class ScriptedBootstrap: WhereScopeAssembling {
         prepareLocationCount += 1
     }
 
+    func prepareCompatibility() async throws -> DataCompatibilityServices {
+        services.compatibilityServices
+    }
+
     func makeServices() async throws -> WhereServices {
         makeServicesCount += 1
         return services
@@ -77,6 +81,10 @@ final class FailingBootstrap: WhereScopeAssembling {
 
     func prepareLocation() {}
 
+    func prepareCompatibility() async throws -> DataCompatibilityServices {
+        throw AssemblyFailure()
+    }
+
     func makeServices() async throws -> WhereServices {
         throw AssemblyFailure()
     }
@@ -109,6 +117,10 @@ final class FailingLogStoreBootstrap: WhereScopeAssembling {
 
     func prepareLocation() {}
 
+    func prepareCompatibility() async throws -> DataCompatibilityServices {
+        services.compatibilityServices
+    }
+
     func makeServices() async throws -> WhereServices {
         services
     }
@@ -129,6 +141,10 @@ final class UnusedBootstrap: WhereScopeAssembling {
     struct Unexpected: Error {}
 
     func prepareLocation() {}
+
+    func prepareCompatibility() async throws -> DataCompatibilityServices {
+        throw Unexpected()
+    }
 
     func makeServices() async throws -> WhereServices {
         Issue.record("A suite that shouldn't log in asked for services")

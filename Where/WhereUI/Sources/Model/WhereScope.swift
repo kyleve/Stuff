@@ -244,16 +244,20 @@ public final class WhereScope {
             store: store,
             locationSource: locationSource,
             installationContext: .demo,
+            compatibilityServices: DataCompatibilityServices(
+                store: store,
+                currentDeviceID: InstallationRecordingContext.demo.currentDevice.id,
+                reminderScheduler: NoopLoggingReminderScheduler(authorized: true),
+                summaryScheduler: NoopDailySummaryScheduler(authorized: true),
+                issueAlertScheduler: NoopDataIssueAlertScheduler(authorized: true),
+                widgetRefresher: NoopWidgetTimelineRefresher(),
+            ),
             aggregator: aggregator,
             // Authorized, like the location source is: the demo presents a user
             // who has granted everything, so the alerts screen shows its real
             // controls rather than a "denied, open Settings" dead end. They
             // still schedule nothing — the demo asks the system for nothing and
             // posts nothing.
-            reminderScheduler: NoopLoggingReminderScheduler(authorized: true),
-            summaryScheduler: NoopDailySummaryScheduler(authorized: true),
-            issueAlertScheduler: NoopDataIssueAlertScheduler(authorized: true),
-            widgetRefresher: NoopWidgetTimelineRefresher(),
             locationOutbox: NoOpLocationOutbox(),
             importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
             now: demoNow,

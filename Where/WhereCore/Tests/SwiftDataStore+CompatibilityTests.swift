@@ -4,6 +4,59 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct SwiftDataStoreCompatibilityTests {
+    @Test @MainActor func delayedReportsCannotReplaceTheLatestCapability() async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let store = SwiftDataStore(modelContainer: container)
+        let deviceID = RecordingDeviceID(rawValue: UUID())
+        let context = ModelContext(container)
+        context.insert(SDDeviceDataCapability(value: .init(
+            deviceID: deviceID,
+            supportedVersion: .initial,
+            revision: 5,
+            reportedAt: .distantPast,
+        )))
+        context.insert(SDDeviceDataCapability(value: .init(
+            deviceID: deviceID,
+            supportedVersion: CompatibilityTestSupport.nextVersion,
+            revision: 4,
+            reportedAt: .distantFuture,
+        )))
+        try context.save()
+        #expect(try await store.deviceDataCapabilities().first?.supportedVersion == .initial)
+        // Equal revision conflicts choose the lower support regardless of timestamp.
+        context.insert(SDDeviceDataCapability(value: .init(
+            deviceID: deviceID,
+            supportedVersion: CompatibilityTestSupport.nextVersion,
+            revision: 5,
+            reportedAt: .distantFuture,
+        )))
+        try context.save()
+        #expect(try await store.deviceDataCapabilities().first?.supportedVersion == .initial)
+        try await store.publishDataCapability(for: deviceID, at: .distantPast)
+        #expect(try await store.deviceDataCapabilities().first?.revision == 6)
+        #expect(try context.fetch(FetchDescriptor<SDDeviceDataCapability>()).count == 4)
+    }
+
+    @Test @MainActor func suspendedReadDoesNotReturnDataAfterARequirementArrives() async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let store = SwiftDataStore(modelContainer: container)
+        let gate = CompatibilityOutputTestSupport.Gate()
+        let reader = Task {
+            try await store.readSnapshot {
+                let samples = try await store.allSamples()
+                await gate.suspend()
+                return samples
+            }
+        }
+        await gate.waitUntilEntered()
+        let context = ModelContext(container)
+        context
+            .insert(SDDataCompatibilityRequirement(version: CompatibilityTestSupport.nextVersion))
+        try context.save()
+        gate.resume()
+        await #expect(throws: DataCompatibilityError.self) { try await reader.value }
+    }
+
     @Test @MainActor func unknownAndMalformedRequirementsNeverAppearCompatible() async throws {
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)
         let store = SwiftDataStore(modelContainer: container)

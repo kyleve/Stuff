@@ -34,7 +34,12 @@ private struct DerivedDataReconciler {
 /// authority, then discard pending fixes) — it lives here so teardown stays in
 /// Core rather than leaking into the UI layer.
 public struct WhereServices: Sendable {
-    public let compatibility: DataCompatibilityCoordinator
+    public let compatibilityServices: DataCompatibilityServices
+    public let compatibilityRuntime: DataCompatibilityRuntime
+    public var compatibility: DataCompatibilityCoordinator {
+        compatibilityServices.coordinator
+    }
+
     /// Pure reads: `YearReport` + location projections.
     public let reports: ReportReader
     /// Pure reads over user-attached evidence (per-year list, per-day keys for
@@ -116,6 +121,7 @@ public struct WhereServices: Sendable {
     @_spi(Testing)
     public init(
         store: any WhereStore,
+        compatibilityServices: DataCompatibilityServices? = nil,
         locationSource: any LocationSource,
         installationContext: InstallationRecordingContext = .testing,
         attributor: any RegionAttributing = RegionAttributor.shared,
@@ -130,11 +136,20 @@ public struct WhereServices: Sendable {
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         let currentDevice = installationContext.currentDevice
-        let compatibility = DataCompatibilityCoordinator(
+        let preparedCompatibility = compatibilityServices ?? DataCompatibilityServices(
             store: store,
             currentDeviceID: currentDevice.id,
+            reminderScheduler: reminderScheduler,
+            summaryScheduler: summaryScheduler,
+            issueAlertScheduler: issueAlertScheduler,
+            widgetRefresher: widgetRefresher,
         )
-        self.compatibility = compatibility
+        self.compatibilityServices = preparedCompatibility
+        let compatibility = preparedCompatibility.coordinator
+        let reminderScheduler = preparedCompatibility.outputs.reminders
+        let summaryScheduler = preparedCompatibility.outputs.summary
+        let issueAlertScheduler = preparedCompatibility.outputs.issueAlerts
+        let widgetRefresher = preparedCompatibility.outputs.widgets
         let reports = ReportReader(store: store, aggregator: aggregator, attributor: attributor)
         let evidence = EvidenceReader(store: store, aggregator: aggregator)
         // Built before the reconcilers that consume it: the reminder reconciler
@@ -295,6 +310,11 @@ public struct WhereServices: Sendable {
         self.widgets = widgets
         self.ingestor = ingestor
         self.recording = recording
+        compatibilityRuntime = DataCompatibilityRuntime(
+            recording: recording,
+            resolution: resolution,
+            outputs: preparedCompatibility.outputs,
+        )
         self.journal = journal
         self.backup = backup
         self.plannedStays = plannedStays
@@ -334,15 +354,13 @@ public struct WhereServices: Sendable {
         store: any WhereStore,
         locationSource: any LocationSource,
         installationContext: InstallationRecordingContext,
+        compatibilityServices: DataCompatibilityServices,
         aggregator: DayAggregator = DayAggregator(),
-        reminderScheduler: any LoggingReminderScheduling,
-        summaryScheduler: any DailySummaryScheduling,
-        issueAlertScheduler: any DataIssueAlertScheduling,
-        widgetRefresher: any WidgetTimelineRefreshing,
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
         importRecoveryPersistence: any BackupImportRecoveryPersisting,
         now: @escaping @Sendable () -> Date = { Date() },
     ) async throws -> WhereServices {
+        try await compatibilityServices.coordinator.requireAccess()
         let tracked = try await store.trackedRegions()
         let attribution = RegionAttribution(
             store: store,
@@ -354,14 +372,11 @@ public struct WhereServices: Sendable {
         )
         return WhereServices(
             store: store,
+            compatibilityServices: compatibilityServices,
             locationSource: locationSource,
             installationContext: installationContext,
             attributor: attribution,
             aggregator: aggregator,
-            reminderScheduler: reminderScheduler,
-            summaryScheduler: summaryScheduler,
-            issueAlertScheduler: issueAlertScheduler,
-            widgetRefresher: widgetRefresher,
             locationOutbox: locationOutbox,
             importRecoveryPersistence: importRecoveryPersistence,
             now: now,

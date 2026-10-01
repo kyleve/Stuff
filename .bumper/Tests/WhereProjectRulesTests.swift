@@ -3,6 +3,21 @@ import BumperBowlingTestSupport
 import Testing
 
 struct WhereProjectRulesTests {
+    @Test func `compatibility coordinator is composed once with prepared services`() throws {
+        let allowed = try evaluate(
+            path: "Where/WhereCore/Sources/Compatibility/DataCompatibilityServices.swift",
+            component: .whereCore,
+            source: "func make() { _ = DataCompatibilityCoordinator(store: store, currentDeviceID: deviceID) }",
+        )
+        let rejected = try evaluate(
+            path: "Where/WhereUI/Sources/Model/IndependentCompatibility.swift",
+            component: .whereUI,
+            source: "func make() { _ = DataCompatibilityCoordinator(store: store, currentDeviceID: deviceID) }",
+        )
+        #expect(allowed.violations.isEmpty)
+        #expect(rejected.violations.map(\.rule.id) == ["where.compatibility_composition_ownership"])
+    }
+
     @Test
     func `production store opens at process composition roots`() throws {
         let allowed = try evaluate(

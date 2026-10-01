@@ -46,6 +46,7 @@ public actor LocationIngestor {
     /// the work completes. This spans the (slow, up to ~10s) fix acquisition, so
     /// `pause()` cancels it but does *not* await it — see `capturePersistTask`.
     private var captureTask: Task<Void, Never>?
+    private var currentLocationTasks: [UUID: Task<CurrentLocationResult, Never>] = [:]
 
     /// The capture's *persist* step, once a fix is in hand — separate from
     /// `captureTask` (which also covers the slow fix) so `pause()` can await a
@@ -281,6 +282,14 @@ public actor LocationIngestor {
         await revokeRecordingAuthorization()
     }
 
+    /// Compatibility also revokes user-requested fixes, independently of recording consent.
+    func suspendForCompatibility() async {
+        for task in currentLocationTasks.values {
+            task.cancel()
+        }
+        await pause()
+    }
+
     /// Pause GPS ingestion by stopping the underlying location monitoring.
     /// Idempotent and safe to call from teardown paths that may run before any
     /// `start()`. The ingestion task is intentionally left running (see
@@ -336,13 +345,33 @@ public actor LocationIngestor {
     }
 
     public func requestPermission() async throws {
+        try await store.dataCompatibility().requireAccess()
         try await locationSource.requestPermission()
+        try await store.dataCompatibility().requireAccess()
     }
 
     /// Bounded one-shot GPS fix for "where is the device right now". Routed
     /// through the ingestor so presentation never touches `LocationSource`.
     public func currentLocation() async -> CurrentLocationResult {
-        await locationSource.requestCurrentLocation()
+        do {
+            try await store.dataCompatibility().requireAccess()
+            let token = UUID()
+            let source = locationSource
+            let task = Task { await source.requestCurrentLocation() }
+            currentLocationTasks[token] = task
+            defer { currentLocationTasks.removeValue(forKey: token) }
+            let result = await withTaskCancellationHandler {
+                await task.value
+            } onCancel: { task.cancel() }
+            guard !Task.isCancelled, !task.isCancelled else { return .unavailable(.cancellation) }
+            try await store.dataCompatibility().requireAccess()
+            return result
+        } catch {
+            Self.logger(attachments: [.error(error, name: "compatibility-error")]) {
+                .foregroundCaptureReadFailed(description: error.localizedDescription)
+            }
+            return .unavailable(.cancellation)
+        }
     }
 
     /// Fill in *today* with a best-effort one-shot GPS fix when the day has no
@@ -391,7 +420,7 @@ public actor LocationIngestor {
             return
         }
         let fix = await Self.logger.measure(.acquireFix, budget: .seconds(10)) {
-            await locationSource.requestCurrentLocation()
+            await currentLocation()
         }
         guard case let .success(sample) = fix else { return }
         // The ~10s fix may have straddled a `pause()`; re-check the gate before
@@ -465,6 +494,16 @@ public actor LocationIngestor {
                     needsFullWidgetRebuild: !drainedDays.isEmpty,
                 ))
             }
+        } catch let error as DataCompatibilityError {
+            Self.logger(attachments: [.error(error, name: "compatibility-error")]) {
+                .persistFailed(
+                    sampleID: String(describing: sample.id),
+                    description: error.localizedDescription,
+                )
+            }
+            // Unsupported data is not a transient save outage. Preserve the old queue but
+            // never enqueue this new callback under authority the app can no longer verify.
+            await closeRecordingAuthority(ifAuthorizedFor: dataGenerationID)
         } catch RecordingPersistenceError.dataGenerationChanged {
             // A reset/Replace revoked the authority this sample was admitted
             // under. Stop immediately and never put the known-stale sample into

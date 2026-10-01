@@ -9,6 +9,7 @@ import Testing
 /// publish to.
 struct WidgetSnapshotPublisherTests {
     private actor SpyRefresher: WidgetTimelineRefreshing {
+        func publishCompatibility(_: WidgetCompatibilitySnapshot) async {}
         private(set) var publishCount = 0
         private(set) var lastSnapshot: WidgetSnapshot?
 

@@ -98,6 +98,7 @@ public actor DataIssueScanner {
     ) async throws -> DataIssueScanResult {
         while true {
             try Task.checkCancellation()
+            try await reportReader.store.dataCompatibility().requireAccess()
             let currentDate = now()
             let currentDay = calendar.startOfDay(for: currentDate)
             let trackedRegions = attributor.loadedRegions
@@ -178,6 +179,7 @@ public actor DataIssueScanner {
                     nextReassessmentAt: deadlines.min(),
                 )
             }
+            try await reportReader.store.dataCompatibility().requireAccess()
             guard revision == invalidationRevision,
                   trackedRegions == attributor.loadedRegions
             else {

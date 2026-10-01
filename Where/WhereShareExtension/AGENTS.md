@@ -42,6 +42,10 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   was offered". The load is also the extension's one span (attachment count and
   size are what the wait scales with).
 
+- **Honor the store compatibility guard.** An unsupported requirement or verification
+  failure rejects the whole evidence transaction. Show Core's localized update or
+  retry guidance. Never retry a blocked write through an unguarded context.
+
 ## Testing
 
 No hosted bundle. Exercise `EvidenceContentType.classify` and the store write

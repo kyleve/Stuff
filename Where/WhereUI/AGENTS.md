@@ -156,6 +156,18 @@ Layering, localization, preview, and testing conventions live in the feature
   Inspect Reduce Motion and VoiceOver order because settled snapshots do not
   prove the transition. See PR #289.
 
+## Compatibility presentation
+
+- Keep one `DataCompatibilityModel` on `WhereModel`, including headless launches.
+  Publish capabilities at first preparation and foreground entry, regardless of recording consent.
+- Resolve compatibility before service assembly and onboarding data operations.
+  Retain the prepared store while a compatibility failure waits for Retry.
+- When compatibility blocks access, replace normal content. Remove editors from the hierarchy
+  and keep diagnostics accessible. Retry rechecks the requirement. It never bypasses it.
+- Keep activation confirmation bound to Core's review. Wait preserves the selected
+  archive. Continue anyway retries with that review and displays any fresh warning.
+  Guards: `DataCompatibilityModelTests` / `OnboardingFlowModelTests`.
+
 ## Design system — `WhereStylesheet`
 
 Follow the repo [`building-ui`](../../.agents/skills/building-ui/SKILL.md)

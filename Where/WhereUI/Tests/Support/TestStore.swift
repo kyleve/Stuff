@@ -30,6 +30,10 @@ struct RecordingDeviceSaveFailure: Error, Equatable {}
 /// Everything else forwards to the backing store so reads stay deterministic.
 actor TestStore: WhereStore {
     private let backing: SwiftDataStore
+    private var compatibilityVerificationFails = false
+    func failCompatibilityVerification(_ fails: Bool) {
+        compatibilityVerificationFails = fails
+    }
 
     private var gateFirstSamplesCall = false
     private var firstSamplesSeen = false
@@ -113,7 +117,8 @@ actor TestStore: WhereStore {
     }
 
     func dataCompatibility() async throws -> DataCompatibilityStatus {
-        try await backing.dataCompatibility()
+        if compatibilityVerificationFails { throw DataCompatibilityError.invalidMetadata }
+        return try await backing.dataCompatibility()
     }
 
     func deviceDataCapabilities() async throws -> [DeviceDataCapability] {

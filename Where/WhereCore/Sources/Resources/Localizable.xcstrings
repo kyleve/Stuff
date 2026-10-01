@@ -78,6 +78,50 @@
         }
       }
     },
+    "compatibility.error.confirmationRequired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other devices are not ready for this data change. Open Where to review them."
+          }
+        }
+      }
+    },
+    "compatibility.error.metadataWrite" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This metadata operation cannot change app data."
+          }
+        }
+      }
+    },
+    "compatibility.error.updateRequired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update Where before using this data. Open the app for update instructions."
+          }
+        }
+      }
+    },
+    "compatibility.error.verificationFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data compatibility could not be verified. Open Where and retry."
+          }
+        }
+      }
+    },
     "dataIssues.notification.body" : {
       "extractionState" : "manual",
       "localizations" : {

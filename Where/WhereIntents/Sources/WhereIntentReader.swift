@@ -35,8 +35,10 @@ struct WhereIntentReader {
     /// read) when it still describes today, and falling back to the year
     /// report's today row otherwise.
     func todayRegions() async throws -> Set<Region> {
+        try await services.compatibility.requireAccess()
         let today = calendar.startOfDay(for: now())
         if let snapshot = todaySnapshot(), calendar.startOfDay(for: snapshot.day) == today {
+            try await services.compatibility.requireAccess()
             return snapshot.dayRegions
         }
         return try await regions(on: today)

@@ -24,9 +24,11 @@ WidgetKit configuration, the timeline provider, and family-specific layout.
 ```
 Where app (WidgetSnapshotPublisher)
     └─▶ WidgetSnapshotStore.write (App Group JSON)
+Where app (DataCompatibilityOutputs)
+    └─▶ WidgetCompatibilityStore.write (App Group JSON)
 Where app (WidgetPresentationPublisher)
     └─▶ WidgetPresentationStore.write (App Group JSON)
-Both files
+All three files
     └─▶ WhereWidgetProvider.loadEntry (widget extension read)
             └─▶ WhereUI widget views
 ```
@@ -36,6 +38,11 @@ The app refreshes the snapshot after each committed store write and calls
 after the next local midnight so the timeline `date` stays current even if the
 app never wakes. Missing or unknown presentation values resolve to Standard.
 Appearance changes publish only that small value before reloading timelines.
+
+`CompatibleWidgetSnapshotReader` checks the separate compatibility record before
+and after reading cached data. Missing, malformed, or unsupported metadata hides
+locations and counts. The widget asks the user to open Where. A new compatible data
+publication restores the normal view. System timeline refresh remains asynchronous.
 
 ## Localization
 

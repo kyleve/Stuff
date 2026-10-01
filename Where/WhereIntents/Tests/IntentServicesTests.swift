@@ -16,6 +16,31 @@ struct IntentServicesTests {
         try IntentTestSupport.services(store: SwiftDataStore.inMemory())
     }
 
+    @Test func coldCompatibilityFailureUnparksIntentsAndRetryCanInstall() async throws {
+        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        let parked = Task { try await handoff.current() }
+        try await waitUntil { await handoff.waiterCount == 1 }
+        let failure = DataCompatibilityError.invalidMetadata
+        await handoff.setCompatibilityFailure(failure)
+        await #expect(throws: failure) { try await parked.value }
+        let stack = try makeStack()
+        await handoff.install(stack, theme: .standard)
+        await #expect(throws: failure) { try await handoff.current() }
+        await handoff.setCompatibilityFailure(nil)
+        #expect(try await handoff.current().journal === stack.journal)
+    }
+
+    @Test func installedServicesCheckTheLiveStoreBeforeReturning() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        await handoff.install(IntentTestSupport.services(store: store), theme: .standard)
+        let future = DataCompatibilityVersion(rawValue: 2)
+        await store.setSupportedDataCompatibilityVersionForTesting(future)
+        try await store.perform { try await store.requireDataCompatibility(future) }
+        await store.setSupportedDataCompatibilityVersionForTesting(.initial)
+        await #expect(throws: DataCompatibilityError.self) { try await handoff.current() }
+    }
+
     @Test func currentReturnsTheInstalledStack() async throws {
         let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
         let stack = try makeStack()

@@ -5,9 +5,15 @@ extension SwiftDataStore {
     public func dataCompatibility() throws -> DataCompatibilityStatus {
         // A fresh peer observes external commits even while a domain transaction is suspended.
         // Its pending requirement also participates, so activation cannot write above our support.
-        let committed = try Self.requiredDataVersion(in: ModelContext(modelContainer))
-        let pending = try Self.requiredDataVersion(in: compatibilityContext())
-        return dataCompatibilityStatus(requiredVersion: max(committed, pending))
+        do {
+            let committed = try Self.requiredDataVersion(in: ModelContext(modelContainer))
+            let pending = try Self.requiredDataVersion(in: compatibilityContext())
+            return dataCompatibilityStatus(requiredVersion: max(committed, pending))
+        } catch let error as DataCompatibilityError {
+            throw error
+        } catch {
+            throw DataCompatibilityError.verificationFailed(description: error.localizedDescription)
+        }
     }
 
     func assertDataCompatible() throws {
@@ -59,14 +65,8 @@ extension SwiftDataStore {
             revision: revision,
             reportedAt: date,
         )
-        if let record = records.first {
-            record.update(from: capability)
-            for duplicate in records.dropFirst() {
-                context.delete(duplicate)
-            }
-        } else {
-            context.insert(SDDeviceDataCapability(value: capability))
-        }
+        // Keep reports immutable so delayed CloudKit delivery cannot overwrite a newer revision.
+        context.insert(SDDeviceDataCapability(value: capability))
     }
 
     private static func requiredDataVersion(in context: ModelContext) throws
@@ -96,7 +96,7 @@ final class SDDataCompatibilityRequirement {
     }
 }
 
-/// A target-owned register, separate from user-editable device metadata and consent.
+/// Immutable installation-owned reports, separate from user-editable device metadata and consent.
 @Model
 final class SDDeviceDataCapability {
     var deviceID: UUID?

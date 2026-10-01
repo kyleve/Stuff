@@ -514,3 +514,19 @@ for the mode values):
 ```
 
 Then review and commit the images.
+
+## Data compatibility
+
+`WhereModel.compatibility` owns the process observer. It uses the store that
+bootstrap retains for service assembly. Its states are checking, compatible,
+update required, and verification failed. A blocked cold launch waits for a
+successful check. It can resume without opening a second store.
+
+When compatibility blocks access, the root replaces app content and removes open editors. Recording,
+Intents, widgets, and notifications share Core's enforcement. Local consent and
+queued samples remain available after an update. Retry only checks compatibility.
+
+Backup activation uses `DataCompatibilityActivationView`. Wait is the default.
+Continue anyway approves the displayed transition and affected devices. Core checks
+that review again inside the write transaction. Unknown capabilities remain visible.
+The selected archive remains available after Wait.

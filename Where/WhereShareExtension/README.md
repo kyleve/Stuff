@@ -47,3 +47,9 @@ both processes open the same SwiftData store.
 
 - **No test bundle.** WhereCore tests cover the store-write contract and production history observation against temporary on-disk stores. This extension’s compose model, item loader, and view-controller glue remain untested; see [`../TODOs.md`](../TODOs.md).
 - **Refresh depends on app execution.** Both local-only and CloudKit app stores observe external commits through SwiftData history. Services reconcile when their observer can run, and scene-scoped reports subscribe while active and refresh on activation. A suspended app cannot repaint; the source does not deliberately defer every external write until the next foreground. Live cross-process and CloudKit delivery still require device validation.
+
+## Compatibility
+
+Evidence saves use the same guarded transaction as the app. An unsupported data
+requirement or verification failure rejects the write before mutation. The compose
+sheet shows localized guidance to open Where for an update or retry.

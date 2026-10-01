@@ -13,8 +13,8 @@ import RegionKit
 ///   freshness gate),
 /// while `publish()` unconditionally rebuilds after a committed mutation.
 ///
-/// `lastPublished` is only `nil` on a cold launch (a fresh instance), which is
-/// exactly when one publish is desirable to recover from any staleness.
+/// A cold launch, failed publication, or compatibility suspension clears
+/// `lastPublished`, so the next permitted refresh rebuilds the snapshot.
 public actor WidgetSnapshotPublisher {
     private let widgetReader: WidgetDataReader
     private let widgetRefresher: any WidgetTimelineRefreshing
@@ -61,6 +61,7 @@ public actor WidgetSnapshotPublisher {
     /// than `maxAge`, or nothing published yet (cold launch) all fall through
     /// to a full rebuild.
     public func refreshIfStale() async {
+        guard await hasDataAccess() else { return }
         if let last = lastPublished {
             let today = calendar.startOfDay(for: now())
             let isFresh = now().timeIntervalSince(last.publishedAt) < maxAge
@@ -73,13 +74,15 @@ public actor WidgetSnapshotPublisher {
 
     /// Recompute today's `WidgetSnapshot` from the store and hand it to the
     /// refresher to publish + reload. Called after every committed mutation that
-    /// can change what a widget shows. A failure here is non-fatal: the widget
-    /// keeps showing its last published snapshot.
+    /// can change what a widget shows. Failed publication is logged and retried
+    /// on the next refresh. Compatibility failures withdraw cached content.
     func publish() async {
+        guard await hasDataAccess() else { return }
         await Self.logger.measure(.publish, budget: .seconds(2)) {
             do {
                 let snapshot = try await widgetReader.snapshot(asOf: now())
-                await widgetRefresher.publish(snapshot)
+                try await widgetRefresher.publish(snapshot)
+                guard await hasDataAccess() else { return }
                 lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: now())
                 Self.logger {
                     .published(
@@ -87,6 +90,9 @@ public actor WidgetSnapshotPublisher {
                         regionCount: snapshot.dayRegions.count,
                     )
                 }
+            } catch let error as DataCompatibilityError {
+                _ = await hasDataAccess()
+                Self.logger { .buildFailed(description: error.localizedDescription) }
             } catch let error as RecordingPersistenceError {
                 // Generation/policy gaps mean a destructive CloudKit change may already be known
                 // even
@@ -100,10 +106,16 @@ public actor WidgetSnapshotPublisher {
                     dayRegions: [],
                     totals: [:],
                 )
-                await widgetRefresher.publish(snapshot)
-                lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: date)
+                do {
+                    try await widgetRefresher.publish(snapshot)
+                    guard await hasDataAccess() else { return }
+                    lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: date)
+                } catch {
+                    Self.logger { .buildFailed(description: error.localizedDescription) }
+                }
                 Self.logger { .buildFailed(description: error.localizedDescription) }
             } catch {
+                lastPublished = nil
                 Self.logger { .buildFailed(description: error.localizedDescription) }
             }
         }
@@ -118,6 +130,7 @@ public actor WidgetSnapshotPublisher {
     /// add to its own day; a region already present means the day's regions and
     /// the year totals are both unchanged.)
     func publishAfterIngest(of sample: LocationSample) async {
+        guard await hasDataAccess() else { return }
         if let last = lastPublished {
             let day = calendar.startOfDay(for: sample.timestamp)
             let region = attributor.region(at: sample.coordinate)
@@ -136,5 +149,29 @@ public actor WidgetSnapshotPublisher {
             parts.month ?? 0,
             parts.day ?? 0,
         )
+    }
+
+    private func hasDataAccess() async -> Bool {
+        do {
+            try await widgetReader.requireDataAccess()
+            return true
+        } catch {
+            lastPublished = nil
+            let requirement: DataCompatibilityVersion? = if case let DataCompatibilityError
+                .updateRequired(status) = error
+            {
+                status.requiredVersion
+            } else {
+                nil
+            }
+            do {
+                try await widgetRefresher.publishCompatibility(.init(requiredVersion: requirement))
+            } catch {
+                lastPublished = nil
+                Self.logger { .buildFailed(description: error.localizedDescription) }
+            }
+            Self.logger { .buildFailed(description: error.localizedDescription) }
+            return false
+        }
     }
 }

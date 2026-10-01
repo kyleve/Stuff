@@ -72,11 +72,19 @@ public struct DataCompatibilityCoordinator: Sendable {
         approval: DataCompatibilityActivationApproval,
         _ operation: @Sendable () async throws -> T,
     ) async throws -> T {
-        try await store.perform {
+        do {
+            return try await store.perform {
+                let review = try await reviewActivation(requiring: version)
+                try review.requireApproval(approval)
+                try await store.requireDataCompatibility(version)
+                return try await operation()
+            }
+        } catch let error as WhereStoreReadConflictError {
+            // External readiness can change while a dependent write is suspended.
+            // The transaction rolled back; return the new warning without replaying the write.
             let review = try await reviewActivation(requiring: version)
             try review.requireApproval(approval)
-            try await store.requireDataCompatibility(version)
-            return try await operation()
+            throw error
         }
     }
 }
