@@ -50,6 +50,13 @@ internal shape.
   `WhereServices.forIntents(sharingStoreOf:)`. A second container over the
   same file is how a fresh install once raced the launch into failure (root
   [Composition](../../AGENTS.md#composition-create-once-inject-down)).
+- **Gate domain access on the observed data compatibility requirement.** Keep
+  immutable requirement records outside destructive generations. Raise the requirement
+  with the first dependent write through `DataCompatibilityCoordinator`; recheck its
+  device review inside that transaction. Never activate new semantics just because
+  an app updated. Capability publication uses a restricted metadata transaction and
+  remains available while blocked. Never restore capability reports from backups.
+  Guards: `DataCompatibilityCoordinatorTests` / `SwiftDataStoreCompatibilityTests`.
 - **On-disk storage always carries an explicit App Group identifier.** Audience
   selection belongs to host targets; WhereCore must not own a production or
   development default.

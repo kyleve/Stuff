@@ -1001,6 +1001,22 @@ private actor ToggleFailingStore: WhereStore {
         backing.changes()
     }
 
+    func dataCompatibility() async throws -> DataCompatibilityStatus {
+        try await backing.dataCompatibility()
+    }
+
+    func deviceDataCapabilities() async throws -> [DeviceDataCapability] {
+        try await backing.deviceDataCapabilities()
+    }
+
+    func publishDataCapability(for deviceID: RecordingDeviceID, at date: Date) async throws {
+        try await backing.publishDataCapability(for: deviceID, at: date)
+    }
+
+    func requireDataCompatibility(_ version: DataCompatibilityVersion) async throws {
+        try await backing.requireDataCompatibility(version)
+    }
+
     func dataGeneration() async throws -> WhereDataGeneration {
         try await backing.dataGeneration()
     }

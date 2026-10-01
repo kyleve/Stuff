@@ -20,6 +20,19 @@ one it belongs to rather than to a god-object:
 
 ### Persistence & writes
 
+- **Data compatibility** — `DataCompatibilityCoordinator` checks the current build
+  against the maximum shared requirement. Version 1 includes sample corrections.
+  Requirement records survive reset and Replace. Domain reads and transactions fail
+  when the requirement exceeds support, including work suspended across a remote write.
+  Compatibility metadata remains available for recovery.
+- **Feature activation** — installing a build publishes its supported version without
+  raising the shared requirement. A feature calls the coordinator's `perform(requiring:approval:)`.
+  Devices with outdated or missing capability reports require explicit confirmation.
+  The transaction rechecks that review and saves the requirement with the dependent data.
+  Capability reports use the latest installation-owned revision, so downgrades are visible.
+  Reports are advisory and do not establish a primary recording device or prove remote
+  state while offline.
+
 - **`WhereStore`** — the value-type persistence boundary (a protocol; nothing
   crossing it is a SwiftData record). Mutations run inside `perform { … }` (one
   atomic transaction). Callers whose decision was made against a particular
