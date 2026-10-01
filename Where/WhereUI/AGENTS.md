@@ -162,6 +162,9 @@ Layering, localization, preview, and testing conventions live in the feature
   Publish capabilities at first preparation and foreground entry, regardless of recording consent.
 - Resolve compatibility before service assembly and onboarding data operations.
   Retain the prepared store while a compatibility failure waits for Retry.
+- Retain the parked onboarding flow at the root while compatibility replaces its view.
+  Resume its data operation after recovery without failing the launch gate or releasing its archive.
+  Guards: `OnboardingFlowModelTests` / `WhereLaunchTests`.
 - When compatibility blocks access, replace normal content. Remove editors from the hierarchy
   and keep diagnostics accessible. Retry rechecks the requirement. It never bypasses it.
 - Keep activation confirmation bound to Core's review. Wait preserves the selected

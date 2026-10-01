@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 import WhereCore
 
 /// Thrown by `TestStore.setManualDay` when failure injection is enabled.
@@ -317,6 +318,22 @@ actor TestStore: WhereStore {
 
     func plannedStayRecords() async throws -> [PlannedStayRecord] {
         try await backing.plannedStayRecords()
+    }
+
+    func primaryRegions() async throws -> [PrimaryRegion] {
+        try await backing.primaryRegions()
+    }
+
+    func trackedRegions() async throws -> Set<Region> {
+        try await backing.trackedRegions()
+    }
+
+    func setPrimaryRegions(_ regions: [PrimaryRegion]) async throws {
+        try await backing.setPrimaryRegions(regions)
+    }
+
+    func setTrackedRegion(_ tracked: Bool, region: Region) async throws {
+        try await backing.setTrackedRegion(tracked, region: region)
     }
 
     func replacePlannedStayRecord(with record: PlannedStayRecord) async throws {

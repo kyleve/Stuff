@@ -24,6 +24,8 @@ import SwiftUI
 public struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var model: WhereModel
+    /// Retain the parked gate's choices while compatibility replaces its view hierarchy.
+    @State private var onboardingFlow: OnboardingFlowModel?
     #if DEBUG
         /// The logged-in tab bar's measured height, reported up from `MainTabs` and
         /// handed to the sibling `DeveloperOverlay` so its button rests clear of the
@@ -172,12 +174,7 @@ public struct RootView: View {
                             // no session (and no open store) behind it yet — onboarding
                             // builds the scope it commits regions with, through the model.
                             GateView(for: OnboardingGate.self) { handle, _ in
-                                OnboardingView(
-                                    gate: handle,
-                                    installationContext: model.installationRecordingContext,
-                                    startsAtRecordingChoice: model.hasOnboarded,
-                                    initialTheme: model.theme,
-                                )
+                                onboardingView(for: handle)
                             }
                         },
                     ) { session in
@@ -286,6 +283,24 @@ public struct RootView: View {
                     await WhereLaunch.enterForeground(launcher, model: model)
                 }
             }
+            .onChange(of: launcher.phase.gateHandle.map(ObjectIdentifier.init)) { _, gateID in
+                if gateID == nil { onboardingFlow = nil }
+            }
+    }
+
+    private func onboardingView(for gate: LifecycleGateHandle) -> some View {
+        let flow: OnboardingFlowModel = if let onboardingFlow, onboardingFlow.gate === gate {
+            onboardingFlow
+        } else {
+            OnboardingFlowModel(
+                gate: gate,
+                installationContext: model.installationRecordingContext,
+                startsAtRecordingChoice: model.hasOnboarded,
+                initialTheme: model.theme,
+            )
+        }
+        return OnboardingView(flow: flow, retainFlow: { onboardingFlow = $0 })
+            .id(ObjectIdentifier(gate))
     }
 
     private var isLifecyclePresentationVisible: Bool {

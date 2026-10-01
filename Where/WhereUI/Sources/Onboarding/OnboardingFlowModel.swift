@@ -4,7 +4,7 @@ import Observation
 import PeriscopeCore
 @_spi(Testing) import WhereCore
 
-/// View-scoped onboarding state and orchestration over WhereCore's backup and recording services.
+/// Gate-scoped onboarding state and orchestration over WhereCore's backup and recording services.
 @MainActor
 @Observable
 final class OnboardingFlowModel {
@@ -133,6 +133,7 @@ final class OnboardingFlowModel {
         }
         isFinishing = true
         Task {
+            defer { isFinishing = false }
             do {
                 let context = try model.confirmInitialRecordingChoice(
                     isEnabled: recordingEnabled,
@@ -150,7 +151,9 @@ final class OnboardingFlowModel {
 
             let scope: WhereScope
             do {
-                scope = try await model.resolveScope()
+                scope = try await withCompatibilityRetry(using: model) {
+                    try await model.resolveScope()
+                }
             } catch {
                 Self.logger(attachments: [.error(error, name: "scope-error")]) {
                     .scopeCreationFailed(description: error.localizedDescription)
@@ -169,7 +172,9 @@ final class OnboardingFlowModel {
             }
 
             do {
-                try await configureRecording(in: scope)
+                try await withCompatibilityRetry(using: model) {
+                    try await configureRecording(in: scope)
+                }
             } catch {
                 Self.logger(attachments: [.error(error, name: "recording-configuration-error")]) {
                     .recordingConfigurationFailed(description: error.localizedDescription)
@@ -187,7 +192,9 @@ final class OnboardingFlowModel {
 
             if selection.hasSelection {
                 do {
-                    try await selection.commit(using: scope)
+                    try await withCompatibilityRetry(using: model) {
+                        try await selection.commit(using: scope)
+                    }
                 } catch {
                     Self.logger(attachments: [.error(error, name: "commit-error")]) {
                         .regionCommitFailed(description: error.localizedDescription)
@@ -250,6 +257,33 @@ final class OnboardingFlowModel {
         restoreSelection.discardUncommittedSelection()
     }
 
+    func didDisappear(compatibilityBlocked: Bool) {
+        guard !compatibilityBlocked, !isFinishing else { return }
+        discardPendingRestore()
+    }
+
+    /// Compatibility recovery resumes the same operation without terminally resolving the gate.
+    /// Activation reviews still return to the user; waiting never supplies an override.
+    private func withCompatibilityRetry<Value>(
+        using model: WhereModel,
+        operation: @MainActor () async throws -> Value,
+    ) async throws -> Value {
+        while true {
+            try Task.checkCancellation()
+            do {
+                return try await operation()
+            } catch let error as DataCompatibilityError {
+                switch error {
+                    case .updateRequired, .invalidMetadata, .verificationFailed:
+                        await model.compatibility.refresh(publishCapability: false)
+                        try await model.compatibility.waitUntilCompatible()
+                    case .confirmationRequired, .metadataTransactionCannotWriteDomainData:
+                        throw error
+                }
+            }
+        }
+    }
+
     private func importBackup(
         _ readyImport: OnboardingRestoreSelection.ReadyImport,
         into scope: WhereScope,
@@ -257,11 +291,13 @@ final class OnboardingFlowModel {
         approval: DataCompatibilityActivationApproval,
     ) async -> Bool {
         do {
-            let summary = try await scope.services.backup.importBackup(
-                from: readyImport.url,
-                strategy: readyImport.strategy,
-                compatibilityApproval: approval,
-            ) { _ in }
+            let summary = try await withCompatibilityRetry(using: model) {
+                try await scope.services.backup.importBackup(
+                    from: readyImport.url,
+                    strategy: readyImport.strategy,
+                    compatibilityApproval: approval,
+                ) { _ in }
+            }
             restoreSelection.markCommitted(summary)
             model.completeOnboarding()
             do {

@@ -30,6 +30,7 @@ public struct OnboardingView: View {
     @Environment(WhereModel.self) private var model
     @Environment(\.stylesheet) private var stylesheet
     @State private var flow: OnboardingFlowModel
+    private let retainFlow: (OnboardingFlowModel) -> Void
 
     private var deviceKind: RecordingDeviceKind {
         flow.installationContext.currentDevice.kind
@@ -57,12 +58,20 @@ public struct OnboardingView: View {
         startsAtRecordingChoice: Bool,
         initialTheme: WhereTheme = .standard,
     ) {
-        _flow = State(initialValue: OnboardingFlowModel(
+        self.init(flow: OnboardingFlowModel(
             gate: gate,
             installationContext: installationContext,
             startsAtRecordingChoice: startsAtRecordingChoice,
             initialTheme: initialTheme,
         ))
+    }
+
+    init(
+        flow: OnboardingFlowModel,
+        retainFlow: @escaping (OnboardingFlowModel) -> Void = { _ in },
+    ) {
+        _flow = State(initialValue: flow)
+        self.retainFlow = retainFlow
     }
 
     private let pages = OnboardingPage.all
@@ -104,7 +113,10 @@ public struct OnboardingView: View {
                 )
             }
         }
-        .onDisappear { flow.discardPendingRestore() }
+        .onAppear { retainFlow(flow) }
+        .onDisappear {
+            flow.didDisappear(compatibilityBlocked: model.compatibility.state?.allowsData == false)
+        }
         // Log View Mode: reveal an inspect badge for onboarding events (region
         // commit / backup restore). A no-op in release.
         .debugLogInspectable(WhereLog.session(OnboardingViewLog.self))
