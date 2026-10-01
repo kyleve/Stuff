@@ -1,11 +1,107 @@
 import Foundation
 import RegionKit
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 /// Covers export/import round-trips and the post-commit lifecycle hook the
 /// coordinator invokes once new data lands.
 struct BackupCoordinatorTests {
+    @Test func unsupportedBackupDoesNotRaiseDestinationRequirement() async throws {
+        let source = try Self.makeHarness()
+        let version = CompatibilityTestSupport.nextVersion
+        await source.store.setSupportedDataCompatibilityVersionForTesting(version)
+        try await source.store.perform { try await source.store.requireDataCompatibility(version) }
+        let url = try await source.coordinator.exportBackup()
+        defer {
+            #expect(throws: Never.self) {
+                try FileManager.default.removeItem(at: url.deletingLastPathComponent())
+            }
+        }
+        let destination = try Self.makeHarness()
+        do {
+            _ = try await destination.coordinator.importAndAcknowledgeBackup(
+                from: url,
+                strategy: .replace,
+            )
+            Issue.record("An unsupported archive must be rejected.")
+        } catch let BackupService.BackupError.unsupportedDataCompatibilityVersion(required) {
+            #expect(required == version)
+        }
+        #expect(try await destination.store.dataCompatibility().requiredVersion == .initial)
+        #expect(try await destination.store.dataCompatibility().isCompatible)
+        #expect(await destination.didCommit.count == 0)
+    }
+
+    @Test(arguments: [BackupCoordinator.ImportStrategy.merge, .replace])
+    func higherVersionImportReviewsOtherDevicesAndPreservesTheRequirement(
+        _ strategy: BackupCoordinator
+            .ImportStrategy,
+    ) async throws {
+        let source = try Self.makeHarness()
+        let version = CompatibilityTestSupport.nextVersion
+        await source.store.setSupportedDataCompatibilityVersionForTesting(version)
+        try await source.store.perform { try await source.store.requireDataCompatibility(version) }
+        try await source.store.publishDataCapability(
+            for: Self.recordingDeviceID,
+            at: CompatibilityTestSupport.now,
+        )
+        let url = try await source.coordinator.exportBackup()
+        defer {
+            #expect(throws: Never.self) {
+                try FileManager.default.removeItem(at: url.deletingLastPathComponent())
+            }
+        }
+        #expect(try BackupService().readArchive(at: url).archive
+            .requiredDataCompatibilityVersion == version)
+        let destination = try Self.makeHarness()
+        await destination.store.setSupportedDataCompatibilityVersionForTesting(version)
+        let olderPhone = RecordingDeviceID(rawValue: UUID())
+        try await destination.store.perform {
+            try await destination.store.addRecordingDeviceProfile(.init(
+                id: olderPhone,
+                systemName: "iPhone",
+                kind: .phone,
+                registeredAt: CompatibilityTestSupport.now,
+                registrationGenerationID: .initial,
+            ))
+        }
+        let compatibility = DataCompatibilityCoordinator(
+            store: destination.store,
+            currentDeviceID: Self.recordingDeviceID,
+        )
+        let review = try await compatibility.reviewActivation(requiring: version)
+        await #expect(throws: DataCompatibilityError.confirmationRequired(review)) {
+            try await destination.coordinator.importAndAcknowledgeBackup(
+                from: url,
+                strategy: strategy,
+            )
+        }
+        #expect(try await destination.store.dataCompatibility().requiredVersion == .initial)
+        #expect(await destination.didCommit.count == 0)
+        _ = try await destination.coordinator.importBackup(
+            from: url,
+            strategy: strategy,
+            compatibilityApproval: .continueAnyway(review),
+            onProgress: { _ in },
+        )
+        try await destination.coordinator.acknowledgeOnboardingImport()
+        #expect(try await destination.store.dataCompatibility().requiredVersion == version)
+        #expect(try await destination.store.deviceDataCapabilities().isEmpty)
+
+        let baseline = try Self.makeHarness()
+        let baselineURL = try await baseline.coordinator.exportBackup()
+        defer {
+            #expect(throws: Never.self) {
+                try FileManager.default.removeItem(at: baselineURL.deletingLastPathComponent())
+            }
+        }
+        _ = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: baselineURL,
+            strategy: strategy,
+        )
+        #expect(try await destination.store.dataCompatibility().requiredVersion == version)
+    }
+
     @Test(arguments: [BackupCoordinator.ImportStrategy.merge, .replace])
     func importingPreservesMotionAndCorrectionHistoryWithStrategyAppropriateResetAuthority(
         _ strategy: BackupCoordinator.ImportStrategy,
@@ -125,6 +221,10 @@ struct BackupCoordinatorTests {
         let hook = HookSpy()
         let coordinator = BackupCoordinator(
             store: store,
+            compatibility: DataCompatibilityCoordinator(
+                store: store,
+                currentDeviceID: recordingDeviceID,
+            ),
             currentDeviceID: recordingDeviceID,
             now: { Date(timeIntervalSinceReferenceDate: 1000) },
             importLifecycle: .init(
@@ -480,6 +580,10 @@ struct BackupCoordinatorTests {
         let cleanup = CleanupSpy()
         let coordinator = BackupCoordinator(
             store: store,
+            compatibility: DataCompatibilityCoordinator(
+                store: store,
+                currentDeviceID: Self.recordingDeviceID,
+            ),
             currentDeviceID: Self.recordingDeviceID,
             now: { Date(timeIntervalSinceReferenceDate: 1000) },
             importLifecycle: .init(
@@ -535,6 +639,10 @@ struct BackupCoordinatorTests {
         func makeCoordinator() -> BackupCoordinator {
             BackupCoordinator(
                 store: store,
+                compatibility: DataCompatibilityCoordinator(
+                    store: store,
+                    currentDeviceID: Self.recordingDeviceID,
+                ),
                 currentDeviceID: Self.recordingDeviceID,
                 now: { Date(timeIntervalSinceReferenceDate: 1000) },
                 importLifecycle: .init(
@@ -578,6 +686,7 @@ struct BackupCoordinatorTests {
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         let secondSample = Self.sample(at: "2026-08-03T10:00:00-07:00")
         let secondURL = try BackupService().makeArchiveFile(
+            requiredDataCompatibilityVersion: .initial,
             samples: [secondSample],
             evidence: [],
             manualDays: [],
@@ -596,6 +705,10 @@ struct BackupCoordinatorTests {
         let destinationStore = try SwiftDataStore.inMemory()
         let coordinator = BackupCoordinator(
             store: destinationStore,
+            compatibility: DataCompatibilityCoordinator(
+                store: destinationStore,
+                currentDeviceID: Self.recordingDeviceID,
+            ),
             currentDeviceID: Self.recordingDeviceID,
             now: { Date(timeIntervalSinceReferenceDate: 1000) },
             importLifecycle: .init(

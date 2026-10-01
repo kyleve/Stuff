@@ -74,11 +74,7 @@ public struct DataCompatibilityCoordinator: Sendable {
     ) async throws -> T {
         try await store.perform {
             let review = try await reviewActivation(requiring: version)
-            if review.requiresConfirmation {
-                guard approval == .continueAnyway(review) else {
-                    throw DataCompatibilityError.confirmationRequired(review)
-                }
-            }
+            try review.requireApproval(approval)
             try await store.requireDataCompatibility(version)
             return try await operation()
         }

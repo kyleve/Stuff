@@ -83,6 +83,10 @@ internal shape.
   bumps `BackupArchive.currentFormatVersion` and extends
   [`../Tools/upgrade-backup.rb`](../Tools/upgrade-backup.rb). Never add an
   in-code legacy decode fallback.
+- **Review a backup's compatibility before pausing recording or preparing recovery.**
+  Reject unsupported requirements without changing the destination. Import a supported
+  higher requirement through the same activation review as a feature write. Merge and
+  Replace preserve the maximum requirement (`BackupCoordinatorTests`).
 - **The planned stay is a generation-scoped last-writer register with tombstones.** Resolve
   duplicate CloudKit revisions by `updatedAt` then UUID, and clear or expire by writing a newer
   `nil` value; deleting the winner can resurrect stale intent (`PlannedStayCoordinatorTests`).

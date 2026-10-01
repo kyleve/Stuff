@@ -13,6 +13,7 @@ extension BackupCoordinator {
         let summary = try await importBackup(
             from: url,
             strategy: strategy,
+            compatibilityApproval: .readyDevicesOnly,
             onProgress: onProgress,
         )
         try await acknowledgeOnboardingImport()

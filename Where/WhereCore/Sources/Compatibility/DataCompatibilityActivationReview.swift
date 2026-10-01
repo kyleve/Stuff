@@ -16,6 +16,12 @@ public struct DataCompatibilityActivationReview: Sendable, Hashable {
     public var requiresConfirmation: Bool {
         !affectedDevices.isEmpty
     }
+
+    func requireApproval(_ approval: DataCompatibilityActivationApproval) throws {
+        if requiresConfirmation, approval != .continueAnyway(self) {
+            throw DataCompatibilityError.confirmationRequired(self)
+        }
+    }
 }
 
 /// Background work uses `readyDevicesOnly`. An override is bound to the reviewed transition.

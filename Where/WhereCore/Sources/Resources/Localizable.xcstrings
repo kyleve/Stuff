@@ -56,6 +56,17 @@
         }
       }
     },
+    "backup.error.unsupportedDataCompatibility" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This backup requires a newer version of Where. Update the app before importing it."
+          }
+        }
+      }
+    },
     "backup.error.unsupportedFormatVersion" : {
       "extractionState" : "manual",
       "localizations" : {

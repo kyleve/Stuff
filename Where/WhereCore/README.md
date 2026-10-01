@@ -238,13 +238,17 @@ one it belongs to rather than to a god-object:
   another live-session transaction path. Onboarding acknowledgement records an independent terminal
   sidecar tombstone before clearing recovery, so a cold launch can repair a preference write
   that did not reach disk without offering the same archive again.
-  Check-ins are deliberately neither exported nor restored because they are live advisory status.
-  Backup format **v6** retains optional grouped speed/altitude measurements and
+  Check-ins and capability reports are neither exported nor restored because they are live advisory status.
+  Backup format **v7** records the required data compatibility level and retains
+  optional grouped speed/altitude measurements and
   every correction revision losslessly. Merge preserves revision IDs/timestamps;
   Replace restores archive revisions into its new generation. The offline
   [`upgrade-backup.rb`](../Tools/upgrade-backup.rb) transforms formats v1–v5 with
   unknown motion and an empty correction history. The production decoder accepts
   only the current format. See [backup format](BACKUP_FORMAT.md).
+  Formats v1–v6 gain compatibility version 1. A higher supported import uses the
+  activation review before pausing recording; unsupported archives leave the destination unchanged.
+  Merge and Replace never lower the destination's requirement.
 - **`InstallationRecordingContext`** — the device-local installation identity,
   explicitly confirmed local recording choice, and stable timestamp for recreating
   its immutable device profile idempotently.

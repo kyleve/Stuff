@@ -34,6 +34,7 @@ private struct DerivedDataReconciler {
 /// authority, then discard pending fixes) — it lives here so teardown stays in
 /// Core rather than leaking into the UI layer.
 public struct WhereServices: Sendable {
+    public let compatibility: DataCompatibilityCoordinator
     /// Pure reads: `YearReport` + location projections.
     public let reports: ReportReader
     /// Pure reads over user-attached evidence (per-year list, per-day keys for
@@ -129,6 +130,11 @@ public struct WhereServices: Sendable {
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         let currentDevice = installationContext.currentDevice
+        let compatibility = DataCompatibilityCoordinator(
+            store: store,
+            currentDeviceID: currentDevice.id,
+        )
+        self.compatibility = compatibility
         let reports = ReportReader(store: store, aggregator: aggregator, attributor: attributor)
         let evidence = EvidenceReader(store: store, aggregator: aggregator)
         // Built before the reconcilers that consume it: the reminder reconciler
@@ -242,6 +248,7 @@ public struct WhereServices: Sendable {
         )
         let backup = BackupCoordinator(
             store: store,
+            compatibility: compatibility,
             currentDeviceID: currentDevice.id,
             now: now,
             importLifecycle: .init(
