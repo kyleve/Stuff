@@ -58,11 +58,15 @@ struct WhereServicesTests {
             store: store,
             locationSource: ScriptedLocationSource(),
             installationContext: .testing,
+            compatibilityServices: DataCompatibilityServices(
+                store: store,
+                currentDeviceID: InstallationRecordingContext.testing.currentDevice.id,
+                reminderScheduler: NoopLoggingReminderScheduler(),
+                summaryScheduler: NoopDailySummaryScheduler(),
+                issueAlertScheduler: NoopDataIssueAlertScheduler(),
+                widgetRefresher: NoopWidgetTimelineRefresher(),
+            ),
             aggregator: Self.makeAggregator(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
-            summaryScheduler: NoopDailySummaryScheduler(),
-            issueAlertScheduler: NoopDataIssueAlertScheduler(),
-            widgetRefresher: NoopWidgetTimelineRefresher(),
             importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
         )
         // Two samples on the same Pacific day: one in California, one in New York.
@@ -1731,6 +1735,7 @@ private actor SpyDailySummaryScheduler: DailySummaryScheduling {
 /// widgets repaint with the right data after committed writes — and stay
 /// untouched when a write fails.
 private actor SpyWidgetRefresher: WidgetTimelineRefreshing {
+    func publishCompatibility(_: WidgetCompatibilitySnapshot) async {}
     private(set) var publishedSnapshots: [WidgetSnapshot] = []
 
     var publishCount: Int {
@@ -1778,6 +1783,22 @@ private actor ToggleFailingStore: WhereStore {
 
     nonisolated func changes() -> AsyncStream<Void> {
         backing.changes()
+    }
+
+    func dataCompatibility() async throws -> DataCompatibilityStatus {
+        try await backing.dataCompatibility()
+    }
+
+    func deviceDataCapabilities() async throws -> [DeviceDataCapability] {
+        try await backing.deviceDataCapabilities()
+    }
+
+    func publishDataCapability(for deviceID: RecordingDeviceID, at date: Date) async throws {
+        try await backing.publishDataCapability(for: deviceID, at: date)
+    }
+
+    func requireDataCompatibility(_ version: DataCompatibilityVersion) async throws {
+        try await backing.requireDataCompatibility(version)
     }
 
     func dataGeneration() async throws -> WhereDataGeneration {

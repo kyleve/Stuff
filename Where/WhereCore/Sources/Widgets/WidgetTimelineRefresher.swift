@@ -9,7 +9,9 @@ import WidgetKit
 public protocol WidgetTimelineRefreshing: Sendable {
     /// Persist `snapshot` where the widget process can read it, then ask
     /// WidgetKit to rebuild every timeline.
-    func publish(_ snapshot: WidgetSnapshot) async
+    func publish(_ snapshot: WidgetSnapshot) async throws
+    /// Publish access metadata independently so failures can withdraw a cached snapshot.
+    func publishCompatibility(_ snapshot: WidgetCompatibilitySnapshot) async throws
 }
 
 /// A `WidgetTimelineRefreshing` that does nothing. For SwiftUI previews and
@@ -19,6 +21,7 @@ public struct NoopWidgetTimelineRefresher: WidgetTimelineRefreshing {
     public init() {}
 
     public func publish(_: WidgetSnapshot) async {}
+    public func publishCompatibility(_: WidgetCompatibilitySnapshot) async {}
 }
 
 /// Production `WidgetTimelineRefreshing`: writes the snapshot to the shared
@@ -33,12 +36,26 @@ public struct WidgetCenterTimelineRefresher: WidgetTimelineRefreshing {
         self.appGroupIdentifier = appGroupIdentifier
     }
 
-    public func publish(_ snapshot: WidgetSnapshot) async {
+    public func publish(_ snapshot: WidgetSnapshot) async throws {
         do {
             try WidgetSnapshotStore.shared(appGroupIdentifier: appGroupIdentifier).write(snapshot)
             Self.logger { .wroteSnapshot }
         } catch {
             Self.logger { .publishFailed(description: error.localizedDescription) }
+            WidgetCenter.shared.reloadAllTimelines()
+            throw error
+        }
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    public func publishCompatibility(_ snapshot: WidgetCompatibilitySnapshot) async throws {
+        do {
+            try WidgetCompatibilityStore.shared(appGroupIdentifier: appGroupIdentifier)
+                .write(snapshot)
+        } catch {
+            Self.logger { .publishFailed(description: error.localizedDescription) }
+            WidgetCenter.shared.reloadAllTimelines()
+            throw error
         }
         WidgetCenter.shared.reloadAllTimelines()
     }

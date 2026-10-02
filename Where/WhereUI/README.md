@@ -190,8 +190,8 @@ journal intent.
   Welcome cards must be enabled, and the device must confidently resolve a
   tracked region with recording active.
 
-- **`OnboardingView` / `OnboardingFlowModel`** — the rendered first-run flow and its view-scoped
-  observable coordinator, registered for the launch's
+- **`OnboardingView` / `OnboardingFlowModel`** — the rendered first-run flow and its gate-scoped
+  observable coordinator, retained at the root and registered for the launch's
   `OnboardingGate` and handed its `LifecycleGateHandle`. The gate follows the
   side-effect-free demo preflight and precedes every world-building step, so
   there is no session behind it: a paged intro,
@@ -514,3 +514,22 @@ for the mode values):
 ```
 
 Then review and commit the images.
+
+## Data compatibility
+
+`WhereModel.compatibility` owns the process observer. It uses the store that
+bootstrap retains for service assembly. Its states are checking, compatible,
+update required, and verification failed. A blocked cold launch waits for a
+successful check. It can resume without opening a second store.
+Foreground activation still promotes a headless launch while this check is blocked.
+Onboarding also waits for recovery. Its gate, choices, and selected archive remain available
+while the compatibility screen replaces its view. Recovery resumes the pending data operation.
+
+When compatibility blocks access, the root replaces app content and removes open editors. Recording,
+Intents, widgets, and notifications share Core's enforcement. Local consent and
+queued samples remain available after an update. Retry only checks compatibility.
+
+Backup activation uses `DataCompatibilityActivationView`. Wait is the default.
+Continue anyway approves the displayed transition and affected devices. Core checks
+that review again inside the write transaction. Unknown capabilities remain visible.
+The selected archive remains available after Wait.

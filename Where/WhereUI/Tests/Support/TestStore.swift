@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 import WhereCore
 
 /// Thrown by `TestStore.setManualDay` when failure injection is enabled.
@@ -30,6 +31,10 @@ struct RecordingDeviceSaveFailure: Error, Equatable {}
 /// Everything else forwards to the backing store so reads stay deterministic.
 actor TestStore: WhereStore {
     private let backing: SwiftDataStore
+    private var compatibilityVerificationFails = false
+    func failCompatibilityVerification(_ fails: Bool) {
+        compatibilityVerificationFails = fails
+    }
 
     private var gateFirstSamplesCall = false
     private var firstSamplesSeen = false
@@ -110,6 +115,23 @@ actor TestStore: WhereStore {
 
     nonisolated func changes() -> AsyncStream<Void> {
         backing.changes()
+    }
+
+    func dataCompatibility() async throws -> DataCompatibilityStatus {
+        if compatibilityVerificationFails { throw DataCompatibilityError.invalidMetadata }
+        return try await backing.dataCompatibility()
+    }
+
+    func deviceDataCapabilities() async throws -> [DeviceDataCapability] {
+        try await backing.deviceDataCapabilities()
+    }
+
+    func publishDataCapability(for deviceID: RecordingDeviceID, at date: Date) async throws {
+        try await backing.publishDataCapability(for: deviceID, at: date)
+    }
+
+    func requireDataCompatibility(_ version: DataCompatibilityVersion) async throws {
+        try await backing.requireDataCompatibility(version)
     }
 
     func dataGeneration() async throws -> WhereDataGeneration {
@@ -296,6 +318,22 @@ actor TestStore: WhereStore {
 
     func plannedStayRecords() async throws -> [PlannedStayRecord] {
         try await backing.plannedStayRecords()
+    }
+
+    func primaryRegions() async throws -> [PrimaryRegion] {
+        try await backing.primaryRegions()
+    }
+
+    func trackedRegions() async throws -> Set<Region> {
+        try await backing.trackedRegions()
+    }
+
+    func setPrimaryRegions(_ regions: [PrimaryRegion]) async throws {
+        try await backing.setPrimaryRegions(regions)
+    }
+
+    func setTrackedRegion(_ tracked: Bool, region: Region) async throws {
+        try await backing.setTrackedRegion(tracked, region: region)
     }
 
     func replacePlannedStayRecord(with record: PlannedStayRecord) async throws {

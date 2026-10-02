@@ -4,8 +4,8 @@ WhereCore is the domain layer of the Where feature. It owns the persistence
 boundary, GPS ingestion, per-day / per-year aggregation, data-quality
 detection, and the side effects that hang off a committed write. It is
 assembled behind one `Sendable` value — `WhereServices`. The UI and the App
-Intents stack talk to it. Widgets never do. They read the published data and
-presentation files from the App Group. See [`README.md`](README.md) for the
+Intents stack talk to it. Widgets never do. They read the published data, presentation, and
+compatibility files from the App Group. See [`README.md`](README.md) for the
 public API and collaborators.
 
 The domain/presentation split and the rules WhereCore must uphold live in the
@@ -50,6 +50,21 @@ internal shape.
   `WhereServices.forIntents(sharingStoreOf:)`. A second container over the
   same file is how a fresh install once raced the launch into failure (root
   [Composition](../../AGENTS.md#composition-create-once-inject-down)).
+- **Gate domain access on the observed data compatibility requirement.** Keep
+  immutable requirement records outside destructive generations. Raise the requirement
+  with the first dependent write through `DataCompatibilityCoordinator`; recheck its
+  device review inside that transaction. Never activate new semantics just because
+  an app updated. Capability publication uses a restricted metadata transaction and
+  remains available while blocked. Never restore capability reports from backups.
+  Resolve immutable capability reports by revision, including downgrades and delayed delivery.
+  Guards: `DataCompatibilityCoordinatorTests` / `SwiftDataStoreCompatibilityTests`.
+- **Construct compatibility once in `DataCompatibilityServices`.** Inject the prepared
+  value into the service stack. Keep output publication and withdrawal behind its
+  serialized gate. Recheck after external awaits. Preserve consent and queued samples
+  on compatibility suspension. Cancel automatic and editor one-shot requests.
+  Clear widget freshness on suspension and reject stale publication completions.
+  Guards: `DataCompatibilityOutputsTests` / `DataCompatibilityRuntimeTests` /
+  `WidgetSnapshotPublisherTests` / `LocationIngestorTests`.
 - **On-disk storage always carries an explicit App Group identifier.** Audience
   selection belongs to host targets; WhereCore must not own a production or
   development default.
@@ -76,6 +91,10 @@ internal shape.
   bumps `BackupArchive.currentFormatVersion` and extends
   [`../Tools/upgrade-backup.rb`](../Tools/upgrade-backup.rb). Never add an
   in-code legacy decode fallback.
+- **Review a backup's compatibility before pausing recording or preparing recovery.**
+  Reject unsupported requirements without changing the destination. Import a supported
+  higher requirement through the same activation review as a feature write. Merge and
+  Replace preserve the maximum requirement (`BackupCoordinatorTests`).
 - **The planned stay is a generation-scoped last-writer register with tombstones.** Resolve
   duplicate CloudKit revisions by `updatedAt` then UUID, and clear or expire by writing a newer
   `nil` value; deleting the winner can resurrect stale intent (`PlannedStayCoordinatorTests`).

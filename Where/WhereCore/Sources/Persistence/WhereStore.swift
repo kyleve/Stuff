@@ -16,6 +16,16 @@ import RegionKit
 /// production `SwiftDataStore` implementation traps with a
 /// `preconditionFailure` if a mutation is called outside `perform`.
 public protocol WhereStore: Sendable {
+    /// Compatibility metadata remains readable even when ordinary domain access is blocked.
+    func dataCompatibility() async throws -> DataCompatibilityStatus
+    func deviceDataCapabilities() async throws -> [DeviceDataCapability]
+
+    /// Target-owned metadata maintenance uses its own restricted `perform` transaction.
+    func publishDataCapability(for deviceID: RecordingDeviceID, at date: Date) async throws
+
+    /// Monotonic requirement increase, inside the coordinator's activation transaction.
+    func requireDataCompatibility(_ version: DataCompatibilityVersion) async throws
+
     /// Run `block` inside a write transaction. On outermost success
     /// the staged writes are committed atomically; on outermost throw
     /// the entire transaction is rolled back (no partial writes

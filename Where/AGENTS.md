@@ -123,8 +123,8 @@ a screen felt slow.
   `WhereServices`, the `WherePreferences` driving it, and the durable log store
   they record into. It is created whole. `WhereSession` is built from one. A
   surface must not read one world's store against another's preferences.
-- **Onboarding may prepare the real store only for recording-authority
-  discovery.** Retain that exact store for scope resolution. Do not construct
+- **Onboarding may prepare the real store for compatibility verification and
+  recording-authority discovery.** Retain that exact store for scope resolution. Do not construct
   services, expose App Intents, start GPS, or open the log store until the
   user finishes choosing a world.
 - **At most one scope is active and log-routing at a time.** Logging out — a

@@ -145,6 +145,7 @@ struct BackupServiceTests {
 
     private static func archive() -> BackupArchive {
         BackupArchive(
+            requiredDataCompatibilityVersion: .initial,
             exportedAt: exportDate,
             samples: [],
             evidence: [],
@@ -237,6 +238,7 @@ struct BackupServiceTests {
         )
 
         let url = try service.makeArchiveFile(
+            requiredDataCompatibilityVersion: .initial,
             samples: samples,
             evidence: evidence,
             manualDays: manualDays,
@@ -323,6 +325,7 @@ struct BackupServiceTests {
 
     @Test func decoderRejectsANegativeMetadataRevisionFromABackup() throws {
         let archive = BackupArchive(
+            requiredDataCompatibilityVersion: .initial,
             exportedAt: Self.exportDate,
             samples: [],
             evidence: [],
@@ -359,6 +362,7 @@ struct BackupServiceTests {
     @Test func archiveNameIsDateAndTimeStamped() throws {
         let service = BackupService()
         let url = try service.makeArchiveFile(
+            requiredDataCompatibilityVersion: .initial,
             samples: [],
             evidence: [],
             manualDays: [],
@@ -392,6 +396,7 @@ struct BackupServiceTests {
             ),
         ]
         let url = try service.makeArchiveFile(
+            requiredDataCompatibilityVersion: .initial,
             samples: [],
             evidence: [],
             manualDays: manualDays,
@@ -414,6 +419,7 @@ struct BackupServiceTests {
         let service = BackupService()
         let texas = try #require(Region(rawValue: "us-TX"))
         let url = try service.makeArchiveFile(
+            requiredDataCompatibilityVersion: .initial,
             samples: [],
             evidence: [],
             manualDays: [],
@@ -448,6 +454,7 @@ struct BackupServiceTests {
             PrimaryRegion(region: texas, appearance: nil, order: 1),
         ]
         let url = try service.makeArchiveFile(
+            requiredDataCompatibilityVersion: .initial,
             samples: [],
             evidence: [],
             manualDays: [],
@@ -489,6 +496,7 @@ struct BackupServiceTests {
             ),
         ]
         let url = try service.makeArchiveFile(
+            requiredDataCompatibilityVersion: .initial,
             samples: [],
             evidence: [],
             manualDays: manualDays,
@@ -509,6 +517,7 @@ struct BackupServiceTests {
 
     @Test func manifestRoundTripsThroughJSON() throws {
         let archive = BackupArchive(
+            requiredDataCompatibilityVersion: .initial,
             exportedAt: Self.exportDate,
             samples: Self.sampleFixtures(),
             evidence: Self.evidenceFixtures(),

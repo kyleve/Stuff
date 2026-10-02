@@ -6,6 +6,38 @@ import Testing
 /// Covers the GPS ingestion lifecycle, the post-persist hook, and the retry
 /// queue the controller delegates all of `startGPS`/`stopGPS`/auth to.
 struct LocationIngestorTests {
+    @Test func compatibilityFailureRetainsTheOldQueueButDropsNewCallbacks() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let recorder = OutcomeRecorder()
+        let outbox = SpyLocationOutbox()
+        let ingestor = Self.makeIngestor(
+            store: store,
+            source: source,
+            recorder: recorder,
+            outbox: outbox,
+        )
+        try await ingestor.start()
+        let queued = CompatibilityTestSupport.sample
+        await ingestor.testingEnqueueForRetry(queued, dataGenerationID: .initial)
+        try await CompatibilityOutputTestSupport.makeIncompatible(store)
+        let callback = CompatibilityTestSupport.sample
+        source.emit(callback)
+        try await waitUntil { await ingestor.testingHasConsumedSample(id: callback.id) }
+        #expect(await !ingestor.isActive)
+        #expect(await !ingestor.testingIsAcceptingSamples)
+        #expect(await ingestor.testingRetryQueueSampleIDs() == [queued.id])
+        #expect(await outbox.contents.map(\.id) == [queued.id])
+        let late = CompatibilityTestSupport.sample
+        source.emit(late)
+        try await waitUntil { await ingestor.testingHasConsumedSample(id: late.id) }
+        #expect(await ingestor.testingRetryQueueSampleIDs() == [queued.id])
+        await store
+            .setSupportedDataCompatibilityVersionForTesting(CompatibilityTestSupport.nextVersion)
+        try await ingestor.start()
+        #expect(try await store.allSamples().map(\.id) == [queued.id])
+    }
+
     private enum OutboxFailure: Error {
         case clear
         case save
@@ -999,6 +1031,22 @@ private actor ToggleFailingStore: WhereStore {
 
     nonisolated func changes() -> AsyncStream<Void> {
         backing.changes()
+    }
+
+    func dataCompatibility() async throws -> DataCompatibilityStatus {
+        try await backing.dataCompatibility()
+    }
+
+    func deviceDataCapabilities() async throws -> [DeviceDataCapability] {
+        try await backing.deviceDataCapabilities()
+    }
+
+    func publishDataCapability(for deviceID: RecordingDeviceID, at date: Date) async throws {
+        try await backing.publishDataCapability(for: deviceID, at: date)
+    }
+
+    func requireDataCompatibility(_ version: DataCompatibilityVersion) async throws {
+        try await backing.requireDataCompatibility(version)
     }
 
     func dataGeneration() async throws -> WhereDataGeneration {

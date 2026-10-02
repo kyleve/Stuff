@@ -1,4 +1,4 @@
-# Where backup format v6
+# Where backup format v7
 
 `BackupArchive` is the authoritative manifest schema. A ZIP contains its JSON
 manifest and the referenced evidence assets. The production `BackupService`
@@ -20,11 +20,12 @@ Current imports require the current schema, including its required collections.
 | 4 | Expanded device kinds, grouped metadata fields under `payload`, and renamed `registrationEpochID` to `registrationGenerationID`. | [Wire version](https://github.com/kyleve/Stuff/commit/9190535a5b482c1558840fed988e58b2f2e1ef3c) |
 | 5 | Added `plannedStayRecords`, including clearing tombstones. | [Annual forecasts](https://github.com/kyleve/Stuff/commit/c2dbdf90b3e88e11e32de8bf76d7a41ac617130f) |
 | 6 | Added optional sample motion and immutable attribution revisions. | [Sample corrections](https://github.com/kyleve/Stuff/commit/0da3b36dbce465edd93380993c7f2e13f718ebf8) |
+| 7 | Added the required data compatibility level. Operational capability reports remain excluded. | [Compatibility gate](https://github.com/kyleve/Stuff/pull/329) |
 
 The device feature also used prototype versions 4–7 before its merge.
 Those versions described recording assignments, registration epochs, causal parents, and merge barriers.
 The [prototype commit](https://github.com/kyleve/Stuff/commit/3b5dfaca728cb8023e2c02bccfbd52bb0738449a)
-records that sequence. It is separate from the current version 4–6 lineage.
+records that sequence. It is separate from the current version 4–7 lineage.
 A version number alone does not identify every historical development archive.
 
 The external upgrader recognizes supported older field shapes.
@@ -32,6 +33,18 @@ It normalizes dates, day identities, region keys, and dismissal URLs.
 It supplies missing collections and converts older device payloads.
 It excludes obsolete recording policies and non-restorable check-ins.
 It never restores local recording consent.
+
+## Version 7 contents
+
+Version 7 adds `requiredDataCompatibilityVersion`, a positive integer. Export
+records the shared store's resolved requirement. Import rejects unsupported
+requirements before pausing recording or writing recovery state. A supported
+increase uses the device-readiness review and explicit override. Merge and
+Replace preserve the greater of the existing and imported requirements.
+Device capability reports and recording check-ins are not restorable data.
+
+Upgrading v1–v6 assigns compatibility version 1. Upgrading v7 preserves its
+requirement and rejects a missing or invalid value.
 
 ## Version 6 contents
 
@@ -43,7 +56,7 @@ The callback adapter follows Apple's [speed accuracy](https://developer.apple.co
 and [vertical accuracy](https://developer.apple.com/documentation/corelocation/cllocation/verticalaccuracy)
 rules: speed accuracy may be zero; vertical accuracy must be positive.
 
-The new `sampleAttributionRevisions` array preserves every immutable revision:
+The `sampleAttributionRevisions` array preserves every immutable revision:
 
 | Field | Meaning |
 | --- | --- |

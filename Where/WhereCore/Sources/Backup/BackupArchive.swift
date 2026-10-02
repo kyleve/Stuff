@@ -21,13 +21,15 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     /// v3 adds sample provenance, immutable installation profiles, nickname changes, and archive
     /// tombstones. v4 expands device kinds, groups metadata edit payloads, and renames the
     /// profile's registration-generation key; v5 adds `plannedStayRecords`; v6 retains motion
-    /// measurements and sample-attribution revisions. There's no in-app
+    /// measurements and sample-attribution revisions; v7 adds the required data compatibility
+    /// level. There's no in-app
     /// decode fallback for an older archive — it is reshaped out of band by
     /// `Tools/upgrade-backup.rb`, matching the module's no-migration-on-read rule (see
     /// `AGENTS.md`).
-    public static let currentFormatVersion = 6
+    public static let currentFormatVersion = 7
 
     public let formatVersion: Int
+    public let requiredDataCompatibilityVersion: DataCompatibilityVersion
     public let exportedAt: Date
     public let samples: [LocationSample]
     public let evidence: [Evidence]
@@ -61,6 +63,7 @@ public struct BackupArchive: Codable, Sendable, Hashable {
 
     public init(
         formatVersion: Int = BackupArchive.currentFormatVersion,
+        requiredDataCompatibilityVersion: DataCompatibilityVersion,
         exportedAt: Date,
         samples: [LocationSample],
         evidence: [Evidence],
@@ -76,6 +79,7 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         assets: [BackupAssetEntry],
     ) {
         self.formatVersion = formatVersion
+        self.requiredDataCompatibilityVersion = requiredDataCompatibilityVersion
         self.exportedAt = exportedAt
         self.samples = samples
         self.evidence = evidence

@@ -21,19 +21,21 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 ## Refresh contract
 
 1. When the app commits a store change, `WidgetSnapshotPublisher` rebuilds the
-   snapshot, writes JSON, and calls `WidgetCenter.reloadAllTimelines()`.
+   snapshot, writes compatibility and data JSON, and calls `WidgetCenter.reloadAllTimelines()`.
 2. When the device theme changes, `WidgetPresentationPublisher` writes the separate
    presentation JSON and reloads timelines without rebuilding data.
-3. The provider reads both files on each timeline request and schedules
+3. The provider reads all three files on each timeline request and schedules
    `.after(nextMidnight)` so WidgetKit re-queries even without an app reload.
 
 ## Invariants
 
-- **Read-only App Group access** — only the app writes `widget-snapshot.json`
-  and `widget-presentation.json`.
+- **Read-only App Group access** — only the app writes `widget-snapshot.json`,
+   `widget-presentation.json`, and `widget-compatibility.json`.
+- **Check compatibility before reading cached locations.** Use
+  `CompatibleWidgetSnapshotReader`. Missing, invalid, or unsupported requirements
+  render `WidgetUnavailableView`, with no cached locations or counts.
 - **Resolve the host App Group from `WhereWidgetBuildEnvironment`.** Inject it
-  into providers and both stores; never put an audience default in a package
-  target.
+  into providers and all three stores. Never put an audience default in a package target.
 - **No stale-day invalidation in the provider.** A snapshot whose `day` rolled
   past today is still shown until the app republishes. That is intentional.
 - In-widget strings come from WhereUI (shared views + `WhereFormat`). The

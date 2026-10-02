@@ -37,10 +37,14 @@ extension WhereServices {
             store: store,
             locationSource: IdleLocationSource(),
             installationContext: .testing,
-            reminderScheduler: NoopLoggingReminderScheduler(),
-            summaryScheduler: NoopDailySummaryScheduler(),
-            issueAlertScheduler: NoopDataIssueAlertScheduler(),
-            widgetRefresher: NoopWidgetTimelineRefresher(),
+            compatibilityServices: DataCompatibilityServices(
+                store: store,
+                currentDeviceID: InstallationRecordingContext.testing.currentDevice.id,
+                reminderScheduler: NoopLoggingReminderScheduler(),
+                summaryScheduler: NoopDailySummaryScheduler(),
+                issueAlertScheduler: NoopDataIssueAlertScheduler(),
+                widgetRefresher: NoopWidgetTimelineRefresher(),
+            ),
             importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
             now: now,
         )

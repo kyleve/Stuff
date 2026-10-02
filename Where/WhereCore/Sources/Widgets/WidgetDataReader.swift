@@ -71,6 +71,10 @@ public struct WidgetDataReader: Sendable {
         LocationHistoryReader(store: store)
     }
 
+    func requireDataAccess() async throws {
+        try await store.dataCompatibility().requireAccess()
+    }
+
     public init(
         store: any WhereStore,
         aggregator: DayAggregator = DayAggregator(),

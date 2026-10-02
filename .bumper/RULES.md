@@ -70,6 +70,15 @@ This rule follows the typed-query pattern proven by TheButtonHeist's
 audited and retained: Where needs the same check plus explicit exceptions for
 its documented observation-task lifecycle.
 
+## Compatibility composition
+
+`where.compatibility_composition_ownership` permits `DataCompatibilityCoordinator`
+construction only in `DataCompatibilityServices`. Bootstrap prepares that value over
+its retained store. Service assembly, onboarding, and Intents receive it by injection.
+
+Repair a violation by injecting the prepared resources. If WhereCore's documented composition boundary changes, update this rule. The mutation test rejects an
+independent presentation coordinator.
+
 ## Composition ownership
 
 `where.services_composition_ownership` keeps direct `WhereServices`
@@ -115,7 +124,9 @@ Guard: `sample attribution revisions require a guarded transaction`.
 
 The checked methods are `add`, `write`, `setManualDay`, `clearManualDay`,
 `clear`, `clearAll`, `setIssueDismissed`, `restoreDismissedIssue`,
-`setTrackedRegion`, `setPrimaryRegions`, and `addSampleAttributionRevision`.
+`setTrackedRegion`, `setPrimaryRegions`, `addSampleAttributionRevision`, and
+`requireDataCompatibility`. Compatibility capability publication owns a restricted
+metadata transaction inside the store; it cannot mutate domain data.
 
 ## App Shortcuts provider ownership
 

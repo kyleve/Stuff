@@ -4,7 +4,7 @@ import Observation
 import PeriscopeCore
 @_spi(Testing) import WhereCore
 
-/// View-scoped onboarding state and orchestration over WhereCore's backup and recording services.
+/// Gate-scoped onboarding state and orchestration over WhereCore's backup and recording services.
 @MainActor
 @Observable
 final class OnboardingFlowModel {
@@ -36,6 +36,25 @@ final class OnboardingFlowModel {
     var intro = OnboardingIntroState()
     var showImporter = false
     var showRestoreStrategyDialog = false
+    var compatibilityReview: DataCompatibilityActivationReview?
+
+    var isShowingCompatibilityReview: Bool {
+        get { compatibilityReview != nil }
+        set { if !newValue { waitForDeviceUpdates() } }
+    }
+
+    func waitForDeviceUpdates() {
+        compatibilityReview = nil
+        isFinishing = false
+        intro.activity = .browsing
+        phase = .location
+    }
+
+    func continueAfterCompatibilityReview(using model: WhereModel) {
+        guard let review = compatibilityReview else { return }
+        compatibilityReview = nil
+        finish(using: model, compatibilityApproval: .continueAnyway(review))
+    }
 
     private static let demoBuildDisplayTime = Duration.seconds(2)
     private static let logger = WhereLog.session(OnboardingViewLog.self)
@@ -94,6 +113,13 @@ final class OnboardingFlowModel {
     }
 
     func finish(using model: WhereModel) {
+        finish(using: model, compatibilityApproval: .readyDevicesOnly)
+    }
+
+    private func finish(
+        using model: WhereModel,
+        compatibilityApproval: DataCompatibilityActivationApproval,
+    ) {
         guard !isFinishing else { return }
         let readyImport = restoreSelection.readyImport
         if restoreSelection.selectedURL != nil {
@@ -107,6 +133,7 @@ final class OnboardingFlowModel {
         }
         isFinishing = true
         Task {
+            defer { isFinishing = false }
             do {
                 let context = try model.confirmInitialRecordingChoice(
                     isEnabled: recordingEnabled,
@@ -124,7 +151,9 @@ final class OnboardingFlowModel {
 
             let scope: WhereScope
             do {
-                scope = try await model.resolveScope()
+                scope = try await withCompatibilityRetry(using: model) {
+                    try await model.resolveScope()
+                }
             } catch {
                 Self.logger(attachments: [.error(error, name: "scope-error")]) {
                     .scopeCreationFailed(description: error.localizedDescription)
@@ -134,11 +163,18 @@ final class OnboardingFlowModel {
             }
 
             if let readyImport {
-                guard await importBackup(readyImport, into: scope, using: model) else { return }
+                guard await importBackup(
+                    readyImport,
+                    into: scope,
+                    using: model,
+                    approval: compatibilityApproval,
+                ) else { return }
             }
 
             do {
-                try await configureRecording(in: scope)
+                try await withCompatibilityRetry(using: model) {
+                    try await configureRecording(in: scope)
+                }
             } catch {
                 Self.logger(attachments: [.error(error, name: "recording-configuration-error")]) {
                     .recordingConfigurationFailed(description: error.localizedDescription)
@@ -156,7 +192,9 @@ final class OnboardingFlowModel {
 
             if selection.hasSelection {
                 do {
-                    try await selection.commit(using: scope)
+                    try await withCompatibilityRetry(using: model) {
+                        try await selection.commit(using: scope)
+                    }
                 } catch {
                     Self.logger(attachments: [.error(error, name: "commit-error")]) {
                         .regionCommitFailed(description: error.localizedDescription)
@@ -219,16 +257,47 @@ final class OnboardingFlowModel {
         restoreSelection.discardUncommittedSelection()
     }
 
+    func didDisappear(compatibilityBlocked: Bool) {
+        guard !compatibilityBlocked, !isFinishing else { return }
+        discardPendingRestore()
+    }
+
+    /// Compatibility recovery resumes the same operation without terminally resolving the gate.
+    /// Activation reviews still return to the user; waiting never supplies an override.
+    private func withCompatibilityRetry<Value>(
+        using model: WhereModel,
+        operation: @MainActor () async throws -> Value,
+    ) async throws -> Value {
+        while true {
+            try Task.checkCancellation()
+            do {
+                return try await operation()
+            } catch let error as DataCompatibilityError {
+                switch error {
+                    case .updateRequired, .invalidMetadata, .verificationFailed:
+                        await model.compatibility.refresh(publishCapability: false)
+                        try await model.compatibility.waitUntilCompatible()
+                    case .confirmationRequired, .metadataTransactionCannotWriteDomainData:
+                        throw error
+                }
+            }
+        }
+    }
+
     private func importBackup(
         _ readyImport: OnboardingRestoreSelection.ReadyImport,
         into scope: WhereScope,
         using model: WhereModel,
+        approval: DataCompatibilityActivationApproval,
     ) async -> Bool {
         do {
-            let summary = try await scope.services.backup.importBackup(
-                from: readyImport.url,
-                strategy: readyImport.strategy,
-            ) { _ in }
+            let summary = try await withCompatibilityRetry(using: model) {
+                try await scope.services.backup.importBackup(
+                    from: readyImport.url,
+                    strategy: readyImport.strategy,
+                    compatibilityApproval: approval,
+                ) { _ in }
+            }
             restoreSelection.markCommitted(summary)
             model.completeOnboarding()
             do {
@@ -241,6 +310,12 @@ final class OnboardingFlowModel {
                 return false
             }
             return true
+        } catch let DataCompatibilityError.confirmationRequired(review) {
+            compatibilityReview = review
+            isFinishing = false
+            intro.activity = .browsing
+            phase = .location
+            return false
         } catch let error as BackupCoordinator.CommittedImportCleanupError {
             restoreSelection.markCommitted(error.summary)
             model.completeOnboarding()
