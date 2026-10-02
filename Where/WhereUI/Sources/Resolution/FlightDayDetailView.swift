@@ -35,9 +35,9 @@ struct FlightDayDetailView: View {
                     }
                 }
 
-                if !model.mapPoints.isEmpty {
+                if !model.mapData.pins.isEmpty || !model.mapData.routes.isEmpty {
                     Section {
-                        RecordedPointsMap(points: model.mapPoints)
+                        RecordedPointsMap(data: model.mapData)
                             .listRowInsets(EdgeInsets())
                     }
                 }

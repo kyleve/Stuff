@@ -159,22 +159,18 @@ struct LocationsView: View {
         }
     }
 
-    /// A flight notice must remain scrollable even when the report has no cards.
-    @ViewBuilder
+    /// Keep short states centered and let a flight notice or larger text scroll.
     private func stateWithFlightNotice(@ViewBuilder content: () -> some View) -> some View {
-        if report.liveFlightReview != nil {
-            ScrollView {
-                VStack(spacing: stylesheet.spacing.xxLarge) {
-                    flightNotice
-                    content()
-                }
-                .padding()
-                .frame(maxWidth: .infinity)
+        ScrollView {
+            VStack(spacing: stylesheet.spacing.xxLarge) {
+                flightNotice
+                content()
             }
-            .scrollBounceBehavior(.basedOnSize)
-        } else {
-            content()
+            .padding()
+            .frame(maxWidth: .infinity)
         }
+        .scrollBounceBehavior(.basedOnSize)
+        .defaultScrollAnchor(report.liveFlightReview == nil ? .center : .top, for: .alignment)
     }
 
     private var content: some View {

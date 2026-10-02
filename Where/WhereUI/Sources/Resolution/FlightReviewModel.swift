@@ -17,7 +17,11 @@ final class FlightReviewModel {
         case applied
     }
 
-    private(set) var review: GPSCorrectionReview?
+    private var presentation: FlightReviewPresentation?
+    var review: GPSCorrectionReview? {
+        presentation?.review
+    }
+
     private(set) var saveState = SaveState.idle
     let reviewID: DataIssueID
     let initialDay: DayPresence
@@ -25,7 +29,7 @@ final class FlightReviewModel {
     private static let logger = WhereLog.session(ResolveModelLog.self)
 
     init(review: GPSCorrectionReview, report: YearReportModel) {
-        self.review = review
+        presentation = Self.prepare(review)
         reviewID = review.id
         initialDay = review.day
         self.report = report
@@ -35,41 +39,27 @@ final class FlightReviewModel {
         review?.proposal != nil && saveState != .applying && saveState != .applied
     }
 
-    var mapPoints: [RecordedMapPoint] {
-        review?.points.flatMap { point in
-            point.regions.sorted { $0.rawValue < $1.rawValue }.map { region in
-                RecordedMapPoint(
-                    coordinate: point.sample.coordinate,
-                    horizontalAccuracy: point.sample.horizontalAccuracy,
-                    region: region,
-                )
-            }
-        } ?? []
+    var mapData: RecordedMapData {
+        presentation?.map ?? .empty
     }
 
     var editedPoints: [SampleCorrectionPoint] {
-        guard let review, let proposal = review.proposal else { return [] }
-        // Synced physical rows can share one logical sample and proposal edit.
-        var remainingEditedIDs = Set(proposal.edits.map(\.sampleID))
-        return review.points.filter { remainingEditedIDs.remove($0.sample.id) != nil }
-            .sorted { $0.sample.timestamp < $1.sample.timestamp }
+        presentation?.editedPoints ?? []
     }
 
     func replacementDescription(for sampleID: UUID) -> String {
-        guard let edit = review?.proposal?.edits.first(where: { $0.sampleID == sampleID }) else {
+        guard let regions = presentation?.replacements[sampleID] else {
             return String(localized: .flightReviewUnchanged)
         }
-        if edit.replacementRegions.isEmpty {
-            return String(localized: .flightReviewExcluded)
-        }
-        return edit.replacementRegions.map(\.localizedName).sorted().joined(separator: ", ")
+        if regions.isEmpty { return String(localized: .flightReviewExcluded) }
+        return regions.map(\.localizedName).sorted().joined(separator: ", ")
     }
 
     func receive(_ scan: DataIssueScanResult?) {
         guard let scan, saveState != .applying, saveState != .applied else { return }
         let updated = scan.reviews.first { $0.id == reviewID }
         guard updated != review else { return }
-        review = updated
+        presentation = updated.map(Self.prepare)
         saveState = .refreshed
     }
 
@@ -82,7 +72,7 @@ final class FlightReviewModel {
                     saveState = .applied
                     await report.rescanForIssues()
                 case let .stale(updated):
-                    review = updated
+                    presentation = updated.map(Self.prepare)
                     saveState = .refreshed
                     await report.rescanForIssues()
             }
@@ -91,6 +81,12 @@ final class FlightReviewModel {
                 .correctionApplyFailed(issueID: reviewID)
             }
             saveState = .failed(error.localizedDescription)
+        }
+    }
+
+    private static func prepare(_ review: GPSCorrectionReview) -> FlightReviewPresentation {
+        logger.measure(.prepareReview, budget: .milliseconds(100)) {
+            FlightReviewPresentation(review: review)
         }
     }
 }

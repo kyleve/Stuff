@@ -88,6 +88,8 @@ Layering, localization, preview, and testing conventions live in the feature
 - Publish flight notices, correction reviews, and actionable counts from one
   `YearReportModel` scan result. Inject that scene as the Resolve model's `ResolutionSource`. Re-key on raw evidence changes; never gate refresh
   on aggregate-report equality. Schedule presentation deadlines only in the foreground.
+- Keep the raw GPS path visible in correction reviews after samples lose attribution.
+  Bound display geometry without changing the evidence or edits. Never join separate recording devices into one route.
 - Route automatic GPS fixes through Core's sample-correction coordinator. Keep
   stale Apply results open for review and preserve manual editing while arrival is pending.
 - Use this installation's assessment for a live flight notice. Identify each

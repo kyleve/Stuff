@@ -74,7 +74,41 @@
         ) -> GPSCorrectionReview {
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = .current
-            let sampleID = UUID(uuidString: "00000000-0000-0000-0000-000000000301")!
+            let coordinates = [
+                Coordinate(latitude: 37.6213, longitude: -122.3790),
+                Coordinate(latitude: 39.53, longitude: -106.16),
+                Coordinate(latitude: 41.2, longitude: -95.9),
+                Coordinate(latitude: 41.3, longitude: -84.1),
+                Coordinate(latitude: 40.6413, longitude: -73.7781),
+            ]
+            let visibleIndices: [Int] = switch state {
+                case .flightLikely, .waiting, .stale: [0, 1, 2]
+                case .noPresence: [1, 2, 3]
+                case .ready, .completed: [0, 1, 2, 3, 4]
+            }
+            let points = visibleIndices.map { index in
+                let region: Region = switch index {
+                    case 0: .california
+                    case 4: .newYork
+                    default: .other
+                }
+                return SampleCorrectionPoint(
+                    sample: LocationSample(
+                        id: UUID(uuidString: String(
+                            format: "00000000-0000-0000-0000-%012d",
+                            300 + index,
+                        ))!,
+                        timestamp: date.addingTimeInterval(Double(index - 4) * 3600),
+                        coordinate: coordinates[index],
+                        horizontalAccuracy: 30,
+                        source: .gpsSignificantChange,
+                        recordingDeviceID: CurrentRecordingDevice.preview.id,
+                    ),
+                    regions: state == .completed && region == .other ? [] : [region],
+                )
+            }
+            let airborne = Set(points.filter { $0.regions.contains(.other) || $0.regions.isEmpty }
+                .map(\.sample.id))
             let day = DayPresence(
                 date: date,
                 in: calendar,
@@ -89,13 +123,13 @@
             let flight = FlightAssessment(
                 id: .init(
                     recordingSource: .device(CurrentRecordingDevice.preview.id),
-                    departureSampleID: sampleID,
+                    departureSampleID: points[0].sample.id,
                 ),
                 startedAt: date.addingTimeInterval(-5 * 60 * 60),
                 lastObservationAt: date.addingTimeInterval(state == .stale ? -2 * 60 * 60 : 0),
                 lastFlightAt: date.addingTimeInterval(-15 * 60),
-                airborneSampleIDs: [sampleID],
-                groundSampleIDs: [],
+                airborneSampleIDs: airborne,
+                groundSampleIDs: Set(points.map(\.sample.id)).subtracting(airborne),
                 peakSpeedKMH: 1040,
                 progress: progress,
             )
@@ -107,14 +141,14 @@
                         kind: .flight,
                         day: day,
                         resultingRegions: state == .noPresence ? [] : [.california, .newYork],
-                        edits: [.init(sampleID: sampleID, replacementRegions: [])],
+                        edits: points.filter { airborne.contains($0.sample.id) }.map {
+                            .init(sampleID: $0.sample.id, replacementRegions: [])
+                        },
                     ), flight: flight)
                 case .completed:
                     .completed(flight)
             }
-            // No network-backed map in these fixtures. The same review body
-            // renders evidence, arrival state, and sample-edit summary synchronously.
-            return GPSCorrectionReview(id: reviewID, day: day, points: [], state: reviewState)
+            return GPSCorrectionReview(id: reviewID, day: day, points: points, state: reviewState)
         }
     }
 #endif

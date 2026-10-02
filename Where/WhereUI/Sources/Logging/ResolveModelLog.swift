@@ -5,6 +5,13 @@ import WhereCore
 /// dismiss failures leave an honest UI error, so they log at `.warning`. A
 /// dismissed issue's id rides on `externalID`.
 enum ResolveModelLog: LogEvent {
+    enum SpanName: String, CustomStringConvertible {
+        case prepareReview
+        var description: String {
+            rawValue
+        }
+    }
+
     case dataIssueScanFailed(description: String)
     case dismissFailed(issueID: String, description: String)
     case correctionApplyFailed(issueID: DataIssueID)

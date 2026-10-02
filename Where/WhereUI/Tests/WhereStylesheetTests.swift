@@ -596,6 +596,9 @@ struct WhereStylesheetTests {
         #expect(regionMap.uncertaintyFillOpacity == 0.15)
         #expect(regionMap.uncertaintyStrokeOpacity == 0.6)
         #expect(regionMap.uncertaintyStrokeWidth == 1)
+        #expect(regionMap.routeLineWidth == 2)
+        #expect(regionMap.capturePointDiameter == 8)
+        #expect(regionMap.captureInset == 16)
     }
 
     @Test func regionPickerStyle() {

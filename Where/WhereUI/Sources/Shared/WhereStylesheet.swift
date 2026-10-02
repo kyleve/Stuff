@@ -1562,6 +1562,9 @@ extension WhereStylesheet {
         /// Stroke opacity and width of that circle.
         var uncertaintyStrokeOpacity: Double
         var uncertaintyStrokeWidth: CGFloat
+        var routeLineWidth: CGFloat = 2
+        var capturePointDiameter: CGFloat = 8
+        var captureInset: CGFloat = 16
 
         static let standard = RegionMapStyle(
             height: 220,

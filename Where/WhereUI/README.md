@@ -165,6 +165,11 @@ live notices after 24 hours; unresolved historical reviews remain accessible.
 Standalone consumers use `ScannerResolutionSource`; previews supply a synchronous fixture
 through the same protocol. Product models have no preview-mode refresh branches.
 
+`FlightReviewPresentation` prepares map geometry and edit lookups once per review.
+The map preserves corrected GPS observations and separates device tracks.
+Rendering uses at most 250 markers and 2,048 coordinates per device route, retaining both route endpoints.
+The full evidence and edit list remain available. Snapshot capture replaces remote map tiles with a deterministic substrate.
+
 `FlightReviewModel` submits reviewed proposals to Core and keeps a changed
 proposal on screen for review instead of reporting a stale Apply as success.
 Reset to GPS restores both manual and sample attribution through the existing
