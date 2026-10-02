@@ -57,8 +57,7 @@ struct ResolveModelTests {
 
         // Two calendar-adjacent days with disjoint regions produce a real,
         // dismissible abrupt-change issue, so `dismiss` runs against an issue the
-        // scanner actually returned from `load(...)` — no seeded fixture, no
-        // `setDataIssues` short-circuit.
+        // scanner returned from `load(...)`.
         try await services.journal.addManualDay(
             date: date(year: 2026, month: 3, day: 1),
             regions: [.california],
@@ -188,48 +187,12 @@ struct ResolveModelTests {
         #expect(resolve.dataIssues.isEmpty == !seededWithIssues)
     }
 
-    /// A seeded fixture survives the `load(...)` that `ResolutionView`'s
-    /// `.task(id:)` fires on appear. This is what keeps the empty fixture empty:
-    /// the same store the scan runs against here has no logged days, so an
-    /// un-short-circuited scan would fill the list with missing-day issues and
-    /// `resolution.Empty` would capture a populated list instead.
-    @Test func loadLeavesASeededFixtureAlone() async throws {
-        let store = try TestStore()
-        let now = date(year: 2026, month: 2, day: 10)
-        let services = WhereServices(
-            store: store,
-            locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
-            widgetRefresher: NoopWidgetTimelineRefresher(),
-            now: { now },
-        )
-        let resolve = ResolveModel(
-            services: services,
-            preferences: makePreferences(),
-        )
-
-        resolve.setDataIssues([])
-        await resolve.load(year: 2026, primaryRegions: [.california])
-
-        #expect(resolve.dataIssues.isEmpty)
-    }
-
-    /// Seeding a fixture also counts as loaded, so the seeded "empty" preview
-    /// renders its empty state rather than a stuck spinner.
-    @Test func seedingMarksTheModelLoaded() throws {
-        let store = try TestStore()
-        let services = WhereServices(
-            store: store,
-            locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
-            widgetRefresher: NoopWidgetTimelineRefresher(),
-        )
-        let resolve = ResolveModel(
-            services: services,
-            preferences: makePreferences(),
-        )
-
-        resolve.setDataIssues([])
+    @Test func fixtureUsesTheSourceProtocolDuringRefresh() async {
+        let resolve = PreviewSupport.resolveModel(seededWithIssues: false)
         #expect(resolve.hasLoaded)
+        await resolve.load(year: 2026, primaryRegions: [.california])
+        #expect(resolve.hasLoaded)
+        #expect(resolve.dataIssues.isEmpty)
+        #expect(resolve.reviews.isEmpty)
     }
 }

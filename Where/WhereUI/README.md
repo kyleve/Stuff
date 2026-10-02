@@ -161,6 +161,10 @@ supported before Apply is offered; manual day editing stays available.
 badge, and open detail. Committed raw GPS writes refresh it even when region
 totals do not change. Foreground-only deadlines update stale notices and remove
 live notices after 24 hours; unresolved historical reviews remain accessible.
+`ResolveModel` receives a `ResolutionSource`. The scene supplies its `YearReportModel`.
+Standalone consumers use `ScannerResolutionSource`; previews supply a synchronous fixture
+through the same protocol. Product models have no preview-mode refresh branches.
+
 `FlightReviewModel` submits reviewed proposals to Core and keeps a changed
 proposal on screen for review instead of reporting a stale Apply as success.
 Reset to GPS restores both manual and sample attribution through the existing

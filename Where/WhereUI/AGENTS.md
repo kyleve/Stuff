@@ -86,7 +86,7 @@ Layering, localization, preview, and testing conventions live in the feature
   `RegionArtworkProjection`. Never project, simplify, or spatially reduce
   artwork in a card's `body`.
 - Publish flight notices, correction reviews, and actionable counts from one
-  `YearReportModel` scan result. Re-key on raw evidence changes; never gate refresh
+  `YearReportModel` scan result. Inject that scene as the Resolve model's `ResolutionSource`. Re-key on raw evidence changes; never gate refresh
   on aggregate-report equality. Schedule presentation deadlines only in the foreground.
 - Route automatic GPS fixes through Core's sample-correction coordinator. Keep
   stale Apply results open for review and preserve manual editing while arrival is pending.

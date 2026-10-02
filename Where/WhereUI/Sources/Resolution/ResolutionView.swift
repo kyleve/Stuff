@@ -15,18 +15,14 @@ struct ResolutionView: View {
         self.report = report
         _resolve = State(initialValue: ResolveModel(
             services: report.services,
-            preferences: report.preferences,
+            source: report,
         ))
     }
 
-    #if DEBUG
-        /// Preview/test seam: inject a `ResolveModel` seeded via
-        /// `@_spi(Testing) setDataIssues` so the list renders without raw samples.
-        init(report: YearReportModel, resolve: ResolveModel) {
-            self.report = report
-            _resolve = State(initialValue: resolve)
-        }
-    #endif
+    init(report: YearReportModel, resolve: ResolveModel) {
+        self.report = report
+        _resolve = State(initialValue: resolve)
+    }
 
     var body: some View {
         NavigationStack {
@@ -38,11 +34,10 @@ struct ResolutionView: View {
                     }
                 }
                 .task(id: report.dataIssueScanInputs) {
-                    if report.dataIssueScan == nil, report.dataIssueScanError == nil {
-                        await report.refreshDataIssueCount(force: false)
-                    }
-                    guard !Task.isCancelled else { return }
-                    resolve.receive(scan: report.dataIssueScan, error: report.dataIssueScanError)
+                    await resolve.load(
+                        year: report.selectedYear,
+                        primaryRegions: report.ranking.primary.map(\.region),
+                    )
                 }
         }
         // Log View Mode: reveal an inspect badge for data-issue resolution

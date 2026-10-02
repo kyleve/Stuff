@@ -37,11 +37,10 @@
 
         @MainActor
         static func flightResolveModel(state: FlightReviewPreviewState) -> ResolveModel {
-            let resolve = resolveModel(seededWithIssues: false)
-            let scan = flightScan(state: state)
-            resolve.setDataIssues(scan.issues)
-            resolve.setReviews(scan.reviews)
-            return resolve
+            ResolveModel(
+                services: previewServices(),
+                source: FixtureResolutionSource(scan: flightScan(state: state)),
+            )
         }
 
         static func borderDriftReview(date: Date) -> GPSCorrectionReview {

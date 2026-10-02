@@ -575,35 +575,26 @@
             ]
         }
 
-        /// A Resolve model seeded (via the `@_spi(Testing)` seam) with one issue
-        /// per category, so Resolve previews/tests render a populated list without
-        /// raw samples to scan. Pass `seededWithIssues: false` for the empty state.
-        ///
-        /// Both cases seed, including the empty one: seeding is what marks the
-        /// model loaded *and* `isSeeded`, so `ResolutionView` renders the state
-        /// asked for instead of a spinner over a live `DataIssueScanner` pass.
-        /// Skipping it for the empty case left `hasLoaded` false, which the view
-        /// can't tell apart from "the first scan hasn't landed" — so the case
-        /// rendered the loading placeholder and then whatever the real scan of the
-        /// empty store found, and the capture raced that scan.
+        /// A synchronous source with a populated or empty scan for previews.
         @MainActor
         public static func resolveModel(seededWithIssues: Bool = true) -> ResolveModel {
-            let resolve = ResolveModel(
-                services: previewServices(),
-                preferences: previewPreferences(),
-            )
-            if seededWithIssues {
-                var calendar = Calendar(identifier: .gregorian)
-                calendar.timeZone = .current
-                let driftDay = calendar.date(from: DateComponents(year: year, month: 3, day: 2))!
-                let flightDay = calendar.date(from: DateComponents(year: year, month: 3, day: 4))!
-                resolve.setReviews([
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = .current
+            let driftDay = calendar.date(from: DateComponents(year: year, month: 3, day: 2))!
+            let flightDay = calendar.date(from: DateComponents(year: year, month: 3, day: 4))!
+            let scan = DataIssueScanResult(
+                revision: UUID(),
+                issues: seededWithIssues ? sampleDataIssues() : [],
+                reviews: seededWithIssues ? [
                     borderDriftReview(date: driftDay),
                     flightReview(state: .ready, date: flightDay),
-                ])
-            }
-            resolve.setDataIssues(seededWithIssues ? sampleDataIssues() : [])
-            return resolve
+                ] : [],
+                nextReassessmentAt: nil,
+            )
+            return ResolveModel(
+                services: previewServices(),
+                source: FixtureResolutionSource(scan: scan),
+            )
         }
 
         // MARK: - Logged days (manual entries sheet)
