@@ -6,6 +6,37 @@ import WhereCore
 struct DayAggregatorTests {
     let attributor = RegionAttributor.shared
 
+    @Test func whollyExcludedObservedDayDoesNotBecomeAMissingBackfill() {
+        let sample = LocationSample(
+            timestamp: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"),
+            coordinate: Coordinate(latitude: 37, longitude: -140),
+            horizontalAccuracy: 5,
+            source: .gpsSignificantChange,
+        )
+        let day = CalendarDay(from: sample.timestamp, in: calendar)
+        let report = aggregator.report(
+            for: day.year,
+            history: [AttributedLocationSample(sample: sample, regions: [])],
+            manualDays: [],
+        )
+        #expect(report.days == [DayPresence(day: day, regions: [])])
+        #expect(report.totals.isEmpty)
+
+        let issues = MissingDaysDetector().detectIssues(in: DataIssueInput(
+            year: day.year,
+            report: report,
+            otherDayCoordinates: [:],
+            daySamples: DaySamples(samples: [sample], calendar: calendar),
+            primaryRegions: [.california],
+            attributor: attributor,
+            driftThresholdMeters: 1000,
+            calendar: calendar,
+            now: WhereCoreTestSupport.iso("2026-03-20T12:00:00-07:00"),
+        ))
+        #expect(!issues.isEmpty) // Truly unobserved days still require backfill.
+        #expect(issues.allSatisfy { !($0.range.start ... $0.range.end).contains(day) })
+    }
+
     /// All tests pin themselves to America/Los_Angeles so behavior doesn't
     /// shift with the test runner's clock or default locale.
     private var aggregator: DayAggregator {

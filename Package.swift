@@ -167,6 +167,12 @@ let package = Package(
                 .product(name: "ZIPFoundation", package: "ZIPFoundation"),
             ],
             path: "Where/WhereCore/Sources",
+            exclude: [
+                "DataResolution/AGENTS.md",
+                "DataResolution/CLAUDE.md",
+                "DataResolution/Flights/AGENTS.md",
+                "DataResolution/Flights/CLAUDE.md",
+            ],
             resources: [
                 .process("Resources"),
             ],

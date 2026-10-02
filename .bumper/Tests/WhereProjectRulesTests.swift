@@ -224,6 +224,22 @@ struct WhereProjectRulesTests {
     }
 
     @Test
+    func `sample attribution revisions require a guarded transaction`() throws {
+        let allowed = try evaluate(
+            path: "Where/WhereCore/Sources/Corrections.swift",
+            component: .whereCore,
+            source: "func apply() async throws { try await store.perform(expectedDataGenerationID: generation) { try await store.addSampleAttributionRevision(revision) } }",
+        )
+        let rejected = try evaluate(
+            path: "Where/WhereCore/Sources/UnguardedCorrections.swift",
+            component: .whereCore,
+            source: "func apply() async throws { try await store.addSampleAttributionRevision(revision) }",
+        )
+        #expect(allowed.violations.isEmpty)
+        #expect(rejected.violations.map(\.rule.id) == ["where.store_transaction_boundary"])
+    }
+
+    @Test
     func `AppShortcutsProvider stays in the app target`() throws {
         let allowed = try evaluate(
             path: "Where/Where/Sources/WhereShortcuts.swift",

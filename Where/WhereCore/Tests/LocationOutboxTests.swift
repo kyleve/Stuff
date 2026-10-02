@@ -72,6 +72,26 @@ struct LocationOutboxTests {
         #expect(try await loadedSamples(from: outbox) == samples)
     }
 
+    @Test func retryJournalPreservesGPSMotion() async throws {
+        let url = tempURL()
+        defer { cleanup(url) }
+        let outbox = FileLocationOutbox(fileURL: url)
+        let sample = LocationSample(
+            timestamp: Date(timeIntervalSince1970: 1000),
+            coordinate: Coordinate(latitude: 40, longitude: -100),
+            horizontalAccuracy: 10,
+            source: .gpsSignificantChange,
+            motion: LocationMotion(
+                speed: .init(metersPerSecond: 240, accuracyMetersPerSecond: 2),
+                altitude: .init(meters: 10500, accuracyMeters: 12),
+            ),
+        )
+        let entry = LocationOutboxEntry(sample: sample, dataGenerationID: .initial)
+        try await outbox.save([entry])
+        let reopened = FileLocationOutbox(fileURL: url)
+        #expect(try await reopened.load() == [entry])
+    }
+
     @Test func roundTripPreservesNoninitialDataGeneration() async throws {
         let url = tempURL()
         defer { cleanup(url) }

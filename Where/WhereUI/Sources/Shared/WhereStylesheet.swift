@@ -20,6 +20,7 @@ struct WhereStylesheet: BStylesheet {
     var locationsBackground = LocationsBackgroundStyle()
     var locationCardStack = LocationCardStackStyle.standard
     var locationWelcome = LocationWelcomeStyle.standard
+    var flightStatus = FlightStatusStyle()
     var calendar = CalendarStyle.standard
     var appIcon = AppIconStyle.standard
     var timeline = TimelineStyle.standard
@@ -130,6 +131,19 @@ struct WhereStylesheet: BStylesheet {
     /// The fixed token set: the fallback used off the `View` tree (layout
     /// helpers, tests) and when no Broadway root has seeded a context.
     static let `default` = WhereStylesheet()
+}
+
+// MARK: - Flight status
+
+extension WhereStylesheet {
+    struct FlightStatusStyle: Equatable {
+        var padding: CGFloat = 14
+        var spacing: CGFloat = 8
+        var cornerRadius: CGFloat = 14
+        var titleFont = Font.headline
+        var bodyFont = Font.subheadline
+        var background = Color(uiColor: .secondarySystemGroupedBackground)
+    }
 }
 
 // MARK: - Location welcome
@@ -1548,6 +1562,9 @@ extension WhereStylesheet {
         /// Stroke opacity and width of that circle.
         var uncertaintyStrokeOpacity: Double
         var uncertaintyStrokeWidth: CGFloat
+        var routeLineWidth: CGFloat = 2
+        var capturePointDiameter: CGFloat = 8
+        var captureInset: CGFloat = 16
 
         static let standard = RegionMapStyle(
             height: 220,
