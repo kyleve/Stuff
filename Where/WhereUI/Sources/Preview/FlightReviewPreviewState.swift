@@ -31,7 +31,7 @@
                 revision: UUID(uuidString: "00000000-0000-0000-0000-000000000303")!,
                 issues: issues,
                 reviews: [review],
-                nextReassessmentAt: review.flight?.nextReassessmentAt,
+                nextReassessmentAt: review.flight?.reassessment.scheduledDate,
             )
         }
 
@@ -54,7 +54,7 @@
                 day: day,
                 points: [],
                 state: .ready(SampleCorrectionProposal(
-                    reviewID: reviewID,
+                    kind: .borderDrift,
                     day: day,
                     resultingRegions: [.newYork],
                     edits: [.init(
@@ -89,7 +89,7 @@
             }
             let flight = FlightAssessment(
                 id: .init(
-                    recordingDeviceID: CurrentRecordingDevice.preview.id,
+                    recordingSource: .device(CurrentRecordingDevice.preview.id),
                     departureSampleID: sampleID,
                 ),
                 startedAt: date.addingTimeInterval(-5 * 60 * 60),
@@ -105,7 +105,7 @@
                     .pending(flight)
                 case .ready, .noPresence:
                     .ready(SampleCorrectionProposal(
-                        reviewID: reviewID,
+                        kind: .flight,
                         day: day,
                         resultingRegions: state == .noPresence ? [] : [.california, .newYork],
                         edits: [.init(sampleID: sampleID, replacementRegions: [])],

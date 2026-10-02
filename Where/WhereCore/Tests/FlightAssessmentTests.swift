@@ -7,7 +7,7 @@ struct FlightAssessmentTests {
         let lastFlight = FlightTrajectoryFixtures.start
         func assessment(_ progress: FlightAssessment.Progress) -> FlightAssessment {
             FlightAssessment(
-                id: .init(recordingDeviceID: nil, departureSampleID: UUID()),
+                id: .init(recordingSource: .legacy, departureSampleID: UUID()),
                 startedAt: lastFlight,
                 lastObservationAt: lastFlight.addingTimeInterval(600),
                 lastFlightAt: lastFlight,
@@ -17,8 +17,8 @@ struct FlightAssessmentTests {
                 progress: progress,
             )
         }
-        #expect(assessment(.flightLikely).nextReassessmentAt == lastFlight.addingTimeInterval(1800))
-        #expect(assessment(.awaitingArrival).nextReassessmentAt == nil)
-        #expect(assessment(.completed(arrivedAt: lastFlight)).nextReassessmentAt == nil)
+        #expect(assessment(.flightLikely).reassessment == .at(lastFlight.addingTimeInterval(1800)))
+        #expect(assessment(.awaitingArrival).reassessment == .whenEvidenceChanges)
+        #expect(assessment(.completed(arrivedAt: lastFlight)).reassessment == .whenEvidenceChanges)
     }
 }

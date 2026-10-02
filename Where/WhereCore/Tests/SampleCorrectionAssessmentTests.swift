@@ -7,6 +7,27 @@ import Testing
 struct SampleCorrectionAssessmentTests {
     private typealias F = SampleCorrectionAssessmentFixtures
 
+    @Test func editsUseTimeThenIdentityAndProduceOneIssuePerDay() throws {
+        let samples = [
+            F.point(101, minutes: 0, longitude: -0.001),
+            F.point(302, minutes: 5, longitude: 0.0005),
+            F.point(103, minutes: 10, longitude: -0.001),
+            F.point(202, minutes: 15, longitude: 0.0005),
+            F.point(201, minutes: 15, longitude: 0.0005),
+            F.point(104, minutes: 20, longitude: -0.001),
+        ]
+        for order in [samples, Array(samples.reversed())] {
+            let reviews = F.reviews(order)
+            #expect(reviews.count == 1)
+            let proposal = try #require(reviews.first?.proposal)
+            #expect(proposal.kind == .borderDrift)
+            #expect(proposal.edits.map(\.sampleID) == [samples[1].id, samples[4].id, samples[3].id])
+            let issue = SampleCorrectionIssue(proposal: proposal)
+            #expect(issue.category == .borderDrift)
+            #expect(issue.id == .borderDrift(day: proposal.day.day))
+        }
+    }
+
     @Test @MainActor func syncedDuplicateRowsApplyOneRevisionPerSample() async throws {
         let samples = FlightTrajectoryFixtures.turningFlight().samples
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)

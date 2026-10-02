@@ -30,6 +30,11 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         }
     }
 
+    /// An anchor offset, including the exclusive end of the trajectory.
+    private struct AnchorIndex {
+        let offset: Int
+    }
+
     private struct Core {
         let start: Int
         let end: Int
@@ -110,7 +115,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
                     for: groups[index + 1][0],
                     anchors: anchors,
                     legs: legs,
-                ) : anchors.count,
+                ) : AnchorIndex(offset: anchors.endIndex),
                 deviceID: deviceID,
                 now: now,
             )
@@ -123,7 +128,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         legs: [Leg],
         usable: [LocationSample],
         grounds: [Ground],
-        nextStart: Int,
+        nextStart: AnchorIndex,
         deviceID: RecordingDeviceID?,
         now: Date,
     ) -> FlightAssessment? {
@@ -140,7 +145,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
                       && $0.end - $0.start >= 2
               }),
               zip(cores, cores.dropFirst()).allSatisfy({ $0.end <= $1.start }),
-              nextStart >= last.end, nextStart <= anchors.count,
+              nextStart.offset >= last.end, nextStart.offset <= anchors.count,
               grounds.allSatisfy({
                   anchors.indices.contains($0.start) && anchors.indices.contains($0.confirmation)
                       && $0.confirmation - $0.start >= 2
@@ -151,16 +156,16 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             )
             return nil
         }
-        let arrival = grounds.first { $0.start >= last.end && $0.confirmation <= nextStart }
+        let arrival = grounds.first { $0.start >= last.end && $0.confirmation <= nextStart.offset }
         let departure = grounds.last { $0.confirmation <= first.start }
         // Extend each cruise core only through bounded, plausible takeoff/approach
         // legs. Arrival and the next departure bound ownership of these observations.
         var supportedLegs: Set<Int> = []
         for core in cores {
             let before = Self.transitionStart(for: core, anchors: anchors, legs: legs)
-            supportedLegs.formUnion(before ..< core.end)
+            supportedLegs.formUnion(before.offset ..< core.end)
             var after = core.end
-            let limit = arrival?.start ?? nextStart - 1
+            let limit = arrival?.start ?? nextStart.offset - 1
             while after < limit,
                   legs[after].isTransition,
                   anchors[after + 1].timestamp.timeIntervalSince(anchors[core.end].timestamp)
@@ -179,8 +184,20 @@ public struct FlightTrajectoryAnalyzer: Sendable {
                     && Self.fitsGround($0, origin: anchors[ground.start])
             }.map(\.id)
         })
-        let startIndex = supportedLegs.min() ?? first.start
-        let endIndex = (supportedLegs.max() ?? last.end - 1) + 1
+        // Every accepted core supplies at least two legs. Absence is a broken
+        // inference invariant, never a measured speed of zero.
+        guard let startIndex = supportedLegs.min(),
+              let lastLegIndex = supportedLegs.max(),
+              let peakSpeedKMH = supportedLegs.map({
+                  GPSCorrectionPolicy.kilometersPerHour(
+                      fromMetersPerSecond: legs[$0].distance / legs[$0].seconds,
+                  )
+              }).max()
+        else {
+            assertionFailure("A flight requires supported motion legs")
+            return nil
+        }
+        let endIndex = lastLegIndex + 1
         let earliest = anchors[startIndex]
         let latest = anchors[endIndex]
         var airborneIDs: Set<UUID> = []
@@ -212,8 +229,8 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         }
         let observationLimit = if let arrival {
             anchors[arrival.confirmation].timestamp
-        } else if nextStart < anchors.count {
-            anchors[nextStart].timestamp
+        } else if nextStart.offset < anchors.count {
+            anchors[nextStart.offset].timestamp
         } else {
             now
         }
@@ -221,8 +238,8 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         // takeoff transition. It cannot extend an older unresolved review.
         let lastObservation = usable.last {
             $0.timestamp <= observationLimit
-                && (arrival != nil || nextStart == anchors.count
-                    || $0.timestamp < anchors[nextStart].timestamp)
+                && (arrival != nil || nextStart.offset == anchors.count
+                    || $0.timestamp < anchors[nextStart.offset].timestamp)
         } ?? latest
         let trailingMotionIsPlausible = anchors.last(where: {
             $0.timestamp <= lastObservation.timestamp
@@ -247,17 +264,16 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             .awaitingArrival
         }
         return FlightAssessment(
-            id: .init(recordingDeviceID: deviceID, departureSampleID: earliest.id),
+            id: .init(
+                recordingSource: deviceID.map(FlightAssessment.RecordingSource.device) ?? .legacy,
+                departureSampleID: earliest.id,
+            ),
             startedAt: earliest.timestamp,
             lastObservationAt: lastObservation.timestamp,
             lastFlightAt: lastFlightAt,
             airborneSampleIDs: airborneIDs,
             groundSampleIDs: groundIDs,
-            peakSpeedKMH: supportedLegs.map {
-                GPSCorrectionPolicy.kilometersPerHour(
-                    fromMetersPerSecond: legs[$0].distance / legs[$0].seconds,
-                )
-            }.max() ?? 0,
+            peakSpeedKMH: peakSpeedKMH,
             progress: progress,
         )
     }
@@ -266,7 +282,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         for core: Core,
         anchors: [LocationSample],
         legs: [Leg],
-    ) -> Int {
+    ) -> AnchorIndex {
         var start = core.start
         while start > 0,
               legs[start - 1].isTransition,
@@ -275,7 +291,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         {
             start -= 1
         }
-        return start
+        return AnchorIndex(offset: start)
     }
 
     private static func cores(anchors: [LocationSample], legs: [Leg]) -> [Core] {

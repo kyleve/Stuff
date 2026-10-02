@@ -111,7 +111,7 @@ struct FlightTrajectoryAnalyzerTests {
         ).first)
         #expect(confirmed.progress == .completed(arrivedAt: Fixtures.date(minutes: 10)))
         #expect(confirmed.lastObservationAt == Fixtures.date(minutes: 20))
-        #expect(confirmed.nextReassessmentAt == nil)
+        #expect(confirmed.reassessment == .whenEvidenceChanges)
     }
 
     @Test func recognizesTheSyntheticCruiseAndTurningApproachAfterDwell() throws {
@@ -178,7 +178,7 @@ struct FlightTrajectoryAnalyzerTests {
             now: trace.lastCruiseAt.addingTimeInterval(1800),
         ).first)
         #expect(stale.progress == .awaitingArrival)
-        #expect(stale.nextReassessmentAt == nil)
+        #expect(stale.reassessment == .whenEvidenceChanges)
         let muchLater = try #require(analyzer.analyze(
             samples: prefix,
             now: trace.lastCruiseAt.addingTimeInterval(86400),
@@ -299,7 +299,7 @@ struct FlightTrajectoryAnalyzerTests {
             samples: prefix + ground,
             now: Fixtures.date(minutes: 145),
         ).first)
-        #expect(flight.id.recordingDeviceID == Fixtures.device)
+        #expect(flight.id.recordingSource == .device(Fixtures.device))
         #expect(flight.progress == .awaitingArrival)
         #expect(flight.groundSampleIDs.isDisjoint(with: Set(ground.map(\.id))))
     }

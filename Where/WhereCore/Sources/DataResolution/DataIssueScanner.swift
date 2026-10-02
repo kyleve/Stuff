@@ -29,7 +29,7 @@ public actor DataIssueScanner {
     private var cache: CachedScan?
     /// Zero identifies the initial epoch; scans compare only equality. Change
     /// it even when the cache is empty so suspended scans detect invalidation.
-    private var invalidationRevision: UInt64 = 0
+    private var invalidationRevision: UInt64
 
     /// Drops the cache whenever the store reports a committed change. Lets the
     /// cache stay honest for `force: false` readers even when no session is
@@ -62,6 +62,7 @@ public actor DataIssueScanner {
         self.now = now
         self.scanInterval = scanInterval
         self.detectors = detectors
+        invalidationRevision = 0
         invalidationTask = Task { [weak self] in
             for await _ in storeChanges {
                 await self?.invalidate()
@@ -163,7 +164,7 @@ public actor DataIssueScanner {
                 })
                 let deadlines = reviews.flatMap(\.flights).flatMap { flight in
                     [
-                        flight.nextReassessmentAt,
+                        flight.reassessment.scheduledDate,
                         flight.lastObservationAt.addingTimeInterval(
                             GPSCorrectionPolicy.Presentation.liveNoticeRetentionInterval,
                         ),

@@ -139,20 +139,22 @@ public final class YearReportModel {
 
     func liveFlightAssessment(in review: GPSCorrectionReview) -> FlightAssessment? {
         review.flights.filter { flight in
-            flight.id.recordingDeviceID == services.recording.currentDevice.id
+            flight.id.recordingSource == .device(services.recording.currentDevice.id)
                 && now().timeIntervalSince(flight.lastObservationAt) < 24 * 60 * 60
         }.max { $0.lastObservationAt < $1.lastObservationAt }
     }
 
     func flightDeviceLabel(_ flight: FlightAssessment) -> String {
-        guard let deviceID = flight.id.recordingDeviceID else {
-            return String(localized: .flightStatusDeviceLegacy)
+        switch flight.id.recordingSource {
+            case .legacy:
+                return String(localized: .flightStatusDeviceLegacy)
+            case let .device(deviceID):
+                if deviceID == services.recording.currentDevice.id {
+                    return String(localized: .flightStatusDeviceCurrent)
+                }
+                let name = recordingDeviceNames[deviceID] ?? deviceID.rawValue.uuidString
+                return String(localized: .flightStatusDeviceNamed(name))
         }
-        if deviceID == services.recording.currentDevice.id {
-            return String(localized: .flightStatusDeviceCurrent)
-        }
-        let name = recordingDeviceNames[deviceID] ?? deviceID.rawValue.uuidString
-        return String(localized: .flightStatusDeviceNamed(name))
     }
 
     /// The services every read/write funnels through. Exposed so sibling

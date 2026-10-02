@@ -404,7 +404,7 @@ struct YearReportModelTests {
         let flight = try #require(current.flight)
         let remoteFlight = FlightAssessment(
             id: .init(
-                recordingDeviceID: RecordingDeviceID(rawValue: UUID()),
+                recordingSource: .device(RecordingDeviceID(rawValue: UUID())),
                 departureSampleID: flight.id.departureSampleID,
             ),
             startedAt: flight.startedAt,

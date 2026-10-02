@@ -13,11 +13,9 @@ public struct SampleCorrectionIssue: DataIssue {
     }
 
     public var category: DataIssueCategory {
-        switch id {
-            case .flightDay: .flightDay
+        switch proposal.kind {
+            case .flight: .flightDay
             case .borderDrift: .borderDrift
-            case .missingDays, .abruptChange:
-                preconditionFailure("A sample correction must have a GPS issue identity")
         }
     }
 

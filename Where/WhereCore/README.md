@@ -174,6 +174,8 @@ one it belongs to rather than to a god-object:
   the shared inference limits: three anchors spanning three minutes, with each
   leg's uncertainty-adjusted average speed at 450–1,500 km/h. Arrival requires
   three ground anchors spanning ten minutes within 2 km and at most 50 km/h.
+  `FlightAssessment.RecordingSource` separates identified installations from legacy samples.
+  `Reassessment` distinguishes a scheduled refresh from an evidence-driven refresh.
   A qualifying dwell confirms arrival immediately. The 30-minute freshness limit
   only changes live-notice presentation. Motion measurements can corroborate speed and contradict ground
   dwell; altitude is context only. Missing or stale updates never establish
@@ -182,6 +184,8 @@ one it belongs to rather than to a god-object:
   and border drift. Its named policy includes 24-hour report context and local
   boundary brackets within ten minutes on each side. These conservative limits
   leave longer gaps uncorrected because they can hide real travel.
+  Proposals carry a GPS-only `Kind` and order edits by timestamp, then sample identity.
+  Each reviewed day produces at most one actionable issue.
 - **`SampleCorrectionCoordinator`** — reviews exact GPS edits and reassesses them
   in the guarded store transaction before Apply. Any changed evidence refreshes
   the review instead of expanding the reviewed sample set. Supported airborne

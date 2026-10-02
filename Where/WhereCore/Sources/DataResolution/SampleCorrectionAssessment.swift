@@ -33,6 +33,7 @@ struct SampleCorrectionAssessment {
             by: \.sample.id,
         ).filter { Set($0.value).count > 1 }.keys)
         let revisionsBySample = Dictionary(grouping: reads.history.revisions, by: \.sampleID)
+        let allAirborne = flights.reduce(into: Set<UUID>()) { $0.formUnion($1.airborneSampleIDs) }
         // Produce one review per report day. Adjacent-day observations provide
         // corroborating neighbors without adding edits outside that reviewed day.
         return byDay.keys.filter { $0.year == reads.report.year }.sorted().compactMap { day in
@@ -54,6 +55,7 @@ struct SampleCorrectionAssessment {
                 day: day,
                 entries: byDay[day] ?? [],
                 conflictingSampleIDs: conflictingSampleIDs,
+                allAirborne: allAirborne,
                 flights: flights,
                 reads: reads,
                 primaryRegions: primaryRegions,
@@ -71,6 +73,7 @@ struct SampleCorrectionAssessment {
         day: CalendarDay,
         entries: [AttributedLocationSample],
         conflictingSampleIDs: Set<UUID>,
+        allAirborne: Set<UUID>,
         flights: [FlightAssessment],
         reads: DataIssueReads,
         primaryRegions: [Region],
@@ -94,8 +97,8 @@ struct SampleCorrectionAssessment {
         let presence = reads.report.days.first { $0.day == day }
             ?? DayPresence(day: day, regions: [])
         let points = entries.map { SampleCorrectionPoint(sample: $0.sample, regions: $0.regions) }
-        let reviewID: DataIssueID = dayFlights
-            .isEmpty ? .borderDrift(day: day) : .flightDay(day: day)
+        let kind: SampleCorrectionProposal.Kind = dayFlights.isEmpty ? .borderDrift : .flight
+        let reviewID = kind.reviewID(for: day)
         // An unfinished flight can still gain arrival evidence. Publish its status
         // without proposing edits that would turn uncertain travel into absence.
         if let pending = dayFlights.last(where: {
@@ -121,9 +124,12 @@ struct SampleCorrectionAssessment {
         // Edit only airborne samples from this day's completed flights. Exclude
         // all flights from boundary corroboration, including flights on nearby days.
         let airborne = dayFlights.reduce(into: Set<UUID>()) { $0.formUnion($1.airborneSampleIDs) }
-        let allAirborne = flights.reduce(into: Set<UUID>()) { $0.formUnion($1.airborneSampleIDs) }
         let manuals = reads.manualDays.filter { $0.day == day }
-        var edits: [SampleCorrectionProposal.Edit] = []
+        struct Candidate {
+            let timestamp: Date
+            let edit: SampleCorrectionProposal.Edit
+        }
+        var candidates: [Candidate] = []
         // An explicit whole-day assertion is authoritative. Keep it intact and
         // offer only the informational completed-flight state beneath it.
         if !manuals.contains(where: \.isAuthoritative) {
@@ -137,7 +143,10 @@ struct SampleCorrectionAssessment {
                 if airborne.contains(entry.sample.id) {
                     // Empty attribution removes presence from an airborne GPS sample.
                     // Raw coordinates and timestamps remain available for future review.
-                    edits.append(.init(sampleID: entry.sample.id, replacementRegions: []))
+                    candidates.append(Candidate(
+                        timestamp: entry.sample.timestamp,
+                        edit: .init(sampleID: entry.sample.id, replacementRegions: []),
+                    ))
                 } else if let region = boundaryReplacement(
                     for: entry,
                     neighbors: boundaryEvidence[entry.sample.recordingDeviceID] ?? [],
@@ -145,12 +154,19 @@ struct SampleCorrectionAssessment {
                     primaryRegions: primaryRegions,
                     threshold: driftThresholdMeters,
                 ), entry.regions != [region] {
-                    edits.append(.init(sampleID: entry.sample.id, replacementRegions: [region]))
+                    candidates.append(Candidate(
+                        timestamp: entry.sample.timestamp,
+                        edit: .init(sampleID: entry.sample.id, replacementRegions: [region]),
+                    ))
                 }
             }
         }
-        // Stable edit ordering keeps the reviewed proposal reproducible after sync.
-        edits.sort { $0.sampleID.uuidString < $1.sampleID.uuidString }
+        // Present edits chronologically. UUID breaks simultaneous-observation ties
+        // so CloudKit row delivery order cannot change a reviewed proposal.
+        let edits = candidates.sorted {
+            if $0.timestamp != $1.timestamp { return $0.timestamp < $1.timestamp }
+            return $0.edit.sampleID.uuidString < $1.edit.sampleID.uuidString
+        }.map(\.edit)
         let replacement = Dictionary(uniqueKeysWithValues: edits.map { (
             $0.sampleID,
             $0.replacementRegions,
@@ -171,7 +187,7 @@ struct SampleCorrectionAssessment {
         // inside its store transaction before writing these exact sample edits.
         if !edits.isEmpty {
             let proposal = SampleCorrectionProposal(
-                reviewID: reviewID,
+                kind: kind,
                 day: presence,
                 resultingRegions: resulting,
                 edits: edits,

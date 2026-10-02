@@ -231,7 +231,7 @@ struct DemoDataBuilderTests {
             return
         }
         #expect(flight.lastObservationAt <= referenceDate)
-        #expect(flight.id.recordingDeviceID == services.recording.currentDevice.id)
+        #expect(flight.id.recordingSource == .device(services.recording.currentDevice.id))
         #expect(review.proposal?.resultingRegions == [.newYork, .california])
     }
 
