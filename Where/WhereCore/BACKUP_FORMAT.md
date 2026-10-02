@@ -5,6 +5,36 @@ manifest and the referenced evidence assets. The production `BackupService`
 decoder accepts the current version only; upgrade older archives with
 [`Where/Tools/upgrade-backup.rb`](../Tools/upgrade-backup.rb).
 
+## Version history
+
+Version numbers were reused during development. The commit identifies the exact historical shape.
+Current imports require the current schema, including its required collections.
+
+| Version | Change | Source |
+| --- | --- | --- |
+| 1, original | ZIP with `manifest.json`, samples, evidence, manual days, and an asset index. Later additive revisions included dismissals and tracked regions. | [Backup export/import](https://github.com/kyleve/Stuff/commit/6aa120db4b4e966575f0271e9275bd237bd945d8) |
+| 2, first use | Replaced manual-day `date` instants with `CalendarDay` identities. The temporary reader still accepted version 1. | [CalendarDay](https://github.com/kyleve/Stuff/commit/7bbaafca) |
+| 1, schema reset | Removed legacy decode fallbacks and required current collections. Dismissal identities became `store://` URLs. | [Schema cleanup](https://github.com/kyleve/Stuff/commit/4b67c45980b668b0e9de9fac547b4662522016d1) |
+| 2, current lineage | Added `primaryRegions`, including appearance and selection order. | [Region appearance](https://github.com/kyleve/Stuff/commit/acd0966b) |
+| 3 | Added sample provenance and device records. The final version retained profiles, nickname history, and removal tombstones. Local consent and advisory check-ins stayed outside backups. | [Device work](https://github.com/kyleve/Stuff/commit/60421db77b6e2cd738d8aa2837981fdc63a2f16a) |
+| 4 | Expanded device kinds, grouped metadata fields under `payload`, and renamed `registrationEpochID` to `registrationGenerationID`. | [Wire version](https://github.com/kyleve/Stuff/commit/9190535a5b482c1558840fed988e58b2f2e1ef3c) |
+| 5 | Added `plannedStayRecords`, including clearing tombstones. | [Annual forecasts](https://github.com/kyleve/Stuff/commit/c2dbdf90b3e88e11e32de8bf76d7a41ac617130f) |
+| 6 | Added optional sample motion and immutable attribution revisions. | [Sample corrections](https://github.com/kyleve/Stuff/commit/0da3b36dbce465edd93380993c7f2e13f718ebf8) |
+
+The device feature also used prototype versions 4–7 before its merge.
+Those versions described recording assignments, registration epochs, causal parents, and merge barriers.
+The [prototype commit](https://github.com/kyleve/Stuff/commit/3b5dfaca728cb8023e2c02bccfbd52bb0738449a)
+records that sequence. It is separate from the current version 4–6 lineage.
+A version number alone does not identify every historical development archive.
+
+The external upgrader recognizes supported older field shapes.
+It normalizes dates, day identities, region keys, and dismissal URLs.
+It supplies missing collections and converts older device payloads.
+It excludes obsolete recording policies and non-restorable check-ins.
+It never restores local recording consent.
+
+## Version 6 contents
+
 Version 6 adds optional `motion` to each raw location sample. Its `speed` holds
 meters per second and its accuracy; its `altitude` holds meters and vertical
 accuracy. Missing or invalid system readings become absent values. Accuracy
