@@ -4,6 +4,7 @@ import Testing
 
 struct LocationIngestorLogTests {
     @Test func everyEventCaseExportsADistinctSafeKind() {
+        let sampleID = LocationSample.ID()
         let events: [LocationIngestorLog] = [
             .monitoringStarted,
             .monitoringStopped,
@@ -12,17 +13,17 @@ struct LocationIngestorLogTests {
             .todayIntervalUnavailable,
             .foregroundCaptureReadFailed(description: "private error"),
             .capturedForegroundFix,
-            .persistFailed(sampleID: "private id", description: "private error"),
+            .persistFailed(sampleID: sampleID, description: "private error"),
             .retryBacklogPersistenceFailed(description: "private error"),
             .retryQueueAtCapacity(capacity: 20),
-            .retryStillFailing(sampleID: "private id", description: "private error"),
+            .retryStillFailing(sampleID: sampleID, description: "private error"),
             .drainedBacklog(sampleCount: 3, dayCount: 2),
         ]
 
         let kinds = events.compactMap(remoteKind)
         #expect(kinds.count == events.count)
         #expect(Set(kinds).count == events.count)
-        #expect(kinds.contains("private id") == false)
+        #expect(kinds.contains(sampleID.rawValue.uuidString) == false)
         #expect(kinds.contains("private error") == false)
     }
 

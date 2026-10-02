@@ -262,8 +262,10 @@ struct FlightTrajectoryAnalyzerTests {
         #expect(flight.airborneSampleIDs.isEmpty == false)
     }
 
-    @Test func separateDevicesAndLegacyHistoryCannotManufactureMovement() {
-        let second = RecordingDeviceID(rawValue: Fixtures.sampleID(9001))
+    @Test func separateDevicesAndLegacyHistoryCannotManufactureMovement() throws {
+        let second = try RecordingDeviceID(
+            rawValue: #require(UUID(uuidString: "00000000-0000-0000-0000-000000009001")),
+        )
         var samples: [LocationSample] = []
         for index in 0 ..< 6 {
             samples.append(Fixtures.sample(index + 1, minutes: Double(index) * 5, east: 0))
@@ -286,7 +288,9 @@ struct FlightTrajectoryAnalyzerTests {
     @Test func anotherDeviceCannotLandTheFlyingDevice() throws {
         let trace = Fixtures.turningFlight()
         let prefix = trace.samples.filter { $0.timestamp <= trace.lastCruiseAt }
-        let second = RecordingDeviceID(rawValue: Fixtures.sampleID(9001))
+        let second = try RecordingDeviceID(
+            rawValue: #require(UUID(uuidString: "00000000-0000-0000-0000-000000009001")),
+        )
         let ground = (0 ..< 4).map { index in
             Fixtures.sample(
                 index + 101,
@@ -573,7 +577,7 @@ struct FlightTrajectoryAnalyzerTests {
             Fixtures.sample(1, minutes: 0, east: 0, source: .manual),
             Fixtures.sample(2, minutes: 5, east: 75, source: .manual),
             Fixtures.sample(3, minutes: 10, east: 150, source: .evidenceImplied(
-                id: Fixtures.sampleID(999),
+                id: UUID(),
                 kind: .boardingPass,
             )),
         ]

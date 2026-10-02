@@ -112,13 +112,13 @@ struct SwiftDataStoreTests {
         }
         #expect(try await store.allSamples() == [sample])
         #expect(try await store.sampleAttributionRevisions(for: [sample.id]) == revisions)
-        #expect(try await store.sampleAttributionRevisions(for: [UUID()]).isEmpty)
+        #expect(try await store.sampleAttributionRevisions(for: [.init()]).isEmpty)
         #expect(try await store.allSampleAttributionRevisions() == revisions)
     }
 
     @Test func attributionRevisionsRetainUUIDTieOrderingAfterPersistence() async throws {
         let store = try SwiftDataStore.inMemory()
-        let sampleID = UUID()
+        let sampleID = LocationSample.ID()
         let timestamp = Date(timeIntervalSince1970: 1000)
         let lower = try SampleAttributionRevision(
             id: .init(rawValue: #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))),
@@ -145,7 +145,7 @@ struct SwiftDataStoreTests {
         let store = try SwiftDataStore.inMemory()
         let revision = SampleAttributionRevision(
             id: .init(rawValue: UUID()),
-            sampleID: UUID(),
+            sampleID: .init(),
             updatedAt: Date(timeIntervalSince1970: 1000),
             replacementRegions: [],
         )
@@ -258,7 +258,7 @@ struct SwiftDataStoreTests {
         let store = SwiftDataStore(modelContainer: container)
         let revision = SampleAttributionRevision(
             id: .init(rawValue: UUID()),
-            sampleID: UUID(),
+            sampleID: .init(),
             updatedAt: Date(timeIntervalSince1970: 1000),
             replacementRegions: [],
         )
@@ -1518,7 +1518,8 @@ struct SwiftDataStoreTests {
         let metadataID = try RecordingDeviceMetadataChange.ID(rawValue: #require(UUID(
             uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC",
         )))
-        let sampleID = try #require(UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD"))
+        let sampleID = try LocationSample
+            .ID(rawValue: #require(UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD")))
         let date = Date(timeIntervalSinceReferenceDate: 200)
         let sample = LocationSample(
             id: sampleID,
@@ -1566,8 +1567,9 @@ struct SwiftDataStoreTests {
         }
 
         let inspectionContext = ModelContext(container)
+        let storedSampleID = sampleID.rawValue
         let sampleRows = try inspectionContext.fetch(
-            FetchDescriptor<SDLocationSample>(predicate: #Predicate { $0.id == sampleID }),
+            FetchDescriptor<SDLocationSample>(predicate: #Predicate { $0.id == storedSampleID }),
         )
         let metadataRawID = metadataID.rawValue
         let metadataRows = try inspectionContext.fetch(

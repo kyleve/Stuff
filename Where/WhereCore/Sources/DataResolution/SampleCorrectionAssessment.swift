@@ -33,7 +33,8 @@ struct SampleCorrectionAssessment {
             by: \.sample.id,
         ).filter { Set($0.value).count > 1 }.keys)
         let revisionsBySample = Dictionary(grouping: reads.history.revisions, by: \.sampleID)
-        let allAirborne = flights.reduce(into: Set<UUID>()) { $0.formUnion($1.airborneSampleIDs) }
+        let allAirborne = flights
+            .reduce(into: Set<LocationSample.ID>()) { $0.formUnion($1.airborneSampleIDs) }
         // Produce one review per report day. Adjacent-day observations provide
         // corroborating neighbors without adding edits outside that reviewed day.
         return byDay.keys.filter { $0.year == reads.report.year }.sorted().compactMap { day in
@@ -72,8 +73,8 @@ struct SampleCorrectionAssessment {
     private func review(
         day: CalendarDay,
         entries: [AttributedLocationSample],
-        conflictingSampleIDs: Set<UUID>,
-        allAirborne: Set<UUID>,
+        conflictingSampleIDs: Set<LocationSample.ID>,
+        allAirborne: Set<LocationSample.ID>,
         flights: [FlightAssessment],
         reads: DataIssueReads,
         primaryRegions: [Region],
@@ -123,7 +124,8 @@ struct SampleCorrectionAssessment {
         }, by: \.sample.recordingDeviceID)
         // Edit only airborne samples from this day's completed flights. Exclude
         // all flights from boundary corroboration, including flights on nearby days.
-        let airborne = dayFlights.reduce(into: Set<UUID>()) { $0.formUnion($1.airborneSampleIDs) }
+        let airborne = dayFlights
+            .reduce(into: Set<LocationSample.ID>()) { $0.formUnion($1.airborneSampleIDs) }
         let manuals = reads.manualDays.filter { $0.day == day }
         struct Candidate {
             let timestamp: Date
@@ -165,7 +167,7 @@ struct SampleCorrectionAssessment {
         // so CloudKit row delivery order cannot change a reviewed proposal.
         let edits = candidates.sorted {
             if $0.timestamp != $1.timestamp { return $0.timestamp < $1.timestamp }
-            return $0.edit.sampleID.uuidString < $1.edit.sampleID.uuidString
+            return $0.edit.sampleID < $1.edit.sampleID
         }.map(\.edit)
         let replacement = Dictionary(uniqueKeysWithValues: edits.map { (
             $0.sampleID,
@@ -225,7 +227,7 @@ struct SampleCorrectionAssessment {
     private func boundaryReplacement(
         for entry: AttributedLocationSample,
         neighbors: [AttributedLocationSample],
-        airborne: Set<UUID>,
+        airborne: Set<LocationSample.ID>,
         primaryRegions: [Region],
         threshold: Double,
     ) -> Region? {

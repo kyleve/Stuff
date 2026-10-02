@@ -18,9 +18,10 @@ struct WhereStoreIDTests {
         #expect(WhereStoreID.evidence(id) == "store://evidence/\(id)")
     }
 
-    @Test func sampleIsCollectionAndID() {
+    @Test func sampleIsCollectionAndID() throws {
         let id = "B12614F7-46AD-41CF-B3DE-6BD3C0C4822B"
-        #expect(WhereStoreID.sample(id) == "store://samples/\(id)")
+        #expect(try WhereStoreID
+            .sample(.init(rawValue: #require(UUID(uuidString: id)))) == "store://samples/\(id)")
     }
 
     /// The identities are well-formed `store://` URLs `StoreURL` can parse back,

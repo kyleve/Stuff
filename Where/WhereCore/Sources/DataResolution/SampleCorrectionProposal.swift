@@ -18,10 +18,10 @@ public struct SampleCorrectionProposal: Hashable, Sendable {
     }
 
     public struct Edit: Hashable, Sendable {
-        public let sampleID: UUID
+        public let sampleID: LocationSample.ID
         public let replacementRegions: Set<Region>
 
-        public init(sampleID: UUID, replacementRegions: Set<Region>) {
+        public init(sampleID: LocationSample.ID, replacementRegions: Set<Region>) {
             self.sampleID = sampleID
             self.replacementRegions = replacementRegions
         }

@@ -363,6 +363,10 @@ scope and invariants on top rather than restating these.
   only where a generic can't reach (a non-generic environment value, a
   heterogeneous container). Examples: `LaunchStepID`,
   `WherePreferences.Keys`, `StoreURL`.
+- Use `IdentityKit.TypedID<Owner>` for new UUID-backed identities that need no
+  additional invariants. Declare the alias on the domain type and keep native
+  UUIDs at persistence and wire boundaries. `IdentityKitTests` runs in the
+  shared iOS unit scheme.
 - **Keep domain values typed through API and helper boundaries.** Accept the
   strongest existing domain type (`Region`, `CalendarDay`, a nested `ID`). Unwrap its `rawValue` / storage key only at the persistence, wire, or system
   boundary that requires the primitive. When no domain type exists and a raw

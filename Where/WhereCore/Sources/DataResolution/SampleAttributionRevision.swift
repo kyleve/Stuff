@@ -1,4 +1,5 @@
 import Foundation
+import IdentityKit
 import RegionKit
 
 /// One immutable revision of a GPS sample's attribution. Nil restores automatic
@@ -9,37 +10,17 @@ public struct SampleAttributionRevision: Identifiable, Hashable, Codable, Sendab
     /// its clock has not advanced. UUID ordering remains the concurrent tie-breaker.
     private static let minimumTimestampAdvance: TimeInterval = 0.001
 
-    /// Stable identity for one immutable attribution revision. The single-value
-    /// Codable conformance preserves the bare UUID used in backup archives.
-    public struct ID: RawRepresentable, Codable, Sendable, Hashable, Comparable {
-        public let rawValue: UUID
-
-        public init(rawValue: UUID) {
-            self.rawValue = rawValue
-        }
-
-        public init(from decoder: any Decoder) throws {
-            rawValue = try decoder.singleValueContainer().decode(UUID.self)
-        }
-
-        public func encode(to encoder: any Encoder) throws {
-            var container = encoder.singleValueContainer()
-            try container.encode(rawValue)
-        }
-
-        public static func < (lhs: ID, rhs: ID) -> Bool {
-            lhs.rawValue.uuidString < rhs.rawValue.uuidString
-        }
-    }
+    /// Stable identity for one immutable correction, distinct from its target sample.
+    public typealias ID = TypedID<SampleAttributionRevision>
 
     public let id: ID
-    public let sampleID: UUID
+    public let sampleID: LocationSample.ID
     public let updatedAt: Date
     public let replacementRegions: Set<Region>?
 
     public init(
         id: ID,
-        sampleID: UUID,
+        sampleID: LocationSample.ID,
         updatedAt: Date,
         replacementRegions: Set<Region>?,
     ) {
