@@ -233,7 +233,7 @@ actor TestStore: WhereStore {
         try await backing.allSamples()
     }
 
-    func sampleAttributionRevisions(for sampleIDs: Set<UUID>) async throws
+    func sampleAttributionRevisions(for sampleIDs: Set<LocationSample.ID>) async throws
         -> [SampleAttributionRevision]
     {
         try await backing.sampleAttributionRevisions(for: sampleIDs)

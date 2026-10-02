@@ -89,7 +89,7 @@ public actor LocationIngestor {
         /// Test-only acknowledgement that the stream loop finished processing
         /// an emitted sample. This lets rejection tests wait for consumption
         /// itself rather than assume a scheduler delay was long enough.
-        private var testingConsumedSampleIDs: Set<UUID> = []
+        private var testingConsumedSampleIDs: Set<LocationSample.ID> = []
     #endif
 
     /// Whether the durable backlog has been merged into `retryQueue` yet. Loaded
@@ -497,7 +497,7 @@ public actor LocationIngestor {
         } catch let error as DataCompatibilityError {
             Self.logger(attachments: [.error(error, name: "compatibility-error")]) {
                 .persistFailed(
-                    sampleID: String(describing: sample.id),
+                    sampleID: sample.id,
                     description: error.localizedDescription,
                 )
             }
@@ -517,7 +517,7 @@ public actor LocationIngestor {
             // is queued for retry on the next save attempt.
             Self.logger(attachments: [.error(error, name: "persist-error")]) {
                 .persistFailed(
-                    sampleID: String(describing: sample.id),
+                    sampleID: sample.id,
                     description: error.localizedDescription,
                 )
             }
@@ -579,7 +579,7 @@ public actor LocationIngestor {
                 } catch {
                     Self.logger(attachments: [.error(error, name: "retry-error")]) {
                         .retryStillFailing(
-                            sampleID: String(describing: sample.id),
+                            sampleID: sample.id,
                             description: error.localizedDescription,
                         )
                     }
@@ -631,7 +631,7 @@ public actor LocationIngestor {
         }
 
         /// Sample IDs currently in the retry queue, in FIFO order.
-        @_spi(Testing) public func testingRetryQueueSampleIDs() -> [UUID] {
+        @_spi(Testing) public func testingRetryQueueSampleIDs() -> [LocationSample.ID] {
             retryQueue.map(\.sample.id)
         }
 
@@ -640,11 +640,11 @@ public actor LocationIngestor {
             if case .open = recordingAuthority { true } else { false }
         }
 
-        @_spi(Testing) public func testingHasConsumedSample(id: UUID) -> Bool {
+        @_spi(Testing) public func testingHasConsumedSample(id: LocationSample.ID) -> Bool {
             testingConsumedSampleIDs.contains(id)
         }
 
-        private func recordTestingConsumption(of id: UUID) {
+        private func recordTestingConsumption(of id: LocationSample.ID) {
             testingConsumedSampleIDs.insert(id)
         }
     }

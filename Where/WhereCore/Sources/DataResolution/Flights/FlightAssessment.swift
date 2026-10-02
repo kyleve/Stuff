@@ -24,9 +24,9 @@ public struct FlightAssessment: Identifiable, Hashable, Sendable {
 
     public struct ID: Hashable, Sendable {
         public let recordingSource: RecordingSource
-        public let departureSampleID: UUID
+        public let departureSampleID: LocationSample.ID
 
-        public init(recordingSource: RecordingSource, departureSampleID: UUID) {
+        public init(recordingSource: RecordingSource, departureSampleID: LocationSample.ID) {
             self.recordingSource = recordingSource
             self.departureSampleID = departureSampleID
         }
@@ -45,8 +45,8 @@ public struct FlightAssessment: Identifiable, Hashable, Sendable {
     public let startedAt: Date
     public let lastObservationAt: Date
     public let lastFlightAt: Date
-    public let airborneSampleIDs: Set<UUID>
-    public let groundSampleIDs: Set<UUID>
+    public let airborneSampleIDs: Set<LocationSample.ID>
+    public let groundSampleIDs: Set<LocationSample.ID>
     public let peakSpeedKMH: Double
     public let progress: Progress
 
@@ -62,8 +62,8 @@ public struct FlightAssessment: Identifiable, Hashable, Sendable {
         startedAt: Date,
         lastObservationAt: Date,
         lastFlightAt: Date,
-        airborneSampleIDs: Set<UUID>,
-        groundSampleIDs: Set<UUID>,
+        airborneSampleIDs: Set<LocationSample.ID>,
+        groundSampleIDs: Set<LocationSample.ID>,
         peakSpeedKMH: Double,
         progress: Progress,
     ) {

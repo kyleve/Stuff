@@ -401,7 +401,7 @@ struct DayJournalTests {
 
     private func sample(at isoString: String) -> LocationSample {
         LocationSample(
-            id: UUID(),
+            id: .init(),
             timestamp: WhereCoreTestSupport.iso(isoString),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,

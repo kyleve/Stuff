@@ -37,11 +37,11 @@ public struct LocationHistoryReader: Sendable {
             let visible = try await samples(in: interval)
                 .sorted { lhs, rhs in
                     if lhs.timestamp != rhs.timestamp { return lhs.timestamp < rhs.timestamp }
-                    return lhs.id.uuidString < rhs.id.uuidString
+                    return lhs.id < rhs.id
                 }
             let revisions = try await store.sampleAttributionRevisions(for: Set(visible.map(\.id)))
                 .sorted { $0.id < $1.id }
-            var winners: [UUID: SampleAttributionRevision] = [:]
+            var winners: [LocationSample.ID: SampleAttributionRevision] = [:]
             for revision in revisions {
                 if let current = winners[revision.sampleID],
                    !SampleAttributionRevision.newer(revision, than: current) { continue }

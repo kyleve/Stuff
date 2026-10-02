@@ -85,7 +85,7 @@ struct ResolveModelTests {
         let resolve = ResolveModel(
             services: PreviewSupport.previewServices(),
             source: FixtureResolutionSource(scan: DataIssueScanResult(
-                revision: UUID(),
+                revision: .init(),
                 issues: [issue],
                 reviews: [review],
                 nextReassessmentAt: nil,

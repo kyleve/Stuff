@@ -3,10 +3,14 @@ import Foundation
 /// Writes nil revisions through the same immutable register as corrections.
 /// A nested day reset joins its caller's transaction so manual and GPS resets commit together.
 enum SampleAttributionReset {
-    static func write(sampleIDs: Set<UUID>, store: any WhereStore, now: Date) async throws {
+    static func write(
+        sampleIDs: Set<LocationSample.ID>,
+        store: any WhereStore,
+        now: Date,
+    ) async throws {
         try await store.performInCurrentGeneration {
             let revisions = try await store.sampleAttributionRevisions(for: sampleIDs)
-            var winners: [UUID: SampleAttributionRevision] = [:]
+            var winners: [LocationSample.ID: SampleAttributionRevision] = [:]
             for revision in revisions {
                 if let current = winners[revision.sampleID],
                    !SampleAttributionRevision.newer(revision, than: current) { continue }

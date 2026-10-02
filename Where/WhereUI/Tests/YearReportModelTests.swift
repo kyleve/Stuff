@@ -504,7 +504,7 @@ struct YearReportModelTests {
             state: .pending(remoteFlight),
         )
         report.setDataIssueScan(DataIssueScanResult(
-            revision: UUID(),
+            revision: .init(),
             issues: [],
             reviews: [remote],
             nextReassessmentAt: nil,
@@ -521,7 +521,7 @@ struct YearReportModelTests {
             flights: [flight, remoteFlight],
         )
         report.setDataIssueScan(DataIssueScanResult(
-            revision: UUID(),
+            revision: .init(),
             issues: [],
             reviews: [shared],
             nextReassessmentAt: nil,
@@ -530,7 +530,7 @@ struct YearReportModelTests {
         #expect(report.liveFlightAssessment(in: shared) == flight)
 
         report.setDataIssueScan(DataIssueScanResult(
-            revision: UUID(),
+            revision: .init(),
             issues: [],
             reviews: [current],
             nextReassessmentAt: nil,
@@ -554,7 +554,7 @@ struct YearReportModelTests {
             state: .pending(expiredFlight),
         )
         report.setDataIssueScan(DataIssueScanResult(
-            revision: UUID(),
+            revision: .init(),
             issues: [],
             reviews: [expired],
             nextReassessmentAt: nil,

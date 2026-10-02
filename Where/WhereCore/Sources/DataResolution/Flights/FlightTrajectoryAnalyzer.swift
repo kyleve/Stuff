@@ -55,7 +55,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             analyzeTrack(samples, deviceID: deviceID, now: now)
         }.sorted {
             if $0.startedAt != $1.startedAt { return $0.startedAt < $1.startedAt }
-            return $0.id.departureSampleID.uuidString < $1.id.departureSampleID.uuidString
+            return $0.id.departureSampleID < $1.id.departureSampleID
         }
     }
 
@@ -69,7 +69,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             if $0.horizontalAccuracy != $1.horizontalAccuracy {
                 return $0.horizontalAccuracy < $1.horizontalAccuracy
             }
-            return $0.id.uuidString < $1.id.uuidString
+            return $0.id < $1.id
         }
         // Build motion baselines from independent fixes. Retain denser usable callbacks
         // so they can veto ground dwell and keep their own correction identities.
@@ -200,7 +200,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         let endIndex = lastLegIndex + 1
         let earliest = anchors[startIndex]
         let latest = anchors[endIndex]
-        var airborneIDs: Set<UUID> = []
+        var airborneIDs: Set<LocationSample.ID> = []
         var sampleIndex = 0
         for legIndex in supportedLegs.sorted() {
             let before = anchors[legIndex]

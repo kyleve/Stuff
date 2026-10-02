@@ -583,7 +583,7 @@
             let driftDay = calendar.date(from: DateComponents(year: year, month: 3, day: 2))!
             let flightDay = calendar.date(from: DateComponents(year: year, month: 3, day: 4))!
             let scan = DataIssueScanResult(
-                revision: UUID(),
+                revision: .init(),
                 issues: seededWithIssues ? sampleDataIssues() : [],
                 reviews: seededWithIssues ? [
                     borderDriftReview(date: driftDay),
