@@ -10,7 +10,7 @@ let package = Package(
     ],
     products: [
         .library(name: "CreditKit", targets: ["CreditKit"]),
-        .library(name: "IdentityKit", targets: ["IdentityKit"]),
+        .library(name: "IdentifierKit", targets: ["IdentifierKit"]),
         .library(name: "LedgerCore", targets: ["LedgerCore"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
         .library(name: "LifecycleKitUI", targets: ["LifecycleKitUI"]),
@@ -51,8 +51,8 @@ let package = Package(
             path: "Shared/CreditKit/Sources",
         ),
         .target(
-            name: "IdentityKit",
-            path: "Shared/IdentityKit/Sources",
+            name: "IdentifierKit",
+            path: "Shared/IdentifierKit/Sources",
         ),
         .target(
             name: "LedgerCore",
@@ -165,7 +165,7 @@ let package = Package(
         .target(
             name: "WhereCore",
             dependencies: [
-                .target(name: "IdentityKit"),
+                .target(name: "IdentifierKit"),
                 .target(name: "CreditKit"),
                 .target(name: "JournalKit"),
                 .target(name: "PeriscopeCore"),

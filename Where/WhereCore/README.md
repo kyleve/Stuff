@@ -454,7 +454,7 @@ job, not something a caller falls into by omission.
 ## Typed identities
 
 `LocationSample.ID`, `SampleAttributionRevision.ID`, and
-`DataIssueScanResult.Revision` use `IdentityKit.TypedID` with distinct owners.
+`DataIssueScanResult.Revision` use `IdentifierKit.TypedID` with distinct owners.
 Sample collections, corrections, and store APIs retain these domain types.
 A scan revision identifies one publication; cache hits retain it and a new scan replaces it.
 SwiftData columns, backups, and the recording outbox keep their existing UUID representation.

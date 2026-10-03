@@ -1,5 +1,5 @@
 import Foundation
-import IdentityKit
+import IdentifierKit
 import Testing
 
 struct TypedIDTests {

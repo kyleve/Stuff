@@ -1,5 +1,5 @@
 import Foundation
-import IdentityKit
+import IdentifierKit
 import RegionKit
 
 /// Where each `LocationSample` came from. Recorded so reports can distinguish
