@@ -14,7 +14,7 @@ struct SampleAttributionRevisionTests {
 
         let revision = SampleAttributionRevision(
             id: revisionID,
-            sampleID: UUID(),
+            sampleID: .init(),
             updatedAt: Date(timeIntervalSince1970: 1000),
             replacementRegions: nil,
         )
@@ -22,10 +22,11 @@ struct SampleAttributionRevisionTests {
         let object = try #require(JSONSerialization.jsonObject(with: encodedRevision)
             as? [String: Any])
         #expect(object["id"] as? String == uuid.uuidString)
+        #expect(object["sampleID"] as? String == revision.sampleID.rawValue.uuidString)
     }
 
     @Test func resetExclusionAndReplacementRemainDistinctOnTheWire() throws {
-        let sampleID = UUID()
+        let sampleID = LocationSample.ID()
         let replacements: [Set<Region>?] = [nil, [], [.newYork]]
         let revisions = replacements.map {
             SampleAttributionRevision(
@@ -41,7 +42,7 @@ struct SampleAttributionRevisionTests {
     }
 
     @Test func equalTimeRevisionsUseTheirStableIdentityToBreakTies() throws {
-        let sampleID = UUID()
+        let sampleID = LocationSample.ID()
         let lower = try SampleAttributionRevision(
             id: .init(rawValue: #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))),
             sampleID: sampleID,
@@ -74,7 +75,7 @@ struct SampleAttributionRevisionTests {
     func localWriteAdvancesPastObservedHistory(clockOffset: TimeInterval) throws {
         let prior = try SampleAttributionRevision(
             id: .init(rawValue: #require(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))),
-            sampleID: UUID(),
+            sampleID: .init(),
             updatedAt: Date(timeIntervalSince1970: 1000),
             replacementRegions: [],
         )

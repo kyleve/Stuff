@@ -126,7 +126,7 @@ public protocol WhereStore: Sendable {
     func allSamples() async throws -> [LocationSample]
 
     /// Every current-generation attribution revision for the requested raw sample identities.
-    func sampleAttributionRevisions(for sampleIDs: Set<UUID>) async throws
+    func sampleAttributionRevisions(for sampleIDs: Set<LocationSample.ID>) async throws
         -> [SampleAttributionRevision]
     /// Full correction history, including reset tombstones and revisions whose sample has not
     /// synced.

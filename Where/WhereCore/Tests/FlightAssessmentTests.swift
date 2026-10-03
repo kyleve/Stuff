@@ -7,7 +7,7 @@ struct FlightAssessmentTests {
         let lastFlight = FlightTrajectoryFixtures.start
         func assessment(_ progress: FlightAssessment.Progress) -> FlightAssessment {
             FlightAssessment(
-                id: .init(recordingSource: .legacy, departureSampleID: UUID()),
+                id: .init(recordingSource: .legacy, departureSampleID: .init()),
                 startedAt: lastFlight,
                 lastObservationAt: lastFlight.addingTimeInterval(600),
                 lastFlightAt: lastFlight,

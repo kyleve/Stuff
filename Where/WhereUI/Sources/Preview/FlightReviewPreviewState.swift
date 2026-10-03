@@ -28,7 +28,9 @@
                 issues.append(SampleCorrectionIssue(proposal: proposal))
             }
             return DataIssueScanResult(
-                revision: UUID(uuidString: "00000000-0000-0000-0000-000000000303")!,
+                revision: .init(
+                    rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000303")!,
+                ),
                 issues: issues,
                 reviews: [review],
                 nextReassessmentAt: review.flight?.reassessment.scheduledDate,
@@ -57,7 +59,9 @@
                     day: day,
                     resultingRegions: [.newYork],
                     edits: [.init(
-                        sampleID: UUID(uuidString: "00000000-0000-0000-0000-000000000302")!,
+                        sampleID: .init(
+                            rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000302")!,
+                        ),
                         replacementRegions: [.newYork],
                     )],
                 ), flight: nil),
@@ -94,10 +98,10 @@
                 }
                 return SampleCorrectionPoint(
                     sample: LocationSample(
-                        id: UUID(uuidString: String(
+                        id: .init(rawValue: UUID(uuidString: String(
                             format: "00000000-0000-0000-0000-%012d",
                             300 + index,
-                        ))!,
+                        ))!),
                         timestamp: date.addingTimeInterval(Double(index - 4) * 3600),
                         coordinate: coordinates[index],
                         horizontalAccuracy: 30,

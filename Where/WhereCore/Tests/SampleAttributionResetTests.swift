@@ -52,7 +52,7 @@ struct SampleAttributionResetTests {
     @Test(arguments: [false, true])
     func resetAdvancesPastAKnownRevisionWhenItsClockIsAhead(alreadyReset: Bool) async throws {
         let store = try SwiftDataStore.inMemory()
-        let sampleID = UUID()
+        let sampleID = LocationSample.ID()
         let prior = SampleAttributionRevision(
             id: .init(rawValue: UUID()),
             sampleID: sampleID,

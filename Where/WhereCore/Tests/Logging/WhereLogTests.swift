@@ -110,11 +110,12 @@ struct WhereLogEventTests {
     }
 
     @Test func locationIngestorTracesSampleFailuresByID() {
+        let sampleID = LocationSample.ID()
         #expect(
-            LocationIngestorLog.persistFailed(sampleID: "abc", description: "x")
-                .externalID == WhereStoreID.sample("abc"),
+            LocationIngestorLog.persistFailed(sampleID: sampleID, description: "x")
+                .externalID == WhereStoreID.sample(sampleID),
         )
-        #expect(LocationIngestorLog.persistFailed(sampleID: "abc", description: "x")
+        #expect(LocationIngestorLog.persistFailed(sampleID: sampleID, description: "x")
             .level == .error)
         #expect(LocationIngestorLog.monitoringStarted.externalID == nil)
     }

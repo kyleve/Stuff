@@ -39,8 +39,9 @@ public enum WhereStoreID {
         StoreURL.url(collection: "evidence", type: id, items: [:]).absoluteString
     }
 
-    /// `store://samples/<id>` for a `LocationSample` (its `id.uuidString`).
-    public static func sample(_ id: String) -> String {
-        StoreURL.url(collection: "samples", type: id, items: [:]).absoluteString
+    /// `store://samples/<id>` for a `LocationSample`.
+    public static func sample(_ sampleID: LocationSample.ID) -> String {
+        StoreURL.url(collection: "samples", type: sampleID.rawValue.uuidString, items: [:])
+            .absoluteString
     }
 }

@@ -48,10 +48,10 @@ enum LocationIngestorLog: LogEvent {
     case todayIntervalUnavailable
     case foregroundCaptureReadFailed(description: String)
     case capturedForegroundFix
-    case persistFailed(sampleID: String, description: String)
+    case persistFailed(sampleID: LocationSample.ID, description: String)
     case retryBacklogPersistenceFailed(description: String)
     case retryQueueAtCapacity(capacity: Int)
-    case retryStillFailing(sampleID: String, description: String)
+    case retryStillFailing(sampleID: LocationSample.ID, description: String)
     case drainedBacklog(sampleCount: Int, dayCount: Int)
 
     static let eventName = "LocationIngestor"
@@ -85,13 +85,13 @@ enum LocationIngestorLog: LogEvent {
             case .capturedForegroundFix:
                 "Captured one-shot foreground location for today"
             case let .persistFailed(sampleID, description):
-                "Failed to persist GPS sample \(sampleID): \(description)"
+                "Failed to persist GPS sample \(sampleID.rawValue.uuidString): \(description)"
             case let .retryBacklogPersistenceFailed(description):
                 "Failed to durably persist the GPS retry backlog; stopping recording: \(description)"
             case let .retryQueueAtCapacity(capacity):
                 "Retry queue at capacity (\(capacity)); dropping oldest queued GPS sample"
             case let .retryStillFailing(sampleID, description):
-                "Retry still failing for GPS sample \(sampleID): \(description)"
+                "Retry still failing for GPS sample \(sampleID.rawValue.uuidString): \(description)"
             case let .drainedBacklog(sampleCount, dayCount):
                 "Drained retry backlog: persisted \(sampleCount) sample(s) across \(dayCount) day(s)"
         }

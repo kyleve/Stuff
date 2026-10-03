@@ -7,14 +7,14 @@ struct FlightReviewPresentation {
     let review: GPSCorrectionReview
     let map: RecordedMapData
     let editedPoints: [SampleCorrectionPoint]
-    let replacements: [UUID: Set<Region>]
+    let replacements: [LocationSample.ID: Set<Region>]
 
     init(review: GPSCorrectionReview) {
         self.review = review
         let points = review.points.sorted {
             if $0.sample.timestamp != $1.sample
                 .timestamp { return $0.sample.timestamp < $1.sample.timestamp }
-            return $0.sample.id.uuidString < $1.sample.id.uuidString
+            return $0.sample.id < $1.sample.id
         }
         let mapPoints = points.flatMap { point in
             // Excluded airborne fixes remain visible as raw observations on the review map.

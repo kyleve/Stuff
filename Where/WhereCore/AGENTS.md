@@ -26,6 +26,10 @@ internal shape.
   initializer. `README.md` describes them). It owns the one
   cross-collaborator operation, `reset()`. Add new behavior to the
   collaborator it belongs to.
+- Keep `LocationSample.ID`, `SampleAttributionRevision.ID`, and scan-publication
+  revisions distinct through store and correction APIs. Unwrap only at native
+  UUID columns or logging boundaries. Guard: `LocationSampleTests` and
+  `SampleAttributionRevisionTests` preserve their wire shapes.
 - **`WhereStore` is a value-type boundary.** Everything crossing it is a
   value, never a SwiftData record. Every mutation runs inside
   `perform { … }` (the production store traps otherwise). Stale-decision

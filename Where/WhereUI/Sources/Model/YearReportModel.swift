@@ -63,7 +63,7 @@ public final class YearReportModel {
         /// (year / report / threshold) changed.
         let manualScanToken: Int
         let evidenceRevision: UUID
-        let scanRevision: UUID?
+        let scanRevision: DataIssueScanResult.Revision?
         let scanError: String?
     }
 

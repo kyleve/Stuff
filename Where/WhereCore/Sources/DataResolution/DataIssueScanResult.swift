@@ -1,14 +1,19 @@
 import Foundation
+import IdentifierKit
 
 /// One coherent scan publication for badges, live flight notices, and reviews.
 public struct DataIssueScanResult: Sendable {
-    public let revision: UUID
+    /// Identity of one computed publication. Cache hits retain it; a fresh scan replaces it.
+    /// This is not a persisted sample-attribution revision.
+    public typealias Revision = TypedID<DataIssueScanResult>
+
+    public let revision: Revision
     public let issues: [any DataIssue]
     public let reviews: [GPSCorrectionReview]
     public let nextReassessmentAt: Date?
 
     public init(
-        revision: UUID,
+        revision: Revision,
         issues: [any DataIssue],
         reviews: [GPSCorrectionReview],
         nextReassessmentAt: Date?,

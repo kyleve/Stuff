@@ -428,3 +428,12 @@ notification and widget seams to, so a test or preview that names nothing
 posts nothing and reloads nothing. The public `WhereServices.make(...)`
 requires those seams instead: naming the real world is the composition root's
 job, not something a caller falls into by omission.
+
+## Typed identities
+
+`LocationSample.ID`, `SampleAttributionRevision.ID`, and
+`DataIssueScanResult.Revision` use `IdentifierKit.TypedID` with distinct owners.
+Sample collections, corrections, and store APIs retain these domain types.
+A scan revision identifies one publication; cache hits retain it and a new scan replaces it.
+SwiftData columns, backups, and the recording outbox keep their existing UUID representation.
+This API change does not require a data or backup-format upgrade.

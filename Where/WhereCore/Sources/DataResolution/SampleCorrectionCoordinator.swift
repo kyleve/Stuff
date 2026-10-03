@@ -100,7 +100,7 @@ public struct SampleCorrectionCoordinator: Sendable {
 
     /// Reset only the named samples, leaving the immutable history available
     /// for delayed sync. Day-level Reset to GPS additionally clears its override.
-    public func reset(sampleIDs: Set<UUID>) async throws {
+    public func reset(sampleIDs: Set<LocationSample.ID>) async throws {
         guard !sampleIDs.isEmpty else { return }
         try await store.performInCurrentGeneration {
             try await SampleAttributionReset.write(sampleIDs: sampleIDs, store: store, now: now())

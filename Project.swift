@@ -604,6 +604,12 @@ let project = Project(
             sources: ["Shared/CreditKit/Tests/**"],
         ),
         unitTests(
+            name: "IdentifierKitTests",
+            bundleIdSuffix: "identifierkit",
+            productDependency: "IdentifierKit",
+            sources: ["Shared/IdentifierKit/Tests/**"],
+        ),
+        unitTests(
             name: "WhereCrashReportingTests",
             bundleIdSuffix: "wherecrashreporting",
             productDependency: "WhereCrashReporting",
@@ -883,6 +889,7 @@ let project = Project(
                 "RegionViewer",
                 "StuffTestHost",
                 "CreditKitTests",
+                "IdentifierKitTests",
                 "WhereCrashReportingTests",
                 "LifecycleKitTests",
                 "LifecycleKitUITests",
@@ -907,6 +914,7 @@ let project = Project(
             testAction: .targets(
                 [
                     "CreditKitTests",
+                    "IdentifierKitTests",
                     "WhereCrashReportingTests",
                     "LifecycleKitTests",
                     "LifecycleKitUITests",
@@ -932,6 +940,7 @@ let project = Project(
         ),
         testScheme(name: "LedgerCoreTests"),
         testScheme(name: "CreditKitTests"),
+        testScheme(name: "IdentifierKitTests"),
         testScheme(name: "WhereCrashReportingTests"),
         testScheme(name: "LifecycleKitTests"),
         testScheme(name: "LifecycleKitUITests"),
