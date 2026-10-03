@@ -1,15 +1,15 @@
-# IdentityKit
+# IdentifierKit
 
-IdentityKit provides UUID identities that the compiler keeps separate by domain.
+IdentifierKit provides UUID identities that the compiler keeps separate by domain.
 It uses Foundation and has no repository dependencies.
 
 ## Use
 
-Add the `IdentityKit` product from the root package to the consuming target.
+Add the `IdentifierKit` product from the root package to the consuming target.
 Declare an alias on the domain type:
 
 ```swift
-import IdentityKit
+import IdentifierKit
 
 struct Sample {
     typealias ID = TypedID<Sample>
@@ -34,5 +34,5 @@ Ordering uses the UUID string as a deterministic tie-breaker. It does not imply 
 
 ## Tests
 
-Run `./test IdentityKitTests` for wire compatibility, invalid input, ordering,
+Run `./test IdentifierKitTests` for wire compatibility, invalid input, ordering,
 set membership, and transfer across actors.

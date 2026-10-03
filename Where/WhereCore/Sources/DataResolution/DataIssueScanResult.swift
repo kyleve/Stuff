@@ -1,5 +1,5 @@
 import Foundation
-import IdentityKit
+import IdentifierKit
 
 /// One coherent scan publication for badges, live flight notices, and reviews.
 public struct DataIssueScanResult: Sendable {

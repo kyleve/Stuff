@@ -1,5 +1,5 @@
 import Foundation
-import IdentityKit
+import IdentifierKit
 import RegionKit
 
 /// One immutable revision of a GPS sample's attribution. Nil restores automatic
