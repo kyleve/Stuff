@@ -103,8 +103,10 @@ branch.
   with **User-facing:** or **Internal:** so `git log` readers can scan quickly.
 - **Why / Problem** — what was wrong or missing before. Link prior PRs when
   building on them.
-- **Changes / Architecture / Product behavior** — deep walkthrough for large
-  PRs. Group by subsystem with bold labels.
+- **Changes / Architecture / Product behavior** — high-level structure and
+  behavior. Group by subsystem and explain ownership and data flow.
+- **Primary APIs** — important additions, changed contracts, and removals, with
+  short usage examples. Follow [Explain API and architecture changes](#explain-api-and-architecture-changes).
 - **Design decisions / Trade-offs** — explicit choices and what was rejected.
 - **⚠️ Breaking changes** — wire-format, persistence, backup, CloudKit schema,
   or API breaks. What existing data/installs lose or must do. Delete the section
@@ -115,6 +117,27 @@ branch.
   `main`. Prefer inline review comments for specific lines.
 - **Testing** — exact commands with pass counts. For skipped checks, state
   **what** and **why**.
+
+#### Explain API and architecture changes
+
+When a PR changes APIs or architecture, show enough structure to understand the
+change without opening the diff.
+
+- Summarize the primary API additions, changes, and removals in a compact table
+  or bullets. Name each API's role and affected callers. For a removed or
+  replaced API, name its replacement or explain how callers now work.
+- Focus on entry points, important state/value types, and changed boundaries.
+  Omit exhaustive symbol lists and implementation helpers.
+- Add one or two short, language-tagged code samples showing composition,
+  injection, or the main calling flow. Use a before/after pair when it clarifies
+  an API replacement. Explain who owns the components and how they connect.
+- Use the current implementation's names, argument labels, and async/error
+  contracts. Mark omitted setup or illustrative future-feature code explicitly.
+  Do not present invented helpers as APIs shipped by the PR.
+- Link the key source files when readers need more detail. Keep the examples
+  focused on the design rather than copying full implementations.
+- Scale this material to the change. A small API edit can use one bullet and a
+  few lines of code. Omit API sections for changes with no relevant API impact.
 
 #### Common PR shapes
 
