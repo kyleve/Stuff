@@ -162,9 +162,11 @@ one it belongs to rather than to a god-object:
   boundary cleanup use one sample assessment. Supported flight transitions stay
   in that review instead of producing a separate whole-day abrupt-change suggestion.
   Pending flights remain reviewable without adding to correction badges or notifications.
-  A later trip's observations do not extend an older pending flight or block the
-  later trip's corrections. Dismissing a ready suggestion hides its review and live
-  notice too. Pending and completed informational reviews remain accessible.
+  A pending flight does not block another completed flight's corrections, including flights on the same day.
+  One daily review can offer completed-flight edits and retain pending flight information.
+  Applying or dismissing those edits leaves the pending flight review available without an actionable count.
+  Dismissing a ready suggestion with no pending flights hides its review and live notice.
+  Pending and completed informational reviews remain accessible.
 - **`FlightTrajectoryAnalyzer`** — a pure, per-device GPS analysis before day
   bucketing, with 24 hours of report-boundary context. It uses independent fixes
   at least 60 seconds apart, positional uncertainty, sustained jet-speed progress,

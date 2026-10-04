@@ -3488,7 +3488,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "This flight has arrival information. Corrections are waiting for the remaining flight evidence on this day."
+            "value" : "Arrival is supported for this flight. Other flights on this day may still be waiting for arrival information."
           }
         }
       }

@@ -154,8 +154,10 @@ The card opens the existing Elsewhere list.
 Locations shows a quiet notice for this installation's recent flight evidence.
 The Resolve list keeps pending and completed flight reviews separate from
 its actionable issue count. A shared review shows recording devices, the last
-observation, flight evidence, and the exact sample edits. Arrival must be
-supported before Apply is offered; manual day editing stays available.
+observation, flight evidence, and the exact sample edits. Apply includes only flights with supported arrival.
+Completed flights remain correctable when another flight on the same day is pending.
+Each banner shows its flight's progress. Applying or dismissing the proposal retains pending flight information.
+Manual day editing stays available.
 
 `YearReportModel` publishes one `DataIssueScanResult` for the banner, list,
 badge, and open detail. Committed raw GPS writes refresh it even when region

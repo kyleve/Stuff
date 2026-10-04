@@ -68,6 +68,60 @@
             flightReview(state: state, date: referenceNow)
         }
 
+        /// An unresolved morning flight and a later completed flight share one review.
+        static func mixedFlightReview() -> GPSCorrectionReview {
+            let ready = flightReview(state: .ready)
+            guard let proposal = ready.proposal else {
+                preconditionFailure("Ready fixture must include a correction proposal")
+            }
+            let points = [
+                Coordinate(latitude: 37.6213, longitude: -122.3790),
+                Coordinate(latitude: 39.53, longitude: -106.16),
+                Coordinate(latitude: 41.2, longitude: -95.9),
+            ].enumerated().map { index, coordinate in
+                SampleCorrectionPoint(
+                    sample: LocationSample(
+                        id: UUID(uuidString: String(
+                            format: "00000000-0000-0000-0000-%012d",
+                            390 + index,
+                        ))!,
+                        timestamp: referenceNow
+                            .addingTimeInterval((-11 + Double(index) * 1.5) * 3600),
+                        coordinate: coordinate,
+                        horizontalAccuracy: 30,
+                        source: .gpsSignificantChange,
+                        recordingDeviceID: CurrentRecordingDevice.preview.id,
+                    ),
+                    regions: index == 0 ? [.california] : [.other],
+                )
+            }
+            let pending = FlightAssessment(
+                id: .init(
+                    recordingSource: .device(CurrentRecordingDevice.preview.id),
+                    departureSampleID: points[0].sample.id,
+                ),
+                startedAt: points[0].sample.timestamp,
+                lastObservationAt: points[2].sample.timestamp,
+                lastFlightAt: points[2].sample.timestamp,
+                airborneSampleIDs: [points[1].sample.id],
+                groundSampleIDs: [],
+                peakSpeedKMH: 1040,
+                progress: .awaitingArrival,
+            )
+            return GPSCorrectionReview(
+                id: ready.id,
+                day: ready.day,
+                points: points + ready.points,
+                state: .ready(SampleCorrectionProposal(
+                    kind: proposal.kind,
+                    day: ready.day,
+                    resultingRegions: proposal.resultingRegions.union(points.flatMap(\.regions)),
+                    edits: proposal.edits,
+                ), flight: ready.flight),
+                flights: [pending] + ready.flights,
+            )
+        }
+
         static func flightReview(
             state: FlightReviewPreviewState,
             date: Date,

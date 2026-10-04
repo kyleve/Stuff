@@ -148,6 +148,44 @@ struct DataIssueScannerTests {
         #expect(review.isPending == !isCompleted)
     }
 
+    @Test(arguments: [false, true])
+    func dismissingCompletedFlightKeepsSameDayPendingReview(pendingFirst: Bool) async throws {
+        let trace = FlightTrajectoryFixtures.mixedFlights(
+            pendingFirst: pendingFirst,
+            separateDevices: false,
+        )
+        let store = try SwiftDataStore.inMemory()
+        try await store.perform {
+            for sample in trace.samples {
+                try await store.add(sample: sample)
+            }
+        }
+        let scanner = makeReviewScanner(store: store, now: { trace.readyAt })
+        let initial = try await scanner.scan(
+            year: 2026,
+            primaryRegions: [.california, .newYork],
+            driftThresholdMeters: 1000,
+            force: true,
+        )
+        try #require(initial.issues.count == 1)
+        let review = try #require(initial.reviews.first)
+        try #require(review.proposal != nil)
+        try await store.perform { try await store.setIssueDismissed(true, id: review.id) }
+
+        let dismissed = try await scanner.scan(
+            year: 2026,
+            primaryRegions: [.california, .newYork],
+            driftThresholdMeters: 1000,
+            force: true,
+        )
+
+        #expect(dismissed.issues.isEmpty)
+        let informational = try #require(review.dismissingProposal())
+        #expect(dismissed.reviews == [informational])
+        #expect(dismissed.nextReassessmentAt != nil)
+        #expect(try await store.allSampleAttributionRevisions().isEmpty)
+    }
+
     @Test func scanPublishesPendingReviewsWithoutActionableGPSIssues() async throws {
         let store = try SwiftDataStore.inMemory()
         let now = FlightTrajectoryFixtures.date(minutes: 25)

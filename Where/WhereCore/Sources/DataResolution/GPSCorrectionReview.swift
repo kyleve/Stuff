@@ -2,7 +2,8 @@ import Foundation
 import RegionKit
 
 /// A derived review can explain an ongoing flight before any correction exists.
-/// Only a ready state carries an applyable, evidence-bound proposal.
+/// Only a ready state carries an applyable, evidence-bound proposal. A day's
+/// ready edits can coexist with unfinished flights in its retained evidence.
 public struct GPSCorrectionReview: Identifiable, Hashable, Sendable {
     public enum State: Hashable, Sendable {
         case pending(FlightAssessment)
@@ -54,5 +55,19 @@ public struct GPSCorrectionReview: Identifiable, Hashable, Sendable {
     public var isPending: Bool {
         if case .pending = state { return true }
         return false
+    }
+
+    /// Dismiss only the actionable suggestion. Unfinished flights on the same
+    /// day remain available as information, without a proposal or issue badge.
+    public func dismissingProposal() -> Self? {
+        guard proposal != nil else { return self }
+        guard let pending = flights.last(where: \.isPending) else { return nil }
+        return Self(
+            id: id,
+            day: day,
+            points: points,
+            state: .pending(pending),
+            flights: flights,
+        )
     }
 }

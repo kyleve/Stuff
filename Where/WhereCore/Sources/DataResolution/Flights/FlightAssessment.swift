@@ -50,6 +50,13 @@ public struct FlightAssessment: Identifiable, Hashable, Sendable {
     public let peakSpeedKMH: Double
     public let progress: Progress
 
+    public var isPending: Bool {
+        switch progress {
+            case .flightLikely, .awaitingArrival: true
+            case .completed: false
+        }
+    }
+
     public init(
         id: ID,
         startedAt: Date,

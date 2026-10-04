@@ -227,6 +227,31 @@ struct SampleCorrectionAssessmentTests {
         #expect(Set(proposal.edits.map(\.sampleID)) == later.flight?.airborneSampleIDs)
     }
 
+    @Test(arguments: [false, true], [false, true])
+    func completedFlightOnAMixedDayRemainsCorrectable(
+        pendingFirst: Bool,
+        separateDevices: Bool,
+    ) throws {
+        let trace = FlightTrajectoryFixtures.mixedFlights(
+            pendingFirst: pendingFirst,
+            separateDevices: separateDevices,
+        )
+        let reviews = F.reviews(
+            trace.samples,
+            attributor: SampleCorrectionTestSupport.attribution,
+            now: trace.readyAt,
+        )
+        try #require(reviews.count == 1)
+        let review = reviews[0]
+        #expect(review.flights.count == 2)
+        #expect(review.flights.count(where: \.isPending) == 1)
+        let proposal = try #require(review.proposal)
+        #expect(Set(proposal.edits.map(\.sampleID)) == trace.completedAirborneSampleIDs)
+        #expect(Set(proposal.edits.map(\.sampleID)).isDisjoint(with: trace.pendingSampleIDs))
+        #expect(proposal.resultingRegions.contains(.other))
+        #expect(review.flight?.isPending == false)
+    }
+
     @Test func historicalSilenceStaysPendingWithoutAnActionableProposal() throws {
         let trace = FlightTrajectoryFixtures.turningFlight()
         let review = try #require(F.reviews(

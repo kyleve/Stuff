@@ -46,26 +46,30 @@ struct FlightStatusBanner: View {
     }
 
     private var title: String {
-        switch review.state {
-            case let .pending(pendingFlight):
-                switch (flight ?? pendingFlight).progress {
-                    case .flightLikely: String(localized: .flightStatusLikelyTitle)
-                    case .awaitingArrival: String(localized: .flightStatusWaitingTitle)
-                    case .completed: String(localized: .flightStatusArrivalTitle)
-                }
+        if let flight {
+            switch flight.progress {
+                case .flightLikely: return String(localized: .flightStatusLikelyTitle)
+                case .awaitingArrival: return String(localized: .flightStatusWaitingTitle)
+                case .completed: break
+            }
+        }
+        return switch review.state {
+            case .pending: String(localized: .flightStatusArrivalTitle)
             case .ready: String(localized: .flightStatusReadyTitle)
             case .completed: String(localized: .flightStatusCompletedTitle)
         }
     }
 
     private var explanation: String {
-        switch review.state {
-            case let .pending(pendingFlight):
-                switch (flight ?? pendingFlight).progress {
-                    case .flightLikely: String(localized: .flightStatusLikelyDescription)
-                    case .awaitingArrival: String(localized: .flightStatusWaitingDescription)
-                    case .completed: String(localized: .flightStatusArrivalDescription)
-                }
+        if let flight {
+            switch flight.progress {
+                case .flightLikely: return String(localized: .flightStatusLikelyDescription)
+                case .awaitingArrival: return String(localized: .flightStatusWaitingDescription)
+                case .completed: break
+            }
+        }
+        return switch review.state {
+            case .pending: String(localized: .flightStatusArrivalDescription)
             case .ready: String(localized: .flightStatusReadyDescription)
             case .completed: String(localized: .flightStatusCompletedDescription)
         }
@@ -86,6 +90,29 @@ struct FlightStatusBanner: View {
                                 review: PreviewSupport.flightReview(state: state),
                                 deviceLabel: String(localized: .flightStatusDeviceCurrent),
                             )
+                            .padding()
+                        }
+                        .navigationTitle(String(localized: .tabLocations))
+                    }
+                }
+            }
+            let mixed = PreviewSupport.mixedFlightReview()
+            for review in [mixed, mixed.dismissingProposal()].compactMap(\.self) {
+                whereSnapshot(
+                    name: review.proposal == nil ? "MixedFlightsDismissed" : "MixedFlights",
+                    configurations: .fullContentScreenDefaults,
+                ) {
+                    NavigationStack {
+                        ScrollView {
+                            VStack {
+                                ForEach(review.flights) { flight in
+                                    FlightStatusBanner(
+                                        review: review,
+                                        deviceLabel: String(localized: .flightStatusDeviceCurrent),
+                                        flight: flight,
+                                    )
+                                }
+                            }
                             .padding()
                         }
                         .navigationTitle(String(localized: .tabLocations))

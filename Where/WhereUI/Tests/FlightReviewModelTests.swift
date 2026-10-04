@@ -59,6 +59,32 @@ struct FlightReviewModelTests {
         #expect(try await store.allSampleAttributionRevisions().isEmpty)
     }
 
+    @Test func mixedReviewOffersOnlyCompletedEditsAndRetainsPendingInformation() throws {
+        let review = PreviewSupport.mixedFlightReview()
+        let pendingFlight = review.flights.first(where: \.isPending)
+        let pending = try #require(pendingFlight)
+        let model = FlightReviewModel(
+            review: review,
+            report: PreviewSupport.loadedYearReportModel(),
+        )
+
+        #expect(model.canApply)
+        #expect(Set(model.editedPoints.map(\.sample.id))
+            .isDisjoint(with: pending.airborneSampleIDs))
+
+        let informational = try #require(review.dismissingProposal())
+        model.receive(DataIssueScanResult(
+            revision: UUID(),
+            issues: [],
+            reviews: [informational],
+            nextReassessmentAt: nil,
+        ))
+
+        #expect(model.canApply == false)
+        #expect(model.review?.isPending == true)
+        #expect(model.review?.flights == review.flights)
+    }
+
     @Test func lateEvidenceRefreshesReviewInsteadOfReportingSuccess() async throws {
         let store = try TestStore()
         let now = FlightReviewTestSupport.date(hour: 18)

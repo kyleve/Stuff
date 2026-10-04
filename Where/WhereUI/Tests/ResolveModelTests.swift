@@ -78,6 +78,29 @@ struct ResolveModelTests {
         #expect(ids.contains(issue.id))
     }
 
+    @Test func dismissingAMixedDayKeepsPendingFlightVisibleImmediately() async throws {
+        let review = PreviewSupport.mixedFlightReview()
+        let proposal = try #require(review.proposal)
+        let issue = SampleCorrectionIssue(proposal: proposal)
+        let resolve = ResolveModel(
+            services: PreviewSupport.previewServices(),
+            source: FixtureResolutionSource(scan: DataIssueScanResult(
+                revision: UUID(),
+                issues: [issue],
+                reviews: [review],
+                nextReassessmentAt: nil,
+            )),
+        )
+
+        await resolve.dismiss(issue)
+
+        #expect(resolve.dataIssues.isEmpty)
+        let retained = try #require(resolve.pendingReviews.first)
+        #expect(retained.id == review.id)
+        #expect(retained.proposal == nil)
+        #expect(retained.flights == review.flights)
+    }
+
     /// End-to-end: seeded cruise-speed GPS fixes for one day surface a
     /// `.flightDay` issue through the real scanner, keeping the endpoints and
     /// dropping the fly-over `.other`.

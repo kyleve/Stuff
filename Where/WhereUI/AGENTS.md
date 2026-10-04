@@ -92,6 +92,8 @@ Layering, localization, preview, and testing conventions live in the feature
   Bound display geometry without changing the evidence or edits. Never join separate recording devices into one route.
 - Route automatic GPS fixes through Core's sample-correction coordinator. Keep
   stale Apply results open for review and preserve manual editing while arrival is pending.
+  Show each flight's own progress when a daily review mixes completed and pending flights.
+  Retain pending information through Core's `dismissingProposal()` when dismissing completed-flight edits.
 - Use this installation's assessment for a live flight notice. Identify each
   recording device in shared reviews and retain historical pending review access.
 - Use `regionArtworkTask` and `RegionArtworkModel` for cached artwork loading.

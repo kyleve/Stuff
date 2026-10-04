@@ -88,7 +88,9 @@ public final class ResolveModel {
             // write pings the store-change signal, so the scene's `YearReportModel`
             // recomputes the badge count a beat later.
             dataIssues.removeAll { $0.id == issue.id }
-            reviews.removeAll { $0.id == issue.id }
+            reviews = reviews.compactMap {
+                $0.id == issue.id ? $0.dismissingProposal() : $0
+            }
         } catch {
             Self.logger {
                 .dismissFailed(

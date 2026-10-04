@@ -172,6 +172,20 @@ struct FlightDayDetailView: View {
                     }
                 }
             }
+            let mixed = PreviewSupport.mixedFlightReview()
+            for review in [mixed, mixed.dismissingProposal()].compactMap(\.self) {
+                whereSnapshot(
+                    name: review.proposal == nil ? "MixedFlightsDismissed" : "MixedFlights",
+                    configurations: .fullContentScreenDefaults,
+                ) {
+                    NavigationStack {
+                        FlightDayDetailView(
+                            review: review,
+                            report: PreviewSupport.loadedYearReportModel(),
+                        )
+                    }
+                }
+            }
         }
     }
 

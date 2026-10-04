@@ -133,6 +133,46 @@ enum FlightTrajectoryFixtures {
         let readyAt: Date
     }
 
+    struct MixedFlightsTrace {
+        let samples: [LocationSample]
+        let pendingSampleIDs: Set<UUID>
+        let completedAirborneSampleIDs: Set<UUID>
+        let readyAt: Date
+    }
+
+    /// Both trips fall on one day. A gap separates their cruise evidence, and
+    /// only one trip has observed arrival, in either chronological order.
+    static func mixedFlights(pendingFirst: Bool, separateDevices: Bool) -> MixedFlightsTrace {
+        var earlier = [
+            sample(1, minutes: 0, east: 0),
+            sample(2, minutes: 5, east: 75),
+            sample(3, minutes: 10, east: 150),
+        ]
+        let laterDevice = separateDevices ? RecordingDeviceID(rawValue: sampleID(9001)) : device
+        var later = [
+            sample(101, minutes: 240, east: 150, deviceID: laterDevice),
+            sample(102, minutes: 245, east: 225, deviceID: laterDevice),
+            sample(103, minutes: 250, east: 300, deviceID: laterDevice),
+        ]
+        if pendingFirst {
+            later += [
+                sample(104, minutes: 255, east: 300, deviceID: laterDevice),
+                sample(105, minutes: 260, east: 300, deviceID: laterDevice),
+            ]
+        } else {
+            earlier += [
+                sample(4, minutes: 15, east: 150),
+                sample(5, minutes: 20, east: 150),
+            ]
+        }
+        return MixedFlightsTrace(
+            samples: earlier + later,
+            pendingSampleIDs: Set((pendingFirst ? earlier : later).map(\.id)),
+            completedAirborneSampleIDs: [sampleID(pendingFirst ? 102 : 2)],
+            readyAt: date(minutes: 270),
+        )
+    }
+
     /// Recording stops during one flight and resumes on a separate trip three days later.
     static func separatedFlights(laterStartsWithTransition: Bool) -> SeparatedFlightsTrace {
         let earlier = turningFlight()

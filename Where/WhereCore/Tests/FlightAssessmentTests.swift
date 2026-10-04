@@ -20,5 +20,8 @@ struct FlightAssessmentTests {
         #expect(assessment(.flightLikely).reassessment == .at(lastFlight.addingTimeInterval(1800)))
         #expect(assessment(.awaitingArrival).reassessment == .whenEvidenceChanges)
         #expect(assessment(.completed(arrivedAt: lastFlight)).reassessment == .whenEvidenceChanges)
+        #expect(assessment(.flightLikely).isPending)
+        #expect(assessment(.awaitingArrival).isPending)
+        #expect(assessment(.completed(arrivedAt: lastFlight)).isPending == false)
     }
 }

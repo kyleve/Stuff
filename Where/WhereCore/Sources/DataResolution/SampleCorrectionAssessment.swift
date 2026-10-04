@@ -99,22 +99,10 @@ struct SampleCorrectionAssessment {
         let points = entries.map { SampleCorrectionPoint(sample: $0.sample, regions: $0.regions) }
         let kind: SampleCorrectionProposal.Kind = dayFlights.isEmpty ? .borderDrift : .flight
         let reviewID = kind.reviewID(for: day)
-        // An unfinished flight can still gain arrival evidence. Publish its status
-        // without proposing edits that would turn uncertain travel into absence.
-        if let pending = dayFlights.last(where: {
-            switch $0.progress {
-                case .flightLikely, .awaitingArrival: true
-                case .completed: false
-            }
-        }) {
-            return GPSCorrectionReview(
-                id: reviewID,
-                day: presence,
-                points: points,
-                state: .pending(pending),
-                flights: dayFlights,
-            )
-        }
+        // Arrival authorizes only that flight's edits. Another unfinished flight
+        // on the same day must retain its evidence without blocking completed trips.
+        let pending = dayFlights.last(where: \.isPending)
+        let completedFlights = dayFlights.filter { !$0.isPending }
 
         // Boundary corroboration stays on one recording device. Samples from a
         // second device cannot establish where this device was before or after.
@@ -123,7 +111,9 @@ struct SampleCorrectionAssessment {
         }, by: \.sample.recordingDeviceID)
         // Edit only airborne samples from this day's completed flights. Exclude
         // all flights from boundary corroboration, including flights on nearby days.
-        let airborne = dayFlights.reduce(into: Set<UUID>()) { $0.formUnion($1.airborneSampleIDs) }
+        let airborne = completedFlights.reduce(into: Set<UUID>()) {
+            $0.formUnion($1.airborneSampleIDs)
+        }
         let manuals = reads.manualDays.filter { $0.day == day }
         struct Candidate {
             let timestamp: Date
@@ -131,7 +121,7 @@ struct SampleCorrectionAssessment {
         }
         var candidates: [Candidate] = []
         // An explicit whole-day assertion is authoritative. Keep it intact and
-        // offer only the informational completed-flight state beneath it.
+        // keep the flight information beneath it.
         if !manuals.contains(where: \.isAuthoritative) {
             // Concurrent imports can sync multiple physical rows for one sample.
             // Review its identity once, retaining conflicting representations as
@@ -147,7 +137,7 @@ struct SampleCorrectionAssessment {
                         timestamp: entry.sample.timestamp,
                         edit: .init(sampleID: entry.sample.id, replacementRegions: []),
                     ))
-                } else if let region = boundaryReplacement(
+                } else if pending == nil, let region = boundaryReplacement(
                     for: entry,
                     neighbors: boundaryEvidence[entry.sample.recordingDeviceID] ?? [],
                     airborne: allAirborne,
@@ -206,7 +196,18 @@ struct SampleCorrectionAssessment {
                 id: reviewID,
                 day: presence,
                 points: points,
-                state: .ready(proposal, flight: dayFlights.last),
+                state: .ready(proposal, flight: completedFlights.last),
+                flights: dayFlights,
+            )
+        }
+        // With no completed-flight edits left, keep unfinished trips reviewable.
+        // Boundary cleanup still waits while any flight on this day is unresolved.
+        if let pending {
+            return GPSCorrectionReview(
+                id: reviewID,
+                day: presence,
+                points: points,
+                state: .pending(pending),
                 flights: dayFlights,
             )
         }

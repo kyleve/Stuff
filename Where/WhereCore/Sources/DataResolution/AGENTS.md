@@ -13,7 +13,10 @@ Trajectory inference has additional [flight rules](Flights/AGENTS.md).
   Clear manual overrides and write newer reset tombstones in one transaction.
   Guards: `DayJournalTests` and `LocationHistoryReaderTests`.
 - Publish issues, informational reviews, and deadlines as one scan result.
-  Keep pending flights out of actionable badges and notifications.
-  Dismiss a ready review with its issue, but retain informational reviews.
+  Determine correction readiness per flight, including flights on the same day.
+  Keep pending-flight samples out of proposals and pending flights out of actionable counts.
+  Retain pending flight information after applying or dismissing another flight's proposal on that day.
+  Guards: `SampleCorrectionAssessmentTests`, `SampleCorrectionCoordinatorTests`, and `GPSCorrectionReviewTests`.
+  Dismiss a ready review with its issue when no pending flight remains.
   Never let an invalidated scan restore cached data. Guard: `DataIssueScannerTests`.
 - Run presentation deadlines only in the foreground. Do not add background polling.

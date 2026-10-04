@@ -4,6 +4,47 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct SampleCorrectionCoordinatorTests {
+    @Test(arguments: [false, true], [false, true])
+    func applyingCompletedFlightPreservesPendingFlightOnTheSameDay(
+        pendingFirst: Bool,
+        separateDevices: Bool,
+    ) async throws {
+        let trace = FlightTrajectoryFixtures.mixedFlights(
+            pendingFirst: pendingFirst,
+            separateDevices: separateDevices,
+        )
+        let h = try SampleCorrectionTestSupport.makeHarness(now: trace.readyAt)
+        try await h.store.perform {
+            for sample in trace.samples {
+                try await h.store.add(sample: sample)
+            }
+        }
+        let proposal = try await h.proposal()
+        let before = try await h.reader.dataIssueReads(for: h.day.year).history
+
+        guard case .applied = try await h.coordinator.apply(proposal) else {
+            Issue.record("Arrival on one flight must authorize its reviewed edits")
+            return
+        }
+
+        let revisions = try await h.store.allSampleAttributionRevisions()
+        #expect(Set(revisions.map(\.sampleID)) == trace.completedAirborneSampleIDs)
+        let after = try await h.reader.dataIssueReads(for: h.day.year).history
+        #expect(after.samples.filter { trace.pendingSampleIDs.contains($0.sample.id) }
+            == before.samples.filter { trace.pendingSampleIDs.contains($0.sample.id) })
+        #expect(after.rawSamples == before.rawSamples)
+        let refreshed = try await h.coordinator.review(
+            id: proposal.reviewID,
+            year: h.day.year,
+            primaryRegions: SampleCorrectionTestSupport.attribution.loadedRegions,
+            driftThresholdMeters: 1000,
+        )
+        let review = try #require(refreshed)
+        #expect(review.isPending)
+        #expect(review.proposal == nil)
+        #expect(review.flights.count == 2)
+    }
+
     @Test func applyingJoinedFlightsPreservesSparseLayoverPresence() async throws {
         let trace = FlightTrajectoryFixtures.sparseLayover()
         let attributor = SampleCorrectionTestSupport.SparseLayoverRegions()
