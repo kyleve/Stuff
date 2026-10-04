@@ -31,7 +31,9 @@ internal shape.
   `perform { … }` (the production store traps otherwise). Stale-decision
   writes use `perform(expectedDataGenerationID:)`. Multi-table reads use
   `readSnapshot`. Guard:
-  `SwiftDataStoreTests.readSnapshotRejectsCommitBeforeNotification`. Each
+  `SwiftDataStoreTests.readSnapshotRejectsCommitBeforeNotification`. A snapshot
+  inside a mutation pins durable history until its pre-save check; concurrent
+  commits throw `WhereStoreReadConflictError` before local edits are saved. Each
   committed transaction pings `changes()`. Never expose its `ModelContainer`
   through `WhereServices`. The separate DEBUG Inspector runtime uses
   `SwiftDataStore.makeContainer`, `inspectorModelTypes`, and
@@ -58,7 +60,8 @@ internal shape.
   persisted `RegionSymbol`. Its mapping to SFSafeSymbols and `Color` is
   presentation (WhereUI).
 - **Export backups from one `readSnapshot` and keep restorable user data
-  lossless.** Add persisted user-data shapes end-to-end and cover both import
+  lossless.** Preserve optional motion and every sample-attribution revision,
+  including reset tombstones. Add persisted user-data shapes end-to-end and cover both import
   strategies. Export no target-owned recording check-ins. Ignore any in an
   imported archive (`BackupServiceTests` / `BackupCoordinatorTests`).
 - **Backup import never adopts or changes local recording consent.** Archives
@@ -108,15 +111,16 @@ internal shape.
   store instance's transaction author.** Never let Periscope or Where's own
   local saves enter `remoteChanges()`. Guard: `StoreRemoteChangeSourceTests`.
 - **Route new writes through the existing reconciliation seams.** Use
-  `DayJournal.reconcileAfterDayDataChange()` or its widget-less subset
-  `reconcileIssueState()`; cross-collaborator hooks take a single closure
-  wired at the composition root (`BackupCoordinator.ImportLifecycle.didCommit`).
-  Existing exceptions are `setPrimaryRegions` and the local summary fan-out,
-  tracked in [`../TODOs.md`](../TODOs.md). Do not copy those omissions.
-- **Detectors read aggregated input. The speed-based one needs raw fixes.**
-  `DataIssueInput.daySamples` carries per-day GPS fixes only (`.gpsVisit` /
-  `.gpsSignificantChange`, sorted). Manual and evidence-implied samples are
-  excluded so `FlightDayDetector`'s speed math is not skewed.
+  `DayJournal.reconcileAfterDayDataChange()` or `reconcileIssueState()`.
+  Do not copy the incomplete `setPrimaryRegions` or summary fan-out paths
+  tracked in [`../TODOs.md`](../TODOs.md).
+- Follow the scoped [data-resolution rules](Sources/DataResolution/AGENTS.md)
+  for GPS reviews, sample corrections, and scan publication.
+- **Use `LocationHistoryReader.projection` for every user-facing location read.**
+  Apply removal cutoffs before correction revisions. Reports, maps, artwork,
+  widgets, summaries, reminders, and intents use effective attribution; trajectory
+  assessment and review retain raw observations. Pin live attribution to the
+  tracked set in the same store snapshot.
 - **Read related year projections from one samples snapshot.** Use
   `ReportReader.yearReportDetails(for:primaryRegionCount:)` for the scene's
   report and primary-region locations.

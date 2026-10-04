@@ -149,6 +149,34 @@ The card opens the existing Elsewhere list.
   services or presentation state.
   None reimplements Core rules.
 
+### Flight status and GPS corrections
+
+Locations shows a quiet notice for this installation's recent flight evidence.
+The Resolve list keeps pending and completed flight reviews separate from
+its actionable issue count. A shared review shows recording devices, the last
+observation, flight evidence, and the exact sample edits. Apply includes only flights with supported arrival.
+Completed flights remain correctable when another flight on the same day is pending.
+Each banner shows its flight's progress. Applying or dismissing the proposal retains pending flight information.
+Manual day editing stays available.
+
+`YearReportModel` publishes one `DataIssueScanResult` for the banner, list,
+badge, and open detail. Committed raw GPS writes refresh it even when region
+totals do not change. Foreground-only deadlines update stale notices and remove
+live notices after 24 hours; unresolved historical reviews remain accessible.
+`ResolveModel` receives a `ResolutionSource`. The scene supplies its `YearReportModel`.
+Standalone consumers use `ScannerResolutionSource`; previews supply a synchronous fixture
+through the same protocol. Product models have no preview-mode refresh branches.
+
+`FlightReviewPresentation` prepares map geometry and edit lookups once per review.
+The map preserves corrected GPS observations and separates device tracks.
+Rendering uses at most 250 markers and 2,048 coordinates per device route, retaining both route endpoints.
+The full evidence and edit list remain available. Snapshot capture replaces remote map tiles with a deterministic substrate.
+
+`FlightReviewModel` submits reviewed proposals to Core and keeps a changed
+proposal on screen for review instead of reporting a stale Apply as success.
+Reset to GPS restores both manual and sample attribution through the existing
+journal intent.
+
 ### Reusable views & styling
 
 - **`RegionWelcomeCard`** — an app-wide overlay over the selected tab that combines a region's emoji,

@@ -76,9 +76,7 @@ struct WhereLogSpanNameTests {
 
     @Test func detectorsDeclareTheCategoryTheyDetect() {
         #expect(MissingDaysDetector().detects == .missingDays)
-        #expect(BorderDriftDetector().detects == .borderDrift)
         #expect(AbruptLocationChangeDetector().detects == .abruptChange)
-        #expect(FlightDayDetector().detects == .flightDay)
     }
 }
 

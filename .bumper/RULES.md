@@ -109,10 +109,13 @@ and retained as the closest lower-level pattern.
 `where.store_transaction_boundary` requires calls to the mutating `WhereStore`
 surface through `store` or `self.store` to be lexically contained by
 `store.perform { ... }` or `store.performInCurrentGeneration { ... }`.
+Attribution revisions use this same boundary; their coordinator also requires
+the reviewed data generation and reassesses before writing.
+Guard: `sample attribution revisions require a guarded transaction`.
 
 The checked methods are `add`, `write`, `setManualDay`, `clearManualDay`,
 `clear`, `clearAll`, `setIssueDismissed`, `restoreDismissedIssue`,
-`setTrackedRegion`, and `setPrimaryRegions`.
+`setTrackedRegion`, `setPrimaryRegions`, and `addSampleAttributionRevision`.
 
 ## App Shortcuts provider ownership
 
