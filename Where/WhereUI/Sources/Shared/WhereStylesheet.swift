@@ -17,8 +17,10 @@ struct WhereStylesheet: BStylesheet {
     var spacing = Spacing()
     var size = Size()
     var card = CardStyles.standard
+    var locationsBackground = LocationsBackgroundStyle()
     var locationCardStack = LocationCardStackStyle.standard
     var locationWelcome = LocationWelcomeStyle.standard
+    var flightStatus = FlightStatusStyle()
     var calendar = CalendarStyle.standard
     var appIcon = AppIconStyle.standard
     var timeline = TimelineStyle.standard
@@ -87,6 +89,7 @@ struct WhereStylesheet: BStylesheet {
         // Reduce Transparency flattens the cards: drop the decorative rim-glow
         // layer (the translucent halo) on both card variants.
         if traits.accessibility.isReduceTransparencyEnabled {
+            locationsBackground.showsInk = false
             card.regular.glow.radius = 0
             card.compact.glow.radius = 0
             card.constellation.haloOpacity = 0
@@ -128,6 +131,19 @@ struct WhereStylesheet: BStylesheet {
     /// The fixed token set: the fallback used off the `View` tree (layout
     /// helpers, tests) and when no Broadway root has seeded a context.
     static let `default` = WhereStylesheet()
+}
+
+// MARK: - Flight status
+
+extension WhereStylesheet {
+    struct FlightStatusStyle: Equatable {
+        var padding: CGFloat = 14
+        var spacing: CGFloat = 8
+        var cornerRadius: CGFloat = 14
+        var titleFont = Font.headline
+        var bodyFont = Font.subheadline
+        var background = Color(uiColor: .secondarySystemGroupedBackground)
+    }
 }
 
 // MARK: - Location welcome
@@ -1546,6 +1562,9 @@ extension WhereStylesheet {
         /// Stroke opacity and width of that circle.
         var uncertaintyStrokeOpacity: Double
         var uncertaintyStrokeWidth: CGFloat
+        var routeLineWidth: CGFloat = 2
+        var capturePointDiameter: CGFloat = 8
+        var captureInset: CGFloat = 16
 
         static let standard = RegionMapStyle(
             height: 220,
@@ -2590,6 +2609,33 @@ extension EnvironmentValues {
     /// so it traps in debug and falls back to `default` in release.
     var stylesheet: WhereStylesheet {
         bContext.stylesheet(WhereStylesheet.self, fallback: .default)
+    }
+}
+
+// MARK: - Locations background
+
+extension WhereStylesheet {
+    /// Flat security print behind the selected year's Locations content.
+    struct LocationsBackgroundStyle: Equatable {
+        var paper = Color(uiColor: .systemBackground)
+        var ink = Color.primary
+        var showsInk = true
+        var preferredCellSize: CGFloat = 54
+        var artwork = CardStyle.RegionShape.Artwork(
+            center: CGPoint(x: 0.5, y: 0.5),
+            extent: CGSize(width: 0.545, height: 0.545),
+            scale: 1,
+            fillOpacity: 0,
+            stroke: .init(opacity: 0.043, width: 1.1),
+        )
+        var maximumAspectScale: CGFloat = 1.25
+        var rosette = CardStyle.Rosette(
+            wobble: 0.04,
+            lineWidth: 0.5,
+            primaryRingSpacing: 18,
+            secondaryRingSpacing: 25,
+        )
+        var rosetteOpacity: Double = 0.015
     }
 }
 

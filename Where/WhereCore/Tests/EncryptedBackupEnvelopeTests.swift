@@ -17,6 +17,7 @@ struct EncryptedBackupEnvelopeTests {
                     recordingDeviceMetadataChanges: [],
                     recordingDeviceRemovals: [],
                     plannedStayRecords: [],
+                    sampleAttributionRevisions: [],
                     blobs: [:],
                     exportedAt: Date(),
                 )
@@ -35,6 +36,7 @@ struct EncryptedBackupEnvelopeTests {
             recordingDeviceMetadataChanges: [],
             recordingDeviceRemovals: [],
             plannedStayRecords: [],
+            sampleAttributionRevisions: [],
             blobs: [:],
             exportedAt: date,
         )

@@ -70,6 +70,8 @@ public struct WhereServices: Sendable {
     public let currentRegion: CurrentRegionResolver
     /// Data-quality issue detection for the Resolve tab.
     public let resolution: DataIssueScanner
+    /// Exact GPS correction reviews, transactional Apply, and reset tombstones.
+    public let corrections: SampleCorrectionCoordinator
     /// The persistence boundary, retained so `dataChangeUpdates()` can hand out
     /// the store's `changes()` stream — the single read-refresh signal every
     /// write origin (manual edit, live GPS, remote sync) funnels through.
@@ -311,6 +313,13 @@ public struct WhereServices: Sendable {
         self.plannedStayLocation = plannedStayLocation
         self.currentRegion = currentRegion
         self.resolution = resolution
+        corrections = SampleCorrectionCoordinator(
+            store: store,
+            reports: reports,
+            calendar: aggregator.calendar,
+            now: now,
+            onCommitted: { await derivedData.reconcile() },
+        )
         self.store = store
         self.attributor = attributor
         self.aggregator = aggregator

@@ -50,6 +50,7 @@ struct AutomaticBackupStorageFixture {
             recordingDeviceMetadataChanges: [],
             recordingDeviceRemovals: [],
             plannedStayRecords: [],
+            sampleAttributionRevisions: [],
             blobs: [:],
             exportedAt: date,
         )

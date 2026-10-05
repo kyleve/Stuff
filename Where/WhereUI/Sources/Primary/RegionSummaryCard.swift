@@ -74,11 +74,17 @@ struct RegionSummaryCard: View {
     /// medium fidelity, the stamp uses small, and the repeated border uses
     /// micro. Point-only refreshes retain the previous value until its updated
     /// constellation is ready, so the static artwork never blinks out.
-    @State private var regionPaths: RegionArtworkPaths?
+    @State private var artworkModel = RegionArtworkModel<
+        RegionArtworkLoadID.StaticArtworkID,
+        RegionArtworkPaths
+    >()
+
+    private var regionPaths: RegionArtworkPaths? {
+        artworkModel.artwork(for: regionArtworkLoadID.staticArtworkID)
+    }
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
-    @Environment(\.regionOutlinePathCache) private var regionOutlinePathCache
     #if DEBUG
         // The live designer draft is a runtime override, outside the cached base slice.
         @Environment(\.colorScheme) private var colorScheme
@@ -246,12 +252,10 @@ struct RegionSummaryCard: View {
         .accessibilityHidden(true)
     }
 
-    private func loadRegionOutlines() async {
-        let staticArtworkID = regionArtworkLoadID.staticArtworkID
-        if regionPaths?.staticArtworkID != staticArtworkID {
-            regionPaths = nil
-        }
-        guard card.regionShape != nil, let regionOutlinePathCache else { return }
+    private func loadRegionOutlines(_ regionOutlinePathCache: RegionOutlinePathCache) async
+        -> RegionArtworkPaths?
+    {
+        guard card.regionShape != nil else { return nil }
         async let watermark = regionOutlinePathCache.path(
             for: regionDays.region,
             resolution: .medium,
@@ -275,10 +279,9 @@ struct RegionSummaryCard: View {
             microprint,
             projectedPoints,
         )
-        guard Task.isCancelled == false else { return }
+        guard Task.isCancelled == false else { return nil }
         let constellation = cardStyles.constellation
-        let loaded = RegionArtworkPaths(
-            staticArtworkID: staticArtworkID,
+        return RegionArtworkPaths(
             watermark: watermarkPath,
             stamp: stampPath,
             microprint: microprintPath,
@@ -289,7 +292,6 @@ struct RegionSummaryCard: View {
                 maximumCount: constellation.maximumPointCount,
             ),
         )
-        regionPaths = loaded
     }
 
     var body: some View {
@@ -406,7 +408,12 @@ struct RegionSummaryCard: View {
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
-        .task(id: regionArtworkLoadID, loadRegionOutlines)
+        .regionArtworkTask(
+            id: regionArtworkLoadID,
+            displayKey: regionArtworkLoadID.staticArtworkID,
+            model: artworkModel,
+            load: loadRegionOutlines,
+        )
     }
 }
 
@@ -506,7 +513,6 @@ private struct EntryStamp: View {
 
 /// The cached render artifacts a regular card consumes together.
 private struct RegionArtworkPaths {
-    let staticArtworkID: RegionArtworkLoadID.StaticArtworkID
     let watermark: Path
     let stamp: Path
     let microprint: Path

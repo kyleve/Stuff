@@ -162,6 +162,7 @@ struct AutomaticBackupStorageTests {
                 recordingDeviceMetadataChanges: [],
                 recordingDeviceRemovals: [],
                 plannedStayRecords: [],
+                sampleAttributionRevisions: [],
                 blobs: [:],
                 exportedAt: date,
             )

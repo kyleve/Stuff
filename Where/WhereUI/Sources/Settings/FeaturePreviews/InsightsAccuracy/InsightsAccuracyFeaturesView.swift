@@ -9,66 +9,17 @@ struct InsightsAccuracyFeaturesView: View {
     let focus: SettingsFocus?
 
     @State private var showingResolution = false
-    @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
         StaggeredRevealScope {
             SettingsFocusScope(focus: focus) {
-                Form {
-                    FeatureMarketingHeader(
-                        title: String(localized: .settingsExploreInsightsTitle),
-                        tagline: String(localized: .settingsExploreInsightsTagline),
-                        systemSymbol: SettingsDestination.insightsAccuracy.systemSymbol,
-                        tint: SettingsDestination.insightsAccuracy.iconColor,
-                    )
-                    .listRowInsets(.init())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                    .staggeredReveal(order: 0)
-
-                    Section {
-                        FeatureDataAccuracyPreview(issueCount: report.dataIssueCount)
-                            .featureMarketingRow(order: 1)
-                            .settingsRow(Item.dataAccuracy, restingBackground: .clear)
-
-                        if report.dataIssueCount > 0 {
-                            FeatureMarketingPanel {
-                                Button(action: showResolution) {
-                                    actionLabel(
-                                        String(localized: .settingsExploreInsightsOpenResolve),
-                                        systemSymbol: .checklist,
-                                    )
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                            .featureMarketingRow(order: 2)
-                        }
-                    } footer: {
-                        VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
-                            Text(String(localized: .settingsExploreInsightsFooter))
-                            FeatureDiscoveryDataFooter()
-                        }
-                        .staggeredReveal(order: 3)
-                    }
-                }
-                .scrollContentBackground(.hidden)
-                .background(FeatureDiscoveryBackground())
+                InsightsAccuracyFeaturesContent(report: report, showResolution: showResolution)
             }
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingResolution) {
             ResolutionView(report: report)
-        }
-    }
-
-    private func actionLabel(_ title: String, systemSymbol: SFSymbol) -> some View {
-        Label {
-            Text(title)
-                .foregroundStyle(.primary)
-        } icon: {
-            Image(systemSymbol: systemSymbol)
-                .foregroundStyle(SettingsDestination.insightsAccuracy.iconColor)
         }
     }
 
@@ -84,9 +35,15 @@ extension InsightsAccuracyFeaturesView: SettingsSection {
 
     enum Item: SettingsItem {
         case dataAccuracy
+        case corrections
+        case alerts
 
         var title: String {
-            String(localized: .settingsExploreInsightsAccuracyTitle)
+            switch self {
+                case .dataAccuracy: String(localized: .settingsExploreInsightsAccuracyTitle)
+                case .corrections: String(localized: .settingsExploreInsightsCorrectionsTitle)
+                case .alerts: String(localized: .settingsExploreInsightsAlertsTitle)
+            }
         }
 
         var keywords: [String] {
@@ -105,6 +62,16 @@ extension InsightsAccuracyFeaturesView: SettingsSection {
             ) {
                 InsightsAccuracyFeaturesView(
                     report: reportWithIssues(),
+                    focus: nil,
+                )
+            }
+            whereSnapshot(
+                name: "NoIssues",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                InsightsAccuracyFeaturesView(
+                    report: PreviewSupport.emptyYearReportModel(),
                     focus: nil,
                 )
             }
@@ -128,7 +95,11 @@ extension InsightsAccuracyFeaturesView: SettingsSection {
         static let flyoverData = WhereFlyoverData.snapshots(
             InsightsAccuracyFeaturesView.self,
             title: "Insights & Accuracy",
-            routes: [.modal(to: ResolutionView.flyoverID)],
+            routes: [
+                .modal(to: ResolutionView.flyoverID),
+                .push(to: LoggedDaysView.flyoverID),
+                .push(to: AlertsSettingsView.flyoverID),
+            ],
         )
     }
 #endif

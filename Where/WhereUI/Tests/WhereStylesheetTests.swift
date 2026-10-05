@@ -138,6 +138,15 @@ struct WhereStylesheetTests {
         #expect(style.spacing.xxxLarge == 20)
     }
 
+    @Test func flightStatusStyle() {
+        #expect(style.flightStatus.padding == 14)
+        #expect(style.flightStatus.spacing == 8)
+        #expect(style.flightStatus.cornerRadius == 14)
+        #expect(style.flightStatus.titleFont == .headline)
+        #expect(style.flightStatus.bodyFont == .subheadline)
+        #expect(style.flightStatus.background == Color(uiColor: .secondarySystemGroupedBackground))
+    }
+
     @Test func locationWelcomeStyle() {
         let welcome = style.locationWelcome
         #expect(welcome.maxWidth == 390)
@@ -587,6 +596,9 @@ struct WhereStylesheetTests {
         #expect(regionMap.uncertaintyFillOpacity == 0.15)
         #expect(regionMap.uncertaintyStrokeOpacity == 0.6)
         #expect(regionMap.uncertaintyStrokeWidth == 1)
+        #expect(regionMap.routeLineWidth == 2)
+        #expect(regionMap.capturePointDiameter == 8)
+        #expect(regionMap.captureInset == 16)
     }
 
     @Test func regionPickerStyle() {
@@ -617,6 +629,29 @@ struct WhereStylesheetTests {
         #expect(evidence.previewCornerRadius == 22)
         #expect(evidence.pdfPreviewMinHeight == 420)
         #expect(evidence.loadingMinHeight == 200)
+    }
+
+    @Test func locationsBackgroundStyle() {
+        let background = style.locationsBackground
+        #expect(background.paper == Color(uiColor: .systemBackground))
+        #expect(background.ink == Color.primary)
+        #expect(background.showsInk)
+        #expect(background.preferredCellSize == 54)
+        #expect(background.artwork == .init(
+            center: CGPoint(x: 0.5, y: 0.5),
+            extent: CGSize(width: 0.545, height: 0.545),
+            scale: 1,
+            fillOpacity: 0,
+            stroke: .init(opacity: 0.043, width: 1.1),
+        ))
+        #expect(background.maximumAspectScale == 1.25)
+        #expect(background.rosette == .init(
+            wobble: 0.04,
+            lineWidth: 0.5,
+            primaryRingSpacing: 18,
+            secondaryRingSpacing: 25,
+        ))
+        #expect(background.rosetteOpacity == 0.015)
     }
 
     @Test func elsewhereCardStyle() {
@@ -948,6 +983,7 @@ struct WhereStylesheetTests {
         #expect(resolved.card.constellation.haloOpacity == 0)
         #expect(resolved.card.constellation.coreOpacity == 0.92)
         #expect(resolved.privacyPassportCard.disclosure.fillOpacity == 0.16)
+        #expect(resolved.locationsBackground.showsInk == false)
         #expect(resolved.elsewhereCard.surface.usesOpaquePaper)
         #expect(resolved.elsewhereCard.surface.shadowOpacity == 0)
     }

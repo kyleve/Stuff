@@ -229,6 +229,7 @@ public actor BackupCoordinator {
                     recordingDeviceMetadataChanges: store.recordingDeviceMetadataChanges(),
                     recordingDeviceRemovals: store.recordingDeviceRemovals(),
                     plannedStayRecords: store.plannedStayRecords(),
+                    sampleAttributionRevisions: store.allSampleAttributionRevisions(),
                 )
             }
             let evidence = tables.evidence
@@ -265,6 +266,7 @@ public actor BackupCoordinator {
                 recordingDeviceMetadataChanges: tables.recordingDeviceMetadataChanges,
                 recordingDeviceRemovals: tables.recordingDeviceRemovals,
                 plannedStayRecords: tables.plannedStayRecords,
+                sampleAttributionRevisions: tables.sampleAttributionRevisions,
                 blobs: snapshot.blobs,
                 exportedAt: exportedAt ?? Date(),
             )
@@ -347,6 +349,7 @@ public actor BackupCoordinator {
         let recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange]
         let recordingDeviceRemovals: [RecordingDeviceRemoval]
         let plannedStayRecords: [PlannedStayRecord]
+        let sampleAttributionRevisions: [SampleAttributionRevision]
     }
 
     private struct ExportSnapshot {
@@ -561,6 +564,7 @@ public actor BackupCoordinator {
             + archive.recordingDeviceMetadataChanges.count
             + archive.recordingDeviceRemovals.count
             + archive.plannedStayRecords.count
+            + archive.sampleAttributionRevisions.count
 
         // Decode and validate before touching live recording. Once the archive is known-good,
         // close ingestion before either merge or replace so a streamed sample cannot cross the
@@ -628,6 +632,10 @@ public actor BackupCoordinator {
                     }
                     for plannedStay in archive.plannedStayRecords {
                         try await store.restorePlannedStayRecord(plannedStay)
+                        report()
+                    }
+                    for revision in archive.sampleAttributionRevisions {
+                        try await store.addSampleAttributionRevision(revision)
                         report()
                     }
                     for profile in archive.recordingDeviceProfiles {

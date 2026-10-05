@@ -187,16 +187,58 @@ one it belongs to rather than to a god-object:
 
 ### Detection, notifications & the rest
 
-- **`DataIssueScanner`** + the `DataIssue` family (missing days, border drift,
-  abrupt change, flight days) — the "Resolve" tab's detections and their
-  `IssueResolution` fixes. Dismissals persist under a stable, device- and
-  timezone-independent `storageKey` (a `CalendarDay` ISO string), so a dismissal
-  doesn't reappear after travel. The `FlightDayDetector` reads the per-day GPS
-  fixes the scanner puts on `DataIssueInput.daySamples` (timestamped, GPS-only)
-  to spot cruise-speed points that added a spurious region. Each detector
-  declares the category it finds (`DataIssueDetecting.detects`), which both
-  labels its scan span and lets the scanner talk about categories without
-  knowing the concrete detector types.
+- **`DataIssueScanner`** — publishes a coherent revision of actionable issues,
+  informational GPS reviews, and the next reassessment deadline. Committed raw
+  evidence invalidates its cache even when day/region totals remain equal.
+  Missing-day and abrupt-change detection share the same snapshot; flight and
+  boundary cleanup use one sample assessment. Supported flight transitions stay
+  in that review instead of producing a separate whole-day abrupt-change suggestion.
+  Pending flights remain reviewable without adding to correction badges or notifications.
+  A pending flight does not block another completed flight's corrections, including flights on the same day.
+  One daily review can offer completed-flight edits and retain pending flight information.
+  Applying or dismissing those edits leaves the pending flight review available without an actionable count.
+  Dismissing a ready suggestion with no pending flights hides its review and live notice.
+  Pending and completed informational reviews remain accessible.
+- **`FlightTrajectoryAnalyzer`** — a pure, per-device GPS analysis before day
+  bucketing, with 24 hours of report-boundary context. It uses independent fixes
+  at least 60 seconds apart, positional uncertainty, sustained jet-speed progress,
+  turning departure/approach segments, and an observed ground dwell. Flight-only
+  types live in [`DataResolution/Flights`](Sources/DataResolution/Flights).
+  [`GPSCorrectionPolicy`](Sources/DataResolution/GPSCorrectionPolicy.swift) names
+  the shared inference limits: three anchors spanning three minutes, with each
+  leg's uncertainty-adjusted average speed at 450–1,500 km/h. Arrival requires
+  three ground anchors spanning ten minutes within 2 km and at most 50 km/h.
+  `FlightAssessment.RecordingSource` separates identified installations from legacy samples.
+  `Reassessment` distinguishes a scheduled refresh from an evidence-driven refresh.
+  A qualifying dwell confirms arrival immediately. The 30-minute freshness limit
+  only changes live-notice presentation. Motion measurements can corroborate speed and contradict ground
+  dwell; altitude is context only. Missing or stale updates never establish
+  arrival. Slower aircraft and sparse recordings can remain uncertain.
+- **`SampleCorrectionAssessment`** — shares the raw-evidence assessment for flights
+  and border drift. Its named policy includes 24-hour report context and local
+  boundary brackets within ten minutes on each side. These conservative limits
+  leave longer gaps uncorrected because they can hide real travel.
+  Proposals carry a GPS-only `Kind` and order edits by timestamp, then sample identity.
+  Each reviewed day produces at most one actionable issue.
+- **`SampleCorrectionCoordinator`** — reviews exact GPS edits and reassesses them
+  in the guarded store transaction before Apply. Any changed evidence refreshes
+  the review instead of expanding the reviewed sample set. Supported airborne
+  points can be excluded only after arrival. A boundary relabel needs local
+  same-device brackets in the retained region within ten minutes on both sides.
+  Manual assertions, unknown fixes, ground endpoints, layovers, and later
+  destinations retain their contributions. Reviews coalesce identical synced rows
+  by sample identity; conflicting representations remain uncorrected.
+  `LocationHistoryReader.projection`
+  joins lossless raw samples to the effective attribution for reports, maps,
+  artwork, widgets, summaries, reminders, and intents.
+- **`SampleAttributionRevision`** — an immutable, generation-scoped sample register,
+  resolved by timestamp then UUID. Its dedicated `ID` preserves the bare UUID backup format.
+  Correction and reset writes share a timestamp helper that advances observed history by at least one millisecond.
+  A nil replacement restores GPS attribution,
+  an empty set excludes the sample, and a populated set replaces its regions.
+  Reset to GPS clears the day's manual override and writes newer tombstones in
+  one transaction. Revisions can arrive before their samples; device-removal
+  filtering takes precedence.
 - **Reconcilers** — `ReminderReconciler` (daily logging reminder + app-icon
   badge), `DailySummaryReconciler` (year-to-date recap),
   `DataIssueAlertReconciler` ("issues to resolve").
@@ -205,7 +247,8 @@ one it belongs to rather than to a god-object:
 - **`WidgetPresentationPublisher`** — atomically writes the device-local `WhereTheme`
   to its own App Group file and reloads WidgetKit without reading or rebuilding widget data.
 - **`BackupCoordinator`** — ZIP export/import via `ZIPFoundation`. Export pins
-  tables, planned-stay revisions, and evidence blobs to one generation-consistent snapshot. Merge preserves queued locations
+  tables, planned-stay revisions, sample-attribution revisions/tombstones, and evidence blobs
+  to one generation-consistent snapshot. Merge preserves queued locations
   and the installation-local recording choice. Replace writes the archive into a new child generation,
   retains existing removal tombstones, and preserves the local choice before pending fixes are
   discarded. A prepared
@@ -217,6 +260,12 @@ one it belongs to rather than to a god-object:
   sidecar tombstone before clearing recovery, so a cold launch can repair a preference write
   that did not reach disk without offering the same archive again.
   Check-ins are deliberately neither exported nor restored because they are live advisory status.
+  Backup format **v6** retains optional grouped speed/altitude measurements and
+  every correction revision losslessly. Merge preserves revision IDs/timestamps;
+  Replace restores archive revisions into its new generation. The offline
+  [`upgrade-backup.rb`](../Tools/upgrade-backup.rb) transforms formats v1–v5 with
+  unknown motion and an empty correction history. The production decoder accepts
+  only the current format. See [backup format](BACKUP_FORMAT.md).
 - **`InstallationRecordingContext`** — the device-local installation identity,
   explicitly confirmed local recording choice, and stable timestamp for recreating
   its immutable device profile idempotently.
