@@ -119,6 +119,21 @@ enum FlightTrajectoryFixtures {
         ]
     }
 
+    /// A ten-hour flight with dense callbacks and observed arrival dwell.
+    static func denseFlight(cruiseSampleCount: Int) -> [LocationSample] {
+        (0 ..< cruiseSampleCount).map { index in
+            sample(
+                10000 + index,
+                minutes: 20 + Double(index) * 600 / Double(cruiseSampleCount),
+                east: 100 + Double(index) * 7500 / Double(cruiseSampleCount),
+            )
+        } + [
+            sample(10000 + cruiseSampleCount, minutes: 625, east: 7600),
+            sample(10001 + cruiseSampleCount, minutes: 630, east: 7600),
+            sample(10002 + cruiseSampleCount, minutes: 635, east: 7600),
+        ]
+    }
+
     /// Two stationary observations cannot confirm a dwell, but they must keep
     /// their presence when the surrounding cruise segments are corrected.
     static func sparseLayover() -> SparseLayoverTrace {

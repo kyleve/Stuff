@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 import Testing
 @testable import WhereCore
 
@@ -71,5 +72,98 @@ struct FlightPointCorrectionAssessmentTests {
         #expect(Set(review.pointCorrections.map(\.sampleID))
             .isDisjoint(with: trace.pendingSampleIDs))
         #expect(review.dismissingProposal()?.pointCorrections == review.pointCorrections)
+    }
+
+    @Test(arguments: [false, true], [false, true])
+    func resultingRegionsMatchAggregationWithDuplicateRowsAndOtherSupport(
+        allGPSExcluded: Bool,
+        additiveManualDay: Bool,
+    ) throws {
+        let trace = F.turningFlight()
+        let calendar = SampleCorrectionTestSupport.calendar
+        let day = CalendarDay(from: F.start, in: calendar)
+        let attributor = SampleCorrectionTestSupport.attribution
+        var entries = trace.samples.map { sample in
+            let regions: Set<Region> = if allGPSExcluded || sample.id == F.sampleID(8) {
+                []
+            } else if sample.id == F.sampleID(5) {
+                [.newYork, .other]
+            } else if sample.id == F.sampleID(6) {
+                [.canada]
+            } else {
+                [.california]
+            }
+            return AttributedLocationSample(sample: sample, regions: regions)
+        }
+        // All physical copies of one identity change together. Independent
+        // manual and remote-device samples keep their existing contributions.
+        entries += [entries[4], entries[4], entries[7]]
+        entries += [
+            AttributedLocationSample(
+                sample: F.sample(100, minutes: 25, east: 120, source: .manual),
+                regions: [.canada],
+            ),
+            AttributedLocationSample(
+                sample: F.sample(101, minutes: 25, east: 120, deviceID: nil),
+                regions: [.other],
+            ),
+        ]
+        let manuals = additiveManualDay ? [DayPresence(
+            day: day,
+            regions: [.newYork, .europeanUnion],
+            isAuthoritative: false,
+            audit: nil,
+        )] : []
+        let corrections = FlightPointCorrectionAssessment(attributor: attributor).corrections(
+            day: day,
+            entries: entries,
+            conflictingSampleIDs: [],
+            dataGenerationID: .initial,
+            evidence: .init(
+                history: LocationHistoryProjection(samples: entries, revisions: []),
+                manualDays: manuals,
+                primaryRegions: attributor.loadedRegions,
+                trackedRegions: attributor.loadedRegions,
+                driftThresholdMeters: 1000,
+                calendar: calendar,
+                flights: FlightTrajectoryAnalyzer().analyze(
+                    samples: trace.samples,
+                    now: trace.readyAt,
+                ),
+            ),
+        )
+        #expect(corrections.isEmpty == false)
+        #expect(corrections.count == Set(corrections.map(\.sampleID)).count)
+        #expect(corrections.contains { $0.action == .restoreGPS })
+        for correction in corrections {
+            let corrected = entries.map { entry in
+                guard entry.sample.id == correction.sampleID else { return entry }
+                return AttributedLocationSample(
+                    sample: entry.sample,
+                    regions: correction.action == .restoreGPS
+                        ? [attributor.region(at: entry.sample.coordinate)] : [],
+                )
+            }
+            let expected = try #require(SampleCorrectionTestSupport.aggregator
+                .report(for: day.year, history: corrected, manualDays: manuals)
+                .days.first { $0.day == day })
+            #expect(correction.resultingRegions == expected.regions)
+        }
+        if !allGPSExcluded {
+            let soleSupport = try #require(corrections.first { $0.sampleID == F.sampleID(5) })
+            #expect(soleSupport.resultingRegions.contains(.newYork) == additiveManualDay)
+            #expect(soleSupport.resultingRegions.isSuperset(of: [.canada, .other]))
+        }
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func denseFlightRetainsEveryPointDecision() throws {
+        let sampleCount = 10000
+        let review = try #require(SampleCorrectionAssessmentFixtures.reviews(
+            F.denseFlight(cruiseSampleCount: sampleCount),
+            now: F.date(minutes: 640),
+        ).first)
+        #expect(review.pointCorrections.count == sampleCount + 1)
+        #expect(review.pointCorrections.allSatisfy { $0.resultingRegions == [.other] })
     }
 }

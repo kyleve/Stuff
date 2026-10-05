@@ -5,7 +5,6 @@ import RegionKit
 /// Manual days, duplicate conflicts, and pending-flight observations remain protected.
 struct FlightPointCorrectionAssessment {
     let attributor: any RegionAttributing
-    let calendar: Calendar
 
     func corrections(
         day: CalendarDay,
@@ -16,7 +15,16 @@ struct FlightPointCorrectionAssessment {
     ) -> [FlightPointCorrection] {
         guard !evidence.manualDays.contains(where: \.isAuthoritative) else { return [] }
         let completed = evidence.flights.filter { !$0.isPending }
+        guard !completed.isEmpty else { return [] }
         let pending = evidence.flights.filter(\.isPending)
+        // Entries already belong to this calendar day. Build their shared support
+        // once rather than reaggregating the whole day for every possible edit.
+        let contributions = RegionContributions(
+            entries: entries,
+            manualRegions: evidence.manualDays.reduce(into: Set<Region>()) {
+                $0.formUnion($1.regions)
+            },
+        )
         var seen: Set<UUID> = []
         return entries.sorted {
             if $0.sample.timestamp != $1.sample.timestamp {
@@ -33,18 +41,11 @@ struct FlightPointCorrectionAssessment {
                 ? .restoreGPS : .includeInFlight
             let replacement: Set<Region> = action == .restoreGPS
                 ? [attributor.region(at: sample.coordinate)] : []
-            let corrected = entries.map {
-                $0.sample.id == sample.id
-                    ? AttributedLocationSample(sample: $0.sample, regions: replacement) : $0
-            }
-            let result = DayAggregator(calendar: calendar, timeZone: calendar.timeZone)
-                .report(for: day.year, history: corrected, manualDays: evidence.manualDays)
-                .days.first { $0.day == day }?.regions ?? []
             return FlightPointCorrection(
                 sampleID: sample.id,
                 action: action,
                 day: day,
-                resultingRegions: result,
+                resultingRegions: contributions.replacing(sampleID: sample.id, with: replacement),
                 dataGenerationID: dataGenerationID,
                 evidence: evidence,
             )
@@ -60,5 +61,33 @@ struct FlightPointCorrectionAssessment {
             case .flightLikely, .awaitingArrival: flight.lastObservationAt
         }
         return sample.timestamp >= flight.startedAt && sample.timestamp <= end
+    }
+
+    /// Counts support by identity so identical synced rows cannot preserve an
+    /// excluded point's regions. Additive manual assertions always retain support.
+    private struct RegionContributions {
+        let regions: Set<Region>
+        let soleRegionsBySample: [UUID: Set<Region>]
+
+        init(entries: [AttributedLocationSample], manualRegions: Set<Region>) {
+            var contributors: [Region: Set<UUID>] = [:]
+            for entry in entries {
+                for region in entry.regions {
+                    contributors[region, default: []].insert(entry.sample.id)
+                }
+            }
+            regions = Set(contributors.keys).union(manualRegions)
+            var soleRegions: [UUID: Set<Region>] = [:]
+            for (region, sampleIDs) in contributors where !manualRegions.contains(region) {
+                if sampleIDs.count == 1, let sampleID = sampleIDs.first {
+                    soleRegions[sampleID, default: []].insert(region)
+                }
+            }
+            soleRegionsBySample = soleRegions
+        }
+
+        func replacing(sampleID: UUID, with replacement: Set<Region>) -> Set<Region> {
+            regions.subtracting(soleRegionsBySample[sampleID] ?? []).union(replacement)
+        }
     }
 }
