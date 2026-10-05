@@ -5,15 +5,22 @@ import WhereCore
 enum ResolveModelLog {
     enum SpanName: String, CustomStringConvertible {
         case prepareReview
-        var description: String { rawValue }
+        var description: String {
+            rawValue
+        }
     }
 
-    @LogEvent("correction-apply-failed", level: .warning,
-        message: "Failed to apply reviewed GPS sample corrections")
+    @LogEvent(
+        "correction-apply-failed",
+        level: .warning,
+        message: "Failed to apply reviewed GPS sample corrections",
+    )
     struct CorrectionApplyFailed {
         @LogField("issue_id", exposure: .restricted, kind: .identifier)
         var issueID: DataIssueID
-        var externalID: String? { issueID.storeURL.absoluteString }
+        var externalID: String? {
+            issueID.storeURL.absoluteString
+        }
     }
 
     @LogEvent("data-issue-scan-failed", level: .warning)

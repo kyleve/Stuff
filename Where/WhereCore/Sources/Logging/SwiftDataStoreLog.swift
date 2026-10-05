@@ -60,8 +60,11 @@ enum SwiftDataStoreLog {
         }
     }
 
-    @LogEvent("ignored-incomplete-sample-motion", level: .warning,
-        message: "Preserved raw location while optional motion fields were incomplete")
+    @LogEvent(
+        "ignored-incomplete-sample-motion",
+        level: .warning,
+        message: "Preserved raw location while optional motion fields were incomplete",
+    )
     struct IgnoredIncompleteSampleMotion {}
 
     @LogEvent("resolved-conflicting-immutable-records", level: .fault)
