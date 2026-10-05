@@ -7,6 +7,33 @@ private typealias Fixtures = FlightTrajectoryFixtures
 struct FlightTrajectoryAnalyzerTests {
     private let analyzer = FlightTrajectoryAnalyzer()
 
+    @Test func resumedCruiseIncludesItsFirstPointButPreservesBothGroundEndpoints() throws {
+        let samples = Fixtures.resumedFlight()
+        let flights = analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 300))
+        let flight = try #require(flights.first)
+        #expect(flights.count == 1)
+        #expect(flight.startedAt == samples[3].timestamp)
+        #expect(flight.airborneSampleIDs == Set(samples[3 ... 5].map(\.id)))
+        #expect(flight.inferredEndpoints.map(\.sampleID) == [samples[3].id])
+        #expect(flight.groundSampleIDs.isSuperset(of: Set(samples[0 ... 2].map(\.id))))
+        #expect(flight.groundSampleIDs.isSuperset(of: Set(samples[6 ... 8].map(\.id))))
+        #expect(analyzer.analyze(
+            samples: Array(samples.reversed()),
+            now: Fixtures.date(minutes: 300),
+        ) == flights)
+    }
+
+    @Test func longGapCorroborationNeverCrossesRecordingDevices() throws {
+        let samples = Array(Fixtures.resumedFlight().dropFirst(3))
+        let other = Fixtures.sample(99, minutes: 10, east: 0, deviceID: nil)
+        let flight = try #require(analyzer.analyze(
+            samples: [other] + samples,
+            now: Fixtures.date(minutes: 300),
+        ).first)
+        #expect(flight.inferredEndpoints.isEmpty)
+        #expect(flight.airborneSampleIDs.contains(samples[0].id) == false)
+    }
+
     @Test(.disabled(
         if: ProcessInfo.processInfo.environment["WHERE_FLIGHT_VERIFICATION_CONFIG"] == nil,
         "Supply a local flight-verification configuration to replay an external backup.",

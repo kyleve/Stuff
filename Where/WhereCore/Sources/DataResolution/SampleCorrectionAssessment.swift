@@ -103,6 +103,26 @@ struct SampleCorrectionAssessment {
         // on the same day must retain its evidence without blocking completed trips.
         let pending = dayFlights.last(where: \.isPending)
         let completedFlights = dayFlights.filter { !$0.isPending }
+        let evidence = SampleCorrectionProposal.Evidence(
+            history: context,
+            manualDays: reads.manualDays.filter { $0.day == day },
+            primaryRegions: primaryRegions,
+            trackedRegions: attributor.loadedRegions,
+            driftThresholdMeters: driftThresholdMeters,
+            calendar: calendar,
+            flights: dayFlights,
+        )
+        let pointCorrections = FlightPointCorrectionAssessment(
+            attributor: attributor,
+            calendar: calendar,
+        )
+        .corrections(
+            day: day,
+            entries: entries,
+            conflictingSampleIDs: conflictingSampleIDs,
+            dataGenerationID: reads.dataGenerationID,
+            evidence: evidence,
+        )
 
         // Boundary corroboration stays on one recording device. Samples from a
         // second device cannot establish where this device was before or after.
@@ -182,15 +202,7 @@ struct SampleCorrectionAssessment {
                 resultingRegions: resulting,
                 edits: edits,
                 dataGenerationID: reads.dataGenerationID,
-                evidence: .init(
-                    history: context,
-                    manualDays: manuals,
-                    primaryRegions: primaryRegions,
-                    trackedRegions: attributor.loadedRegions,
-                    driftThresholdMeters: driftThresholdMeters,
-                    calendar: calendar,
-                    flights: dayFlights,
-                ),
+                evidence: evidence,
             )
             return GPSCorrectionReview(
                 id: reviewID,
@@ -198,6 +210,7 @@ struct SampleCorrectionAssessment {
                 points: points,
                 state: .ready(proposal, flight: completedFlights.last),
                 flights: dayFlights,
+                pointCorrections: pointCorrections,
             )
         }
         // With no completed-flight edits left, keep unfinished trips reviewable.
@@ -209,6 +222,7 @@ struct SampleCorrectionAssessment {
                 points: points,
                 state: .pending(pending),
                 flights: dayFlights,
+                pointCorrections: pointCorrections,
             )
         }
         // A landed flight without GPS edits remains an informational review.
@@ -220,6 +234,7 @@ struct SampleCorrectionAssessment {
             points: points,
             state: .completed(flight),
             flights: dayFlights,
+            pointCorrections: pointCorrections,
         )
     }
 

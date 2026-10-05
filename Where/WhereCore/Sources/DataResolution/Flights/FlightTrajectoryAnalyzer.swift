@@ -227,6 +227,25 @@ public struct FlightTrajectoryAnalyzer: Sendable {
                 candidate += 1
             }
         }
+        var inferredEndpoints: [FlightEndpointInference] = []
+        for core in cores where !supportedLegs.contains(core.start - 1) {
+            let endpoint = anchors[core.start]
+            let observations = usable.filter { Self.isSameObservation($0, as: endpoint) }
+            guard observations.allSatisfy({ !groundIDs.contains($0.id) }),
+                  let reason = FlightEndpointInference.reason(
+                      cruise: Array(anchors[core.start ... core.end]),
+                      previous: core.start > 0 ? anchors[core.start - 1] : nil,
+                      endpointObservations: observations,
+                  ) else { continue }
+            for sample in observations where Self.fitsMotion(
+                sample,
+                from: endpoint,
+                to: anchors[core.start + 1],
+            ) {
+                airborneIDs.insert(sample.id)
+                inferredEndpoints.append(.init(sampleID: sample.id, reason: reason))
+            }
+        }
         let observationLimit = if let arrival {
             anchors[arrival.confirmation].timestamp
         } else if nextStart.offset < anchors.count {
@@ -275,6 +294,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             groundSampleIDs: groundIDs,
             peakSpeedKMH: peakSpeedKMH,
             progress: progress,
+            inferredEndpoints: inferredEndpoints,
         )
     }
 

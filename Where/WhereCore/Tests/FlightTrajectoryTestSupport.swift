@@ -104,6 +104,21 @@ enum FlightTrajectoryFixtures {
         )
     }
 
+    /// Recording resumes during cruise after a long gap from a ground observation.
+    static func resumedFlight() -> [LocationSample] {
+        [
+            sample(1, minutes: 0, east: 0),
+            sample(2, minutes: 5, east: 0),
+            sample(3, minutes: 10, east: 0),
+            sample(4, minutes: 270, east: 3200),
+            sample(5, minutes: 275, east: 3260),
+            sample(6, minutes: 280, east: 3320),
+            sample(7, minutes: 285, east: 3380),
+            sample(8, minutes: 290, east: 3380),
+            sample(9, minutes: 295, east: 3380),
+        ]
+    }
+
     /// Two stationary observations cannot confirm a dwell, but they must keep
     /// their presence when the surrounding cruise segments are corrected.
     static func sparseLayover() -> SparseLayoverTrace {

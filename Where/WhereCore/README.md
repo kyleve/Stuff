@@ -184,6 +184,9 @@ one it belongs to rather than to a god-object:
   only changes live-notice presentation. Motion measurements can corroborate speed and contradict ground
   dwell; altitude is context only. Missing or stale updates never establish
   arrival. Slower aircraft and sparse recordings can remain uncertain.
+  `FlightEndpointInference` can corroborate a resumed cruise endpoint through measured speed or a bounded recording gap followed by sustained cruise.
+  Slow sensor readings veto this inference. The gap remains unknown and never becomes an observed motion leg.
+  Each inferred endpoint carries its reason into the correction review.
 - **`SampleCorrectionAssessment`** — shares the raw-evidence assessment for flights
   and border drift. Its named policy includes 24-hour report context and local
   boundary brackets within ten minutes on each side. These conservative limits
@@ -198,6 +201,9 @@ one it belongs to rather than to a god-object:
   Manual assertions, unknown fixes, ground endpoints, layovers, and later
   destinations retain their contributions. Reviews coalesce identical synced rows
   by sample identity; conflicting representations remain uncorrected.
+  A `FlightPointCorrection` lets the user explicitly include or restore one GPS point within a completed flight.
+  Both actions recheck the same evidence and data generation as automatic proposals.
+  Restoration writes a reset revision. It preserves the original GPS sample and the earlier correction history.
   `LocationHistoryReader.projection`
   joins lossless raw samples to the effective attribution for reports, maps,
   artwork, widgets, summaries, reminders, and intents.
