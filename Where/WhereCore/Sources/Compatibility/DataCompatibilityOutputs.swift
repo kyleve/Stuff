@@ -3,6 +3,13 @@ import Foundation
 /// Serializes publication with withdrawal, including external scheduler and widget awaits.
 /// Every publication rechecks the store; queued work cannot revive outputs after a lockout.
 public actor DataCompatibilityOutputs {
+    /// Changes before each withdrawal so consumers cannot reuse an earlier publication.
+    struct WithdrawalRevision: Equatable {
+        private let value = UUID()
+    }
+
+    private(set) var withdrawalRevision = WithdrawalRevision()
+
     private let compatibility: DataCompatibilityCoordinator
     let reminderScheduler: any LoggingReminderScheduling
     let summaryScheduler: any DailySummaryScheduling
@@ -79,6 +86,7 @@ public actor DataCompatibilityOutputs {
     }
 
     private func withdrawLocked(requirement: DataCompatibilityVersion?) async {
+        withdrawalRevision = WithdrawalRevision()
         do {
             try await widgetRefresher.publishCompatibility(.init(requiredVersion: requirement))
         } catch {

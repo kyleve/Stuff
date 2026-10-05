@@ -13,11 +13,11 @@ import RegionKit
 ///   freshness gate),
 /// while `publish()` unconditionally rebuilds after a committed mutation.
 ///
-/// A cold launch, failed publication, or compatibility suspension clears
-/// `lastPublished`, so the next permitted refresh rebuilds the snapshot.
+/// A cold launch, failed publication, or output withdrawal invalidates the
+/// cached publication, so the next permitted refresh rebuilds the snapshot.
 public actor WidgetSnapshotPublisher {
     private let widgetReader: WidgetDataReader
-    private let widgetRefresher: any WidgetTimelineRefreshing
+    private let outputs: DataCompatibilityOutputs
     private let attributor: any RegionAttributing
     private let calendar: Calendar
     private let now: @Sendable () -> Date
@@ -29,6 +29,7 @@ public actor WidgetSnapshotPublisher {
     private struct PublishedWidgetSnapshot {
         let snapshot: WidgetSnapshot
         let publishedAt: Date
+        let withdrawalRevision: DataCompatibilityOutputs.WithdrawalRevision
     }
 
     /// Maximum age of the published snapshot before a passive launch/activation
@@ -42,14 +43,14 @@ public actor WidgetSnapshotPublisher {
 
     init(
         widgetReader: WidgetDataReader,
-        widgetRefresher: any WidgetTimelineRefreshing,
+        outputs: DataCompatibilityOutputs,
         attributor: any RegionAttributing,
         calendar: Calendar,
         now: @escaping @Sendable () -> Date,
         maxAge: TimeInterval = WidgetSnapshotPublisher.defaultMaxAge,
     ) {
         self.widgetReader = widgetReader
-        self.widgetRefresher = widgetRefresher
+        self.outputs = outputs
         self.attributor = attributor
         self.calendar = calendar
         self.now = now
@@ -69,7 +70,7 @@ public actor WidgetSnapshotPublisher {
     /// to a full rebuild.
     public func refreshIfStale() async {
         guard await hasDataAccess() else { return }
-        if let last = lastPublished {
+        if let last = await currentPublication() {
             let today = calendar.startOfDay(for: now())
             let isFresh = now().timeIntervalSince(last.publishedAt) < maxAge
             if last.snapshot.day == today, isFresh {
@@ -85,14 +86,20 @@ public actor WidgetSnapshotPublisher {
     /// on the next refresh. Compatibility failures withdraw cached content.
     func publish() async {
         let revision = cacheRevision
+        let withdrawalRevision = await outputs.withdrawalRevision
         guard await hasDataAccess() else { return }
         await Self.logger.measure(.publish, budget: .seconds(2)) {
             do {
                 let snapshot = try await widgetReader.snapshot(asOf: now())
-                try await widgetRefresher.publish(snapshot)
+                try await outputs.widgets.publish(snapshot)
                 guard await hasDataAccess() else { return }
+                guard await outputs.withdrawalRevision == withdrawalRevision else { return }
                 guard revision == cacheRevision else { return }
-                lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: now())
+                lastPublished = PublishedWidgetSnapshot(
+                    snapshot: snapshot,
+                    publishedAt: now(),
+                    withdrawalRevision: withdrawalRevision,
+                )
                 Self.logger {
                     .published(
                         day: dayLogLabel(snapshot.day),
@@ -100,6 +107,7 @@ public actor WidgetSnapshotPublisher {
                     )
                 }
             } catch let error as DataCompatibilityError {
+                invalidate()
                 _ = await hasDataAccess()
                 Self.logger { .buildFailed(description: error.localizedDescription) }
             } catch let error as RecordingPersistenceError {
@@ -116,11 +124,17 @@ public actor WidgetSnapshotPublisher {
                     totals: [:],
                 )
                 do {
-                    try await widgetRefresher.publish(snapshot)
+                    try await outputs.widgets.publish(snapshot)
                     guard await hasDataAccess() else { return }
+                    guard await outputs.withdrawalRevision == withdrawalRevision else { return }
                     guard revision == cacheRevision else { return }
-                    lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: date)
+                    lastPublished = PublishedWidgetSnapshot(
+                        snapshot: snapshot,
+                        publishedAt: date,
+                        withdrawalRevision: withdrawalRevision,
+                    )
                 } catch {
+                    invalidate()
                     Self.logger { .buildFailed(description: error.localizedDescription) }
                 }
                 Self.logger { .buildFailed(description: error.localizedDescription) }
@@ -141,7 +155,7 @@ public actor WidgetSnapshotPublisher {
     /// the year totals are both unchanged.)
     func publishAfterIngest(of sample: LocationSample) async {
         guard await hasDataAccess() else { return }
-        if let last = lastPublished {
+        if let last = await currentPublication() {
             let day = calendar.startOfDay(for: sample.timestamp)
             let region = attributor.region(at: sample.coordinate)
             if day == last.snapshot.day, last.snapshot.dayRegions.contains(region) {
@@ -149,6 +163,12 @@ public actor WidgetSnapshotPublisher {
             }
         }
         await publish()
+    }
+
+    private func currentPublication() async -> PublishedWidgetSnapshot? {
+        let withdrawalRevision = await outputs.withdrawalRevision
+        guard lastPublished?.withdrawalRevision == withdrawalRevision else { return nil }
+        return lastPublished
     }
 
     private func dayLogLabel(_ day: Date) -> String {
@@ -167,19 +187,7 @@ public actor WidgetSnapshotPublisher {
             return true
         } catch {
             invalidate()
-            let requirement: DataCompatibilityVersion? = if case let DataCompatibilityError
-                .updateRequired(status) = error
-            {
-                status.requiredVersion
-            } else {
-                nil
-            }
-            do {
-                try await widgetRefresher.publishCompatibility(.init(requiredVersion: requirement))
-            } catch {
-                lastPublished = nil
-                Self.logger { .buildFailed(description: error.localizedDescription) }
-            }
+            await outputs.withdraw()
             Self.logger { .buildFailed(description: error.localizedDescription) }
             return false
         }

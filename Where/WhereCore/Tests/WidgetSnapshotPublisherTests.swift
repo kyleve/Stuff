@@ -36,7 +36,10 @@ struct WidgetSnapshotPublisherTests {
         let refresher = SpyRefresher()
         let publisher = WidgetSnapshotPublisher(
             widgetReader: reader,
-            widgetRefresher: refresher,
+            outputs: CompatibilityOutputTestSupport.makeOutputs(
+                store: store,
+                widgetRefresher: refresher,
+            ),
             attributor: RegionAttributor.shared,
             calendar: WhereCoreTestSupport.calendar(),
             now: now,
@@ -69,7 +72,10 @@ struct WidgetSnapshotPublisherTests {
         let refresher = SpyRefresher()
         let publisher = WidgetSnapshotPublisher(
             widgetReader: reader,
-            widgetRefresher: refresher,
+            outputs: CompatibilityOutputTestSupport.makeOutputs(
+                store: store,
+                widgetRefresher: refresher,
+            ),
             attributor: RegionAttributor.shared,
             calendar: WhereCoreTestSupport.calendar(),
             now: { now },
@@ -145,6 +151,150 @@ struct WidgetSnapshotPublisherTests {
         clock.advance(by: 120) // same day, but older than the 60s window
         await publisher.refreshIfStale()
         #expect(await refresher.publishCount == 2)
+    }
+
+    enum WithdrawalTrigger: CaseIterable {
+        case explicit, failedWithdrawal, notification, authorization, widgetPublication
+    }
+
+    enum RefreshTrigger: CaseIterable {
+        case foreground, sameRegionIngest
+    }
+
+    @Test(arguments: WithdrawalTrigger.allCases, RefreshTrigger.allCases)
+    func withdrawnSnapshotRepublishesAfterRecovery(
+        withdrawal: WithdrawalTrigger,
+        refresh: RefreshTrigger,
+    ) async throws {
+        let world = try CompatibilityOutputTestSupport.makeWorld()
+        let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
+        let services = WhereServices(
+            store: world.store,
+            compatibilityServices: world.services,
+            locationSource: ScriptedLocationSource(),
+            now: { now },
+        )
+        let sample = LocationSample(
+            timestamp: now,
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 5,
+            source: .gpsSignificantChange,
+        )
+        try await world.store.perform { try await world.store.add(sample: sample) }
+        await services.widgets.publish()
+        #expect(await world.widgets.snapshots.count == 1)
+        #expect(await world.widgets.snapshots.last?.dayRegions == [.california])
+
+        switch withdrawal {
+            case .explicit:
+                await world.services.outputs.withdraw()
+            case .failedWithdrawal:
+                await world.widgets.failNextCompatibilityPublication(
+                    with: DataCompatibilityError
+                        .verificationFailed(description: "Injected failure"),
+                )
+                await world.services.outputs.withdraw()
+            case .notification, .authorization:
+                try await CompatibilityOutputTestSupport.makeIncompatible(world.store)
+                if withdrawal == .notification {
+                    await world.services.outputs.summary.reconcile(
+                        enabled: true,
+                        time: .defaultMorning,
+                        body: "summary",
+                    )
+                } else {
+                    #expect(await !world.services.outputs.summary.requestAuthorization())
+                }
+                await world.store.setSupportedDataCompatibilityVersionForTesting(
+                    CompatibilityTestSupport.nextVersion,
+                )
+            case .widgetPublication:
+                await world.widgets.failNextPublication(
+                    with: DataCompatibilityError
+                        .verificationFailed(description: "Injected failure"),
+                )
+                await services.widgets.publish()
+        }
+        #expect(await world.widgets.snapshots.count == 1)
+        if withdrawal != .failedWithdrawal {
+            #expect(await world.widgets.compatibility.last?.allowsData == false)
+        }
+        // Recovery is deliberately independent of the UI observer and runtime suspension.
+        let recoveredStatus = try await world.services.coordinator.status()
+        try recoveredStatus.requireAccess()
+        switch refresh {
+            case .foreground: await services.widgets.refreshIfStale()
+            case .sameRegionIngest: await services.widgets.publishAfterIngest(of: sample)
+        }
+        #expect(await world.widgets.snapshots.count == 2)
+        #expect(await world.widgets.snapshots.last?.dayRegions == [.california])
+        #expect(await world.widgets.compatibility.last?.requiredVersion == recoveredStatus
+            .requiredVersion)
+
+        // The new publication is fresh; recovery must not disable ordinary throttling.
+        await services.widgets.refreshIfStale()
+        await services.widgets.publishAfterIngest(of: sample)
+        #expect(await world.widgets.snapshots.count == 2)
+    }
+
+    @Test func withdrawalDuringPublicationCannotRestoreFreshness() async throws {
+        let world = try CompatibilityOutputTestSupport.makeWorld()
+        let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
+        let services = WhereServices(
+            store: world.store,
+            compatibilityServices: world.services,
+            locationSource: ScriptedLocationSource(),
+            now: { now },
+        )
+        let gate = CompatibilityOutputTestSupport.Gate()
+        await world.widgets.holdNextPublication(gate)
+        let publication = Task { await services.widgets.publish() }
+        await gate.waitUntilEntered()
+        let withdrawal = Task { await world.services.outputs.withdraw() }
+        gate.resume()
+        await publication.value
+        await withdrawal.value
+        #expect(await world.widgets.compatibility.last?.allowsData == false)
+
+        await services.widgets.refreshIfStale()
+        #expect(await world.widgets.snapshots.count == 2)
+        #expect(await world.widgets.compatibility.last?.allowsData == true)
+    }
+
+    @Test func failedEmptySnapshotPublicationRetriesOnTheNextRefresh() async throws {
+        let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let world = CompatibilityOutputTestSupport.makeWorld(
+            store: SwiftDataStore(modelContainer: container),
+        )
+        let services = WhereServices(
+            store: world.store,
+            compatibilityServices: world.services,
+            locationSource: ScriptedLocationSource(),
+            now: { now },
+        )
+        await services.widgets.publish()
+        #expect(await world.widgets.snapshots.count == 1)
+        let remoteContext = ModelContext(container)
+        remoteContext.insert(SDWhereDataGeneration(value: WhereDataGeneration(
+            id: WhereDataGenerationID(rawValue: UUID()),
+            parentIDs: [.initial],
+            revision: 2,
+            changedAt: now.addingTimeInterval(1),
+            changedByDeviceID: RecordingDeviceID(rawValue: UUID()),
+            reason: .accountReset,
+        )))
+        try remoteContext.save()
+        await world.widgets.failNextPublication(
+            with: DataCompatibilityError.verificationFailed(description: "Injected failure"),
+        )
+        await services.widgets.publish()
+        #expect(await world.widgets.snapshots.count == 1)
+        #expect(await world.widgets.compatibility.last?.allowsData == false)
+
+        await services.widgets.refreshIfStale()
+        #expect(await world.widgets.snapshots.count == 2)
+        #expect(await world.widgets.compatibility.last?.allowsData == true)
     }
 
     @Test func publishAfterIngestSkipsWhenDayAndRegionUnchanged() async throws {

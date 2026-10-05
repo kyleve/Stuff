@@ -73,6 +73,8 @@ enum CompatibilityOutputTestSupport {
 
     actor Widgets: WidgetTimelineRefreshing {
         private var publicationFails = false
+        private var nextPublicationError: (any Error)?
+        private var nextCompatibilityError: (any Error)?
         private var nextPublicationGate: Gate?
 
         func holdNextPublication(_ gate: Gate) {
@@ -83,11 +85,23 @@ enum CompatibilityOutputTestSupport {
             publicationFails = true
         }
 
+        func failNextPublication(with error: any Error) {
+            nextPublicationError = error
+        }
+
+        func failNextCompatibilityPublication(with error: any Error) {
+            nextCompatibilityError = error
+        }
+
         private(set) var snapshots: [WidgetSnapshot] = []
         private(set) var compatibility: [WidgetCompatibilitySnapshot] = []
         func publish(_ snapshot: WidgetSnapshot) async throws {
             struct PublicationFailure: Error {}
             if publicationFails { throw PublicationFailure() }
+            if let error = nextPublicationError {
+                nextPublicationError = nil
+                throw error
+            }
             if let gate = nextPublicationGate {
                 nextPublicationGate = nil
                 await gate.suspend()
@@ -95,7 +109,11 @@ enum CompatibilityOutputTestSupport {
             snapshots.append(snapshot)
         }
 
-        func publishCompatibility(_ snapshot: WidgetCompatibilitySnapshot) {
+        func publishCompatibility(_ snapshot: WidgetCompatibilitySnapshot) throws {
+            if let error = nextCompatibilityError {
+                nextCompatibilityError = nil
+                throw error
+            }
             compatibility.append(snapshot)
         }
     }
@@ -110,7 +128,10 @@ enum CompatibilityOutputTestSupport {
     }
 
     static func makeWorld() throws -> World {
-        let store = try SwiftDataStore.inMemory()
+        try makeWorld(store: SwiftDataStore.inMemory())
+    }
+
+    static func makeWorld(store: SwiftDataStore) -> World {
         let reminders = Scheduler()
         let summary = Scheduler()
         let issues = Scheduler()
@@ -131,6 +152,20 @@ enum CompatibilityOutputTestSupport {
             issues: issues,
             widgets: widgets,
         )
+    }
+
+    static func makeOutputs(
+        store: any WhereStore,
+        widgetRefresher: any WidgetTimelineRefreshing,
+    ) -> DataCompatibilityOutputs {
+        DataCompatibilityServices(
+            store: store,
+            currentDeviceID: CurrentRecordingDevice.preview.id,
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            summaryScheduler: NoopDailySummaryScheduler(),
+            issueAlertScheduler: NoopDataIssueAlertScheduler(),
+            widgetRefresher: widgetRefresher,
+        ).outputs
     }
 
     static func makeIncompatible(_ store: SwiftDataStore) async throws {

@@ -76,8 +76,12 @@ its documented observation-task lifecycle.
 construction only in `DataCompatibilityServices`. Bootstrap prepares that value over
 its retained store. Service assembly, onboarding, and Intents receive it by injection.
 
+`where.compatibility_outputs_ownership` also confines `DataCompatibilityOutputs`
+construction to `DataCompatibilityServices`. Widget publication and freshness checks
+share that gate with notification and authorization withdrawals.
+
 Repair a violation by injecting the prepared resources. If WhereCore's documented composition boundary changes, update this rule. The mutation test rejects an
-independent presentation coordinator.
+independent presentation coordinator or widget output gate.
 
 ## Composition ownership
 

@@ -3,6 +3,21 @@ import BumperBowlingTestSupport
 import Testing
 
 struct WhereProjectRulesTests {
+    @Test func `compatibility outputs share the prepared publication and withdrawal gate`() throws {
+        let allowed = try evaluate(
+            path: "Where/WhereCore/Sources/Compatibility/DataCompatibilityServices.swift",
+            component: .whereCore,
+            source: "func make() { _ = DataCompatibilityOutputs(compatibility: coordinator) }",
+        )
+        let rejected = try evaluate(
+            path: "Where/WhereCore/Sources/Widgets/WidgetSnapshotPublisher.swift",
+            component: .whereCore,
+            source: "func make() { _ = DataCompatibilityOutputs(compatibility: coordinator) }",
+        )
+        #expect(allowed.violations.isEmpty)
+        #expect(rejected.violations.map(\.rule.id) == ["where.compatibility_outputs_ownership"])
+    }
+
     @Test func `compatibility coordinator is composed once with prepared services`() throws {
         let allowed = try evaluate(
             path: "Where/WhereCore/Sources/Compatibility/DataCompatibilityServices.swift",

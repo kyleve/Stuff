@@ -194,7 +194,7 @@ public struct WhereServices: Sendable {
         )
         let widgets = WidgetSnapshotPublisher(
             widgetReader: widgetReader,
-            widgetRefresher: widgetRefresher,
+            outputs: preparedCompatibility.outputs,
             attributor: attributor,
             calendar: aggregator.calendar,
             now: now,

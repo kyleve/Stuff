@@ -28,6 +28,11 @@ callbacks, suspended transactions, cached issue scans, and Intent reads.
 `DataCompatibilityOutputs` serializes notifications and widget publications with
 withdrawal. If compatibility changes during an external await, a post-publication check cancels outputs. Saved notification preferences stay unchanged.
 
+The gate changes its withdrawal revision before each withdrawal attempt.
+`WidgetSnapshotPublisher` receives that same gate and binds cached publications to its revision.
+After any withdrawal or publication failure, the next permitted foreground or GPS refresh rebuilds the snapshot.
+This includes notification and authorization failures that recover before the app observes a compatibility block.
+
 Widgets read a separate `widget-compatibility.json` record before cached locations.
 Missing, malformed, or unsupported metadata shows update guidance. Only a fresh data
 publication can reopen the widget. `WidgetTimelineRefreshing` throws on publication
@@ -249,8 +254,8 @@ App Store, or combined links. The host currently selects `.noBuildsPublished`.
   `DataIssueAlertReconciler` ("issues to resolve").
 - **`WidgetSnapshotPublisher`** — republishes the App Group snapshot the widgets
   read, with a freshness policy for the independently aggregated data. Compatibility
-  suspension clears freshness so recovery republishes immediately. An earlier publication
-  cannot restore the cleared cache.
+  withdrawals and publication failures invalidate freshness so recovery republishes on the
+  next refresh. A completion from an earlier withdrawal revision cannot restore freshness.
 - **`WidgetPresentationPublisher`** — atomically writes the device-local `WhereTheme`
   to its own App Group file and reloads WidgetKit without reading or rebuilding widget data.
 - **`BackupCoordinator`** — ZIP export/import via `ZIPFoundation`. Export pins

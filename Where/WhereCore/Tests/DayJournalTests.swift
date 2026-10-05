@@ -142,7 +142,10 @@ struct DayJournalTests {
                 aggregator: aggregator,
                 attributor: RegionAttributor.shared,
             ),
-            widgetRefresher: refresher,
+            outputs: CompatibilityOutputTestSupport.makeOutputs(
+                store: store,
+                widgetRefresher: refresher,
+            ),
             attributor: RegionAttributor.shared,
             calendar: WhereCoreTestSupport.calendar(),
             now: now,

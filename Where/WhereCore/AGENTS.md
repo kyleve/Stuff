@@ -59,10 +59,11 @@ internal shape.
   Resolve immutable capability reports by revision, including downgrades and delayed delivery.
   Guards: `DataCompatibilityCoordinatorTests` / `SwiftDataStoreCompatibilityTests`.
 - **Construct compatibility once in `DataCompatibilityServices`.** Inject the prepared
-  value into the service stack. Keep output publication and withdrawal behind its
+  coordinator and output gate into the service stack. Keep output publication and withdrawal behind its
   serialized gate. Recheck after external awaits. Preserve consent and queued samples
   on compatibility suspension. Cancel automatic and editor one-shot requests.
-  Clear widget freshness on suspension and reject stale publication completions.
+  Invalidate widget freshness on every withdrawal or publication failure.
+  Bind cached publications to the shared gate's withdrawal revision and reject stale completions.
   Guards: `DataCompatibilityOutputsTests` / `DataCompatibilityRuntimeTests` /
   `WidgetSnapshotPublisherTests` / `LocationIngestorTests`.
 - **On-disk storage always carries an explicit App Group identifier.** Audience
