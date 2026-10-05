@@ -10,6 +10,7 @@ struct FlightDayDetailView: View {
     let report: YearReportModel
     @State private var model: FlightReviewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.stylesheet) private var stylesheet
 
     init(review: GPSCorrectionReview, report: YearReportModel) {
         self.report = report
@@ -77,6 +78,13 @@ struct FlightDayDetailView: View {
                                     )
                                     Text(model.replacementDescription(for: point.sample.id))
                                         .foregroundStyle(.secondary)
+                                    if let explanation = model
+                                        .inferredExplanation(for: point.sample.id)
+                                    {
+                                        Text(explanation)
+                                            .font(stylesheet.flightReviewPoint.detailFont)
+                                            .foregroundStyle(.secondary)
+                                    }
                                     if let speed = WhereFormat
                                         .recordedFlightSpeed(point.sample.motion?.speed)
                                     {
@@ -98,6 +106,26 @@ struct FlightDayDetailView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+
+                if !review.flights.isEmpty, !model.recordedPoints.isEmpty {
+                    Section {
+                        DisclosureGroup(String(localized: .flightReviewPointsCount(model
+                                .recordedPoints.count)))
+                        {
+                            ForEach(model.recordedPoints) { point in
+                                FlightReviewPointRow(
+                                    point: point,
+                                    select: model.selectPointCorrection,
+                                )
+                                .disabled(!model.canEditPoints)
+                            }
+                        }
+                    } header: {
+                        Text(String(localized: .flightReviewPointsTitle))
+                    } footer: {
+                        Text(String(localized: .flightReviewPointsDescription))
+                    }
+                }
             } else {
                 Section {
                     Label(String(localized: .flightReviewUnavailable), systemSymbol: .infoCircle)
@@ -114,6 +142,13 @@ struct FlightDayDetailView: View {
                         Label(
                             String(localized: .flightReviewRefreshed),
                             systemSymbol: .arrowClockwise,
+                        )
+                    }
+                case .pointApplied:
+                    Section {
+                        Label(
+                            String(localized: .flightReviewPointUpdated),
+                            systemSymbol: .checkmarkCircle,
                         )
                     }
                 case let .failed(message):
@@ -149,6 +184,18 @@ struct FlightDayDetailView: View {
         .navigationTitle(model.initialDay.displayDate
             .formatted(.dateTime.month(.abbreviated).day().year()))
         .navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog(
+            String(localized: .flightReviewPointConfirmTitle),
+            isPresented: $model.isConfirmingPointCorrection,
+            titleVisibility: .visible,
+            presenting: model.pointConfirmation,
+        ) { correction in
+            Button(correction.action.title) {
+                Task { await model.applyPointCorrection(correction) }
+            }
+        } message: { correction in
+            Text(correction.action.confirmationMessage)
+        }
         .task(id: report.dataIssueScanInputs) {
             model.receive(report.dataIssueScan)
         }

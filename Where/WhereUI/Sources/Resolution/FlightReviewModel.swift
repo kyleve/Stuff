@@ -15,6 +15,7 @@ final class FlightReviewModel {
         case refreshed
         case failed(String)
         case applied
+        case pointApplied
     }
 
     private var presentation: FlightReviewPresentation?
@@ -23,6 +24,7 @@ final class FlightReviewModel {
     }
 
     private(set) var saveState = SaveState.idle
+    private(set) var pointConfirmation: FlightPointCorrection?
     let reviewID: DataIssueID
     let initialDay: DayPresence
     private let report: YearReportModel
@@ -47,6 +49,30 @@ final class FlightReviewModel {
         presentation?.editedPoints ?? []
     }
 
+    var recordedPoints: [FlightReviewPresentation.Point] {
+        presentation?.recordedPoints ?? []
+    }
+
+    var canEditPoints: Bool {
+        saveState != .applying && saveState != .applied
+    }
+
+    var isConfirmingPointCorrection: Bool {
+        get { pointConfirmation != nil }
+        set { if !newValue { pointConfirmation = nil } }
+    }
+
+    func selectPointCorrection(_ correction: FlightPointCorrection) {
+        guard canEditPoints, review?.pointCorrections.contains(correction) == true else { return }
+        pointConfirmation = correction
+    }
+
+    func inferredExplanation(for sampleID: UUID) -> String? {
+        presentation?.inferredEndpoints[sampleID].map {
+            FlightReviewPresentation.Point.Evidence.inferred($0).explanation
+        }
+    }
+
     func replacementDescription(for sampleID: UUID) -> String {
         guard let regions = presentation?.replacements[sampleID] else {
             return String(localized: .flightReviewUnchanged)
@@ -59,6 +85,7 @@ final class FlightReviewModel {
         guard let scan, saveState != .applying, saveState != .applied else { return }
         let updated = scan.reviews.first { $0.id == reviewID }
         guard updated != review else { return }
+        pointConfirmation = nil
         presentation = updated.map(Self.prepare)
         saveState = .refreshed
     }
@@ -71,6 +98,35 @@ final class FlightReviewModel {
                 case .applied:
                     saveState = .applied
                     await report.rescanForIssues()
+                case let .stale(updated):
+                    presentation = updated.map(Self.prepare)
+                    saveState = .refreshed
+                    await report.rescanForIssues()
+            }
+        } catch {
+            Self.logger(attachments: [.error(error, name: "sample-correction-error")]) {
+                .correctionApplyFailed(issueID: reviewID)
+            }
+            saveState = .failed(error.localizedDescription)
+        }
+    }
+
+    func applyPointCorrection(_ correction: FlightPointCorrection) async {
+        guard canEditPoints, correction.day == initialDay.day else { return }
+        pointConfirmation = nil
+        saveState = .applying
+        do {
+            switch try await report.services.corrections.apply(correction) {
+                case .applied:
+                    await report.rescanForIssues()
+                    let updated = try await report.services.corrections.review(
+                        id: reviewID,
+                        year: initialDay.day.year,
+                        primaryRegions: report.ranking.primary.map(\.region),
+                        driftThresholdMeters: Double(report.driftThreshold.rawValue),
+                    )
+                    presentation = updated.map(Self.prepare)
+                    saveState = .pointApplied
                 case let .stale(updated):
                     presentation = updated.map(Self.prepare)
                     saveState = .refreshed

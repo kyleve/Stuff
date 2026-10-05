@@ -119,6 +119,7 @@
                     edits: proposal.edits,
                 ), flight: ready.flight),
                 flights: [pending] + ready.flights,
+                pointCorrections: ready.pointCorrections,
             )
         }
 
@@ -202,7 +203,24 @@
                 case .completed:
                     .completed(flight)
             }
-            return GPSCorrectionReview(id: reviewID, day: day, points: points, state: reviewState)
+            let pointCorrections: [FlightPointCorrection] = flight.isPending ? [] : points
+                .map { point in
+                    FlightPointCorrection(
+                        sampleID: point.sample.id,
+                        action: point.regions.isEmpty ? .restoreGPS : .includeInFlight,
+                        day: day.day,
+                        resultingRegions: Set(points.filter { $0.sample.id != point.sample.id }
+                            .flatMap(\.regions))
+                            .union(point.regions.isEmpty ? [.other] : []),
+                    )
+                }
+            return GPSCorrectionReview(
+                id: reviewID,
+                day: day,
+                points: points,
+                state: reviewState,
+                pointCorrections: pointCorrections,
+            )
         }
     }
 #endif

@@ -205,8 +205,8 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         for legIndex in supportedLegs.sorted() {
             let before = anchors[legIndex]
             let after = anchors[legIndex + 1]
-            // A gap leaves both neighboring endpoints unknown, even when the
-            // cruise cores on either side belong to one flight review.
+            // A gap alone leaves both neighboring endpoints unknown. Separate
+            // corroboration below can support the first resumed observation.
             let startsRun = !supportedLegs.contains(legIndex - 1)
             let endsRun = !supportedLegs.contains(legIndex + 1)
             while sampleIndex < usable.count, usable[sampleIndex].timestamp < before.timestamp {
@@ -242,8 +242,9 @@ public struct FlightTrajectoryAnalyzer: Sendable {
                 from: endpoint,
                 to: anchors[core.start + 1],
             ) {
-                airborneIDs.insert(sample.id)
-                inferredEndpoints.append(.init(sampleID: sample.id, reason: reason))
+                if airborneIDs.insert(sample.id).inserted {
+                    inferredEndpoints.append(.init(sampleID: sample.id, reason: reason))
+                }
             }
         }
         let observationLimit = if let arrival {

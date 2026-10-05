@@ -6,6 +6,15 @@ import Testing
 struct SampleCorrectionCoordinatorTests {
     @Test func pointInclusionAndRestorePreserveRawHistoryAndOtherCorrections() async throws {
         let h = try await SampleCorrectionTestSupport.completedFlight()
+        let existing = SampleAttributionRevision(
+            id: .init(rawValue: UUID()),
+            sampleID: FlightTrajectoryFixtures.sampleID(4),
+            updatedAt: FlightTrajectoryFixtures.date(minutes: 149),
+            replacementRegions: [],
+        )
+        try await h.store.perform {
+            try await h.store.addSampleAttributionRevision(existing)
+        }
         let before = try await h.store.allSamples()
         let review = try await h.review()
         let endpoint = try #require(review.pointCorrections.first {
@@ -15,7 +24,9 @@ struct SampleCorrectionCoordinatorTests {
             Issue.record("An unchanged explicit point decision must apply")
             return
         }
-        let excluded = try await h.store.allSampleAttributionRevisions()
+        let afterInclusion = try await h.store.allSampleAttributionRevisions()
+        #expect(afterInclusion.contains(existing))
+        let excluded = afterInclusion.filter { $0.sampleID == endpoint.sampleID }
         #expect(excluded.count == 1)
         #expect(excluded.first?.sampleID == endpoint.sampleID)
         #expect(excluded.first?.replacementRegions == [])
@@ -30,7 +41,8 @@ struct SampleCorrectionCoordinatorTests {
             return
         }
         let revisions = try await h.store.allSampleAttributionRevisions()
-        #expect(revisions.count == 2)
+        #expect(revisions.count == 3)
+        #expect(revisions.contains(existing))
         let latest = try #require(revisions.max { $0.updatedAt < $1.updatedAt })
         #expect(latest.replacementRegions == nil)
         #expect(latest.updatedAt > excluded[0].updatedAt)
@@ -41,7 +53,7 @@ struct SampleCorrectionCoordinatorTests {
             Issue.record("A stale restore must not append another revision")
             return
         }
-        #expect(try await h.store.allSampleAttributionRevisions().count == 2)
+        #expect(try await h.store.allSampleAttributionRevisions().count == 3)
     }
 
     @Test(arguments: InterveningChange.allCases)

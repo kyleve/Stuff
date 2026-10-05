@@ -159,6 +159,9 @@ observation, flight evidence, and the exact sample edits. Apply includes only fl
 Completed flights remain correctable when another flight on the same day is pending.
 Each banner shows its flight's progress. Applying or dismissing the proposal retains pending flight information.
 Manual day editing stays available.
+The recorded-point list explains flight evidence and uncertain endpoints.
+For completed flights, the user can include one GPS point in the flight or restore its GPS attribution.
+Both actions require confirmation and retain the original recording. A changed review requires a new decision.
 
 `YearReportModel` publishes one `DataIssueScanResult` for the banner, list,
 badge, and open detail. Committed raw GPS writes refresh it even when region
@@ -169,6 +172,7 @@ Standalone consumers use `ScannerResolutionSource`; previews supply a synchronou
 through the same protocol. Product models have no preview-mode refresh branches.
 
 `FlightReviewPresentation` prepares map geometry and edit lookups once per review.
+It also prepares unique point rows, inference explanations, and point correction actions.
 The map preserves corrected GPS observations and separates device tracks.
 Rendering uses at most 250 markers and 2,048 coordinates per device route, retaining both route endpoints.
 The full evidence and edit list remain available. Snapshot capture replaces remote map tiles with a deterministic substrate.

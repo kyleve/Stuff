@@ -21,6 +21,10 @@ struct FlightTrajectoryAnalyzerTests {
             samples: Array(samples.reversed()),
             now: Fixtures.date(minutes: 300),
         ) == flights)
+        #expect(analyzer.analyze(
+            samples: samples + [samples[3]],
+            now: Fixtures.date(minutes: 300),
+        ) == flights)
     }
 
     @Test func longGapCorroborationNeverCrossesRecordingDevices() throws {

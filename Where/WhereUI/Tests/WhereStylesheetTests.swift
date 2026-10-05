@@ -147,6 +147,12 @@ struct WhereStylesheetTests {
         #expect(style.flightStatus.background == Color(uiColor: .secondarySystemGroupedBackground))
     }
 
+    @Test func flightReviewPointStyle() {
+        #expect(style.flightReviewPoint.titleFont == .headline)
+        #expect(style.flightReviewPoint.detailFont == .caption)
+        #expect(style.flightReviewPoint.minimumActionHeight == 44)
+    }
+
     @Test func locationWelcomeStyle() {
         let welcome = style.locationWelcome
         #expect(welcome.maxWidth == 390)

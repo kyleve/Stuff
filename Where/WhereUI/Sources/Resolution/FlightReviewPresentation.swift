@@ -4,10 +4,39 @@ import WhereCore
 
 /// Builds map geometry and edit lookups once for each accepted review value.
 struct FlightReviewPresentation {
+    struct Point: Identifiable {
+        enum Evidence: Equatable {
+            case inferred(FlightEndpointInference.Reason)
+            case airborne
+            case ground
+            case uncertain
+
+            var explanation: String {
+                switch self {
+                    case .inferred(.recordingGap): String(localized: .flightReviewPointGap)
+                    case .inferred(.recordedSpeed): String(localized: .flightReviewPointSpeed)
+                    case .airborne: String(localized: .flightReviewPointAirborne)
+                    case .ground: String(localized: .flightReviewPointGround)
+                    case .uncertain: String(localized: .flightReviewPointUncertain)
+                }
+            }
+        }
+
+        var id: UUID {
+            point.sample.id
+        }
+
+        let point: SampleCorrectionPoint
+        let evidence: Evidence
+        let correction: FlightPointCorrection?
+    }
+
     let review: GPSCorrectionReview
     let map: RecordedMapData
     let editedPoints: [SampleCorrectionPoint]
     let replacements: [UUID: Set<Region>]
+    let recordedPoints: [Point]
+    let inferredEndpoints: [UUID: FlightEndpointInference.Reason]
 
     init(review: GPSCorrectionReview) {
         self.review = review
@@ -47,5 +76,36 @@ struct FlightReviewPresentation {
         )
         var remaining = Set(edits.map(\.sampleID))
         editedPoints = points.filter { remaining.remove($0.sample.id) != nil }
+        let inferred = Dictionary(
+            review.flights.flatMap(\.inferredEndpoints).map { ($0.sampleID, $0.reason) },
+            uniquingKeysWith: { first, _ in first },
+        )
+        inferredEndpoints = inferred
+        let airborne = review.flights
+            .reduce(into: Set<UUID>()) { $0.formUnion($1.airborneSampleIDs) }
+        let ground = review.flights.reduce(into: Set<UUID>()) { $0.formUnion($1.groundSampleIDs) }
+        let corrections = Dictionary(
+            review.pointCorrections.map { ($0.sampleID, $0) },
+            uniquingKeysWith: { first, _ in first },
+        )
+        var seen: Set<UUID> = []
+        recordedPoints = points
+            .filter { $0.sample.source.isGPS && seen.insert($0.sample.id).inserted }
+            .map { point in
+                let evidence: Point.Evidence = if let reason = inferred[point.sample.id] {
+                    .inferred(reason)
+                } else if ground.contains(point.sample.id) {
+                    .ground
+                } else if airborne.contains(point.sample.id) {
+                    .airborne
+                } else {
+                    .uncertain
+                }
+                return Point(
+                    point: point,
+                    evidence: evidence,
+                    correction: corrections[point.sample.id],
+                )
+            }
     }
 }

@@ -21,6 +21,7 @@ struct WhereStylesheet: BStylesheet {
     var locationCardStack = LocationCardStackStyle.standard
     var locationWelcome = LocationWelcomeStyle.standard
     var flightStatus = FlightStatusStyle()
+    var flightReviewPoint = FlightReviewPointStyle()
     var calendar = CalendarStyle.standard
     var appIcon = AppIconStyle.standard
     var timeline = TimelineStyle.standard
@@ -143,6 +144,12 @@ extension WhereStylesheet {
         var titleFont = Font.headline
         var bodyFont = Font.subheadline
         var background = Color(uiColor: .secondarySystemGroupedBackground)
+    }
+
+    struct FlightReviewPointStyle: Equatable {
+        var titleFont = Font.headline
+        var detailFont = Font.caption
+        var minimumActionHeight: CGFloat = 44
     }
 }
 
