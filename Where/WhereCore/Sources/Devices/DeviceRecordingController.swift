@@ -164,6 +164,17 @@ public actor DeviceRecordingController {
         return try await configurationsLocked(includeRemoved: false)
     }
 
+    /// Latest saved names for historical presentation, including removed devices.
+    public func displayNames() async throws -> [RecordingDeviceID: String] {
+        await beginExclusive()
+        defer { endExclusive() }
+        try requireActive()
+        return try await store.readSnapshot {
+            let devices = try await self.store.recordingDevices()
+            return Dictionary(uniqueKeysWithValues: devices.map { ($0.id, $0.displayName) })
+        }
+    }
+
     /// Append a user-editable nickname change. Empty or whitespace-only input clears it.
     public func rename(
         _ deviceID: RecordingDeviceID,

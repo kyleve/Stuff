@@ -9,6 +9,19 @@ enum FlightReviewTestSupport {
         let coordinate: Coordinate
     }
 
+    static func flight(recordingSource: FlightAssessment.RecordingSource) -> FlightAssessment {
+        FlightAssessment(
+            id: .init(recordingSource: recordingSource, departureSampleID: UUID()),
+            startedAt: date(hour: 12),
+            lastObservationAt: date(hour: 16.5),
+            lastFlightAt: date(hour: 16.5),
+            airborneSampleIDs: [],
+            groundSampleIDs: [],
+            peakSpeedKMH: 800,
+            progress: .awaitingArrival,
+        )
+    }
+
     static let destination = Coordinate(latitude: 37.6213, longitude: -122.3790)
 
     static func date(hour: Double) -> Date {

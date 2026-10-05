@@ -148,6 +148,8 @@ one it belongs to rather than to a god-object:
   from an Off interval remains rejected after relaunch. Immutable profiles, nickname events,
   target-owned advisory check-ins, and global removal tombstones sync independently. Another
   installation can rename or remove a device identity, but cannot change its recording consent.
+  `devices()` supplies active device configurations. `displayNames()` supplies the latest saved names,
+  including removed devices, for historical labels.
 - **`LocationHistoryReader`** — the shared removal-aware read boundary used by reports, widgets,
   and foreground capture checks. It hides a removed identity's GPS samples at
   and after its earliest tombstone while keeping earlier raw storage, backups, legacy samples
