@@ -83,6 +83,12 @@ share that gate with notification and authorization withdrawals.
 Repair a violation by injecting the prepared resources. If WhereCore's documented composition boundary changes, update this rule. The mutation test rejects an
 independent presentation coordinator or widget output gate.
 
+`where.compatibility_availability_read_only` rejects writable store and service types
+in `DataFeatureAvailabilityModel`. Inject `DataCompatibilityReviewSource` instead.
+The model can observe readiness but cannot activate features or publish capability reports.
+Mutation tests replace the injected protocol with each writable resource type.
+If preflight gains write authority, update the documented boundary and this rule together.
+
 ## Composition ownership
 
 `where.services_composition_ownership` keeps direct `WhereServices`

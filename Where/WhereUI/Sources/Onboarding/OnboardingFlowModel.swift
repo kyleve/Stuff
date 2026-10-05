@@ -36,24 +36,28 @@ final class OnboardingFlowModel {
     var intro = OnboardingIntroState()
     var showImporter = false
     var showRestoreStrategyDialog = false
-    var compatibilityReview: DataCompatibilityActivationReview?
+    private(set) var compatibilityAvailability: DataFeatureAvailabilityModel?
 
     var isShowingCompatibilityReview: Bool {
-        get { compatibilityReview != nil }
+        get { compatibilityAvailability != nil }
         set { if !newValue { waitForDeviceUpdates() } }
     }
 
     func waitForDeviceUpdates() {
-        compatibilityReview = nil
+        guard compatibilityAvailability != nil else { return }
+        compatibilityAvailability = nil
         isFinishing = false
         intro.activity = .browsing
         phase = .location
     }
 
-    func continueAfterCompatibilityReview(using model: WhereModel) {
-        guard let review = compatibilityReview else { return }
-        compatibilityReview = nil
-        finish(using: model, compatibilityApproval: .continueAnyway(review))
+    func continueAfterCompatibilityReview(
+        using model: WhereModel,
+        approval: DataCompatibilityActivationApproval,
+    ) {
+        guard compatibilityAvailability != nil else { return }
+        compatibilityAvailability = nil
+        finish(using: model, compatibilityApproval: approval)
     }
 
     private static let demoBuildDisplayTime = Duration.seconds(2)
@@ -292,7 +296,10 @@ final class OnboardingFlowModel {
             }
             return true
         } catch let DataCompatibilityError.confirmationRequired(review) {
-            compatibilityReview = review
+            compatibilityAvailability = DataFeatureAvailabilityModel(
+                requiring: review.requiredVersion,
+                source: scope.services.compatibility,
+            )
             isFinishing = false
             intro.activity = .browsing
             phase = .location

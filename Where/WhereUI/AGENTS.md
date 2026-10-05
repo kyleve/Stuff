@@ -175,6 +175,11 @@ Layering, localization, preview, and testing conventions live in the feature
 - Keep activation confirmation bound to Core's review. Wait preserves the selected
   archive. Continue anyway retries with that review and displays any fresh warning.
   Guards: `DataCompatibilityModelTests` / `OnboardingFlowModelTests`.
+- Inject only `DataCompatibilityReviewSource` into `DataFeatureAvailabilityModel`.
+  Keep observation scoped to the owning surface, and reject superseded or cancelled results.
+  Keep preflight read-only. Pass the displayed review to activation; never substitute a newer review after a tap.
+  Guards: `DataFeatureAvailabilityModelTests` / `OnboardingFlowModelTests` /
+  `where.compatibility_availability_read_only`.
 
 ## Design system — `WhereStylesheet`
 

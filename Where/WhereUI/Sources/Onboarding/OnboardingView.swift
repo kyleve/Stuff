@@ -105,12 +105,17 @@ public struct OnboardingView: View {
         )
         .animation(stylesheet.motion.reducedReveal, value: flow.phase)
         .sheet(isPresented: $flow.isShowingCompatibilityReview) {
-            if let review = flow.compatibilityReview {
+            if let availability = flow.compatibilityAvailability {
                 DataCompatibilityActivationView(
-                    review: review,
+                    state: availability.state,
+                    updates: model.updateAvailability,
+                    retry: availability.refresh,
                     wait: flow.waitForDeviceUpdates,
-                    continueAnyway: { flow.continueAfterCompatibilityReview(using: model) },
+                    continueWith: { approval in
+                        flow.continueAfterCompatibilityReview(using: model, approval: approval)
+                    },
                 )
+                .task(id: ObjectIdentifier(availability)) { await availability.observe() }
             }
         }
         .onAppear { retainFlow(flow) }

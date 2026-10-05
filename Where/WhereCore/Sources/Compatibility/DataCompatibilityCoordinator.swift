@@ -1,7 +1,7 @@
 import Foundation
 
 /// Coordinates feature activation without making app installation itself upgrade shared data.
-public struct DataCompatibilityCoordinator: Sendable {
+public struct DataCompatibilityCoordinator: DataCompatibilityReviewSource {
     private let store: any WhereStore
     public let currentDeviceID: RecordingDeviceID
 

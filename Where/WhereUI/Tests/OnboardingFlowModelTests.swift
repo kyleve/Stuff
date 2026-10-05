@@ -122,18 +122,125 @@ struct OnboardingFlowModelTests {
         await services.ingestor.pause()
     }
 
-    @Test func waitingPreservesTheSelectedArchiveAndDoesNotAuthorizeIt() {
-        let model = makeModel(startsAtRecordingChoice: true)
-        let url = URL(fileURLWithPath: "/tmp/compatibility-review.zip")
-        model.handleRestoreSelection(.success(url))
-        model.chooseRestoreStrategy(.replace)
-        model.compatibilityReview = .preview
-        model.waitForDeviceUpdates()
-        #expect(model.compatibilityReview == nil)
-        #expect(model.restoreSelection.readyImport?.url == url)
-        #expect(model.restoreSelection.readyImport?.strategy == .replace)
-        #expect(!model.isFinishing)
-        #expect(model.phase == .location)
+    @Test(arguments: [BackupCoordinator.ImportStrategy.merge, .replace], [false, true])
+    func importUsesLiveAvailabilityAndRechecksTheDisplayedApproval(
+        strategy: BackupCoordinator.ImportStrategy,
+        continueAnyway: Bool,
+    ) async throws {
+        let world = try await DataFeatureAvailabilityTestSupport.makeWorld()
+        let archiveURL = try await DataFeatureAvailabilityTestSupport.exportFutureBackup()
+        defer {
+            do { try FileManager.default.removeItem(at: archiveURL.deletingLastPathComponent()) }
+            catch { Issue.record(error) }
+        }
+        let bootstrap = ScriptedBootstrap(services: world.services)
+        let model = WhereModel(
+            preferences: makePreferences(),
+            installationContextStore: makeInstallationRecordingContextStore(),
+            makeBootstrap: { _ in bootstrap },
+            logSystem: .isolated(),
+        )
+        let runner = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        let launch = Task { await runner.run() }
+        var observation: Task<Void, Never>?
+        defer {
+            observation?.cancel()
+            launch.cancel()
+            model.compatibility.detach()
+        }
+        try await CompatibilityPresentationTestSupport.waitUntil {
+            runner.phase.gateHandle != nil
+        }
+        let flow = try OnboardingFlowModel(
+            gate: #require(runner.phase.gateHandle),
+            installationContext: model.installationRecordingContext,
+            startsAtRecordingChoice: true,
+            initialTheme: .standard,
+        )
+        flow.recordingEnabled = false
+        flow.handleRestoreSelection(.success(archiveURL))
+        flow.chooseRestoreStrategy(strategy)
+        flow.finish(using: model)
+        try await CompatibilityPresentationTestSupport.waitUntil {
+            flow.compatibilityAvailability != nil
+        }
+        flow.waitForDeviceUpdates()
+        #expect(flow.restoreSelection.readyImport?.url == archiveURL)
+        #expect(flow.restoreSelection.readyImport?.strategy == strategy)
+        #expect(try await world.store.dataCompatibility().requiredVersion == .initial)
+
+        flow.finish(using: model)
+        try await CompatibilityPresentationTestSupport.waitUntil {
+            flow.compatibilityAvailability != nil
+        }
+        let availability = try #require(flow.compatibilityAvailability)
+        observation = Task { await availability.observe() }
+        try await CompatibilityPresentationTestSupport.waitUntil {
+            if case .needsDeviceReview = availability.state { return true }
+            return false
+        }
+        guard case let .needsDeviceReview(displayedReview) = availability.state else {
+            Issue.record("Import must first show the unknown device.")
+            return
+        }
+        if continueAnyway {
+            try await DataFeatureAvailabilityTestSupport.register(
+                RecordingDeviceID(rawValue: UUID()),
+                in: world.store,
+            )
+            try await CompatibilityPresentationTestSupport.waitUntil {
+                if case let .needsDeviceReview(review) = availability.state {
+                    return review.affectedDevices.count == 2
+                }
+                return false
+            }
+            observation?.cancel()
+            // The tapped button carries its displayed review, even if observation has moved on.
+            flow.continueAfterCompatibilityReview(
+                using: model,
+                approval: .continueAnyway(displayedReview),
+            )
+            try await CompatibilityPresentationTestSupport.waitUntil {
+                flow.compatibilityAvailability != nil
+            }
+            #expect(flow.restoreSelection.committedSummary == nil)
+            #expect(try await world.store.dataCompatibility().requiredVersion == .initial)
+            let freshAvailability = try #require(flow.compatibilityAvailability)
+            #expect(freshAvailability !== availability)
+            await freshAvailability.refresh()
+            guard case let .needsDeviceReview(freshReview) = freshAvailability.state else {
+                Issue.record("A stale approval must produce a fresh warning.")
+                return
+            }
+            #expect(freshReview.affectedDevices.count == 2)
+            flow.continueAfterCompatibilityReview(
+                using: model,
+                approval: .continueAnyway(freshReview),
+            )
+        } else {
+            try await world.store.publishDataCapability(
+                for: world.otherDeviceID,
+                at: DataFeatureAvailabilityTestSupport.now,
+            )
+            try await CompatibilityPresentationTestSupport.waitUntil {
+                if case .available = availability.state { return true }
+                return false
+            }
+            observation?.cancel()
+            flow.continueAfterCompatibilityReview(using: model, approval: .readyDevicesOnly)
+        }
+        // SwiftUI may write the dismissed binding after Continue has started the import.
+        flow.isShowingCompatibilityReview = false
+        #expect(flow.isFinishing)
+        try await CompatibilityPresentationTestSupport.waitUntil { runner.phase.isReady }
+        await launch.value
+        #expect(flow.restoreSelection.committedSummary != nil)
+        #expect(try await world.store.dataCompatibility()
+            .requiredVersion == DataFeatureAvailabilityTestSupport.version)
+        #expect(bootstrap.makeServicesCount == 1)
+        #expect(model.installationRecordingContext.automaticRecordingEnabled == false)
+        try await world.services.recording.retireForRejoin()
+        await world.services.ingestor.pause()
     }
 
     @Test func startsAtTheRequestedPhaseAndUsesTheHardwareRecommendation() {

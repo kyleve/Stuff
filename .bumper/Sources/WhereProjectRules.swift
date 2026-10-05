@@ -28,6 +28,7 @@ let whereProjectRules = RuleSet {
         id: "where.logging_type_ownership",
     )
     productionStoreOpeningRule
+    compatibilityAvailabilityBoundaryRule
     checkedConcurrencyBoundaryRule
     gregorianCalendarRule
     storeTransactionBoundaryRule
@@ -53,6 +54,34 @@ private let productionStoreOpeningPaths: Set<RelativeFilePath> = [
     "Where/WhereUI/Sources/Launch/WhereLaunch.swift",
     "Where/WhereShareExtension/Sources/ShareEvidenceModel.swift",
 ]
+
+private let compatibilityAvailabilityBoundaryRule = Rules.files(
+    "where.compatibility_availability_read_only",
+    severity: .error,
+    summary: "Feature availability receives the read-only review source, not writable services.",
+    scope: .files(["Where/WhereUI/Sources/Compatibility/DataFeatureAvailabilityModel.swift"]),
+) { file in
+    SyntaxQuery<IdentifierTypeSyntax>()
+        .filter { match in
+            [
+                "WhereStore",
+                "WhereServices",
+                "DataCompatibilityServices",
+                "DataCompatibilityCoordinator",
+            ]
+            .contains(match.node.name.text)
+        }
+        .matches(in: file)
+        .map { match in
+            match.failure(
+                message: "Feature availability depends on a writable resource.",
+                evidence: ViolationEvidence(
+                    observed: match.node.trimmedDescription,
+                    expectation: "inject DataCompatibilityReviewSource for read-only preflight",
+                ),
+            )
+        }
+}
 
 private let productionStoreOpeningRule = Rules.files(
     "where.production_store_opening",

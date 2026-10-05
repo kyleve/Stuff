@@ -18,6 +18,29 @@ struct WhereProjectRulesTests {
         #expect(rejected.violations.map(\.rule.id) == ["where.compatibility_outputs_ownership"])
     }
 
+    @Test(arguments: [
+        "WhereStore",
+        "WhereServices",
+        "DataCompatibilityServices",
+        "DataCompatibilityCoordinator",
+    ])
+    func `feature availability cannot receive writable resources`(_ resource: String) throws {
+        let path: RelativeFilePath = "Where/WhereUI/Sources/Compatibility/DataFeatureAvailabilityModel.swift"
+        let allowed = try evaluate(
+            path: path,
+            component: .whereUI,
+            source: "struct Model { let source: any DataCompatibilityReviewSource }",
+        )
+        let rejected = try evaluate(
+            path: path,
+            component: .whereUI,
+            source: "struct Model { let source: \(resource) }",
+        )
+        #expect(allowed.violations.isEmpty)
+        #expect(rejected.violations
+            .map(\.rule.id) == ["where.compatibility_availability_read_only"])
+    }
+
     @Test func `compatibility coordinator is composed once with prepared services`() throws {
         let allowed = try evaluate(
             path: "Where/WhereCore/Sources/Compatibility/DataCompatibilityServices.swift",
