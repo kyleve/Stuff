@@ -1,26 +1,20 @@
 import SwiftUI
 
-/// Draws push and modal navigation relationships behind Flyover cards.
+/// Draws navigation relationships as vector views without a graph-sized bitmap texture.
 struct FlyoverConnectorCanvas<ScreenID: Hashable>: View {
     let catalog: FlyoverCatalog<ScreenID>
     let layout: FlyoverLayoutResult<ScreenID>
     @Environment(\.flyoverStylesheet) private var stylesheet
 
     var body: some View {
-        Canvas { context, _ in
-            for transition in catalog.transitions {
-                guard
-                    let source = layout.screenFrames[transition.source],
-                    let destination = layout.screenFrames[transition.destination]
-                else {
-                    continue
+        ZStack(alignment: .topLeading) {
+            ForEach(catalog.transitions.indices, id: \.self) { index in
+                let transition = catalog.transitions[index]
+                if let source = layout.screenFrames[transition.source],
+                   let destination = layout.screenFrames[transition.destination]
+                {
+                    connector(transition, from: source, to: destination)
                 }
-                draw(
-                    transition,
-                    from: source,
-                    to: destination,
-                    context: &context,
-                )
             }
         }
         .frame(width: layout.canvasSize.width, height: layout.canvasSize.height)
@@ -28,59 +22,50 @@ struct FlyoverConnectorCanvas<ScreenID: Hashable>: View {
         .accessibilityHidden(true)
     }
 
-    private func draw(
+    private func connector(
         _ transition: FlyoverTransition<ScreenID>,
         from source: CGRect,
         to destination: CGRect,
-        context: inout GraphicsContext,
-    ) {
+    ) -> some View {
         let style = stylesheet.connector
         let geometry = FlyoverConnectorGeometry(
             source: source,
             destination: destination,
             style: style,
         )
-        var path = Path()
-        path.move(to: geometry.start)
-        path.addCurve(
-            to: geometry.end,
-            control1: geometry.firstControl,
-            control2: geometry.secondControl,
-        )
-        let strokeStyle = StrokeStyle(
-            lineWidth: style.lineWidth,
-            lineCap: .round,
-            dash: transition.kind == .modal ? style.modalDash : [],
-        )
-        context.stroke(path, with: .color(color(for: transition.kind)), style: strokeStyle)
-
-        var arrow = Path()
-        arrow.move(to: geometry.firstArrowPoint)
-        arrow.addLine(to: geometry.end)
-        arrow.addLine(to: geometry.secondArrowPoint)
-        context.stroke(
-            arrow,
-            with: .color(color(for: transition.kind)),
-            style: StrokeStyle(
+        return ZStack(alignment: .topLeading) {
+            Path { path in
+                path.move(to: geometry.start)
+                path.addCurve(
+                    to: geometry.end,
+                    control1: geometry.firstControl,
+                    control2: geometry.secondControl,
+                )
+            }
+            .stroke(color(for: transition.kind), style: StrokeStyle(
+                lineWidth: style.lineWidth,
+                lineCap: .round,
+                dash: transition.kind == .modal ? style.modalDash : [],
+            ))
+            Path { arrow in
+                arrow.move(to: geometry.firstArrowPoint)
+                arrow.addLine(to: geometry.end)
+                arrow.addLine(to: geometry.secondArrowPoint)
+            }
+            .stroke(color(for: transition.kind), style: StrokeStyle(
                 lineWidth: style.lineWidth,
                 lineCap: .round,
                 lineJoin: .round,
-            ),
-        )
-
-        let title = transition.label ?? transition.kind.title
-        let label = context.resolve(
-            Text(title)
+            ))
+            Text(transition.label ?? transition.kind.title)
                 .font(style.labelFont)
-                .foregroundStyle(color(for: transition.kind)),
-        )
-        context.draw(
-            label,
-            at: CGPoint(
-                x: geometry.midpoint.x,
-                y: geometry.midpoint.y - style.labelOffsetY,
-            ),
-        )
+                .foregroundStyle(color(for: transition.kind))
+                .fixedSize()
+                .position(
+                    x: geometry.midpoint.x,
+                    y: geometry.midpoint.y - style.labelOffsetY,
+                )
+        }
     }
 
     private func color(for kind: FlyoverTransition<ScreenID>.Kind) -> Color {
