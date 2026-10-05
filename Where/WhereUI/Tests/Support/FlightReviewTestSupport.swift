@@ -76,4 +76,25 @@ enum FlightReviewTestSupport {
             }
         }
     }
+
+    static func seedMixedFlights(into store: TestStore) async throws {
+        try await seed(into: store, includeArrival: true)
+        let samples = try await store.allSamples()
+        let otherDevice = RecordingDeviceID(rawValue: UUID())
+        let pendingSamples = samples.filter { $0.timestamp <= date(hour: 16.5) }.map { sample in
+            LocationSample(
+                id: UUID(),
+                timestamp: sample.timestamp,
+                coordinate: sample.coordinate,
+                horizontalAccuracy: sample.horizontalAccuracy,
+                source: sample.source,
+                recordingDeviceID: otherDevice,
+            )
+        }
+        try await store.perform {
+            for sample in pendingSamples {
+                try await store.add(sample: sample)
+            }
+        }
+    }
 }

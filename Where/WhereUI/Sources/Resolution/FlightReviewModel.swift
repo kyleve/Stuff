@@ -116,21 +116,18 @@ final class FlightReviewModel {
         pointConfirmation = nil
         saveState = .applying
         do {
-            switch try await report.services.corrections.apply(correction) {
-                case .applied:
-                    await report.rescanForIssues()
-                    let updated = try await report.services.corrections.review(
-                        id: reviewID,
-                        year: initialDay.day.year,
-                        primaryRegions: report.ranking.primary.map(\.region),
-                        driftThresholdMeters: Double(report.driftThreshold.rawValue),
-                    )
-                    presentation = updated.map(Self.prepare)
-                    saveState = .pointApplied
-                case let .stale(updated):
-                    presentation = updated.map(Self.prepare)
-                    saveState = .refreshed
-                    await report.rescanForIssues()
+            let result = try await report.services.corrections.apply(correction)
+            await report.rescanForIssues()
+            if let message = report.dataIssueScanError {
+                saveState = .failed(message)
+                return
+            }
+            // The shared scan applies dismissal filtering to both successful and
+            // stale decisions, keeping this detail consistent with the issue list.
+            presentation = report.correctionReviews.first { $0.id == reviewID }.map(Self.prepare)
+            saveState = switch result {
+                case .applied: .pointApplied
+                case .stale: .refreshed
             }
         } catch {
             Self.logger(attachments: [.error(error, name: "sample-correction-error")]) {

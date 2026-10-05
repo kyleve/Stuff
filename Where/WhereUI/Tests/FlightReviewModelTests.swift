@@ -75,6 +75,63 @@ struct FlightReviewModelTests {
         #expect(try await store.allSampleAttributionRevisions().isEmpty)
     }
 
+    @Test(arguments: [false, true])
+    func pointDecisionsKeepDismissedProposalsHidden(changedEvidence: Bool) async throws {
+        let store = try TestStore()
+        let now = FlightReviewTestSupport.date(hour: 18)
+        let services = FlightReviewTestSupport.services(store: store, now: now)
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { now },
+        )
+        try await FlightReviewTestSupport.seedMixedFlights(into: store)
+        await report.refresh()
+        await report.rescanForIssues()
+        let initial = try #require(report.correctionReviews.first)
+        #expect(initial.proposal != nil)
+        #expect(initial.flights.contains { $0.isPending })
+        try await services.journal.dismissIssue(id: initial.id)
+        await report.rescanForIssues()
+        let dismissed = try #require(report.correctionReviews.first)
+        #expect(dismissed.proposal == nil)
+        let model = FlightReviewModel(review: dismissed, report: report)
+        let include = try #require(dismissed.pointCorrections.first)
+        model.selectPointCorrection(include)
+        if changedEvidence {
+            try await store.perform {
+                try await store.add(sample: LocationSample(
+                    timestamp: FlightReviewTestSupport.date(hour: 17.75),
+                    coordinate: FlightReviewTestSupport.destination,
+                    horizontalAccuracy: 20,
+                    source: .gpsSignificantChange,
+                    recordingDeviceID: CurrentRecordingDevice.preview.id,
+                ))
+            }
+        }
+
+        await model.applyPointCorrection(include)
+
+        #expect(model.saveState == (changedEvidence ? .refreshed : .pointApplied))
+        #expect(model.pointConfirmation == nil)
+        #expect(model.canApply == false)
+        #expect(model.review?.isPending == true)
+        #expect(model.review == report.correctionReviews.first { $0.id == initial.id })
+        #expect(try await store.allSampleAttributionRevisions().count == (changedEvidence ? 0 : 1))
+        if !changedEvidence {
+            let restore = try #require(model.recordedPoints.first { $0.id == include.sampleID }?
+                .correction)
+            #expect(restore.action == .restoreGPS)
+            await model.applyPointCorrection(restore)
+            #expect(model.saveState == .pointApplied)
+            #expect(model.canApply == false)
+            #expect(model.review?.isPending == true)
+            #expect(model.review == report.correctionReviews.first { $0.id == initial.id })
+            #expect(try await store.allSampleAttributionRevisions().count == 2)
+        }
+    }
+
     @Test func anUpdatedScanDismissesTheOldPointConfirmation() throws {
         let review = PreviewSupport.flightReview(state: .ready)
         let model = FlightReviewModel(
