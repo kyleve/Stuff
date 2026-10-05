@@ -476,7 +476,10 @@ public final class YearReportModel {
         } catch {
             guard requestedYear == selectedYear, scanRequestID == requestID else { return }
             dataIssueScanError = error.localizedDescription
-            Self.logger.dataIssueScanFailed(description: .restricted(.errorDetails, error.localizedDescription))
+            Self.logger.dataIssueScanFailed(description: .restricted(
+                .errorDetails,
+                error.localizedDescription,
+            ))
         }
     }
 
@@ -489,7 +492,10 @@ public final class YearReportModel {
         } catch is CancellationError {
             return
         } catch {
-            Self.logger.dataIssueScanFailed(description: .restricted(.errorDetails, error.localizedDescription))
+            Self.logger.dataIssueScanFailed(description: .restricted(
+                .errorDetails,
+                error.localizedDescription,
+            ))
         }
     }
 
@@ -512,7 +518,10 @@ public final class YearReportModel {
             } catch is CancellationError {
                 return
             } catch {
-                Self.logger.dataIssueScanFailed(description: .restricted(.errorDetails, error.localizedDescription))
+                Self.logger.dataIssueScanFailed(description: .restricted(
+                    .errorDetails,
+                    error.localizedDescription,
+                ))
                 return
             }
             guard let self, isActive, !Task.isCancelled else { return }

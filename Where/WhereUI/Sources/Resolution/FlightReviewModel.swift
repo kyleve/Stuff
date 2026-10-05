@@ -106,7 +106,7 @@ final class FlightReviewModel {
         } catch {
             Self.logger.correctionApplyFailed(
                 issueID: .restricted(.identifier, reviewID),
-                attachments: [.error(error, name: "sample-correction-error")]
+                attachments: [.error(error, name: "sample-correction-error")],
             )
             saveState = .failed(error.localizedDescription)
         }
