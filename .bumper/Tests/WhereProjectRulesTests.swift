@@ -240,6 +240,22 @@ struct WhereProjectRulesTests {
     }
 
     @Test
+    func `compatibility requirement increases require a guarded transaction`() throws {
+        let allowed = try evaluate(
+            path: "Where/WhereCore/Sources/Compatibility/Activation.swift",
+            component: .whereCore,
+            source: "func activate() async throws { try await store.perform { try await store.requireDataCompatibility(version) } }",
+        )
+        let rejected = try evaluate(
+            path: "Where/WhereCore/Sources/UnguardedActivation.swift",
+            component: .whereCore,
+            source: "func activate() async throws { try await store.requireDataCompatibility(version) }",
+        )
+        #expect(allowed.violations.isEmpty)
+        #expect(rejected.violations.map(\.rule.id) == ["where.store_transaction_boundary"])
+    }
+
+    @Test
     func `AppShortcutsProvider stays in the app target`() throws {
         let allowed = try evaluate(
             path: "Where/Where/Sources/WhereShortcuts.swift",

@@ -593,6 +593,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// internal) record types. Mirrors the `Schema` in `makeContainer`.
     public static var inspectorModelTypes: [any PersistentModel.Type] {
         [
+            SDDataCompatibilityRequirement.self,
+            SDDeviceDataCapability.self,
             SDWhereDataGeneration.self,
             SDBackupImportReceipt.self,
             SDLocationSample.self,
@@ -665,7 +667,15 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         remoteChangeBroadcaster.finishAll()
     }
 
+    enum TransactionAccess {
+        case domain
+        case compatibilityMetadata
+    }
+
+    private var supportedCompatibilityVersion = DataCompatibilityVersion.current
+
     private struct ActiveTransaction {
+        let access: TransactionAccess
         let context: ModelContext
         var generation: WhereDataGeneration.Resolution
         /// The earliest snapshot read in this transaction determines which
@@ -739,7 +749,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public func perform<T: Sendable>(
         _ block: @Sendable () async throws -> T,
     ) async throws -> T {
-        try await perform(sendsChange: true, expectedDataGenerationID: nil, block)
+        try await perform(access: .domain, sendsChange: true, expectedDataGenerationID: nil, block)
     }
 
     public func perform<T: Sendable>(
@@ -747,6 +757,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         _ block: @Sendable () async throws -> T,
     ) async throws -> T {
         try await perform(
+            access: .domain,
             sendsChange: true,
             expectedDataGenerationID: expectedDataGenerationID,
             block,
@@ -757,6 +768,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         _ block: @Sendable () async throws -> T,
     ) async throws -> T {
         let storeID = ObjectIdentifier(self)
+        try assertDataCompatible()
         if Self.activeTransactionStores.contains(storeID) {
             guard let transaction = activeTransaction else {
                 preconditionFailure("A nested snapshot must retain its active transaction.")
@@ -765,10 +777,14 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 activeTransaction?.snapshotHistoryTransactionID = try Self
                     .latestHistoryTransactionID(in: transaction.context)
             }
-            return try await block()
+            let result = try await block()
+            try assertDataCompatible()
+            return result
         }
         if Self.activeSnapshotStores.contains(storeID) {
-            return try await block()
+            let result = try await block()
+            try assertDataCompatible()
+            return result
         }
 
         return try await withExclusiveStoreOperation {
@@ -781,6 +797,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             // changes and the assembled value is rejected. Our own `perform`s are
             // held behind `withExclusiveStoreOperation`, so a crossing commit can
             // only come from another process or CloudKit.
+            try assertDataCompatible()
             let startingHistoryTransactionID = try Self.latestHistoryTransactionID(in: peer)
             let generation = try Self.resolvedDataGeneration(in: peer)
             activeSnapshot = ActiveSnapshot(context: peer, generation: generation)
@@ -790,6 +807,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             ) {
                 try await block()
             }
+            try assertDataCompatible()
             guard try Self.latestHistoryTransactionID(in: peer)
                 == startingHistoryTransactionID
             else {
@@ -826,7 +844,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             checkIns: [RecordingDeviceCheckIn],
             removals: [RecordingDeviceRemoval],
         ) async throws {
-            try await perform(sendsChange: false, expectedDataGenerationID: nil) {
+            try await perform(access: .domain, sendsChange: false, expectedDataGenerationID: nil) {
                 for profile in profiles {
                     try await self.addRecordingDeviceProfile(profile)
                 }
@@ -849,7 +867,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             samples: [LocationSample],
             manualDays: [DayPresence],
         ) async throws {
-            try await perform(sendsChange: false, expectedDataGenerationID: nil) {
+            try await perform(access: .domain, sendsChange: false, expectedDataGenerationID: nil) {
                 for sample in samples {
                     try await self.add(sample: sample)
                 }
@@ -861,6 +879,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     #endif
 
     private func perform<T: Sendable>(
+        access: TransactionAccess,
         sendsChange: Bool,
         expectedDataGenerationID: WhereDataGenerationID?,
         _ block: @Sendable () async throws -> T,
@@ -875,6 +894,10 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         // commit vs. rollback. (Task-local, so a concurrent perform on another
         // task doesn't take this branch — see the type doc.)
         if Self.activeTransactionStores.contains(ObjectIdentifier(self)) {
+            guard activeTransaction?.access == access else {
+                throw DataCompatibilityError.metadataTransactionCannotWriteDomainData
+            }
+            if access == .domain { try assertDataCompatible() }
             if let expectedDataGenerationID,
                activeTransaction?.generation.current.id != expectedDataGenerationID
             {
@@ -888,8 +911,10 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         return try await withExclusiveStoreOperation {
             let peer = ModelContext(modelContainer)
             peer.author = localTransactionAuthor
+            if access == .domain { try assertDataCompatible() }
             let generation = try Self.resolvedDataGenerationResolution(in: peer)
             activeTransaction = ActiveTransaction(
+                access: access,
                 context: peer,
                 generation: generation,
                 snapshotHistoryTransactionID: nil,
@@ -929,7 +954,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 {
                     throw WhereStoreReadConflictError.changedDuringTransaction
                 }
+                if access == .domain { try assertDataCompatible() }
                 try peer.save()
+                if access == .domain { try assertDataCompatible() }
                 // The persistent store can import a CloudKit reset while this
                 // asynchronous transaction body is suspended. Saving old-generation
                 // rows is harmless (they are inert), but reporting success would
@@ -959,6 +986,36 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
     }
 
+    func performCompatibilityMaintenance<T: Sendable>(
+        _ block: @Sendable () async throws -> T,
+    ) async throws -> T {
+        try await perform(
+            access: .compatibilityMetadata,
+            sendsChange: true,
+            expectedDataGenerationID: nil,
+            block,
+        )
+    }
+
+    func dataCompatibilityStatus(requiredVersion: DataCompatibilityVersion)
+        -> DataCompatibilityStatus
+    {
+        DataCompatibilityStatus(
+            supportedVersion: supportedCompatibilityVersion,
+            requiredVersion: requiredVersion,
+        )
+    }
+
+    #if DEBUG
+        @_spi(Testing)
+        public func setSupportedDataCompatibilityVersionForTesting(
+            _ version: DataCompatibilityVersion,
+        ) {
+            supportedCompatibilityVersion = version
+            changeBroadcaster.send()
+        }
+    #endif
+
     #if DEBUG
         @_spi(Testing)
         public var hasExclusiveStoreOperation: Bool {
@@ -971,20 +1028,32 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// them outside is a programmer error and traps so the broken
     /// contract surfaces immediately instead of silently no-op'ing
     /// the save.
-    private func mutationContext() -> ModelContext {
-        guard let context = activeTransaction?.context else {
+    func mutationContext() throws -> ModelContext {
+        guard Self.activeTransactionStores.contains(ObjectIdentifier(self)),
+              let transaction = activeTransaction
+        else {
             preconditionFailure(
                 "SwiftDataStore mutations must be called inside store.perform { ... }",
             )
         }
-        return context
+        guard transaction.access == .domain else {
+            throw DataCompatibilityError.metadataTransactionCannotWriteDomainData
+        }
+        try assertDataCompatible()
+        return transaction.context
     }
 
     /// The context read methods fetch from. Inside `perform`, reads
     /// use the in-flight peer so writes-within-the-transaction are
     /// visible to subsequent reads in the same block. Outside, reads
     /// observe the main `modelContext` (committed state only).
-    private func readContext() -> ModelContext {
+    private func readContext() throws -> ModelContext {
+        try assertDataCompatible()
+        return compatibilityContext()
+    }
+
+    /// Metadata bypasses domain access, but never crosses another task's transaction.
+    func compatibilityContext() -> ModelContext {
         let storeID = ObjectIdentifier(self)
         if Self.activeTransactionStores.contains(storeID) {
             guard let context = activeTransaction?.context else {
@@ -1002,6 +1071,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func dataGeneration() async throws -> WhereDataGeneration {
+        try assertDataCompatible()
         if Self.activeTransactionStores.contains(ObjectIdentifier(self)), let activeTransaction {
             return activeTransaction.generation.current
         }
@@ -1029,7 +1099,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             reason.isDestructive,
             "Only a destructive operation rotates the data generation.",
         )
-        let context = mutationContext()
+        let context = try mutationContext()
         guard let resolution = activeTransaction?.generation else {
             preconditionFailure(
                 "A store transaction must resolve its data generation before mutation.",
@@ -1111,7 +1181,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         id: UUID,
         installationID: RecordingDeviceID,
     ) async throws {
-        let context = mutationContext()
+        let context = try mutationContext()
         let receipt = BackupImportReceipt(
             id: id,
             installationID: installationID,
@@ -1138,7 +1208,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         id: UUID,
         installationID: RecordingDeviceID,
     ) async throws {
-        let context = mutationContext()
+        let context = try mutationContext()
         let installationID = installationID.rawValue
         for record in try context.fetch(FetchDescriptor<SDBackupImportReceipt>(
             predicate: #Predicate {
@@ -1261,7 +1331,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func add(sample: LocationSample) async throws {
-        let context = mutationContext()
+        let context = try mutationContext()
         let generationID = mutationGenerationID()
         let existing = try context.fetch(GenerationScopedFetch.samples(
             belongingTo: generationID,
@@ -1278,7 +1348,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func samples(in interval: DateInterval) async throws -> [LocationSample] {
-        let context = readContext()
+        let context = try readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.samples(
             belongingTo: generationID,
@@ -1298,7 +1368,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func allSamples() async throws -> [LocationSample] {
-        let context = readContext()
+        let context = try readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.samples(
             belongingTo: generationID,
@@ -1321,7 +1391,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func allSampleAttributionRevisions() async throws -> [SampleAttributionRevision] {
-        let context = readContext()
+        let context = try readContext()
         let generationID = try readGenerationID(in: context)
         let records = try context
             .fetch(GenerationScopedFetch.sampleAttributions(belongingTo: generationID))
@@ -1352,7 +1422,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         guard revision.updatedAt.timeIntervalSince1970.isFinite else {
             throw SampleAttributionPersistenceError.incompleteHistory
         }
-        let context = mutationContext()
+        let context = try mutationContext()
         let generationID = mutationGenerationID()
         let existing = try context.fetch(GenerationScopedFetch.sampleAttributions(
             belongingTo: generationID,
@@ -1409,7 +1479,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func recordingDeviceProfiles() async throws -> [RecordingDeviceProfile] {
-        let context = readContext()
+        let context = try readContext()
         var descriptor = FetchDescriptor<SDRecordingDeviceProfile>(
             sortBy: [SortDescriptor(\.registeredAt)],
         )
@@ -1437,7 +1507,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func addRecordingDeviceProfile(_ profile: RecordingDeviceProfile) async throws {
-        let context = mutationContext()
+        let context = try mutationContext()
         let id = profile.id.rawValue
         let existing = try context.fetch(
             FetchDescriptor<SDRecordingDeviceProfile>(predicate: #Predicate { $0.id == id }),
@@ -1455,7 +1525,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func recordingDeviceMetadataChanges() async throws -> [RecordingDeviceMetadataChange] {
-        let context = readContext()
+        let context = try readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.metadataChanges(
             belongingTo: generationID,
@@ -1484,7 +1554,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public func addRecordingDeviceMetadataChange(
         _ change: RecordingDeviceMetadataChange,
     ) async throws {
-        let context = mutationContext()
+        let context = try mutationContext()
         let generationID = mutationGenerationID()
         let storedChangeID = change.id.rawValue
         let existing = try context.fetch(GenerationScopedFetch.metadataChanges(
@@ -1507,7 +1577,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func recordingDeviceCheckIns() async throws -> [RecordingDeviceCheckIn] {
-        let context = readContext()
+        let context = try readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.checkIns(
             belongingTo: generationID,
@@ -1526,7 +1596,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func setRecordingDeviceCheckIn(_ checkIn: RecordingDeviceCheckIn) async throws {
-        let context = mutationContext()
+        let context = try mutationContext()
         let generationID = mutationGenerationID()
         let existing = try context.fetch(GenerationScopedFetch.checkIns(
             belongingTo: generationID,
@@ -1555,7 +1625,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func recordingDeviceRemovals() async throws -> [RecordingDeviceRemoval] {
-        let context = readContext()
+        let context = try readContext()
         var descriptor = FetchDescriptor<SDRecordingDeviceRemoval>(
             sortBy: [SortDescriptor(\.removedAt), SortDescriptor(\.id)],
         )
@@ -1591,7 +1661,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func addRecordingDeviceRemoval(_ archive: RecordingDeviceRemoval) async throws {
-        let context = mutationContext()
+        let context = try mutationContext()
         let generationID = mutationGenerationID()
         let id = archive.id.rawValue
         let existing = try context.fetch(
@@ -1610,7 +1680,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func write(evidence: Evidence, blob: Data?) async throws {
-        let context = mutationContext()
+        let context = try mutationContext()
         let generationID = mutationGenerationID()
         let matchingRecords = try context.fetch(GenerationScopedFetch.evidence(
             belongingTo: generationID,
@@ -1634,7 +1704,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func evidence(in interval: DateInterval) async throws -> [Evidence] {
-        let context = readContext()
+        let context = try readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.evidence(
             belongingTo: generationID,
@@ -1651,7 +1721,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func allEvidence() async throws -> [Evidence] {
-        let context = readContext()
+        let context = try readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.evidence(
             belongingTo: generationID,
@@ -1665,7 +1735,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func evidenceBlob(for id: UUID) async throws -> Data? {
-        let context = readContext()
+        let context = try readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.evidence(
             belongingTo: generationID,
@@ -1679,7 +1749,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func write(blob: Data, for id: UUID) async throws {
-        let context = mutationContext()
+        let context = try mutationContext()
         let generationID = mutationGenerationID()
         let descriptor = GenerationScopedFetch.evidence(
             belongingTo: generationID,
@@ -1694,7 +1764,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func delete(for id: UUID) async throws {
-        let context = mutationContext()
+        let context = try mutationContext()
         let generationID = mutationGenerationID()
         let descriptor = GenerationScopedFetch.evidence(
             belongingTo: generationID,
@@ -1705,7 +1775,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func setManualDay(_ day: DayPresence) async throws {
-        let context = mutationContext()
+        let context = try mutationContext()
         let generationID = mutationGenerationID()
         let existing = try context.fetch(GenerationScopedFetch.manualDays(
             belongingTo: generationID,
@@ -1746,7 +1816,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func clearManualDay(_ day: CalendarDay) async throws {
-        let context = mutationContext()
+        let context = try mutationContext()
         let generationID = mutationGenerationID()
         let descriptor = GenerationScopedFetch.manualDays(
             belongingTo: generationID,
@@ -1758,7 +1828,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func manualDays(in dayRange: ClosedRange<CalendarDay>) async throws -> [DayPresence] {
-        let context = readContext()
+        let context = try readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.manualDays(
             belongingTo: generationID,
@@ -1775,7 +1845,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func allManualDays() async throws -> [DayPresence] {
-        let context = readContext()
+        let context = try readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.manualDays(
             belongingTo: generationID,
@@ -1792,7 +1862,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         in interval: DateInterval,
         manualDays dayRange: ClosedRange<CalendarDay>,
     ) async throws {
-        let context = mutationContext()
+        let context = try mutationContext()
         let generationID = mutationGenerationID()
         let samples = try context.fetch(GenerationScopedFetch.samples(
             belongingTo: generationID,
@@ -1822,7 +1892,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func dismissedIssueIDs() async throws -> Set<DataIssueID> {
-        let context = readContext()
+        let context = try readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.dismissedIssues(
             belongingTo: generationID,
@@ -1836,7 +1906,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func allDismissedIssues() async throws -> [DismissedIssue] {
-        let context = readContext()
+        let context = try readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.dismissedIssues(
             belongingTo: generationID,
@@ -1850,7 +1920,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func setIssueDismissed(_ dismissed: Bool, id: DataIssueID) async throws {
-        let context = mutationContext()
+        let context = try mutationContext()
         let generationID = mutationGenerationID()
         let key = id.storeURL.absoluteString
         let descriptor = GenerationScopedFetch.dismissedIssues(
@@ -1873,7 +1943,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func restoreDismissedIssue(_ issue: DismissedIssue) async throws {
-        let context = mutationContext()
+        let context = try mutationContext()
         let generationID = mutationGenerationID()
         let key = issue.id.storeURL.absoluteString
         let descriptor = GenerationScopedFetch.dismissedIssues(
@@ -1894,7 +1964,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     // MARK: - Planned stay
 
     public func plannedStayRecords() async throws -> [PlannedStayRecord] {
-        let context = readContext()
+        let context = try readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.plannedStays(
             belongingTo: generationID,
@@ -1908,7 +1978,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func replacePlannedStayRecord(with record: PlannedStayRecord) async throws {
-        let context = mutationContext()
+        let context = try mutationContext()
         let generationID = mutationGenerationID()
         for existing in try context.fetch(GenerationScopedFetch.plannedStays(
             belongingTo: generationID,
@@ -1919,7 +1989,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func restorePlannedStayRecord(_ record: PlannedStayRecord) async throws {
-        let context = mutationContext()
+        let context = try mutationContext()
         let generationID = mutationGenerationID()
         for duplicate in try context.fetch(GenerationScopedFetch.plannedStays(
             belongingTo: generationID,
@@ -1933,7 +2003,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     // MARK: - Tracked regions
 
     public func trackedRegions() async throws -> Set<Region> {
-        let context = readContext()
+        let context = try readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.trackedRegions(
             belongingTo: generationID,
@@ -1967,7 +2037,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func setTrackedRegion(_ tracked: Bool, region: Region) async throws {
-        let context = mutationContext()
+        let context = try mutationContext()
         let generationID = mutationGenerationID()
         let descriptor = GenerationScopedFetch.trackedRegions(
             belongingTo: generationID,
@@ -2001,7 +2071,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func primaryRegions() async throws -> [PrimaryRegion] {
-        let context = readContext()
+        let context = try readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.trackedRegions(
             belongingTo: generationID,
@@ -2048,7 +2118,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func setPrimaryRegions(_ regions: [PrimaryRegion]) async throws {
-        let context = mutationContext()
+        let context = try mutationContext()
         let generationID = mutationGenerationID()
         let desiredIDs = Set(regions.map(\.region.rawValue))
         // Delete every tracked row not in the desired set (and any row with a

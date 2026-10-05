@@ -46,6 +46,7 @@ public struct BackupService: Sendable {
         /// Recording rows decoded structurally but violate persisted invariants (for example a
         /// a negative causal revision or incomplete removal history).
         case invalidRecordingData
+        case unsupportedDataCompatibilityVersion(DataCompatibilityVersion)
 
         public var errorDescription: String? {
             switch self {
@@ -53,6 +54,8 @@ public struct BackupService: Sendable {
                     String(localized: .backupErrorManifestMissing)
                 case let .unsupportedFormatVersion(version):
                     String(localized: .backupErrorUnsupportedFormatVersion(version))
+                case .unsupportedDataCompatibilityVersion:
+                    String(localized: .backupErrorUnsupportedDataCompatibility)
                 case .invalidRecordingData:
                     String(localized: .backupErrorInvalidRecordingData)
             }
@@ -90,6 +93,7 @@ public struct BackupService: Sendable {
     /// `blobs` holds the evidence bytes keyed by `Evidence.id`; evidence
     /// without an entry is exported as metadata only.
     public func makeArchiveFile(
+        requiredDataCompatibilityVersion: DataCompatibilityVersion,
         samples: [LocationSample],
         evidence: [Evidence],
         manualDays: [DayPresence],
@@ -132,6 +136,7 @@ public struct BackupService: Sendable {
         }
 
         let archive = BackupArchive(
+            requiredDataCompatibilityVersion: requiredDataCompatibilityVersion,
             exportedAt: exportedAt,
             samples: samples,
             evidence: evidence,
