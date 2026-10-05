@@ -6,6 +6,7 @@
         @Binding var motion: WhereStylesheet.LocationCardStackStyle.OvertakeMotion
         let reset: () -> Void
 
+        /// Explains why the live draft is overridden; this is system-status copy, not appearance.
         @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
         var body: some View {

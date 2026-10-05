@@ -16,6 +16,11 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 
 ## What you get
 
+The Elsewhere entry card uses a compact passport surface with neutral ink.
+Its count, separate background silhouettes, and microprint border share the ordered secondary regions.
+The catch-all Other region uses a background globe because it has no geographic outline.
+The card opens the existing Elsewhere list.
+
 ### App shell & view models
 
 - **`RootView`** — the app root: the typed launch plan (via
@@ -24,21 +29,31 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `MainTabs`, the Liquid Glass tab bar over three tabs — Locations, Your Year,
   Settings. Elsewhere is an entry card on Locations, Resolve a Locations toolbar
   button, and the data screens (attachments, logged days, regions) sit in the
-  Settings "Data" group. The **Explore Features** group demonstrates all five
-  Siri/Shortcuts intents as example conversations, demonstrates tracked-region
+  Settings "Data" group. **Explore Features** starts with Your Places & Your Year
+  and Recording & Devices. These guides explain cards, Elsewhere, calendars,
+  Timeline, welcomes, automatic recording, and manual entries.
+  Privacy & Backups explains effective diagnostics choices, archive export,
+  and onboarding-only restore. Its links respect demo availability.
+  The group also demonstrates all five Siri/Shortcuts intents as example conversations, demonstrates tracked-region
   results in Spotlight, and renders every supported
   widget family on miniature Home Screen and Lock Screen surfaces. A Share &
   Evidence walkthrough also reveals the system Share-sheet extension and links
   into the saved attachment archive. Insights & Accuracy introduces the
-  automatic issue detectors without running them merely to render the gallery,
-  while Estimated Time & Planning explains the live annual projection with a
-  worked pace-and-plan calculation, planned stays, and why overlapping travel
-  days do not sum neatly to one year.
+  automatic issue detectors, correction flows, and notification choices without
+  running a scan merely to render the gallery. Estimated Time & Planning explains the live annual projection with a
+  worked pace-and-plan calculation, production Timeline rows, and planned stays.
+  When estimates are Off, the gallery retains explanatory forecast examples in
+  grayscale while live planning remains disabled. It also explains why
+  overlapping travel days do not sum neatly to one year.
+  Both Timeline galleries use `PresenceTimelineList` with its `.excerpt` presentation.
+  This presentation shows the last two stays without scrolling or editing controls.
+  The full Timeline and excerpts share row rendering, rail continuity, and planned-stay joins.
   These galleries use a shared marketing header, quiet patterned backdrop, and
   staged entrance that resolves immediately for Reduce Motion and snapshot
   capture. Once the selected report has 14 recorded days, the Siri, Spotlight,
-  widget, and evidence examples use its real regions, counts, and dates. Sparse
-  reports keep the illustrative Siri copy and empty widget state.
+  and widget examples use its real regions, counts, and dates. Evidence uses
+  the latest available attachment, or a labeled example when none is available.
+  Sparse reports keep the illustrative Siri copy and empty widget state.
   Backup and destructive data management share one Data drill-in. Data is
   followed by a persisted **Privacy & Diagnostics** screen for crash reports,
   redacted session replay, remote-log threshold, and Debug-only full metadata.
@@ -124,8 +139,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   demo, and completion orchestration) and **`OnboardingImportRecoveryModel`** (the sidecar/store
   recovery handshake after an interrupted onboarding import), and
   **`LocationCardsPresentationModel`** (the last primary-card counts and order
-  the user saw), and **`LocationWelcomeModel`** (the preference-gated current-region welcome and
-  its persisted acknowledgement). The Location model holds saved values until the card surface
+  the user saw), and **`LocationWelcomeModel`** (the `MainTabs`-owned,
+  preference-gated current-region acquisition, recovery, welcome, and persisted
+  acknowledgement state machine). The Location model holds saved values until the card surface
   is visible and unobscured, holds them there for another half second, then
   advances every changed number and any live two-card reversal in one animated
   beat, adding one light haptic. Decreases, first visits, hidden updates, and
@@ -133,15 +149,48 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   services or presentation state.
   None reimplements Core rules.
 
+### Flight status and GPS corrections
+
+Locations shows a quiet notice for this installation's recent flight evidence.
+The Resolve list keeps pending and completed flight reviews separate from
+its actionable issue count. A shared review shows recording devices, the last
+observation, flight evidence, and the exact sample edits. Apply includes only flights with supported arrival.
+Completed flights remain correctable when another flight on the same day is pending.
+Each banner shows its flight's progress. Applying or dismissing the proposal retains pending flight information.
+Manual day editing stays available.
+
+`YearReportModel` publishes one `DataIssueScanResult` for the banner, list,
+badge, and open detail. Committed raw GPS writes refresh it even when region
+totals do not change. Foreground-only deadlines update stale notices and remove
+live notices after 24 hours; unresolved historical reviews remain accessible.
+`ResolveModel` receives a `ResolutionSource`. The scene supplies its `YearReportModel`.
+Standalone consumers use `ScannerResolutionSource`; previews supply a synchronous fixture
+through the same protocol. Product models have no preview-mode refresh branches.
+
+`FlightReviewPresentation` prepares map geometry and edit lookups once per review.
+The map preserves corrected GPS observations and separates device tracks.
+Rendering uses at most 250 markers and 2,048 coordinates per device route, retaining both route endpoints.
+The full evidence and edit list remain available. Snapshot capture replaces remote map tiles with a deterministic substrate.
+
+`FlightReviewModel` submits reviewed proposals to Core and keeps a changed
+proposal on screen for review instead of reporting a stale Apply as success.
+Reset to GPS restores both manual and sample attribution through the existing
+journal intent.
+
 ### Reusable views & styling
 
-- **`RegionWelcomeCard`** — a centered Locations overlay that combines a region's emoji,
+- **`RegionWelcomeCard`** — an app-wide overlay over the selected tab that combines a region's emoji,
   icon, outline, Liquid Glass card treatment, and passport ink. The card stamps into place
   with a quick tilted approach and spring settle, then lifts away on dismissal.
   The scrim fades independently. Reduce Motion uses a short fade for both layers.
   Debug builds include **Reset Welcome Card** in Settings > Appearance beside the welcome-card toggle.
-  The reset clears the saved region so the next Locations visit can show the card again.
-  Welcome cards must be enabled, and the device must resolve a tracked region with recording active.
+  The reset clears the saved region so the next foreground activation can show the card again.
+  `MainTabs` requests one bounded fix on each active-scene entry. It shows a
+  native tab-bar accessory after one second; denied or restricted access and
+  disabled Precise Location remain actionable there, while transient or
+  low-confidence failures disappear.
+  Welcome cards must be enabled, and the device must confidently resolve a
+  tracked region with recording active.
 
 - **`OnboardingView` / `OnboardingFlowModel`** — the rendered first-run flow and its view-scoped
   observable coordinator, registered for the launch's
@@ -201,7 +250,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   evidence, private insights, data accuracy, and personalization with shared
   patterned chrome and Reduce Motion-aware staged reveals. The examples reuse
   already-loaded user data when it is representative and link to the existing
-  feature surfaces for any action.
+  feature surfaces for any action. Gallery rows and Forms have separate view
+  boundaries. These boundaries limit stack copies during navigation. The gallery
+  view-size tests guard this constraint.
 - **`whereBroadwayRoot()`** — seeds the selected `WhereTheme` and Broadway
   design-system context so descendants resolve the `WhereStylesheet` tokens (see [Design
   system](#design-system)). Applied by `RootView` and by each widget.
@@ -291,11 +342,28 @@ faces on `Typography`, and animation tokens on `Motion`.
 
 ### Trait-aware tokens
 
-Most tokens are fixed. A slice derives from the `BContext` traits in
-`init(context:)` — read the live set off that initializer. Today it grows
-day-grid tap targets at accessibility Dynamic Type sizes, flattens the card
-glow under Reduce Transparency, and crossfades the cards' day count under
-Reduce Motion.
+The stylesheet resolves trait-driven appearance in `init(context:)`. Views
+consume component styles such as `locationForecast.header.layout`. They do
+not read Dynamic Type to select an arrangement. The slice also selects copy
+length, coordinated spacing, icon colors, and motion.
+
+Keep semantic fonts and system colors. For authored dimensions that scale,
+`BScaledDimension` uses system font metrics with the slice's explicit
+content-size category. Its hosted test compares the result with `@ScaledMetric`.
+
+Keep available width, measured chrome, and `ViewThatFits` in the layout layer.
+Those values are unavailable during slicing. User-edited preview state and live
+designer drafts also remain runtime inputs. Each direct trait read documents
+its exception. Capture-time motion stays in `MotionIsStatic`.
+
+`launch.reveal` stores an `Equatable` policy and constructs its transition on
+access. `RootView` resolves that policy beneath its own Broadway root. A
+non-`Equatable` rendering type does not require a direct trait read.
+
+For styled subtrees, pair scoped SwiftUI appearance overrides with Broadway
+trait overrides. This keeps semantic text, assets, and resolved component
+styles consistent. The developer HUD and widget examples show content-size
+overrides; the app-icon preview shows a mode override.
 
 ### Per-region styling
 
@@ -411,6 +479,27 @@ type name. Contextual screens include both reflected type names. Snapshot-backed
 variant IDs use the snapshot case name. These identifiers are stable web and
 deep-link identities; process-local `ObjectIdentifier` values never leave the
 runtime catalog.
+
+### Artwork loading
+
+`regionArtworkTask` reads the root-injected outline cache and ties loading to the
+view's request identity. `RegionArtworkModel` publishes only complete results
+from the latest uncancelled operation and hides artwork for mismatched display
+keys. Region cards use a separate static-artwork key to retain their outlines
+while recorded points refresh. Each surface owns its resolutions and rendering.
+
+### Locations background
+
+The Locations root screen uses a stationary monochrome pattern of all regions
+visited in the selected year, including manually recorded visits and Elsewhere.
+The catch-all Other entry is omitted because it has no geographic outline.
+Catalog order keeps the pattern stable when card rankings change. Planned stays
+do not contribute. The shared outline cache supplies the region paths. Full-view
+rosette rings sit behind staggered region outlines with a half-cell row offset. Slender
+regions receive a bounded size adjustment to balance their visual weight. The
+monochrome ink uses faint strokes without a shadow or blur. Appearance belongs
+to `WhereStylesheet.locationsBackground`; Reduce Transparency hides the ink.
+Empty, initial-loading, and failed screens show only the full-view rosette texture.
 
 ## Testing
 

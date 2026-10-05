@@ -7,7 +7,7 @@ public enum SnapshotSettle: Equatable, Sendable {
     case settled
     /// ``settled`` with a raised minimum settle window. For content whose async
     /// appearance work starts *quiet* and lands after the default floor — the
-    /// iOS 26 glass toolbar/tab bar adapts its material to the content behind it
+    /// native glass toolbar/tab bar adapts its material to the content behind it
     /// a few hundred ms after hosting, which no pixel-stability check can
     /// anticipate before it starts. The floor is paid on every capture of the
     /// case, so reserve it for cases that host such chrome.

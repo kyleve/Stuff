@@ -170,6 +170,20 @@ actor TestStore: WhereStore {
         try await backing.allSamples()
     }
 
+    func sampleAttributionRevisions(for sampleIDs: Set<UUID>) async throws
+        -> [SampleAttributionRevision]
+    {
+        try await backing.sampleAttributionRevisions(for: sampleIDs)
+    }
+
+    func allSampleAttributionRevisions() async throws -> [SampleAttributionRevision] {
+        try await backing.allSampleAttributionRevisions()
+    }
+
+    func addSampleAttributionRevision(_ revision: SampleAttributionRevision) async throws {
+        try await backing.addSampleAttributionRevision(revision)
+    }
+
     func recordingDevices() async throws -> [RecordingDevice] {
         let devices = try await backing.recordingDevices()
         guard let calls = recordingDeviceCallsBeforeGate else { return devices }

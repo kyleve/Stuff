@@ -2,7 +2,7 @@ import RegionKit
 import SwiftUI
 import UIKit
 
-/// The modal scrim and adaptive placement for a Locations welcome card.
+/// The modal scrim and adaptive placement for an app-wide welcome card.
 struct LocationWelcomeOverlay: View {
     let presentation: LocationWelcomeModel.Presentation?
     let dismissAction: () -> Void

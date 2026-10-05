@@ -9,7 +9,10 @@ struct IdleLocationSourceTests {
     @Test func reportsNoAuthorizationAndNoFix() async {
         let source = IdleLocationSource()
         #expect(await source.currentAuthorization() == .notDetermined)
-        #expect(await source.requestCurrentLocation() == nil)
+        #expect(
+            await source.requestCurrentLocation()
+                == .unavailable(.authorizationUnavailable(.notDetermined)),
+        )
     }
 
     @Test func requestPermissionIsANoOpAndDoesNotThrow() async throws {

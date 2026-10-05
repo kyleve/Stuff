@@ -17,6 +17,8 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) and the group [`../AGENTS.md`](.
 - **See `BStylesheetCacheSharingTests`.**
 - **Expose copy-on-write box internals through `@_spi(CopyOnWrite)`.** `_unsafeUnderlyingValue` supports that in-place cache write and tests.
 
+- **Scale authored geometry with `BScaledDimension` during slicing.** Pass the slice's content-size category explicitly.
+
 ## Testing
 
 Run `BroadwayCoreTests` in `StuffTestHost` (`./test BroadwayCoreTests`).

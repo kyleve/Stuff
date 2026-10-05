@@ -100,12 +100,14 @@ public struct BackupService: Sendable {
         recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange],
         recordingDeviceRemovals: [RecordingDeviceRemoval],
         plannedStayRecords: [PlannedStayRecord],
+        sampleAttributionRevisions: [SampleAttributionRevision],
         blobs: [UUID: Data],
         exportedAt: Date = Date(),
         archiveName: String? = nil,
     ) throws -> URL {
         try Self.validateRecordingData(
             metadataChanges: recordingDeviceMetadataChanges,
+            sampleAttributionRevisions: sampleAttributionRevisions,
         )
         let fileManager = FileManager.default
         let workRoot = fileManager.temporaryDirectory
@@ -141,6 +143,7 @@ public struct BackupService: Sendable {
             recordingDeviceMetadataChanges: recordingDeviceMetadataChanges,
             recordingDeviceRemovals: recordingDeviceRemovals,
             plannedStayRecords: plannedStayRecords,
+            sampleAttributionRevisions: sampleAttributionRevisions,
             assets: assetEntries,
         )
         try Self.logger.measure(.encodeManifest) {
@@ -252,14 +255,21 @@ public struct BackupService: Sendable {
     static func validateRecordingData(_ archive: BackupArchive) throws {
         try validateRecordingData(
             metadataChanges: archive.recordingDeviceMetadataChanges,
+            sampleAttributionRevisions: archive.sampleAttributionRevisions,
         )
     }
 
     private static func validateRecordingData(
         metadataChanges: [RecordingDeviceMetadataChange],
+        sampleAttributionRevisions: [SampleAttributionRevision],
     ) throws {
         guard metadataChanges.allSatisfy({ $0.revision >= 0 }) else {
             throw BackupError.invalidRecordingData
+        }
+        for (_, revisions) in Dictionary(grouping: sampleAttributionRevisions, by: \.id) {
+            guard Set(revisions).count == 1,
+                  revisions.allSatisfy(\.updatedAt.timeIntervalSince1970.isFinite)
+            else { throw BackupError.invalidRecordingData }
         }
     }
 }

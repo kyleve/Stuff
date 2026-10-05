@@ -35,7 +35,6 @@ import SwiftUI
 /// take — so the never-settling motion and the wall-clock reveal both render
 /// deterministically.
 struct LaunchSplashView: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     // Two distinct questions, deliberately not merged:
     // • `motionIsStatic` (Reduce Motion *or* capture) gates never-settling
     //   motion — the pulse — which must freeze in both cases.
@@ -144,11 +143,7 @@ struct LaunchSplashView: View {
             guard !isCapturingSnapshot else { return }
             try? await Task.sleep(for: stylesheet.launch.captionDelay)
             guard !Task.isCancelled else { return }
-            if reduceMotion {
-                showCaption = true
-            } else {
-                withAnimation(stylesheet.motion.captionFade) { showCaption = true }
-            }
+            withAnimation(stylesheet.launch.captionAnimation) { showCaption = true }
         }
     }
 

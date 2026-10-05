@@ -4,75 +4,190 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct CurrentRegionResolverTests {
-    @Test func resolvesTrackedRegionWhileRecordingIsAuthorized() async throws {
-        let (services, source) = try makeServices()
-        source.setNextRequestedLocation(sample(latitude: 37.7749, longitude: -122.4194))
-        try await services.ingestor.authorizeRecording()
+    private let now = Date(timeIntervalSinceReferenceDate: 10000)
 
-        #expect(await services.currentRegion.resolve() == .california)
+    @Test func freshConfidentFixResolvesTrackedRegion() async throws {
+        let services = try await authorizedServices(sample: sample())
+
+        #expect(await services.currentRegion.resolve(now: now) == .resolved(.california))
+    }
+
+    @Test func exactlyOneKilometerIsAccepted() async throws {
+        let services = try await authorizedServices(
+            sample: sample(accuracy: 1000),
+            boundaryDistance: 1001,
+        )
+
+        #expect(await services.currentRegion.resolve(now: now) == .resolved(.california))
+    }
+
+    @Test func accuracyAboveOneKilometerIsRejected() async throws {
+        let services = try await authorizedServices(sample: sample(accuracy: 1001))
+
+        #expect(
+            await services.currentRegion.resolve(now: now)
+                == .unavailable(.excessiveUncertainty),
+        )
+    }
+
+    @Test func negativeAccuracyIsInvalid() async throws {
+        let services = try await authorizedServices(sample: sample(accuracy: -1))
+
+        #expect(await services.currentRegion.resolve(now: now) == .unavailable(.invalidFix))
+    }
+
+    @Test func fixOlderThanSixtySecondsIsStale() async throws {
+        let services = try await authorizedServices(
+            sample: sample(timestamp: now.addingTimeInterval(-61)),
+        )
+
+        #expect(await services.currentRegion.resolve(now: now) == .unavailable(.staleFix))
+    }
+
+    @Test func fixExactlySixtySecondsOldIsAccepted() async throws {
+        let services = try await authorizedServices(
+            sample: sample(timestamp: now.addingTimeInterval(-60)),
+        )
+
+        #expect(await services.currentRegion.resolve(now: now) == .resolved(.california))
+    }
+
+    @Test func uncertaintyThatReachesBoundaryIsRejected() async throws {
+        let services = try await authorizedServices(
+            sample: sample(accuracy: 500),
+            boundaryDistance: 500,
+        )
+
+        #expect(
+            await services.currentRegion.resolve(now: now)
+                == .unavailable(.boundaryUncertainty),
+        )
+    }
+
+    @Test func locationOutsideTrackedRegionsIsRejected() async throws {
+        let services = try await authorizedServices(sample: sample(), region: .other)
+
+        #expect(
+            await services.currentRegion.resolve(now: now)
+                == .unavailable(.outsideTrackedRegions),
+        )
+    }
+
+    @Test(
+        arguments: [
+            CurrentLocationResult.UnavailableReason.preciseLocationDisabled,
+            .providerFailure,
+            .timeout,
+            .cancellation,
+            .authorizationUnavailable(.denied),
+        ],
+    )
+    func locationFailureIsPreserved(
+        reason: CurrentLocationResult.UnavailableReason,
+    ) async throws {
+        let services = try await authorizedServices(result: .unavailable(reason))
+
+        #expect(
+            await services.currentRegion.resolve(now: now)
+                == .unavailable(.location(reason)),
+        )
     }
 
     @Test func inactiveRecordingDoesNotRequestAWelcomeRegion() async throws {
-        let (services, source) = try makeServices()
-        source.setNextRequestedLocation(sample(latitude: 37.7749, longitude: -122.4194))
-
-        #expect(await services.currentRegion.resolve() == nil)
-    }
-
-    @Test func missingFixDoesNotResolveAWelcomeRegion() async throws {
-        let (services, _) = try makeServices()
-        try await services.ingestor.authorizeRecording()
-
-        #expect(await services.currentRegion.resolve() == nil)
-    }
-
-    @Test func locationOutsideTrackedRegionsDoesNotResolveAWelcomeRegion() async throws {
-        let (services, source) = try makeServices(
-            attributor: RegionAttributor(for: [.california]),
+        let source = ScriptedLocationSource()
+        source.setNextRequestedLocation(sample())
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: source,
+            attributor: FixedRegionAttributor(),
         )
-        source.setNextRequestedLocation(sample(latitude: 40.7128, longitude: -74.0060))
-        try await services.ingestor.authorizeRecording()
 
-        #expect(await services.currentRegion.resolve() == nil)
+        #expect(
+            await services.currentRegion.resolve(now: now)
+                == .unavailable(.recordingInactive),
+        )
     }
 
-    @Test func authorizationRevokedDuringFixRequestDoesNotResolveAWelcomeRegion() async throws {
+    @Test func authorizationRevokedDuringFixRequestDoesNotResolveARegion() async throws {
         let source = GatedWelcomeLocationSource()
         let services = try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: source,
+            attributor: FixedRegionAttributor(),
         )
         try await services.ingestor.authorizeRecording()
-        let resolution = Task { await services.currentRegion.resolve() }
+        let resolution = Task { await services.currentRegion.resolve(now: now) }
         await source.waitUntilRequested()
 
         await services.ingestor.revokeRecordingAuthorization()
-        await source.resolve(with: sample(latitude: 37.7749, longitude: -122.4194))
+        await source.resolve(with: .success(sample()))
 
-        #expect(await resolution.value == nil)
+        #expect(await resolution.value == .unavailable(.recordingInactive))
     }
 
-    private func makeServices(
-        attributor: any RegionAttributing = RegionAttributor.shared,
-    ) throws -> (WhereServices, ScriptedLocationSource) {
-        let source = ScriptedLocationSource()
-        return try (
-            WhereServices(
-                store: SwiftDataStore.inMemory(),
-                locationSource: source,
-                attributor: attributor,
-            ),
-            source,
+    private func authorizedServices(
+        sample: LocationSample,
+        boundaryDistance: Double = 10000,
+        region: Region = .california,
+    ) async throws -> WhereServices {
+        try await authorizedServices(
+            result: .success(sample),
+            boundaryDistance: boundaryDistance,
+            region: region,
         )
     }
 
-    private func sample(latitude: Double, longitude: Double) -> LocationSample {
+    private func authorizedServices(
+        result: CurrentLocationResult,
+        boundaryDistance: Double = 10000,
+        region: Region = .california,
+    ) async throws -> WhereServices {
+        let source = ScriptedLocationSource()
+        source.setNextRequestedLocationResult(result)
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: source,
+            attributor: FixedRegionAttributor(
+                region: region,
+                boundaryDistance: boundaryDistance,
+            ),
+        )
+        try await services.ingestor.authorizeRecording()
+        return services
+    }
+
+    private func sample(
+        timestamp: Date? = nil,
+        accuracy: Double = 5,
+    ) -> LocationSample {
         LocationSample(
-            timestamp: Date(timeIntervalSinceReferenceDate: 0),
-            coordinate: Coordinate(latitude: latitude, longitude: longitude),
-            horizontalAccuracy: 5,
+            timestamp: timestamp ?? now,
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: accuracy,
             source: .gpsSignificantChange,
         )
+    }
+}
+
+private struct FixedRegionAttributor: RegionAttributing {
+    let region: Region
+    let boundaryDistance: Double?
+
+    init(region: Region = .california, boundaryDistance: Double? = 10000) {
+        self.region = region
+        self.boundaryDistance = boundaryDistance
+    }
+
+    var loadedRegions: [Region] {
+        region == .other ? [] : [region]
+    }
+
+    func region(at _: Coordinate) -> Region {
+        region
+    }
+
+    func distanceToBoundary(of _: Region, from _: Coordinate) -> Double? {
+        boundaryDistance
     }
 }
 
@@ -80,14 +195,14 @@ private actor GatedWelcomeLocationSource: LocationSource {
     nonisolated let sampleStream = AsyncStream<LocationSample> { $0.finish() }
     nonisolated let authorizationUpdates = AsyncStream<LocationAuthorizationStatus> { $0.finish() }
 
-    private var requestContinuation: CheckedContinuation<LocationSample?, Never>?
+    private var requestContinuation: CheckedContinuation<CurrentLocationResult, Never>?
     private var requestWaiters: [CheckedContinuation<Void, Never>] = []
     private var didRequest = false
 
     func start() async {}
     func stop() async {}
 
-    func requestCurrentLocation() async -> LocationSample? {
+    func requestCurrentLocation() async -> CurrentLocationResult {
         didRequest = true
         for waiter in requestWaiters {
             waiter.resume()
@@ -107,8 +222,8 @@ private actor GatedWelcomeLocationSource: LocationSource {
         await withCheckedContinuation { requestWaiters.append($0) }
     }
 
-    func resolve(with sample: LocationSample?) {
-        requestContinuation?.resume(returning: sample)
+    func resolve(with result: CurrentLocationResult) {
+        requestContinuation?.resume(returning: result)
         requestContinuation = nil
     }
 }

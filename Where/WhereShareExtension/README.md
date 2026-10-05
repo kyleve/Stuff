@@ -27,7 +27,7 @@ Host app Share sheet
 
 The extension opens the store and writes through `SwiftDataStore.perform { … }` rather than going through `WhereServices`/`DayJournal`.
 Those assemble a live GPS ingestor, notification reconcilers, and widget publishing — machinery with no place in a short-lived share process.
-The commit pings persistent history, so the app — observing `.NSPersistentStoreRemoteChange` on its shared store — reconciles badges/widgets when it is next active and (in production) mirrors the new row to CloudKit.
+The commit enters persistent history. The app’s container-scoped `HistoryObserverRemoteChangeSource` classifies external authors and forwards the change to its reconciliation streams; Beta and App Store also mirror the shared store through CloudKit.
 
 The extension opens `.localOnly` storage on purpose.
 It must not initialize CloudKit (it holds only the App Group entitlement, not iCloud).
@@ -45,8 +45,5 @@ both processes open the same SwiftData store.
 
 ## Limitations
 
-- **No test bundle.** The build-and-write path is exercised indirectly by **WhereCore** store tests and the **WhereUI** compose model.
-  The loader and view controller are thin glue over system APIs.
-- **In-app refresh is on the next foreground, not mid-scroll.** The app observes `.NSPersistentStoreRemoteChange` for its on-disk store (both `.localOnly` debug and `.cloudKit` release builds), so an extension write refreshes badges/lists when the app is next active — no relaunch needed.
-  It will not repaint while the app is suspended behind the share sheet.
-  Core Data delivers the change when the app resumes.
+- **No test bundle.** WhereCore tests cover the store-write contract and production history observation against temporary on-disk stores. This extension’s compose model, item loader, and view-controller glue remain untested; see [`../TODOs.md`](../TODOs.md).
+- **Refresh depends on app execution.** Both local-only and CloudKit app stores observe external commits through SwiftData history. Services reconcile when their observer can run, and scene-scoped reports subscribe while active and refresh on activation. A suspended app cannot repaint; the source does not deliberately defer every external write until the next foreground. Live cross-process and CloudKit delivery still require device validation.

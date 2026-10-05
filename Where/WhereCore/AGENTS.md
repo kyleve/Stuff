@@ -31,7 +31,9 @@ internal shape.
   `perform { … }` (the production store traps otherwise). Stale-decision
   writes use `perform(expectedDataGenerationID:)`. Multi-table reads use
   `readSnapshot`. Guard:
-  `SwiftDataStoreTests.readSnapshotRejectsCommitBeforeNotification`. Each
+  `SwiftDataStoreTests.readSnapshotRejectsCommitBeforeNotification`. A snapshot
+  inside a mutation pins durable history until its pre-save check; concurrent
+  commits throw `WhereStoreReadConflictError` before local edits are saved. Each
   committed transaction pings `changes()`. Never expose its `ModelContainer`
   through `WhereServices`. The separate DEBUG Inspector runtime uses
   `SwiftDataStore.makeContainer`, `inspectorModelTypes`, and
@@ -58,7 +60,8 @@ internal shape.
   persisted `RegionSymbol`. Its mapping to SFSafeSymbols and `Color` is
   presentation (WhereUI).
 - **Export backups from one `readSnapshot` and keep restorable user data
-  lossless.** Add persisted user-data shapes end-to-end and cover both import
+  lossless.** Preserve optional motion and every sample-attribution revision,
+  including reset tombstones. Add persisted user-data shapes end-to-end and cover both import
   strategies. Export no target-owned recording check-ins. Ignore any in an
   imported archive (`BackupServiceTests` / `BackupCoordinatorTests`).
 - **Backup import never adopts or changes local recording consent.** Archives
@@ -104,26 +107,33 @@ internal shape.
 - **Writes await their side effects.** `DayJournal` commits. Then it awaits
   the reminder reconcile + widget publish in sequence. A reader on the next
   `changes()` ping never observes a half-applied write.
-- **Filter persistent-store remote-change notifications by the Where store URL
-  and the store instance's transaction author.** Never let Periscope or Where's
-  own local saves enter `remoteChanges()`. Guard: `StoreRemoteChangeSourceTests`.
+- **Observe remote history through Where's `ModelContainer` and exclude this
+  store instance's transaction author.** Never let Periscope or Where's own
+  local saves enter `remoteChanges()`. Guard: `StoreRemoteChangeSourceTests`.
 - **Route new writes through the existing reconciliation seams.** Use
-  `DayJournal.reconcileAfterDayDataChange()` or its widget-less subset
-  `reconcileIssueState()`; cross-collaborator hooks take a single closure
-  wired at the composition root (`BackupCoordinator.ImportLifecycle.didCommit`).
-  Existing exceptions are `setPrimaryRegions` and the local summary fan-out,
-  tracked in [`../TODOs.md`](../TODOs.md). Do not copy those omissions.
-- **Detectors read aggregated input. The speed-based one needs raw fixes.**
-  `DataIssueInput.daySamples` carries per-day GPS fixes only (`.gpsVisit` /
-  `.gpsSignificantChange`, sorted). Manual and evidence-implied samples are
-  excluded so `FlightDayDetector`'s speed math is not skewed.
+  `DayJournal.reconcileAfterDayDataChange()` or `reconcileIssueState()`.
+  Do not copy the incomplete `setPrimaryRegions` or summary fan-out paths
+  tracked in [`../TODOs.md`](../TODOs.md).
+- Follow the scoped [data-resolution rules](Sources/DataResolution/AGENTS.md)
+  for GPS reviews, sample corrections, and scan publication.
+- **Use `LocationHistoryReader.projection` for every user-facing location read.**
+  Apply removal cutoffs before correction revisions. Reports, maps, artwork,
+  widgets, summaries, reminders, and intents use effective attribution; trajectory
+  assessment and review retain raw observations. Pin live attribution to the
+  tracked set in the same store snapshot.
 - **Read related year projections from one samples snapshot.** Use
   `ReportReader.yearReportDetails(for:primaryRegionCount:)` for the scene's
   report and primary-region locations.
 - **`LocationSource` abstracts GPS.** `CoreLocationSource` runs in production.
   `ScriptedLocationSource` runs in tests/previews. `requestCurrentLocation()`
-  returns `nil`, never throws. It backs
-  `LocationIngestor.captureTodayIfNeeded(now:)`.
+  returns a typed, nonthrowing outcome and coalesces concurrent waiters without
+  coupling their cancellation. Reject negative accuracy everywhere. Apply the
+  1 km, 60-second, and boundary-confidence gates only in
+  `CurrentRegionResolver`; retain other valid passive samples. It backs
+  `LocationIngestor.captureTodayIfNeeded(now:)`. Keep the one-shot system
+  controls behind `CurrentLocationRequestDriving`, with a conforming fake in
+  `CoreLocationSourceTests`. Keep coalesced waiters and their timeout in one
+  idle/pending request state; finish each waiter exactly once.
 - **`DeviceRecordingController` owns this installation's local recording choice
   and physical GPS state.** Serialize mutations across awaits. Fail closed when
   the current identity is removed. Stamp every ingested GPS sample with the
@@ -179,8 +189,10 @@ internal shape.
 
 Swift Testing in [`Tests/`](Tests) (`WhereCoreTests`), hosted in
 `StuffTestHost`. Drive collaborators against `SwiftDataStore.inMemory()` +
-`ScriptedLocationSource`. Never use the on-disk/CloudKit store or
-`CoreLocationSource`. The CloudKit remote-import path uses the
+`ScriptedLocationSource`. Never use the on-disk/CloudKit store or live
+Core Location requests. `CoreLocationSourceTests` must replace the source’s
+one-shot controls with a `CurrentLocationRequestDriving` fake before requesting
+a fix; never start passive monitoring in those tests. The CloudKit remote-import path uses the
 `@_spi(Testing)` `inMemory(remoteChangeSource:)` +
 `ScriptedStoreRemoteChangeSource`. Internal types are reached via
 `@testable import WhereCore`.

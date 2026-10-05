@@ -9,6 +9,8 @@ import SFSafeSymbols
         @State private var model = RankingAnimationLabModel()
         @State private var motion = WhereStylesheet.LocationCardStackStyle.OvertakeMotion.standard
         @State private var isPreviewVisible = true
+        /// The session-local draft is unavailable to slicing; accessibility overrides its live
+        /// motion.
         @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
         private var previewMotion: WhereStylesheet.LocationCardStackStyle.OvertakeMotion {

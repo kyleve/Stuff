@@ -1,3 +1,4 @@
+import BroadwayUI
 import SFSafeSymbols
 #if DEBUG
     import SwiftUI
@@ -102,6 +103,7 @@ import SFSafeSymbols
             // The HUD is intentionally compact; tool navigation still uses
             // semantic text styles within this bounded developer-only surface.
             .dynamicTypeSize(.small)
+            .bContentSizeCategory(.small)
         }
     }
 

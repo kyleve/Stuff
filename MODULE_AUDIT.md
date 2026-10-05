@@ -1,8 +1,8 @@
 # Swift Module Audit Report
 
-**Date:** September 7, 2026
-**Reviewed source:** `5f65b9f0` (PR #311), fetched from `origin/main`.
-**Prior audit:** September 6, 2026, report merged in PR #310 (`1f6162ba`), whose stated source coverage ended at PR #307 (`1e9c9289`).
+**Date:** September 28, 2026
+**Reviewed source:** `e15577ad` (PR #326), fetched from `origin/main`.
+**Prior audit:** September 21, 2026, report merged in PR #321 (`1675151c`), whose stated source coverage ended at PR #318 (`a32b8b05`).
 
 This report is derived from all 12 `TODOs.md` files and carries no actionable
 items. The root [`TODOs.md`](TODOs.md) owns their format and placement. This
@@ -10,70 +10,99 @@ report is true as of the header date and source boundary, not as of later HEADs.
 
 ## Method and changes since the previous audit
 
-The pass read every open area backlog, checked cited current source and test
-seams, compared the covered source boundary with current main, and enumerated
-tracked sources, tests, references, module docs, and manifest wiring. Unchanged
-areas were checked against their current cited mechanisms and the unchanged
-source diff; this was not a fresh line-by-line review of all 709 source files.
-Exploratory directions remain decisions, rather than being promoted to bugs.
+The pass read every open area backlog, checked cited source/test mechanisms,
+reviewed the covered-source commit window and merged PR descriptions, and
+recounted tracked sources, tests, reference images, module doc pairs, and target
+wiring. Unchanged areas were checked against their cited seams and unchanged
+diffs; this was not a fresh line-by-line review of all 731 sources. Historical
+spikes and runtime observations remain historical, not newly reproduced facts.
 
-The commit window is `1e9c9289..5f65b9f0`: PR #309's welcome feature, PR #310's
-audit/documentation changes, and PR #311's welcome motion/reset changes. The
-prior report missed #309 even though it was already an ancestor of that report's
-merge. Both feature PR bodies were read to distinguish intent and reported
-validation from what this pass itself verified.
+The source window is `a32b8b05..e15577ad`: the prior audit (#321), HistoryObserver
+(#319), Elsewhere passport card (#322), stylesheet slicing (#323), Locations
+background (#324), shared artwork loading (#325), and Explore Features (#326).
+GitHub merge metadata confirms all seven PRs landed. Descriptions supplied
+intent and prior validation; their test counts are not results from this run.
 
-| Area | Prior report | September 7 state |
+| Area | September 21 report | September 28 state |
 |---|---|---|
-| Source / test-support / image-suite files | 704 / 369 / 49 | **709 / 371 / 49** |
-| WhereCore | 128 / 83 | **129 / 84**; resolver and namesake tests added |
-| WhereUI | 285 / 103 | **289 / 104**; four welcome types and model tests added |
-| Reference images | 490 | **495**; five welcome references added, ten Appearance references updated |
+| Source / test-support / image-suite files | 717 / 374 / 50 | **731 / 382 / 55** |
+| BroadwayCore | 17 / 10 | **18 / 12**; explicit-category scaling and category conversion tests |
+| WhereCore | 132 / 86 | **132 / 86**; remote-change source replaced in place |
+| WhereUI | 291 / 104 / 47 suites | **304 / 110 / 52 suites**; artwork and gallery additions |
+| Reference images | 506 | **575**, including 564 WhereUI references |
 | Module / test bundle count | 27 / 25 | **27 / 25**, unchanged |
 | Inbox | Empty | **Empty**; no notes to promote or decline |
-| Backlog | Some shipped/overstated claims still open | **Three entries archived**, two welcome findings filed; partial requests and citations corrected |
-| Documentation | Reconciliation and snapshot-isolation overclaims | Current behavior and remaining exceptions explicitly documented |
+| Backlog | Partial iOS uplift and Timeline coverage | **Two items archived**, one source-test finding filed; other priorities retained |
+| Raised-floor configurations | 43 | **55**; all seven Locations cases now have a one-second floor |
 
-The three archived entries are logged-in/out scope modeling (shipped via
-PR #150), local ingest/manual-sample fan-out (shipped August 4), and the stale
-WhereCore documentation cluster corrected in this pass. The missing daily
-summary and picker fan-outs remain open. The current-location UI request is
-partly fulfilled by #309; its persistent-marker decision remains open.
+The originating iOS 27 / HistoryObserver request is archived with both shipping
+PRs. The joined Timeline row's AX5 coverage item is archived through the new
+Places & Year gallery: it renders the production shared rows with the same
+planned-stay fixture in the full-content phone/tablet matrix. The dedicated
+full Timeline PlannedStay case still lacks its own AX5 configuration; the
+closure is about shared row rendering, not full-screen scroll validation.
 
-Other corrections distinguish actual consequences from inherited claims:
-JournalKit's append test detects missing records but loses the original error;
-WhereModel already has a typed log-store state; accessibility parse failure can
-kill the current bundle's host, not every bundle's host; Ledger has 14
-test/support files; RegionKit's README already admits its decoding-test gap;
-and the tool-portability failures do not all share one missing-Ruby cause.
-Snapshot backlog headers now link to the root format instead of maintaining
-separate instructions.
+PR #322 had already archived the Elsewhere localization and broken-reference
+items. Inspector now accurately records the only remaining `withKnownIssue`
+quarantine. The Gregorian item credits Timeline's newly explicit calendar while
+retaining the four implicit definitions. The loading-gate item distinguishes
+the gallery's honest unavailable state from the full Timeline's empty fallback.
+The rosette profiling item now includes the full-viewport background without
+claiming a measured performance regression. Moved citations and snapshot counts
+were refreshed; historical timing numbers were not recalculated.
+
+Documentation now describes the share extension's HistoryObserver refresh path
+and untested extension glue, the group's isolated location/history test seams,
+and the Estimated Time gallery's intentional grayscale examples while Off.
+The week's Core and Broadway API documentation, stylesheet slicing guide, and
+Explore Features ownership already match their new implementation. No target
+or build/test flow changed in this window, so no new root contract edit was
+needed. Agent mirrors were synchronized after the module instruction edits.
 
 ## New-surface review
 
-**Verified OK in source and existing tests:** `CurrentRegionResolver` checks
-recording authority before and after acquiring a fix, rejects `.other`, and
-reuses the composition root's ingestor and attributor. The new test file covers
-missing/outside fixes and revocation during an awaited request.
-`LocationWelcomeModel` rejects cancellation, a disabled preference, and stale
-request sequences before publishing; dismissal alone persists the region.
-Its tests cover cancellation, disabling during lookup, replay after the DEBUG
-reset, and suppression of the acknowledged region. Preferences and the report
-mirror have existing round-trip/reset and visibility tests.
+**Verified OK in source and existing tests:** HistoryObserver is scoped to the
+opened ModelContainer. Persistent-history classification continues to suppress
+the store instance's author, and a startup catch-up follows observer setup.
+Both streams coalesce candidates; classification failure logs and forwards a
+refresh. Deinitialization cancels the observation and classification tasks and
+finishes the streams. Six tests cover scripted delivery, external same-file
+writes, the baseline/setup interval, local author rejection, unrelated stores,
+and source release. They use isolated temporary containers without CloudKit.
+Live CloudKit delivery remains outside this pass.
 
-The UI uses generated localized copy, typed region values, the existing planned
-stay editor, an independent scrim layer, modal accessibility traits and
-screen-change notifications. The stylesheet supplies separate arrival/departure
-motion and a nonspatial Reduce Motion alternative. The reset is DEBUG-only and
-clears only the acknowledged region. These are source-level checks, not a claim
-that live transition timing or VoiceOver focus was exercised here.
+The new lifetime test checks source deallocation, but its helper gives timeout
+and stream completion the same result. That assertion gap is filed in the
+Where P2 backlog. No production leak or failed runtime run was observed.
 
-**Filed:** “Refresh the live-region welcome when the scene becomes active”
-(Where P1), and “Cover the welcome overlay's scrolling and modal semantics”
-(Where P2). Both are in [`Where/TODOs.md`](Where/TODOs.md); the report does not
-duplicate their implementation proposals. The former needs a retained-tab
-foreground reproduction; the latter records the fixed-frame, semantic-capture,
-and iPad coverage gaps without claiming a screenshot proves broken rendering.
+`BScaledDimension` resolves against an explicit content-size category rather
+than ambient traits. Existing tests compare system metrics and all 12 category
+round trips. Where's stylesheet selects component layout, compact copy, motion,
+and appearance policies; RootView now reads those policies beneath its own
+Broadway root. Scoped widget/theme overrides align SwiftUI and Broadway traits.
+Live launch and ranking transitions were not replayed.
+
+The Elsewhere card uses one ordered secondary-region list for count and artwork,
+localized plural forms, separate silhouettes, and a catch-all globe. Locations
+background membership uses visited geographic regions in catalog order, omits
+Other, and hides decorative ink for Reduce Transparency. Layout tests cover
+stagger, overscan, full membership, and separate silhouette cells. These source
+checks do not replace visual review of the new references.
+
+`RegionArtworkModel` separates request identity from display compatibility and
+rejects cancelled or superseded results with a unique token. The shared modifier
+includes cache identity and display key in its task identity. Tests cover stale
+keys, overlapping same-key work, retained artwork, cancellation, cache replacement,
+and cache removal. Region cards keep compatible outlines during point refreshes.
+
+Explore Features now has nine destinations. New galleries are read-only at the
+browsing boundary, use explicit links into existing editors, pass process-effective
+diagnostics, and suppress demo-unavailable links. The shared Timeline excerpt
+uses the production row/join builder and passes the report calendar explicitly.
+Empty and unavailable history are distinguished in excerpts, and zero issue
+count no longer claims a completed all-clear scan. New gallery matrices cover
+phone/tablet, AX5, semantic accessibility, and relevant empty/denied/demo states.
+The existing widget-family and evidence walkthrough semantic issues remain open.
 
 ## Top findings
 
@@ -84,47 +113,51 @@ Pointers only; evidence and proposed fixes live in the backlog.
 | Bumper | Gregorian rule misses implicit `.current` | [Root P0](TODOs.md) |
 | WhereCore | Daily summary absent from local fan-out | [Where P0](Where/TODOs.md) |
 | PeriscopeCore | Pre-store-attach records absent from durable log | [Periscope P0](Shared/Periscope/TODOs.md) |
-| WhereUI | Four production Gregorian-calendar defaults/helpers remain | [Where P1](Where/TODOs.md) |
+| WhereUI | Four production Gregorian defaults/helpers remain | [Where P1](Where/TODOs.md) |
 | WhereCore | Picker fan-out and hard-deleting untracked regions | [Where P1](Where/TODOs.md) |
+| WhereUI | Full Timeline still lacks a report loading gate | [Where P1](Where/TODOs.md) |
 | WhereUI | Launch-time notification permission prompt | [Where P1](Where/TODOs.md) |
 | SnapshotKit | Captured models shared across configurations | [SnapshotKit P1](Shared/SnapshotKit/TODOs.md) |
-| WhereUI | Welcome lookup lacks foreground refresh trigger | [Where P1](Where/TODOs.md) |
+| WhereCore tests | History-source termination conflated with timeout | [Where P2](Where/TODOs.md) |
+| WhereUI snapshots | Welcome scrolling, iPad, and first-greeting gaps | [Where P2](Where/TODOs.md) |
 | CI / scripts | Serial-axis documentation and Linux portability gaps | [Root P1](TODOs.md) |
 | Repository | Missing group doc pairs for Where and Ledger | [Root P1](TODOs.md) |
 
-The nearest dated external task remains the benchmark organization cleanup,
-after the saved **September 9** plan downgrade (two days from this audit).
-`gh repo view` confirms the benchmark repository exists and is not archived.
-Billing state, installed integrations, and downgrade scheduling were not
-independently verified; no deletion or billing action was taken.
+The benchmark organization cleanup remains open after the saved September 9
+plan-downgrade date. `gh repo view` confirms the repository exists and is not
+archived on September 28. Actual downgrade, billing, and installed integrations
+remain unverified; no deletion or billing action was taken.
 
 ## Cross-cutting themes
 
-- **A report date does not identify its source coverage.** Use the explicit
-  covered commit, including same-day merges the prior report omitted.
-- **Passing tests and good coverage are different claims.** The journal test
-  catches loss despite poor diagnostics; welcome model coverage does not prove
-  foreground wiring, scroll reachability, or live motion.
-- **Describe present behavior separately from intended invariants.** The
-  corrected reconciliation and snapshot docs now name the limitations that
-  remain filed. Documentation repairs do not imply runtime fixes.
-- **Keep historical measurements historical.** Current references are 495;
-  the 260-reference settle measurements still require remeasurement. The
-  addressable raised-floor set remains 39 configurations, not a new timing result.
+- **Credit the shipped boundary precisely.** HistoryObserver replaces the
+  remote-change bridge, not the separate CloudKit onboarding-readiness observer.
+  Timeline gallery coverage executes shared rows without proving full-screen
+  scrolling. Original priorities and origins remain intact.
+- **Sharing UI can close coverage gaps.** The new gallery exercises the real
+  joined-row builder. A duplicate illustration would not provide that coverage.
+- **Asynchronous assertions must distinguish outcomes.** The older location
+  test's waiter-registration gap and the new history test's termination gap
+  concern different preconditions; neither is a reproduced CI failure.
+- **Readiness and timing remain separate.** Cache warming, model publication,
+  and native glass adaptation are different events. The 55 raised-floor count
+  does not update the historical 260-reference timing experiment.
+- **Documentation must follow consumers too.** The Core HistoryObserver docs
+  were current, while the extension still described the removed bridge.
 
 ## Module inventory and Verified OK
 
 Counts are tracked `.swift` files under each module's `Sources/`, `Tests/`, and
-`SnapshotTests/`; tests include fixtures/support files and do not equal test
-cases. All **27 leaf modules** have both README.md and AGENTS.md. The following
-checks are static unless explicitly identified as executed.
+`SnapshotTests/`; tests include fixtures/support and do not equal test cases.
+All **27 leaf modules** have both README.md and AGENTS.md. Results below are
+static unless explicitly identified as executed.
 
 | Module | Source | Test/support | Image suite | Verified OK / bounded result |
 |---|---:|---:|---:|---|
 | [Ledger](Ledger/Ledger/README.md) | 8 | 0 | — | Native macOS app and hostless LedgerCore scheme remain separate from iOS; app has no test bundle by design. |
 | [LedgerCore](Ledger/LedgerCore/README.md) | 16 | 14 | — | Explicit refresh-generation guard and scripted API/Keychain seams retained; 14 test/support files, with the three filed namesake gaps. |
 | [BroadwayCatalog](Shared/Broadway/BroadwayCatalog/README.md) | 2 | 1 | — | Catalog target is in the iOS scheme; its placeholder and empty test are still accurately filed, not counted as behavior coverage. |
-| [BroadwayCore](Shared/Broadway/BroadwayCore/README.md) | 17 | 10 | — | Cache and unchanged-value invalidation sites match the existing backlog; manifest remains free of app dependencies. |
+| [BroadwayCore](Shared/Broadway/BroadwayCore/README.md) | 18 | 12 | — | BScaledDimension uses explicit category metrics; category round-trip and ambient-trait independence tests are present. Cache and unchanged-value gaps remain. |
 | [BroadwayUI](Shared/Broadway/BroadwayUI/README.md) | 6 | 4 | — | Depends downward on BroadwayCore; nested-observer TODO remains at the cited source. |
 | [CreditKit](Shared/CreditKit/README.md) | 2 | 3 | — | Foundation-only value layer; attribution report passes at 12 credits. Generator slug issue remains localized to parsing. |
 | [Flyover](Shared/Flyover/README.md) | 54 | 14 | 1 | Manifest has no Where dependency; 14 test/support files and one image suite remain. Canvas math coverage is distinct from interactive coverage. |
@@ -135,68 +168,68 @@ checks are static unless explicitly identified as executed.
 | [PeriscopeCore](Shared/Periscope/PeriscopeCore/README.md) | 38 | 33 | — | Span accessors downcast rather than store parallel span fields; journal still installs with the store. No new source in the window. |
 | [PeriscopeTools](Shared/Periscope/PeriscopeTools/README.md) | 27 | 27 | 1 | Hierarchy count/query asymmetry is explicitly pinned; 20 hosting-only assertions across 10 files and two image references remain. |
 | [PeriscopeUI](Shared/Periscope/PeriscopeUI/README.md) | 1 | 2 | — | Single SwiftUI environment adapter imports only PeriscopeCore and SwiftUI; test/support inventory unchanged. |
-| [SnapshotKit](Shared/SnapshotKit/README.md) | 8 | 3 | — | Shippable matrix remains separate from comparison engine; docs now disclose that the runner shares captured models across configurations. |
-| [SnapshotKitTesting](Shared/SnapshotKitTesting/README.md) | 16 | 16 | — | Provider duplicate guard, cancellation outcome, parse failure paths and config loop match filed issues; shard plan validates all 49 suites. |
+| [SnapshotKit](Shared/SnapshotKit/README.md) | 8 | 3 | — | Shippable matrix remains separate from comparison engine; docs continue to disclose that the runner shares captured models across configurations. |
+| [SnapshotKitTesting](Shared/SnapshotKitTesting/README.md) | 16 | 16 | — | Provider duplicate guard, cancellation outcome, parse failure paths and config loop match filed issues; shard plan validates all 55 suites. |
 | [StuffTestHost](Shared/StuffTestHost/README.md) | 2 | 0 | — | UIKit shell delegates test-window setup to TestHostSupport; no WhereCore import or new source. |
 | [TestHostSupport](Shared/TestHostSupport/README.md) | 1 | 0 | — | UIKit/Objective-C hosting seam remains app-independent; host smoke contract is exercised from LifecycleKit tests. |
 | [RegionKit](Where/RegionKit/README.md) | 15 | 10 | — | GeoJSON decoding gap is honestly documented; source still throws for unsupported geometry. No new source in the window. |
 | [RegionViewer](Where/RegionViewer/README.md) | 1 | 0 | — | Bundled per-region data description remains correct; missing Broadway root is still filed in Where. |
-| [Where](Where/Where/README.md) | 8 | 4 | — | Runtime selection and intent handoff remain in the app shell; new welcome work did not add a second store or runtime. |
-| [WhereCore](Where/WhereCore/README.md) | 129 | 84 | — | New resolver rechecks recording authority after suspension and uses the injected attributor; revoked-authorization regression exists. |
+| [Where](Where/Where/README.md) | 9 | 5 | — | Audience selection validates compiler condition against plist metadata and injects one environment into launch and intents; hosted tests select the in-memory/no-op path. |
+| [WhereCore](Where/WhereCore/README.md) | 132 | 86 | — | HistoryObserver is container-scoped, retains author filtering and startup catch-up, and tears down both tasks. Six source tests include real temporary-store writes; lifetime termination assertion is now filed as a coverage gap. |
 | [WhereCrashReporting](Where/WhereCrashReporting/README.md) | 3 | 2 | — | Capture SDK stays behind the dedicated adapter target; no source, dependency, or test changes in this window. |
-| [WhereIntents](Where/WhereIntents/README.md) | 15 | 9 | — | Intent services remain injected; four shortcuts and the perform-glue testing limitation match source. No new source in the window. |
-| [WhereShareExtension](Where/WhereShareExtension/README.md) | 5 | 0 | — | Compose model still builds pending evidence; no test bundle was silently added. Shared form/testing gaps remain filed. |
-| [WhereUI](Where/WhereUI/README.md) | 289 | 104 | 46 | Welcome cancellation/preference guards, dismissal-only persistence, localized controls, and Reduce Motion tokens have source/test evidence; see new-surface review below. |
-| [WhereWidgets](Where/WhereWidgets/README.md) | 7 | 0 | — | Provider retains midnight reload policy and reads published stores; no direct new service or welcome dependency. |
+| [WhereIntents](Where/WhereIntents/README.md) | 15 | 9 | — | Injected audience group reaches the snapshot reader; App Group-open failure is logged before report fallback. README now states the perform-glue testing limitation. |
+| [WhereShareExtension](Where/WhereShareExtension/README.md) | 6 | 0 | — | Extension validates its audience and uses local-only storage in that audience’s App Group. Pending-evidence construction and the filed form/testing gaps are unchanged. |
+| [WhereUI](Where/WhereUI/README.md) | 304 | 110 | 52 | Artwork model rejects superseded/cancelled results; modifier keys cache identity. Galleries reuse production Timeline rows, pass effective diagnostics, and hide unavailable demo links. Trait policies resolve in stylesheet slices. |
+| [WhereWidgets](Where/WhereWidgets/README.md) | 8 | 0 | — | Audience-specific group is injected into both snapshot and presentation stores; provider retains the midnight reload policy without opening the app’s SwiftData store. |
 
-**Totals:** 709 source, 371 test/support, and 49 image-suite Swift files.
-The inventory excludes two unwired Periscope journal-benchmark sources and
-four Bumper rule/test files. `Package.swift` declares 20 library targets;
-`Project.swift` declares seven app/extension targets and 25 test bundles:
-20 unit bundles in `Stuff-iOS-Tests`, LedgerCoreTests in `Ledger-macOS-Tests`,
-and four image bundles in `StuffSnapshotTests`. Neither manifest changed in
-the reviewed window.
 
-**References:** 484 WhereUI, five Flyover, four Inspector, two PeriscopeTools,
-for 495 total. The 49 addressable suites retain assignments 13 / 15 / 18 plus
-three on the intake shard. The shard validator passes. WhereCore's basename
-coverage proxy remains 60 sources without a namesake test among 129 sources;
-logging types and record shells mean that is not a list of 60 untested behaviors.
+**Totals:** 731 source, 382 test/support, and 55 image-suite Swift files.
+Inventory excludes two unwired Periscope journal-benchmark sources and four
+Bumper rule/test files. Unchanged manifests declare 20 library targets, seven
+app/extension targets, and 25 test bundles: 20 unit bundles in Stuff-iOS-Tests,
+LedgerCoreTests in Ledger-macOS-Tests, and four image bundles in StuffSnapshotTests.
+The iOS 27 / macOS 26 deployment split is unchanged.
+
+**References:** 564 WhereUI, five Flyover, four Inspector, two PeriscopeTools:
+575 total. Shard validation passes with assignments 13 / 15 / 18 plus nine on
+the intake shard. WhereCore's basename coverage proxy remains 61 of 132 sources
+without a namesake test; this is not a count of untested behaviors.
 
 **Group docs:** Broadway and Periscope have both docs; Where lacks its group
-README and Ledger lacks both group docs. Their leaf modules are complete.
-The existing root item remains open, with its stale 28-leaf count corrected.
+README and Ledger lacks both group docs. Their leaves are complete. The existing
+root item remains open.
 
 **Bumper and tooling:** the ten `where.*` rules and eleven source-rule test
-functions remain; the explicit-calendar filter and mutation fixtures still
-miss the 12 implicit calendar sites (four production, eight DEBUG fixtures).
-`component_boundary` and `forbidden_import` have mutation tests; the two other
-graph assertions remain filed for missing mutation coverage. Source review
-establishes that mechanism; no fresh architecture run is claimed. The 18 root
-commands, retained tooling layer, and CI configuration had no executable change.
+functions remain. The explicit Calendar filter and mutation fixtures still miss
+12 implicit calendar sites in Sources (four production, eight DEBUG fixtures).
+Graph mutation coverage still covers component boundaries and forbidden imports,
+not duplicate ownership or declared cycles. Source inspection and unchanged
+diffs support those statements; architecture execution was not rerun.
 
 ## Verification and limitations
 
-- `./swiftformat --lint` — passed, 0 of 1,136 files require formatting;
-  125 skipped. The sandbox prevented writing its optional cache, without
-  affecting the lint result.
+- `./swiftformat --lint` — passed, 0 of 1,175 files require formatting;
+  125 skipped. Its optional cache write was sandbox-blocked without changing
+  the lint result.
 - `./shellcheck` — passed.
 - `./attribution --check` — passed, 12 credits current.
-- `./snapshot-shards check` — passed, all 49 suites assigned.
-- `./sync-agents` — passed after instruction edits; generated mirrors remain
-  ignored. `git diff --check` — passed.
-- This run is on **macOS**, but the audit remains **static analysis** plus the
-  supported host checks above. The skill's Linux limitations still apply to
-  Linux runs: no Tuist, Xcode, simulator, or runtime validation is implied.
-- `./test`, architecture execution, simulator/image suites, and the retained
-  Python/Ruby suites were skipped because this change is Markdown and Swift
-  comments only. There are no executable, matrix, reference, or rendered-copy
-  changes. Prior PR test counts were read as historical evidence, not reported
-  as this run's results. The prior Ruby sandbox failure was not rerun or closed.
-- No fresh screenshots or live animations were inspected. Existing visual
-  defects and quarantines remain open; the welcome's focus, foreground
-  lifecycle, and motion need device/simulator validation when addressed.
-- CloudKit readiness, passive background delivery, multi-process journals,
-  runtime diagnostic routing, and Ledger's live API/Keychain behavior were not
-  exercised. Historical timing/spike conclusions remain conditional on their
-  stated measurement environment.
+- `./sf-symbols --lint` — passed.
+- `./xcstrings --lint` — passed, seven catalogs match Xcode serialization;
+  rerun with compiler-cache access after the sandbox blocked that cache.
+- `./snapshot-shards check` — passed, all 55 suites assigned.
+- `./sync-agents` and `git diff --check` — passed; generated mirrors are ignored.
+- This host is **macOS**; this audit remains **static analysis** plus the
+  supported checks above. The skill's Linux limitations remain: Linux cannot
+  run Tuist, Xcode, or simulator validation. No runtime suite is implied.
+- `./test`, architecture execution, image/simulator suites, and retained
+  Python/Ruby tests were skipped for Markdown-only edits. No executable,
+  dependency, matrix, reference, or rendered-copy change was made. Module
+  instruction edits describe existing seams; they introduce no concurrency
+  boundary. Existing Linux portability findings were not reproduced or closed.
+- No fresh screenshots, animations, VoiceOver sessions, live scroll/year-switch
+  gestures, or device checks were performed. Prior PR validation remains
+  historical. The Inspector quarantine and filed layout defects remain open.
+- CloudKit readiness/delivery, passive background location, multi-process
+  journals, runtime logging isolation, billing, and Ledger API/Keychain behavior
+  were not exercised. Historical performance and spike results retain their
+  original environment limits.

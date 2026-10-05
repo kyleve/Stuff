@@ -10,6 +10,33 @@ import WhereCore
 /// catalog value. A removed/renamed key is caught by the compiler, so these
 /// tests focus on the runtime logic, not that every simple symbol exists.
 struct WhereFormatTests {
+    @Test func unavailableRecordedMotionHasNoPresentation() {
+        #expect(WhereFormat.recordedFlightSpeed(nil) == nil)
+        #expect(WhereFormat.recordedFlightAltitude(nil) == nil)
+        #expect(WhereFormat.recordedFlightSpeed(.init(
+            metersPerSecond: 200,
+            accuracyMetersPerSecond: -1,
+        )) == nil)
+        #expect(WhereFormat
+            .recordedFlightAltitude(.init(meters: .infinity, accuracyMeters: 20)) == nil)
+    }
+
+    @Test func recordedMotionLabelsRetainUncertaintyAndBelowSeaLevelAltitude() throws {
+        let speed = try #require(WhereFormat.recordedFlightSpeed(.init(
+            metersPerSecond: 250,
+            accuracyMetersPerSecond: 2,
+        )))
+        let altitude = try #require(WhereFormat.recordedFlightAltitude(.init(
+            meters: -30,
+            accuracyMeters: 5,
+        )))
+
+        #expect(speed.hasPrefix("Recorded speed: "))
+        #expect(speed.contains("±"))
+        #expect(altitude.hasPrefix("Recorded altitude: -"))
+        #expect(altitude.contains("±"))
+    }
+
     @Test func generatedSymbolsResolveToCatalogValues() {
         #expect(String(localized: .tabSettings) == "Settings")
         #expect(String(localized: .commonOk) == "OK")
@@ -86,19 +113,10 @@ struct WhereFormatTests {
         )
     }
 
-    /// The one string that agrees grammatically via automatic inflection
-    /// (`^[%lld region](inflect: true)`) rather than an explicit plural
-    /// variation, so both forms are worth pinning.
-    @Test func elsewhereCardSubtitleInflectsTheRegionCount() {
-        // Pre-existing bug, not a migration regression: the catalog entry is
-        // byte-identical on main, and the compiled Localizable.strings keeps the
-        // markup verbatim, so flattening the resource to a String never runs the
-        // inflection engine and the card renders "^[3 region](inflect: true)".
-        // Tracked in Where/TODOs.md; this trips once the rendering is fixed.
-        withKnownIssue("Inflection markup isn't applied when flattened to a String") {
-            #expect(WhereFormat.elsewhereCardSubtitle(regions: 1) == "1 region")
-            #expect(WhereFormat.elsewhereCardSubtitle(regions: 3) == "3 regions")
-        }
+    @Test(arguments: [0, 1, 2, 3, 12])
+    func elsewhereCardSubtitleUsesPluralVariations(count: Int) {
+        let expected = count == 1 ? "1 region" : "\(count) regions"
+        #expect(WhereFormat.elsewhereCardSubtitle(regions: count) == expected)
     }
 
     @Test func yearsAreFormattedWithoutGroupingSeparator() {

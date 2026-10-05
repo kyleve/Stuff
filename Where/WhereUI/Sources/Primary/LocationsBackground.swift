@@ -1,0 +1,126 @@
+import BroadwayUI
+import RegionKit
+import SwiftUI
+
+/// Stationary, noninteractive paper texture for the root Locations viewport.
+struct LocationsBackground: View {
+    let regions: [Region]
+
+    @Environment(\.stylesheet) private var stylesheet
+    @State private var artworkModel = RegionArtworkModel<[Region], LocationsBackgroundArtwork>()
+
+    private var style: WhereStylesheet.LocationsBackgroundStyle {
+        stylesheet.locationsBackground
+    }
+
+    private var requestedRegions: [Region] {
+        style.showsInk ? regions.filter { $0 != .other } : []
+    }
+
+    var body: some View {
+        ZStack {
+            style.paper
+            if style.showsInk {
+                SecurityPrintRosette(
+                    tint: style.ink,
+                    wobble: style.rosette.wobble,
+                    lineWidth: style.rosette.lineWidth,
+                    primaryRingSpacing: style.rosette.primaryRingSpacing,
+                    secondaryRingSpacing: style.rosette.secondaryRingSpacing,
+                    primaryOpacity: style.rosetteOpacity,
+                    secondaryOpacity: style.rosetteOpacity,
+                )
+                silhouettes
+            }
+        }
+        .clipped()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .regionArtworkTask(id: requestedRegions, model: artworkModel) { cache in
+            await LocationsBackgroundArtwork.load(regions: requestedRegions, cache: cache)
+        }
+    }
+
+    private var silhouettes: some View {
+        GeometryReader { proxy in
+            let items = artworkModel.artwork(for: requestedRegions)?
+                .items(for: requestedRegions) ?? []
+            let cells = LocationsBackgroundLayout.cells(
+                count: items.count,
+                in: proxy.size,
+                preferredCellSize: style.preferredCellSize,
+            )
+            ZStack(alignment: .topLeading) {
+                ForEach(cells) { cell in
+                    let item = items[cell.artworkIndex]
+                    RegionOutlineArtwork(
+                        path: item.path,
+                        tint: style.ink,
+                        style: balancedArtwork(for: item.path),
+                    )
+                    .frame(width: cell.frame.width, height: cell.frame.height)
+                    .position(x: cell.frame.midX, y: cell.frame.midY)
+                }
+            }
+        }
+    }
+
+    private func balancedArtwork(for path: Path) -> WhereStylesheet.CardStyle.RegionShape.Artwork {
+        var artwork = style.artwork
+        let bounds = path.boundingRect
+        let shortSide = min(bounds.width, bounds.height)
+        guard shortSide > 0 else { return artwork }
+        // Give slender regions more room without changing the shared geographic projection.
+        artwork.scale *= min(
+            style.maximumAspectScale,
+            sqrt(max(bounds.width, bounds.height) / shortSide),
+        )
+        return artwork
+    }
+}
+
+#if DEBUG
+    import SnapshotKit
+
+    extension LocationsBackground: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            artworkSnapshot(name: "Empty", regions: [])
+            artworkSnapshot(name: "One", regions: [.california])
+            artworkSnapshot(name: "Several", regions: [.california, .newYork, .canada, .other])
+            artworkSnapshot(name: "Many", regions: Array(Region.allCases.prefix(40)))
+            artworkSnapshot(
+                name: "ReduceTransparency",
+                regions: [.canada, .other],
+                reduceTransparency: true,
+            )
+        }
+
+        private static func artworkSnapshot(
+            name: String,
+            regions: [Region],
+            reduceTransparency: Bool = false,
+        ) -> SnapshotCase {
+            let cache = RegionOutlinePathCache()
+            return whereSnapshot(
+                name: name,
+                configurations: .phoneLightDark,
+                measurementReadiness: .immediate,
+                onReadyToSnapshot: {
+                    _ = await LocationsBackgroundArtwork.load(regions: regions, cache: cache)
+                },
+            ) {
+                LocationsBackground(regions: regions)
+                    .environment(\.regionOutlinePathCache, cache)
+                    .bTraitOverrides { traits, overrides in
+                        var accessibility = traits.accessibility
+                        accessibility.isReduceTransparencyEnabled = reduceTransparency
+                        overrides.accessibility = accessibility
+                    }
+            }
+        }
+    }
+
+    #Preview {
+        LocationsBackground.snapshotPreviews
+    }
+#endif

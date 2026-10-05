@@ -1,3 +1,4 @@
+import BroadwayUI
 #if DEBUG
     import RegionKit
     import SwiftUI
@@ -30,6 +31,7 @@
             }
             .environment(\.cardDesignerConfiguration, configuration)
             .environment(\.colorScheme, colorScheme)
+            .bMode(.init(colorScheme))
         }
 
         private var previewStyle: RegionStyle {
