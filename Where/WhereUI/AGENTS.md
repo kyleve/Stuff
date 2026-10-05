@@ -94,6 +94,7 @@ Layering, localization, preview, and testing conventions live in the feature
   stale Apply results open for review and preserve manual editing while arrival is pending.
   Show each flight's own progress when a daily review mixes completed and pending flights.
   Retain pending information through Core's `dismissingProposal()` when dismissing completed-flight edits.
+- Resolve historical device labels through `DeviceRecordingController.displayNames()`, not the active device list.
 - Use this installation's assessment for a live flight notice. Identify each
   recording device in shared reviews and retain historical pending review access.
 - Use `regionArtworkTask` and `RegionArtworkModel` for cached artwork loading.

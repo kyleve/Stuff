@@ -47,12 +47,30 @@ File new findings in the owning TODO before adding their release selection.
 - **Coverage:** 21 open PRs and 133 explicit open TODO entries across 12 files.
 - **Counting:** nested typed TODO bullets count separately. Untyped explanations and checklists remain part of their parent entry.
 - **Inbox:** no open notes. Completed TODO sections were excluded from the open inventory.
-- **Audit:** [`MODULE_AUDIT.md`](MODULE_AUDIT.md) is dated September 28. Current source, including merged flight work in #315, takes precedence.
+- **Audit at baseline:** The [September 28 report](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/MODULE_AUDIT.md) predates merged flight work in #315. The source review included that work.
 - **Method:** source inspection, backlog review, PR metadata, and targeted diffs. No new app tests or signed-device checks support this document.
 
 The 133-entry inventory is fixed to this source commit. New launch tasks appear
 separately, so filing them does not silently change the review baseline.
 PR checks are dated observations, not a claim about the final combined build.
+
+### October 5 reconciliation
+
+The current source review includes [`56c61635`](https://github.com/kyleve/Stuff/commit/56c61635beab03ff90e3b9b39b1358ff0d018c82),
+after [#338](https://github.com/kyleve/Stuff/pull/338) and the weekly TODO update
+in [#339](https://github.com/kyleve/Stuff/pull/339). The current
+[`MODULE_AUDIT.md`](MODULE_AUDIT.md) is dated October 5, but its reviewed source
+ends at `bfc0c94d`. This reconciliation reviews #338 separately.
+
+The weekly update archives the old headless-region refactor and adds pending-flight
+guidance for Explore Features. Main still has **133 open entries across 12 files**.
+This PR adds five launch tasks, leaving **138 open entries**. The appendices retain
+all original entries and list the new gallery issue separately.
+
+The update also narrows the region-deletion defect to uncorrected GPS history
+and identifies attribution-history read amplification. Required correctness and
+measurement work remains selected. No new latency, simulator, or device result
+is claimed by this reconciliation.
 
 ## Readiness milestones
 
@@ -126,7 +144,7 @@ requires coaching, an unwanted permission, or invented history to complete.
 
 | Required outcome | Selected work |
 | --- | --- |
-| Historical attribution survives region deselection. | Retain the region information needed to interpret earlier GPS history. |
+| Historical attribution survives region deselection. | Retain region information for uncorrected GPS history. Manual days and explicit correction replacements already retain their attribution. |
 | Dates remain correct under non-Gregorian device calendars. | Fix display/helper calendars and the implicit-member architecture guard. |
 | Published results follow local edits. | Reconcile summaries and widgets after day changes and region-selection changes, with regression coverage. |
 | Loading and failures remain distinguishable from empty history. | Fix the full Timeline state and misleading badge/error fallbacks. |
@@ -134,6 +152,12 @@ requires coaching, an unwanted permission, or invented history to complete.
 | Full-sync failure cannot report success. | Propagate JournalKit's sync error before destructive follow-up. Preserve recoverable files and retry. |
 | Core history and recovery remain accessible. | Fix calendar date truncation, year-picker overflow, and the maximum-text-size recovery action. Verify gallery semantics and phone/tablet reachability. |
 | Privacy controls report their effective state and failures. | Fix diagnostic-apply errors and verify the closed remote-log field boundary. |
+| Flight-review guidance explains pending history. | Include pending reviews in Explore Features and permit read-only navigation when no actionable issue exists. |
+
+Evaluate [#340](https://github.com/kyleve/Stuff/pull/340) against the recording-gap
+cases in the canonical device-validation task. If those cases produce incorrect
+history or unsafe correction, include the minimum fix before release. Its broader
+completed-flight point editing is not automatically required.
 
 The JournalKit finding is a verified error-propagation gap: `F_FULLFSYNC`'s
 return value is ignored. Actual location data loss was not reproduced.
@@ -158,13 +182,16 @@ backups are encrypted while manual ZIP exports remain plaintext.
 Use signed devices to exercise reboot before first unlock, ordinary relocking,
 background expiration/cancellation, and iCloud Drive download/fallback recovery.
 Verify the same-build iPhone/iPad flow for local recording choice, synced device
-names, removal, and rejoining. Follow the existing
+names, removal, and rejoining. Verify that historical flight reviews retain
+removed-device names, including after a rename or a report reload. Follow the existing
 [CloudKit rollout procedure](Where/Where/README.md#cloudkit-rollout-and-device-validation)
 for the final schema and deployment environment.
 
 Measure stationary days without foreground use, passive movement capture,
 launch/write frequency, and realistic-history performance. Cover midnight,
 timezone changes, flights, manual corrections, and photo-derived history.
+Include attribution-revision reads and per-edit filtering in performance measurements.
+The verified read amplification does not yet establish a latency regression.
 Compare app results with known inputs. Record unexplained gaps and publish
 accurate limitations instead of promising an OS-guaranteed daily wakeup.
 
@@ -208,7 +235,7 @@ and the separate native-macOS suite. `./test --everything` alone is not every CI
 | Area | Required scenarios |
 | --- | --- |
 | Onboarding | Skip, denied/limited permission, cancellation, retry, demo, restore, overlapping stays, unknown gaps, and repeated photo import. |
-| History | Region removal, calendar systems, local edits, midnight/timezone changes, flight corrections, manual assertions, and mixed evidence sources. |
+| History | Region removal, calendar systems, local edits, midnight/timezone changes, flight corrections, pending-review guidance, removed-device labels, manual assertions, and mixed evidence sources. |
 | Storage | Injected full-sync failure with original error, retained recoverable files, successful retry, and unchanged process-death behavior. |
 | Backups | Ruby upgrader regressions, production archive/asset loading, final-format export/import, and encrypted key/recovery checks. |
 | Accessibility | VoiceOver order and labels, maximum Dynamic Type, scrolling reachability, and phone/tablet permission-recovery screens. |
@@ -240,17 +267,18 @@ P0/P1 item as a beta prerequisite.
 
 ## Appendix A: open PR inventory and integration decisions
 
-Observed **October 4, 2026, 8:00:55 p.m. PDT (America/Los_Angeles)**.
+Baseline observed **October 4, 2026, 8:00:55 p.m. PDT (America/Los_Angeles)**.
+Refreshed **October 5, 2026, 3:26:24 p.m. PDT**.
 Source: GitHub through `gh pr list --state open --limit 100`, PR details, and targeted diffs.
 
-The reviewed baseline contains **21 open PRs**. The refreshed inventory also contains **21**.
-No PR entered or left that inventory. No baseline PR merged or closed.
-The observed heads and bases are unchanged.
-Remote `main` remains `bfc0c94d959207692f4636d12c2f2867b4c73fc5`.
+The reviewed baseline contains **21 open PRs**. All remain open with unchanged
+heads and bases. The refreshed inventory contains **23**, including this roadmap
+PR #337 and the new flight-gap fix #340. Remote `main` is now `56c61635`.
 
-Two pending check results changed since the earlier review.
-#329's architecture check passed. #331's macOS check failed.
-This inventory reports check results without diagnosing that failure.
+The baseline PRs' latest reported check outcomes are unchanged from the October 4
+snapshot. #306 now conflicts with main despite its eight passing historical
+contexts. #331's macOS check remains failed. This inventory does not diagnose
+that failure or treat old checks as a fresh integration run.
 
 Selected work supports external TestFlight for people who split their time across places, on iPhone and iPad.
 The beta includes guided current-year stays, optional photo evidence, and encrypted backups.
@@ -267,7 +295,7 @@ Historical results predate current main and do not establish current integration
 “Blocked” is GitHub's merge state. It does not mean a merge conflict.
 No stacked row with only three reported contexts establishes a fresh iOS integration run.
 
-| PR and exact title | Decision | Observed merge/check state | Dependency or caveat |
+| PR and exact title | Decision | October 5 merge/check observation | Dependency or caveat |
 | --- | --- | --- | --- |
 | [#335](https://github.com/kyleve/Stuff/pull/335) — feat(WhereUI): expose live data feature availability | Conditional | Mergeable, blocked. 3/3 latest reported contexts passed. | After #329. Preserve live backup review if merged. |
 | [#334](https://github.com/kyleve/Stuff/pull/334) — feat(WhereCore): establish data compatibility and backup contracts | Conditional | Mergeable, blocked. 3/3 reported contexts passed. | After #333. Adds backup v7 and shared data requirements. |
@@ -278,7 +306,7 @@ No stacked row with only three reported contexts establishes a fresh iOS integra
 | [#317](https://github.com/kyleve/Stuff/pull/317) — feat(Porthole): add on-device investigations and phone-to-PR workflow | Deferred | Conflicting. Simulator compiler pairs and iOS CI failed. | Large debugger/AI workflow. Phone and App Review acceptance remain unproved. |
 | [#316](https://github.com/kyleve/Stuff/pull/316) — feat(Where): add independent stays and configurable forecasts | Deferred | Conflicting. 8/8 historical contexts passed. | Future itinerary changes. Old planning and archive assumptions conflict with current work. |
 | [#312](https://github.com/kyleve/Stuff/pull/312) — feat(Daylight): capture bay light with RAW preservation and Mastodon publishing | Outside scope | Mergeable, clean. 7/7 historical contexts passed. | Separate Daylight app. |
-| [#306](https://github.com/kyleve/Stuff/pull/306) — feat(Where): add scheduled encrypted backups | Required | Mergeable, clean. 8/8 reported contexts passed. | Encrypted backups are required. Signed-device recovery acceptance remains. |
+| [#306](https://github.com/kyleve/Stuff/pull/306) — feat(Where): add scheduled encrypted backups | Required | Conflicting as of October 5. 8/8 historical contexts passed. | Reconcile with current main. Encrypted backups and signed-device recovery acceptance remain required. |
 | [#295](https://github.com/kyleve/Stuff/pull/295) — Add NYC subway Transit view | Outside scope | Mergeable, blocked. 3/3 historical contexts passed. | After #293. Separate Throw feature. |
 | [#293](https://github.com/kyleve/Stuff/pull/293) — feat(Throw): add ceiling flight projection app | Outside scope | Conflicting. 7/7 historical contexts passed. | Separate Throw app. |
 | [#273](https://github.com/kyleve/Stuff/pull/273) — feat(Periscope): add classified event authoring | Conditional | Mergeable, clean. 8/8 reported contexts passed. | Logging foundation for #269. Optional hardening. |
@@ -291,6 +319,23 @@ No stacked row with only three reported contexts establishes a fresh iOS integra
 | [#131](https://github.com/kyleve/Stuff/pull/131) — Porthole: agent/MCP access to a running iOS app | Deferred | Conflicting. 3/3 historical contexts passed. | Older Porthole work overlaps #317. |
 | [#47](https://github.com/kyleve/Stuff/pull/47) — Add StorageKit: containerized, mode-aware storage | Deferred | Conflicting. 2/2 historical contexts passed. | StorageKit has no required beta dependency. |
 
+### PRs added after the baseline
+
+These two rows complete the 23-PR inventory at the October 5 observation.
+
+| PR and exact title | Decision | Observed merge/check state | Dependency or caveat |
+| --- | --- | --- | --- |
+| [#337](https://github.com/kyleve/Stuff/pull/337) — docs(Where): define the external TestFlight roadmap | Required | Before this refresh, head `b15a83c9` was mergeable and clean, with 8/8 reported contexts passed. | This documentation PR. Its previous checks do not validate the updated head or app readiness. |
+| [#340](https://github.com/kyleve/Stuff/pull/340) — fix(Where): review flight points after recording gaps | Conditional | Head `2c848773` conflicts with main. 8/8 reported contexts passed. | Builds on #315 and includes merged #338. Select the minimum correction fix if recording-gap acceptance finds incorrect history or unsafe correction. Completed-flight point editing remains optional. |
+
+#340 proposes handling the first airborne fix after a recording gap and explicit
+point inclusion/restoration for completed flights. It retains the backup format
+and immutable raw observations, with no dependency on the compatibility stack.
+Integration must preserve pending-flight protections, independent-device evidence,
+manual overrides, duplicate handling, stale-review rejection, and #338's device names.
+Its reported external-archive tests cover that branch and archive. They do not
+establish personal-backup acceptance on the final beta build.
+
 ### Selected integration work
 
 1. **Guided setup and #201:** Build a current-year stay review that permits manual entry, correction, and explicit unknown periods.
@@ -300,6 +345,7 @@ No stacked row with only three reported contexts establishes a fresh iOS integra
    Preserve photo provenance, repeat-import deduplication, and final installation-local recording consent.
 
 2. **Encrypted recovery and #306:** Integrate automatic encrypted backups with the final onboarding, runtime, and archive format.
+   Resolve its current conflict with main and rerun the affected integration checks.
    Verify signed-device first-unlock behavior, ordinary locked recording, background expiration, recovery keys, restore, and iCloud Drive fallback.
    Verify normal sync and recording ownership on iPhone and iPad with the same beta build.
    Historical mixed-build migration is outside this milestone.
@@ -317,7 +363,7 @@ If this chain merges independently, selected work must honor its archive format,
 The chain does not add per-entity upcasting or an instantaneous stop across offline devices.
 
 #306 and #201 overlap runtime composition, backup handling, services, and onboarding.
-Clean Git mergeability against main does not prove their combined behavior.
+Both currently conflict with main. Resolving those conflicts does not prove their combined behavior.
 The final selected tree needs its own test results and signed-device acceptance.
 
 The logging chain is **main → #273 → #269**.
@@ -329,26 +375,35 @@ Historical stay entry for onboarding does not require its future-itinerary syste
 #164's old audit read aggregates raw samples without current attribution revisions.
 Any later PDF milestone must match the app's effective-history totals and preserve an explicitly raw appendix.
 
-### Changes since the September 28 audit
+### Merged changes and audit boundaries
 
 GitHub lists these merges from September 28 onward:
 
 - [#327 — fix(WhereUI): prevent Explore gallery stack overflows](https://github.com/kyleve/Stuff/pull/327), September 28.
 - [#328 — docs: reconcile the September 28 backlog and module audit](https://github.com/kyleve/Stuff/pull/328), September 28.
 - [#315 — fix(Where): recognize flights and wait for arrival before GPS corrections](https://github.com/kyleve/Stuff/pull/315), October 4.
+- [#338 — fix(WhereUI): preserve removed device names in flight reviews](https://github.com/kyleve/Stuff/pull/338), October 5.
+- [#339 — docs: refresh the October 5 backlog and module audit](https://github.com/kyleve/Stuff/pull/339), October 5.
 
-#315 is the implementation change after the audit update.
+#315 is the implementation change covered by the October 5 audit.
 It adds flight-aware corrections, immutable attribution revisions and reset tombstones, and backup format v6.
 The external script and selected onboarding must preserve those records and effective-history semantics.
 The PR does not establish production CloudKit schema deployment or live sync behavior.
 Three optional archive tests lacked external inputs, so their skipped results are not evidence about the owner's archive.
 Beta acceptance needs the selected build's schema and ordinary iPhone/iPad sync verification, without a broad migration project.
 
+#338 preserves names for removed devices in historical flight reviews and guards
+against publishing stale name lookups. It does not close another selected release
+gate. #339 updates documentation and backlog evidence, not app behavior.
+Its archived region-policy task was already satisfied by #65.
+
 ## Appendix coverage
 
-The baseline appendices contain **133 unique entries**: 26 Required,
-13 Conditional, 84 Deferred, 9 Outside scope, and 1 Already addressed by
-another entry. Counts include parent entries and their typed dependents.
+The baseline appendices retain **133 unique entries**. Their current dispositions
+are 26 Required, 13 Conditional, 83 Deferred, 9 Outside scope, and 2 Already
+addressed. The October 5 archive changed one Deferred row to Already addressed.
+The other Already addressed row duplicates an open canonical entry.
+Counts include parent entries and their typed dependents.
 They are not estimates of PR count or implementation effort.
 
 | Baseline file | Explicit open entries |
@@ -367,10 +422,12 @@ They are not estimates of PR count or implementation effort.
 | [Ledger](Ledger/TODOs.md) | 3 |
 | **Total** | **133** |
 
-This change adds five required P1 entries to the Where backlog, for **138 open
-entries after filing**. It expands the existing photo-import and JournalKit
-items without moving their priority buckets. The new entries are listed at the
-end of Appendix B and are excluded from the baseline count.
+The weekly update closes one baseline entry and adds one required P2 gallery
+entry. This PR adds five required P1 launch entries, for **138 current open
+entries**. The complete review covers **139 distinct entries**, including the
+archived entry. The six post-baseline entries appear at the end of Appendix B.
+The existing photo-import and JournalKit items are expanded without moving
+their priority buckets.
 
 ## Appendix B: Where backlog disposition
 
@@ -379,11 +436,12 @@ The table reviews every open Where entry at `bfc0c94d`, including nested bullets
 Its 75 rows are 65 parent or standalone entries and 10 nested entries, not 75 new tasks.
 The baseline links remain stable when the current backlog changes.
 
-The disposition is **23 required, 11 conditional, 40 deferred, and 1 already addressed by another entry**.
+The current disposition is **23 required, 11 conditional, 39 deferred, and 2 already addressed**.
 Required rows include measurements and parent entries, so this count is not a PR or task estimate.
 Conditional work has an explicit trigger in its row.
 Deferred work remains in the backlog with its existing priority.
 L89 points to L35 and does not claim a shipped fix.
+L66 records the October 5 archive of work already satisfied by #65.
 
 ### Exploratory items
 
@@ -412,7 +470,7 @@ L89 points to L35 and does not claim a shipped fix.
 | [L27](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L27) | Scope diagnostic emission for Flyover's unactivated sibling demo world | Deferred | This concerns developer diagnostics. The sibling's user data and external effects are already isolated. |
 | [L28](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L28) | `CalendarDay.displayDate` resolves through `Calendar.current` | Required | A non-Gregorian device must still show the correct stored day. |
 | [L29](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L29) | `WhereServices.setPrimaryRegions(_:)` skips post-write reconciliation | Required | Region changes must refresh widgets and scheduled notifications. |
-| [L30](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L30) | Soft-delete untracked regions | Required | Removing a selected region must not rewrite its past GPS days as Other. |
+| [L30](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L30) | Soft-delete untracked regions | Required | Preserve uncorrected GPS attribution after region removal. Manual days and explicit correction replacements already retain their regions. |
 | [L31](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L31) | The retry queue evicts FIFO at its 1000-sample capacity | Required | Define the bounded loss policy and show recording degradation instead of hiding it in logs. |
 | [L32](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L32) | `PresenceTimelineList` derives `[]` whenever `report.report` is nil | Required | Loading or failure must not appear as an empty history. |
 | [L33](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L33) | Extract a shared `ReportLoadGate` | Deferred | The Timeline fix can use the existing loading pattern without a shared-view refactor. |
@@ -425,7 +483,7 @@ L89 points to L35 and does not claim a shipped fix.
 | [L40](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L40) | Give the feature-discovery widget gallery a complete VoiceOver pass | Required | The release accessibility pass must distinguish each widget kind and family. |
 | [L41](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L41) | Give the evidence feature-discovery panels clear accessibility semantics | Required | The release accessibility pass must make each walkthrough step understandable. |
 | [L42](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L42) | Consolidate the share/add evidence form | Deferred | Two form implementations are maintainability work, not a confirmed release defect. |
-| [L43](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L43) | Consider incremental year-report reads or memoization | Deferred | Keep the current architecture unless device checks demonstrate an unacceptable cost. |
+| [L43](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L43) | Consider incremental year-report reads or memoization | Deferred | Include the verified attribution-history read amplification in required profiling. Defer architecture changes until a measured cost justifies them. |
 | [L44](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L44) | Review whether the `.accessibilityIdentifier` modifiers are needed | Deferred | The item identifies no user-facing defect. |
 | [L45](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L45) | Keep the current region visible after dismissing its welcome | Deferred | Persistent decoration is outside the agreed onboarding and accuracy work. |
 | [L46](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L46) | Per-entity schema versioning and lazy upcasting for CloudKit sync drift | Deferred | The beta uses the external backup upgrader. General migration and mixed-version support are outside launch scope. |
@@ -450,7 +508,7 @@ L89 points to L35 and does not claim a shipped fix.
 | [L63](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L63) | Give the app a branded launch screen | Deferred | The launch-screen polish is outside the required onboarding and accuracy work. |
 | [L64](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L64) | Make scene-scoped model wiring compiler-checked | Deferred | This is architecture hardening rather than a demonstrated release failure. |
 | [L65](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L65) | Split `YearReportModel` further | Deferred | Keep the working model unless a required change needs a focused extraction. |
-| [L66](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L66) | Move `RegionDays` and `RegionRanking` from WhereUI into WhereCore | Deferred | This changes layering without resolving a confirmed launch defect. |
+| [L66](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L66) | Move `RegionDays` and `RegionRanking` from WhereUI into WhereCore | Already addressed | #339 archives the original headless-scanning goal, already satisfied by `Region.primaryRegions` in #65. Moving the presentation structs is unnecessary. |
 | [L67](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L67) | `ReminderReconciler` contributes zero when the issue scan throws | Required | A failed scan must preserve honest badge state. |
 | [L68](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L68) | Distinguish missing files from read failures in both widget stores | Conditional | Add the missing diagnostics if device checks expose file-read failures or launch work changes these stores. |
 | [L69](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L69) | A failed remote-logging apply is unlogged and shows a Swift reflection dump | Required | Privacy controls need clear failure text and a local diagnostic event. |
@@ -484,6 +542,16 @@ L89 points to L35 and does not claim a shipped fix.
 | [L101](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L101) | Remove `AddEvidenceView` DatePicker wall-clock capture dependence | Deferred | Apply the existing date-picker stand-in when this screen gains snapshot coverage. |
 | [L102](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L102) | Replace immediate settling and nested navigation in `appIcon.Default` | Deferred | Fix a reproduced capture failure without changing unrelated production behavior. |
 | [L103](https://github.com/kyleve/Stuff/blob/bfc0c94d959207692f4636d12c2f2867b4c73fc5/Where/TODOs.md#L103) | Replace the `root.LoggedIn` post-ready settle floor with a completion signal | Deferred | Add a deterministic signal if this capture fails again. |
+
+### Post-baseline weekly backlog entry
+
+The October 5 update adds this P2 item to the
+[current Where backlog](Where/TODOs.md#p2s-nice-to-have). It is outside the
+original 75-row inventory. Its release selection does not change its priority.
+
+| Added entry | Disposition | Rationale |
+| --- | --- | --- |
+| [Explain pending flight reviews in Explore Features](https://github.com/kyleve/Stuff/blob/56c61635beab03ff90e3b9b39b1358ff0d018c82/Where/TODOs.md#L59) | Required | Users need accurate wait-for-arrival guidance and access to read-only pending reviews when the actionable issue count is zero. |
 
 ### New Where 1.0 backlog entries
 
