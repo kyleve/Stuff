@@ -8,8 +8,9 @@ CoreLocation — **no SwiftUI or UIKit** — so all of it is unit-testable off-s
 [`RegionKit`](../RegionKit) for coordinate→region lookup and logs through
 [`Periscope`](../../Shared/Periscope) via the `WhereLog` facade.
 
-Everything is reached through one `Sendable` container, **`WhereServices`**,
-which the presentation layer (`WhereUI`) and the widget extension talk to. For
+Services are reached through one `Sendable` container, **`WhereServices`**,
+which the presentation layer (`WhereUI`) and App Intents use. The widget
+extension reads published App Group snapshots without opening the store. For
 the domain/presentation layering and the rules this module enforces, see the
 feature [`Where/AGENTS.md`](../AGENTS.md). This file is the human-facing tour.
 
@@ -99,15 +100,17 @@ one it belongs to rather than to a god-object:
   `yearReportDetails(for:primaryRegionCount:)` bundle used by the scene, the
   year's raw manual entries `manualDays(inYear:)`, single- or multi-region
   `locations(in:year:)` projections, and `representativeCoordinates(for:)`.
-  `YearReportDetails` keeps the aggregate report and its primary-region raw
+  `YearReportDetails` keeps the aggregate report and its primary-region effective
   locations on the same samples snapshot, including location-only changes that
   do not alter day totals.
 - **`YearReport` / `YearReportDetails` / `DayPresence` /
   `RegionDayLocations`** — the aggregated, snapshot-stable value types the UI
   renders, each keyed by a
-  timezone-independent **`CalendarDay`** (`DayPresence.day`). A day counts for a
-  region if *any* sample that calendar day fell inside it, so a single day can
-  belong to several.
+  timezone-independent **`CalendarDay`** (`DayPresence.day`). A day counts for
+  each region in its effective sample attribution after removal visibility and
+  GPS corrections, plus additive manual entries. An authoritative manual overlay
+  replaces that presence.
+  A single day can belong to several regions; raw observations remain lossless.
 - **`CalendarDay`** — a Y-M-D value that is the stable identity of a logical day.
   Stored user records and day comparisons key on it so they don't drift onto a
   different day across a time-zone change. Project to a concrete `Date` (grid
@@ -179,9 +182,10 @@ one it belongs to rather than to a god-object:
   `FlightAssessment.RecordingSource` separates identified installations from legacy samples.
   `Reassessment` distinguishes a scheduled refresh from an evidence-driven refresh.
   A qualifying dwell confirms arrival immediately. The 30-minute freshness limit
-  only changes live-notice presentation. Motion measurements can corroborate speed and contradict ground
-  dwell; altitude is context only. Missing or stale updates never establish
-  arrival. Slower aircraft and sparse recordings can remain uncertain.
+  only changes live-notice presentation. Cruise inference uses positional
+  movement; reported speed can veto ground dwell, and altitude is context only.
+  Missing or stale updates never establish arrival. Slower aircraft and sparse
+  recordings can remain uncertain.
 - **`SampleCorrectionAssessment`** — shares the raw-evidence assessment for flights
   and border drift. Its named policy includes 24-hour report context and local
   boundary brackets within ten minutes on each side. These conservative limits
@@ -363,7 +367,9 @@ rotates to a Reset child generation, and discards the retry queue only after com
 
 Swift Testing in [`Tests/`](Tests) (`WhereCoreTests`), hosted in `StuffTestHost`.
 Use `SwiftDataStore.inMemory()` + `ScriptedLocationSource` for domain tests.
-Do not open an on-disk/CloudKit store or make live Core Location requests.
+Do not open the user's on-disk/CloudKit store or make live Core Location requests.
+Production-source history tests use isolated temporary on-disk containers without
+CloudKit (`StoreRemoteChangeSourceTests`).
 `CoreLocationSourceTests` exercises the one-shot coordinator with an injected
 `CurrentLocationRequestDriving` fake, without starting passive monitoring.
 The CloudKit remote-import path
