@@ -243,6 +243,15 @@ public actor DeviceRecordingController {
         return try await configurationsLocked(includeRemoved: false)
     }
 
+    /// Compatibility suspension is independent of an import/reset pause and preserves consent.
+    func suspendForCompatibility() async {
+        await beginExclusive()
+        defer { endExclusive() }
+        needsReconciliation = true
+        await ingestor.suspendForCompatibility()
+        publishRuntimeState(.unavailable)
+    }
+
     func pause() async throws {
         await beginExclusive()
         defer { endExclusive() }

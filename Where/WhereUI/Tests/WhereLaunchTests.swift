@@ -264,6 +264,48 @@ struct WhereLaunchTests {
         try await waitUntilAsync { await (try? store.allSamples().count) == 1 }
     }
 
+    @Test(arguments: [LifecycleReason.undetermined, .background(.location)])
+    func compatibilityRetryRetainsForegroundPromotion(reason: LifecycleReason) async throws {
+        let store = try TestStore()
+        await store.failCompatibilityVerification(true)
+        let services = CompatibilityPresentationTestSupport.services(
+            store: store,
+            source: ScriptedLocationSource(),
+        )
+        let bootstrap = ScriptedBootstrap(services: services)
+        let preferences = makePreferences()
+        preferences.hasOnboarded = true
+        let model = WhereModel(
+            preferences: preferences,
+            installationContextStore: makeInstallationRecordingContextStore(),
+            makeBootstrap: { _ in bootstrap },
+            logSystem: .isolated(),
+        )
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: reason)
+        let launch = Task { await launcher.run() }
+        defer { launch.cancel(); model.compatibility.detach() }
+        try await waitUntil {
+            if case .verificationFailed = model.compatibility.state { return true }
+            return false
+        }
+
+        let foreground = Task { await WhereLaunch.enterForeground(launcher, model: model) }
+        defer { foreground.cancel() }
+        try await waitUntil { launcher.reason == .userForeground }
+        #expect(!launcher.phase.isReady)
+        #expect(bootstrap.makeServicesCount == 0)
+
+        await store.failCompatibilityVerification(false)
+        #expect(await model.refreshCompatibility())
+        await foreground.value
+        await launch.value
+        #expect(launcher.phase.isReady)
+        #expect(!launcher.reason.buildsNoViewTree)
+        #expect(bootstrap.makeServicesCount == 1)
+        try await services.recording.retireForRejoin()
+        await services.ingestor.pause()
+    }
+
     @Test func backgroundLaunchSkipsCaptureToday() async throws {
         // The capture-today step is foreground-only: a headless background
         // relaunch is itself the passive location event, so it must not fire a
@@ -335,6 +377,64 @@ struct WhereLaunchTests {
         #expect(!model.hasOnboarded)
         #expect(model.activeScope == nil)
         #expect(installationStore.backupImportRecovery == nil)
+    }
+
+    @Test(arguments: [false, true], [LifecycleReason.userForeground, .undetermined])
+    func coldInterruptedImportWaitsForCompatibilityBeforeDecidingOnboarding(
+        committed: Bool,
+        reason: LifecycleReason,
+    ) async throws {
+        let installationStore = makeInstallationRecordingContextStore()
+        let details = Self.onboardingRecoveryDetails()
+        try installationStore.setBackupImportRecovery(
+            committed ? .committed(details, cleanupCompleted: true, onboardingAcknowledged: false)
+                : .prepared(details),
+        )
+        let store = try TestStore()
+        await store.failCompatibilityVerification(true)
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            importRecoveryPersistence: installationStore,
+        )
+        let bootstrap = ScriptedBootstrap(services: services)
+        let model = WhereModel(
+            preferences: makePreferences(),
+            installationContextStore: installationStore,
+            makeBootstrap: { _ in bootstrap },
+            logSystem: .isolated(),
+        )
+        let runner = WhereLaunch.makeLauncher(model: model, reason: reason)
+        let launch = Task { await runner.run() }
+        defer { launch.cancel(); model.compatibility.detach() }
+        try await waitUntil {
+            if case .verificationFailed = model.compatibility.state { return true }
+            return false
+        }
+        #expect(model.takeInterruptedOnboardingImportError() == nil)
+        if case .failed = runner.phase { Issue.record("Compatibility must keep launch pending.") }
+        #expect(bootstrap.makeServicesCount == 0)
+        #expect(installationStore.backupImportRecovery != nil)
+
+        let foreground = Task { await WhereLaunch.enterForeground(runner, model: model) }
+        defer { foreground.cancel() }
+        try await waitUntil { runner.reason == .userForeground }
+        await store.failCompatibilityVerification(false)
+        #expect(await model.refreshCompatibility())
+        if !committed {
+            try await waitUntil { runner.phase.gateHandle != nil }
+            #expect(!model.hasOnboarded)
+            try model.confirmInitialRecordingChoice(isEnabled: false)
+            model.completeOnboarding()
+            runner.phase.gateHandle?.complete()
+        }
+        try await waitUntil { runner.phase.isReady }
+        await launch.value
+        await foreground.value
+        #expect(model.hasOnboarded)
+        #expect(installationStore.backupImportRecovery == nil)
+        try await services.recording.retireForRejoin()
+        await services.ingestor.pause()
     }
 
     @Test func coldCommittedOnboardingImportCompletesBeforeRestoreCanReappear() async throws {

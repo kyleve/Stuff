@@ -4,8 +4,8 @@ WhereCore is the domain layer of the Where feature. It owns the persistence
 boundary, GPS ingestion, per-day / per-year aggregation, data-quality
 detection, and the side effects that hang off a committed write. It is
 assembled behind one `Sendable` value — `WhereServices`. The UI and the App
-Intents stack talk to it. Widgets never do. They read the published data and
-presentation files from the App Group. See [`README.md`](README.md) for the
+Intents stack talk to it. Widgets never do. They read the published data, presentation, and
+compatibility files from the App Group. See [`README.md`](README.md) for the
 public API and collaborators.
 
 The domain/presentation split and the rules WhereCore must uphold live in the
@@ -58,6 +58,13 @@ internal shape.
   remains available while blocked. Never restore capability reports from backups.
   Resolve immutable capability reports by revision, including downgrades and delayed delivery.
   Guards: `DataCompatibilityCoordinatorTests` / `SwiftDataStoreCompatibilityTests`.
+- **Construct compatibility once in `DataCompatibilityServices`.** Inject the prepared
+  value into the service stack. Keep output publication and withdrawal behind its
+  serialized gate. Recheck after external awaits. Preserve consent and queued samples
+  on compatibility suspension. Cancel automatic and editor one-shot requests.
+  Clear widget freshness on suspension and reject stale publication completions.
+  Guards: `DataCompatibilityOutputsTests` / `DataCompatibilityRuntimeTests` /
+  `WidgetSnapshotPublisherTests` / `LocationIngestorTests`.
 - **On-disk storage always carries an explicit App Group identifier.** Audience
   selection belongs to host targets; WhereCore must not own a production or
   development default.

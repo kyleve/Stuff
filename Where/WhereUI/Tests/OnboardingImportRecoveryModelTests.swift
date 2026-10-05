@@ -15,6 +15,7 @@ struct OnboardingImportRecoveryModelTests {
 
         let needsOnboarding = await model.recoverInterruptedImport(
             requiresOnboarding: true,
+            compatibility: DataCompatibilityModel(),
             resolveScope: {
                 resolvedScope = true
                 throw UnexpectedScopeResolution()

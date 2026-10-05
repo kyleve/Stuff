@@ -6,6 +6,10 @@ import WhereCore
 /// Only the app and extension targets see `WHERE_*`; package modules receive
 /// the concrete App Group, storage, and presentation values produced here.
 struct WhereBuildEnvironment: Equatable {
+    var updateAvailability: AppUpdateAvailability {
+        .noBuildsPublished
+    }
+
     enum Audience: String, Equatable {
         case development
         case beta

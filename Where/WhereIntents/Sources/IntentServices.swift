@@ -28,13 +28,24 @@ import WhereCore
 public actor IntentServices {
     nonisolated let appGroupIdentifier: String
 
-    /// The store-sharing services and presentation identity resolved together.
-    struct Context {
+    /// One immutable installation. Its identity fences lookups across a suspended check.
+    final class Context: Sendable {
         let services: WhereServices
         let theme: WhereTheme
+
+        init(services: WhereServices, theme: WhereTheme) {
+            self.services = services
+            self.theme = theme
+        }
     }
 
-    private var installed: Context?
+    private enum Installation {
+        case waiting
+        case installed(Context)
+        case blocked(DataCompatibilityError, Context?)
+    }
+
+    private var installation = Installation.waiting
 
     /// Intents parked in `current()` awaiting installation, keyed so a
     /// cancelled waiter can remove exactly itself.
@@ -54,7 +65,15 @@ public actor IntentServices {
     /// cached one.
     public func install(_ services: WhereServices, theme: WhereTheme) {
         let context = Context(services: services, theme: theme)
-        installed = context
+        if case let .blocked(error, _) = installation {
+            installation = .blocked(error, context)
+            return
+        }
+        installation = .installed(context)
+        resumeWaiters(context)
+    }
+
+    private func resumeWaiters(_ context: Context) {
         let parked = waiters
         waiters = [:]
         for continuation in parked.values {
@@ -65,8 +84,16 @@ public actor IntentServices {
     /// Replace only the presentation identity while retaining the current
     /// store-sharing service stack.
     public func updateTheme(_ theme: WhereTheme) {
-        guard let installed else { return }
-        self.installed = Context(services: installed.services, theme: theme)
+        switch installation {
+            case .waiting: break
+            case let .installed(context):
+                installation = .installed(Context(services: context.services, theme: theme))
+            case let .blocked(error, context):
+                installation = .blocked(
+                    error,
+                    context.map { Context(services: $0.services, theme: theme) },
+                )
+        }
     }
 
     /// Release the installed stack, so nothing here keeps the app's store alive
@@ -77,12 +104,33 @@ public actor IntentServices {
     /// first install — the alternative is answering from a store the app has
     /// abandoned, which is worse than waiting for the one it opens next.
     public func clear() {
-        installed = nil
+        installation = .waiting
+    }
+
+    /// Available before service assembly, so a blocked headless launch rejects parked intents.
+    public func setCompatibilityFailure(_ error: DataCompatibilityError?) {
+        let context: Context? = switch installation {
+            case .waiting: nil
+            case let .installed(value): value
+            case let .blocked(_, value): value
+        }
+        if let error {
+            installation = .blocked(error, context)
+            let parked = waiters
+            waiters.removeAll()
+            for waiter in parked.values {
+                waiter.resume(throwing: error)
+            }
+        } else if let context {
+            installation = .installed(context)
+            resumeWaiters(context)
+        } else {
+            installation = .waiting
+        }
     }
 
     /// The installed stack, suspending until the launch installs one. Throws
-    /// only `CancellationError`, when the awaiting intent's task is cancelled
-    /// while parked.
+    /// on cancellation or when compatibility blocks the current installation.
     ///
     /// Only the parking path is timed: the span's duration is how long an intent
     /// waited on the launch, which is the whole question a Siri-racing-startup
@@ -94,11 +142,42 @@ public actor IntentServices {
 
     /// Resolve services and theme atomically for snippet presentation.
     func currentContext() async throws -> Context {
-        if let installed {
-            return installed
-        }
-        return try await WhereIntentsLog.logger.measure(.awaitServices) {
-            try await park()
+        while true {
+            try Task.checkCancellation()
+            let context: Context
+            switch installation {
+                case let .installed(value): context = value
+                case let .blocked(error, _): throw error
+                case .waiting:
+                    context = try await WhereIntentsLog.logger.measure(.awaitServices) {
+                        try await park()
+                    }
+            }
+            let access: Result<Void, any Error>
+            do {
+                try await context.services.compatibility.requireAccess()
+                access = .success(())
+            } catch {
+                access = .failure(error)
+            }
+            #if DEBUG
+                let afterCheck = afterCompatibilityCheckForTesting
+                afterCompatibilityCheckForTesting = nil
+                await afterCheck?()
+            #endif
+            try Task.checkCancellation()
+            switch installation {
+                case .waiting:
+                    continue
+                case let .blocked(error, _):
+                    throw error
+                case let .installed(current):
+                    // Both success and failure belong only to the checked installation.
+                    // A replacement (including its theme) must pass its own check.
+                    guard current === context else { continue }
+                    try access.get()
+                    return current
+            }
         }
     }
 
@@ -129,6 +208,16 @@ public actor IntentServices {
     }
 
     #if DEBUG
+        private var afterCompatibilityCheckForTesting: (@Sendable () async -> Void)?
+
+        /// Suspend one lookup after verification so tests can replace its installation.
+        @_spi(Testing)
+        public func afterNextCompatibilityCheckForTesting(
+            _ operation: @escaping @Sendable () async -> Void,
+        ) {
+            afterCompatibilityCheckForTesting = operation
+        }
+
         /// Test probe: how many intents are parked awaiting installation, so a
         /// test can wait for the park (a condition, not a timing guess) before
         /// installing or cancelling.

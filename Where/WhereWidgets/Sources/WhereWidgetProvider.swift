@@ -4,10 +4,10 @@ import WidgetKit
 
 struct WhereWidgetEntry: TimelineEntry {
     let date: Date
-    let snapshot: WidgetSnapshot
+    let snapshot: WidgetSnapshot?
     let theme: WhereTheme
 
-    init(date: Date, snapshot: WidgetSnapshot, theme: WhereTheme = .standard) {
+    init(date: Date, snapshot: WidgetSnapshot?, theme: WhereTheme = .standard) {
         self.date = date
         self.snapshot = snapshot
         self.theme = theme
@@ -50,8 +50,8 @@ struct WhereWidgetProvider: TimelineProvider {
     }
 
     /// Read the latest published snapshot. When none exists yet (fresh
-    /// install, unreadable file) we render an empty snapshot rather than
-    /// failing. We deliberately do *not* invalidate a snapshot whose `day`
+    /// install, unreadable file, or blocked compatibility) we render update guidance. We
+    /// deliberately do *not* invalidate a snapshot whose `day`
     /// has rolled past today — slightly stale data beats showing nothing.
     private func loadEntry() -> WhereWidgetEntry {
         let now = Date()
@@ -63,7 +63,12 @@ struct WhereWidgetProvider: TimelineProvider {
             theme = try WidgetPresentationStore.shared(
                 appGroupIdentifier: appGroupIdentifier,
             ).readTheme()
-            if let snapshot = store.read() {
+            let compatibility = try WidgetCompatibilityStore
+                .shared(appGroupIdentifier: appGroupIdentifier)
+            if let snapshot = try CompatibleWidgetSnapshotReader(
+                snapshotStore: store,
+                compatibilityStore: compatibility,
+            ).read() {
                 return WhereWidgetEntry(date: now, snapshot: snapshot, theme: theme)
             }
             Self.logger { .noPublishedSnapshot }
@@ -74,7 +79,7 @@ struct WhereWidgetProvider: TimelineProvider {
         }
         return WhereWidgetEntry(
             date: now,
-            snapshot: WidgetSnapshotFixtures.emptySnapshot(referenceDate: now),
+            snapshot: nil,
             theme: theme,
         )
     }

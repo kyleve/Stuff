@@ -2345,6 +2345,248 @@
         }
       }
     },
+    "compatibility.activationMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This action needs a newer data version. Continuing can pause recording and other app functions on older devices when they receive the change. Update those devices before continuing."
+          }
+        }
+      }
+    },
+    "compatibility.activationTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wait for your other devices?"
+          }
+        }
+      }
+    },
+    "compatibility.affectedDevices" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Devices that are not ready"
+          }
+        }
+      }
+    },
+    "compatibility.appStore" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open the App Store"
+          }
+        }
+      }
+    },
+    "compatibility.checking" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking data compatibility"
+          }
+        }
+      }
+    },
+    "compatibility.checkingMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where is checking whether this build can use your shared data."
+          }
+        }
+      }
+    },
+    "compatibility.continueAnyway" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue anyway"
+          }
+        }
+      }
+    },
+    "compatibility.diagnostics" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diagnostics"
+          }
+        }
+      }
+    },
+    "compatibility.noBuilds" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No update has been published yet. Install a compatible build from the developer, then reopen Where."
+          }
+        }
+      }
+    },
+    "compatibility.outdatedDevice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update needed for this data version."
+          }
+        }
+      }
+    },
+    "compatibility.requiredVersion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Required data version"
+          }
+        }
+      }
+    },
+    "compatibility.retiredDevices" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can remove retired devices in Settings. Offline or inactive devices still count until removed."
+          }
+        }
+      }
+    },
+    "compatibility.retry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry"
+          }
+        }
+      }
+    },
+    "compatibility.supportedVersion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supported data version"
+          }
+        }
+      }
+    },
+    "compatibility.testFlight" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open TestFlight"
+          }
+        }
+      }
+    },
+    "compatibility.unknownDevice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Support unknown — open Where on this device to report its capability."
+          }
+        }
+      }
+    },
+    "compatibility.updateMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your shared data needs a newer build of Where. Recording and other app functions are paused on this device. Your recording choice and previously queued locations are saved."
+          }
+        }
+      }
+    },
+    "compatibility.updateTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update Where to continue"
+          }
+        }
+      }
+    },
+    "compatibility.verificationMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where cannot safely open your data right now. Recording and other app functions are paused. Retry to check again."
+          }
+        }
+      }
+    },
+    "compatibility.verificationTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not verify data compatibility"
+          }
+        }
+      }
+    },
+    "compatibility.wait" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wait"
+          }
+        }
+      }
+    },
+    "compatibility.widgetUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Where to check for an update"
+          }
+        }
+      }
+    },
     "demo.building.subtitle" : {
       "comment" : "Interstitial subtitle shown while demo mode's sample year is generated.",
       "extractionState" : "manual",

@@ -1,7 +1,7 @@
 import Foundation
 import RegionKit
 import Testing
-import WhereCore
+@_spi(Testing) import WhereCore
 @testable import WhereIntents
 
 /// The read seam the query intents delegate to, driven against an in-memory
@@ -11,6 +11,24 @@ struct WhereIntentReaderTests {
         -> WhereIntentReader
     {
         WhereIntentReader(services: services, calendar: IntentTestSupport.calendar(), now: now)
+    }
+
+    @Test func cachedTodayLocationsCannotBypassAnUpdateRequirement() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let services = IntentTestSupport.services(store: store)
+        let today = Date()
+        var reader = reader(services, now: { today })
+        reader.todaySnapshot = { WidgetSnapshot(
+            day: today,
+            year: 2026,
+            dayRegions: [.canada],
+            totals: [:],
+        ) }
+        let future = DataCompatibilityVersion(rawValue: 2)
+        await store.setSupportedDataCompatibilityVersionForTesting(future)
+        try await store.perform { try await store.requireDataCompatibility(future) }
+        await store.setSupportedDataCompatibilityVersionForTesting(.initial)
+        await #expect(throws: DataCompatibilityError.self) { try await reader.todayRegions() }
     }
 
     @Test func dayCountReflectsYearReportTotals() async throws {

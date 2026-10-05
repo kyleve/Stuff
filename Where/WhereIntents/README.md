@@ -95,3 +95,16 @@ they do not call an intent's `perform()`. The framework's `@Dependency` lookup
 traps outside the system perform flow. Dependency resolution, snippet wiring,
 and error-to-dialog mapping therefore require a Siri/Shortcuts invocation on a
 device; these are not covered by the unit suite.
+
+## Compatibility
+
+The host can block `IntentServices` before service assembly. Parked intents then
+receive an update or verification error. Every installed-context lookup rechecks
+the live store. The Today cache also requires that check. A compatible retry can
+restore the retained handoff without creating another store or changing consent.
+
+The handoff lives for the process, while each installed context belongs to one
+session and theme. A compatibility check can suspend while that context changes.
+The handoff checks installation identity before returning either services or a
+verification error. Replacement restarts the lookup; clearing parks it until the
+next installation. Individual intents use the same `current()` API.

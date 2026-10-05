@@ -148,6 +148,7 @@ private actor SpyDailySummaryScheduler: DailySummaryScheduling {
 /// session's launch/activation hooks can be checked for republishing widget
 /// data.
 private actor SpyWidgetRefresher: WidgetTimelineRefreshing {
+    func publishCompatibility(_: WidgetCompatibilitySnapshot) async {}
     private(set) var publishedSnapshots: [WidgetSnapshot] = []
 
     var publishCount: Int {

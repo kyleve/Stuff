@@ -98,9 +98,11 @@ struct ResolveScopeStep: BudgetedLaunchStep {
         if let recoveryError = model.takeInterruptedOnboardingImportError() {
             throw recoveryError
         }
-        let scope = try await model.resolveScope()
-        try await model.preflightPendingImportRecovery(in: scope)
-        return scope
+        return try await model.compatibility.withAccessRetry {
+            let scope = try await model.resolveScope()
+            try await model.preflightPendingImportRecovery(in: scope)
+            return scope
+        }
     }
 }
 
@@ -121,6 +123,14 @@ struct StartSessionStep: BudgetedLaunchStep {
     let budget: Duration = .milliseconds(250)
 
     func run(_ scope: WhereScope, _: LifecycleStepContext) async throws -> WhereSession {
+        while true {
+            do {
+                try await model.prepareCompatibility(publishCapability: false)
+                break
+            } catch is DataCompatibilityError {
+                try await model.compatibility.waitUntilCompatible()
+            }
+        }
         let session = model.startSession(scope: scope)
         await onServicesReady(session.services)
         return session
