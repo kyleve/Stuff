@@ -143,6 +143,8 @@ internal shape.
   may rename or remove an identity. It must never change another installation's
   local consent. Backups alone read lossless raw samples and device/removal
   timelines, excluding non-restorable check-ins.
+- Keep historical device-name lookups inclusive of removed profiles.
+  Use the latest saved nickname or the profile's hardware name.
 - **Journal complete `LocationOutbox` snapshots through `JournalKit`.** Stamp
   every entry with its authorizing data generation. Never replay it into
   another generation. Keep the directory excluded from device backups. Make a

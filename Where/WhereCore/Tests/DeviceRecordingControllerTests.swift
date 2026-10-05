@@ -48,6 +48,34 @@ struct DeviceRecordingControllerTests {
         )
     }
 
+    @Test func historicalNamesSurviveRemovalAndUseTheLatestNickname() async throws {
+        let (controller, store, _, _) = try makeController(enabled: false)
+        _ = try await controller.register(authorization: .always)
+        let remoteID = RecordingDeviceID(rawValue: UUID())
+        try await store.perform {
+            try await store.addRecordingDeviceProfile(RecordingDeviceProfile(
+                id: remoteID,
+                systemName: "iPad",
+                kind: .tablet,
+                registeredAt: Self.now,
+                registrationGenerationID: .initial,
+            ))
+        }
+        #expect(try await controller.displayNames()[remoteID] == "iPad")
+        _ = try await controller.rename(remoteID, to: "Old tablet")
+        _ = try await controller.rename(remoteID, to: "Travel tablet")
+        #expect(try await controller.displayNames()[remoteID] == "Travel tablet")
+        _ = try await controller.rename(remoteID, to: "  ")
+        #expect(try await controller.displayNames()[remoteID] == "iPad")
+        _ = try await controller.rename(remoteID, to: "Travel tablet")
+
+        _ = try await controller.remove(remoteID)
+
+        #expect(try await controller.displayNames()[remoteID] == "Travel tablet")
+        #expect(try await controller.devices().contains { $0.id == remoteID } == false)
+        #expect(try await controller.displayNames()[RecordingDeviceID(rawValue: UUID())] == nil)
+    }
+
     @Test func registrationAppliesLocalChoiceAndWritesAdvisoryStatus() async throws {
         let (controller, store, ingestor, _) = try makeController(enabled: true)
 
