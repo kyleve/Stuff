@@ -298,6 +298,11 @@ A few files outside the module pair carry *state* rather than rules:
   deferred rather than dropping it (see the
   [`github-workflow`](.agents/skills/github-workflow/SKILL.md) skill). A completed
   item moves to "Completed issues". Never delete a completed item.
+- **`ROADMAP.md`** — the Where release plan and dated review index. Keep
+  milestones, completion criteria, and release selections there. Keep issue
+  bodies in the owning `TODOs.md`, and link to them from the roadmap. A release
+  disposition does not change a backlog priority. Refresh selections when scope
+  changes or selected work lands. Preserve the dated review baseline.
 - **`INBOX.md`** — the root drop-box for raw, unverified human notes. Agents
   **read from it and promote out of it**. They never file new items there
   (agent-found work goes straight to the right `TODOs.md`). The `todo-triage`

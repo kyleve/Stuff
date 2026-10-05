@@ -53,6 +53,13 @@ Two more rules:
 - **Never delete a completed item.** Move it to "Completed issues" at the bottom
   with a note on how it was closed.
 
+[`ROADMAP.md`](ROADMAP.md) selects work for the Where release. It holds
+milestones, completion criteria, and a dated disposition for every reviewed
+item. Keep issue details here or in the owning area's `TODOs.md`. File new
+release work there before adding its roadmap link. A roadmap selection does
+not move an item between priority buckets. Retain baseline references when
+updating the current release status.
+
 Example:
 
 ```
