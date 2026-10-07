@@ -67,13 +67,13 @@ final class FlightReviewModel {
         pointConfirmation = correction
     }
 
-    func inferredExplanation(for sampleID: UUID) -> String? {
+    func inferredExplanation(for sampleID: LocationSample.ID) -> String? {
         presentation?.inferredEndpoints[sampleID].map {
             FlightReviewPresentation.Point.Evidence.inferred($0).explanation
         }
     }
 
-    func replacementDescription(for sampleID: UUID) -> String {
+    func replacementDescription(for sampleID: LocationSample.ID) -> String {
         guard let regions = presentation?.replacements[sampleID] else {
             return String(localized: .flightReviewUnchanged)
         }

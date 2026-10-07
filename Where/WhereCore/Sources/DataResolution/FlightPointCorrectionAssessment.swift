@@ -9,7 +9,7 @@ struct FlightPointCorrectionAssessment {
     func corrections(
         day: CalendarDay,
         entries: [AttributedLocationSample],
-        conflictingSampleIDs: Set<UUID>,
+        conflictingSampleIDs: Set<LocationSample.ID>,
         dataGenerationID: WhereDataGenerationID,
         evidence: SampleCorrectionProposal.Evidence,
     ) -> [FlightPointCorrection] {
@@ -25,7 +25,7 @@ struct FlightPointCorrectionAssessment {
                 $0.formUnion($1.regions)
             },
         )
-        var seen: Set<UUID> = []
+        var seen: Set<LocationSample.ID> = []
         return entries.sorted {
             if $0.sample.timestamp != $1.sample.timestamp {
                 return $0.sample.timestamp < $1.sample.timestamp
@@ -67,17 +67,17 @@ struct FlightPointCorrectionAssessment {
     /// excluded point's regions. Additive manual assertions always retain support.
     private struct RegionContributions {
         let regions: Set<Region>
-        let soleRegionsBySample: [UUID: Set<Region>]
+        let soleRegionsBySample: [LocationSample.ID: Set<Region>]
 
         init(entries: [AttributedLocationSample], manualRegions: Set<Region>) {
-            var contributors: [Region: Set<UUID>] = [:]
+            var contributors: [Region: Set<LocationSample.ID>] = [:]
             for entry in entries {
                 for region in entry.regions {
                     contributors[region, default: []].insert(entry.sample.id)
                 }
             }
             regions = Set(contributors.keys).union(manualRegions)
-            var soleRegions: [UUID: Set<Region>] = [:]
+            var soleRegions: [LocationSample.ID: Set<Region>] = [:]
             for (region, sampleIDs) in contributors where !manualRegions.contains(region) {
                 if sampleIDs.count == 1, let sampleID = sampleIDs.first {
                     soleRegions[sampleID, default: []].insert(region)
@@ -86,7 +86,7 @@ struct FlightPointCorrectionAssessment {
             soleRegionsBySample = soleRegions
         }
 
-        func replacing(sampleID: UUID, with replacement: Set<Region>) -> Set<Region> {
+        func replacing(sampleID: LocationSample.ID, with replacement: Set<Region>) -> Set<Region> {
             regions.subtracting(soleRegionsBySample[sampleID] ?? []).union(replacement)
         }
     }

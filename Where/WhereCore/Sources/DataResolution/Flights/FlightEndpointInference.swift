@@ -8,10 +8,10 @@ public struct FlightEndpointInference: Hashable, Sendable {
         case recordedSpeed(lowerBoundKMH: Double)
     }
 
-    public let sampleID: UUID
+    public let sampleID: LocationSample.ID
     public let reason: Reason
 
-    public init(sampleID: UUID, reason: Reason) {
+    public init(sampleID: LocationSample.ID, reason: Reason) {
         self.sampleID = sampleID
         self.reason = reason
     }

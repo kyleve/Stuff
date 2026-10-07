@@ -22,7 +22,7 @@ struct FlightReviewPresentation {
             }
         }
 
-        var id: UUID {
+        var id: LocationSample.ID {
             point.sample.id
         }
 
@@ -34,9 +34,9 @@ struct FlightReviewPresentation {
     let review: GPSCorrectionReview
     let map: RecordedMapData
     let editedPoints: [SampleCorrectionPoint]
-    let replacements: [UUID: Set<Region>]
+    let replacements: [LocationSample.ID: Set<Region>]
     let recordedPoints: [Point]
-    let inferredEndpoints: [UUID: FlightEndpointInference.Reason]
+    let inferredEndpoints: [LocationSample.ID: FlightEndpointInference.Reason]
 
     init(review: GPSCorrectionReview) {
         self.review = review
@@ -82,13 +82,14 @@ struct FlightReviewPresentation {
         )
         inferredEndpoints = inferred
         let airborne = review.flights
-            .reduce(into: Set<UUID>()) { $0.formUnion($1.airborneSampleIDs) }
-        let ground = review.flights.reduce(into: Set<UUID>()) { $0.formUnion($1.groundSampleIDs) }
+            .reduce(into: Set<LocationSample.ID>()) { $0.formUnion($1.airborneSampleIDs) }
+        let ground = review.flights
+            .reduce(into: Set<LocationSample.ID>()) { $0.formUnion($1.groundSampleIDs) }
         let corrections = Dictionary(
             review.pointCorrections.map { ($0.sampleID, $0) },
             uniquingKeysWith: { first, _ in first },
         )
-        var seen: Set<UUID> = []
+        var seen: Set<LocationSample.ID> = []
         recordedPoints = points
             .filter { $0.sample.source.isGPS && seen.insert($0.sample.id).inserted }
             .map { point in

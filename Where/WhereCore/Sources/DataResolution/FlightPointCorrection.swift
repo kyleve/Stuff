@@ -9,7 +9,7 @@ public struct FlightPointCorrection: Hashable, Sendable {
         case restoreGPS
     }
 
-    public let sampleID: UUID
+    public let sampleID: LocationSample.ID
     public let action: Action
     public let day: CalendarDay
     public let resultingRegions: Set<Region>

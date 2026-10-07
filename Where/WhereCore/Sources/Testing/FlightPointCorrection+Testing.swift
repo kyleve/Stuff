@@ -5,7 +5,7 @@
     extension FlightPointCorrection {
         @_spi(Testing)
         public init(
-            sampleID: UUID,
+            sampleID: LocationSample.ID,
             action: Action,
             day: CalendarDay,
             resultingRegions: Set<Region>,
