@@ -536,7 +536,28 @@ When compatibility blocks access, the root replaces app content and removes open
 Intents, widgets, and notifications share Core's enforcement. Local consent and
 queued samples remain available after an update. Retry only checks compatibility.
 
-Backup activation uses `DataCompatibilityActivationView`. Wait is the default.
-Continue anyway approves the displayed transition and affected devices. Core checks
-that review again inside the write transaction. Unknown capabilities remain visible.
-The selected archive remains available after Wait.
+`DataFeatureAvailabilityModel` describes one feature's data requirement before activation.
+Its observable state is checking, available, needs device review, update required, or verification failed.
+The owner injects the existing coordinator through Core's read-only `DataCompatibilityReviewSource`.
+Observation and Retry never publish capabilities, raise requirements, or authorize a write.
+This model covers data compatibility. Permission, hardware, and OS checks remain with their feature owners.
+
+```swift
+// The owning presentation model retains this value. Existing scope and version omitted.
+let availability = DataFeatureAvailabilityModel(
+    requiring: requiredVersion,
+    source: scope.services.compatibility,
+)
+// In the view: .task(id: ObjectIdentifier(availability)) { await availability.observe() }
+// Render availability.state; Retry calls await availability.refresh().
+```
+
+Observation subscribes before its first read. Each store change invalidates the previous check.
+Cancellation clears availability, and late completions cannot restore an old result.
+Availability remains advisory. Core checks readiness again inside the activation transaction.
+
+Onboarding retains this model for `DataCompatibilityActivationView` while a backup needs device review.
+The sheet updates as devices report readiness. When devices are ready, Continue uses `.readyDevicesOnly`.
+Otherwise, Wait is the default, and Continue anyway carries the review shown by that button.
+A changed warning requires a fresh review. Unknown capabilities remain visible, and Wait preserves the selected archive.
+Feature-specific error messages describe the unavailable action without claiming that recording stopped.

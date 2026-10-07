@@ -56,6 +56,10 @@ App Store, or combined links. The host currently selects `.noBuildsPublished`.
   Capability reports are immutable. Resolve the latest installation-owned revision, so delayed messages cannot undo a downgrade.
   Reports are advisory and do not establish a primary recording device or prove remote
   state while offline.
+- **Feature preflight** — `DataCompatibilityReviewSource` exposes the coordinator's
+  `reviewActivation(requiring:)` and `updates()` to presentation models. It has no
+  activation or capability-publication methods. A successful review describes current
+  readiness; callers still activate through `perform(requiring:approval:)`.
 
 - **`WhereStore`** — the value-type persistence boundary (a protocol; nothing
   crossing it is a SwiftData record). Mutations run inside `perform { … }` (one

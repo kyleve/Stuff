@@ -3,10 +3,17 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Replaces every data surface while this installation cannot safely consume its store.
+/// Shared checking, update, and retry presentation for store access or one feature activation.
 struct DataCompatibilityView: View {
+    enum Scope {
+        case sharedData
+        case featureActivation
+    }
+
     @Environment(\.stylesheet) private var stylesheet
+    @MotionIsStatic private var motionIsStatic
     let state: DataCompatibilityModel.State
+    let scope: Scope
     let updates: AppUpdateAvailability
     let retry: () async -> Void
     @State private var isRetrying = false
@@ -21,7 +28,11 @@ struct DataCompatibilityView: View {
                 Text(message).foregroundStyle(.secondary)
                 if case .updateRequired = state { updateInstructions }
                 if case .checking = state {
-                    ProgressView(String(localized: .compatibilityChecking))
+                    if motionIsStatic {
+                        Label(String(localized: .compatibilityChecking), systemSymbol: .hourglass)
+                    } else {
+                        ProgressView(String(localized: .compatibilityChecking))
+                    }
                 } else {
                     Button(String(localized: .compatibilityRetry)) {
                         isRetrying = true
@@ -53,10 +64,22 @@ struct DataCompatibilityView: View {
     }
 
     private var message: String {
-        switch state {
-            case .checking, .compatible: String(localized: .compatibilityCheckingMessage)
-            case .updateRequired: String(localized: .compatibilityUpdateMessage)
-            case .verificationFailed: String(localized: .compatibilityVerificationMessage)
+        switch scope {
+            case .sharedData:
+                switch state {
+                    case .checking, .compatible: String(localized: .compatibilityCheckingMessage)
+                    case .updateRequired: String(localized: .compatibilityUpdateMessage)
+                    case .verificationFailed: String(localized: .compatibilityVerificationMessage)
+                }
+            case .featureActivation:
+                switch state {
+                    case .checking,
+                         .compatible: String(localized: .compatibilityActivationCheckingMessage)
+                    case .updateRequired: String(localized: .compatibilityActivationUpdateMessage)
+                    case .verificationFailed: String(
+                            localized: .compatibilityActivationVerificationMessage,
+                        )
+                }
         }
     }
 
@@ -105,12 +128,16 @@ struct DataCompatibilityView: View {
 #if DEBUG
     extension DataCompatibilityView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Checking", configurations: .fullContentPhoneLightDark) {
+                Self(state: .checking, scope: .sharedData, updates: .noBuildsPublished, retry: {})
+            }
             whereSnapshot(name: "UpdateRequired", configurations: .fullContentScreenDefaults) {
                 DataCompatibilityView(
                     state: .updateRequired(.init(
                         supportedVersion: .initial,
                         requiredVersion: DataCompatibilityVersion(rawValue: 2),
                     )),
+                    scope: .sharedData,
                     updates: .noBuildsPublished,
                     retry: {},
                 )
@@ -121,6 +148,7 @@ struct DataCompatibilityView: View {
                         supportedVersion: .initial,
                         requiredVersion: .init(rawValue: 2),
                     )),
+                    scope: .sharedData,
                     updates: .published(.both(
                         testFlight: URL(string: "https://example.invalid/testflight")!,
                         appStore: URL(string: "https://example.invalid/app-store")!,
@@ -133,6 +161,7 @@ struct DataCompatibilityView: View {
                     state: .verificationFailed(
                         description: "The shared requirements could not be read.",
                     ),
+                    scope: .sharedData,
                     updates: .noBuildsPublished,
                     retry: {},
                 )

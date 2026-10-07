@@ -148,7 +148,11 @@ public struct RootView: View {
         ZStack {
             Group {
                 if let state = model.compatibility.state, !state.allowsData, state != .checking {
-                    DataCompatibilityView(state: state, updates: model.updateAvailability) {
+                    DataCompatibilityView(
+                        state: state,
+                        scope: .sharedData,
+                        updates: model.updateAvailability,
+                    ) {
                         _ = await model.refreshCompatibility()
                     }
                 } else {

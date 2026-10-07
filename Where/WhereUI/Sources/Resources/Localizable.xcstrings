@@ -2345,6 +2345,17 @@
         }
       }
     },
+    "compatibility.activationCheckingMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where is checking whether this build and your other devices support this action."
+          }
+        }
+      }
+    },
     "compatibility.activationMessage" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2363,6 +2374,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Wait for your other devices?"
+          }
+        }
+      }
+    },
+    "compatibility.activationUpdateMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This action needs a newer build of Where. Update this device before continuing."
+          }
+        }
+      }
+    },
+    "compatibility.activationVerificationMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where could not check whether this action is available. Retry to check again."
           }
         }
       }
@@ -2451,6 +2484,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Update needed for this data version."
+          }
+        }
+      }
+    },
+    "compatibility.readyMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No other devices need an update for this action. Continue when you are ready."
+          }
+        }
+      }
+    },
+    "compatibility.readyTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ready to continue"
           }
         }
       }

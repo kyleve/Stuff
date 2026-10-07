@@ -58,6 +58,8 @@ internal shape.
   remains available while blocked. Never restore capability reports from backups.
   Resolve immutable capability reports by revision, including downgrades and delayed delivery.
   Guards: `DataCompatibilityCoordinatorTests` / `SwiftDataStoreCompatibilityTests`.
+- **Keep feature preflight read-only through `DataCompatibilityReviewSource`.**
+  Recheck readiness and raise requirements only through the coordinator's activation transaction.
 - **Construct compatibility once in `DataCompatibilityServices`.** Inject the prepared
   coordinator and output gate into the service stack. Keep output publication and withdrawal behind its
   serialized gate. Recheck after external awaits. Preserve consent and queued samples
