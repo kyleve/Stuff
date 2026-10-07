@@ -1,4 +1,5 @@
 import Foundation
+import IdentifierKit
 import RegionKit
 
 /// Where each `LocationSample` came from. Recorded so reports can distinguish
@@ -98,7 +99,9 @@ public enum SampleSource: Sendable, Hashable, Codable {
 /// A single point-in-time observation of where the user was. The smallest
 /// unit of data that flows through `WhereCore`.
 public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
-    public let id: UUID
+    public typealias ID = TypedID<LocationSample>
+
+    public let id: ID
     public let timestamp: Date
     public let coordinate: Coordinate
     public let horizontalAccuracy: Double
@@ -110,7 +113,7 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
     public let motion: LocationMotion?
 
     public init(
-        id: UUID = UUID(),
+        id: ID = .init(),
         timestamp: Date,
         coordinate: Coordinate,
         horizontalAccuracy: Double,

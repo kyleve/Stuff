@@ -173,7 +173,7 @@ public actor DataIssueScanner {
                     .compactMap(\.self).filter { $0 > currentDate }
                 }
                 return DataIssueScanResult(
-                    revision: UUID(),
+                    revision: .init(),
                     issues: issues,
                     reviews: reviews,
                     nextReassessmentAt: deadlines.min(),

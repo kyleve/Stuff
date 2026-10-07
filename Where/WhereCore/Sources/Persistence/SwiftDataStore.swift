@@ -23,14 +23,15 @@ private enum GenerationScopedFetch {
 
     static func samples(
         belongingTo generationID: WhereDataGenerationID,
-        sampleID: UUID,
+        sampleID: LocationSample.ID,
     ) -> FetchDescriptor<SDLocationSample> {
+        let storedSampleID = sampleID.rawValue
         let membership = GenerationMembership(generationID)
         let storedGenerationID = membership.storedID
         let includesLegacy = membership.includesLegacy
         return descriptor(predicate: #Predicate {
             ($0.generationID == storedGenerationID ||
-                (includesLegacy && $0.generationID == nil)) && $0.id == sampleID
+                (includesLegacy && $0.generationID == nil)) && $0.id == storedSampleID
         })
     }
 
@@ -1384,7 +1385,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     // MARK: - Sample attributions
 
     public func sampleAttributionRevisions(
-        for sampleIDs: Set<UUID>,
+        for sampleIDs: Set<LocationSample.ID>,
     ) async throws -> [SampleAttributionRevision] {
         guard !sampleIDs.isEmpty else { return [] }
         return try await allSampleAttributionRevisions().filter { sampleIDs.contains($0.sampleID) }
@@ -1870,7 +1871,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         ))
         // Clearing history also clears its reviewed attributions. Keep reset revisions
         // so a delayed old correction cannot regain authority if its raw sample returns.
-        let sampleIDs = Set(samples.compactMap(\.id))
+        let sampleIDs = Set(samples.compactMap(\.id).map(LocationSample.ID.init(rawValue:)))
         try await SampleAttributionReset.write(sampleIDs: sampleIDs, store: self, now: Date())
         for record in samples {
             context.delete(record)
@@ -2291,7 +2292,7 @@ final class SDLocationSample {
 
     func update(from value: LocationSample, generationID: WhereDataGenerationID) {
         self.generationID = generationID.rawValue
-        id = value.id
+        id = value.id.rawValue
         timestamp = value.timestamp
         latitude = value.coordinate.latitude
         longitude = value.coordinate.longitude
@@ -2339,7 +2340,7 @@ final class SDLocationSample {
             .init(meters: altitudeMeters, accuracyMeters: altitudeAccuracyMeters)
         } else { nil }
         return LocationSample(
-            id: id,
+            id: .init(rawValue: id),
             timestamp: timestamp,
             coordinate: Coordinate(latitude: latitude, longitude: longitude),
             horizontalAccuracy: horizontalAccuracy,
@@ -2367,7 +2368,7 @@ final class SDSampleAttributionRevision {
         self.init()
         self.generationID = generationID.rawValue
         id = value.id.rawValue
-        sampleID = value.sampleID
+        sampleID = value.sampleID.rawValue
         updatedAt = value.updatedAt
         replacementRegionIDs = value.replacementRegions.map { $0.map(\.rawValue).sorted() }
     }
@@ -2385,7 +2386,7 @@ final class SDSampleAttributionRevision {
         }
         return SampleAttributionRevision(
             id: .init(rawValue: id),
-            sampleID: sampleID,
+            sampleID: .init(rawValue: sampleID),
             updatedAt: updatedAt,
             replacementRegions: replacementRegions,
         )

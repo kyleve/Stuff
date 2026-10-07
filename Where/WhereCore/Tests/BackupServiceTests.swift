@@ -69,7 +69,7 @@ struct BackupServiceTests {
     private static func sampleFixtures() -> [LocationSample] {
         [
             LocationSample(
-                id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+                id: .init(rawValue: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!),
                 timestamp: Date(timeIntervalSince1970: 1_700_000_000),
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 5,
@@ -81,7 +81,7 @@ struct BackupServiceTests {
                 ),
             ),
             LocationSample(
-                id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
+                id: .init(rawValue: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!),
                 timestamp: Date(timeIntervalSince1970: 1_700_100_000),
                 coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
                 horizontalAccuracy: 10,

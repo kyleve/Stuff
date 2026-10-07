@@ -47,7 +47,7 @@ final class FlightReviewModel {
         presentation?.editedPoints ?? []
     }
 
-    func replacementDescription(for sampleID: UUID) -> String {
+    func replacementDescription(for sampleID: LocationSample.ID) -> String {
         guard let regions = presentation?.replacements[sampleID] else {
             return String(localized: .flightReviewUnchanged)
         }

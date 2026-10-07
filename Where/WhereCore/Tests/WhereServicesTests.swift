@@ -37,7 +37,7 @@ struct WhereServicesTests {
         longitude: Double,
     ) -> LocationSample {
         LocationSample(
-            id: UUID(),
+            id: .init(),
             timestamp: WhereCoreTestSupport.iso(iso),
             coordinate: Coordinate(latitude: latitude, longitude: longitude),
             horizontalAccuracy: 5,
@@ -609,7 +609,7 @@ struct WhereServicesTests {
 
     private func sample(at isoString: String) -> LocationSample {
         LocationSample(
-            id: UUID(),
+            id: .init(),
             timestamp: WhereCoreTestSupport.iso(isoString),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
@@ -619,7 +619,7 @@ struct WhereServicesTests {
 
     private func gpsSample(at isoString: String) -> LocationSample {
         LocationSample(
-            id: UUID(),
+            id: .init(),
             timestamp: WhereCoreTestSupport.iso(isoString),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
@@ -1853,7 +1853,7 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.allSamples()
     }
 
-    func sampleAttributionRevisions(for sampleIDs: Set<UUID>) async throws
+    func sampleAttributionRevisions(for sampleIDs: Set<LocationSample.ID>) async throws
         -> [SampleAttributionRevision]
     {
         try await backing.sampleAttributionRevisions(for: sampleIDs)

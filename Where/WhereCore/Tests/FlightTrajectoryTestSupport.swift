@@ -14,8 +14,8 @@ struct FlightArchiveVerificationConfiguration: Decodable {
     let expectedArrivalAt: Date
     let expectedArrivalConfirmedAt: Date
     let expectedInputSampleCount: Int
-    let expectedAirborneSampleIDs: Set<UUID>
-    let expectedPreservedSampleIDs: Set<UUID>
+    let expectedAirborneSampleIDs: Set<LocationSample.ID>
+    let expectedPreservedSampleIDs: Set<LocationSample.ID>
     let calendarTimeZoneID: String
     let expectedResultingRegions: Set<Region>
 }
@@ -25,12 +25,13 @@ struct FlightArchiveVerificationConfiguration: Decodable {
 /// and delayed arrival confirmation without retaining a real itinerary.
 enum FlightTrajectoryFixtures {
     static let start = Date(timeIntervalSince1970: 1_767_225_600)
-    static let device = RecordingDeviceID(rawValue: sampleID(9000))
+    static let device =
+        RecordingDeviceID(rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000009000")!)
 
     struct Trace {
         let samples: [LocationSample]
-        let departureNoiseID: UUID
-        let shortIntervalID: UUID
+        let departureNoiseID: LocationSample.ID
+        let shortIntervalID: LocationSample.ID
         let lastCruiseAt: Date
         let firstGroundAt: Date
         let readyAt: Date
@@ -38,14 +39,14 @@ enum FlightTrajectoryFixtures {
 
     struct SparseLayoverTrace {
         let samples: [LocationSample]
-        let layoverSampleIDs: Set<UUID>
-        let airborneSampleIDs: Set<UUID>
+        let layoverSampleIDs: Set<LocationSample.ID>
+        let airborneSampleIDs: Set<LocationSample.ID>
         let firstGroundAt: Date
         let readyAt: Date
     }
 
-    static func sampleID(_ number: Int) -> UUID {
-        UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", number))!
+    static func sampleID(_ number: Int) -> LocationSample.ID {
+        .init(rawValue: UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", number))!)
     }
 
     static func date(minutes: Double) -> Date {
@@ -135,8 +136,8 @@ enum FlightTrajectoryFixtures {
 
     struct MixedFlightsTrace {
         let samples: [LocationSample]
-        let pendingSampleIDs: Set<UUID>
-        let completedAirborneSampleIDs: Set<UUID>
+        let pendingSampleIDs: Set<LocationSample.ID>
+        let completedAirborneSampleIDs: Set<LocationSample.ID>
         let readyAt: Date
     }
 
@@ -148,7 +149,9 @@ enum FlightTrajectoryFixtures {
             sample(2, minutes: 5, east: 75),
             sample(3, minutes: 10, east: 150),
         ]
-        let laterDevice = separateDevices ? RecordingDeviceID(rawValue: sampleID(9001)) : device
+        let laterDevice = separateDevices
+            ? RecordingDeviceID(rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000009001")!)
+            : device
         var later = [
             sample(101, minutes: 240, east: 150, deviceID: laterDevice),
             sample(102, minutes: 245, east: 225, deviceID: laterDevice),

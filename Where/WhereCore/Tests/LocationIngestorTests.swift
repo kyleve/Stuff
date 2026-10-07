@@ -790,14 +790,16 @@ struct LocationIngestorTests {
             recorder: OutcomeRecorder(),
             retryQueueCapacity: 20,
         )
-        let firstID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))
-        let lastID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000001021"))
+        let firstID = try LocationSample
+            .ID(rawValue: #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001")))
+        let lastID = try LocationSample
+            .ID(rawValue: #require(UUID(uuidString: "00000000-0000-0000-0000-000000001021")))
 
         for index in 1 ... 20 {
-            let id = try #require(UUID(uuidString: String(
+            let id = try LocationSample.ID(rawValue: #require(UUID(uuidString: String(
                 format: "00000000-0000-0000-0000-%012d",
                 index,
-            )))
+            ))))
             await ingestor.testingEnqueueForRetry(LocationSample(
                 id: id,
                 timestamp: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"),
@@ -926,7 +928,7 @@ private final class EchoingLocationSource: LocationSource, @unchecked Sendable {
     }
 
     private let fix: LocationSample
-    var fixID: UUID {
+    var fixID: LocationSample.ID {
         fix.id
     }
 
@@ -1101,7 +1103,7 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.allSamples()
     }
 
-    func sampleAttributionRevisions(for sampleIDs: Set<UUID>) async throws
+    func sampleAttributionRevisions(for sampleIDs: Set<LocationSample.ID>) async throws
         -> [SampleAttributionRevision]
     {
         try await backing.sampleAttributionRevisions(for: sampleIDs)

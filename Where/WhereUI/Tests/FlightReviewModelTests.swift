@@ -74,7 +74,7 @@ struct FlightReviewModelTests {
 
         let informational = try #require(review.dismissingProposal())
         model.receive(DataIssueScanResult(
-            revision: UUID(),
+            revision: .init(),
             issues: [],
             reviews: [informational],
             nextReassessmentAt: nil,
@@ -177,7 +177,7 @@ struct FlightReviewModelTests {
         #expect(!model.canApply)
 
         model.receive(DataIssueScanResult(
-            revision: UUID(),
+            revision: .init(),
             issues: [],
             reviews: [ready],
             nextReassessmentAt: nil,
@@ -186,7 +186,7 @@ struct FlightReviewModelTests {
         #expect(model.saveState == .refreshed)
 
         model.receive(DataIssueScanResult(
-            revision: UUID(),
+            revision: .init(),
             issues: [],
             reviews: [],
             nextReassessmentAt: nil,
