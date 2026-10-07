@@ -29,6 +29,17 @@ struct FlightReviewPresentation {
         let point: SampleCorrectionPoint
         let evidence: Evidence
         let correction: FlightPointCorrection?
+        let map: RecordedMapData
+
+        init(point: SampleCorrectionPoint, evidence: Evidence, correction: FlightPointCorrection?) {
+            self.point = point
+            self.evidence = evidence
+            self.correction = correction
+            map = RecordedMapData(
+                points: FlightReviewPresentation.mapPoints(for: point),
+                routes: [],
+            )
+        }
     }
 
     let review: GPSCorrectionReview
@@ -45,19 +56,7 @@ struct FlightReviewPresentation {
                 .timestamp { return $0.sample.timestamp < $1.sample.timestamp }
             return $0.sample.id.uuidString < $1.sample.id.uuidString
         }
-        let mapPoints = points.flatMap { point in
-            // Excluded airborne fixes remain visible as raw observations on the review map.
-            let attributions: [RecordedMapPoint.Attribution] = point.regions.isEmpty
-                ? [.excluded] : Region.inCanonicalOrder(point.regions)
-                .map(RecordedMapPoint.Attribution.region)
-            return attributions.map {
-                RecordedMapPoint(
-                    coordinate: point.sample.coordinate,
-                    horizontalAccuracy: point.sample.horizontalAccuracy,
-                    attribution: $0,
-                )
-            }
-        }
+        let mapPoints = points.flatMap(Self.mapPoints)
         var tracks: [FlightAssessment.RecordingSource: [Coordinate]] = [:]
         var trackOrder: [FlightAssessment.RecordingSource] = []
         for point in points where point.sample.source.isGPS {
@@ -108,5 +107,19 @@ struct FlightReviewPresentation {
                     correction: corrections[point.sample.id],
                 )
             }
+    }
+
+    private static func mapPoints(for point: SampleCorrectionPoint) -> [RecordedMapPoint] {
+        // Excluded airborne fixes remain visible as raw observations on every review map.
+        let attributions: [RecordedMapPoint.Attribution] = point.regions.isEmpty
+            ? [.excluded] : Region.inCanonicalOrder(point.regions)
+            .map(RecordedMapPoint.Attribution.region)
+        return attributions.map {
+            RecordedMapPoint(
+                coordinate: point.sample.coordinate,
+                horizontalAccuracy: point.sample.horizontalAccuracy,
+                attribution: $0,
+            )
+        }
     }
 }

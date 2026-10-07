@@ -36,6 +36,9 @@ struct FlightReviewPresentationTests {
         #expect(point.evidence == .inferred(.recordingGap(duration: 14400, averageSpeedKMH: 740)))
         #expect(point.point.regions.isEmpty)
         #expect(point.correction?.action == .restoreGPS)
+        #expect(point.map.pins.map(\.point.coordinate) == [point.point.sample.coordinate])
+        #expect(point.map.pins.map(\.point.attribution) == [.excluded])
+        #expect(point.map.routes.isEmpty)
     }
 
     @Test func correctedAirborneObservationsStayOnTheRoute() {

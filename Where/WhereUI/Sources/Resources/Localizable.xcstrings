@@ -3471,6 +3471,17 @@
         }
       }
     },
+    "flight.review.point.coordinates" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Latitude, longitude: %@"
+          }
+        }
+      }
+    },
     "flight.review.point.excluded" : {
       "extractionState" : "manual",
       "localizations" : {

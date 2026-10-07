@@ -27,6 +27,13 @@ enum WhereFormat {
         return "\(lat), \(lon)"
     }
 
+    static func recordedFlightCoordinate(_ coordinate: Coordinate) -> String {
+        String(localized: .flightReviewPointCoordinates(auditCoordinate(
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude,
+        )))
+    }
+
     /// A localized "10 km"-style label for a drift-threshold preset, kept in
     /// kilometers (`.asProvided`, no conversion). Locale-driven, no catalog entry.
     static func driftThresholdLabel(kilometers: Int) -> String {

@@ -7,39 +7,23 @@ import WhereCore
 struct FlightReviewPointRow: View {
     let point: FlightReviewPresentation.Point
     let select: (FlightPointCorrection) -> Void
-    @Environment(\.stylesheet) private var stylesheet
-
     var body: some View {
-        VStack(alignment: .leading) {
-            Text(point.point.sample.timestamp, format: .dateTime.hour().minute().second())
-                .font(stylesheet.flightReviewPoint.titleFont)
-            Text(point.point.regions.isEmpty
-                ? String(localized: .flightReviewPointExcluded)
-                : point.point.regions.map(\.localizedName).sorted().joined(separator: ", "))
-            Text(point.evidence.explanation)
-                .font(stylesheet.flightReviewPoint.detailFont)
-                .foregroundStyle(.secondary)
-            if let speed = WhereFormat.recordedFlightSpeed(point.point.sample.motion?.speed) {
-                Text(speed)
-                    .font(stylesheet.flightReviewPoint.detailFont)
-                    .foregroundStyle(.secondary)
+        if let correction = point.correction {
+            Button { select(correction) } label: {
+                FlightReviewPointContent(point: point)
             }
-            if let correction = point.correction {
-                Button { select(correction) } label: {
-                    Text(correction.action.title)
-                        .frame(
-                            maxWidth: .infinity,
-                            minHeight: stylesheet.flightReviewPoint.minimumActionHeight,
-                            alignment: .leading,
-                        )
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.borderless)
-                .accessibilityLabel(String(localized: .flightReviewPointActionAt(
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .combine)
+            .accessibilityInputLabels([
+                Text(String(localized: .flightReviewPointActionAt(
                     correction.action.title,
                     point.point.sample.timestamp.formatted(.dateTime.hour().minute().second()),
-                )))
-            }
+                ))),
+                Text(correction.action.title),
+            ])
+        } else {
+            FlightReviewPointContent(point: point)
+                .accessibilityElement(children: .combine)
         }
     }
 }
