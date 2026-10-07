@@ -67,7 +67,7 @@ public struct FlightAssessment: Identifiable, Hashable, Sendable {
         groundSampleIDs: Set<UUID>,
         peakSpeedKMH: Double,
         progress: Progress,
-        inferredEndpoints: [FlightEndpointInference] = [],
+        inferredEndpoints: [FlightEndpointInference],
     ) {
         self.id = id
         self.startedAt = startedAt

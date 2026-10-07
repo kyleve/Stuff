@@ -19,6 +19,7 @@ enum FlightReviewTestSupport {
             groundSampleIDs: [],
             peakSpeedKMH: 800,
             progress: .awaitingArrival,
+            inferredEndpoints: [],
         )
     }
 

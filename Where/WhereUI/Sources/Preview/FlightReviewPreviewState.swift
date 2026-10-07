@@ -107,6 +107,7 @@
                 groundSampleIDs: [],
                 peakSpeedKMH: 1040,
                 progress: .awaitingArrival,
+                inferredEndpoints: [],
             )
             return GPSCorrectionReview(
                 id: ready.id,
@@ -187,6 +188,7 @@
                 groundSampleIDs: Set(points.map(\.sample.id)).subtracting(airborne),
                 peakSpeedKMH: 1040,
                 progress: progress,
+                inferredEndpoints: [],
             )
             let reviewState: GPSCorrectionReview.State = switch state {
                 case .flightLikely, .waiting, .stale:
