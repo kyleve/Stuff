@@ -1,0 +1,23 @@
+{
+  "output": "Daylight/Daylight/Resources/attribution.json",
+  "sources": [
+    {
+      "type": "swiftPackageManager",
+      "manifest": "Package.swift",
+      "resolved": "Package.resolved",
+      "shippedFrom": [
+        "DaylightUI"
+      ]
+    },
+    {
+      "type": "agentSkills",
+      "kind": "developmentTool",
+      "manifest": ".agents/external-skills.json"
+    },
+    {
+      "type": "developmentTools",
+      "kind": "developmentTool",
+      "manifest": ".agents/development-tools.json"
+    }
+  ]
+}
