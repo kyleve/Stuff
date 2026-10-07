@@ -50,6 +50,14 @@ internal shape.
   `WhereServices.forIntents(sharingStoreOf:)`. A second container over the
   same file is how a fresh install once raced the launch into failure (root
   [Composition](../../AGENTS.md#composition-create-once-inject-down)).
+- **Gate domain access on the observed data compatibility requirement.** Keep
+  immutable requirement records outside destructive generations. Raise the requirement
+  with the first dependent write through `DataCompatibilityCoordinator`; recheck its
+  device review inside that transaction. Never activate new semantics just because
+  an app updated. Capability publication uses a restricted metadata transaction and
+  remains available while blocked. Never restore capability reports from backups.
+  Resolve immutable capability reports by revision, including downgrades and delayed delivery.
+  Guards: `DataCompatibilityCoordinatorTests` / `SwiftDataStoreCompatibilityTests`.
 - **On-disk storage always carries an explicit App Group identifier.** Audience
   selection belongs to host targets; WhereCore must not own a production or
   development default.
@@ -72,10 +80,16 @@ internal shape.
   receipt.** Never clear a committed onboarding marker before its independent
   terminal completion tombstone
   (`BackupCoordinatorTests` / `WhereLaunchTests`).
+  Return the receipt-backed outcome from cleanup retries. Keep compatibility failures typed
+  and the recovery marker intact. Never infer rollback from a blocked receipt read.
 - **Keep the backup archive strict synthesized `Codable`.** A shape change
   bumps `BackupArchive.currentFormatVersion` and extends
   [`../Tools/upgrade-backup.rb`](../Tools/upgrade-backup.rb). Never add an
   in-code legacy decode fallback.
+- **Review a backup's compatibility before pausing recording or preparing recovery.**
+  Reject unsupported requirements without changing the destination. Import a supported
+  higher requirement through the same activation review as a feature write. Merge and
+  Replace preserve the maximum requirement (`BackupCoordinatorTests`).
 - **The planned stay is a generation-scoped last-writer register with tombstones.** Resolve
   duplicate CloudKit revisions by `updatedAt` then UUID, and clear or expire by writing a newer
   `nil` value; deleting the winner can resurrect stale intent (`PlannedStayCoordinatorTests`).

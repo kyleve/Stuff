@@ -148,6 +148,7 @@ private let whereStoreMutatingMethods: Set<String> = [
     "setTrackedRegion",
     "setPrimaryRegions",
     "addSampleAttributionRevision",
+    "requireDataCompatibility",
 ]
 
 private let storeTransactionBoundaryRule = Rules.files(

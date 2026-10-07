@@ -57,6 +57,13 @@ public actor BackupCoordinator {
         case onboardingAcknowledgementRequired(ImportSummary)
     }
 
+    /// The receipt-backed result of recovery. Only a rollback permits another import write.
+    public enum ImportRecoveryOutcome: Sendable, Hashable {
+        case nothingPending
+        case rolledBack
+        case committed(ImportSummary)
+    }
+
     private enum ImportRecoveryPhase {
         case ready
         case importing(UUID)
@@ -83,6 +90,7 @@ public actor BackupCoordinator {
     }
 
     private let store: any WhereStore
+    private let compatibility: DataCompatibilityCoordinator
     private let backupService = BackupService()
     private let importLifecycle: ImportLifecycle
     private let importRecoveryPersistence: any BackupImportRecoveryPersisting
@@ -105,12 +113,14 @@ public actor BackupCoordinator {
 
     init(
         store: any WhereStore,
+        compatibility: DataCompatibilityCoordinator,
         currentDeviceID: RecordingDeviceID,
         now: @escaping @Sendable () -> Date,
         importLifecycle: ImportLifecycle,
         importRecoveryPersistence: any BackupImportRecoveryPersisting,
     ) {
         self.store = store
+        self.compatibility = compatibility
         self.importLifecycle = importLifecycle
         self.importRecoveryPersistence = importRecoveryPersistence
         self.currentDeviceID = currentDeviceID
@@ -158,6 +168,7 @@ public actor BackupCoordinator {
                 // excluded: they are live proofs about a target's local outbox, not restorable
                 // user data.
                 try await ExportTables(
+                    requiredDataCompatibilityVersion: store.dataCompatibility().requiredVersion,
                     samples: store.allSamples(),
                     evidence: store.allEvidence(),
                     manualDays: store.allManualDays(),
@@ -192,6 +203,7 @@ public actor BackupCoordinator {
         let backupService = backupService
         let url = try await Task.detached(priority: .utility) {
             try backupService.makeArchiveFile(
+                requiredDataCompatibilityVersion: tables.requiredDataCompatibilityVersion,
                 samples: tables.samples,
                 evidence: tables.evidence,
                 manualDays: tables.manualDays,
@@ -209,13 +221,20 @@ public actor BackupCoordinator {
         }.value
         onProgress(1)
         previousExportDirectory = url.deletingLastPathComponent()
-        return url
+        do {
+            try await compatibility.requireAccess()
+            return url
+        } catch {
+            purgePreviousExport()
+            throw error
+        }
     }
 
     /// Everything an export reads out of the store before it starts on blobs.
     /// A named value rather than five locals so the whole read leg fits inside
     /// one span without threading a tuple through it.
     private struct ExportTables {
+        let requiredDataCompatibilityVersion: DataCompatibilityVersion
         let samples: [LocationSample]
         let evidence: [Evidence]
         let manualDays: [DayPresence]
@@ -269,6 +288,7 @@ public actor BackupCoordinator {
     public func importBackup(
         from url: URL,
         strategy: ImportStrategy,
+        compatibilityApproval: DataCompatibilityActivationApproval,
         onProgress: @Sendable (Double) -> Void,
     ) async throws -> ImportSummary {
         try await hydrateImportRecovery()
@@ -293,6 +313,7 @@ public actor BackupCoordinator {
                 from: url,
                 strategy: strategy,
                 transactionID: operationID,
+                compatibilityApproval: compatibilityApproval,
                 onProgress: onProgress,
             )
         }
@@ -313,15 +334,15 @@ public actor BackupCoordinator {
         }
     }
 
-    /// Retry only the post-commit cleanup for the last committed import. The imported rows are
-    /// never applied a second time, and the gate clears only after cleanup and reconciliation
-    /// complete successfully.
-    public func retryImportCleanup() async throws {
+    /// Resolve any uncertain receipt, then retry cleanup for a committed import. This never
+    /// applies archive rows. The outcome distinguishes a confirmed rollback from a commit.
+    @discardableResult
+    public func retryImportCleanup() async throws -> ImportRecoveryOutcome {
         try await hydrateImportRecovery()
         let recovery: DurableImportRecovery
         switch importRecoveryPhase {
             case .ready:
-                return
+                return .nothingPending
             case .importing:
                 throw RecordingPersistenceError.recordingRewriteInProgress
             case let .recoveryRequired(value):
@@ -331,16 +352,24 @@ public actor BackupCoordinator {
                 throw ImportRecoveryRequiredError(summary: value.details.summary)
         }
         do {
-            try await recoverCommittedImport(recovery)
+            return try await recoverCommittedImport(recovery)
         } catch {
             if case .retrying = importRecoveryPhase {
                 importRecoveryPhase = .recoveryRequired(recovery)
             }
-            throw CommittedImportCleanupError(
-                strategy: recovery.details.strategy,
-                summary: recovery.details.summary,
-                underlying: error,
-            )
+            // Recovery is safe to repeat after access returns. Keep this typed failure visible
+            // to the compatibility retry loop while retaining the durable recovery phase.
+            if let error = error as? DataCompatibilityError { throw error }
+            switch importRecoveryPhase.recovery ?? recovery {
+                case let .prepared(details):
+                    throw ImportRecoveryResolutionError(summary: details.summary, underlying: error)
+                case let .committed(details, _, _):
+                    throw CommittedImportCleanupError(
+                        strategy: details.strategy,
+                        summary: details.summary,
+                        underlying: error,
+                    )
+            }
         }
     }
 
@@ -383,6 +412,7 @@ public actor BackupCoordinator {
         from url: URL,
         strategy: ImportStrategy,
         transactionID: UUID,
+        compatibilityApproval: DataCompatibilityActivationApproval,
         onProgress: @Sendable (Double) -> Void,
     ) async throws -> ImportSummary {
         let expectedGenerationID = try await (store.dataGeneration()).id
@@ -397,6 +427,14 @@ public actor BackupCoordinator {
             try backupService.readArchive(at: url)
         }.value
         let archive = result.archive
+        let status = try await compatibility.status()
+        guard archive.requiredDataCompatibilityVersion <= status.supportedVersion else {
+            throw BackupService.BackupError
+                .unsupportedDataCompatibilityVersion(archive.requiredDataCompatibilityVersion)
+        }
+        let review = try await compatibility
+            .reviewActivation(requiring: archive.requiredDataCompatibilityVersion)
+        try review.requireApproval(compatibilityApproval)
         let blobs = result.blobs
         let summary = ImportSummary(
             sampleCount: archive.samples.count,
@@ -442,91 +480,96 @@ public actor BackupCoordinator {
         let importDate = now()
         do {
             try await Self.logger.measure(.importWrite) {
-                try await store.perform(expectedDataGenerationID: expectedGenerationID) {
-                    let preservedRemovals: [RecordingDeviceRemoval] = if strategy == .replace {
-                        try await store.recordingDeviceRemovals()
-                    } else {
-                        []
-                    }
-                    if strategy == .replace {
-                        _ = try await store.rotateDataGeneration(
-                            reason: .backupReplace,
-                            changedBy: currentDeviceID,
-                            at: importDate,
+                try await compatibility.perform(
+                    requiring: archive.requiredDataCompatibilityVersion,
+                    approval: compatibilityApproval,
+                ) {
+                    try await store.perform(expectedDataGenerationID: expectedGenerationID) {
+                        let preservedRemovals: [RecordingDeviceRemoval] = if strategy == .replace {
+                            try await store.recordingDeviceRemovals()
+                        } else {
+                            []
+                        }
+                        if strategy == .replace {
+                            _ = try await store.rotateDataGeneration(
+                                reason: .backupReplace,
+                                changedBy: currentDeviceID,
+                                at: importDate,
+                            )
+                        }
+                        // `completed`/`report` are local to this `@Sendable` block, so
+                        // the running count never crosses the actor boundary; only the
+                        // throttled fraction is handed to `onProgress`.
+                        var completed = 0
+                        var lastPercent = -1
+                        func report() {
+                            completed += 1
+                            guard total > 0 else { return }
+                            let percent = Int(Double(completed) / Double(total) * 100)
+                            guard percent != lastPercent else { return }
+                            lastPercent = percent
+                            onProgress(Double(completed) / Double(total))
+                        }
+                        for sample in archive.samples {
+                            try await store.add(sample: sample)
+                            report()
+                        }
+                        for item in archive.evidence {
+                            try await store.write(evidence: item, blob: blobs[item.id])
+                            report()
+                        }
+                        for day in archive.manualDays {
+                            try await store.setManualDay(day)
+                            report()
+                        }
+                        for dismissal in archive.dismissedIssues {
+                            try await store.restoreDismissedIssue(dismissal)
+                            report()
+                        }
+                        for plannedStay in archive.plannedStayRecords {
+                            try await store.restorePlannedStayRecord(plannedStay)
+                            report()
+                        }
+                        for revision in archive.sampleAttributionRevisions {
+                            try await store.addSampleAttributionRevision(revision)
+                            report()
+                        }
+                        for profile in archive.recordingDeviceProfiles {
+                            try await store.addRecordingDeviceProfile(profile)
+                            report()
+                        }
+                        for metadataChange in archive.recordingDeviceMetadataChanges {
+                            try await store.addRecordingDeviceMetadataChange(metadataChange)
+                            report()
+                        }
+                        for removal in preservedRemovals {
+                            try await store.addRecordingDeviceRemoval(removal)
+                        }
+                        for removal in archive.recordingDeviceRemovals {
+                            try await store.addRecordingDeviceRemoval(removal)
+                            report()
+                        }
+                        // Primary regions (with their picked looks) round-trip like any
+                        // other data. On `.replace` the store was cleared above, so write
+                        // the archive's set exactly; on `.merge` union it into the current
+                        // set (reading the *resolved* current set first so a device on the
+                        // implicit default four doesn't collapse to just the imported
+                        // ones), with the archive's appearance winning on overlap.
+                        // `setPrimaryRegions` is a whole-set replace, so a merge builds
+                        // the full merged list. A handful of rows, so they're not folded
+                        // into the progress total.
+                        let archivePrimary = archive.primaryRegions
+                        let regionsToWrite: [PrimaryRegion] = if strategy == .merge {
+                            try await Self.merge(archivePrimary, into: store.primaryRegions())
+                        } else {
+                            archivePrimary
+                        }
+                        try await store.setPrimaryRegions(regionsToWrite)
+                        try await store.addBackupImportReceipt(
+                            id: transactionID,
+                            installationID: currentDeviceID,
                         )
                     }
-                    // `completed`/`report` are local to this `@Sendable` block, so
-                    // the running count never crosses the actor boundary; only the
-                    // throttled fraction is handed to `onProgress`.
-                    var completed = 0
-                    var lastPercent = -1
-                    func report() {
-                        completed += 1
-                        guard total > 0 else { return }
-                        let percent = Int(Double(completed) / Double(total) * 100)
-                        guard percent != lastPercent else { return }
-                        lastPercent = percent
-                        onProgress(Double(completed) / Double(total))
-                    }
-                    for sample in archive.samples {
-                        try await store.add(sample: sample)
-                        report()
-                    }
-                    for item in archive.evidence {
-                        try await store.write(evidence: item, blob: blobs[item.id])
-                        report()
-                    }
-                    for day in archive.manualDays {
-                        try await store.setManualDay(day)
-                        report()
-                    }
-                    for dismissal in archive.dismissedIssues {
-                        try await store.restoreDismissedIssue(dismissal)
-                        report()
-                    }
-                    for plannedStay in archive.plannedStayRecords {
-                        try await store.restorePlannedStayRecord(plannedStay)
-                        report()
-                    }
-                    for revision in archive.sampleAttributionRevisions {
-                        try await store.addSampleAttributionRevision(revision)
-                        report()
-                    }
-                    for profile in archive.recordingDeviceProfiles {
-                        try await store.addRecordingDeviceProfile(profile)
-                        report()
-                    }
-                    for metadataChange in archive.recordingDeviceMetadataChanges {
-                        try await store.addRecordingDeviceMetadataChange(metadataChange)
-                        report()
-                    }
-                    for removal in preservedRemovals {
-                        try await store.addRecordingDeviceRemoval(removal)
-                    }
-                    for removal in archive.recordingDeviceRemovals {
-                        try await store.addRecordingDeviceRemoval(removal)
-                        report()
-                    }
-                    // Primary regions (with their picked looks) round-trip like any
-                    // other data. On `.replace` the store was cleared above, so write
-                    // the archive's set exactly; on `.merge` union it into the current
-                    // set (reading the *resolved* current set first so a device on the
-                    // implicit default four doesn't collapse to just the imported
-                    // ones), with the archive's appearance winning on overlap.
-                    // `setPrimaryRegions` is a whole-set replace, so a merge builds
-                    // the full merged list. A handful of rows, so they're not folded
-                    // into the progress total.
-                    let archivePrimary = archive.primaryRegions
-                    let regionsToWrite: [PrimaryRegion] = if strategy == .merge {
-                        try await Self.merge(archivePrimary, into: store.primaryRegions())
-                    } else {
-                        archivePrimary
-                    }
-                    try await store.setPrimaryRegions(regionsToWrite)
-                    try await store.addBackupImportReceipt(
-                        id: transactionID,
-                        installationID: currentDeviceID,
-                    )
                 }
             }
         } catch {
@@ -605,7 +648,10 @@ public actor BackupCoordinator {
     /// Resume a durable import from any safe restart point. Every transition is persisted before
     /// deleting the receipt that proves the store save, so a crash cannot turn a committed import
     /// back into an apparent rollback.
-    private func recoverCommittedImport(_ recovery: DurableImportRecovery) async throws {
+    @discardableResult
+    private func recoverCommittedImport(
+        _ recovery: DurableImportRecovery,
+    ) async throws -> ImportRecoveryOutcome {
         let cleanupPending: DurableImportRecovery
         switch recovery {
             case let .prepared(details):
@@ -617,7 +663,7 @@ public actor BackupCoordinator {
                     await importLifecycle.didRollBack(details.strategy)
                     try await importRecoveryPersistence.saveBackupImportRecovery(nil)
                     importRecoveryPhase = .ready
-                    return
+                    return .rolledBack
                 }
                 cleanupPending = .committed(
                     details,
@@ -689,6 +735,7 @@ public actor BackupCoordinator {
         } else {
             importRecoveryPhase = .recoveryRequired(completed)
         }
+        return .committed(details.summary)
     }
 
     private func removeReceipt(for details: ImportRecoveryDetails) async throws {

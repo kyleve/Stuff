@@ -21,6 +21,19 @@ one it belongs to rather than to a god-object:
 
 ### Persistence & writes
 
+- **Data compatibility** — `DataCompatibilityCoordinator` checks the current build
+  against the maximum shared requirement. Version 1 includes sample corrections.
+  Requirement records survive reset and Replace. Domain reads and transactions fail
+  when the requirement exceeds support, including work suspended across a remote write.
+  Compatibility metadata remains available for recovery.
+- **Feature activation** — `publishCapability(at:)` reports the installation's supported
+  version without raising the shared requirement. A feature calls the coordinator's `perform(requiring:approval:)`.
+  Devices with outdated or missing capability reports require explicit confirmation.
+  The transaction rechecks that review and saves the requirement with the dependent data.
+  Capability reports are immutable. Resolve the latest installation-owned revision, so delayed messages cannot undo a downgrade.
+  Reports are advisory and do not establish a primary recording device or prove remote
+  state while offline.
+
 - **`WhereStore`** — the value-type persistence boundary (a protocol; nothing
   crossing it is a SwiftData record). Mutations run inside `perform { … }` (one
   atomic transaction). Callers whose decision was made against a particular
@@ -233,13 +246,20 @@ one it belongs to rather than to a god-object:
   another live-session transaction path. Onboarding acknowledgement records an independent terminal
   sidecar tombstone before clearing recovery, so a cold launch can repair a preference write
   that did not reach disk without offering the same archive again.
-  Check-ins are deliberately neither exported nor restored because they are live advisory status.
-  Backup format **v6** retains optional grouped speed/altitude measurements and
+  `retryImportCleanup()` returns an `ImportRecoveryOutcome`: nothing pending, rolled back,
+  or committed with its summary. It preserves typed compatibility failures and the recovery
+  marker while access is blocked. A committed outcome never reapplies the archive.
+  Check-ins and capability reports are neither exported nor restored because they are live advisory status.
+  Backup format **v7** records the required data compatibility level and retains
+  optional grouped speed/altitude measurements and
   every correction revision losslessly. Merge preserves revision IDs/timestamps;
   Replace restores archive revisions into its new generation. The offline
   [`upgrade-backup.rb`](../Tools/upgrade-backup.rb) transforms formats v1–v5 with
   unknown motion and an empty correction history. The production decoder accepts
   only the current format. See [backup format](BACKUP_FORMAT.md).
+  Formats v1–v6 gain compatibility version 1. A higher supported import uses the
+  activation review before pausing recording; unsupported archives leave the destination unchanged.
+  Merge and Replace never lower the destination's requirement.
 - **`InstallationRecordingContext`** — the device-local installation identity,
   explicitly confirmed local recording choice, and stable timestamp for recreating
   its immutable device profile idempotently.

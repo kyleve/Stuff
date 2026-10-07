@@ -228,6 +228,7 @@ final class OnboardingFlowModel {
             let summary = try await scope.services.backup.importBackup(
                 from: readyImport.url,
                 strategy: readyImport.strategy,
+                compatibilityApproval: .readyDevicesOnly,
             ) { _ in }
             restoreSelection.markCommitted(summary)
             model.completeOnboarding()

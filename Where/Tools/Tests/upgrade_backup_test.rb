@@ -8,7 +8,7 @@ class UpgradeBackupTest < Minitest::Test
   def test_v1_adds_current_tables_without_inventing_recording_consent
     upgraded = upgrade_manifest(base_manifest(1))
 
-    assert_equal 6, upgraded.fetch("formatVersion")
+    assert_equal 7, upgraded.fetch("formatVersion")
     assert_equal [], upgraded.fetch("recordingDeviceProfiles")
     assert_equal [], upgraded.fetch("recordingDeviceMetadataChanges")
     assert_equal [], upgraded.fetch("recordingDeviceRemovals")
@@ -57,7 +57,7 @@ class UpgradeBackupTest < Minitest::Test
 
     upgraded = upgrade_manifest(manifest)
 
-    assert_equal 6, upgraded.fetch("formatVersion")
+    assert_equal 7, upgraded.fetch("formatVersion")
     assert_equal({
       "kind" => { "other" => {} },
       "registrationGenerationID" => "generation-id",
@@ -131,8 +131,29 @@ class UpgradeBackupTest < Minitest::Test
     assert_equal 1_700_000_100.5, upgraded.fetch("samples").first.fetch("timestamp")
   end
 
+  def test_v6_adds_baseline_requirement_without_changing_records
+    manifest = base_manifest(6)
+    originals = Marshal.load(Marshal.dump(manifest))
+    upgraded = upgrade_manifest(manifest)
+    assert_equal 1, upgraded.fetch("requiredDataCompatibilityVersion")
+    assert_equal originals.fetch("evidence"), upgraded.fetch("evidence")
+    assert_equal originals.fetch("manualDays"), upgraded.fetch("manualDays")
+  end
+
+  def test_v7_preserves_higher_requirement
+    manifest = base_manifest(7).merge("requiredDataCompatibilityVersion" => 4)
+    assert_equal 4, upgrade_manifest(manifest).fetch("requiredDataCompatibilityVersion")
+  end
+
+  def test_v7_rejects_missing_or_invalid_requirement
+    [nil, 0, -1, "2", 1.5].each do |required|
+      manifest = base_manifest(7).merge("requiredDataCompatibilityVersion" => required)
+      assert_raises(SystemExit) { upgrade_manifest(manifest) }
+    end
+  end
+
   def test_rejects_branch_only_or_future_formats
-    error = assert_raises(SystemExit) { upgrade_manifest(base_manifest(7)) }
+    error = assert_raises(SystemExit) { upgrade_manifest(base_manifest(8)) }
     assert_equal 1, error.status
   end
 

@@ -115,7 +115,9 @@ Guard: `sample attribution revisions require a guarded transaction`.
 
 The checked methods are `add`, `write`, `setManualDay`, `clearManualDay`,
 `clear`, `clearAll`, `setIssueDismissed`, `restoreDismissedIssue`,
-`setTrackedRegion`, `setPrimaryRegions`, and `addSampleAttributionRevision`.
+`setTrackedRegion`, `setPrimaryRegions`, `addSampleAttributionRevision`, and
+`requireDataCompatibility`. Compatibility capability publication owns a restricted
+metadata transaction inside the store; it cannot mutate domain data.
 
 ## App Shortcuts provider ownership
 

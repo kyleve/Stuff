@@ -14,7 +14,7 @@ require "time"
 require "set"
 
 MANIFEST_NAME = "manifest.json"
-CURRENT_FORMAT_VERSION = 6
+CURRENT_FORMAT_VERSION = 7
 SUPPORTED_SOURCE_FORMAT_VERSIONS = (1..CURRENT_FORMAT_VERSION).freeze
 
 REGION_MAP = {
@@ -197,6 +197,12 @@ def upgrade_manifest(manifest)
   manifest.delete("recordingDevices")
   manifest.delete("recordingDeviceCheckIns")
   manifest.delete("recordingPolicyChanges")
+  if source_version < 7
+    manifest["requiredDataCompatibilityVersion"] = 1
+  else
+    required = manifest["requiredDataCompatibilityVersion"]
+    die "requiredDataCompatibilityVersion must be a positive integer" unless required.is_a?(Integer) && required.positive?
+  end
   manifest["formatVersion"] = CURRENT_FORMAT_VERSION
   warnings.uniq.each { |message| warn "warning: #{message}" }
   manifest
