@@ -253,6 +253,20 @@ class XcodeCommandContractTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertNotIn("xcodebuild -version", fixture.command_log())
 
+    def test_unit_run_does_not_require_the_flyover_command_fixture(self):
+        fixture = self.fixture()
+
+        result = fixture.run(
+            "test",
+            "--skip-architecture",
+            "--no-generate",
+            "--no-build",
+            "CoreTests",
+        )
+
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertNotIn("Testing flyover command", result.stdout)
+
     def test_test_preserves_xcode_failure_through_the_progress_pipeline(self):
         fixture = self.fixture()
 

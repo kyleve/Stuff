@@ -19,6 +19,7 @@ ROOT_SCRIPTS=(
     attribution
     codex-watchdog
     flaky
+    flyover
     icons
     ide
     loc

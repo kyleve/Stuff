@@ -15,6 +15,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Non-default values include `dark`, `xxxl`, `contrast`, `rtl`, `bold`, `accessibility`, and `iPad`.** The light/standard/default baseline stays empty.
 - **Reference-image filenames depend on this.** Treat omission rules as a wire format.
 - **When you add an axis, give it a default that is omitted.** That is how `layoutDirection`/`legibilityWeight` landed.
+- **Treat explicit layout traits as non-default.** Their idiom and size classes must add one stable identifier token.
 - **Filter `.accessibility` configs out of previews.** `snapshotPreviews` drops them.
 - **Stuff keeps AccessibilitySnapshot's annotation renderer in the test-only `SnapshotKitTesting` product.** It does not link into shipping UI modules.
 - **Accessibility configs only render as snapshot tests.** Do not "fix" previews to include them without a preview-only dependency boundary.

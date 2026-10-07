@@ -26,6 +26,7 @@ functions returned expected values.
 | `Where/install` | macOS/Xcode/device | signing and device inventory | physical device | Dry run performs no build/install/launch |
 | `Ledger/install` | macOS/Xcode | built/installed apps | `/Applications/Ledger.app` | Exact-process and transactional replacement |
 | `tla-check` | macOS/Linux-compatible tooling | manifests/specs | retained run artifacts | Pinned tools and honest pass/fail policy |
+| `flyover` | macOS/Xcode for export, Python 3 for preview | catalog, generated atlas | generated directory | Export is atomic. Preview serves only validated files |
 
 Existing flags and their observable behavior are compared with `main`. New
 behavior must be called out explicitly; the planned additions are the
@@ -133,6 +134,16 @@ After failure, exactly one state is legal:
 - The complete intended new state exists and cleanup failure is reported.
 
 A mixture is never accepted.
+
+### Flyover export and preview
+
+Cover unsafe output aliases, replacement races, invalid markers, incomplete
+manifests, missing or extra images, symbolic links, path traversal, paths with
+spaces, automatic ports, occupied ports, loopback and LAN binding, and clean
+Control-C shutdown.
+
+The preview server must expose only files in its validated allowlist. It must
+bind to loopback unless the user selects LAN access.
 
 ### Installers
 

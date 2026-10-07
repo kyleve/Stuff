@@ -13,27 +13,33 @@ capture + comparison pipeline lives in the sibling
 
 ## What's in the box
 
-- **`SnapshotConfiguration`** — one rendering variant: color scheme, Dynamic
-  Type size, contrast, layout direction (`rtl` token), legibility weight (bold
-  text, `bold` token), a device `Frame`, and a `snapshotType` (`.standard` or
-  `.accessibility`). `Hashable`, with an `identifier` (built from
-  `identifierParts`) that **omits default axes** so common cases stay terse.
+- **`SnapshotConfiguration`** — one rendering variant. It specifies appearance
+  traits, device layout traits, a device `Frame`, and a `snapshotType`.
+  Appearance traits include color scheme, Dynamic Type size, contrast, layout
+  direction, and legibility weight. This `Hashable` value has an `identifier`
+  that **omits default axes**, so common cases stay terse. The `snapshotType`
+  is `.standard` or `.accessibility`.
   Frames come in four sizing strategies: fixed device viewports (`.iPhone`,
   `.iPad`), the intrinsic `.component` frame, `.fullContent(name:width:)`, and
   `.fullContent2D(name:minimumSize:)`. The ordinary full-content frame has a
   fixed width and a height measured from the settled content. Use the explicit
   two-axis frame for spatial canvases that scroll in both dimensions. Full-width
   scrolling descendants drive the measured height while preserving surrounding
-  navigation, tab, sheet, search, and toolbar chrome. An bounded
+  navigation, tab, sheet, search, and toolbar chrome. A bounded
   or greedy production container that cannot converge must expose and
   snapshot its shared scrolling child directly, without snapshot-only layout
   behavior. The iPhone/iPad
   full-content presets retain their normal viewport height as a minimum and
-  grow when content is taller. custom full-content frames shrink-wrap unless
+  grow when content is taller. Custom full-content frames shrink-wrap unless
   given a minimum. A frame also carries `safeAreaInsets` (default zero, keeping
-  images device-independent). the `.iPhoneNotched` preset simulates real device
+  images device-independent). The `.iPhoneNotched` preset simulates real device
   chrome (Dynamic Island top 47pt, home-indicator bottom 34pt) for cases that
   must prove layout under it.
+- **`SnapshotConfiguration.LayoutTraits`** — an explicit interface idiom and
+  size-class set for adaptive content. The standard presets cover phone
+  portrait, phone landscape, and tablet portrait. Each set adds a stable
+  identifier token. If this value is `nil`, the capture inherits the host
+  simulator traits.
 - **`combinations(...)` + presets** (`.componentDefaults`, `.screenDefaults`,
   `.fullContentScreenDefaults`) — expand a terse declaration into the full
   matrix.
@@ -80,10 +86,9 @@ capture + comparison pipeline lives in the sibling
   again before capture. The preview cutsheet ignores the hook (only the test
   pipeline can re-settle around it).
 - **`snapshotTraits(_:)`** — applies a configuration's traits to a view for the
-  preview cutsheet (color scheme, Dynamic Type, layout direction, legibility
-  weight, and an increased-contrast trait override), so previews and test
-  captures stay in lockstep. Simulated frame insets are capture-only — a
-  preview can't fake safe areas.
+  preview cutsheet. This includes explicit device layout traits. Thus, previews
+  and test captures stay in lockstep. Simulated frame insets are capture-only.
+  A preview cannot simulate safe areas.
 - **`\.isCapturingSnapshot`** — an environment flag that is `true` while
   `SnapshotKitTesting` captures the view (and in the preview cutsheet, which
   mirrors the tests). A view may read it **only** to render a deterministic

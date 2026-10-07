@@ -12,10 +12,10 @@ import Foundation
 /// starts while another is in flight parks here and runs when the first
 /// finishes, in FIFO order.
 ///
-/// Waiting is not cancellation-aware by design: captures are bounded (a few
-/// seconds), and a cancelled test's capture simply runs to completion when its
-/// turn comes — the extra work is preferable to a cancellation path that could
-/// leak the lock.
+/// Waiting is not cancellation-aware by design. A cancelled waiter stays in the
+/// FIFO so its continuation cannot strand the lock. When its turn arrives, the
+/// rendering pipeline observes cancellation before it hosts content, then this
+/// type releases the lock normally.
 ///
 /// Re-entering from a task that already holds the lock (an `onReadyToSnapshot`
 /// hook rendering another snapshot) would deadlock, so it traps as a

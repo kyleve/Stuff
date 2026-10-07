@@ -5,7 +5,7 @@ extension SnapshotConfiguration {
     /// configurations. An empty axis falls back to that axis's default singleton
     /// (light color scheme, `.large` Dynamic Type, standard contrast, the
     /// component frame, a standard capture), so a caller varies only the axes it
-    /// cares about.
+    /// cares about. An empty layout-traits axis inherits the host traits.
     public static func combinations(
         devices: [Frame] = [],
         colorSchemes: [ColorScheme] = [],
@@ -13,6 +13,7 @@ extension SnapshotConfiguration {
         contrasts: [ColorSchemeContrast] = [],
         layoutDirections: [LayoutDirection] = [],
         legibilityWeights: [LegibilityWeight] = [],
+        layoutTraits requestedLayoutTraits: [LayoutTraits] = [],
         snapshotTypes: [SnapshotType] = [],
     ) -> [SnapshotConfiguration] {
         let devices = devices.isEmpty ? [.component] : devices
@@ -21,6 +22,9 @@ extension SnapshotConfiguration {
         let contrasts = contrasts.isEmpty ? [.standard] : contrasts
         let layoutDirections = layoutDirections.isEmpty ? [.leftToRight] : layoutDirections
         let legibilityWeights = legibilityWeights.isEmpty ? [.regular] : legibilityWeights
+        let layoutTraits: [LayoutTraits?] = requestedLayoutTraits.isEmpty
+            ? [nil]
+            : requestedLayoutTraits.map(Optional.some)
         let snapshotTypes = snapshotTypes.isEmpty ? [.standard] : snapshotTypes
 
         var result: [SnapshotConfiguration] = []
@@ -30,18 +34,21 @@ extension SnapshotConfiguration {
                     for contrast in contrasts {
                         for layoutDirection in layoutDirections {
                             for legibilityWeight in legibilityWeights {
-                                for snapshotType in snapshotTypes {
-                                    result.append(
-                                        SnapshotConfiguration(
-                                            colorScheme: colorScheme,
-                                            dynamicType: dynamicType,
-                                            contrast: contrast,
-                                            layoutDirection: layoutDirection,
-                                            legibilityWeight: legibilityWeight,
-                                            device: device,
-                                            snapshotType: snapshotType,
-                                        ),
-                                    )
+                                for layoutTraits in layoutTraits {
+                                    for snapshotType in snapshotTypes {
+                                        result.append(
+                                            SnapshotConfiguration(
+                                                colorScheme: colorScheme,
+                                                dynamicType: dynamicType,
+                                                contrast: contrast,
+                                                layoutDirection: layoutDirection,
+                                                legibilityWeight: legibilityWeight,
+                                                layoutTraits: layoutTraits,
+                                                device: device,
+                                                snapshotType: snapshotType,
+                                            ),
+                                        )
+                                    }
                                 }
                             }
                         }

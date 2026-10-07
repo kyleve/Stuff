@@ -195,6 +195,11 @@ class ProgressReporter:
             self.images += 1
             self.emit()
             return
+        if line.startswith("FLYOVER_EXPORT "):
+            self._clear_terminal()
+            print(f"    {line}", file=self.output, flush=True)
+            self.last_emit = 0.0
+            return
         match = self.SUITE.match(line)
         if match:
             if match.group(2) == "started":
