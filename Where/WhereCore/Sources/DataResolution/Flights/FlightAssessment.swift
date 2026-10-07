@@ -49,6 +49,7 @@ public struct FlightAssessment: Identifiable, Hashable, Sendable {
     public let groundSampleIDs: Set<UUID>
     public let peakSpeedKMH: Double
     public let progress: Progress
+    public let inferredEndpoints: [FlightEndpointInference]
 
     public var isPending: Bool {
         switch progress {
@@ -66,6 +67,7 @@ public struct FlightAssessment: Identifiable, Hashable, Sendable {
         groundSampleIDs: Set<UUID>,
         peakSpeedKMH: Double,
         progress: Progress,
+        inferredEndpoints: [FlightEndpointInference],
     ) {
         self.id = id
         self.startedAt = startedAt
@@ -75,6 +77,7 @@ public struct FlightAssessment: Identifiable, Hashable, Sendable {
         self.groundSampleIDs = groundSampleIDs
         self.peakSpeedKMH = peakSpeedKMH
         self.progress = progress
+        self.inferredEndpoints = inferredEndpoints
     }
 
     /// The live-flight presentation expires after the latest cruise evidence becomes

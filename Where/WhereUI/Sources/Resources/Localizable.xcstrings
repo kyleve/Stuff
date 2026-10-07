@@ -3416,6 +3416,205 @@
         }
       }
     },
+    "flight.review.point.actionAt" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ at %2$@"
+          }
+        }
+      }
+    },
+    "flight.review.point.airborne" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Flight motion supports this point."
+          }
+        }
+      }
+    },
+    "flight.review.point.confirmInclude" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This point will no longer count toward visited regions. You can restore its GPS attribution at any time."
+          }
+        }
+      }
+    },
+    "flight.review.point.confirmRestore" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This point will count toward the region at its recorded location again."
+          }
+        }
+      }
+    },
+    "flight.review.point.confirmTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Change this GPS point?"
+          }
+        }
+      }
+    },
+    "flight.review.point.coordinates" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Latitude, longitude: %@"
+          }
+        }
+      }
+    },
+    "flight.review.point.excluded" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Excluded from visited regions"
+          }
+        }
+      }
+    },
+    "flight.review.point.gap" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Likely in flight: recording resumed after a long gap and continued at flight speed."
+          }
+        }
+      }
+    },
+    "flight.review.point.ground" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Kept as ground evidence."
+          }
+        }
+      }
+    },
+    "flight.review.point.include" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Include in flight"
+          }
+        }
+      }
+    },
+    "flight.review.point.restore" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Restore GPS attribution"
+          }
+        }
+      }
+    },
+    "flight.review.point.speed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Likely in flight: recorded speed supports flight."
+          }
+        }
+      }
+    },
+    "flight.review.point.uncertain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Airborne status is uncertain."
+          }
+        }
+      }
+    },
+    "flight.review.point.updated" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "GPS point updated."
+          }
+        }
+      }
+    },
+    "flight.review.points.count" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "new",
+                  "value" : "Review %lld GPS point"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "new",
+                  "value" : "Review %lld GPS points"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "flight.review.points.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Include a point in a completed flight to exclude it from visited regions. Restore its GPS attribution to count it again."
+          }
+        }
+      }
+    },
+    "flight.review.points.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Recorded GPS points"
+          }
+        }
+      }
+    },
     "flight.review.recordedAltitude" : {
       "extractionState" : "manual",
       "localizations" : {

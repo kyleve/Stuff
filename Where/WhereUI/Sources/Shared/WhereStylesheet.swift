@@ -21,6 +21,7 @@ struct WhereStylesheet: BStylesheet {
     var locationCardStack = LocationCardStackStyle.standard
     var locationWelcome = LocationWelcomeStyle.standard
     var flightStatus = FlightStatusStyle()
+    var flightReviewPoint = FlightReviewPointStyle()
     var calendar = CalendarStyle.standard
     var appIcon = AppIconStyle.standard
     var timeline = TimelineStyle.standard
@@ -143,6 +144,13 @@ extension WhereStylesheet {
         var titleFont = Font.headline
         var bodyFont = Font.subheadline
         var background = Color(uiColor: .secondarySystemGroupedBackground)
+    }
+
+    struct FlightReviewPointStyle: Equatable {
+        var titleFont = Font.headline
+        var detailFont = Font.caption
+        var minimumActionHeight: CGFloat = 44
+        var mapCornerRadius: CGFloat = 12
     }
 }
 
@@ -1552,11 +1560,20 @@ extension WhereStylesheet {
 // MARK: - Region Map
 
 extension WhereStylesheet {
-    /// Style for the region drill-in map (`RegionDaysView`): the header height
-    /// and the translucent GPS-uncertainty circle drawn under each pin.
+    /// Viewports and GPS overlays for overview maps and individual point previews.
     struct RegionMapStyle: Equatable {
-        /// Height of the map header.
-        var height: CGFloat
+        enum Variant: Equatable {
+            case overview
+            case pointPreview
+        }
+
+        struct Viewport: Equatable {
+            var height: CGFloat
+            var minimumSpanMeters: Double
+        }
+
+        var overview = Viewport(height: 220, minimumSpanMeters: 0)
+        var pointPreview = Viewport(height: 140, minimumSpanMeters: 50000)
         /// Fill opacity of a pin's uncertainty circle (over the region tint).
         var uncertaintyFillOpacity: Double
         /// Stroke opacity and width of that circle.
@@ -1566,8 +1583,14 @@ extension WhereStylesheet {
         var capturePointDiameter: CGFloat = 8
         var captureInset: CGFloat = 16
 
+        subscript(_ variant: Variant) -> Viewport {
+            switch variant {
+                case .overview: overview
+                case .pointPreview: pointPreview
+            }
+        }
+
         static let standard = RegionMapStyle(
-            height: 220,
             uncertaintyFillOpacity: 0.15,
             uncertaintyStrokeOpacity: 0.6,
             uncertaintyStrokeWidth: 1,

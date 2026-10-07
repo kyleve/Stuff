@@ -95,6 +95,10 @@ Layering, localization, preview, and testing conventions live in the feature
   Show each flight's own progress when a daily review mixes completed and pending flights.
   Retain pending information through Core's `dismissingProposal()` when dismissing completed-flight edits.
 - Resolve historical device labels through `DeviceRecordingController.displayNames()`, not the active device list.
+- Render point decisions from Core's reviewed corrections. Keep the review open after inclusion or restoration.
+  Clear a pending confirmation when its evidence changes. Guard: `FlightReviewModelTests`.
+- Keep each actionable flight point row as one accessible button, including its evidence and coordinate label.
+  Use the recorded coordinate for its map preview, including excluded points. Keep the preview noninteractive.
 - Use this installation's assessment for a live flight notice. Identify each
   recording device in shared reviews and retain historical pending review access.
 - Use `regionArtworkTask` and `RegionArtworkModel` for cached artwork loading.

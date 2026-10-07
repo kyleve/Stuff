@@ -16,6 +16,7 @@ public struct GPSCorrectionReview: Identifiable, Hashable, Sendable {
     public let points: [SampleCorrectionPoint]
     public let state: State
     public let flights: [FlightAssessment]
+    public let pointCorrections: [FlightPointCorrection]
 
     public init(
         id: DataIssueID,
@@ -23,11 +24,13 @@ public struct GPSCorrectionReview: Identifiable, Hashable, Sendable {
         points: [SampleCorrectionPoint],
         state: State,
         flights: [FlightAssessment] = [],
+        pointCorrections: [FlightPointCorrection] = [],
     ) {
         self.id = id
         self.day = day
         self.points = points
         self.state = state
+        self.pointCorrections = pointCorrections
         if flights.isEmpty {
             switch state {
                 case let .pending(flight), let .completed(flight): self.flights = [flight]
@@ -68,6 +71,7 @@ public struct GPSCorrectionReview: Identifiable, Hashable, Sendable {
             points: points,
             state: .pending(pending),
             flights: flights,
+            pointCorrections: pointCorrections,
         )
     }
 }

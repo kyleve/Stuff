@@ -6,6 +6,145 @@ import Testing
 
 @MainActor
 struct FlightReviewModelTests {
+    @Test func pointConfirmationAppliesAndRestoresWithoutClosingTheReview() async throws {
+        let store = try TestStore()
+        let now = FlightReviewTestSupport.date(hour: 18)
+        let report = YearReportModel(
+            services: FlightReviewTestSupport.services(store: store, now: now),
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { now },
+        )
+        try await FlightReviewTestSupport.seed(into: store, includeArrival: true)
+        await report.refresh()
+        await report.rescanForIssues()
+        let review = try #require(report.correctionReviews.first)
+        let model = FlightReviewModel(review: review, report: report)
+        let include = try #require(review.pointCorrections.first)
+        model.selectPointCorrection(include)
+        #expect(model.isConfirmingPointCorrection)
+        // SwiftUI dismisses a confirmation before its asynchronous action resumes.
+        model.isConfirmingPointCorrection = false
+        await model.applyPointCorrection(include)
+        #expect(model.saveState == .pointApplied)
+        #expect(model.review != nil)
+        #expect(model.canEditPoints)
+        let revisions = try await store.allSampleAttributionRevisions()
+        #expect(revisions.count == 1)
+        #expect(revisions.first?.sampleID == include.sampleID)
+        let restore = try #require(model.recordedPoints.first { $0.id == include.sampleID }?
+            .correction)
+        #expect(restore.action == .restoreGPS)
+        model.selectPointCorrection(restore)
+        await model.applyPointCorrection(restore)
+        #expect(model.saveState == .pointApplied)
+        #expect(try await store.allSampleAttributionRevisions().count == 2)
+        #expect(model.recordedPoints.first { $0.id == include.sampleID }?.correction?
+            .action == .includeInFlight)
+    }
+
+    @Test func pointCorrectionKeepsChangedEvidenceOpenForReview() async throws {
+        let store = try TestStore()
+        let now = FlightReviewTestSupport.date(hour: 18)
+        let report = YearReportModel(
+            services: FlightReviewTestSupport.services(store: store, now: now),
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { now },
+        )
+        try await FlightReviewTestSupport.seed(into: store, includeArrival: true)
+        await report.refresh()
+        await report.rescanForIssues()
+        let review = try #require(report.correctionReviews.first)
+        let model = FlightReviewModel(review: review, report: report)
+        let correction = try #require(review.pointCorrections.first)
+        model.selectPointCorrection(correction)
+        try await store.perform {
+            try await store.add(sample: LocationSample(
+                timestamp: FlightReviewTestSupport.date(hour: 17.75),
+                coordinate: FlightReviewTestSupport.destination,
+                horizontalAccuracy: 20,
+                source: .gpsSignificantChange,
+                recordingDeviceID: CurrentRecordingDevice.preview.id,
+            ))
+        }
+        await model.applyPointCorrection(correction)
+        #expect(model.saveState == .refreshed)
+        #expect(model.review != review)
+        #expect(model.pointConfirmation == nil)
+        #expect(try await store.allSampleAttributionRevisions().isEmpty)
+    }
+
+    @Test(arguments: [false, true])
+    func pointDecisionsKeepDismissedProposalsHidden(changedEvidence: Bool) async throws {
+        let store = try TestStore()
+        let now = FlightReviewTestSupport.date(hour: 18)
+        let services = FlightReviewTestSupport.services(store: store, now: now)
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { now },
+        )
+        try await FlightReviewTestSupport.seedMixedFlights(into: store)
+        await report.refresh()
+        await report.rescanForIssues()
+        let initial = try #require(report.correctionReviews.first)
+        #expect(initial.proposal != nil)
+        #expect(initial.flights.contains { $0.isPending })
+        try await services.journal.dismissIssue(id: initial.id)
+        await report.rescanForIssues()
+        let dismissed = try #require(report.correctionReviews.first)
+        #expect(dismissed.proposal == nil)
+        let model = FlightReviewModel(review: dismissed, report: report)
+        let include = try #require(dismissed.pointCorrections.first)
+        model.selectPointCorrection(include)
+        if changedEvidence {
+            try await store.perform {
+                try await store.add(sample: LocationSample(
+                    timestamp: FlightReviewTestSupport.date(hour: 17.75),
+                    coordinate: FlightReviewTestSupport.destination,
+                    horizontalAccuracy: 20,
+                    source: .gpsSignificantChange,
+                    recordingDeviceID: CurrentRecordingDevice.preview.id,
+                ))
+            }
+        }
+
+        await model.applyPointCorrection(include)
+
+        #expect(model.saveState == (changedEvidence ? .refreshed : .pointApplied))
+        #expect(model.pointConfirmation == nil)
+        #expect(model.canApply == false)
+        #expect(model.review?.isPending == true)
+        #expect(model.review == report.correctionReviews.first { $0.id == initial.id })
+        #expect(try await store.allSampleAttributionRevisions().count == (changedEvidence ? 0 : 1))
+        if !changedEvidence {
+            let restore = try #require(model.recordedPoints.first { $0.id == include.sampleID }?
+                .correction)
+            #expect(restore.action == .restoreGPS)
+            await model.applyPointCorrection(restore)
+            #expect(model.saveState == .pointApplied)
+            #expect(model.canApply == false)
+            #expect(model.review?.isPending == true)
+            #expect(model.review == report.correctionReviews.first { $0.id == initial.id })
+            #expect(try await store.allSampleAttributionRevisions().count == 2)
+        }
+    }
+
+    @Test func anUpdatedScanDismissesTheOldPointConfirmation() throws {
+        let review = PreviewSupport.flightReview(state: .ready)
+        let model = FlightReviewModel(
+            review: review,
+            report: PreviewSupport.loadedYearReportModel(),
+        )
+        try model.selectPointCorrection(#require(review.pointCorrections.first))
+        #expect(model.isConfirmingPointCorrection)
+        model.receive(PreviewSupport.flightScan(state: .completed))
+        #expect(model.pointConfirmation == nil)
+        #expect(model.saveState == .refreshed)
+    }
+
     @Test func duplicateSyncedPointsDisplayOneRowPerEdit() async throws {
         let store = try TestStore()
         let now = FlightReviewTestSupport.date(hour: 18)

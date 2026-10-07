@@ -183,11 +183,18 @@ one it belongs to rather than to a god-object:
   three ground anchors spanning ten minutes within 2 km and at most 50 km/h.
   `FlightAssessment.RecordingSource` separates identified installations from legacy samples.
   `Reassessment` distinguishes a scheduled refresh from an evidence-driven refresh.
+
   A qualifying dwell confirms arrival immediately. The 30-minute freshness limit
   only changes live-notice presentation. Cruise inference uses positional
-  movement; reported speed can veto ground dwell, and altitude is context only.
+  movement. Reported speed can veto ground dwell, and altitude is context only.
   Missing or stale updates never establish arrival. Slower aircraft and sparse
   recordings can remain uncertain.
+
+  `FlightEndpointInference` can corroborate a resumed cruise endpoint through
+  reported speed or a bounded recording gap followed by sustained cruise.
+  Slow sensor readings veto this inference. The gap remains unknown and never
+  becomes an observed motion leg. Each inferred endpoint carries its reason
+  into the correction review.
 - **`SampleCorrectionAssessment`** — shares the raw-evidence assessment for flights
   and border drift. Its named policy includes 24-hour report context and local
   boundary brackets within ten minutes on each side. These conservative limits
@@ -202,6 +209,9 @@ one it belongs to rather than to a god-object:
   Manual assertions, unknown fixes, ground endpoints, layovers, and later
   destinations retain their contributions. Reviews coalesce identical synced rows
   by sample identity; conflicting representations remain uncorrected.
+  A `FlightPointCorrection` lets the user explicitly include or restore one GPS point within a completed flight.
+  Both actions recheck the same evidence and data generation as automatic proposals.
+  Restoration writes a reset revision. It preserves the original GPS sample and the earlier correction history.
   `LocationHistoryReader.projection`
   joins lossless raw samples to the effective attribution for reports, maps,
   artwork, widgets, summaries, reminders, and intents.

@@ -33,25 +33,34 @@ struct RecordedMapPoint: Hashable {
 /// Shared GPS map. Geometry is prepared by the owning model for large reviews.
 struct RecordedPointsMap: View {
     let data: RecordedMapData
+    let variant: WhereStylesheet.RegionMapStyle.Variant
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
     /// Capture infrastructure: remote MapKit tiles cannot settle deterministically.
     @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
 
-    init(data: RecordedMapData) {
+    init(data: RecordedMapData, variant: WhereStylesheet.RegionMapStyle.Variant = .overview) {
         self.data = data
+        self.variant = variant
     }
 
     init(points: [RecordedMapPoint]) {
         data = RecordedMapData(points: points, routes: [])
+        variant = .overview
     }
 
     var body: some View {
+        let viewport = stylesheet.regionMap[variant]
+        let bounds = data.bounds(minimumSpanMeters: viewport.minimumSpanMeters)
         Group {
             if isCapturingSnapshot {
                 captureSurface
             } else {
-                Map(initialPosition: .automatic) {
+                Map(
+                    initialPosition: variant == .overview || bounds
+                        .isNull ? .automatic : .rect(bounds),
+                    interactionModes: variant == .overview ? .all : [],
+                ) {
                     ForEach(data.routes) { route in
                         MapPolyline(coordinates: route.coordinates.clLocationCoordinates)
                             .stroke(.secondary, lineWidth: stylesheet.regionMap.routeLineWidth)
@@ -76,14 +85,15 @@ struct RecordedPointsMap: View {
                 .mapStyle(.standard(pointsOfInterest: .excludingAll))
             }
         }
-        .frame(height: stylesheet.regionMap.height)
+        .frame(height: viewport.height)
         .accessibilityLabel(String(localized: .secondaryRegionMapAccessibility))
     }
 
     /// Same GPS overlays and height as the live map, over a deterministic tile substrate.
     private var captureSurface: some View {
         Canvas { context, size in
-            let bounds = data.captureBounds
+            let bounds = data
+                .bounds(minimumSpanMeters: stylesheet.regionMap[variant].minimumSpanMeters)
             let inset = stylesheet.regionMap.captureInset
             guard !bounds.isNull, size.width > 2 * inset, size.height > 2 * inset else { return }
             let scale = max(

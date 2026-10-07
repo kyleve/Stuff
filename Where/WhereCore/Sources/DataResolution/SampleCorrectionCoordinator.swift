@@ -98,6 +98,55 @@ public struct SampleCorrectionCoordinator: Sendable {
         ))
     }
 
+    /// Apply a user-selected point decision against the exact evidence shown in review.
+    /// Restoring GPS writes a newer tombstone, so delayed older corrections cannot return.
+    public func apply(_ correction: FlightPointCorrection) async throws
+        -> SampleCorrectionApplyResult
+    {
+        let result: SampleCorrectionApplyResult
+        do {
+            result = try await store
+                .perform(expectedDataGenerationID: correction.dataGenerationID) {
+                    let fresh = try await pointReview(for: correction)
+                    guard fresh?.pointCorrections.contains(correction) == true else {
+                        return .stale(fresh)
+                    }
+                    let revisions = try await store
+                        .sampleAttributionRevisions(for: [correction.sampleID])
+                    let prior = revisions.max { SampleAttributionRevision.newer($1, than: $0) }
+                    try await store.addSampleAttributionRevision(.init(
+                        id: .init(rawValue: UUID()),
+                        sampleID: correction.sampleID,
+                        updatedAt: SampleAttributionRevision.nextUpdatedAt(
+                            now: now(),
+                            after: prior,
+                        ),
+                        replacementRegions: correction.action == .includeInFlight ? [] : nil,
+                    ))
+                    return .applied
+                }
+        } catch RecordingPersistenceError.dataGenerationChanged {
+            Self.logger { .reviewInvalidated }
+            return try await .stale(pointReview(for: correction))
+        } catch WhereStoreReadConflictError.changedDuringTransaction {
+            Self.logger { .reviewInvalidated }
+            return try await .stale(pointReview(for: correction))
+        }
+        if case .applied = result { await onCommitted() }
+        return result
+    }
+
+    private func pointReview(for correction: FlightPointCorrection) async throws
+        -> GPSCorrectionReview?
+    {
+        try await review(
+            id: .flightDay(day: correction.day),
+            year: correction.day.year,
+            primaryRegions: correction.evidence.primaryRegions,
+            driftThresholdMeters: correction.evidence.driftThresholdMeters,
+        )
+    }
+
     /// Reset only the named samples, leaving the immutable history available
     /// for delayed sync. Day-level Reset to GPS additionally clears its override.
     public func reset(sampleIDs: Set<UUID>) async throws {

@@ -78,6 +78,27 @@ struct RecordedMapData {
         Self.project(coordinate, relativeTo: referenceX)
     }
 
+    /// Gives an individual fix geographic context without cropping larger routes.
+    func bounds(minimumSpanMeters: Double) -> MKMapRect {
+        guard !captureBounds.isNull, minimumSpanMeters > 0,
+              let coordinate = pins.first?.point.coordinate ?? routes.first?.coordinates.first
+        else { return captureBounds }
+        let minimumSpan = min(
+            MKMapRect.world.width,
+            minimumSpanMeters * MKMapPointsPerMeterAtLatitude(coordinate.latitude),
+        )
+        guard minimumSpan > captureBounds.width || minimumSpan > captureBounds.height
+        else { return captureBounds }
+        let width = max(captureBounds.width, minimumSpan)
+        let height = max(captureBounds.height, minimumSpan)
+        return MKMapRect(
+            x: captureBounds.midX - width / 2,
+            y: captureBounds.midY - height / 2,
+            width: width,
+            height: height,
+        )
+    }
+
     private static func project(
         _ coordinate: Coordinate,
         relativeTo referenceX: Double,

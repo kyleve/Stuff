@@ -496,6 +496,7 @@ struct YearReportModelTests {
             groundSampleIDs: flight.groundSampleIDs,
             peakSpeedKMH: flight.peakSpeedKMH,
             progress: flight.progress,
+            inferredEndpoints: flight.inferredEndpoints,
         )
         let remote = GPSCorrectionReview(
             id: current.id,
@@ -546,6 +547,7 @@ struct YearReportModelTests {
             groundSampleIDs: flight.groundSampleIDs,
             peakSpeedKMH: flight.peakSpeedKMH,
             progress: .awaitingArrival,
+            inferredEndpoints: flight.inferredEndpoints,
         )
         let expired = GPSCorrectionReview(
             id: current.id,

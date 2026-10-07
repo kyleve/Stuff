@@ -15,6 +15,7 @@ struct FlightAssessmentTests {
                 groundSampleIDs: [],
                 peakSpeedKMH: 900,
                 progress: progress,
+                inferredEndpoints: [],
             )
         }
         #expect(assessment(.flightLikely).reassessment == .at(lastFlight.addingTimeInterval(1800)))
