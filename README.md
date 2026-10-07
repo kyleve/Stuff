@@ -121,6 +121,9 @@ New suites run on the intake worker until rebalancing adds them to the plan.
 CI rejects a worker-count mismatch.
 CI also rejects a snapshot worker that does not execute exactly its assigned suites.
 
+Use the [`rebalance-snapshot-shards`](.agents/skills/rebalance-snapshot-shards/SKILL.md) skill for periodic maintenance.
+It selects successful CI samples, compares estimated shard loads, validates coverage, and opens a PR when a rebalance is warranted.
+
 The `./ide` script sets `core.hooksPath` to `.githooks`.
 The pre-commit hook formats staged Swift with SwiftFormat and runs `./sync-agents --git-add`.
 Generated Claude files stay in sync with `AGENTS.md`.
