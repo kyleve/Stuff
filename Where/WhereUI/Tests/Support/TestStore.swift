@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 import WhereCore
 
 /// Thrown by `TestStore.setManualDay` when failure injection is enabled.
@@ -30,6 +31,25 @@ struct RecordingDeviceSaveFailure: Error, Equatable {}
 /// Everything else forwards to the backing store so reads stay deterministic.
 actor TestStore: WhereStore {
     private let backing: SwiftDataStore
+    private var compatibilityVerificationFails = false
+    func failCompatibilityVerification(_ fails: Bool) {
+        compatibilityVerificationFails = fails
+    }
+
+    enum ImportCompatibilityInterruption: CaseIterable {
+        case beforeCommit
+        case afterCommit
+        case cleanup
+    }
+
+    @TaskLocal private static var transactionDepth = 0
+    private var importInterruption: ImportCompatibilityInterruption?
+    private var failAfterImportCommit = false
+    private(set) var importWriteAttempts = 0
+
+    func interruptNextImport(_ interruption: ImportCompatibilityInterruption) {
+        importInterruption = interruption
+    }
 
     private var gateFirstSamplesCall = false
     private var firstSamplesSeen = false
@@ -105,7 +125,15 @@ actor TestStore: WhereStore {
     // MARK: - WhereStore
 
     func perform<T: Sendable>(_ block: @Sendable () async throws -> T) async throws -> T {
-        try await backing.perform(block)
+        let result = try await Self.$transactionDepth.withValue(Self.transactionDepth + 1) {
+            try await backing.perform(block)
+        }
+        if Self.transactionDepth == 0, failAfterImportCommit {
+            failAfterImportCommit = false
+            compatibilityVerificationFails = true
+            throw DataCompatibilityError.invalidMetadata
+        }
+        return result
     }
 
     nonisolated func changes() -> AsyncStream<Void> {
@@ -113,7 +141,8 @@ actor TestStore: WhereStore {
     }
 
     func dataCompatibility() async throws -> DataCompatibilityStatus {
-        try await backing.dataCompatibility()
+        if compatibilityVerificationFails { throw DataCompatibilityError.invalidMetadata }
+        return try await backing.dataCompatibility()
     }
 
     func deviceDataCapabilities() async throws -> [DeviceDataCapability] {
@@ -150,13 +179,26 @@ actor TestStore: WhereStore {
         id: UUID,
         installationID: RecordingDeviceID,
     ) async throws -> BackupImportReceipt? {
-        try await backing.backupImportReceipt(id: id, installationID: installationID)
+        try await dataCompatibility().requireAccess()
+        return try await backing.backupImportReceipt(id: id, installationID: installationID)
     }
 
     func addBackupImportReceipt(
         id: UUID,
         installationID: RecordingDeviceID,
     ) async throws {
+        importWriteAttempts += 1
+        switch importInterruption {
+            case .beforeCommit:
+                importInterruption = nil
+                compatibilityVerificationFails = true
+                throw DataCompatibilityError.invalidMetadata
+            case .afterCommit:
+                importInterruption = nil
+                failAfterImportCommit = true
+            case .cleanup, nil:
+                break
+        }
         try await backing.addBackupImportReceipt(id: id, installationID: installationID)
     }
 
@@ -164,6 +206,11 @@ actor TestStore: WhereStore {
         id: UUID,
         installationID: RecordingDeviceID,
     ) async throws {
+        if importInterruption == .cleanup {
+            importInterruption = nil
+            compatibilityVerificationFails = true
+        }
+        try await dataCompatibility().requireAccess()
         try await backing.removeBackupImportReceipt(id: id, installationID: installationID)
     }
 
@@ -312,6 +359,22 @@ actor TestStore: WhereStore {
 
     func plannedStayRecords() async throws -> [PlannedStayRecord] {
         try await backing.plannedStayRecords()
+    }
+
+    func primaryRegions() async throws -> [PrimaryRegion] {
+        try await backing.primaryRegions()
+    }
+
+    func trackedRegions() async throws -> Set<Region> {
+        try await backing.trackedRegions()
+    }
+
+    func setPrimaryRegions(_ regions: [PrimaryRegion]) async throws {
+        try await backing.setPrimaryRegions(regions)
+    }
+
+    func setTrackedRegion(_ tracked: Bool, region: Region) async throws {
+        try await backing.setTrackedRegion(tracked, region: region)
     }
 
     func replacePlannedStayRecord(with record: PlannedStayRecord) async throws {

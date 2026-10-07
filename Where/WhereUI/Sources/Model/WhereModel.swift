@@ -132,6 +132,11 @@ public final class WhereModel {
     /// Process reporting state stays real even while the active data scope is a demo.
     public let diagnosticReporting: DiagnosticReportingSettingsModel
 
+    public let compatibility = DataCompatibilityModel()
+    public let updateAvailability: AppUpdateAvailability
+    public var onCompatibilityChanged: @MainActor (DataCompatibilityModel.State) async
+        -> Void = { _ in }
+
     /// The active presentation theme. Onboarding can preview this value in
     /// memory before committing; Appearance Settings persists immediately.
     public private(set) var theme: WhereTheme
@@ -211,6 +216,7 @@ public final class WhereModel {
     ) async throws
         -> RecordingOnboardingRecommendation
     {
+        try await prepareCompatibility(publishCapability: false)
         if context.isRejoining {
             return RecordingOnboardingRecommendation(
                 isEnabled: false,
@@ -316,6 +322,7 @@ public final class WhereModel {
         await onboardingImportRecovery.recoverInterruptedImport(
             requiresOnboarding: activeScope == nil
                 && (!hasOnboarded || !hasConfirmedRecordingChoice),
+            compatibility: compatibility,
             resolveScope: resolveScope,
             endSession: endSession,
             completeOnboarding: completeOnboarding,
@@ -355,6 +362,7 @@ public final class WhereModel {
             any InstallationRecordingContextStoring,
         ) -> any WhereScopeAssembling,
         logSystem: Periscope,
+        updateAvailability: AppUpdateAvailability = .noBuildsPublished,
         effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration? = nil,
         applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging = {
             _, _ in
@@ -374,6 +382,7 @@ public final class WhereModel {
             installationContextStore: installationContextStore,
         )
         self.makeBootstrap = makeBootstrap
+        self.updateAvailability = updateAvailability
         self.logSystem = logSystem
         self.now = now
         scopeState = .loggedOut(bootstrap: makeBootstrap(installationContextStore))
@@ -396,6 +405,7 @@ public final class WhereModel {
         selectedYear: Int = WhereModel.currentYear,
         preferences: WherePreferences,
         logSystem: Periscope,
+        updateAvailability: AppUpdateAvailability = .noBuildsPublished,
         effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration? = nil,
         applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging = {
             _, _ in
@@ -424,6 +434,7 @@ public final class WhereModel {
             installationContextStore: installationContextStore,
         )
         makeBootstrap = { _ in InjectedServicesAssembler(services: services) }
+        self.updateAvailability = updateAvailability
         self.logSystem = logSystem
         self.now = now
         initialSelectedYear = selectedYear
@@ -477,6 +488,7 @@ public final class WhereModel {
     /// Throws if the store can't be opened, leaving the model logged out so a
     /// later attempt can try again.
     public func resolveScope() async throws -> WhereScope {
+        try await prepareCompatibility(publishCapability: false)
         switch scopeState {
             case let .real(scope), let .demo(scope):
                 return scope
@@ -497,6 +509,54 @@ public final class WhereModel {
                 logStoreState = scope.logStoreState
                 Self.logger { .openedRealScope }
                 return scope
+        }
+    }
+
+    /// Preflight shares the bootstrap's store and remains alive when launch is blocked.
+    func prepareCompatibility(publishCapability: Bool) async throws {
+        do {
+            if !compatibility.isAttached {
+                let resources: DataCompatibilityServices = switch scopeState {
+                    case let .loggedOut(bootstrap): try await bootstrap.prepareCompatibility()
+                    case let .real(scope), let .demo(scope): scope.services.compatibilityServices
+                }
+                await compatibility.attach(resources) { [weak self] state, recovered in
+                    guard let self else { return }
+                    await onCompatibilityChanged(state)
+                    if !state.allowsData {
+                        await activeScope?.services.compatibilityRuntime.suspend()
+                    } else if recovered {
+                        await session?.appBecameActive()
+                    }
+                }
+            } else {
+                await compatibility.refresh(publishCapability: publishCapability)
+            }
+            try compatibility.requireAccess()
+        } catch let error as DataCompatibilityError {
+            if !compatibility.isAttached {
+                await compatibility.fail(error)
+                await onCompatibilityChanged(.verificationFailed(description: error
+                        .localizedDescription))
+            }
+            throw error
+        } catch {
+            await compatibility.fail(error)
+            await onCompatibilityChanged(.verificationFailed(description: error
+                    .localizedDescription))
+            throw error
+        }
+    }
+
+    /// Foreground checks advertise installation support even when recording consent is Off.
+    public func refreshCompatibility() async -> Bool {
+        guard compatibility.state != nil || hasOnboarded || activeScope != nil else { return true }
+        do {
+            try await prepareCompatibility(publishCapability: true)
+            try compatibility.requireAccess()
+            return true
+        } catch {
+            return false // The compatibility model already presents the failure and retry.
         }
     }
 
@@ -625,6 +685,7 @@ public final class WhereModel {
     /// false or unset, so the relaunch parks for the user before anything
     /// re-opens. The old container is long gone by the time they answer.
     private func logOut() async {
+        compatibility.detach()
         await activeScope?.stopLogRouting()
         session = nil
         scopeState = .loggedOut(bootstrap: makeBootstrap(installationContextStore))
@@ -676,6 +737,11 @@ private struct InjectedServicesAssembler: WhereScopeAssembling {
     let services: WhereServices
 
     func prepareLocation() {}
+
+    func prepareCompatibility() async throws -> DataCompatibilityServices {
+        services
+            .compatibilityServices
+    }
 
     func makeServices() async throws -> WhereServices {
         services

@@ -247,6 +247,13 @@ public final class WhereSession {
     /// and the widget snapshot (calendar-day rollover). The scene's `YearReportModel`
     /// separately re-pulls the report on `.active`.
     public func appBecameActive() async {
+        do {
+            try await services.compatibility.requireAccess()
+        } catch {
+            await services.compatibilityRuntime.suspend()
+            await synchronizeRecordingRuntimeState()
+            return
+        }
         await Self.logger.measure(.foregroundRefresh, budget: .seconds(5)) {
             await syncAuthorization()
             await reconcileTracking()

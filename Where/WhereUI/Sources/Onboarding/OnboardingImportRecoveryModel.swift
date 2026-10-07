@@ -50,6 +50,7 @@ final class OnboardingImportRecoveryModel {
 
     func recoverInterruptedImport(
         requiresOnboarding: Bool,
+        compatibility: DataCompatibilityModel,
         resolveScope: () async throws -> WhereScope,
         endSession: () async -> Void,
         completeOnboarding: () -> Void,
@@ -58,21 +59,27 @@ final class OnboardingImportRecoveryModel {
             return requiresOnboarding
         }
         do {
-            let scope = try await resolveScope()
-            switch try await scope.services.backup.importRecoveryState() {
-                case .ready:
-                    await endSession()
-                    return true
-                case .cleanupRequired:
-                    completeOnboarding()
-                    try await scope.services.backup.acknowledgeOnboardingImport()
-                    try await scope.services.backup.retryImportCleanup()
-                    return false
-                case .onboardingAcknowledgementRequired:
-                    completeOnboarding()
-                    try await scope.services.backup.acknowledgeOnboardingImport()
-                    return false
+            return try await compatibility.withAccessRetry {
+                let scope = try await resolveScope()
+                switch try await scope.services.backup.importRecoveryState() {
+                    case .ready:
+                        await endSession()
+                        return true
+                    case .cleanupRequired:
+                        completeOnboarding()
+                        try await scope.services.backup.acknowledgeOnboardingImport()
+                        try await scope.services.backup.retryImportCleanup()
+                        return false
+                    case .onboardingAcknowledgementRequired:
+                        completeOnboarding()
+                        try await scope.services.backup.acknowledgeOnboardingImport()
+                        return false
+                }
             }
+        } catch is CancellationError {
+            // Foreground promotion replaces the gate query. Its cancelled drive must not
+            // leave a terminal error for the new drive to consume.
+            return true
         } catch {
             interruptedImportError = error
             return false

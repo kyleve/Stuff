@@ -107,6 +107,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
                 )
             },
             logSystem: .shared,
+            updateAvailability: buildEnvironment.updateAvailability,
             effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
             applyRemoteLogging: applyRemoteLogging,
         )
@@ -120,6 +121,9 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             .add(dependency: { [intentServices = self.intentServices] in intentServices })
 
         WhereLaunch.startAmbientLogging(on: .shared)
+        model.onCompatibilityChanged = { [intentServices] state in
+            await intentServices.setCompatibilityFailure(state.blockingError)
+        }
         model.onLoggedOut = { [intentServices] in await intentServices.clear() }
         model.onThemeChanged = { [intentServices, widgetPresentationPublisher] theme in
             await widgetPresentationPublisher.publish(theme)

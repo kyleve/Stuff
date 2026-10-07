@@ -8,6 +8,16 @@ let whereProjectRules = RuleSet {
         id: "where.services_composition_ownership",
     )
     Rules.constructionOwnership(
+        "DataCompatibilityCoordinator",
+        allowed: .files(["Where/WhereCore/Sources/Compatibility/DataCompatibilityServices.swift"]),
+        id: "where.compatibility_composition_ownership",
+    )
+    Rules.constructionOwnership(
+        "DataCompatibilityOutputs",
+        allowed: .files(["Where/WhereCore/Sources/Compatibility/DataCompatibilityServices.swift"]),
+        id: "where.compatibility_outputs_ownership",
+    )
+    Rules.constructionOwnership(
         "CoreLocationSource",
         allowed: .files(["Where/WhereUI/Sources/Launch/WhereLaunch.swift"]),
         id: "where.live_location_source_ownership",

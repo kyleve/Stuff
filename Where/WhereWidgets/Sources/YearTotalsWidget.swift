@@ -31,7 +31,8 @@ struct YearTotalsWidget: Widget {
                 // carries so `\.regionStyles` renders the user's picks.
                 .whereBroadwayRoot(
                     theme: entry.theme,
-                    regionStyles: RegionStyleResolver(appearances: entry.snapshot.appearances),
+                    regionStyles: RegionStyleResolver(appearances: entry.snapshot?
+                        .appearances ?? [:]),
                 )
         }
         .configurationDisplayName(String(localized: .widgetGalleryYearTotalsName))
@@ -46,35 +47,39 @@ private struct YearTotalsWidgetContent: View {
     let entry: WhereWidgetEntry
 
     var body: some View {
-        switch family {
-            case .accessoryRectangular:
-                YearTotalsRectangularAccessoryView(snapshot: entry.snapshot)
-                    .containerBackground(.clear, for: .widget)
-            case .systemSmall:
-                YearTotalsWidgetView(
-                    snapshot: entry.snapshot,
-                    maxRows: 4,
-                )
-                .containerBackground(.background, for: .widget)
-            case .systemMedium:
-                YearTotalsWidgetView(
-                    snapshot: entry.snapshot,
-                    maxRows: 5,
-                )
-                .containerBackground(.background, for: .widget)
-            case .systemLarge, .systemExtraLarge, .systemExtraLargePortrait,
-                 .accessoryCircular, .accessoryInline, .accessoryCorner:
-                YearTotalsWidgetView(
-                    snapshot: entry.snapshot,
-                    maxRows: 4,
-                )
-                .containerBackground(.background, for: .widget)
-            @unknown default:
-                YearTotalsWidgetView(
-                    snapshot: entry.snapshot,
-                    maxRows: 4,
-                )
-                .containerBackground(.background, for: .widget)
+        if let snapshot = entry.snapshot {
+            switch family {
+                case .accessoryRectangular:
+                    YearTotalsRectangularAccessoryView(snapshot: snapshot)
+                        .containerBackground(.clear, for: .widget)
+                case .systemSmall:
+                    YearTotalsWidgetView(
+                        snapshot: snapshot,
+                        maxRows: 4,
+                    )
+                    .containerBackground(.background, for: .widget)
+                case .systemMedium:
+                    YearTotalsWidgetView(
+                        snapshot: snapshot,
+                        maxRows: 5,
+                    )
+                    .containerBackground(.background, for: .widget)
+                case .systemLarge, .systemExtraLarge, .systemExtraLargePortrait,
+                     .accessoryCircular, .accessoryInline, .accessoryCorner:
+                    YearTotalsWidgetView(
+                        snapshot: snapshot,
+                        maxRows: 4,
+                    )
+                    .containerBackground(.background, for: .widget)
+                @unknown default:
+                    YearTotalsWidgetView(
+                        snapshot: snapshot,
+                        maxRows: 4,
+                    )
+                    .containerBackground(.background, for: .widget)
+            }
+        } else {
+            WidgetUnavailableView().containerBackground(.background, for: .widget)
         }
     }
 }

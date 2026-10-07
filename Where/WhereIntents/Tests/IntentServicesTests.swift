@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 @_spi(Testing) import WhereCore
-@testable import WhereIntents
+@_spi(Testing) @testable import WhereIntents
 
 /// The intent layer's services handoff: `current()` returns the installed
 /// stack, parks until one is installed (never self-assembling a store — the
@@ -14,6 +14,31 @@ struct IntentServicesTests {
 
     private func makeStack() throws -> WhereServices {
         try IntentTestSupport.services(store: SwiftDataStore.inMemory())
+    }
+
+    @Test func coldCompatibilityFailureUnparksIntentsAndRetryCanInstall() async throws {
+        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        let parked = Task { try await handoff.current() }
+        try await waitUntil { await handoff.waiterCount == 1 }
+        let failure = DataCompatibilityError.invalidMetadata
+        await handoff.setCompatibilityFailure(failure)
+        await #expect(throws: failure) { try await parked.value }
+        let stack = try makeStack()
+        await handoff.install(stack, theme: .standard)
+        await #expect(throws: failure) { try await handoff.current() }
+        await handoff.setCompatibilityFailure(nil)
+        #expect(try await handoff.current().journal === stack.journal)
+    }
+
+    @Test func installedServicesCheckTheLiveStoreBeforeReturning() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        await handoff.install(IntentTestSupport.services(store: store), theme: .standard)
+        let future = DataCompatibilityVersion(rawValue: 2)
+        await store.setSupportedDataCompatibilityVersionForTesting(future)
+        try await store.perform { try await store.requireDataCompatibility(future) }
+        await store.setSupportedDataCompatibilityVersionForTesting(.initial)
+        await #expect(throws: DataCompatibilityError.self) { try await handoff.current() }
     }
 
     @Test func currentReturnsTheInstalledStack() async throws {
@@ -90,6 +115,86 @@ struct IntentServicesTests {
         await handoff.updateTheme(.alternate)
 
         let context = try await handoff.currentContext()
+        #expect(context.services.journal === stack.journal)
+        #expect(context.theme == .alternate)
+    }
+
+    @Test(arguments: [false, true])
+    func replacementDiscardsTheRetiredInstallationsCompatibilityResult(
+        retiredStoreBlocked: Bool,
+    ) async throws {
+        let store = try SwiftDataStore.inMemory()
+        if retiredStoreBlocked {
+            let future = DataCompatibilityVersion(rawValue: 2)
+            await store.setSupportedDataCompatibilityVersionForTesting(future)
+            try await store.perform { try await store.requireDataCompatibility(future) }
+            await store.setSupportedDataCompatibilityVersionForTesting(.initial)
+        }
+        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        await handoff.install(IntentTestSupport.services(store: store), theme: .standard)
+        let barrier = IntentHandoffBarrier()
+        await handoff.afterNextCompatibilityCheckForTesting { await barrier.wait() }
+        let lookup = Task { try await handoff.currentContext() }
+        defer { lookup.cancel(); Task { await barrier.release() } }
+        try await waitUntil { await barrier.arrived }
+
+        await handoff.clear()
+        let replacement = try makeStack()
+        await handoff.install(replacement, theme: .alternate)
+        await barrier.release()
+
+        let context = try await lookup.value
+        #expect(context.services.journal === replacement.journal)
+        #expect(context.theme == .alternate)
+    }
+
+    @Test func clearDuringVerificationParksUntilTheNextInstallation() async throws {
+        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        try await handoff.install(makeStack(), theme: .standard)
+        let barrier = IntentHandoffBarrier()
+        await handoff.afterNextCompatibilityCheckForTesting { await barrier.wait() }
+        let lookup = Task { try await handoff.current() }
+        defer { lookup.cancel(); Task { await barrier.release() } }
+        try await waitUntil { await barrier.arrived }
+
+        await handoff.clear()
+        await barrier.release()
+        try await waitUntil { await handoff.waiterCount == 1 }
+        let replacement = try makeStack()
+        await handoff.install(replacement, theme: .alternate)
+
+        #expect(try await lookup.value.journal === replacement.journal)
+    }
+
+    @Test func compatibilityBlockDuringVerificationRejectsTheLookup() async throws {
+        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        try await handoff.install(makeStack(), theme: .standard)
+        let barrier = IntentHandoffBarrier()
+        await handoff.afterNextCompatibilityCheckForTesting { await barrier.wait() }
+        let lookup = Task { try await handoff.current() }
+        defer { lookup.cancel(); Task { await barrier.release() } }
+        try await waitUntil { await barrier.arrived }
+
+        await handoff.setCompatibilityFailure(.invalidMetadata)
+        await barrier.release()
+
+        await #expect(throws: DataCompatibilityError.invalidMetadata) { try await lookup.value }
+    }
+
+    @Test func themeChangeDuringVerificationReturnsTheNewPresentationContext() async throws {
+        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        let stack = try makeStack()
+        await handoff.install(stack, theme: .standard)
+        let barrier = IntentHandoffBarrier()
+        await handoff.afterNextCompatibilityCheckForTesting { await barrier.wait() }
+        let lookup = Task { try await handoff.currentContext() }
+        defer { lookup.cancel(); Task { await barrier.release() } }
+        try await waitUntil { await barrier.arrived }
+
+        await handoff.updateTheme(.alternate)
+        await barrier.release()
+
+        let context = try await lookup.value
         #expect(context.services.journal === stack.journal)
         #expect(context.theme == .alternate)
     }

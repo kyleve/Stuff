@@ -25,7 +25,8 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   reliably discovers the phrases from there. Intent/entity types are `public`
   for it.
 - **Intents never start GPS.** `WhereServices.forIntents(sharingStoreOf:)`
-  wires an `IdleLocationSource`. An intent-logged manual entry records a
+  shares the assembled stack; intents use only its read/write collaborators.
+  An intent-logged manual entry records a
   "Logged with Siri" audit and no captured location.
 - **Resolve services through the `@Dependency`-injected `IntentServices`.
   Intents never open a store.** The app's `AppDelegate` owns the one instance
@@ -33,7 +34,9 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   the process's only store open. The `onServicesReady` hook derives and
   installs the store-sharing intents stack (re-fired on retry and reset
   relaunches). If an intent fires before installation, it **parks** in
-  `current()` (cancellation-aware). There is deliberately no self-open
+  `current()` (cancellation-aware). Compatibility failure rejects parked intents,
+  including before service assembly. Recheck the live store before returning an
+  installed context and before using the Today snapshot cache. There is no self-open
   fallback. A `LogDayIntent` write therefore pings the same `changes()`
   signal the running UI refreshes from.
 - **Inject the host App Group into `IntentServices`.** The Today intent's
@@ -41,6 +44,8 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   audience default.
 - **Resolve snippet services and `WhereTheme` together through
   `IntentServices.currentContext()`.** A view must never combine different handoff states.
+  Revalidate installation identity after compatibility awaits, including failed checks.
+  Discard retired results and park after a clear. Guard: `IntentServicesTests`.
 - **Every `perform()` wraps its work in `measureIntent(_:)`.** Each
   `WhereIntentsLog.IntentName` carries the budget for its own kind of work.
   Then the span history reads per intent (`perform(days-in-region)`). A slow

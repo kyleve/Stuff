@@ -70,6 +70,7 @@ struct DayJournalTests {
     }
 
     private actor SpyRefresher: WidgetTimelineRefreshing {
+        func publishCompatibility(_: WidgetCompatibilitySnapshot) async {}
         private(set) var publishCount = 0
         func publish(_: WidgetSnapshot) async {
             publishCount += 1
@@ -141,7 +142,10 @@ struct DayJournalTests {
                 aggregator: aggregator,
                 attributor: RegionAttributor.shared,
             ),
-            widgetRefresher: refresher,
+            outputs: CompatibilityOutputTestSupport.makeOutputs(
+                store: store,
+                widgetRefresher: refresher,
+            ),
             attributor: RegionAttributor.shared,
             calendar: WhereCoreTestSupport.calendar(),
             now: now,
