@@ -4,8 +4,11 @@ Where is an iOS/iPadOS app. It answers "what region was I in on which day?"
 It ingests passive GPS (Visits + significant-change). It accepts user-asserted
 history (manual coordinates, whole-day overlays, evidence like boarding passes).
 It rolls everything up into per-day region presence and per-year reports. A day
-"counts" for a region if **any** sample in that calendar day fell inside the
-region's polygon. A single day can belong to multiple regions.
+counts for each region in its effective sample attribution plus additive manual
+entries, unless an authoritative manual overlay replaces that presence.
+Device removal and GPS corrections affect
+effective attribution; raw observations remain available for review and backup.
+A single day can belong to multiple regions.
 
 This file complements the root [`AGENTS.md`](../AGENTS.md). That file owns the
 build system, formatting, and global conventions. Read that first.
