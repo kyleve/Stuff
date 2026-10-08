@@ -94,8 +94,11 @@ fully expresses Where's constructor facts.
 
 ## Gregorian calendar
 
-`where.gregorian_calendar` rejects `Calendar.current` throughout Where's
-production sources. Day and year math uses an injected Gregorian calendar or,
+`where.gregorian_calendar` rejects explicitly spelled `Calendar.current` in
+Where's production sources. It does not catch an implicit `.current` whose
+contextual type is `Calendar`. The enforcement gap and missing mutation test
+are tracked in the root [`TODOs.md`](../TODOs.md).
+Day and year math still requires an injected Gregorian calendar or,
 inside WhereIntents, `Calendar.whereIntents`.
 
 The architecture DSL and standard shapers cannot distinguish two static

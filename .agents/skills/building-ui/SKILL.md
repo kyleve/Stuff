@@ -22,6 +22,8 @@ current SwiftUI API, performance, and platform guidance.
 3. Extend an existing view with a mode or shared subview when two surfaces
    express the same concept. Keep screen-specific registration and rendering
    declarations beside the represented screen.
+   In-app examples and theme previews must reuse the production presentation component.
+   If embedding needs a different size or interaction policy, add that input at the shared boundary.
 4. Identify the narrowest layer that owns the behavior before editing UI.
 
 ## Keep views presentational
@@ -168,11 +170,7 @@ module-owned stylesheets.
   only the settled state.
 - Inspect Reduce Motion, edge taps, VoiceOver order, and focus.
 
-See [Apple's custom-glass guidance](https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views)
-and regression history in PRs [#48](https://github.com/kyleve/Stuff/pull/48),
-[#115](https://github.com/kyleve/Stuff/pull/115),
-[#170](https://github.com/kyleve/Stuff/pull/170), and
-[#289](https://github.com/kyleve/Stuff/pull/289).
+API reference: [Apple's custom-glass guidance](https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views).
 
 ## Make layout adaptive
 
@@ -194,6 +192,11 @@ and regression history in PRs [#48](https://github.com/kyleve/Stuff/pull/48),
   than remain at zero opacity.
 - Keep the visual structure consistent across states and variants unless the
   difference is intentional and modeled by the component style.
+- Put large row trees behind small named `View` types before applying focus,
+  reveal, or navigation wrappers. A computed `some View` property still exposes
+  its underlying generic value to the enclosing body. Use nominal child views
+  to bound copies. Keep measured size budgets local to the guarded surfaces.
+  Guard: [FeatureGuidePageTests](../../../Where/WhereUI/Tests/FeatureGuidePageTests.swift).
 
 ## Build for accessibility and localization
 
@@ -202,6 +205,10 @@ and regression history in PRs [#48](https://github.com/kyleve/Stuff/pull/48),
   keep complete labels and values readable.
 - Give custom full-screen modal surfaces the `.isModal` accessibility trait and
   post `.screenChanged` when crossing the modal boundary.
+- Group an illustrative card into one meaningful accessibility summary.
+  For a row with one action, expose one element with its evidence and action.
+  Preserve separate controls when actions differ.
+  Inspect spoken output and focus order, not only annotation rectangles.
 - Never rely on color alone when Broadway reports Differentiate Without Color.
 - Resolve user-facing copy through the owning module's generated
   `LocalizedStringResource` symbols. Keep DEBUG UI localized unless its module
@@ -241,12 +248,22 @@ and regression history in PRs [#48](https://github.com/kyleve/Stuff/pull/48),
   height, set `measurementReadiness: .immediate` to avoid paying a redundant
   sizing settle. Keep `.sameAsCapture` when async work can change height, and
   never weaken the case's final `settle` to optimize measurement.
+- If async content changes measured size, await its completion through `onReadyToMeasure`.
+  Use `onReadyToSnapshot` for readiness that affects only final capture.
+  Base both hooks on production completion signals.
+  Stable pixels can still show a loading placeholder. Do not use a longer
+  sleep as evidence that content loaded.
 - Review every changed reference for content, navigation/tool/search chrome,
   background, safe areas, Dynamic Type, and accessibility annotations. Give a
   chrome-free capture an explicit production background instead
   of inheriting a transparent test host. A blank, clipped, incomplete, or
   visibly broken image is a product or capture defect. Fix it before recording
   a reference.
+- When navigation, presentation, or lifecycle behavior changes, exercise the
+  production entry point and return path on a supported runtime.
+  Include re-entry or foreground activation when relevant. A static fixture
+  does not exercise those paths. For device-only failures, retain a physical-device
+  verification requirement and report it as unverified until exercised.
 
 Use the [`running-tests`](../running-tests/SKILL.md) skill to select and run the
 affected unit and image suites. A view or appearance change normally requires

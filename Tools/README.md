@@ -6,6 +6,10 @@ at their established paths in the repository root; shell launchers own public
 argument handling, process orchestration, and bootstrap, while structured
 parsing and reporting policy live here.
 
+[`AGENTS.md`](AGENTS.md) owns the maintenance rules for these implementations
+and their public wrappers. It covers failure propagation, transactional
+replacement, simulator ownership, and validation at the command boundary.
+
 The existing CircleCI artifact, JUnit, and snapshot-shard helpers remain Python
 because they are already integrated and directly tested. `tla_check.py`
 similarly owns TLA+ manifest validation, isolated translation, TLC argv, and
