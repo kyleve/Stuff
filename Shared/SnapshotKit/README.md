@@ -63,7 +63,7 @@ capture + comparison pipeline lives in the sibling
   layout pass (`.immediate` — skips the loop, so static content captures fast).
   `.settledAtLeast(minDuration:)` is `.settled` with a raised minimum window,
   for async appearance work that starts quiet and lands after the default floor
-  (the iOS 26 glass toolbar/tab bar material adaptation).
+  (the native glass toolbar/tab bar material adaptation).
   Intrinsic/full-content cases also have a `measurementReadiness` axis. Its
   default, `.sameAsCapture`, preserves the existing behavior for content whose
   loaded state changes its height. Deterministically sized fixtures may use

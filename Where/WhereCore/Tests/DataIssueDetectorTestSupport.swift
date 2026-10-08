@@ -3,7 +3,7 @@ import RegionKit
 import WhereCore
 
 /// Shared fixtures for the per-detector test files (`MissingDaysDetectorTests`,
-/// `BorderDriftDetectorTests`, `AbruptLocationChangeDetectorTests`, and the
+/// `AbruptLocationChangeDetectorTests`, and the
 /// type-erasure coverage in `DataIssueDetectorTests`), so the `DataIssueInput`
 /// builder isn't duplicated across them.
 enum DataIssueDetectorFixtures {

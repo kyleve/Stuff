@@ -6,12 +6,11 @@ struct PrivacyPassportDisclosureRowLabel: View {
     let showsSettingsIndicator: Bool
 
     @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         let style = stylesheet.privacyPassportCard.disclosure
         Group {
-            if dynamicTypeSize.isAccessibilitySize {
+            if style.layout == .stacked {
                 VStack(alignment: .leading, spacing: style.contentSpacing) {
                     PrivacyPassportDisclosureSymbol(disclosure: disclosure)
                     PrivacyPassportDisclosureText(

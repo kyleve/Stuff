@@ -168,6 +168,7 @@ public actor BackupCoordinator {
                     recordingDeviceRemovals: store.recordingDeviceRemovals(),
                     plannedStayRecords: store.plannedStayRecords(),
                     homeRegionRecords: store.homeRegionRecords(),
+                    sampleAttributionRevisions: store.allSampleAttributionRevisions(),
                 )
             }
             let evidence = tables.evidence
@@ -204,6 +205,7 @@ public actor BackupCoordinator {
                 recordingDeviceRemovals: tables.recordingDeviceRemovals,
                 plannedStayRecords: tables.plannedStayRecords,
                 homeRegionRecords: tables.homeRegionRecords,
+                sampleAttributionRevisions: tables.sampleAttributionRevisions,
                 blobs: snapshot.blobs,
             )
         }.value
@@ -226,6 +228,7 @@ public actor BackupCoordinator {
         let recordingDeviceRemovals: [RecordingDeviceRemoval]
         let plannedStayRecords: [PlannedStayRecord]
         let homeRegionRecords: [HomeRegionRecord]
+        let sampleAttributionRevisions: [SampleAttributionRevision]
     }
 
     private struct ExportSnapshot {
@@ -419,6 +422,7 @@ public actor BackupCoordinator {
             + archive.recordingDeviceRemovals.count
             + archive.plannedStayRecords.count
             + archive.homeRegionRecords.count
+            + archive.sampleAttributionRevisions.count
 
         // Decode and validate before touching live recording. Once the archive is known-good,
         // close ingestion before either merge or replace so a streamed sample cannot cross the
@@ -490,6 +494,10 @@ public actor BackupCoordinator {
                     }
                     for home in archive.homeRegionRecords {
                         try await store.restoreHomeRegionRecord(home)
+                        report()
+                    }
+                    for revision in archive.sampleAttributionRevisions {
+                        try await store.addSampleAttributionRevision(revision)
                         report()
                     }
                     for profile in archive.recordingDeviceProfiles {

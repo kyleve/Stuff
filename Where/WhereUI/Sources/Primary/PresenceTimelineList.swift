@@ -13,14 +13,21 @@ import WhereCore
 /// year — "California, Jan 1 – Feb 3", "New York, Feb 3 – Mar 10", and so on.
 /// Hosted as the Timeline segment of the Your Year tab.
 struct PresenceTimelineList: View {
+    enum Presentation {
+        case full
+        case excerpt
+    }
+
     let report: YearReportModel
+    var presentation: Presentation = .full
 
     @Environment(\.stylesheet) private var stylesheet
     @State private var planningDestination: PlannedStaysDestination?
 
     var body: some View {
         let yearReport = report.report
-        let stints = yearReport.map { PresenceTimeline.stints(from: $0) } ?? []
+        let stints = yearReport
+            .map { PresenceTimeline.stints(from: $0, calendar: report.calendar) } ?? []
         let plannedItems = report.showsEstimatedTimeAndPlanning
             ? PlanningTimelineItem.items(
                 planning: report.forecasts.planning,
@@ -30,7 +37,20 @@ struct PresenceTimelineList: View {
             : []
 
         Group {
-            if report.report == nil, report.loadState == .loading {
+            if presentation == .excerpt {
+                if yearReport == nil {
+                    Text(.settingsExploreHistoryUnavailable).font(.subheadline)
+                } else if stints.isEmpty, plannedItems.isEmpty {
+                    Text(.settingsExploreHistoryEmpty).font(.subheadline)
+                } else {
+                    VStack(spacing: 0) {
+                        journeyRows(
+                            stints: Array(stints.suffix(2)),
+                            plannedItems: Array(plannedItems.prefix(2)),
+                        )
+                    }
+                }
+            } else if report.report == nil, report.loadState == .loading {
                 AppIconLoadingView(caption: String(localized: .primaryLoading))
             } else if case let .failed(error) = report.loadState {
                 ContentUnavailableView(
@@ -61,41 +81,7 @@ struct PresenceTimelineList: View {
                         }
 
                         LazyVStack(spacing: 0) {
-                            ForEach(stints.enumerated(), id: \.element.id) { index, stint in
-                                PresenceJourneyRow(
-                                    stint: stint,
-                                    calendar: report.calendar,
-                                    daysInYear: report.daysInSelectedYear,
-                                    isFirst: index == stints.startIndex,
-                                    isLast: plannedItems.isEmpty
-                                        && index == stints.index(before: stints.endIndex),
-                                    cardPosition: .standalone,
-                                )
-                            }
-
-                            ForEach(plannedItems) { item in
-                                Button {
-                                    if case let .stay(interval) = item,
-                                       let stay = report.forecasts.planning.stays
-                                       .first(where: { $0.id == interval.stayID })
-                                    {
-                                        planningDestination = .edit(stay)
-                                    } else {
-                                        planningDestination = .list
-                                    }
-                                } label: {
-                                    PlannedPresenceJourneyRow(
-                                        item: item,
-                                        calendar: report.calendar,
-                                        daysInYear: report.daysInSelectedYear,
-                                        isFirst: stints.isEmpty && item.id == plannedItems.first?
-                                            .id,
-                                        isLast: item.id == plannedItems.last?.id,
-                                        cardPosition: .standalone,
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                            }
+                            journeyRows(stints: stints, plannedItems: plannedItems)
                         }
 
                         if showsForecast {
@@ -134,7 +120,7 @@ struct PresenceTimelineList: View {
             PlannedStaysDestinationView(destination: destination, report: report)
         }
         .toolbar {
-            if report.showsEstimatedTimeAndPlanning {
+            if presentation == .full, report.showsEstimatedTimeAndPlanning {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(
                         String(localized: .plannedStaysTitle),
@@ -143,6 +129,54 @@ struct PresenceTimelineList: View {
                         planningDestination = .list
                     }
                 }
+            }
+        }
+    }
+
+    /// Both presentations share recorded and planned row rendering.
+    @ViewBuilder
+    private func journeyRows(
+        stints: [RegionStint],
+        plannedItems: [PlanningTimelineItem],
+    ) -> some View {
+        ForEach(stints) { stint in
+            PresenceJourneyRow(
+                stint: stint,
+                calendar: report.calendar,
+                daysInYear: report.daysInSelectedYear,
+                isFirst: stint.id == stints.first?.id,
+                isLast: plannedItems.isEmpty && stint.id == stints.last?.id,
+                cardPosition: .standalone,
+            )
+            .fixedSize(horizontal: false, vertical: presentation == .excerpt)
+        }
+        ForEach(plannedItems) { item in
+            let row = PlannedPresenceJourneyRow(
+                item: item,
+                calendar: report.calendar,
+                daysInYear: report.daysInSelectedYear,
+                isFirst: stints.isEmpty && item.id == plannedItems.first?.id,
+                isLast: item.id == plannedItems.last?.id,
+                cardPosition: .standalone,
+            )
+            .fixedSize(horizontal: false, vertical: presentation == .excerpt)
+
+            if presentation == .full {
+                Button {
+                    if case let .stay(interval) = item,
+                       let stay = report.forecasts.planning.stays
+                       .first(where: { $0.id == interval.stayID })
+                    {
+                        planningDestination = .edit(stay)
+                    } else {
+                        planningDestination = .list
+                    }
+                } label: {
+                    row
+                }
+                .buttonStyle(.plain)
+            } else {
+                row
             }
         }
     }

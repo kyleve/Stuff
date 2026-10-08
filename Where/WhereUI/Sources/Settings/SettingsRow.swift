@@ -103,7 +103,6 @@ struct SettingsFocusScope<Content: View>: View {
 
     @State private var highlighted: SettingsFocus?
     @State private var didReveal = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.stylesheet) private var stylesheet
 
     init(
@@ -135,7 +134,7 @@ struct SettingsFocusScope<Content: View>: View {
         try? await Task.sleep(for: settings.scrollSettleDelay)
         guard !Task.isCancelled else { return }
 
-        let animation = reduceMotion ? nil : settings.flashAnimation
+        let animation = settings.flashAnimation
         withAnimation(animation) {
             proxy.scrollTo(focus, anchor: .center)
             highlighted = focus

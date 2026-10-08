@@ -19,6 +19,10 @@ lines up). They render with [`WhereUI`](../WhereUI/) snippet views. The
 app target (`WhereShortcuts`), not here, so App Intents metadata extraction
 always discovers it.
 
+The host injects its audience-specific App Group through `IntentServices`.
+`TodayRegionsIntent` uses that group for the optional widget-snapshot fast path
+and logs an App Group-open failure before falling back to the store report.
+
 ## Intents
 
 ### Query (read)
@@ -85,3 +89,9 @@ The hosted `WhereIntentsTests` bundle is wired in [`Project.swift`](../../Projec
 Swift Testing in [`Tests/`](Tests) (`WhereIntentsTests`, hosted in `StuffTestHost`).
 Tests cover entity/enum ↔ `Region` mapping, and each intent's read/write logic driven against an in-memory `WhereServices` (via `PreviewSupport.previewServices()`).
 They verify counts, date→regions, and that action intents commit through `DayJournal`.
+
+Tests exercise injected readers, writers, and the `IntentServices` handoff;
+they do not call an intent's `perform()`. The framework's `@Dependency` lookup
+traps outside the system perform flow. Dependency resolution, snippet wiring,
+and error-to-dialog mapping therefore require a Siri/Shortcuts invocation on a
+device; these are not covered by the unit suite.

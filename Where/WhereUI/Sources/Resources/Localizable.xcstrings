@@ -3294,6 +3294,580 @@
         }
       }
     },
+    "flight.review.apply" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Apply GPS correction"
+          }
+        }
+      }
+    },
+    "flight.review.changeCount" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "new",
+                  "value" : "%lld GPS fix to correct"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "new",
+                  "value" : "%lld GPS fixes to correct"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "flight.review.changes.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Only the reviewed GPS fixes change. Ground visits, uncertain readings, and manual entries are preserved. Later locations can still be recorded."
+          }
+        }
+      }
+    },
+    "flight.review.changes.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "GPS changes"
+          }
+        }
+      }
+    },
+    "flight.review.evidence.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Sustained movement supports a flight. Speed and altitude readings can add context; arrival needs a sequence of nearby, slow GPS readings."
+          }
+        }
+      }
+    },
+    "flight.review.evidence.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Flight evidence"
+          }
+        }
+      }
+    },
+    "flight.review.excluded" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Exclude from region totals"
+          }
+        }
+      }
+    },
+    "flight.review.manualEdit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Edit this day manually"
+          }
+        }
+      }
+    },
+    "flight.review.noPresence" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No GPS presence remains"
+          }
+        }
+      }
+    },
+    "flight.review.peakSpeed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Peak GPS speed"
+          }
+        }
+      }
+    },
+    "flight.review.point.actionAt" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ at %2$@"
+          }
+        }
+      }
+    },
+    "flight.review.point.airborne" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Flight motion supports this point."
+          }
+        }
+      }
+    },
+    "flight.review.point.confirmInclude" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This point will no longer count toward visited regions. You can restore its GPS attribution at any time."
+          }
+        }
+      }
+    },
+    "flight.review.point.confirmRestore" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This point will count toward the region at its recorded location again."
+          }
+        }
+      }
+    },
+    "flight.review.point.confirmTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Change this GPS point?"
+          }
+        }
+      }
+    },
+    "flight.review.point.coordinates" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Latitude, longitude: %@"
+          }
+        }
+      }
+    },
+    "flight.review.point.excluded" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Excluded from visited regions"
+          }
+        }
+      }
+    },
+    "flight.review.point.gap" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Likely in flight: recording resumed after a long gap and continued at flight speed."
+          }
+        }
+      }
+    },
+    "flight.review.point.ground" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Kept as ground evidence."
+          }
+        }
+      }
+    },
+    "flight.review.point.include" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Include in flight"
+          }
+        }
+      }
+    },
+    "flight.review.point.restore" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Restore GPS attribution"
+          }
+        }
+      }
+    },
+    "flight.review.point.speed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Likely in flight: recorded speed supports flight."
+          }
+        }
+      }
+    },
+    "flight.review.point.uncertain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Airborne status is uncertain."
+          }
+        }
+      }
+    },
+    "flight.review.point.updated" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "GPS point updated."
+          }
+        }
+      }
+    },
+    "flight.review.points.count" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "new",
+                  "value" : "Review %lld GPS point"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "new",
+                  "value" : "Review %lld GPS points"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "flight.review.points.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Include a point in a completed flight to exclude it from visited regions. Restore its GPS attribution to count it again."
+          }
+        }
+      }
+    },
+    "flight.review.points.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Recorded GPS points"
+          }
+        }
+      }
+    },
+    "flight.review.recordedAltitude" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Recorded altitude: %1$@ (±%2$@)"
+          }
+        }
+      }
+    },
+    "flight.review.recordedSpeed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Recorded speed: %1$@ (±%2$@)"
+          }
+        }
+      }
+    },
+    "flight.review.refreshed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "GPS evidence changed. Review the updated information before applying a correction."
+          }
+        }
+      }
+    },
+    "flight.review.resultingRegions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Regions after correction"
+          }
+        }
+      }
+    },
+    "flight.review.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This GPS correction is no longer available. Review the updated day or edit it manually."
+          }
+        }
+      }
+    },
+    "flight.review.unchanged" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Keep GPS attribution"
+          }
+        }
+      }
+    },
+    "flight.status.arrival.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Arrival is supported for this flight. Other flights on this day may still be waiting for arrival information."
+          }
+        }
+      }
+    },
+    "flight.status.arrival.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Arrival supported"
+          }
+        }
+      }
+    },
+    "flight.status.completed.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Arrival is supported and no GPS correction is needed."
+          }
+        }
+      }
+    },
+    "flight.status.completed.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Flight completed"
+          }
+        }
+      }
+    },
+    "flight.status.completedSection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Completed flights"
+          }
+        }
+      }
+    },
+    "flight.status.device.current" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Recorded on this device"
+          }
+        }
+      }
+    },
+    "flight.status.device.legacy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Recording device unavailable"
+          }
+        }
+      }
+    },
+    "flight.status.device.named" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Recorded on %@"
+          }
+        }
+      }
+    },
+    "flight.status.lastObservation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Last GPS reading: %@"
+          }
+        }
+      }
+    },
+    "flight.status.likely.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "GPS may include places passed over. Wait until you land to review corrections."
+          }
+        }
+      }
+    },
+    "flight.status.likely.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Flight likely"
+          }
+        }
+      }
+    },
+    "flight.status.openReview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Open flight information and GPS correction review"
+          }
+        }
+      }
+    },
+    "flight.status.pendingSection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Waiting for arrival"
+          }
+        }
+      }
+    },
+    "flight.status.ready.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Review the specific GPS changes before applying a correction."
+          }
+        }
+      }
+    },
+    "flight.status.ready.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Ready to review"
+          }
+        }
+      }
+    },
+    "flight.status.waiting.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Corrections will become available once location readings support arrival. You can still edit this day manually."
+          }
+        }
+      }
+    },
+    "flight.status.waiting.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Waiting for arrival information"
+          }
+        }
+      }
+    },
     "forecast.dateRangeExplanation" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3761,9 +4335,21 @@
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "^[%lld region](inflect: true)"
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld region"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld regions"
+                }
+              }
+            }
           }
         }
       }
@@ -5875,7 +6461,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Removes any manual correction for this day and restores the regions detected from GPS. Your raw location data is untouched."
+            "value" : "Restore the original GPS attribution by removing this day’s manual entry and GPS corrections."
           }
         }
       }
@@ -7776,7 +8362,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Estimates are hidden. Your stays and Home setting remain saved. Show estimates from Appearance."
+            "value" : "Estimates are hidden. Your stays and Home setting remain saved. The examples below appear in gray. Show estimates from Appearance."
           }
         }
       }
@@ -7865,6 +8451,28 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Estimated Time & Planning"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.surfaces.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planned days appear in calendars and as patterned stays in Timeline. Edit a stay from its planning controls in Locations, the calendar, or Timeline. Plans remain separate from recorded history."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.surfaces.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "See Your Plan in Your Year"
           }
         }
       }
@@ -7985,7 +8593,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "From Mail, Photos, Files, or Wallet, open the Share sheet and choose Where. You can also add evidence from the attachment archive."
+            "value" : "Share a PDF, image, Wallet pass, email, or link from an app that offers it in the Share sheet. Choose Where, review the details, then save. You can also add evidence from Attachments."
           }
         }
       }
@@ -8111,6 +8719,28 @@
         }
       }
     },
+    "settings.explore.history.empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your recorded days will appear here. The walkthrough is available before you record your first day."
+          }
+        }
+      }
+    },
+    "settings.explore.history.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your history is not available here right now. Open Your Year to check its status."
+          }
+        }
+      }
+    },
     "settings.explore.insights.abruptChanges" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8133,6 +8763,28 @@
         }
       }
     },
+    "settings.explore.insights.alerts.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alerts offers a daily logging reminder, a daily summary, and issue notifications. Choose the alerts you want and allow notifications when you enable them."
+          }
+        }
+      }
+    },
+    "settings.explore.insights.alerts.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep Up with Your History"
+          }
+        }
+      }
+    },
     "settings.explore.insights.allClear" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8151,6 +8803,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Border drift"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.corrections.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Resolve to inspect a suggested issue before applying a correction. Use Logged Days to add or edit your own records. Browsing this guide does not scan or change your history."
+          }
+        }
+      }
+    },
+    "settings.explore.insights.corrections.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review Before You Correct"
           }
         }
       }
@@ -8211,6 +8885,17 @@
         }
       }
     },
+    "settings.explore.insights.reviewStatus" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review the selected year for issues"
+          }
+        }
+      }
+    },
     "settings.explore.insights.row" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8240,6 +8925,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Insights & Accuracy"
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.appearance.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appearance offers themes, recorded-location dots on cards, and arrival welcomes. Estimated Time & Planning has its own visibility control. Region styles stay consistent across your history."
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.appearance.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose How Where Looks"
           }
         }
       }
@@ -8383,6 +9090,402 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Widgets"
+          }
+        }
+      }
+    },
+    "settings.explore.places.calendar.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Your Year for the calendar. Open a region card to focus on that place. Choose the report year in Settings to review an earlier year."
+          }
+        }
+      }
+    },
+    "settings.explore.places.calendar.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "calendar,year,history,dates,timeline,journey"
+          }
+        }
+      }
+    },
+    "settings.explore.places.calendar.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "See the Days Behind the Totals"
+          }
+        }
+      }
+    },
+    "settings.explore.places.locations.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Locations shows your leading regions. Tap a card for its calendar, or open Elsewhere to see the remaining regions. A travel day can count in more than one region."
+          }
+        }
+      }
+    },
+    "settings.explore.places.locations.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "locations,places,elsewhere,regions,totals"
+          }
+        }
+      }
+    },
+    "settings.explore.places.locations.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start with Your Places"
+          }
+        }
+      }
+    },
+    "settings.explore.places.row" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Places & Your Year"
+          }
+        }
+      }
+    },
+    "settings.explore.places.tagline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find the places, days, and journeys that make up your year."
+          }
+        }
+      }
+    },
+    "settings.explore.places.timeline.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In Your Year, switch from Calendar to Timeline to see continuous stays. Travel days can appear in two stays. Planned time has a separate patterned appearance."
+          }
+        }
+      }
+    },
+    "settings.explore.places.timeline.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "timeline,stays,journey,travel,planned"
+          }
+        }
+      }
+    },
+    "settings.explore.places.timeline.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow Your Timeline"
+          }
+        }
+      }
+    },
+    "settings.explore.places.welcome.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where can welcome you to your current tracked region when you open the app. Location access and Precise Location help Where identify the region. Manage welcomes in Appearance."
+          }
+        }
+      }
+    },
+    "settings.explore.places.welcome.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "welcome,arrival,greeting,precise location"
+          }
+        }
+      }
+    },
+    "settings.explore.places.welcome.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A Welcome When You Arrive"
+          }
+        }
+      }
+    },
+    "settings.explore.privacyBackups.export.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In Data, export a backup archive and save it somewhere you control. Wait for the export to finish, then choose a destination in the Share sheet."
+          }
+        }
+      }
+    },
+    "settings.explore.privacyBackups.export.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "backup,export,archive,save,data"
+          }
+        }
+      }
+    },
+    "settings.explore.privacyBackups.export.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep a Backup"
+          }
+        }
+      }
+    },
+    "settings.explore.privacyBackups.privacy.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This card describes the diagnostics active in this app session. Crash-report and replay changes take effect after relaunch. Diagnostic log choices apply during the session."
+          }
+        }
+      }
+    },
+    "settings.explore.privacyBackups.privacy.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "privacy,diagnostics,crash,replay,logs,icloud"
+          }
+        }
+      }
+    },
+    "settings.explore.privacyBackups.privacy.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Current Privacy Choices"
+          }
+        }
+      }
+    },
+    "settings.explore.privacyBackups.restore.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore a backup from onboarding. Settings offers export only. Opening this guide does not import an archive or reset your app."
+          }
+        }
+      }
+    },
+    "settings.explore.privacyBackups.restore.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "restore,import,backup,onboarding,setup"
+          }
+        }
+      }
+    },
+    "settings.explore.privacyBackups.restore.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore During Setup"
+          }
+        }
+      }
+    },
+    "settings.explore.privacyBackups.row" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy & Backups"
+          }
+        }
+      }
+    },
+    "settings.explore.privacyBackups.tagline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Understand your privacy choices and keep a copy of your history."
+          }
+        }
+      }
+    },
+    "settings.explore.recording.automatic.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where uses location visits and significant changes to record region presence. It does not record a continuous route. Review location access and automatic recording in Devices."
+          }
+        }
+      }
+    },
+    "settings.explore.recording.automatic.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "automatic,recording,gps,location,permission,background"
+          }
+        }
+      }
+    },
+    "settings.explore.recording.automatic.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record as You Go"
+          }
+        }
+      }
+    },
+    "settings.explore.recording.devices.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each device has its own recording choice. Change recording on the device you are using. Other devices show their reported status; that status can arrive later through sync."
+          }
+        }
+      }
+    },
+    "settings.explore.recording.devices.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "devices,sync,icloud,recording,phone"
+          }
+        }
+      }
+    },
+    "settings.explore.recording.devices.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose Which Devices Record"
+          }
+        }
+      }
+    },
+    "settings.explore.recording.manual.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Logged Days to add or edit dates and regions. Use a date range for a trip. Siri and Shortcuts can also log a day or trip after you invoke an action."
+          }
+        }
+      }
+    },
+    "settings.explore.recording.manual.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "manual,logged days,trip,range,add,edit"
+          }
+        }
+      }
+    },
+    "settings.explore.recording.manual.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a Day or a Trip"
+          }
+        }
+      }
+    },
+    "settings.explore.recording.row" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording & Devices"
+          }
+        }
+      }
+    },
+    "settings.explore.recording.tagline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Build your history automatically, or add the days yourself."
           }
         }
       }
@@ -9071,7 +10174,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "estimate, estimated time, forecast, pace, planned stay, planning, overlap, travel days, annual"
+            "value" : "estimate, estimated time, forecast, pace, planned stay, planning, overlap, travel days, annual, timeline, calendar"
           }
         }
       }
@@ -9126,7 +10229,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "issue, resolve, missing day, drift, border, flight, accuracy"
+            "value" : "issue, resolve, missing day, drift, border, flight, accuracy, correction, manual, reminder, summary, notification"
           }
         }
       }
@@ -9194,7 +10297,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "customize, personalization, appearance, color, emoji, symbol, region style, app icon, theme"
+            "value" : "customize, personalization, appearance, color, emoji, symbol, region style, app icon, theme, dots, welcome, greeting"
           }
         }
       }

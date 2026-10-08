@@ -8,8 +8,9 @@ CoreLocation — **no SwiftUI or UIKit** — so all of it is unit-testable off-s
 [`RegionKit`](../RegionKit) for coordinate→region lookup and logs through
 [`Periscope`](../../Shared/Periscope) via the `WhereLog` facade.
 
-Everything is reached through one `Sendable` container, **`WhereServices`**,
-which the presentation layer (`WhereUI`) and the widget extension talk to. For
+Services are reached through one `Sendable` container, **`WhereServices`**,
+which the presentation layer (`WhereUI`) and App Intents use. The widget
+extension reads published App Group snapshots without opening the store. For
 the domain/presentation layering and the rules this module enforces, see the
 feature [`Where/AGENTS.md`](../AGENTS.md). This file is the human-facing tour.
 
@@ -26,10 +27,11 @@ one it belongs to rather than to a god-object:
   data generation use `perform(expectedDataGenerationID:)`, and multi-table reads use
   `readSnapshot { … }` so a Reset or Replace cannot split one operation across
   generations. A persistent-history boundary invalidates any external commit
-  crossing a snapshot even when its remote-change notification arrives later.
-  `changes()` emits once per local commit and external import for the Where store
-  URL, excluding other stores such as Periscope. `remoteChanges()` uses
-  persistent-history transaction authors to emit only the external-import subset,
+  crossing a snapshot even when its history observer reports the change later.
+  `changes()` emits once per local commit and external import for the Where model
+  container, excluding other stores such as Periscope. `remoteChanges()` uses
+  SwiftData's `HistoryObserver` and persistent-history transaction authors to
+  emit only the external-import subset,
   so headless notifications and widgets rebuild without duplicating local work.
   `SwiftDataStore.make(storage:)` opens an explicitly selected CloudKit,
   local-only, or in-memory store. On-disk modes carry their App Group identifier;
@@ -104,15 +106,17 @@ one it belongs to rather than to a god-object:
   `yearReportDetails(for:primaryRegionCount:)` bundle used by the scene, the
   year's raw manual entries `manualDays(inYear:)`, single- or multi-region
   `locations(in:year:)` projections, and `representativeCoordinates(for:)`.
-  `YearReportDetails` keeps the aggregate report and its primary-region raw
+  `YearReportDetails` keeps the aggregate report and its primary-region effective
   locations on the same samples snapshot, including location-only changes that
   do not alter day totals.
 - **`YearReport` / `YearReportDetails` / `DayPresence` /
   `RegionDayLocations`** — the aggregated, snapshot-stable value types the UI
   renders, each keyed by a
-  timezone-independent **`CalendarDay`** (`DayPresence.day`). A day counts for a
-  region if *any* sample that calendar day fell inside it, so a single day can
-  belong to several.
+  timezone-independent **`CalendarDay`** (`DayPresence.day`). A day counts for
+  each region in its effective sample attribution after removal visibility and
+  GPS corrections, plus additive manual entries. An authoritative manual overlay
+  replaces that presence.
+  A single day can belong to several regions; raw observations remain lossless.
 - **`CalendarDay`** — a Y-M-D value that is the stable identity of a logical day.
   Stored user records and day comparisons key on it so they don't drift onto a
   different day across a time-zone change. Project to a concrete `Date` (grid
@@ -153,6 +157,8 @@ one it belongs to rather than to a god-object:
   from an Off interval remains rejected after relaunch. Immutable profiles, nickname events,
   target-owned advisory check-ins, and global removal tombstones sync independently. Another
   installation can rename or remove a device identity, but cannot change its recording consent.
+  `devices()` supplies active device configurations. `displayNames()` supplies the latest saved names,
+  including removed devices, for historical labels.
 - **`LocationHistoryReader`** — the shared removal-aware read boundary used by reports, widgets,
   and foreground capture checks. It hides a removed identity's GPS samples at
   and after its earliest tombstone while keeping earlier raw storage, backups, legacy samples
@@ -160,16 +166,69 @@ one it belongs to rather than to a god-object:
 
 ### Detection, notifications & the rest
 
-- **`DataIssueScanner`** + the `DataIssue` family (missing days, border drift,
-  abrupt change, flight days) — the "Resolve" tab's detections and their
-  `IssueResolution` fixes. Dismissals persist under a stable, device- and
-  timezone-independent `storageKey` (a `CalendarDay` ISO string), so a dismissal
-  doesn't reappear after travel. The `FlightDayDetector` reads the per-day GPS
-  fixes the scanner puts on `DataIssueInput.daySamples` (timestamped, GPS-only)
-  to spot cruise-speed points that added a spurious region. Each detector
-  declares the category it finds (`DataIssueDetecting.detects`), which both
-  labels its scan span and lets the scanner talk about categories without
-  knowing the concrete detector types.
+- **`DataIssueScanner`** — publishes a coherent revision of actionable issues,
+  informational GPS reviews, and the next reassessment deadline. Committed raw
+  evidence invalidates its cache even when day/region totals remain equal.
+  Missing-day and abrupt-change detection share the same snapshot; flight and
+  boundary cleanup use one sample assessment. Supported flight transitions stay
+  in that review instead of producing a separate whole-day abrupt-change suggestion.
+  Pending flights remain reviewable without adding to correction badges or notifications.
+  A pending flight does not block another completed flight's corrections, including flights on the same day.
+  One daily review can offer completed-flight edits and retain pending flight information.
+  Applying or dismissing those edits leaves the pending flight review available without an actionable count.
+  Dismissing a ready suggestion with no pending flights hides its review and live notice.
+  Pending and completed informational reviews remain accessible.
+- **`FlightTrajectoryAnalyzer`** — a pure, per-device GPS analysis before day
+  bucketing, with 24 hours of report-boundary context. It uses independent fixes
+  at least 60 seconds apart, positional uncertainty, sustained jet-speed progress,
+  turning departure/approach segments, and an observed ground dwell. Flight-only
+  types live in [`DataResolution/Flights`](Sources/DataResolution/Flights).
+  [`GPSCorrectionPolicy`](Sources/DataResolution/GPSCorrectionPolicy.swift) names
+  the shared inference limits: three anchors spanning three minutes, with each
+  leg's uncertainty-adjusted average speed at 450–1,500 km/h. Arrival requires
+  three ground anchors spanning ten minutes within 2 km and at most 50 km/h.
+  `FlightAssessment.RecordingSource` separates identified installations from legacy samples.
+  `Reassessment` distinguishes a scheduled refresh from an evidence-driven refresh.
+
+  A qualifying dwell confirms arrival immediately. The 30-minute freshness limit
+  only changes live-notice presentation. Cruise inference uses positional
+  movement. Reported speed can veto ground dwell, and altitude is context only.
+  Missing or stale updates never establish arrival. Slower aircraft and sparse
+  recordings can remain uncertain.
+
+  `FlightEndpointInference` can corroborate a resumed cruise endpoint through
+  reported speed or a bounded recording gap followed by sustained cruise.
+  Slow sensor readings veto this inference. The gap remains unknown and never
+  becomes an observed motion leg. Each inferred endpoint carries its reason
+  into the correction review.
+- **`SampleCorrectionAssessment`** — shares the raw-evidence assessment for flights
+  and border drift. Its named policy includes 24-hour report context and local
+  boundary brackets within ten minutes on each side. These conservative limits
+  leave longer gaps uncorrected because they can hide real travel.
+  Proposals carry a GPS-only `Kind` and order edits by timestamp, then sample identity.
+  Each reviewed day produces at most one actionable issue.
+- **`SampleCorrectionCoordinator`** — reviews exact GPS edits and reassesses them
+  in the guarded store transaction before Apply. Any changed evidence refreshes
+  the review instead of expanding the reviewed sample set. Supported airborne
+  points can be excluded only after arrival. A boundary relabel needs local
+  same-device brackets in the retained region within ten minutes on both sides.
+  Manual assertions, unknown fixes, ground endpoints, layovers, and later
+  destinations retain their contributions. Reviews coalesce identical synced rows
+  by sample identity; conflicting representations remain uncorrected.
+  A `FlightPointCorrection` lets the user explicitly include or restore one GPS point within a completed flight.
+  Both actions recheck the same evidence and data generation as automatic proposals.
+  Restoration writes a reset revision. It preserves the original GPS sample and the earlier correction history.
+  `LocationHistoryReader.projection`
+  joins lossless raw samples to the effective attribution for reports, maps,
+  artwork, widgets, summaries, reminders, and intents.
+- **`SampleAttributionRevision`** — an immutable, generation-scoped sample register,
+  resolved by timestamp then UUID. Its dedicated `ID` preserves the bare UUID backup format.
+  Correction and reset writes share a timestamp helper that advances observed history by at least one millisecond.
+  A nil replacement restores GPS attribution,
+  an empty set excludes the sample, and a populated set replaces its regions.
+  Reset to GPS clears the day's manual override and writes newer tombstones in
+  one transaction. Revisions can arrive before their samples; device-removal
+  filtering takes precedence.
 - **Reconcilers** — `ReminderReconciler` (daily logging reminder + app-icon
   badge), `DailySummaryReconciler` (year-to-date recap),
   `DataIssueAlertReconciler` ("issues to resolve").
@@ -178,7 +237,8 @@ one it belongs to rather than to a god-object:
 - **`WidgetPresentationPublisher`** — atomically writes the device-local `WhereTheme`
   to its own App Group file and reloads WidgetKit without reading or rebuilding widget data.
 - **`BackupCoordinator`** — ZIP export/import via `ZIPFoundation`. Export pins
-  tables, planned-stay and home-region revisions, and evidence blobs to one generation-consistent snapshot. Merge preserves queued locations
+  tables, planned-stay and home-region revisions, sample-attribution revisions, and evidence blobs
+  to one generation-consistent snapshot. Merge preserves queued locations
   and the installation-local recording choice. Replace writes the archive into a new child generation,
   retains existing removal tombstones, and preserves the local choice before pending fixes are
   discarded. A prepared
@@ -190,12 +250,14 @@ one it belongs to rather than to a god-object:
   sidecar tombstone before clearing recovery, so a cold launch can repair a preference write
   that did not reach disk without offering the same archive again.
   Check-ins are deliberately neither exported nor restored because they are live advisory status.
-  Backup format v6 stores independent stays, date windows, and the home register.
-  The offline `../Tools/upgrade-backup.rb` command upgrades earlier backups before import.
-  All v5 planned-stay revisions retain one shared legacy identity, including tombstones.
-  The converter infers exact arrival from each revision's UTC date, capped at its final day.
-  Revision IDs, timestamps, and final days remain unchanged. No in-app legacy recovery runs.
-  Export before upgrading the app, upgrade the archive offline, then replace-import it.
+  Backup format **v7** retains independent stays, date windows, Home choices, optional motion,
+  and every sample-attribution revision. Merge preserves revision IDs and timestamps.
+  Replace restores revisions into its new generation.
+  The offline [`upgrade-backup.rb`](../Tools/upgrade-backup.rb) command upgrades earlier archives.
+  Legacy stay revisions retain one shared identity, including deletion tombstones.
+  The converter infers arrival from each revision's UTC date, capped at its final day.
+  The production decoder accepts only the current format. See [backup format](BACKUP_FORMAT.md).
+  Export before upgrading the app. Upgrade the archive offline, then replace-import it.
   Update every syncing installation before editing plans. Older builds use a single
   stay register and can delete independent stays in the shared store.
 - **`InstallationRecordingContext`** — the device-local installation identity,
@@ -326,8 +388,13 @@ rotates to a Reset child generation, and discards the retry queue only after com
 ## Testing
 
 Swift Testing in [`Tests/`](Tests) (`WhereCoreTests`), hosted in `StuffTestHost`.
-Use `SwiftDataStore.inMemory()` + `ScriptedLocationSource` — never the
-on-disk/CloudKit store or `CoreLocationSource`. The CloudKit remote-import path
+Use `SwiftDataStore.inMemory()` + `ScriptedLocationSource` for domain tests.
+Do not open the user's on-disk/CloudKit store or make live Core Location requests.
+Production-source history tests use isolated temporary on-disk containers without
+CloudKit (`StoreRemoteChangeSourceTests`).
+`CoreLocationSourceTests` exercises the one-shot coordinator with an injected
+`CurrentLocationRequestDriving` fake, without starting passive monitoring.
+The CloudKit remote-import path
 is exercised via the `@_spi(Testing)` `inMemory(remoteChangeSource:)` +
 `ScriptedStoreRemoteChangeSource`.
 

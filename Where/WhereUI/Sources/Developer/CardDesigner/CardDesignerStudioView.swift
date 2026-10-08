@@ -16,6 +16,7 @@ import SFSafeSymbols
         @State private var previewYear = 2026
         @State private var isConfirmingResetAll = false
         @State private var tilt = TiltProvider()
+        /// The user can override the preview mode; this seeds that runtime selection.
         @Environment(\.colorScheme) private var systemColorScheme
 
         var body: some View {

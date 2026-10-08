@@ -13,6 +13,7 @@ class UpgradeAndVerify
   PRESERVED_COLLECTIONS = %w[
     samples evidence manualDays dismissedIssues trackedRegions
     recordingDeviceProfiles recordingDeviceMetadataChanges recordingDeviceRemovals assets
+    plannedStayRecords homeRegionRecords sampleAttributionRevisions
   ].freeze
 
   def initialize(argv)
@@ -148,6 +149,9 @@ class UpgradeAndVerify
       deviceProfilesCount: manifest.fetch("recordingDeviceProfiles").length,
       deviceChangesCount: manifest.fetch("recordingDeviceMetadataChanges").length,
       deviceRemovalsCount: manifest.fetch("recordingDeviceRemovals").length,
+      plannedStayRecordsCount: manifest.fetch("plannedStayRecords").length,
+      homeRegionRecordsCount: manifest.fetch("homeRegionRecords").length,
+      sampleAttributionRevisionsCount: manifest.fetch("sampleAttributionRevisions").length,
       assetsCount: manifest.fetch("assets").length,
     }
   end
@@ -177,9 +181,11 @@ class UpgradeAndVerify
   end
 end
 
-begin
-  UpgradeAndVerify.new(ARGV).run
-rescue OptionParser::ParseError, RuntimeError => error
-  warn "error: #{error.message}"
-  exit 1
+if $PROGRAM_NAME == __FILE__
+  begin
+    UpgradeAndVerify.new(ARGV).run
+  rescue OptionParser::ParseError, RuntimeError => error
+    warn "error: #{error.message}"
+    exit 1
+  end
 end

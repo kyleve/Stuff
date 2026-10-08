@@ -12,20 +12,10 @@ public enum DataIssueCategory: String, Codable, Sendable, Hashable, CaseIterable
 /// reuses a shape needs no UI change; a genuinely new fix shape adds a case
 /// (the compiler then flags the UI switch).
 public enum IssueResolution: Sendable, Hashable {
+    /// An exact, reversible change to reviewed GPS observations.
+    case correctSamples(SampleCorrectionProposal)
     case backfill(MissingDayRange)
-    case relabelDay(day: DayPresence, suggestedRegions: Set<Region>, approximateMeters: Double?)
     case markTravelDay(earlier: DayPresence, later: DayPresence, suggestedRegions: Set<Region>)
-    /// A day whose region set was polluted by cruise-speed GPS fixes crossing
-    /// untracked geography (a flight). `keepRegions` are the endpoints/dwell
-    /// regions to preserve; `removedRegions` are the fly-over-only regions the
-    /// one-tap fix drops (applied as an authoritative `overrideDay(keepRegions)`).
-    /// `peakSpeedKMH` is the fastest leg, for the detail view's copy.
-    case correctFlightDay(
-        day: DayPresence,
-        keepRegions: Set<Region>,
-        removedRegions: Set<Region>,
-        peakSpeedKMH: Double,
-    )
 }
 
 public enum DataIssueID: Hashable, Sendable, WhereStoreURLCodable {

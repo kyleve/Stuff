@@ -429,6 +429,14 @@ view/model boundary, reuse, binding, Broadway stylesheet, layout,
 accessibility, localization, UIKit-bridge, preview, and image-snapshot
 procedures. Module `AGENTS.md` files add only their local seams and invariants.
 
+Resolve authored appearance from available Broadway traits during stylesheet
+slicing. This includes dimensions, layout policies, colors, and motion.
+Views consume component styles, not raw styling traits or trait flags copied
+into a global style. Keep measured geometry and runtime-only inputs in views.
+Document each direct trait-read or `@ScaledMetric` exception at its declaration:
+state which required input is unavailable during slicing. A non-`Equatable`
+rendering type alone is not an exception; use an `Equatable` policy or descriptor.
+
 SF Symbols use SFSafeSymbols' `SFSymbol` and `systemSymbol` overloads. Never
 spell a symbol as a raw string or construct an unchecked `SFSymbol`. Run
 `./sf-symbols --lint`. `WhereShortcuts.swift` is the sole exception because the
@@ -605,7 +613,7 @@ editor when changing its schema.
 
 ## Cursor Cloud specific instructions
 
-Cloud agent VMs run **Linux**, not macOS. This repo targets **iOS 26** with
+Cloud agent VMs run **Linux**, not macOS. This repo targets **iOS 27** with
 **Xcode 27+** and **Tuist** (macOS-only). Treat Linux as a partial dev
 environment. Formatting and agent sync work on Linux. Builds, tests, and running the
 **Where** app require macOS (as in CI on the `xcode-27` runner image).
@@ -645,9 +653,8 @@ external agent skills. Those skills are gitignored and absent from a bare checko
 
 Four of those rows — SwiftFormat, ShellCheck, attribution, and the Python tool
 tests — are four of the six checking steps in CI's `format` job, so a Linux agent
-can pre-flight most of it. Three carve-outs, all filed together in
-[`TODOs.md`](TODOs.md), all from the same cause — Linux ships no
-`/usr/bin/ruby`, and the pinned one is reachable only through mise. One Python
+can pre-flight most of it. Three portability carve-outs remain filed together in
+[`TODOs.md`](TODOs.md). They have distinct causes. One Python
 contract test pins macOS bash's `126` exit status for an unlaunchable command
 and reports `127` here. The Ruby retained-tool tests run each command under a
 hermetic `PATH=/usr/bin:/bin`, which resolves a `#!/usr/bin/env ruby` script

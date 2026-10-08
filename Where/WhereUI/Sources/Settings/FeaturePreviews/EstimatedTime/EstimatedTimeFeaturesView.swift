@@ -42,6 +42,13 @@ private struct EstimatedTimeFeaturesContent: View {
             .listRowSeparator(.hidden)
             .staggeredReveal(order: 0)
 
+            if !report.showsEstimatedTimeAndPlanning {
+                Section {
+                    FeatureEstimatedTimeStatusPreview(state: .disabled)
+                        .featureMarketingRow(order: 1)
+                }
+            }
+
             Section {
                 preview
                     .featureMarketingRow(order: 1)
@@ -68,6 +75,7 @@ private struct EstimatedTimeFeaturesContent: View {
 
             Section {
                 FeatureEstimatedTimeCalculationExample()
+                    .saturation(report.showsEstimatedTimeAndPlanning ? 1 : 0)
                     .featureMarketingRow(order: 4)
                     .settingsRow(
                         EstimatedTimeFeaturesView.Item.calculation,
@@ -86,6 +94,15 @@ private struct EstimatedTimeFeaturesContent: View {
             }
 
             Section {
+                FeatureGuidePanel(
+                    title: .settingsExploreEstimatedTimeSurfacesTitle,
+                    detail: .settingsExploreEstimatedTimeSurfacesDetail,
+                    symbol: .calendarDayTimelineLeft,
+                ) {
+                    PresenceTimelineList(report: report, presentation: .excerpt)
+                }
+                .featureMarketingRow(order: 6)
+                .settingsRow(EstimatedTimeFeaturesView.Item.surfaces, restingBackground: .clear)
                 FeatureMarketingPanel {
                     Button { showingPlanner = true } label: {
                         Label {
@@ -98,10 +115,11 @@ private struct EstimatedTimeFeaturesContent: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .featureMarketingRow(order: 6)
+                .featureMarketingRow(order: 7)
+                FeatureSettingsLink(destination: .appearance).featureMarketingRow(order: 8)
             } footer: {
                 FeatureDiscoveryDataFooter()
-                    .staggeredReveal(order: 7)
+                    .staggeredReveal(order: 9)
             }
         }
         .scrollContentBackground(.hidden)
@@ -111,9 +129,7 @@ private struct EstimatedTimeFeaturesContent: View {
 
     @ViewBuilder
     private var preview: some View {
-        if !report.showsEstimatedTimeAndPlanning {
-            FeatureEstimatedTimeStatusPreview(state: .disabled)
-        } else if forecasts.isEmpty {
+        if forecasts.isEmpty {
             FeatureEstimatedTimeStatusPreview(state: .unavailable)
         } else {
             LocationForecastPanel(
@@ -121,6 +137,7 @@ private struct EstimatedTimeFeaturesContent: View {
                 microprintRegions: report.ranking.primary.map(\.region),
                 homeRegion: report.forecasts.planning.homeRegion,
             )
+            .saturation(report.showsEstimatedTimeAndPlanning ? 1 : 0)
         }
     }
 
@@ -156,6 +173,7 @@ extension EstimatedTimeFeaturesView: SettingsSection {
         case planning
         case calculation
         case totals
+        case surfaces
 
         var title: String {
             switch self {
@@ -164,6 +182,7 @@ extension EstimatedTimeFeaturesView: SettingsSection {
                 case .planning: String(localized: .settingsExploreEstimatedTimePlanTitle)
                 case .calculation:
                     String(localized: .settingsExploreEstimatedTimeCalculationTitle)
+                case .surfaces: String(localized: .settingsExploreEstimatedTimeSurfacesTitle)
                 case .totals: String(localized: .settingsExploreEstimatedTimeTotalsTitle)
             }
         }
@@ -219,7 +238,10 @@ extension EstimatedTimeFeaturesView: SettingsSection {
         static let flyoverData = WhereFlyoverData.snapshots(
             EstimatedTimeFeaturesView.self,
             title: "Estimated Time & Planning",
-            routes: [.push(to: AppearanceSettingsView.flyoverID)],
+            routes: [
+                .push(to: AppearanceSettingsView.flyoverID),
+                .modal(to: PlannedStaysView.flyoverID),
+            ],
         )
     }
 #endif

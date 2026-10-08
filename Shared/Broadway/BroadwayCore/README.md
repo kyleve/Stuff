@@ -12,6 +12,11 @@ It carries the current traits, themes, and a lazily-populated stylesheet cache.
 - **`BAccessibility`** — accessibility snapshot (`.current()`) + observation: a `UIViewController`-based `BTraitsValue` observer, plus a view-controller-free `.changes()` `AsyncStream` a SwiftUI root can consume from a `.task`.
 - **Utilities** — `AnyEquatable` (type-erased `Equatable`), `CopyOnWrite` (`@_spi(CopyOnWrite)` copy-on-write wrapper), `EquatableIgnored`, `TypeIdentifier`, `StylesheetError`.
 
+`BScaledDimension.value(_:relativeTo:category:)` scales authored geometry with
+system font metrics and an explicit Broadway content-size category. Use it during
+stylesheet slicing. `BContentSizeCategory.uiContentSizeCategory` provides the
+reverse of `BContentSizeCategory.from(_:)` for UIKit consumers.
+
 ## How it works
 
 `BContext` holds a `BStylesheets` cache that is rebuilt whenever `baseTraits`, `traitOverrides`, or `themes` change (via `didSet`).

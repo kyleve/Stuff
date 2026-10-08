@@ -15,6 +15,9 @@ struct BackupServiceTests {
         let deviceProfilesCount: Int
         let deviceChangesCount: Int
         let deviceRemovalsCount: Int
+        let plannedStayRecordsCount: Int
+        let homeRegionRecordsCount: Int
+        let sampleAttributionRevisionsCount: Int
         let assetsCount: Int
     }
 
@@ -57,6 +60,10 @@ struct BackupServiceTests {
         #expect(result.archive.recordingDeviceMetadataChanges.count == configuration
             .deviceChangesCount)
         #expect(result.archive.recordingDeviceRemovals.count == configuration.deviceRemovalsCount)
+        #expect(result.archive.plannedStayRecords.count == configuration.plannedStayRecordsCount)
+        #expect(result.archive.homeRegionRecords.count == configuration.homeRegionRecordsCount)
+        #expect(result.archive.sampleAttributionRevisions.count == configuration
+            .sampleAttributionRevisionsCount)
         #expect(result.archive.assets.count == configuration.assetsCount)
         #expect(result.blobs.count == configuration.assetsCount)
     }
@@ -70,6 +77,10 @@ struct BackupServiceTests {
                 horizontalAccuracy: 5,
                 source: .gpsVisit,
                 recordingDeviceID: recordingDeviceID,
+                motion: LocationMotion(
+                    speed: .init(metersPerSecond: 240, accuracyMetersPerSecond: 2),
+                    altitude: .init(meters: 11000, accuracyMeters: 12),
+                ),
             ),
             LocationSample(
                 id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
@@ -146,8 +157,22 @@ struct BackupServiceTests {
             recordingDeviceRemovals: [],
             plannedStayRecords: [],
             homeRegionRecords: [],
+            sampleAttributionRevisions: [],
             assets: [],
         )
+    }
+
+    private static func attributionFixtures() -> [SampleAttributionRevision] {
+        let sampleID = sampleFixtures()[0].id
+        let replacements: [Set<Region>?] = [[], [.newYork], nil]
+        return replacements.enumerated().map { offset, regions in
+            SampleAttributionRevision(
+                id: .init(rawValue: UUID()),
+                sampleID: sampleID,
+                updatedAt: exportDate.addingTimeInterval(Double(offset)),
+                replacementRegions: regions,
+            )
+        }
     }
 
     private static func evidenceFixtures() -> [Evidence] {
@@ -204,6 +229,15 @@ struct BackupServiceTests {
         let dismissedIssues = Self.dismissedIssueFixtures()
         let recordingDeviceProfiles = Self.recordingDeviceProfileFixtures()
         let recordingDeviceMetadataChanges = Self.recordingDeviceMetadataFixtures()
+        let sampleAttributionRevisions = Self.attributionFixtures()
+        let homeRegionRecords = try [
+            HomeRegionRecord(id: UUID(), region: .california, updatedAt: Self.exportDate),
+            HomeRegionRecord(
+                id: UUID(),
+                region: nil,
+                updatedAt: Self.exportDate.addingTimeInterval(1),
+            ),
+        ]
         let deviceArchive = RecordingDeviceRemoval(
             id: .init(rawValue: UUID()),
             deviceID: Self.recordingDeviceID,
@@ -220,7 +254,8 @@ struct BackupServiceTests {
             recordingDeviceMetadataChanges: recordingDeviceMetadataChanges,
             recordingDeviceRemovals: [deviceArchive],
             plannedStayRecords: Self.plannedStayFixtures(),
-            homeRegionRecords: [],
+            homeRegionRecords: homeRegionRecords,
+            sampleAttributionRevisions: sampleAttributionRevisions,
             blobs: blobs,
             exportedAt: Self.exportDate,
         )
@@ -242,6 +277,8 @@ struct BackupServiceTests {
         #expect(result.archive.recordingDeviceMetadataChanges == recordingDeviceMetadataChanges)
         #expect(result.archive.recordingDeviceRemovals == [deviceArchive])
         #expect(try result.archive.plannedStayRecords == Self.plannedStayFixtures())
+        #expect(result.archive.sampleAttributionRevisions == sampleAttributionRevisions)
+        #expect(result.archive.homeRegionRecords == homeRegionRecords)
         let encodedManifest = try #require(String(
             data: BackupService.makeEncoder().encode(result.archive),
             encoding: .utf8,
@@ -254,14 +291,15 @@ struct BackupServiceTests {
         #expect(result.blobs == blobs)
     }
 
-    @Test func unsupportedFormatIsRejectedBeforeItsMissingCurrentFieldsAreDecoded() {
-        let legacyManifest = Data(#"{"formatVersion":5}"#.utf8)
+    @Test(arguments: [5, 6])
+    func unsupportedFormatIsRejectedBeforeItsMissingCurrentFieldsAreDecoded(version: Int) {
+        let legacyManifest = Data("{\"formatVersion\":\(version)}".utf8)
 
         do {
             _ = try BackupService.decodeManifest(legacyManifest)
             Issue.record("Expected the legacy backup format to be rejected.")
-        } catch BackupService.BackupError.unsupportedFormatVersion(5) {
-            // Expected: the version envelope was decoded before the strict current shape.
+        } catch let BackupService.BackupError.unsupportedFormatVersion(rejectedVersion) {
+            #expect(rejectedVersion == version)
         } catch {
             Issue.record("Unexpected error: \(error)")
         }
@@ -309,6 +347,7 @@ struct BackupServiceTests {
             recordingDeviceRemovals: [],
             plannedStayRecords: [],
             homeRegionRecords: [],
+            sampleAttributionRevisions: [],
             assets: [],
         )
         var json = try #require(String(
@@ -341,6 +380,7 @@ struct BackupServiceTests {
             recordingDeviceRemovals: [],
             plannedStayRecords: [],
             homeRegionRecords: [],
+            sampleAttributionRevisions: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -374,6 +414,7 @@ struct BackupServiceTests {
             recordingDeviceRemovals: [],
             plannedStayRecords: [],
             homeRegionRecords: [],
+            sampleAttributionRevisions: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -397,6 +438,7 @@ struct BackupServiceTests {
             recordingDeviceRemovals: [],
             plannedStayRecords: [],
             homeRegionRecords: [],
+            sampleAttributionRevisions: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -432,6 +474,7 @@ struct BackupServiceTests {
             recordingDeviceRemovals: [],
             plannedStayRecords: [],
             homeRegionRecords: [],
+            sampleAttributionRevisions: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -471,6 +514,7 @@ struct BackupServiceTests {
             recordingDeviceRemovals: [],
             plannedStayRecords: [],
             homeRegionRecords: [],
+            sampleAttributionRevisions: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -506,6 +550,7 @@ struct BackupServiceTests {
             recordingDeviceRemovals: [],
             plannedStayRecords: Self.plannedStayFixtures(),
             homeRegionRecords: [],
+            sampleAttributionRevisions: [],
             assets: [BackupAssetEntry(
                 evidenceId: Self.evidenceWithBlobId,
                 filename: "assets/\(Self.evidenceWithBlobId.uuidString)",

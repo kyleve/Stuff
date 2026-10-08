@@ -3,11 +3,10 @@ import SwiftUI
 /// Restacks the privacy seal above its title when accessibility text needs the width.
 struct PrivacyPassportHeader: View {
     @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         let style = stylesheet.privacyPassportCard
-        if dynamicTypeSize.isAccessibilitySize {
+        if style.headerLayout == .stacked {
             VStack(alignment: .leading, spacing: style.headerSpacing) {
                 PassportSeal(
                     systemSymbol: .lockShieldFill,

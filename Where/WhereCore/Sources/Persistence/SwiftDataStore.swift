@@ -59,6 +59,31 @@ private enum GenerationScopedFetch {
         }, sortBy: sortBy)
     }
 
+    static func sampleAttributions(
+        belongingTo generationID: WhereDataGenerationID,
+    ) -> FetchDescriptor<SDSampleAttributionRevision> {
+        let membership = GenerationMembership(generationID)
+        let storedGenerationID = membership.storedID
+        let includesLegacy = membership.includesLegacy
+        return descriptor(predicate: #Predicate {
+            $0.generationID == storedGenerationID || (includesLegacy && $0.generationID == nil)
+        })
+    }
+
+    static func sampleAttributions(
+        belongingTo generationID: WhereDataGenerationID,
+        revisionID: SampleAttributionRevision.ID,
+    ) -> FetchDescriptor<SDSampleAttributionRevision> {
+        let membership = GenerationMembership(generationID)
+        let storedGenerationID = membership.storedID
+        let includesLegacy = membership.includesLegacy
+        let storedRevisionID = revisionID.rawValue
+        return descriptor(predicate: #Predicate {
+            ($0.generationID == storedGenerationID || (includesLegacy && $0.generationID == nil)) &&
+                $0.id == storedRevisionID
+        })
+    }
+
     static func evidence(
         belongingTo generationID: WhereDataGenerationID,
         sortBy: [SortDescriptor<SDEvidence>] = [],
@@ -434,9 +459,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
 
         /// Whether a store of this mode can receive writes from outside this
         /// process — a sibling App Group process (the share extension) for any
-        /// on-disk store, or a CloudKit sync from another device — surfaced as
-        /// `.NSPersistentStoreRemoteChange`. In-memory stores have no shared
-        /// container and no other writers, so there's nothing to observe.
+        /// on-disk store, or a CloudKit sync from another device. In-memory
+        /// stores have no shared container and no other writers to observe.
         var observesRemoteChanges: Bool {
             switch self {
                 case .inMemory: false
@@ -494,11 +518,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             case let .localOnly(appGroupIdentifier),
                  let .cloudKit(appGroupIdentifier): .identifier(appGroupIdentifier)
         }
-        // CloudKit mode backs the container with `NSPersistentCloudKitContainer`,
-        // which enables persistent-history tracking and posts
-        // `.NSPersistentStoreRemoteChange` on remote import — no extra knobs
-        // needed (and SwiftData exposes none). `make` observes that notification
-        // via `PersistentStoreRemoteChangeSource`.
+        // CloudKit and sibling App Group writes are observed through SwiftData
+        // history by `HistoryObserverRemoteChangeSource` after opening the store.
         return ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: storage == .inMemory,
@@ -559,24 +580,16 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         let store = SwiftDataStore(modelContainer: container)
         // On-disk stores live in a shared App Group container, so another process
         // (the share extension) — or, for CloudKit, a sync from another device —
-        // can commit behind our back. Both surface as
-        // `.NSPersistentStoreRemoteChange` (persistent-history tracking is on for
-        // on-disk stores). Core Data posts that notification for local saves as
-        // well, so the source filters history by this store instance's author
-        // before forwarding only external writes into `changes()`. This makes a
-        // share-extension add show up live in the running app (debug included),
-        // not just on next launch.
+        // can commit behind our back. SwiftData's history observer detects
+        // changes to this container. The source filters history by this store
+        // instance's author before forwarding only external writes into
+        // `changes()`. A share-extension add then appears live in the running
+        // app (debug included), not just on next launch.
         if storage.observesRemoteChanges {
-            if let storeURL = container.configurations.first?.url {
-                try store.startObservingRemoteChanges(PersistentStoreRemoteChangeSource(
-                    modelContainer: container,
-                    storeURL: storeURL,
-                    localTransactionAuthor: store.localTransactionAuthor,
-                    center: .default,
-                ))
-            } else {
-                assertionFailure("An on-disk Where store must have a resolved URL")
-            }
+            try store.startObservingRemoteChanges(HistoryObserverRemoteChangeSource(
+                modelContainer: container,
+                localTransactionAuthor: store.localTransactionAuthor,
+            ))
         }
         return store
     }
@@ -586,7 +599,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         /// fan-out from `remoteChangeSource`, so the remote-import path is
         /// exercisable without CloudKit or a device. The production equivalent
         /// is `make(storage: .cloudKit(appGroupIdentifier:))`, which wires a
-        /// `PersistentStoreRemoteChangeSource`. `@_spi(Testing)` (per the
+        /// `HistoryObserverRemoteChangeSource`. `@_spi(Testing)` (per the
         /// agents.md) so the remote-change wiring stays folded into a factory —
         /// there's no public `startObservingRemoteChanges` to call twice.
         @_spi(Testing)
@@ -602,7 +615,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
 
         /// Variant that exposes the shared container to persistence-boundary
         /// tests, allowing them to commit a same-generation external write before
-        /// driving the corresponding remote-change notification.
+        /// driving the corresponding scripted remote-change signal.
         @_spi(Testing)
         public static func inMemory(
             modelContainer: ModelContainer,
@@ -623,6 +636,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             SDWhereDataGeneration.self,
             SDBackupImportReceipt.self,
             SDLocationSample.self,
+            SDSampleAttributionRevision.self,
             SDEvidence.self,
             SDManualDay.self,
             SDDismissedIssue.self,
@@ -695,6 +709,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     private struct ActiveTransaction {
         let context: ModelContext
         var generation: WhereDataGeneration.Resolution
+        /// The earliest snapshot read in this transaction determines which
+        /// external commits may invalidate the pending evidence-based writes.
+        var snapshotHistoryTransactionID: Int64?
     }
 
     private struct ActiveSnapshot {
@@ -781,17 +798,25 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         _ block: @Sendable () async throws -> T,
     ) async throws -> T {
         let storeID = ObjectIdentifier(self)
-        if Self.activeSnapshotStores.contains(storeID)
-            || Self.activeTransactionStores.contains(storeID)
-        {
+        if Self.activeTransactionStores.contains(storeID) {
+            guard let transaction = activeTransaction else {
+                preconditionFailure("A nested snapshot must retain its active transaction.")
+            }
+            if transaction.snapshotHistoryTransactionID == nil {
+                activeTransaction?.snapshotHistoryTransactionID = try Self
+                    .latestHistoryTransactionID(in: transaction.context)
+            }
+            return try await block()
+        }
+        if Self.activeSnapshotStores.contains(storeID) {
             return try await block()
         }
 
         return try await withExclusiveStoreOperation {
             let peer = ModelContext(modelContainer)
             // A persistent-store transaction becomes fetch-visible atomically with
-            // its history row, but Core Data is allowed to post the corresponding
-            // remote-change notification later. Bracket every table fetch with the
+            // its history row, but SwiftData may signal the observer later.
+            // Bracket every table fetch with the
             // history head from this same peer context: if an external transaction
             // lands anywhere across the block, its monotonically increasing id
             // changes and the assembled value is rejected. Our own `perform`s are
@@ -819,9 +844,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
     }
 
-    /// The durable store generation used to bracket a multi-table read. Unlike
-    /// `.NSPersistentStoreRemoteChange`, persistent history is committed in the
-    /// same transaction as the rows it describes, so it cannot lag visibility.
+    /// The durable store generation used to bracket a multi-table read. History
+    /// is committed in the same transaction as the rows it describes, so it
+    /// cannot lag change observation.
     private static func latestHistoryTransactionID(in context: ModelContext) throws -> Int64 {
         var descriptor = HistoryDescriptor<DefaultHistoryTransaction>(
             sortBy: [SortDescriptor(\.transactionIdentifier, order: .reverse)],
@@ -905,7 +930,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             let peer = ModelContext(modelContainer)
             peer.author = localTransactionAuthor
             let generation = try Self.resolvedDataGenerationResolution(in: peer)
-            activeTransaction = ActiveTransaction(context: peer, generation: generation)
+            activeTransaction = ActiveTransaction(
+                context: peer,
+                generation: generation,
+                snapshotHistoryTransactionID: nil,
+            )
             defer { activeTransaction = nil }
             if let expectedDataGenerationID,
                activeTransaction?.generation.current.id != expectedDataGenerationID
@@ -931,6 +960,16 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 // reaching the persistent store — a clean rollback of the entire
                 // transaction — while the enclosing scopes still clear the active
                 // state and release the gate.
+                // readSnapshot inside a mutation uses this peer, but still
+                // needs its evidence protected from same-generation CloudKit
+                // or sibling-process commits. Keep this check and save adjacent
+                // with no suspension so a conflicting read discards every write.
+                if let startingHistoryTransactionID = activeTransaction?
+                    .snapshotHistoryTransactionID,
+                    try Self.latestHistoryTransactionID(in: peer) != startingHistoryTransactionID
+                {
+                    throw WhereStoreReadConflictError.changedDuringTransaction
+                }
                 try peer.save()
                 // The persistent store can import a CloudKit reset while this
                 // asynchronous transaction body is suspended. Saving old-generation
@@ -1215,6 +1254,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         in context: ModelContext,
         belongingTo generationID: WhereDataGenerationID,
     ) throws {
+        for record in try context.fetch(GenerationScopedFetch.sampleAttributions(
+            belongingTo: generationID,
+        )) {
+            context.delete(record)
+        }
         for record in try context.fetch(GenerationScopedFetch.samples(
             belongingTo: generationID,
         )) {
@@ -1310,6 +1354,65 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             let value = record.toValue()
             if value == nil { Self.logFault(forCorrupt: record) }
             return value
+        }
+    }
+
+    // MARK: - Sample attributions
+
+    public func sampleAttributionRevisions(
+        for sampleIDs: Set<UUID>,
+    ) async throws -> [SampleAttributionRevision] {
+        guard !sampleIDs.isEmpty else { return [] }
+        return try await allSampleAttributionRevisions().filter { sampleIDs.contains($0.sampleID) }
+    }
+
+    public func allSampleAttributionRevisions() async throws -> [SampleAttributionRevision] {
+        let context = readContext()
+        let generationID = try readGenerationID(in: context)
+        let records = try context
+            .fetch(GenerationScopedFetch.sampleAttributions(belongingTo: generationID))
+        let values = try records.map { record in
+            guard let value = record.toValue() else {
+                Self.logFault(forCorrupt: record)
+                throw SampleAttributionPersistenceError.incompleteHistory
+            }
+            return value
+        }
+        return try Dictionary(grouping: values, by: \.id).map { revisionID, duplicates in
+            guard let canonical = duplicates.first else {
+                preconditionFailure("A grouped revision must contain at least one value.")
+            }
+            guard duplicates.allSatisfy({ $0 == canonical }) else {
+                Self.logImmutableConflict(
+                    type: String(describing: SampleAttributionRevision.self),
+                    id: revisionID.rawValue.uuidString,
+                    count: duplicates.count,
+                )
+                throw SampleAttributionPersistenceError.conflictingRevision(id: revisionID)
+            }
+            return canonical
+        }.sorted { SampleAttributionRevision.newer($1, than: $0) }
+    }
+
+    public func addSampleAttributionRevision(_ revision: SampleAttributionRevision) async throws {
+        guard revision.updatedAt.timeIntervalSince1970.isFinite else {
+            throw SampleAttributionPersistenceError.incompleteHistory
+        }
+        let context = mutationContext()
+        let generationID = mutationGenerationID()
+        let existing = try context.fetch(GenerationScopedFetch.sampleAttributions(
+            belongingTo: generationID,
+            revisionID: revision.id,
+        ))
+        guard !existing.isEmpty else {
+            context.insert(SDSampleAttributionRevision(value: revision, generationID: generationID))
+            return
+        }
+        guard existing.allSatisfy({ $0.toValue() == revision }) else {
+            throw SampleAttributionPersistenceError.conflictingRevision(id: revision.id)
+        }
+        for duplicate in existing.dropFirst() {
+            context.delete(duplicate)
         }
     }
 
@@ -1741,6 +1844,10 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             belongingTo: generationID,
             in: interval,
         ))
+        // Clearing history also clears its reviewed attributions. Keep reset revisions
+        // so a delayed old correction cannot regain authority if its raw sample returns.
+        let sampleIDs = Set(samples.compactMap(\.id))
+        try await SampleAttributionReset.write(sampleIDs: sampleIDs, store: self, now: Date())
         for record in samples {
             context.delete(record)
         }
@@ -2164,6 +2271,8 @@ final class SDWhereDataGeneration {
 
 @Model
 final class SDLocationSample {
+    private static let logger = WhereLog.root(SwiftDataStoreLog.self)
+
     /// Nil belongs to the implicit initial generation, preserving rows from builds before
     /// generations.
     var generationID: UUID?
@@ -2184,6 +2293,12 @@ final class SDLocationSample {
     /// Installation that produced an automatic sample. Nil on legacy rows and
     /// manual/evidence-implied samples.
     var recordingDeviceID: UUID?
+    /// Retains the distinction between absent motion and a present, empty measurement bundle.
+    var motionPresent: Bool?
+    var speedMetersPerSecond: Double?
+    var speedAccuracyMetersPerSecond: Double?
+    var altitudeMeters: Double?
+    var altitudeAccuracyMeters: Double?
 
     init() {}
 
@@ -2203,6 +2318,11 @@ final class SDLocationSample {
         evidenceId = value.source.evidenceId
         evidenceKindRaw = value.source.evidenceKind?.discriminator
         recordingDeviceID = value.recordingDeviceID?.rawValue
+        motionPresent = value.motion.map { _ in true }
+        speedMetersPerSecond = value.motion?.speed?.metersPerSecond
+        speedAccuracyMetersPerSecond = value.motion?.speed?.accuracyMetersPerSecond
+        altitudeMeters = value.motion?.altitude?.meters
+        altitudeAccuracyMeters = value.motion?.altitude?.accuracyMeters
     }
 
     func toValue() -> LocationSample? {
@@ -2214,6 +2334,28 @@ final class SDLocationSample {
             evidenceId: evidenceId,
             evidenceKindRaw: evidenceKindRaw,
         ) else { return nil }
+        // Optional motion may arrive partially without invalidating the raw
+        // position. Preserve each complete measurement independently, and keep
+        // these reads non-mutating so a later sync can complete the other one.
+        let hasMotionFields = speedMetersPerSecond != nil || speedAccuracyMetersPerSecond != nil
+            || altitudeMeters != nil || altitudeAccuracyMeters != nil
+        if (speedMetersPerSecond == nil) != (speedAccuracyMetersPerSecond == nil)
+            || (altitudeMeters == nil) != (altitudeAccuracyMeters == nil)
+            || (motionPresent != true && hasMotionFields)
+        {
+            Self.logger { .ignoredIncompleteSampleMotion }
+        }
+        let speed: LocationMotion.Speed? = if let speedMetersPerSecond,
+                                              let speedAccuracyMetersPerSecond
+        {
+            .init(
+                metersPerSecond: speedMetersPerSecond,
+                accuracyMetersPerSecond: speedAccuracyMetersPerSecond,
+            )
+        } else { nil }
+        let altitude: LocationMotion.Altitude? = if let altitudeMeters, let altitudeAccuracyMeters {
+            .init(meters: altitudeMeters, accuracyMeters: altitudeAccuracyMeters)
+        } else { nil }
         return LocationSample(
             id: id,
             timestamp: timestamp,
@@ -2221,6 +2363,49 @@ final class SDLocationSample {
             horizontalAccuracy: horizontalAccuracy,
             source: source,
             recordingDeviceID: recordingDeviceID.map(RecordingDeviceID.init(rawValue:)),
+            motion: motionPresent == true || speed != nil || altitude != nil
+                ? LocationMotion(speed: speed, altitude: altitude) : nil,
+        )
+    }
+}
+
+/// Immutable, generation-scoped correction revision. An optional array preserves
+/// all three values: nil reset, empty exclusion, and explicit replacement regions.
+@Model
+final class SDSampleAttributionRevision {
+    var generationID: UUID?
+    var id: UUID?
+    var sampleID: UUID?
+    var updatedAt: Date?
+    var replacementRegionIDs: [String]?
+
+    init() {}
+
+    convenience init(value: SampleAttributionRevision, generationID: WhereDataGenerationID) {
+        self.init()
+        self.generationID = generationID.rawValue
+        id = value.id.rawValue
+        sampleID = value.sampleID
+        updatedAt = value.updatedAt
+        replacementRegionIDs = value.replacementRegions.map { $0.map(\.rawValue).sorted() }
+    }
+
+    func toValue() -> SampleAttributionRevision? {
+        guard generationID != nil, let id, let sampleID, let updatedAt,
+              updatedAt.timeIntervalSince1970.isFinite else { return nil }
+        let replacementRegions: Set<Region>?
+        if let replacementRegionIDs {
+            let regions = replacementRegionIDs.compactMap { Region(rawValue: $0) }
+            guard regions.count == replacementRegionIDs.count else { return nil }
+            replacementRegions = Set(regions)
+        } else {
+            replacementRegions = nil
+        }
+        return SampleAttributionRevision(
+            id: .init(rawValue: id),
+            sampleID: sampleID,
+            updatedAt: updatedAt,
+            replacementRegions: replacementRegions,
         )
     }
 }

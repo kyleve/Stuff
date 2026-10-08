@@ -5,7 +5,7 @@ Random apps and stuff.
 ## Requirements
 
 - Xcode 27+ (a full Xcode.app, not the Command Line Tools)
-- iOS 26.0+
+- iOS 27.0+
 - [mise](https://mise.jdx.dev) pins Tuist, SwiftFormat, and Ruby.
   `./ide --bootstrap` installs it for you (see below).
 
@@ -120,6 +120,9 @@ The intake worker stops after checkout when it has no new suites.
 New suites run on the intake worker until rebalancing adds them to the plan.
 CI rejects a worker-count mismatch.
 CI also rejects a snapshot worker that does not execute exactly its assigned suites.
+
+Use the [`rebalance-snapshot-shards`](.agents/skills/rebalance-snapshot-shards/SKILL.md) skill for periodic maintenance.
+It selects successful CI samples, compares estimated shard loads, validates coverage, and opens a PR when a rebalance is warranted.
 
 The `./ide` script sets `core.hooksPath` to `.githooks`.
 The pre-commit hook formats staged Swift with SwiftFormat and runs `./sync-agents --git-add`.

@@ -27,11 +27,46 @@ enum WhereFormat {
         return "\(lat), \(lon)"
     }
 
+    static func recordedFlightCoordinate(_ coordinate: Coordinate) -> String {
+        String(localized: .flightReviewPointCoordinates(auditCoordinate(
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude,
+        )))
+    }
+
     /// A localized "10 km"-style label for a drift-threshold preset, kept in
     /// kilometers (`.asProvided`, no conversion). Locale-driven, no catalog entry.
     static func driftThresholdLabel(kilometers: Int) -> String {
         Measurement(value: Double(kilometers), unit: UnitLength.kilometers)
             .formatted(.measurement(width: .abbreviated, usage: .asProvided))
+    }
+
+    /// Recorded sensor context with its reported uncertainty. Invalid values
+    /// have no presentable measurement; neither value supplies arrival status.
+    static func recordedFlightSpeed(_ speed: LocationMotion.Speed?) -> String? {
+        guard let speed,
+              speed.metersPerSecond.isFinite, speed.metersPerSecond >= 0,
+              speed.accuracyMetersPerSecond.isFinite,
+              speed.accuracyMetersPerSecond >= 0 else { return nil }
+        let value = Measurement(value: speed.metersPerSecond, unit: UnitSpeed.metersPerSecond)
+            .formatted(.measurement(width: .abbreviated, usage: .general))
+        let uncertainty = Measurement(
+            value: speed.accuracyMetersPerSecond,
+            unit: UnitSpeed.metersPerSecond,
+        )
+        .formatted(.measurement(width: .abbreviated, usage: .general))
+        return String(localized: .flightReviewRecordedSpeed(value, uncertainty))
+    }
+
+    static func recordedFlightAltitude(_ altitude: LocationMotion.Altitude?) -> String? {
+        guard let altitude,
+              altitude.meters.isFinite,
+              altitude.accuracyMeters.isFinite, altitude.accuracyMeters > 0 else { return nil }
+        let value = Measurement(value: altitude.meters, unit: UnitLength.meters)
+            .formatted(.measurement(width: .abbreviated, usage: .general))
+        let uncertainty = Measurement(value: altitude.accuracyMeters, unit: UnitLength.meters)
+            .formatted(.measurement(width: .abbreviated, usage: .general))
+        return String(localized: .flightReviewRecordedAltitude(value, uncertainty))
     }
 
     // MARK: Counts

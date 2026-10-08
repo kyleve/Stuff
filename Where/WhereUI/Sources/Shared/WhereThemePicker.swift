@@ -10,13 +10,12 @@ struct WhereThemePicker: View {
     let selection: WhereTheme
     let onSelect: (WhereTheme) -> Void
 
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        let layout = dynamicTypeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(spacing: stylesheet.spacing.large))
-            : AnyLayout(HStackLayout(alignment: .top, spacing: stylesheet.spacing.large))
+        let layout = stylesheet.themePicker.layout == .stacked
+            ? AnyLayout(VStackLayout(spacing: stylesheet.themePicker.spacing))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: stylesheet.themePicker.spacing))
 
         layout {
             ForEach(WhereTheme.allCases, id: \.self) { theme in

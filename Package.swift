@@ -5,7 +5,7 @@ let package = Package(
     name: "Stuff",
     defaultLocalization: "en",
     platforms: [
-        .iOS(.v26),
+        .iOS("27.0"),
         .macOS(.v26),
     ],
     products: [
@@ -167,6 +167,12 @@ let package = Package(
                 .product(name: "ZIPFoundation", package: "ZIPFoundation"),
             ],
             path: "Where/WhereCore/Sources",
+            exclude: [
+                "DataResolution/AGENTS.md",
+                "DataResolution/CLAUDE.md",
+                "DataResolution/Flights/AGENTS.md",
+                "DataResolution/Flights/CLAUDE.md",
+            ],
             resources: [
                 .process("Resources"),
             ],

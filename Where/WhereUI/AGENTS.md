@@ -85,6 +85,30 @@ Layering, localization, preview, and testing conventions live in the feature
   Project Locations-card GPS points through the cache's shared
   `RegionArtworkProjection`. Never project, simplify, or spatially reduce
   artwork in a card's `body`.
+- Publish flight notices, correction reviews, and actionable counts from one
+  `YearReportModel` scan result. Inject that scene as the Resolve model's `ResolutionSource`. Re-key on raw evidence changes; never gate refresh
+  on aggregate-report equality. Schedule presentation deadlines only in the foreground.
+- Keep the raw GPS path visible in correction reviews after samples lose attribution.
+  Bound display geometry without changing the evidence or edits. Never join separate recording devices into one route.
+- Route automatic GPS fixes through Core's sample-correction coordinator. Keep
+  stale Apply results open for review and preserve manual editing while arrival is pending.
+  Show each flight's own progress when a daily review mixes completed and pending flights.
+  Retain pending information through Core's `dismissingProposal()` when dismissing completed-flight edits.
+- Resolve historical device labels through `DeviceRecordingController.displayNames()`, not the active device list.
+- Render point decisions from Core's reviewed corrections. Keep the review open after inclusion or restoration.
+  Clear a pending confirmation when its evidence changes. Guard: `FlightReviewModelTests`.
+- Keep each actionable flight point row as one accessible button, including its evidence and coordinate label.
+  Use the recorded coordinate for its map preview, including excluded points. Keep the preview noninteractive.
+- Use this installation's assessment for a live flight notice. Identify each
+  recording device in shared reviews and retain historical pending review access.
+- Use `regionArtworkTask` and `RegionArtworkModel` for cached artwork loading.
+  Keep request identity complete; use a broader display key only when retaining
+  compatible artwork during refresh is intentional.
+- Keep the Locations background on the selected year’s complete visited-region set,
+  in catalog order independent of card rank. Omit the catch-all Other entry from
+  the print. Use the injected outline cache.
+- Keep the Elsewhere summary count and artwork on the same secondary-region input.
+  Use its own stylesheet tokens and the shared outline renderers.
 - Keep Locations-card points on `YearReportModel`'s loaded
   `YearReportDetails`.
 - Keep `RootView` passing LifecycleKitUI the stylesheet's positive splash
@@ -101,6 +125,8 @@ Layering, localization, preview, and testing conventions live in the feature
   Guard: `LocationForecastModelTests` and `EstimatedTimeAndPlanningSettingsModelTests`.
 - Keep future itinerary years selectable while annual estimates remain current-year-only.
   Guard: `YearReportModelTests.futureItineraryYearsRemainReachableWithoutEnablingAnnualEstimates`.
+  The read-only Estimated Time gallery keeps explanatory forecast examples
+  visible in grayscale when Off; it must not activate planning.
 - Continuous/looping motion (repeat-forever pulses, `TimelineView(.animation)`,
   typewriter reveals) must consult the shared `@MotionIsStatic` helper
   ([`Sources/Shared/MotionIsStatic.swift`](Sources/Shared/MotionIsStatic.swift))
@@ -152,9 +178,15 @@ and rendering coverage. Where's sheet is
 view tree. [`README.md`](README.md#design-system) documents its live API and
 worked examples.
 
-- The `motion` group keeps full-motion values a view picks between
-  (`motion.reducedReveal` over `motion.reveal`). The launch reveal's fallback
-  swaps an `AnyTransition`, which is not `Equatable` and cannot be a token.
+- Resolve component layout and motion in `WhereStylesheet.init(context:)`.
+  Keep launch style consumers beneath `whereBroadwayRoot()`. The launch slice
+  selects an `Equatable` reveal policy whose computed property builds the transition.
+- Keep scoped SwiftUI appearance overrides consistent with Broadway traits.
+  Pair `.dynamicTypeSize` limits with the corresponding content-size override.
+  Pair explicit `.colorScheme` overrides with `.bMode` for styled subtrees.
+- Keep live Card Designer and ranking-lab drafts outside the cached slice.
+  These runtime inputs compose over the resolved base style. Document their
+  direct system-trait reads at the declaration.
 - **Per-region tints stay in `RegionStyle`.** Resolve via
   `@Environment(\.regionStyles)` and seed by
   `whereBroadwayRoot(theme:regionStyles:)`. Use no global accessor or hardcoded
@@ -172,6 +204,14 @@ worked examples.
   `MainTabs`. Resolve once per active-scene entry regardless of tab. Only denied
   or restricted access and disabled Precise Location stay visible as recovery
   actions; transient and confidence failures return to idle.
+
+## Feature discovery
+
+Keep gallery rows and Forms behind small named views inside focus and reveal scopes. Guard: `FeatureGuidePageTests` and the gallery view-size tests.
+Keep Explore Features browsing read-only. Use production presentation components and explicit actions into existing editors.
+Use `PresenceTimelineList` with `.excerpt` for embedded Timeline galleries; keep row layout and planned-stay joins in that view.
+Use process-effective diagnostics for privacy claims. Hide gallery links whose destinations are unavailable in demo mode.
+Use the [`update-explore-features`](../../.agents/skills/update-explore-features/SKILL.md) skill for periodic coverage updates.
 
 ## Testing
 

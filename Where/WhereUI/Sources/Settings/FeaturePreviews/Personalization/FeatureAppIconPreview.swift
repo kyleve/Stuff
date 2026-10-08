@@ -6,7 +6,6 @@ import SwiftUI
 struct FeatureAppIconPreview: View {
     let model: AppIconModel
 
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
@@ -43,10 +42,13 @@ struct FeatureAppIconPreview: View {
     }
 
     private var selectedLayout: AnyLayout {
-        if dynamicTypeSize.isAccessibilitySize {
-            AnyLayout(VStackLayout(alignment: .leading, spacing: stylesheet.spacing.medium))
+        if stylesheet.featureDiscovery.appIcon.layout == .stacked {
+            AnyLayout(VStackLayout(
+                alignment: .leading,
+                spacing: stylesheet.featureDiscovery.appIcon.spacing,
+            ))
         } else {
-            AnyLayout(HStackLayout(spacing: stylesheet.spacing.medium))
+            AnyLayout(HStackLayout(spacing: stylesheet.featureDiscovery.appIcon.spacing))
         }
     }
 }

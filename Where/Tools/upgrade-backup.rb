@@ -1,11 +1,11 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Reshapes a legacy Where backup into the current v6 manifest. The automatic-recording feature
-# was not shipped in v1 or v2, so upgrading adds the recording tables empty; it never invents an
-# installation or recording consent. v4 expands device kinds and groups metadata edit payloads;
-# v5 adds an empty planned-stay register when the source predates it. v6 expands that register
-# into independent plans and adds the forecast home-region register.
+# Reshapes legacy Where backups into the current v7 manifest. The automatic-recording feature
+# was not shipped in v1 or v2, so upgrading adds empty recording tables without inventing consent.
+# v4 expands device kinds and groups metadata edit payloads; v5 adds the planned-stay register.
+# v6 preserves optional motion readings and adds per-sample attribution history.
+# v7 expands the stay register into independent plans and adds the forecast home-region register.
 
 require "json"
 require "tmpdir"
@@ -15,9 +15,9 @@ require "set"
 require "date"
 
 MANIFEST_NAME = "manifest.json"
-CURRENT_FORMAT_VERSION = 6
+CURRENT_FORMAT_VERSION = 7
 SUPPORTED_SOURCE_FORMAT_VERSIONS = (1..CURRENT_FORMAT_VERSION).freeze
-# All pre-v6 records revised the same logical stay. Keep that identity across archives, including
+# All legacy singular records revised the same logical stay. Keep that identity across archives, including
 # clearing tombstones, so merging upgraded backups cannot revive superseded plans.
 LEGACY_PLANNED_STAY_ID = "9D6B2F5A-2C8E-4B91-9D43-E7F41A0916C0"
 
@@ -173,16 +173,19 @@ def source_format_version(manifest)
 end
 
 def upgrade_planned_stays!(manifest, source_version)
-  return unless source_version < 6
+  return unless source_version < 7
 
   Array(manifest["plannedStayRecords"]).each do |record|
+    # The itinerary prototype used v6 before main added motion. Preserve its independent IDs.
+    next if record.key?("stayID")
+
     record["stayID"] = LEGACY_PLANNED_STAY_ID
     value = record["value"]
     next if value.nil?
 
     through = value.fetch("through")
     departure = Date.new(through.fetch("year"), through.fetch("month"), through.fetch("day"), Date::GREGORIAN)
-    # v5 never stored arrival. The revision's UTC day is a stable inference across exports;
+    # v5 and main's v6 never stored arrival. The revision's UTC day is a stable inference across exports;
     # exportedAt would give one revision conflicting payloads in backups made on different days.
     # Clamp future clock skew and already-completed plans so arrival cannot follow departure.
     updated_at = record.fetch("updatedAt")
@@ -219,6 +222,7 @@ def upgrade_manifest(manifest)
   end
   Array(manifest["samples"]).each do |sample|
     sample["recordingDeviceID"] = nil unless sample.key?("recordingDeviceID")
+    sample["motion"] = nil unless sample.key?("motion")
   end
 
   manifest["recordingDeviceProfiles"] ||= []
@@ -226,6 +230,7 @@ def upgrade_manifest(manifest)
   manifest["recordingDeviceRemovals"] ||= []
   manifest["plannedStayRecords"] ||= []
   manifest["homeRegionRecords"] ||= []
+  manifest["sampleAttributionRevisions"] ||= []
   upgrade_recording_devices!(manifest, source_version)
   upgrade_planned_stays!(manifest, source_version)
   manifest.delete("recordingDevices")

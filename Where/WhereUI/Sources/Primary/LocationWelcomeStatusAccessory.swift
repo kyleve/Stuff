@@ -7,7 +7,6 @@ struct LocationWelcomeStatusAccessory: View {
 
     @Environment(\.openURL) private var openURL
     @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @MotionIsStatic private var motionIsStatic
 
     var body: some View {
@@ -65,7 +64,7 @@ struct LocationWelcomeStatusAccessory: View {
     }
 
     private func displayedMessage(for action: LocationWelcomeModel.ActionRequired) -> String {
-        dynamicTypeSize.isAccessibilitySize ? compactMessage(for: action) : message(for: action)
+        style.copy == .compact ? compactMessage(for: action) : message(for: action)
     }
 
     private func compactMessage(for action: LocationWelcomeModel.ActionRequired) -> String {

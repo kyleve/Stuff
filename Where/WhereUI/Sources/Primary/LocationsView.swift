@@ -46,12 +46,17 @@ struct LocationsView: View {
     var body: some View {
         NavigationStack {
             screen
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background {
+                    LocationsBackground(regions: backgroundRegions)
+                        .ignoresSafeArea()
+                }
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarTrailing) {
-                        // Resolve stays immediately left of the stable planning
-                        // affordance and appears only while issues need attention.
-                        if report.dataIssueCount > 0 {
+                        // Pending reviews remain accessible without increasing
+                        // the actionable issue badge.
+                        if report.dataIssueCount > 0 || report.hasCorrectionReviews {
                             Button {
                                 showingResolution = true
                             } label: {
@@ -89,15 +94,19 @@ struct LocationsView: View {
     private var screen: some View {
         switch report.loadState {
             case .loading where report.report == nil:
-                AppIconLoadingView(caption: String(localized: .primaryLoading))
+                stateWithFlightNotice {
+                    AppIconLoadingView(caption: String(localized: .primaryLoading))
+                }
             case let .failed(error):
-                ContentUnavailableView {
-                    Label(
-                        String(localized: .commonLoadErrorTitle),
-                        systemSymbol: .exclamationmarkIcloud,
-                    )
-                } description: {
-                    Text(error.message)
+                stateWithFlightNotice {
+                    ContentUnavailableView {
+                        Label(
+                            String(localized: .commonLoadErrorTitle),
+                            systemSymbol: .exclamationmarkIcloud,
+                        )
+                    } description: {
+                        Text(error.message)
+                    }
                 }
             case .idle, .loaded, .loading:
                 if report.ranking.primary.isEmpty {
@@ -105,9 +114,9 @@ struct LocationsView: View {
                     // exist, but only in non-headline regions" (e.g. all in
                     // `.other`) — otherwise the latter wrongly reads as empty.
                     if report.trackedDayCount == 0 {
-                        emptyState
+                        stateWithFlightNotice { emptyState }
                     } else {
-                        elsewhereOnlyState
+                        stateWithFlightNotice { elsewhereOnlyState }
                     }
                 } else {
                     content
@@ -115,14 +124,47 @@ struct LocationsView: View {
         }
     }
 
+    @ViewBuilder
+    private var flightNotice: some View {
+        if let review = report.liveFlightReview {
+            NavigationLink {
+                FlightDayDetailView(review: review, report: report)
+            } label: {
+                FlightStatusBanner(
+                    review: review,
+                    deviceLabel: report.liveFlightAssessment(in: review)
+                        .map(report.flightDeviceLabel),
+                    flight: report.liveFlightAssessment(in: review),
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(String(localized: .flightStatusOpenReview))
+        }
+    }
+
+    /// Keep short states centered and let a flight notice or larger text scroll.
+    private func stateWithFlightNotice(@ViewBuilder content: () -> some View) -> some View {
+        ScrollView {
+            VStack(spacing: stylesheet.spacing.xxLarge) {
+                flightNotice
+                content()
+            }
+            .padding()
+            .frame(maxWidth: .infinity)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .defaultScrollAnchor(report.liveFlightReview == nil ? .center : .top, for: .alignment)
+    }
+
     private var content: some View {
         let presentedCards = cardPresentation.presented(report.ranking.primary)
 
-        // `.defaultScrollAnchor(.center)` vertically centers a short list (one or
-        // two cards) rather than pinning it to the top, while a longer list still
-        // scrolls from the top.
+        // Keep the flight notice immediately below navigation. Without a notice,
+        // a short card list retains its centered presentation.
         return ScrollView {
             VStack(spacing: stylesheet.spacing.xxLarge) {
+                flightNotice
+
                 LocationCardRankingStack(
                     spacing: stylesheet.spacing.xxLarge,
                     presentation: cardPresentation,
@@ -195,7 +237,7 @@ struct LocationsView: View {
                     NavigationLink {
                         ElsewhereView(report: report)
                     } label: {
-                        ElsewhereSummaryCard(regionCount: report.ranking.secondary.count)
+                        ElsewhereSummaryCard(regions: report.ranking.secondary.map(\.region))
                     }
                     .buttonStyle(.plain)
                 }
@@ -203,7 +245,7 @@ struct LocationsView: View {
             .padding()
             .frame(maxWidth: .infinity)
         }
-        .defaultScrollAnchor(.center)
+        .defaultScrollAnchor(report.liveFlightReview == nil ? .center : .top)
         .scrollBounceBehavior(.basedOnSize)
         // The card normally stays clipped to the scrolling viewport. Reveal
         // overflow only while the authored arc, scale, and rotation need it.
@@ -220,6 +262,15 @@ struct LocationsView: View {
             presentation: cardPresentation,
             motion: stylesheet.locationCardStack.overtake,
         )
+    }
+
+    private var backgroundRegions: [Region] {
+        switch report.loadState {
+            case .failed:
+                []
+            case .idle, .loaded, .loading:
+                LocationsBackgroundArtwork.regions(in: report.ranking)
+        }
     }
 
     private var primaryRegions: [Region] {
@@ -304,8 +355,7 @@ struct LocationsView: View {
 }
 
 /// The Locations toolbar's Resolve affordance: the checklist icon with a count
-/// badge. Rendered only while there are issues (the toolbar item is gated on
-/// the count), so it always carries a positive `count`.
+/// badge for actionable issues. Pending reviews keep the unbadged icon available.
 private struct ResolveToolbarLabel: View {
     let count: Int
 
@@ -314,45 +364,49 @@ private struct ResolveToolbarLabel: View {
     var body: some View {
         Image(systemSymbol: .checklist)
             .overlay(alignment: .topTrailing) {
-                Text(count, format: .number)
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, stylesheet.spacing.xSmall)
-                    .padding(.vertical, stylesheet.spacing.xxSmall)
-                    .background(.red, in: Capsule())
-                    .offset(x: stylesheet.spacing.small, y: -stylesheet.spacing.small)
-                    .accessibilityHidden(true)
+                if count > 0 {
+                    Text(count, format: .number)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, stylesheet.spacing.xSmall)
+                        .padding(.vertical, stylesheet.spacing.xxSmall)
+                        .background(.red, in: Capsule())
+                        .offset(x: stylesheet.spacing.small, y: -stylesheet.spacing.small)
+                        .accessibilityHidden(true)
+                }
             }
             .accessibilityLabel(String(localized: .tabResolution))
-            .accessibilityValue(Text(count, format: .number))
+            .accessibilityValue(count > 0 ? Text(count, format: .number) : Text(""))
     }
 }
 
 #if DEBUG
     extension LocationsView: SnapshotProviding {
-        /// The raised settle floor on `Loaded` outlasts the iOS 26 glass toolbar
-        /// material adaptation (seen pre-adaptation once on the equivalent
-        /// pre-split screen) — same mechanism as `RootView.LoggedIn`.
+        /// Allow native glass adaptation and the background artwork to settle before capture.
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(
+            artworkSnapshot(
                 name: "Itinerary",
+                report: PreviewSupport.itineraryYearReportModel(),
                 configurations: .fullContentScreenDefaults,
-                measurementReadiness: .immediate,
-            ) {
-                LocationsView(report: PreviewSupport.itineraryYearReportModel())
-            }
-            whereSnapshot(
+            )
+            artworkSnapshot(
                 name: "Loaded",
+                report: PreviewSupport.loadedYearReportModel(),
                 configurations: .fullContentScreenDefaults,
-                measurementReadiness: .immediate,
-                settle: .settledAtLeast(minDuration: 1.0),
-            ) {
-                LocationsView(report: PreviewSupport.loadedYearReportModel())
+            )
+            for state in [FlightReviewPreviewState.flightLikely, .stale, .ready, .completed] {
+                artworkSnapshot(
+                    name: "Flight-" + state.rawValue,
+                    report: PreviewSupport.flightYearReportModel(state: state),
+                    configurations: state == .flightLikely
+                        ? .fullContentScreenDefaults : .fullContentPhoneLightDark,
+                )
             }
             whereSnapshot(
                 name: "PlannedStay",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: PreviewSupport.plannedStayYearReportModel())
             }
@@ -360,6 +414,7 @@ private struct ResolveToolbarLabel: View {
                 name: "ForecastsHidden",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: forecastsHiddenReport())
             }
@@ -367,6 +422,7 @@ private struct ResolveToolbarLabel: View {
                 name: "Empty",
                 configurations: .phoneLightDark,
                 measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: PreviewSupport.emptyYearReportModel())
             }
@@ -374,6 +430,7 @@ private struct ResolveToolbarLabel: View {
                 name: "MissingDays",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: PreviewSupport.missingDaysYearReportModel())
             }
@@ -381,6 +438,7 @@ private struct ResolveToolbarLabel: View {
                 name: "ElsewhereOnly",
                 configurations: .phoneLightDark,
                 measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: PreviewSupport.elsewhereOnlyYearReportModel())
             }
@@ -397,10 +455,38 @@ private struct ResolveToolbarLabel: View {
                 name: "DotsHidden",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(
                     report: PreviewSupport.loadedYearReportModelWithLocationDotsHidden(),
                 )
+            }
+        }
+
+        private static func artworkSnapshot(
+            name: String,
+            report: YearReportModel,
+            configurations: [SnapshotConfiguration],
+        ) -> SnapshotCase {
+            let cache = RegionOutlinePathCache()
+            let regions = LocationsBackgroundArtwork.regions(in: report.ranking)
+            return whereSnapshot(
+                name: name,
+                configurations: configurations,
+                measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
+                onReadyToSnapshot: {
+                    // Keep geometry ready across the accessibility renderer's reparenting.
+                    // Pixel stability alone can settle on the unloaded symbol fallback.
+                    for region in regions {
+                        _ = await cache.path(for: region, resolution: .small)
+                        _ = await cache.path(for: region, resolution: .medium)
+                        _ = await cache.path(for: region, resolution: .micro)
+                    }
+                },
+            ) {
+                LocationsView(report: report)
+                    .environment(\.regionOutlinePathCache, cache)
             }
         }
 
