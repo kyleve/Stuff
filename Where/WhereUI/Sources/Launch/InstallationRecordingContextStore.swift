@@ -18,6 +18,7 @@ public final class FileInstallationRecordingContextStore:
     private static let logger = WhereLog.root(OnboardingViewLog.self)
 
     private enum Resolution {
+        case deferred(proposed: InstallationRecordingContext)
         case resolved(InstallationRecordingContext)
         case failed(any Error, proposed: InstallationRecordingContext)
         /// The authoritative directory was atomically retired, but deleting that retired copy
@@ -30,13 +31,17 @@ public final class FileInstallationRecordingContextStore:
         var onboardingContext: InstallationRecordingContext {
             switch self {
                 case let .resolved(context): context
-                case let .failed(_, proposed), let .resetCleanupRequired(_, proposed): proposed
+                case let .deferred(proposed), let .failed(_, proposed), let .resetCleanupRequired(
+                _,
+                proposed,
+            ): proposed
             }
         }
 
         func get() throws -> InstallationRecordingContext {
             switch self {
                 case let .resolved(context): context
+                case .deferred: throw CocoaError(.fileReadNoPermission)
                 case let .failed(error, _): throw error
                 case let .resetCleanupRequired(error, _): throw error
             }
@@ -244,6 +249,7 @@ public final class FileInstallationRecordingContextStore:
                 makeUUID: { UUID() },
                 now: { Date() },
                 initialFailure: error,
+                defersLoading: true,
             )
             return
         }
@@ -256,6 +262,8 @@ public final class FileInstallationRecordingContextStore:
             kind: Self.kind(for: device.userInterfaceIdiom),
             makeUUID: { UUID() },
             now: { Date() },
+            initialFailure: nil,
+            defersLoading: true,
         )
     }
 
@@ -268,6 +276,7 @@ public final class FileInstallationRecordingContextStore:
         kind: RecordingDeviceKind,
         makeUUID: @escaping @MainActor () -> UUID,
         now: @escaping @MainActor () -> Date,
+        defersLoading: Bool,
     ) {
         self.init(
             fileURL: fileURL,
@@ -277,6 +286,7 @@ public final class FileInstallationRecordingContextStore:
             makeUUID: makeUUID,
             now: now,
             initialFailure: nil,
+            defersLoading: defersLoading,
         )
     }
 
@@ -288,6 +298,7 @@ public final class FileInstallationRecordingContextStore:
         makeUUID: @escaping @MainActor () -> UUID,
         now: @escaping @MainActor () -> Date,
         initialFailure: (any Error)?,
+        defersLoading: Bool,
     ) {
         self.fileURL = fileURL
         self.fileManager = fileManager
@@ -308,27 +319,40 @@ public final class FileInstallationRecordingContextStore:
         if let initialFailure {
             resolution = .failed(initialFailure, proposed: proposed)
         } else {
-            do {
-                try Self.finishInterruptedReset(
-                    for: fileURL,
-                    fileManager: fileManager,
+            resolution = .deferred(proposed: proposed)
+            if !defersLoading { loadAfterFirstUnlock() }
+        }
+    }
+
+    /// Call only after the app's first-unlock barrier opens. Construction must
+    /// not inspect, recover, or clean up the protected sidecar directory.
+    public func prepareAfterFirstUnlock() throws {
+        loadAfterFirstUnlock()
+        _ = try resolution.get()
+    }
+
+    private func loadAfterFirstUnlock() {
+        guard case let .deferred(proposed) = resolution else { return }
+        do {
+            try Self.finishInterruptedReset(
+                for: fileURL,
+                fileManager: fileManager,
+            )
+            let loaded = try Self.load(from: fileURL, fileManager: fileManager)
+            resolution = .resolved(loaded?.context ?? proposed)
+            backupImportRecovery = loaded?.backupImportRecovery
+            onboardingImportCompletion = loaded?.onboardingImportCompletion
+        } catch {
+            let resetPendingURL = Self.resetPendingURL(for: fileURL)
+            if fileManager.fileExists(
+                atPath: resetPendingURL.path(percentEncoded: false),
+            ) {
+                resolution = .resetCleanupRequired(
+                    WhereServices.ResetCleanupError(underlying: error),
+                    proposed: proposed,
                 )
-                let loaded = try Self.load(from: fileURL, fileManager: fileManager)
-                resolution = .resolved(loaded?.context ?? proposed)
-                backupImportRecovery = loaded?.backupImportRecovery
-                onboardingImportCompletion = loaded?.onboardingImportCompletion
-            } catch {
-                let resetPendingURL = Self.resetPendingURL(for: fileURL)
-                if fileManager.fileExists(
-                    atPath: resetPendingURL.path(percentEncoded: false),
-                ) {
-                    resolution = .resetCleanupRequired(
-                        WhereServices.ResetCleanupError(underlying: error),
-                        proposed: proposed,
-                    )
-                } else {
-                    resolution = .failed(error, proposed: proposed)
-                }
+            } else {
+                resolution = .failed(error, proposed: proposed)
             }
         }
     }
@@ -417,6 +441,8 @@ public final class FileInstallationRecordingContextStore:
             case let .resetCleanupRequired(_, pending):
                 proposed = pending
                 wasAlreadyCommitted = true
+            case .deferred:
+                throw CocoaError(.fileReadNoPermission)
             case .resolved, .failed:
                 proposed = Self.proposedContext(
                     systemName: systemName,

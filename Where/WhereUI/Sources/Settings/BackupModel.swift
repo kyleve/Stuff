@@ -24,6 +24,19 @@ public final class BackupModel {
     /// a determinate progress bar. Reset to `0` whenever neither is running.
     public private(set) var backupProgress: Double = 0
 
+    public enum CatalogState: Equatable {
+        case idle
+        case loading
+        case loaded(AutomaticBackupCatalog)
+        case failed(String)
+    }
+
+    public private(set) var catalogState: CatalogState = .idle
+    public private(set) var revealedRecoveryKey: String?
+
+    public private(set) var automaticBackupsEnabled: Bool
+    public private(set) var automaticBackupInterval: AutomaticBackupInterval
+
     private var presentedError: String?
 
     /// Last backup failure, surfaced as an alert.
@@ -43,10 +56,31 @@ public final class BackupModel {
     }
 
     private let services: WhereServices
+    private let preferences: WherePreferences?
+    @ObservationIgnored private var changesTask: Task<Void, Never>?
+    private struct CatalogRequest {
+        let id: UUID
+        let task: Task<AutomaticBackupCatalog, Error>
+    }
+
+    @ObservationIgnored private var catalogRequest: CatalogRequest?
+    @ObservationIgnored private var appearanceGeneration = UUID()
+    @ObservationIgnored private var recoveryKeyRequest = UUID()
+    #if DEBUG
+        private var freezesPreviewState = false
+    #endif
     private static let logger = WhereLog.session(BackupModelLog.self)
 
-    public init(services: WhereServices) {
+    public init(services: WhereServices, preferences: WherePreferences? = nil) {
         self.services = services
+        self.preferences = preferences
+        automaticBackupsEnabled = preferences?.automaticBackupsEnabled ?? true
+        automaticBackupInterval = preferences?.automaticBackupInterval ?? .weekly
+    }
+
+    deinit {
+        changesTask?.cancel()
+        catalogRequest?.task.cancel()
     }
 
     /// Build a backup `.zip` of the entire database and return its URL for the
@@ -98,4 +132,135 @@ public final class BackupModel {
     public func presentBackupError(_ error: any Error) {
         presentedError = error.localizedDescription
     }
+
+    public func setAutomaticBackupsEnabled(_ isEnabled: Bool) {
+        guard automaticBackupsEnabled != isEnabled else { return }
+        automaticBackupsEnabled = isEnabled
+        preferences?.automaticBackupsEnabled = isEnabled
+    }
+
+    public func setAutomaticBackupInterval(_ interval: AutomaticBackupInterval) {
+        guard automaticBackupInterval != interval else { return }
+        automaticBackupInterval = interval
+        preferences?.automaticBackupInterval = interval
+    }
+
+    public func activate(recordingEnabled: Bool) async {
+        #if DEBUG
+            guard !freezesPreviewState else { return }
+        #endif
+        let generation = appearanceGeneration
+        if changesTask == nil, let automaticBackups = services.automaticBackups {
+            changesTask = Task { @MainActor [weak self] in
+                for await _ in await automaticBackups.changes() {
+                    await self?.refreshCatalog()
+                }
+            }
+        }
+        await runIfDue(recordingEnabled: recordingEnabled)
+        guard appearanceGeneration == generation, !Task.isCancelled else { return }
+        await refreshCatalog()
+    }
+
+    public func runIfDue(recordingEnabled: Bool) async {
+        guard let automaticBackups = services.automaticBackups, let preferences else { return }
+        let generation = preferences.resetGeneration
+        do {
+            let result = try await automaticBackups.runIfDue(
+                cancellation: .finishExecution,
+                configuration: .init(
+                    isEnabled: preferences.automaticBackupsEnabled,
+                    isRecordingEnabled: recordingEnabled,
+                    interval: preferences.automaticBackupInterval,
+                    lastSuccessfulBackupAt: preferences.lastAutomaticBackupAt,
+                ),
+            )
+            if case let .completed(exportedAt) = result {
+                preferences.recordAutomaticBackupSuccess(at: exportedAt, generation: generation)
+            }
+        } catch is CancellationError {
+            // Reset, disable, or background expiration may cancel the owned run.
+        } catch {
+            guard !Task.isCancelled else { return }
+            presentBackupError(error)
+        }
+    }
+
+    public func refreshCatalog() async {
+        guard !Task.isCancelled else { return }
+        guard let automaticBackups = services.automaticBackups else {
+            catalogState = .loaded(AutomaticBackupCatalog(files: [], isICloudUnavailable: false))
+            return
+        }
+        catalogState = .loading
+        catalogRequest?.task.cancel()
+        let request = CatalogRequest(
+            id: UUID(),
+            task: Task { try await automaticBackups.catalog() },
+        )
+        catalogRequest = request
+        defer {
+            if catalogRequest?.id == request.id { catalogRequest = nil }
+        }
+        do {
+            let catalog = try await withTaskCancellationHandler {
+                try await request.task.value
+            } onCancel: { request.task.cancel() }
+            guard catalogRequest?.id == request.id else { return }
+            try Task.checkCancellation()
+            catalogState = .loaded(catalog)
+        } catch is CancellationError {
+            if catalogRequest?.id == request.id { catalogState = .idle }
+        } catch {
+            guard catalogRequest?.id == request.id else { return }
+            if Task.isCancelled {
+                catalogState = .idle
+                return
+            }
+            catalogState = .failed(error.localizedDescription)
+        }
+    }
+
+    /// Stop view-owned reads and observations, never the app-owned export.
+    public func deactivate() {
+        appearanceGeneration = UUID()
+        hideRecoveryKey()
+        changesTask?.cancel()
+        changesTask = nil
+        if let catalogRequest {
+            catalogRequest.task.cancel()
+            self.catalogRequest = nil
+            catalogState = .idle
+        }
+    }
+
+    public func revealRecoveryKey() async {
+        guard let automaticBackups = services.automaticBackups else { return }
+        let request = UUID()
+        recoveryKeyRequest = request
+        do {
+            let key = try await automaticBackups.recoveryKey()
+            guard recoveryKeyRequest == request, !Task.isCancelled else { return }
+            revealedRecoveryKey = key
+        } catch {
+            guard recoveryKeyRequest == request, !Task.isCancelled else { return }
+            presentBackupError(error)
+        }
+    }
+
+    public func hideRecoveryKey() {
+        recoveryKeyRequest = UUID()
+        revealedRecoveryKey = nil
+    }
+
+    #if DEBUG
+        func configurePreview(
+            catalogState: CatalogState,
+            recoveryKey: String? = nil,
+        ) {
+            freezesPreviewState = true
+            self.catalogState = catalogState
+            revealedRecoveryKey = recoveryKey
+        }
+    #endif
 }
