@@ -8,9 +8,9 @@ These rules also apply when changing a root command or installer that calls this
 
 - Keep public arguments, bootstrap, and process orchestration in the command wrapper.
   Keep parsing and policy in importable modules with direct tests.
-  Preserve each command's failure policy when sharing parsers. See PR #284.
+  Preserve each command's failure policy when sharing parsers.
 - Keep imports free of command execution. Do not turn this private directory
-  into a new command framework or distributable package. See PR #283.
+  into a new command framework or distributable package.
 - Parse help and usage errors before requiring tools, devices, or network access.
   Preserve composable stdout, diagnostic stderr, child status, and interruption handling.
 
@@ -22,9 +22,10 @@ These rules also apply when changing a root command or installer that calls this
   If rollback fails, retain recovery material and report both errors.
   After commit, report cleanup failures without attempting rollback.
   Guard: [file_transaction_test.rb](Tests/file_transaction_test.rb).
-- Require exact registered ownership before simulator deletion.
+- Before deleting a checkout's simulator, require a registry claim for that checkout, device model, and OS.
+  Match the claim's UDID, expected name, and runtime to `simctl` inventory.
   A matching name alone never authorizes deletion or transfer of a stale claim.
-  Guard: [simulator_registry_test.rb](Tests/simulator_registry_test.rb), PR #288.
+  Guard: [simulator_registry_test.rb](Tests/simulator_registry_test.rb).
 - Keep dry runs free of the mutations they preview. Test the public command
   with fake processes and temporary destinations, not developer devices or installed apps.
 

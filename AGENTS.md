@@ -284,15 +284,14 @@ collaborator on a service, and every pinned tool version. Name the one or two wo
 learning from. Say where the live list is. An exhaustive copy reads
 authoritative long after it stops being true. That is worse than no list.
 
-**Rules state what, not why.** A rule is an imperative sentence. Add at most one
-clause of consequence. Do that only when the rule would otherwise look wrong enough to
-"fix". Add a pointer to the proof. That is the guard test, the PR number or commit
-SHA (squash merges keep PR bodies reachable via `git log`), or a `TODOs.md`
-entry. Keep, at one line each: **tripwires** (conditions that invalidate a
+**Rules state what, not why.** State the required action and conditions inline.
+Keep each rule usable without a PR-history lookup.
+Add at most one clause of consequence when the rule would otherwise look wrong enough to "fix".
+Use guard, source, or backlog links as optional supporting evidence.
+Keep, at one line each: **tripwires** (conditions that invalidate a
 rule — "re-measure if X"), **diagnostic signatures** (the literal error text
 of a failure mode), and **decision rules**. History narration, mechanism
-walkthroughs, and persuasion belong in the PR that proved them. Point to them. Do not
-restate.
+walkthroughs, and persuasion belong in the PR that proved them.
 
 ## Repo-level docs
 
@@ -343,7 +342,7 @@ scope and invariants on top rather than restating these.
 - **Control race tests at the suspension boundary.** Hold the dependency there.
   Apply the competing operation. Then release the held call.
   Assert the final state and side effects. If the operation can restart,
-  cover cancelled or superseded completions. See PRs #97 and #184.
+  cover cancelled or superseded completions.
 - **Test-only API is `@_spi(Testing)`, not a production parameter.** Hooks that
   exist for tests or previews — direct store mutation, failure injection, queue
   introspection, a capacity or clock override — are marked `@_spi(Testing)`, in
@@ -385,12 +384,12 @@ scope and invariants on top rather than restating these.
   `evidenceID`). Never use an ambiguous `id`.
 - **Create identity only when creating the entity.** Do not generate a UUID as
   a fallback for an unavailable persisted or system identity. Represent that
-  unavailable state explicitly. See the installation-identity review in PR #160.
+  unavailable state explicitly.
 - **Avoid parameter defaults on Core/store APIs.** Prefer explicit call-site
   arguments so new behavior is not silently opted into. Reserve defaults for
   SwiftUI convenience inits and obvious zero values (`[]`, `.zero`) where
   omission can't change semantics. An empty collection is not a harmless
-  default when it suppresses evidence or domain behavior (PR #340).
+  default when it suppresses evidence or domain behavior.
   Test overrides use `@_spi(Testing)` hooks or
   dedicated test factories. Do not use production parameter defaults.
 - **`didSet` must skip work when the value is unchanged.** When the stored
@@ -404,13 +403,13 @@ scope and invariants on top rather than restating these.
   geometry/algorithm helpers, and the like state what they do and their key
   invariants. Name heuristic thresholds and document their units and decision
   meaning beside the owning policy. Explain non-obvious evidence decisions
-  beside the algorithm. See `GPSCorrectionPolicy` and PRs #315 and #340.
+  beside the algorithm.
 
 ### Errors and failure
 
 - **Preserve errors until the reporting boundary.** Carry the original `Error`
   through services and observable failure state. Derive display text at the
-  UI boundary and attach the error through the logging API. See PR #266.
+  UI boundary and attach the error through the logging API.
 - **Never silently swallow errors.** Core APIs surface failure by `throw`ing
   (or returning a `Result`/typed error). Never absorb it into a benign-looking
   default like `[]`, `nil`, or `false`. Don't discard errors with `try?` or an
@@ -447,7 +446,7 @@ scope and invariants on top rather than restating these.
   [`Where/WhereCore/AGENTS.md`](Where/WhereCore/AGENTS.md)).
 - **Persist coupled preferences as one encoded value.** Use the domain's
   `Codable` struct instead of parallel keys that can disagree. Keep missing and
-  invalid-value policies explicit at the owning preference. See PRs #243 and #266.
+  invalid-value policies explicit at the owning preference.
 
 ### UI construction
 
@@ -512,8 +511,7 @@ Smells that signal a missing type:
 - **A `kind` tag beside optionals only valid for some kinds** — use an `enum`
   with associated values.
 - **Preconditions that reject cases from an accepted enum** — use a smaller
-  enum and convert explicitly. See
-  `SampleCorrectionProposal.Kind` and PR #315.
+  enum and convert explicitly.
 - **Stringly-typed status or flags** (`status == "active"`) — use a typed enum,
   per the identifier/keys convention above.
 
