@@ -23,6 +23,17 @@
         }
       }
     },
+    "backup.error.invalidPlanningData" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This backup contains invalid planned stays. Check its dates and try again."
+          }
+        }
+      }
+    },
     "backup.error.invalidRecordingData" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -108,6 +119,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your synced data was erased, but pending location fixes could not be removed. Recording remains off. Close and reopen Where, then retry reset."
+          }
+        }
+      }
+    },
+    "planning.error.stayAlreadyExists" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This planned stay already exists. Open it again to edit its dates."
+          }
+        }
+      }
+    },
+    "planning.error.stayNotFound" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This planned stay was deleted. Create a new stay to save these dates."
           }
         }
       }

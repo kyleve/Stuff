@@ -1,7 +1,7 @@
 import Observation
 
 /// Transactional presentation state for the Appearance forecast toggle.
-/// Disabling stays visually on until the synced planned stay is cleared.
+/// Visibility changes preserve the synced itinerary and Home setting.
 @MainActor
 @Observable
 final class EstimatedTimeAndPlanningSettingsModel {

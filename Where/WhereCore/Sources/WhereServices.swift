@@ -272,7 +272,6 @@ public struct WhereServices: Sendable {
         )
         let plannedStays = PlannedStayCoordinator(
             store: store,
-            calendar: aggregator.calendar,
             now: now,
         )
         let plannedStayLocation = PlannedStayLocationVerifier(

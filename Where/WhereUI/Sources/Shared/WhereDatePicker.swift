@@ -17,6 +17,8 @@ struct WhereDatePicker: View {
     /// range overloads. `nil` means unbounded on that end.
     var earliest: Date?
     var latest: Date?
+    /// Qualifies repeated date fields without replacing their selected value.
+    let accessibilityTitle: String?
     let displayedComponents: DatePickerComponents
 
     @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
@@ -26,18 +28,26 @@ struct WhereDatePicker: View {
         selection: Binding<Date>,
         earliest: Date? = nil,
         latest: Date? = nil,
+        accessibilityTitle: String? = nil,
         displayedComponents: DatePickerComponents,
     ) {
         self.title = title
         _selection = selection
         self.earliest = earliest
         self.latest = latest
+        self.accessibilityTitle = accessibilityTitle
         self.displayedComponents = displayedComponents
     }
 
     var body: some View {
         if isCapturingSnapshot {
-            SnapshotDatePickerStandIn(title: title, selection: standInSelection)
+            SnapshotDatePickerStandIn(
+                title: title,
+                selection: standInSelection,
+                accessibilityTitle: accessibilityTitle,
+            )
+        } else if let accessibilityTitle {
+            livePicker.accessibilityLabel(accessibilityTitle)
         } else {
             livePicker
         }
@@ -88,7 +98,7 @@ struct WhereDatePicker: View {
 /// renders differently depending on the day the test runs, and no settle
 /// window can stabilize it. Captures substitute this row instead: the same
 /// title + trailing-capsule layout, with the selection rendered in a fixed
-/// format and locale so the image is a pure function of the selected value.
+/// format and locale, using the same calendar and timezone as the live picker.
 /// Only the system-drawn value capsule is substituted — the row title and
 /// surrounding Form chrome stay real — per the `\.isCapturingSnapshot`
 /// carve-out (see SnapshotKit's `SnapshotCaptureFlag`).
@@ -102,8 +112,23 @@ private struct SnapshotDatePickerStandIn: View {
 
     let title: String
     let selection: Selection
+    let accessibilityTitle: String?
+    @Environment(\.calendar) private var calendar
+    @Environment(\.timeZone) private var timeZone
 
     var body: some View {
+        if let accessibilityTitle {
+            row
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(accessibilityTitle)
+                .accessibilityValue(formattedSelection)
+                .accessibilityAddTraits(.isButton)
+        } else {
+            row
+        }
+    }
+
+    private var row: some View {
         LabeledContent(title) {
             Text(formattedSelection)
                 .foregroundStyle(.primary)
@@ -118,26 +143,34 @@ private struct SnapshotDatePickerStandIn: View {
     private var formattedSelection: String {
         switch selection {
             case let .date(date):
-                date.formatted(Self.dateStyle)
+                date.formatted(dateStyle)
             case let .timeOfDay(date):
-                date.formatted(Self.timeStyle)
+                date.formatted(timeStyle)
         }
     }
 
     /// The medium date the live picker prefers ("Jul 15, 2026"), now with a
     /// fixed locale and no dependence on today's capsule-width reservation.
-    private static let dateStyle = Date.FormatStyle(
-        date: .abbreviated,
-        time: .omitted,
-        locale: Locale(identifier: "en_US"),
-    )
+    private var dateStyle: Date.FormatStyle {
+        Date.FormatStyle(
+            date: .abbreviated,
+            time: .omitted,
+            locale: Locale(identifier: "en_US"),
+            calendar: calendar,
+            timeZone: timeZone,
+        )
+    }
 
     /// Shortened time ("8:00 PM") in the same fixed locale.
-    private static let timeStyle = Date.FormatStyle(
-        date: .omitted,
-        time: .shortened,
-        locale: Locale(identifier: "en_US"),
-    )
+    private var timeStyle: Date.FormatStyle {
+        Date.FormatStyle(
+            date: .omitted,
+            time: .shortened,
+            locale: Locale(identifier: "en_US"),
+            calendar: calendar,
+            timeZone: timeZone,
+        )
+    }
 }
 
 #if DEBUG

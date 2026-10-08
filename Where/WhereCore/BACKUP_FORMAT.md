@@ -1,4 +1,4 @@
-# Where backup format v6
+# Where backup format v7
 
 `BackupArchive` is the authoritative manifest schema. A ZIP contains its JSON
 manifest and the referenced evidence assets. The production `BackupService`
@@ -20,11 +20,12 @@ Current imports require the current schema, including its required collections.
 | 4 | Expanded device kinds, grouped metadata fields under `payload`, and renamed `registrationEpochID` to `registrationGenerationID`. | [Wire version](https://github.com/kyleve/Stuff/commit/9190535a5b482c1558840fed988e58b2f2e1ef3c) |
 | 5 | Added `plannedStayRecords`, including clearing tombstones. | [Annual forecasts](https://github.com/kyleve/Stuff/commit/c2dbdf90b3e88e11e32de8bf76d7a41ac617130f) |
 | 6 | Added optional sample motion and immutable attribution revisions. | [Sample corrections](https://github.com/kyleve/Stuff/commit/0da3b36dbce465edd93380993c7f2e13f718ebf8) |
+| 7 | Adds independent stay identities, arrival/departure windows, and `homeRegionRecords`. | [`BackupArchive.swift`](Sources/Backup/BackupArchive.swift) |
 
 The device feature also used prototype versions 4–7 before its merge.
 Those versions described recording assignments, registration epochs, causal parents, and merge barriers.
 The [prototype commit](https://github.com/kyleve/Stuff/commit/3b5dfaca728cb8023e2c02bccfbd52bb0738449a)
-records that sequence. It is separate from the current version 4–6 lineage.
+records that sequence. It is separate from the current version 4–7 lineage.
 A version number alone does not identify every historical development archive.
 
 The external upgrader recognizes supported older field shapes.
@@ -66,3 +67,17 @@ Upgrading v1–v5 retains all existing records and assets, records unknown motio
 and adds empty correction history. The upgrade driver checks ZIP integrity and
 record counts, then loads the result and its assets through the production
 decoder using `./test`. The original input remains unchanged.
+
+## Version 7 contents
+
+Each `plannedStayRecords` revision names its stable `stayID`. Its optional value holds
+that same identity, a region, and inclusive arrival and departure windows.
+A nil value deletes that stay. Completed stays and deletion tombstones remain in the archive.
+
+The `homeRegionRecords` array preserves forecast Home choices and their revision identities.
+A nil region selects historical estimates. Both import strategies retain every planning revision.
+
+The offline upgrader converts the singular v5/v6 stay register into one shared legacy identity.
+It infers exact arrival from the revision's UTC Gregorian day, capped at the existing departure.
+It preserves revision IDs, timestamps, motion readings, correction history, and assets.
+The earlier itinerary prototype also used v6. Records with `stayID` retain their independent identities and date windows.

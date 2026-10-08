@@ -167,6 +167,7 @@ public actor BackupCoordinator {
                     recordingDeviceMetadataChanges: store.recordingDeviceMetadataChanges(),
                     recordingDeviceRemovals: store.recordingDeviceRemovals(),
                     plannedStayRecords: store.plannedStayRecords(),
+                    homeRegionRecords: store.homeRegionRecords(),
                     sampleAttributionRevisions: store.allSampleAttributionRevisions(),
                 )
             }
@@ -203,6 +204,7 @@ public actor BackupCoordinator {
                 recordingDeviceMetadataChanges: tables.recordingDeviceMetadataChanges,
                 recordingDeviceRemovals: tables.recordingDeviceRemovals,
                 plannedStayRecords: tables.plannedStayRecords,
+                homeRegionRecords: tables.homeRegionRecords,
                 sampleAttributionRevisions: tables.sampleAttributionRevisions,
                 blobs: snapshot.blobs,
             )
@@ -225,6 +227,7 @@ public actor BackupCoordinator {
         let recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange]
         let recordingDeviceRemovals: [RecordingDeviceRemoval]
         let plannedStayRecords: [PlannedStayRecord]
+        let homeRegionRecords: [HomeRegionRecord]
         let sampleAttributionRevisions: [SampleAttributionRevision]
     }
 
@@ -418,6 +421,7 @@ public actor BackupCoordinator {
             + archive.recordingDeviceMetadataChanges.count
             + archive.recordingDeviceRemovals.count
             + archive.plannedStayRecords.count
+            + archive.homeRegionRecords.count
             + archive.sampleAttributionRevisions.count
 
         // Decode and validate before touching live recording. Once the archive is known-good,
@@ -486,6 +490,10 @@ public actor BackupCoordinator {
                     }
                     for plannedStay in archive.plannedStayRecords {
                         try await store.restorePlannedStayRecord(plannedStay)
+                        report()
+                    }
+                    for home in archive.homeRegionRecords {
+                        try await store.restoreHomeRegionRecord(home)
                         report()
                     }
                     for revision in archive.sampleAttributionRevisions {
