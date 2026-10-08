@@ -1,6 +1,6 @@
 # Stuff – Repository Shape
 
-This file is the repo-wide contract. It covers the build system, Swift conventions, and how to work with branches, commits, PRs, and CI. **Every module also carries its own `AGENTS.md`**. That file covers scope, layering, and invariants. Read this file first. Then read the module's file. The two files do not repeat each other. Neither file is sufficient alone.
+This file is the repo-wide contract. It covers the build system, Swift conventions, and how to work with branches, commits, PRs, and CI. **Every module also carries its own `AGENTS.md`**. That file covers scope, layering, and invariants. Read this file first. Then read each descendant `AGENTS.md` that applies to the affected paths, including source-directory files. These files complement each other.
 
 Roughly, this file covers:
 
@@ -592,6 +592,10 @@ generates the project or starts a simulator.
 
 ## Working in this repo
 
+- **Identify the applicable rules before implementation.** For behavior changes,
+  name the relevant invariants and their existing guards in the task's working plan.
+  Use the owning `AGENTS.md` and required skills. If the scope expands, read the
+  new area's instructions before editing it. Keep this map task-local.
 - **Never commit on `main`.** Branch first (`git checkout -b <name>`). Keep
   every commit for one piece of work on that one branch.
 - **Run checks in proportion to risk.** Follow [Running tests](#running-tests).
@@ -612,6 +616,9 @@ for PRs, pushes, review feedback, CI, and posting as the user. Always-on: use
 `gh`. Open PRs ready-for-review. Mark AI-posted comments. **Plan-driven work
 ends with push + PR** before handing back. **Addressing review feedback
 includes GitHub replies** on the threads you touch — not code-only fixes.
+
+Use [`review-lessons`](.agents/skills/review-lessons/SKILL.md) for the monthly
+PR-history audit or an explicit review of recurring failures.
 
 ## Codex worktree specific instructions
 

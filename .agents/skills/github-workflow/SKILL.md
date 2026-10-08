@@ -1,6 +1,6 @@
 ---
 name: github-workflow
-description: Create and maintain PRs and gh stack chains. Handle review feedback, audit PR history, and diagnose GitHub Actions or CircleCI failures. Use for publishing changes, responding to reviews, and improving repository guidance.
+description: Create and maintain PRs and gh stack chains. Handle review feedback and diagnose GitHub Actions or CircleCI failures. Use for publishing changes, responding to reviews, and managing stacks.
 ---
 
 GitHub workflow for this repo. Read root [`AGENTS.md`](../../../AGENTS.md) first for
@@ -72,7 +72,12 @@ authorizes replies on the threads you fix, decline, or defer — see
 
 ### Review the completed diff
 
-Before pushing reviewable work:
+Before pushing reviewable work, review the complete branch diff against its PR base.
+For a stacked PR, use its parent branch as the base.
+Revisit the applicable invariants identified before implementation.
+For each material invariant, locate the evidence in the final code and relevant guard results.
+If a rule needs human judgment, inspect the affected implementation and state any validation limit.
+A statement that instructions were read is not evidence that the implementation follows them.
 
 1. Compare changed signatures and stored state with the root
    [type rules](../../../AGENTS.md#types-state-and-api-design) and
@@ -128,7 +133,9 @@ branch.
   the change. Required upgrade order. Delete when N/A.
 - **Review focus** — subtle behavior, incomplete migrations, assumptions about
   `main`. Prefer inline review comments for specific lines.
-- **Testing** — exact commands with pass counts. For skipped checks, state
+- **Testing** — exact commands with pass counts and the relevant behavior or invariant they exercise.
+  Link source locations for conclusions based only on inspection.
+  For skipped checks, state
   **what** and **why**.
 
 #### Common PR shapes
@@ -312,12 +319,9 @@ reviewer cannot tell their note was seen.
 
 **Historical audit (lessons or guidance changes):**
 
-Read inline threads, review submissions, conversation comments, and follow-up fixes for the requested period.
-Include resolved threads and paginate every collection.
-Trace candidate lessons to the final merged change and current source.
-Separate missing guidance, existing rules that were missed, enforcement gaps,
-and proposals that never landed. Report representative comment and fix links.
-This mode does not authorize replies or resolution changes on historical threads.
+Use [review-lessons](../review-lessons/SKILL.md) for historical evidence,
+monthly audit windows, and guidance changes.
+Use this skill for publishing the resulting PR.
 
 When addressing:
 
