@@ -205,8 +205,8 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         for legIndex in supportedLegs.sorted() {
             let before = anchors[legIndex]
             let after = anchors[legIndex + 1]
-            // A gap leaves both neighboring endpoints unknown, even when the
-            // cruise cores on either side belong to one flight review.
+            // A gap alone leaves both neighboring endpoints unknown. Separate
+            // corroboration below can support the first resumed observation.
             let startsRun = !supportedLegs.contains(legIndex - 1)
             let endsRun = !supportedLegs.contains(legIndex + 1)
             while sampleIndex < usable.count, usable[sampleIndex].timestamp < before.timestamp {
@@ -225,6 +225,26 @@ public struct FlightTrajectoryAnalyzer: Sendable {
                     airborneIDs.insert(sample.id)
                 }
                 candidate += 1
+            }
+        }
+        var inferredEndpoints: [FlightEndpointInference] = []
+        for core in cores where !supportedLegs.contains(core.start - 1) {
+            let endpoint = anchors[core.start]
+            let observations = usable.filter { Self.isSameObservation($0, as: endpoint) }
+            guard observations.allSatisfy({ !groundIDs.contains($0.id) }),
+                  let reason = FlightEndpointInference.reason(
+                      cruise: Array(anchors[core.start ... core.end]),
+                      previous: core.start > 0 ? anchors[core.start - 1] : nil,
+                      endpointObservations: observations,
+                  ) else { continue }
+            for sample in observations where Self.fitsMotion(
+                sample,
+                from: endpoint,
+                to: anchors[core.start + 1],
+            ) {
+                if airborneIDs.insert(sample.id).inserted {
+                    inferredEndpoints.append(.init(sampleID: sample.id, reason: reason))
+                }
             }
         }
         let observationLimit = if let arrival {
@@ -275,6 +295,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             groundSampleIDs: groundIDs,
             peakSpeedKMH: peakSpeedKMH,
             progress: progress,
+            inferredEndpoints: inferredEndpoints,
         )
     }
 

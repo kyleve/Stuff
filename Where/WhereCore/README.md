@@ -40,8 +40,9 @@ backup remains successful if later retention fails; subsequent runs retry cleanu
 Bounded [backup specifications](../Specifications/README.md) check these lifecycle,
 key-publication, and retention protocols. Their READMEs define the proof boundaries.
 
-Everything is reached through one `Sendable` container, **`WhereServices`**,
-which the presentation layer (`WhereUI`) and the widget extension talk to. For
+Services are reached through one `Sendable` container, **`WhereServices`**,
+which the presentation layer (`WhereUI`) and App Intents use. The widget
+extension reads published App Group snapshots without opening the store. For
 the domain/presentation layering and the rules this module enforces, see the
 feature [`Where/AGENTS.md`](../AGENTS.md). This file is the human-facing tour.
 
@@ -131,15 +132,17 @@ one it belongs to rather than to a god-object:
   `yearReportDetails(for:primaryRegionCount:)` bundle used by the scene, the
   year's raw manual entries `manualDays(inYear:)`, single- or multi-region
   `locations(in:year:)` projections, and `representativeCoordinates(for:)`.
-  `YearReportDetails` keeps the aggregate report and its primary-region raw
+  `YearReportDetails` keeps the aggregate report and its primary-region effective
   locations on the same samples snapshot, including location-only changes that
   do not alter day totals.
 - **`YearReport` / `YearReportDetails` / `DayPresence` /
   `RegionDayLocations`** — the aggregated, snapshot-stable value types the UI
   renders, each keyed by a
-  timezone-independent **`CalendarDay`** (`DayPresence.day`). A day counts for a
-  region if *any* sample that calendar day fell inside it, so a single day can
-  belong to several.
+  timezone-independent **`CalendarDay`** (`DayPresence.day`). A day counts for
+  each region in its effective sample attribution after removal visibility and
+  GPS corrections, plus additive manual entries. An authoritative manual overlay
+  replaces that presence.
+  A single day can belong to several regions; raw observations remain lossless.
 - **`CalendarDay`** — a Y-M-D value that is the stable identity of a logical day.
   Stored user records and day comparisons key on it so they don't drift onto a
   different day across a time-zone change. Project to a concrete `Date` (grid
@@ -180,6 +183,8 @@ one it belongs to rather than to a god-object:
   from an Off interval remains rejected after relaunch. Immutable profiles, nickname events,
   target-owned advisory check-ins, and global removal tombstones sync independently. Another
   installation can rename or remove a device identity, but cannot change its recording consent.
+  `devices()` supplies active device configurations. `displayNames()` supplies the latest saved names,
+  including removed devices, for historical labels.
 - **`LocationHistoryReader`** — the shared removal-aware read boundary used by reports, widgets,
   and foreground capture checks. It hides a removed identity's GPS samples at
   and after its earliest tombstone while keeping earlier raw storage, backups, legacy samples
@@ -210,10 +215,18 @@ one it belongs to rather than to a god-object:
   three ground anchors spanning ten minutes within 2 km and at most 50 km/h.
   `FlightAssessment.RecordingSource` separates identified installations from legacy samples.
   `Reassessment` distinguishes a scheduled refresh from an evidence-driven refresh.
+
   A qualifying dwell confirms arrival immediately. The 30-minute freshness limit
-  only changes live-notice presentation. Motion measurements can corroborate speed and contradict ground
-  dwell; altitude is context only. Missing or stale updates never establish
-  arrival. Slower aircraft and sparse recordings can remain uncertain.
+  only changes live-notice presentation. Cruise inference uses positional
+  movement. Reported speed can veto ground dwell, and altitude is context only.
+  Missing or stale updates never establish arrival. Slower aircraft and sparse
+  recordings can remain uncertain.
+
+  `FlightEndpointInference` can corroborate a resumed cruise endpoint through
+  reported speed or a bounded recording gap followed by sustained cruise.
+  Slow sensor readings veto this inference. The gap remains unknown and never
+  becomes an observed motion leg. Each inferred endpoint carries its reason
+  into the correction review.
 - **`SampleCorrectionAssessment`** — shares the raw-evidence assessment for flights
   and border drift. Its named policy includes 24-hour report context and local
   boundary brackets within ten minutes on each side. These conservative limits
@@ -228,6 +241,9 @@ one it belongs to rather than to a god-object:
   Manual assertions, unknown fixes, ground endpoints, layovers, and later
   destinations retain their contributions. Reviews coalesce identical synced rows
   by sample identity; conflicting representations remain uncorrected.
+  A `FlightPointCorrection` lets the user explicitly include or restore one GPS point within a completed flight.
+  Both actions recheck the same evidence and data generation as automatic proposals.
+  Restoration writes a reset revision. It preserves the original GPS sample and the earlier correction history.
   `LocationHistoryReader.projection`
   joins lossless raw samples to the effective attribution for reports, maps,
   artwork, widgets, summaries, reminders, and intents.
@@ -395,7 +411,9 @@ rotates to a Reset child generation, and discards the retry queue only after com
 
 Swift Testing in [`Tests/`](Tests) (`WhereCoreTests`), hosted in `StuffTestHost`.
 Use `SwiftDataStore.inMemory()` + `ScriptedLocationSource` for domain tests.
-Do not open an on-disk/CloudKit store or make live Core Location requests.
+Do not open the user's on-disk/CloudKit store or make live Core Location requests.
+Production-source history tests use isolated temporary on-disk containers without
+CloudKit (`StoreRemoteChangeSourceTests`).
 `CoreLocationSourceTests` exercises the one-shot coordinator with an injected
 `CurrentLocationRequestDriving` fake, without starting passive monitoring.
 The CloudKit remote-import path

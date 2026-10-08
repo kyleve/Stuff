@@ -112,6 +112,7 @@ Each automatic route depth is marked by one labeled band spanning all of its ove
 Screens with no route from their group's root are collected in a separate **Unlinked** band rather than presented as a false navigation depth.
 Explicit `FlyoverPosition` values remain exact and may intentionally exceed that automatic limit.
 The initial canvas zoom fits the first group to the available width so its cards are immediately legible.
+Connectors use vector paths and text views. Large catalogs do not require a graph-sized bitmap texture, which can exceed GPU limits.
 Reach later groups by horizontal scrolling.
 Pinching or moving the zoom slider preserves the canvas point at the center of the visible viewport.
 **Fit All** remains available for a whole-graph overview.

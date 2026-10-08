@@ -5,6 +5,42 @@ import Testing
 @testable import WhereUI
 
 struct FlightReviewPresentationTests {
+    @Test func pointRowsRetainInferenceAndRestoreActionsWithoutDuplicateIdentities() throws {
+        let review = PreviewSupport.flightReview(state: .completed)
+        let flight = try #require(review.flight)
+        let sampleID = review.points[1].sample.id
+        let inferred = FlightAssessment(
+            id: flight.id,
+            startedAt: flight.startedAt,
+            lastObservationAt: flight.lastObservationAt,
+            lastFlightAt: flight.lastFlightAt,
+            airborneSampleIDs: flight.airborneSampleIDs,
+            groundSampleIDs: flight.groundSampleIDs,
+            peakSpeedKMH: flight.peakSpeedKMH,
+            progress: flight.progress,
+            inferredEndpoints: [.init(
+                sampleID: sampleID,
+                reason: .recordingGap(duration: 14400, averageSpeedKMH: 740),
+            )],
+        )
+        let duplicated = GPSCorrectionReview(
+            id: review.id,
+            day: review.day,
+            points: review.points + review.points,
+            state: .completed(inferred),
+            pointCorrections: review.pointCorrections,
+        )
+        let display = FlightReviewPresentation(review: duplicated)
+        #expect(display.recordedPoints.count == review.points.count)
+        let point = try #require(display.recordedPoints.first { $0.id == sampleID })
+        #expect(point.evidence == .inferred(.recordingGap(duration: 14400, averageSpeedKMH: 740)))
+        #expect(point.point.regions.isEmpty)
+        #expect(point.correction?.action == .restoreGPS)
+        #expect(point.map.pins.map(\.point.coordinate) == [point.point.sample.coordinate])
+        #expect(point.map.pins.map(\.point.attribution) == [.excluded])
+        #expect(point.map.routes.isEmpty)
+    }
+
     @Test func correctedAirborneObservationsStayOnTheRoute() {
         let review = PreviewSupport.flightReview(state: .completed)
         let display = FlightReviewPresentation(review: review)

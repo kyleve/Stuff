@@ -8,6 +8,9 @@ Trajectory inference has additional [flight rules](Flights/AGENTS.md).
   Reassess inside `perform(expectedDataGenerationID:)` and return changed evidence for a new review.
   Preserve manual assertions and conflicting duplicate samples.
   Guards: `SampleCorrectionCoordinatorTests` and `SampleCorrectionAssessmentTests`.
+- Offer explicit point corrections only within completed flights on the same recording device.
+  Recheck the full review before inclusion or restoration. Write a newer reset revision to restore GPS attribution.
+  Preserve pending-flight points, authoritative days, and conflicting identities. Guard: `FlightPointCorrectionAssessmentTests`.
 - Retain immutable attribution revisions, including revisions that arrive before their samples.
   Preserve bare UUID encoding and use `SampleAttributionRevision.nextUpdatedAt` for correction and reset writes.
   Clear manual overrides and write newer reset tombstones in one transaction.

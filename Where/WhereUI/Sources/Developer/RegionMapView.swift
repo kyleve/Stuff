@@ -97,7 +97,7 @@ public struct RegionMapView: View {
             color: { color(forTitle: $0.title, region: $0.region) },
             onSelect: select,
         )
-        .frame(height: stylesheet.regionMap.height)
+        .frame(height: stylesheet.regionMap[.overview].height)
     }
 
     // MARK: - Data

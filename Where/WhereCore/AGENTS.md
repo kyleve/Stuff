@@ -163,6 +163,8 @@ internal shape.
   may rename or remove an identity. It must never change another installation's
   local consent. Backups alone read lossless raw samples and device/removal
   timelines, excluding non-restorable check-ins.
+- Keep historical device-name lookups inclusive of removed profiles.
+  Use the latest saved nickname or the profile's hardware name.
 - **Journal complete `LocationOutbox` snapshots through `JournalKit`.** Stamp
   every entry with its authorizing data generation. Never replay it into
   another generation. Keep the directory excluded from device backups. Make a
@@ -201,16 +203,18 @@ internal shape.
   and `perform` commits, aggregation, calendar layout, issue detection, the
   reconcile fan-out, backup, GPS acquisition. Names come from each `*Log`'s
   nested `SpanName`. See [Spans](../AGENTS.md#spans) for the convention. A
-  detector names its own span through `DataIssueDetecting.detects`. Then
-  `DataIssueScanner` reports per-category cost (`detect(border-drift)`) without
-  a switch over concrete detector types.
+  detector names its own span through `DataIssueDetecting.detects`.
+  `DataIssueScanner` measures detector passes with `detect(category)` and the
+  shared flight/boundary assessment with `assessGPS`; see `DataIssueScannerLog`.
 
 ## Testing
 
 Swift Testing in [`Tests/`](Tests) (`WhereCoreTests`), hosted in
 `StuffTestHost`. Drive collaborators against `SwiftDataStore.inMemory()` +
-`ScriptedLocationSource`. Never use the on-disk/CloudKit store or live
-Core Location requests. `CoreLocationSourceTests` must replace the source’s
+`ScriptedLocationSource`. Never use the user's on-disk/CloudKit store or live
+Core Location requests. Keep production-source history tests in isolated
+temporary on-disk containers without CloudKit (`StoreRemoteChangeSourceTests`).
+`CoreLocationSourceTests` must replace the source’s
 one-shot controls with a `CurrentLocationRequestDriving` fake before requesting
 a fix; never start passive monitoring in those tests. The CloudKit remote-import path uses the
 `@_spi(Testing)` `inMemory(remoteChangeSource:)` +

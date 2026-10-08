@@ -72,13 +72,18 @@ enum SampleCorrectionTestSupport {
         }
 
         func proposal() async throws -> SampleCorrectionProposal {
+            let current = try await review()
+            return try #require(current.proposal)
+        }
+
+        func review() async throws -> GPSCorrectionReview {
             let review = try await coordinator.review(
                 id: .flightDay(day: day),
                 year: day.year,
                 primaryRegions: attribution.loadedRegions,
                 driftThresholdMeters: 1000,
             )
-            return try #require(review?.proposal)
+            return try #require(review)
         }
     }
 

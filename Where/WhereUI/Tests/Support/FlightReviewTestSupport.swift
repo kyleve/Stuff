@@ -9,6 +9,20 @@ enum FlightReviewTestSupport {
         let coordinate: Coordinate
     }
 
+    static func flight(recordingSource: FlightAssessment.RecordingSource) -> FlightAssessment {
+        FlightAssessment(
+            id: .init(recordingSource: recordingSource, departureSampleID: UUID()),
+            startedAt: date(hour: 12),
+            lastObservationAt: date(hour: 16.5),
+            lastFlightAt: date(hour: 16.5),
+            airborneSampleIDs: [],
+            groundSampleIDs: [],
+            peakSpeedKMH: 800,
+            progress: .awaitingArrival,
+            inferredEndpoints: [],
+        )
+    }
+
     static let destination = Coordinate(latitude: 37.6213, longitude: -122.3790)
 
     static func date(hour: Double) -> Date {
@@ -59,6 +73,27 @@ enum FlightReviewTestSupport {
         }
         try await store.perform {
             for sample in samples {
+                try await store.add(sample: sample)
+            }
+        }
+    }
+
+    static func seedMixedFlights(into store: TestStore) async throws {
+        try await seed(into: store, includeArrival: true)
+        let samples = try await store.allSamples()
+        let otherDevice = RecordingDeviceID(rawValue: UUID())
+        let pendingSamples = samples.filter { $0.timestamp <= date(hour: 16.5) }.map { sample in
+            LocationSample(
+                id: UUID(),
+                timestamp: sample.timestamp,
+                coordinate: sample.coordinate,
+                horizontalAccuracy: sample.horizontalAccuracy,
+                source: sample.source,
+                recordingDeviceID: otherDevice,
+            )
+        }
+        try await store.perform {
+            for sample in pendingSamples {
                 try await store.add(sample: sample)
             }
         }

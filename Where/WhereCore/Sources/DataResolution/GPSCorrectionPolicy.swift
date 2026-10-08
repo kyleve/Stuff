@@ -11,6 +11,10 @@ enum GPSCorrectionPolicy {
         static let minimumAnchorInterval: TimeInterval = 60
         /// Longer gaps leave travel between the endpoints unknown.
         static let maximumLegInterval: TimeInterval = 2 * 60 * 60
+        /// Caps the recording gap used to corroborate a resumed cruise endpoint.
+        /// This policy does not cap flight duration. The gap never becomes an observed leg.
+        static let maximumCorroboratingGap: TimeInterval = 18 * 60 * 60
+        static let minimumResumedCruiseDuration: TimeInterval = 10 * 60
         /// The accuracy-adjusted lower speed of each cruise leg must meet this limit.
         static let minimumCruiseSpeedKMH = 450.0
         static let maximumPlausibleSpeedKMH = 1500.0

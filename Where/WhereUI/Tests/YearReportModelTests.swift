@@ -398,6 +398,88 @@ struct YearReportModelTests {
         #expect(report.dataIssueScanInputs != beforeInputs)
     }
 
+    @Test(arguments: [false, true])
+    func flightLabelsRetainNamesForRemovedDevices(removedBeforeLoad: Bool) async throws {
+        let store = try TestStore()
+        let services = FlightReviewTestSupport.services(store: store, now: Self.day(2026, 3, 16))
+        _ = try await services.recording.register(authorization: .always)
+        let remoteID = RecordingDeviceID(rawValue: UUID())
+        let registeredAt = Self.day(2026, 3, 1)
+        try await store.perform {
+            try await store.addRecordingDeviceProfile(RecordingDeviceProfile(
+                id: remoteID,
+                systemName: "iPad",
+                kind: .tablet,
+                registeredAt: registeredAt,
+                registrationGenerationID: .initial,
+            ))
+        }
+        _ = try await services.recording.rename(remoteID, to: "Travel tablet")
+        if removedBeforeLoad { _ = try await services.recording.remove(remoteID) }
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
+        let flight = FlightReviewTestSupport.flight(recordingSource: .device(remoteID))
+        await report.refreshDataIssueCount(force: true)
+        #expect(report
+            .flightDeviceLabel(flight) ==
+            String(localized: .flightStatusDeviceNamed("Travel tablet")))
+        if !removedBeforeLoad {
+            _ = try await services.recording.remove(remoteID)
+            await report.refreshDataIssueCount(force: true)
+            #expect(report
+                .flightDeviceLabel(flight) ==
+                String(localized: .flightStatusDeviceNamed("Travel tablet")))
+        }
+        #expect(try await services.recording.devices().contains { $0.id == remoteID } == false)
+        let unknownID = RecordingDeviceID(rawValue: UUID())
+        #expect(report
+            .flightDeviceLabel(FlightReviewTestSupport.flight(recordingSource: .device(unknownID)))
+            == String(localized: .flightStatusDeviceNamed(unknownID.rawValue.uuidString)))
+        #expect(report.flightDeviceLabel(FlightReviewTestSupport.flight(recordingSource: .legacy))
+            == String(localized: .flightStatusDeviceLegacy))
+        #expect(report
+            .flightDeviceLabel(FlightReviewTestSupport
+                .flight(recordingSource: .device(services.recording.currentDevice.id)))
+            == String(localized: .flightStatusDeviceCurrent))
+    }
+
+    @Test func deactivationDiscardsAnInFlightDeviceNameRefresh() async throws {
+        let store = try TestStore()
+        let services = FlightReviewTestSupport.services(store: store, now: Self.day(2026, 3, 16))
+        let remoteID = RecordingDeviceID(rawValue: UUID())
+        let registeredAt = Self.day(2026, 3, 1)
+        try await store.perform {
+            try await store.addRecordingDeviceProfile(RecordingDeviceProfile(
+                id: remoteID,
+                systemName: "iPad",
+                kind: .tablet,
+                registeredAt: registeredAt,
+                registrationGenerationID: .initial,
+            ))
+        }
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
+        let flight = FlightReviewTestSupport.flight(recordingSource: .device(remoteID))
+        await store.gateRecordingDevices(afterCalls: 0)
+        let refresh = Task { await report.refreshDataIssueCount(force: true) }
+        await store.awaitRecordingDevicesGate()
+        report.deactivate()
+        await store.releaseRecordingDevicesGate()
+        await refresh.value
+        #expect(report
+            .flightDeviceLabel(flight) ==
+            String(localized: .flightStatusDeviceNamed(remoteID.rawValue.uuidString)))
+        await report.refreshDataIssueCount(force: true)
+        #expect(report
+            .flightDeviceLabel(flight) == String(localized: .flightStatusDeviceNamed("iPad")))
+    }
+
     @Test func liveFlightNoticeIsCurrentDeviceOnlyAndExpiresWithoutRemovingHistory() throws {
         let report = PreviewSupport.loadedYearReportModel()
         let current = PreviewSupport.flightReview(state: .flightLikely)
@@ -414,6 +496,7 @@ struct YearReportModelTests {
             groundSampleIDs: flight.groundSampleIDs,
             peakSpeedKMH: flight.peakSpeedKMH,
             progress: flight.progress,
+            inferredEndpoints: flight.inferredEndpoints,
         )
         let remote = GPSCorrectionReview(
             id: current.id,
@@ -464,6 +547,7 @@ struct YearReportModelTests {
             groundSampleIDs: flight.groundSampleIDs,
             peakSpeedKMH: flight.peakSpeedKMH,
             progress: .awaitingArrival,
+            inferredEndpoints: flight.inferredEndpoints,
         )
         let expired = GPSCorrectionReview(
             id: current.id,

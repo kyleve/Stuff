@@ -472,7 +472,7 @@ public final class YearReportModel {
             dataIssueCount = scan.issues.count
             dataIssueScanError = nil
             scheduleReassessment()
-            await refreshRecordingDeviceNames()
+            await refreshRecordingDeviceNames(requestID: requestID, requestedYear: requestedYear)
         } catch is CancellationError {
             return
         } catch {
@@ -482,13 +482,12 @@ public final class YearReportModel {
         }
     }
 
-    private func refreshRecordingDeviceNames() async {
+    private func refreshRecordingDeviceNames(requestID: UUID, requestedYear: Int) async {
         do {
-            let devices = try await services.recording.devices()
-            guard !Task.isCancelled else { return }
-            recordingDeviceNames = Dictionary(uniqueKeysWithValues: devices.map {
-                ($0.id, $0.device.displayName)
-            })
+            let names = try await services.recording.displayNames()
+            guard requestedYear == selectedYear, scanRequestID == requestID,
+                  !Task.isCancelled else { return }
+            recordingDeviceNames = names
         } catch is CancellationError {
             return
         } catch {
