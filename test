@@ -99,7 +99,7 @@ Scope:
   BundleName ...    Named bundles only (e.g. ./test WhereCoreTests)
   --all             The full unit suite (Stuff-iOS-Tests)
   --snapshots       The image-snapshot suite (StuffSnapshotTests)
-  --everything      Both suites — what CI runs
+  --everything      All iOS unit and image bundles, plus default host/architecture checks
   --only ID         An xcodebuild test identifier, repeatable:
                     Bundle, Bundle/Suite, or 'Bundle/Suite/test()'
   --only-file PATH  Read newline-delimited Bundle/Suite identifiers from PATH
@@ -141,7 +141,7 @@ Examples:
   ./test WhereCoreTests WhereUITests
   ./test --snapshots --review             # snapshots, with the diffs described
   ./test --snapshots --timings            # where the capture time goes
-  ./test --everything                     # everything, as CI runs it
+  ./test --everything                     # all iOS unit and image bundles
   ./test --only 'WhereUITests/WhereStylesheetTests/resolvesTraitAwareTokens()'
 USAGE
 }

@@ -1,6 +1,6 @@
 ---
 name: github-workflow
-description: Open and maintain pull requests, including stacked PRs through gh stack. Handle review feedback. Check GitHub Actions and CircleCI. Post as the user via gh or ManagePullRequest. Use when you commit for push, open or update a PR after plan execution, create or maintain a PR stack, respond to review comments, or diagnose CI failures.
+description: Create and maintain PRs and gh stack chains. Handle review feedback, audit PR history, and diagnose GitHub Actions or CircleCI failures. Use for publishing changes, responding to reviews, and improving repository guidance.
 ---
 
 GitHub workflow for this repo. Read root [`AGENTS.md`](../../../AGENTS.md) first for
@@ -69,6 +69,21 @@ authorizes replies on the threads you fix, decline, or defer — see
 - **Flag lines that warrant extra scrutiny.** Leave a PR review comment on
   anything worth a closer read (subtle behavior changes, incomplete migrations,
   assumptions about `main`).
+
+### Review the completed diff
+
+Before pushing reviewable work:
+
+1. Compare changed signatures and stored state with the root
+   [type rules](../../../AGENTS.md#types-state-and-api-design) and
+   [state rules](../../../AGENTS.md#modeling-state).
+   Inspect identity types, parameter defaults, coupled values, and enum subsets.
+2. Trace changed behavior through its consumers and alternate entry points.
+   Include extensions, historical reads, demo fixtures, and post-write reconciliation where applicable.
+3. Match each validation claim to the behavior exercised and the revision tested.
+   State separately what source inspection, unit tests, snapshots, and runtime interaction establish.
+4. Update the owning guidance only when the change exposes a missing invariant or obsolete instruction.
+   Keep an existing rule in one place. Do not copy a review thread into an agent file.
 
 ### Writing the PR body
 
@@ -275,13 +290,17 @@ a long review, or to pick up a dependency:
   match, a new invariant your code violates, duplicate registrations. Re-read
   the merged result and run `./test` (at least the affected tier) after merging
   — a clean merge is not proof the branch still makes sense.
-- **CI merges `main` into the branch before it runs**, so green-locally /
-  red-on-CI usually means `main` moved rather than that you broke something.
-  Merge the latest `main` in locally and rebuild before digging further.
+- **Identify the revision the failing provider tested before changing branch history.**
+  GitHub Actions PR jobs use the default PR merge checkout in
+  [ci.yml](../../../.github/workflows/ci.yml).
+  CircleCI checks out `pipeline.git.revision` directly in
+  [config.yml](../../../.circleci/config.yml).
+  Compare that revision, base, toolchain, and selected suites with the local run.
+  If the failure is an integration conflict, bring in the current base through the applicable branch or stack workflow.
 
 ## Review comments
 
-Two modes — don't mix them up:
+Three modes:
 
 **Exploring (user has not asked you to act):** read open review threads, summarize
 what's there, and ask which to take on. Do not change code or post replies yet.
@@ -291,8 +310,20 @@ what's there, and ask which to take on. Do not change code or post replies yet.
 in that thread. A code change without a reply is an incomplete handoff — the
 reviewer cannot tell their note was seen.
 
+**Historical audit (lessons or guidance changes):**
+
+Read inline threads, review submissions, conversation comments, and follow-up fixes for the requested period.
+Include resolved threads and paginate every collection.
+Trace candidate lessons to the final merged change and current source.
+Separate missing guidance, existing rules that were missed, enforcement gaps,
+and proposals that never landed. Report representative comment and fix links.
+This mode does not authorize replies or resolution changes on historical threads.
+
 When addressing:
 
+- Read the complete thread, including later corrections, before deciding on a fix.
+  Search for the same defect in sibling call sites and shared helpers.
+  Keep product changes within the requested scope and file deferred occurrences.
 - **One commit per review issue** — each distinct piece of feedback gets its
   own commit, unless several items fit together logically or address similar
   issues (then one commit for the group is fine). Either way, fixes stay

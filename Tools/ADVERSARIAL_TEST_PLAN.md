@@ -1,5 +1,9 @@
 # Adversarial Tooling Test Plan
 
+This document records the acceptance scenarios for PRs #283, #284, #287, and #288.
+Current maintenance rules live in [`AGENTS.md`](AGENTS.md).
+Apply the scenarios relevant to a change. The original stack-wide gate is not required for every tooling edit.
+
 This review is behavior-first: prove what each command does without requiring
 the reviewer to judge whether its Bash, Python, or Ruby is idiomatic.
 
@@ -27,9 +31,9 @@ functions returned expected values.
 | `Ledger/install` | macOS/Xcode | built/installed apps | `/Applications/Ledger.app` | Exact-process and transactional replacement |
 | `tla-check` | macOS/Linux-compatible tooling | manifests/specs | retained run artifacts | Pinned tools and honest pass/fail policy |
 
-Existing flags and their observable behavior are compared with `main`. New
-behavior must be called out explicitly; the planned additions are the
-mutating commands' `--dry-run` modes.
+The original comparison used `main` before the retained-tooling changes.
+Those changes added `--dry-run` modes to the mutating commands.
+For later changes, compare against the actual base revision and identify intentional behavior changes.
 
 ## Differential review against `main`
 
@@ -127,12 +131,12 @@ backup cleanup, with a missing staged file, with symlinked targets or parents,
 with an unreadable directory, across filesystems, with unknown manifest
 metadata, and with malformed, truncated, or wrong-size PNGs.
 
-After failure, exactly one state is legal:
+After an apply failure with successful rollback, all original values must remain intact.
+If cleanup fails after commit, preserve the complete new state.
+Report the remaining backups.
 
-- Everything remains byte-for-byte as it was; or
-- The complete intended new state exists and cleanup failure is reported.
-
-A mixture is never accepted.
+If rollback itself fails, report both failures and preserve recovery material.
+Do not claim that restoration succeeded. Guard: `test_surfaces_apply_and_rollback_failures_together`.
 
 ### Installers
 
@@ -233,7 +237,7 @@ The stack is ready only when:
 - Public behavior matches `main`, except documented additions.
 - All important mutations are caught.
 - Every injected failure remains observable.
-- Mutating commands leave no partial state.
+- Successful rollback restores the original state; failed rollback remains observable with recovery material retained.
 - Simulator deletion always requires exact ownership.
 - Dry runs produce no mutation.
 - Apple Bash 3.2, system Python 3.9, and pinned Ruby all pass.

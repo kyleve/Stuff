@@ -59,6 +59,8 @@ under `Tools/Tests`; shell around them is limited to public argument handling,
 bootstrap, and process orchestration. In particular,
 `tla-check` owns discovery and the pinned TLC download while
 `Tools/tla_check.py` owns manifest validation, TLC argv, and result policy.
+Read [`Tools/AGENTS.md`](Tools/AGENTS.md) for changes to these implementations
+or their public command wrappers.
 
 ### Managing app icons
 
@@ -148,6 +150,8 @@ composition root, or documented concurrency boundary. This command validates
 the configuration, tests the rules, and runs the lint. Keep the relevant
 `AGENTS.md`, the executable rule, its catalog entry, and its mutation test in
 the same change.
+Use the failing production syntax in the mutation fixture, including implicit
+members where applicable. State known enforcement gaps in the rule catalog.
 
 ## Agent instructions sync
 
@@ -184,6 +188,11 @@ A skill carries **procedure**. That is the steps of an occasional job. It includ
 rules that apply only while that job runs (GitHub, running tests, backlog
 triage). **Always-on** rules every edit must honor stay in `AGENTS.md` or
 `TODOs.md`.
+
+Put a new invariant in the deepest `AGENTS.md` that covers its consumers.
+Use a scoped source-directory file when only one subsystem needs it.
+Before adding guidance, find its existing owner and strengthen that rule instead of adding another copy.
+Keep the review history in the PR and link the rule to its guard or source.
 
 ## Targets
 
@@ -331,6 +340,10 @@ scope and invariants on top rather than restating these.
 - **Wait for conditions, not timing.** Prefer polling a predicate (`waitUntil`,
   `waitFor`, `waitForResolution`) over fixed run-loop counts or `sleep`. Fixed
   delays flake under load.
+- **Control race tests at the suspension boundary.** Hold the dependency there.
+  Apply the competing operation. Then release the held call.
+  Assert the final state and side effects. If the operation can restart,
+  cover cancelled or superseded completions. See PRs #97 and #184.
 - **Test-only API is `@_spi(Testing)`, not a production parameter.** Hooks that
   exist for tests or previews — direct store mutation, failure injection, queue
   introspection, a capacity or clock override — are marked `@_spi(Testing)`, in
@@ -357,7 +370,9 @@ scope and invariants on top rather than restating these.
   Do not let one god-type keep growing.
 - Identifiers/keys are `Hashable`. Use a typed enum, or a dedicated struct when
   the identity has structure (Where's `StoreURL` composite keys), or
-  `AnyHashable`. Never use raw `String`s. A typed token can't silently typo into
+  `AnyHashable`. Give UUID identities a domain-specific type too, such as
+  `SampleAttributionRevision.ID`. Distinct identities must remain distinct
+  types even when both store a UUID. Never use raw `String`s. A typed token can't silently typo into
   a new, untracked id. Prefer carrying the *concrete* type where a generic
   can (`LaunchPlan` is generic over its step `ID`). Reach for `AnyHashable`
   only where a generic can't reach (a non-generic environment value, a
@@ -368,10 +383,15 @@ scope and invariants on top rather than restating these.
   boundary that requires the primitive. When no domain type exists and a raw
   scalar is unavoidable, give it a role-specific label (`sampleID`,
   `evidenceID`). Never use an ambiguous `id`.
+- **Create identity only when creating the entity.** Do not generate a UUID as
+  a fallback for an unavailable persisted or system identity. Represent that
+  unavailable state explicitly. See the installation-identity review in PR #160.
 - **Avoid parameter defaults on Core/store APIs.** Prefer explicit call-site
   arguments so new behavior is not silently opted into. Reserve defaults for
   SwiftUI convenience inits and obvious zero values (`[]`, `.zero`) where
-  omission can't change semantics. Test overrides use `@_spi(Testing)` hooks or
+  omission can't change semantics. An empty collection is not a harmless
+  default when it suppresses evidence or domain behavior (PR #340).
+  Test overrides use `@_spi(Testing)` hooks or
   dedicated test factories. Do not use production parameter defaults.
 - **`didSet` must skip work when the value is unchanged.** When the stored
   type is `Equatable`, guard `oldValue != newValue` before invalidation,
@@ -382,10 +402,15 @@ scope and invariants on top rather than restating these.
   explicitly plus `@unknown default:`, which still flags newly added cases.
 - **Non-obvious types get a brief doc comment** on the type. Detectors,
   geometry/algorithm helpers, and the like state what they do and their key
-  invariants.
+  invariants. Name heuristic thresholds and document their units and decision
+  meaning beside the owning policy. Explain non-obvious evidence decisions
+  beside the algorithm. See `GPSCorrectionPolicy` and PRs #315 and #340.
 
 ### Errors and failure
 
+- **Preserve errors until the reporting boundary.** Carry the original `Error`
+  through services and observable failure state. Derive display text at the
+  UI boundary and attach the error through the logging API. See PR #266.
 - **Never silently swallow errors.** Core APIs surface failure by `throw`ing
   (or returning a `Result`/typed error). Never absorb it into a benign-looking
   default like `[]`, `nil`, or `false`. Don't discard errors with `try?` or an
@@ -420,6 +445,9 @@ scope and invariants on top rather than restating these.
   a keyed `Codable` to paper over missing fields from an older shape. Reshape
   the data instead (see the no-in-app-migration rule in
   [`Where/WhereCore/AGENTS.md`](Where/WhereCore/AGENTS.md)).
+- **Persist coupled preferences as one encoded value.** Use the domain's
+  `Codable` struct instead of parallel keys that can disagree. Keep missing and
+  invalid-value policies explicit at the owning preference. See PRs #243 and #266.
 
 ### UI construction
 
@@ -483,6 +511,9 @@ Smells that signal a missing type:
   — use `Optional` or a dedicated case.
 - **A `kind` tag beside optionals only valid for some kinds** — use an `enum`
   with associated values.
+- **Preconditions that reject cases from an accepted enum** — use a smaller
+  enum and convert explicitly. See
+  `SampleCorrectionProposal.Kind` and PR #315.
 - **Stringly-typed status or flags** (`status == "active"`) — use a typed enum,
   per the identifier/keys convention above.
 
@@ -531,10 +562,8 @@ One owner, created in one place, the illegal wirings unrepresentable.
 ## Generating the Xcode project
 
 Agents must never open Xcode on the user's machine. It steals focus and
-disrupts the user's session. Always pass `--no-open` when regenerating:
-
-- `./ide --no-open` instead of `./ide`
-- `mise exec -- tuist generate --no-open` instead of `tuist generate`
+disrupts the user's session. Regenerate with `./ide --no-open`.
+Do not bypass `./ide` with a direct `tuist generate` invocation.
 
 `tuist test` / `tuist build` are CLI-only and do not open Xcode. No
 flag is needed there.
