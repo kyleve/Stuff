@@ -7,6 +7,52 @@ import WhereCrashReporting
 
 @MainActor
 struct DiagnosticReportingControllerTests {
+    @Test func builtinAmbientApprovalDoesNotExportCustomPayloadsOrSnapshots() async throws {
+        let fixture = Fixture(configuration: DiagnosticReportingConfiguration(
+            sharesCrashReports: false,
+            sharesSessionReplays: false,
+            remoteLogging: .enabled(minimumLevel: .debug, metadataPolicy: .approvedFields),
+        ))
+        fixture.controller.start()
+        let log = Log<AmbientLog>(recorder: fixture.logSystem)
+        log.appLifecycle(phase: .shared(.category, .background))
+        log.thermalState(condition: .shared(.category, .serious))
+        log.powerMode(enabled: .shared(.boolean, true))
+        log.network(
+            status: .shared(.category, .satisfied),
+            interfaces: .restricted(.technicalState, [.wifi]),
+        )
+        log.memoryWarning()
+        log.event(
+            kind: .restricted(.technicalState, .appLifecycle),
+            value: .restricted(.domainValue, ["phase": "private-custom-phase"]),
+            level: .restricted(.technicalState, .info),
+            reporting: .restricted(.technicalState, .state),
+        )
+        log.event(
+            kind: .restricted(.technicalState, .accessibility),
+            value: .restricted(.domainValue, ["voiceover": true]),
+            level: .restricted(.technicalState, .info),
+            reporting: .restricted(.technicalState, .state),
+        )
+        await fixture.logSystem.flush()
+        let entries = await fixture.writer.entries
+        try #require(entries.count == 7)
+        #expect(entries[0].message == "ambient.app-lifecycle")
+        #expect(entries[0].fields["event.phase"] == .string("background"))
+        #expect(entries[1].fields["event.condition"] == .string("serious"))
+        #expect(entries[2].fields["event.low_power"] == .boolean(true))
+        #expect(entries[3].fields["event.status"] == .string("satisfied"))
+        #expect(entries[3].fields["event.interfaces"] == nil)
+        #expect(entries[4].message == "ambient.memory-warning")
+        for entry in entries {
+            #expect(entry.fields["event.value"] == nil)
+            #expect(entry.fields["event.payload"] == nil)
+            #expect(entry.fields["context.ambient"] == nil)
+            #expect(entry.fields.values.contains(.string("private-custom-phase")) == false)
+        }
+    }
+
     @Test(arguments: [
         DiagnosticReportingConfiguration(
             sharesCrashReports: false,
