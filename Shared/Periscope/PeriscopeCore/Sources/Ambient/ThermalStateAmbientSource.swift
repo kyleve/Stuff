@@ -8,7 +8,7 @@ public final class ThermalStateAmbientSource: NotificationAmbientSource {
         [ProcessInfo.thermalStateDidChangeNotification]
     }
 
-    override public func event(for _: Notification) -> AmbientEvent? {
+    override public func event(for _: Notification) -> (any AmbientLogEvent)? {
         Self.event(for: ProcessInfo.processInfo.thermalState)
     }
 
@@ -22,31 +22,21 @@ public final class ThermalStateAmbientSource: NotificationAmbientSource {
 
     /// The ambient event for a given thermal state — exposed for tests via
     /// `@_spi(Testing)` so the mapping stays asserted.
-    @_spi(Testing) public static func event(for state: ProcessInfo.ThermalState) -> AmbientEvent {
-        let level: String
-        let logLevel: LogLevel
-        switch state {
+    @_spi(Testing) public static func event(for state: ProcessInfo.ThermalState) -> AmbientLog
+        .ThermalState
+    {
+        let condition: AmbientLog.ThermalState.Condition = switch state {
             case .nominal:
-                level = "nominal"
-                logLevel = .info
+                .nominal
             case .fair:
-                level = "fair"
-                logLevel = .info
+                .fair
             case .serious:
-                level = "serious"
-                logLevel = .warning
+                .serious
             case .critical:
-                level = "critical"
-                logLevel = .warning
+                .critical
             @unknown default:
-                level = "unknown"
-                logLevel = .info
+                .unknown
         }
-        return AmbientEvent(
-            kind: .restricted(.technicalState, .thermalState),
-            value: .restricted(.domainValue, ["level": .string(level)]),
-            level: .restricted(.technicalState, logLevel),
-            reporting: .restricted(.technicalState, .state),
-        )
+        return AmbientLog.ThermalState(condition: .shared(.category, condition))
     }
 }

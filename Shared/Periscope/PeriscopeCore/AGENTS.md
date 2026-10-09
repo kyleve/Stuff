@@ -21,7 +21,8 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) first. That file owns the build 
 - **Custom levels are values, not cases.** `LogLevel` is a struct ordered by `severity`. Never switch exhaustively over "all" levels.
 - **Log change-only where the signal is chatty.** `NetworkPathAmbientSource` dedupes `NWPathMonitor`'s repeat callbacks.
 - **Notification-based sources are deliberately not deduped.** Each repeated memory warning is a distinct event.
-- **An ambient event declares whether it is a state or an occurrence.** `AmbientEvent.reporting` decides whether the event folds into the `AmbientSnapshot` stamped on later records.
+- **Use `AmbientLogEvent.reporting` to distinguish state from occurrence.** Both built-in and custom events fold through this local-only protocol.
+- **Keep custom ambient payloads and accessibility settings restricted.** Built-in lifecycle, thermal, power, memory, and connectivity events carry explicit baseline approvals.
 - **A momentary signal (a memory warning) is `.occurrence` and never becomes state.**
 - **Folding it in would leave every subsequent record claiming the app was mid-memory-warning.**
 - **A source whose signal is a lasting condition must also report it at `started()`.** Otherwise the state is unknown until it next changes.

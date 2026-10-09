@@ -87,7 +87,7 @@ struct LogJournalTests {
         let journal = try LogJournal(directory: directory, session: .fixture())
         system.install(journal: journal)
 
-        let ambient = Log<AmbientEvent>(system: system)
+        let ambient = Log<AmbientLog.Event>(system: system)
         ambient { makeAmbientEvent(kind: .network, value: ["status": "unsatisfied"]) }
         Log<AppLogs>(system: system).error("failed while offline")
 

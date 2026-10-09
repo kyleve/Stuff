@@ -87,8 +87,8 @@
         /// both the baseline and change events report, so the snapshot
         /// always carries the complete picture.
         @MainActor
-        private static func summaryEvent() -> AmbientEvent {
-            AmbientEvent(
+        private static func summaryEvent() -> AmbientLog.Event {
+            AmbientLog.Event(
                 kind: .restricted(.technicalState, .accessibility),
                 value: .restricted(
                     .domainValue,

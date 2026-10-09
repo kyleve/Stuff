@@ -21,7 +21,7 @@ import os
 ///   ``Configuration/pendingBufferCapacity``; on overflow the oldest records
 ///   drop and a synthetic ``DroppedEvents`` record marks the gap. Scope
 ///   definitions and span began/ended pairs are exempt — pairs never split.
-/// - **Ambient state** — `.state` ``AmbientEvent``s fold into a running
+/// - **Ambient state** — `.state` ``AmbientLogEvent`` values fold into a running
 ///   ``AmbientSnapshot``, and every record is stamped with it, so any event
 ///   can be joined to what the system was doing at that moment. Folding
 ///   outlives the admission gates: a floor-discarded ambient event still
@@ -429,7 +429,7 @@ public final class Periscope: LogRecorder, Sendable {
     /// state it announces, not the one it replaced, so an event and the
     /// snapshot attached to it can never disagree.
     private static func stamped(_ record: LogRecord, in state: inout State) -> LogRecord {
-        if let event = record.event as? AmbientEvent {
+        if let event = record.event as? any AmbientLogEvent {
             state.ambient = AmbientSnapshot.folding(event, into: state.ambient)
         }
         var stamped = record
@@ -444,9 +444,10 @@ public final class Periscope: LogRecorder, Sendable {
     /// redaction-suppressed one warrant different treatment.
     private func foldDiscardedAmbientState(
         of record: LogRecord,
-        _ fold: @Sendable (AmbientEvent, AmbientSnapshot?) -> AmbientSnapshot?,
+        _ fold: @Sendable (any AmbientLogEvent, AmbientSnapshot?) -> AmbientSnapshot?,
     ) {
-        guard let event = record.event as? AmbientEvent, event.reporting == .state else { return }
+        guard let event = record.event as? any AmbientLogEvent,
+              event.reporting == .state else { return }
         state.withLock { state in
             state.ambient = fold(event, state.ambient)
         }

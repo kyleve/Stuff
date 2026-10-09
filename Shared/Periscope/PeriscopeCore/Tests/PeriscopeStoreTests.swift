@@ -897,7 +897,7 @@ struct PeriscopeStoreTests {
         let system = Periscope(configuration: Periscope.Configuration(), sinks: [])
         system.add(sink: store)
 
-        let ambient = Log<AmbientEvent>(system: system)
+        let ambient = Log<AmbientLog.Event>(system: system)
         ambient { makeAmbientEvent(kind: .powerMode, value: ["low-power": true]) }
         Log<AppLogs>(system: system).error("slow while saving battery")
         await system.flush()

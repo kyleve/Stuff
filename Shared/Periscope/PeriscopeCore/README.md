@@ -118,7 +118,7 @@ Periscope.shared.startDefaultAmbientSources()
   PeriscopeTools' log view mode.
 - **Ambient state** — `AmbientEventSource`s report what the system is doing
   (`NetworkPathAmbientSource`, thermal, low-power, lifecycle, memory
-  warnings, accessibility). Each `AmbientEvent` carries its state as named
+  warnings, accessibility). Each `AmbientLogEvent` projects its local state as named
   fields (`[String: AmbientValue]` — a plain JSON object in the payload,
   e.g. `["status": "satisfied", "voiceover": false]`) and declares its
   `reporting`: a `.state` event is a lasting condition, an `.occurrence` a
@@ -126,6 +126,16 @@ Periscope.shared.startDefaultAmbientSources()
   into an `AmbientSnapshot` and stamps it on **every** record — so any error
   joins to the connectivity, thermal state, and power mode at that moment
   without a timestamp hunt.
+  Named built-in events approve lifecycle phases, thermal conditions, power mode,
+  memory warnings, and connectivity for baseline export. Network interfaces,
+  accessibility settings, and custom `AmbientLog.Event` payloads remain restricted.
+  A custom event never inherits approval from its `AmbientKind`.
+  These approvals deliberately expand the previous ambient export boundary.
+  The snapshot itself remains local and is excluded from baseline export.
+  Sources receive `Log<AmbientLog>`. Notification adapters return
+  `any AmbientLogEvent` so the same folding path handles every event type.
+  Built-ins now use distinct `ambient.*` event names and payload shapes.
+  This is a deliberate wire break, without historical typed-decode compatibility.
 - **Session attributes** — `LogSession.current(attributes:)` takes
   `[LogSessionAttributeKey: String]`, the build facts only the app can name:
   `.commit` / `.commitStatus`, `.configuration`, `.optimizationLevel`,

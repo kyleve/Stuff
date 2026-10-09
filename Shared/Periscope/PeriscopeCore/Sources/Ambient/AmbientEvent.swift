@@ -111,14 +111,161 @@ extension [String: AmbientValue] {
     }
 }
 
+/// Snapshot data for both classified built-ins and restricted custom events.
+/// This projection is local-only and does not approve fields for remote export.
+public protocol AmbientLogEvent: LogEvent {
+    var kind: AmbientKind { get }
+    var value: [String: AmbientValue] { get }
+    var reporting: AmbientLog.Event.Reporting { get }
+}
+
 /// The built-in scope for environmental state and occurrence events.
 @LogScope("ambient")
 public enum AmbientLog {
-    /// The standard event ambient sources emit: environmental context —
-    /// backgrounding, memory pressure, connectivity, thermal state — that helps
-    /// diagnose what the system was doing around an error.
+    /// A closed lifecycle phase, explicitly approved for baseline export.
+    @LogEvent("app-lifecycle")
+    public struct AppLifecycle: AmbientLogEvent {
+        public enum Phase: String, Codable, Sendable, CaseIterable {
+            case background, foreground, active, inactive
+        }
+
+        @LogField("phase", exposure: .shareable, kind: .category)
+        public var phase: AmbientLog.AppLifecycle.Phase
+
+        public var kind: AmbientKind {
+            .appLifecycle
+        }
+
+        public var value: [String: AmbientValue] {
+            ["phase": .string(phase.rawValue)]
+        }
+
+        public var reporting: AmbientLog.Event.Reporting {
+            .state
+        }
+
+        public var message: String {
+            "\(kind): \(value.ambientDescription)"
+        }
+    }
+
+    /// A closed thermal condition, without any device identifier.
+    @LogEvent("thermal-state")
+    public struct ThermalState: AmbientLogEvent {
+        public enum Condition: String, Codable, Sendable, CaseIterable {
+            case nominal, fair, serious, critical, unknown
+        }
+
+        @LogField("condition", exposure: .shareable, kind: .category)
+        public var condition: AmbientLog.ThermalState.Condition
+
+        public var kind: AmbientKind {
+            .thermalState
+        }
+
+        public var value: [String: AmbientValue] {
+            ["level": .string(condition.rawValue)]
+        }
+
+        public var reporting: AmbientLog.Event.Reporting {
+            .state
+        }
+
+        public var message: String {
+            "\(kind): \(value.ambientDescription)"
+        }
+
+        public var level: LogLevel {
+            switch condition {
+                case .nominal, .fair, .unknown: .info
+                case .serious, .critical: .warning
+            }
+        }
+    }
+
+    /// The current power-saving flag, explicitly approved for baseline export.
+    @LogEvent("power-mode")
+    public struct PowerMode: AmbientLogEvent {
+        @LogField("low_power", exposure: .shareable, kind: .boolean)
+        public var enabled: Bool
+
+        public var kind: AmbientKind {
+            .powerMode
+        }
+
+        public var value: [String: AmbientValue] {
+            ["low-power": .bool(enabled)]
+        }
+
+        public var reporting: AmbientLog.Event.Reporting {
+            .state
+        }
+
+        public var message: String {
+            "\(kind): \(value.ambientDescription)"
+        }
+    }
+
+    /// A momentary memory warning. Event identity carries the signal.
+    @LogEvent("memory-warning", level: .warning, message: "memory: pressure=warning")
+    public struct MemoryWarning: AmbientLogEvent {
+        public var kind: AmbientKind {
+            .memory
+        }
+
+        public var value: [String: AmbientValue] {
+            ["pressure": .string("warning")]
+        }
+
+        public var reporting: AmbientLog.Event.Reporting {
+            .occurrence
+        }
+    }
+
+    /// Connectivity is approved; detailed interface information remains local.
+    @LogEvent("network")
+    public struct Network: Hashable, AmbientLogEvent {
+        public enum Status: String, Codable, Sendable, CaseIterable {
+            case satisfied, unsatisfied
+            case requiresConnection = "requires-connection"
+            case unknown
+        }
+
+        public enum Interface: String, Codable, Sendable {
+            case wifi, cellular, wired, loopback, other, unknown
+        }
+
+        @LogField("status", exposure: .shareable, kind: .category)
+        public var status: AmbientLog.Network.Status
+
+        @LogField("interfaces", exposure: .restricted, kind: .technicalState)
+        public var interfaces: [AmbientLog.Network.Interface]
+
+        public var kind: AmbientKind {
+            .network
+        }
+
+        public var value: [String: AmbientValue] {
+            var result: [String: AmbientValue] = ["status": .string(status.rawValue)]
+            if status == .satisfied {
+                result["interfaces"] = .string(interfaces.map(\.rawValue).joined(separator: ", "))
+            }
+            return result
+        }
+
+        public var reporting: AmbientLog.Event.Reporting {
+            .state
+        }
+
+        public var message: String {
+            "\(kind): \(value.ambientDescription)"
+        }
+    }
+
+    /// Restricted custom ambient data, including accessibility settings.
+    /// A built-in kind name does not grant baseline export approval.
     @LogEvent("event")
-    public struct Event: Hashable {
+    public struct Event: Hashable, AmbientLogEvent {
         /// Whether an event announces a lasting condition or a passing moment.
         ///
         /// Only `state` folds into the ``AmbientSnapshot`` every later record is
@@ -174,5 +321,3 @@ public enum AmbientLog {
         }
     }
 }
-
-public typealias AmbientEvent = AmbientLog.Event

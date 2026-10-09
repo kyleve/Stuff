@@ -235,9 +235,9 @@ func makeAmbientEvent(
     kind: AmbientKind,
     value: [String: AmbientValue],
     level: LogLevel = .info,
-    reporting: AmbientEvent.Reporting = .state,
-) -> AmbientEvent {
-    AmbientEvent(
+    reporting: AmbientLog.Event.Reporting = .state,
+) -> AmbientLog.Event {
+    AmbientLog.Event(
         kind: .restricted(.technicalState, kind),
         value: .restricted(.domainValue, value),
         level: .restricted(.technicalState, level),

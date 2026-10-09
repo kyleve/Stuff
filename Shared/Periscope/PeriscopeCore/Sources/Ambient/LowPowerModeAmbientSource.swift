@@ -8,7 +8,7 @@ public final class LowPowerModeAmbientSource: NotificationAmbientSource {
         [.NSProcessInfoPowerStateDidChange]
     }
 
-    override public func event(for _: Notification) -> AmbientEvent? {
+    override public func event(for _: Notification) -> (any AmbientLogEvent)? {
         Self.currentEvent()
     }
 
@@ -20,13 +20,8 @@ public final class LowPowerModeAmbientSource: NotificationAmbientSource {
         emit(Self.currentEvent())
     }
 
-    private static func currentEvent() -> AmbientEvent {
+    private static func currentEvent() -> AmbientLog.PowerMode {
         let enabled = ProcessInfo.processInfo.isLowPowerModeEnabled
-        return AmbientEvent(
-            kind: .restricted(.technicalState, .powerMode),
-            value: .restricted(.domainValue, ["low-power": .bool(enabled)]),
-            level: .restricted(.technicalState, .info),
-            reporting: .restricted(.technicalState, .state),
-        )
+        return AmbientLog.PowerMode(enabled: .shared(.boolean, enabled))
     }
 }

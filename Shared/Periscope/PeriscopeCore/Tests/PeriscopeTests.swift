@@ -1169,7 +1169,7 @@ struct PeriscopeTests {
 
     @Test func ambientStateStampsOntoEverySubsequentRecord() async throws {
         let system = makeSystem()
-        let ambient = Log<AmbientEvent>(system: system)
+        let ambient = Log<AmbientLog.Event>(system: system)
         ambient { makeAmbientEvent(kind: .network, value: ["status": "satisfied"]) }
         Log<AppLogs>(system: system).info("after")
         await system.flush()
@@ -1182,12 +1182,12 @@ struct PeriscopeTests {
     /// replaced — otherwise the event and its own snapshot disagree.
     @Test func anAmbientEventCarriesTheStateItAnnounces() async {
         let system = makeSystem()
-        let ambient = Log<AmbientEvent>(system: system)
+        let ambient = Log<AmbientLog.Event>(system: system)
         ambient { makeAmbientEvent(kind: .thermalState, value: ["level": "nominal"]) }
         ambient { makeAmbientEvent(kind: .thermalState, value: ["level": "serious"]) }
         await system.flush()
 
-        let changes = sink.records.filter { $0.eventName == AmbientEvent.eventName }
+        let changes = sink.records.filter { $0.eventName == AmbientLog.Event.eventName }
         #expect(changes.map { $0.ambient?[.thermalState] } == [
             ["level": "nominal"],
             ["level": "serious"],
@@ -1196,7 +1196,7 @@ struct PeriscopeTests {
 
     @Test func momentaryAmbientEventsDoNotStickToLaterRecords() async throws {
         let system = makeSystem()
-        let ambient = Log<AmbientEvent>(system: system)
+        let ambient = Log<AmbientLog.Event>(system: system)
         ambient { makeAmbientEvent(kind: .network, value: ["status": "satisfied"]) }
         ambient {
             makeAmbientEvent(
@@ -1218,7 +1218,7 @@ struct PeriscopeTests {
     /// or the store would write a row per repeat instead of per state.
     @Test func unchangedAmbientStateReusesOneSnapshotIdentity() async {
         let system = makeSystem()
-        let ambient = Log<AmbientEvent>(system: system)
+        let ambient = Log<AmbientLog.Event>(system: system)
         let log = Log<AppLogs>(system: system)
         ambient { makeAmbientEvent(kind: .network, value: ["status": "satisfied"]) }
         log.info("one")
@@ -1233,7 +1233,7 @@ struct PeriscopeTests {
 
     @Test func spanRecordsCarryAmbientState() async {
         let system = makeSystem()
-        let ambient = Log<AmbientEvent>(system: system)
+        let ambient = Log<AmbientLog.Event>(system: system)
         ambient { makeAmbientEvent(kind: .powerMode, value: ["low-power": true]) }
         Log<AppLogs>(system: system).measure("work") {}
         await system.flush()
@@ -1253,7 +1253,7 @@ struct PeriscopeTests {
             sinks: [gate, sink],
         )
         let log = Log<AppLogs>(system: system)
-        let ambient = Log<AmbientEvent>(system: system)
+        let ambient = Log<AmbientLog.Event>(system: system)
         ambient { makeAmbientEvent(kind: .network, value: ["status": "unsatisfied"]) }
 
         log.info("r0")
@@ -1273,7 +1273,7 @@ struct PeriscopeTests {
 
     @Test func liveObserversSeeTheStampedRecord() async throws {
         let system = makeSystem()
-        let ambient = Log<AmbientEvent>(system: system)
+        let ambient = Log<AmbientLog.Event>(system: system)
         ambient { makeAmbientEvent(kind: .network, value: ["status": "satisfied"]) }
         let records = system.liveRecords()
 
@@ -1288,7 +1288,7 @@ struct PeriscopeTests {
     /// carry the state the discarded event replaced.
     @Test func flooredAmbientEventsStillFoldIntoTheSnapshot() async throws {
         let system = makeSystem()
-        let ambient = Log<AmbientEvent>(system: system)
+        let ambient = Log<AmbientLog.Event>(system: system)
         ambient { makeAmbientEvent(kind: .network, value: ["status": "satisfied"]) }
         system.minimumLevel = .warning
 
@@ -1300,9 +1300,54 @@ struct PeriscopeTests {
         let record = try #require(sink.records.first { $0.message == "after" })
         #expect(record.ambient?[.network] == ["status": "unsatisfied"])
         // The floor still discarded the event itself.
-        #expect(!sink.records.contains { $0.eventName == AmbientEvent.eventName
+        #expect(!sink.records.contains { $0.eventName == AmbientLog.Event.eventName
                 && $0.message.contains("unsatisfied")
         })
+    }
+
+    @Test func classifiedBuiltinAmbientEventsStillFoldBelowTheFloor() async throws {
+        let system = makeSystem()
+        let log = Log<AmbientLog>(system: system)
+        log.appLifecycle(phase: .shared(.category, .active))
+        system.minimumLevel = .warning
+        log.appLifecycle(phase: .shared(.category, .background))
+        log.memoryWarning()
+        log.warning("after classified ambient")
+        await system.flush()
+
+        let record = try #require(sink.records.first { $0.message == "after classified ambient" })
+        #expect(record.ambient?[.appLifecycle] == ["phase": "background"])
+        #expect(record.ambient?[.memory] == nil)
+        #expect(sink.records
+            .contains {
+                $0.eventName == AmbientLog.AppLifecycle.eventName && $0.message
+                    .contains("background")
+            } == false)
+    }
+
+    @Test func suppressingAClassifiedBuiltinClearsItsSnapshotState() async throws {
+        let system = Periscope(
+            configuration: Periscope.Configuration(redact: { record in
+                if let event = record.event as? AmbientLog.AppLifecycle,
+                   event.phase == .background
+                {
+                    return nil
+                }
+                return record
+            }),
+            sinks: [sink],
+        )
+        let log = Log<AmbientLog>(system: system)
+        log.appLifecycle(phase: .shared(.category, .active))
+        log.powerMode(enabled: .shared(.boolean, true))
+        log.appLifecycle(phase: .shared(.category, .background))
+        log.info("after classified suppression")
+        await system.flush()
+
+        let record = try #require(sink.records
+            .first { $0.message == "after classified suppression" })
+        #expect(record.ambient?[.appLifecycle] == nil)
+        #expect(record.ambient?[.powerMode] == ["low-power": true])
     }
 
     /// Suppression is content scrubbing: the snapshot must neither smear
@@ -1315,7 +1360,7 @@ struct PeriscopeTests {
             }),
             sinks: [sink],
         )
-        let ambient = Log<AmbientEvent>(system: system)
+        let ambient = Log<AmbientLog.Event>(system: system)
         ambient { makeAmbientEvent(kind: .network, value: ["ssid": "wifi-public"]) }
         ambient { makeAmbientEvent(kind: .thermalState, value: ["level": "nominal"]) }
 
