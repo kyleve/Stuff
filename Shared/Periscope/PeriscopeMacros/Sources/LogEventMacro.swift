@@ -206,7 +206,6 @@ extension LogEventMacro {
             "isProtectedFromDropping",
         ]
         let reservedLabels = ["attachments", "function", "fileID"]
-        let shareableKinds = ["boolean", "count", "limit", "duration", "category", "json"]
         var result = ParsedFields()
         var keys = Set<String>()
 
@@ -273,7 +272,8 @@ extension LogEventMacro {
                   let exposure = memberName(from: exposureExpression),
                   let kindExpression = arguments.first(where: { $0.label?.text == "kind" })?
                   .expression,
-                  let kind = memberName(from: kindExpression)
+                  let kindName = memberName(from: kindExpression),
+                  let kind = EventFieldKind(rawValue: kindName)
             else {
                 context.diagnose(
                     variable,
@@ -299,7 +299,7 @@ extension LogEventMacro {
                 )
                 result.hasError = true
             }
-            if exposure == "shareable", !shareableKinds.contains(kind) {
+            if exposure == "shareable", !kind.isShareable {
                 context.diagnose(
                     fieldAttribute,
                     id: "shareable-kind",
@@ -337,18 +337,19 @@ extension LogEventMacro {
 
     fileprivate static func shareableTypeMismatch(
         type: String,
-        kind: String,
+        kind: EventFieldKind,
         exposure: String,
     ) -> Bool {
         guard exposure == "shareable" else { return false }
         let base = type.hasSuffix("?") ? String(type.dropLast()) : type
         switch kind {
-            case "boolean": return base != "Bool"
-            case "count", "limit": return base != "Int"
-            case "duration": return base != "Duration"
-            case "json": return base != "JSONValue"
-            case "category": return false
-            default: return true
+            case .boolean: return base != "Bool"
+            case .count, .limit: return base != "Int"
+            case .duration: return base != "Duration"
+            case .json: return base != "JSONValue"
+            case .category: return false
+            case .pii, .identifier, .location, .userContent, .errorDetails,
+                 .dateTime, .pathOrURL, .arbitraryText, .domainValue, .technicalState: return true
         }
     }
 
@@ -416,12 +417,16 @@ extension LogEventMacro {
             }
             let rawName = field.isOptional ? "value" : "self.\(field.name)"
             let value = switch field.kind {
-                case "boolean": ".bool(\(rawName))"
-                case "count", "limit": ".int(\(rawName))"
-                case "duration": ".double(\(rawName).periscopeMilliseconds)"
-                case "category": ".string(\(rawName).rawValue)"
-                case "json": ".json(\(rawName))"
-                default: ".string(String(describing: \(rawName)))"
+                case .boolean: ".bool(\(rawName))"
+                case .count, .limit: ".int(\(rawName))"
+                case .duration: ".double(\(rawName).periscopeMilliseconds)"
+                case .category: ".string(\(rawName).rawValue)"
+                case .json: ".json(\(rawName))"
+                case .pii, .identifier, .location, .userContent, .errorDetails,
+                     .dateTime, .pathOrURL, .arbitraryText, .domainValue, .technicalState:
+                    preconditionFailure(
+                        "Restricted kinds cannot reach shareable projection generation",
+                    )
             }
             let append = "fields.append(.shareable(key: \(key), kind: .\(field.kind), value: \(value)))"
             if field.isOptional {

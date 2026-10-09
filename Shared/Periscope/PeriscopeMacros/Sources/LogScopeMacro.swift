@@ -208,7 +208,8 @@ extension LogScopeMacro {
                   let exposure = memberName(from: exposureExpression),
                   let kindExpression = arguments.first(where: { $0.label?.text == "kind" })?
                   .expression,
-                  let kind = memberName(from: kindExpression)
+                  let kindName = memberName(from: kindExpression),
+                  let kind = EventFieldKind(rawValue: kindName)
             else {
                 return nil
             }

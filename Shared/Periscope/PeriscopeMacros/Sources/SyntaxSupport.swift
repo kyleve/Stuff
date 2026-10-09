@@ -1,12 +1,61 @@
 import SwiftParser
 import SwiftSyntax
 
+/// Validated semantic kinds understood by the macro, independent of the runtime module.
+enum EventFieldKind: String, CaseIterable {
+    case boolean
+    case count
+    case limit
+    case duration
+    case category
+    case json
+    case pii
+    case identifier
+    case location
+    case userContent
+    case errorDetails
+    case dateTime
+    case pathOrURL
+    case arbitraryText
+    case domainValue
+    case technicalState
+
+    var policyType: String {
+        switch self {
+            case .boolean: "Boolean"
+            case .count: "Count"
+            case .limit: "Limit"
+            case .duration: "Duration"
+            case .category: "Category"
+            case .json: "JSON"
+            case .pii: "PII"
+            case .identifier: "Identifier"
+            case .location: "Location"
+            case .userContent: "UserContent"
+            case .errorDetails: "ErrorDetails"
+            case .dateTime: "DateTime"
+            case .pathOrURL: "PathOrURL"
+            case .arbitraryText: "ArbitraryText"
+            case .domainValue: "DomainValue"
+            case .technicalState: "TechnicalState"
+        }
+    }
+
+    var isShareable: Bool {
+        switch self {
+            case .boolean, .count, .limit, .duration, .category, .json: true
+            case .pii, .identifier, .location, .userContent, .errorDetails,
+                 .dateTime, .pathOrURL, .arbitraryText, .domainValue, .technicalState: false
+        }
+    }
+}
+
 struct EventField {
     let name: String
     let type: String
     let key: String
     let exposure: String
-    let kind: String
+    let kind: EventFieldKind
     let isOptional: Bool
 
     var policyType: String {
@@ -14,25 +63,7 @@ struct EventField {
     }
 
     var kindType: String {
-        switch kind {
-            case "boolean": "Boolean"
-            case "count": "Count"
-            case "limit": "Limit"
-            case "duration": "Duration"
-            case "category": "Category"
-            case "json": "JSON"
-            case "pii": "PII"
-            case "identifier": "Identifier"
-            case "location": "Location"
-            case "userContent": "UserContent"
-            case "errorDetails": "ErrorDetails"
-            case "dateTime": "DateTime"
-            case "pathOrURL": "PathOrURL"
-            case "arbitraryText": "ArbitraryText"
-            case "domainValue": "DomainValue"
-            case "technicalState": "TechnicalState"
-            default: "TechnicalState"
-        }
+        kind.policyType
     }
 
     var parameterType: String {
@@ -87,15 +118,18 @@ func lowerCamelCase(_ name: String) -> String {
 func escapedStringLiteral(_ value: String) -> String {
     var result = ""
     for character in value {
-        switch character {
-            case "\0": result += "\\0"
-            case "\\": result += "\\\\"
-            case "\"": result += "\\\""
-            case "\n": result += "\\n"
-            case "\r": result += "\\r"
-            case "\t": result += "\\t"
-            default: result.append(character)
+        if let escape = [
+            "\0": "\\0",
+            "\\": "\\\\",
+            "\"": "\\\"",
+            "\n": "\\n",
+            "\r": "\\r",
+            "\t": "\\t",
+        ][String(character)] {
+            result += escape
+            continue
         }
+        result.append(character)
     }
     return result
 }

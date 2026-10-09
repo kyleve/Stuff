@@ -4,6 +4,17 @@ import SwiftSyntax
 import Testing
 
 struct SyntaxSupportTests {
+    @Test(arguments: EventFieldKind.allCases)
+    func semanticKindsHaveExplicitPolicies(kind: EventFieldKind) {
+        #expect(kind.policyType.isEmpty == false)
+        #expect(kind.isShareable == ["boolean", "count", "limit", "duration", "category", "json"]
+            .contains(kind.rawValue))
+    }
+
+    @Test func unknownKindsAreNotCoercedToTechnicalState() {
+        #expect(EventFieldKind(rawValue: "futureKind") == nil)
+    }
+
     @Test(arguments: [
         #""First\nSecond""#,
         #""Quoted \"value\" and \\path""#,
