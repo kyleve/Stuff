@@ -63,7 +63,7 @@ open class NotificationAmbientSource: NSObject, AmbientEventSource, @unchecked S
 
     /// The event to log for a delivered notification, or `nil` to skip it.
     /// Runs on the notification's delivery thread. Override.
-    open func event(for _: Notification) -> (any AmbientLogEvent)? {
+    open func event(for _: Notification) -> (any AmbientLogEvent & LogEvent)? {
         nil
     }
 
@@ -76,7 +76,7 @@ open class NotificationAmbientSource: NSObject, AmbientEventSource, @unchecked S
     }
 
     /// Log `event` when started (a no-op after `stop`).
-    public func emit(_ event: any AmbientLogEvent) {
+    public func emit(_ event: some AmbientLogEvent & LogEvent) {
         guard let log = activeLog.withLockUnchecked({ $0 }) else { return }
         log.record(event)
     }

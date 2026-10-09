@@ -9,7 +9,7 @@
             [UIApplication.didReceiveMemoryWarningNotification]
         }
 
-        override public func event(for _: Notification) -> (any AmbientLogEvent)? {
+        override public func event(for _: Notification) -> (any AmbientLogEvent & LogEvent)? {
             // `.occurrence`: the app isn't "in a memory warning" afterwards,
             // so this must not stick to every later record's snapshot.
             AmbientLog.MemoryWarning()

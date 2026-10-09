@@ -16,7 +16,9 @@
             Array(Self.values.keys)
         }
 
-        override public func event(for notification: Notification) -> (any AmbientLogEvent)? {
+        override public func event(for notification: Notification)
+            -> (any AmbientLogEvent & LogEvent)?
+        {
             Self.values[notification.name].map {
                 AmbientLog.AppLifecycle(phase: .shared(.category, $0))
             }

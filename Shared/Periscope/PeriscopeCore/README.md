@@ -133,7 +133,7 @@ Periscope.shared.startDefaultAmbientSources()
   These approvals deliberately expand the previous ambient export boundary.
   The snapshot itself remains local and is excluded from baseline export.
   Sources receive `Log<AmbientLog>`. Notification adapters return
-  `any AmbientLogEvent` so the same folding path handles every event type.
+  `any AmbientLogEvent & LogEvent` so the same folding path handles every event type.
   Built-ins now use distinct `ambient.*` event names and payload shapes.
   This is a deliberate wire break, without historical typed-decode compatibility.
 - **Session attributes** — `LogSession.current(attributes:)` takes

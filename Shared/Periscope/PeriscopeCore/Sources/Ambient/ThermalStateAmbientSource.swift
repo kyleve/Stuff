@@ -8,7 +8,7 @@ public final class ThermalStateAmbientSource: NotificationAmbientSource {
         [ProcessInfo.thermalStateDidChangeNotification]
     }
 
-    override public func event(for _: Notification) -> (any AmbientLogEvent)? {
+    override public func event(for _: Notification) -> (any AmbientLogEvent & LogEvent)? {
         Self.event(for: ProcessInfo.processInfo.thermalState)
     }
 

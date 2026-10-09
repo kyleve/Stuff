@@ -113,7 +113,7 @@ extension [String: AmbientValue] {
 
 /// Snapshot data for both classified built-ins and restricted custom events.
 /// This projection is local-only and does not approve fields for remote export.
-public protocol AmbientLogEvent: LogEvent {
+public protocol AmbientLogEvent: Sendable {
     var kind: AmbientKind { get }
     var value: [String: AmbientValue] { get }
     var reporting: AmbientLog.Event.Reporting { get }

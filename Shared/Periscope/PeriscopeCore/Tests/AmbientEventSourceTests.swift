@@ -27,7 +27,7 @@ private final class NotificationSource: NotificationAmbientSource {
         [name]
     }
 
-    override func event(for _: Notification) -> (any AmbientLogEvent)? {
+    override func event(for _: Notification) -> (any AmbientLogEvent & LogEvent)? {
         makeAmbientEvent(kind: AmbientKind("test-kind"), value: ["phase": "fired"])
     }
 }

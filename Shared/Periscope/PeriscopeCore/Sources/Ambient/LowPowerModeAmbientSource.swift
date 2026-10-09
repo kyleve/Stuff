@@ -8,7 +8,7 @@ public final class LowPowerModeAmbientSource: NotificationAmbientSource {
         [.NSProcessInfoPowerStateDidChange]
     }
 
-    override public func event(for _: Notification) -> (any AmbientLogEvent)? {
+    override public func event(for _: Notification) -> (any AmbientLogEvent & LogEvent)? {
         Self.currentEvent()
     }
 
