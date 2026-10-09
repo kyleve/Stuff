@@ -3,6 +3,8 @@
 require "minitest/autorun"
 require_relative "../generate-attribution"
 
+# A shipping target links a macro which links a host-only syntax package.
+# Credit both dependencies, but never classify the macro dependency as shipped.
 class GenerateAttributionTest < Minitest::Test
   FIXTURE = "Shared/CreditKit/Tools/Tests/Fixtures/MacroPackage.swift"
 

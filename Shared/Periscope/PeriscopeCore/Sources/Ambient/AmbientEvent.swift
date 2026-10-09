@@ -166,6 +166,9 @@ public enum AmbientLog {
         )
         public var reporting: AmbientLog.Event.Reporting
 
+        /// Local display, OSLog, and stored-message search use this rendering.
+        /// Stored text also survives when a historical payload cannot decode;
+        /// JSON alone does not retain the formatter that produced this message.
         public var message: String {
             "\(kind): \(value.ambientDescription)"
         }

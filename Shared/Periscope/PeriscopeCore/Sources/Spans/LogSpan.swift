@@ -118,6 +118,9 @@ public enum SpanLog {
         }
 
         /// Best-effort recovery of the span name from a rendered ``message``.
+        /// Span history uses this only when a stored payload cannot decode.
+        /// Removing per-instance exit details and duration keeps those records
+        /// grouped by span name; the viewer marks the name as recovered.
         public static func nameRecovered(
             fromMessage message: String,
             exit mode: SpanExit.Mode?,
