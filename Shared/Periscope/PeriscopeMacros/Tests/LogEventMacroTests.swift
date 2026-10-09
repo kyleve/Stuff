@@ -43,7 +43,7 @@ func expandsClassifiedEventAndLogMethod() {
 
                 var classifiedFields: [ClassifiedLogField] {
                     var fields: [ClassifiedLogField] = []
-                        fields.append(.shareable(key: LogFieldKey("count"), kind: .count, value: .int(count)))
+                        fields.append(.shareable(key: LogFieldKey("count"), kind: .count, value: .int(self.count)))
                     return fields
                 }
 

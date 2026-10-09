@@ -414,7 +414,7 @@ extension LogEventMacro {
             if field.exposure == "restricted" {
                 return "        fields.append(.restricted(key: \(key), kind: .\(field.kind)))"
             }
-            let rawName = field.isOptional ? "value" : field.name
+            let rawName = field.isOptional ? "value" : "self.\(field.name)"
             let value = switch field.kind {
                 case "boolean": ".bool(\(rawName))"
                 case "count", "limit": ".int(\(rawName))"
@@ -425,7 +425,7 @@ extension LogEventMacro {
             }
             let append = "fields.append(.shareable(key: \(key), kind: .\(field.kind), value: \(value)))"
             if field.isOptional {
-                return "        if let value = \(field.name) { \(append) }"
+                return "        if let value = self.\(field.name) { \(append) }"
             }
             return "        \(append)"
         }.joined(separator: "\n")
