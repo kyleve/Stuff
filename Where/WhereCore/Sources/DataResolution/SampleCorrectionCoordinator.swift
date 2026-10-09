@@ -126,10 +126,10 @@ public struct SampleCorrectionCoordinator: Sendable {
                     return .applied
                 }
         } catch RecordingPersistenceError.dataGenerationChanged {
-            Self.logger { .reviewInvalidated }
+            Self.logger.reviewInvalidated()
             return try await .stale(pointReview(for: correction))
         } catch WhereStoreReadConflictError.changedDuringTransaction {
-            Self.logger { .reviewInvalidated }
+            Self.logger.reviewInvalidated()
             return try await .stale(pointReview(for: correction))
         }
         if case .applied = result { await onCommitted() }
