@@ -103,6 +103,31 @@ public struct LogScopeMacro: MemberMacro, ExtensionMacro {
 }
 
 extension LogScopeMacro {
+    /// Dynamic-member lookup cannot shadow Log's existing instance API.
+    /// Keep this set aligned with Log and its public extensions.
+    private static let reservedMethodNames: Set<String> = [
+        "log",
+        "debug",
+        "info",
+        "notice",
+        "warning",
+        "error",
+        "fault",
+        "scopes",
+        "tags",
+        "primaryScope",
+        "context",
+        "callAsFunction",
+        "linked",
+        "retyped",
+        "tagged",
+        "record",
+        "withContext",
+        "measure",
+        "begin",
+        "end",
+    ]
+
     fileprivate struct EventMethod {
         let access: String
         let name: String
@@ -137,11 +162,11 @@ extension LogScopeMacro {
                 continue
             }
             let methodName = lowerCamelCase(event.name.text)
-            if methodName == "log" {
+            if reservedMethodNames.contains(methodName) {
                 context.diagnose(
                     event,
                     id: "reserved-method",
-                    message: "generated log method 'log' conflicts with a reserved LogMethods member",
+                    message: "generated log method '\(methodName)' conflicts with a reserved logger member",
                 )
                 continue
             }

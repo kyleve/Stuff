@@ -3,6 +3,60 @@ import SwiftSyntaxMacros
 import SwiftSyntaxMacrosTestSupport
 import Testing
 
+@Test(arguments: [
+    "Log",
+    "LOG",
+    "Debug",
+    "Info",
+    "Notice",
+    "Warning",
+    "Error",
+    "Fault",
+    "Scopes",
+    "Tags",
+    "PrimaryScope",
+    "Context",
+    "CallAsFunction",
+    "Linked",
+    "Retyped",
+    "Tagged",
+    "Record",
+    "WithContext",
+    "Measure",
+    "Begin",
+    "End",
+])
+func scopeRejectsEventMethodNamesThatCollideWithLoggerMembers(eventName: String) {
+    assertMacroExpansion(
+        """
+        @LogScope("Sample")
+        enum SampleLog {
+            @LogEvent("log", message: "Log")
+            struct \(eventName) {}
+        }
+        """,
+        expandedSource: """
+        enum SampleLog {
+            @LogEvent("log", message: "Log")
+            struct \(eventName) {}
+
+            static let scopeName = "Sample"
+        }
+
+        extension SampleLog: LogScopeDefinition {
+        }
+        """,
+        diagnostics: [
+            DiagnosticSpec(
+                message: "generated log method '\(lowerCamelCase(eventName))' conflicts with a reserved logger member",
+                line: 3,
+                column: 5,
+            ),
+        ],
+        macros: ["LogScope": LogScopeMacro.self],
+    )
+}
+
 @Test
 func scopeRequiresEnum() {
     assertMacroExpansion(

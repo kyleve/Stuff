@@ -17,6 +17,7 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) and the Periscope [`AGENTS.md`](
 - Generate wire names from explicit identifiers, never Swift type names.
 - Generate classified method parameters from each `@LogField` declaration.
 - Reject declarations that can create ambiguous generated code.
+- Keep reserved event method names aligned with the instance API of `Log` and its public extensions.
 - Keep restricted field values out of `classifiedFields`.
 
 ## Testing

@@ -295,35 +295,3 @@ func eventRejectsUnclassifiedAndInvalidShareableFields() {
         macros: ["LogEvent": LogEventMacro.self],
     )
 }
-
-@Test
-func scopeRejectsEventMethodNamesThatCollideWithGeneratedMembers() {
-    assertMacroExpansion(
-        """
-        @LogScope("Sample")
-        enum SampleLog {
-            @LogEvent("log", message: "Log")
-            struct Log {}
-        }
-        """,
-        expandedSource: """
-        enum SampleLog {
-            @LogEvent("log", message: "Log")
-            struct Log {}
-
-            static let scopeName = "Sample"
-        }
-
-        extension SampleLog: LogScopeDefinition {
-        }
-        """,
-        diagnostics: [
-            DiagnosticSpec(
-                message: "generated log method 'log' conflicts with a reserved LogMethods member",
-                line: 3,
-                column: 5,
-            ),
-        ],
-        macros: ["LogScope": LogScopeMacro.self],
-    )
-}
