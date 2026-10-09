@@ -1,3 +1,4 @@
+import SwiftParser
 import SwiftSyntax
 
 struct EventField {
@@ -45,13 +46,7 @@ func argumentList(of attribute: AttributeSyntax) -> LabeledExprListSyntax? {
 }
 
 func plainString(from expression: ExprSyntax) -> String? {
-    guard let literal = expression.as(StringLiteralExprSyntax.self),
-          literal.segments.count == 1,
-          let segment = literal.segments.first?.as(StringSegmentSyntax.self)
-    else {
-        return nil
-    }
-    return segment.content.text
+    expression.as(StringLiteralExprSyntax.self)?.representedLiteralValue
 }
 
 func plainInteger(from expression: ExprSyntax) -> Int? {
@@ -93,6 +88,7 @@ func escapedStringLiteral(_ value: String) -> String {
     var result = ""
     for character in value {
         switch character {
+            case "\0": result += "\\0"
             case "\\": result += "\\\\"
             case "\"": result += "\\\""
             case "\n": result += "\\n"

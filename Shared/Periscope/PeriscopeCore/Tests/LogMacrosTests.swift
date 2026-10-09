@@ -1,3 +1,4 @@
+import Foundation
 import PeriscopeCore
 import Testing
 
@@ -25,7 +26,46 @@ private enum MacroFixtureLog {
     }
 }
 
+@LogScope("literal\u{2D}fixture")
+private enum LiteralFixtureLog {
+    @LogEvent("esc\u{61}ped", message: "First\n\"Second\"\t\\path 🚀")
+    struct Escaped {
+        @LogField("stable\u{5F}key", exposure: .shareable, kind: .count)
+        var count: Int
+    }
+
+    @LogEvent("raw", message: #"Raw \n text"#)
+    struct Raw {}
+
+    @LogEvent("multiline", message: """
+    First
+    Second
+    """)
+    struct Multiline {}
+}
+
 struct LogMacrosTests {
+    @Test func generatedLiteralValuesPreserveDecodedText() throws {
+        let recorder = RecordingRecorder()
+        let log = Log<LiteralFixtureLog>(recorder: recorder)
+        log.escaped(count: .shared(.count, 3))
+        let event = try #require(recorder.records.first?.event as? LiteralFixtureLog.Escaped)
+
+        #expect(LiteralFixtureLog.scopeName == "literal-fixture")
+        #expect(LiteralFixtureLog.Escaped.eventName == "literal-fixture.escaped")
+        #expect(event.message == "First\n\"Second\"\t\\path 🚀")
+        #expect(event.classifiedFields == [
+            .shareable(key: LogFieldKey("stable_key"), kind: .count, value: .int(3)),
+        ])
+        let payload = try JSONDecoder().decode(
+            [String: Int].self,
+            from: JSONEncoder().encode(event),
+        )
+        #expect(payload == ["stable_key": 3])
+        #expect(LiteralFixtureLog.Raw().message == #"Raw \n text"#)
+        #expect(LiteralFixtureLog.Multiline().message == "First\nSecond")
+    }
+
     @Test func generatedProjectionDoesNotShadowRequiredFields() throws {
         let recorder = RecordingRecorder()
         let log = Log<MacroFixtureLog>(recorder: recorder)

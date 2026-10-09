@@ -25,6 +25,9 @@ Repository code must use these macros. The runtime protocols keep safe defaults 
 
 Stable IDs are wire data. A macro accepts only plain string literals for scope, event, and field IDs. An incompatible event payload needs a positive new version.
 
+Static messages and identifiers accept escaped, raw, and multiline string literals, but not interpolation.
+The generated values preserve the literal's decoded text.
+
 ## Development
 
 The root `Package.swift` pins SwiftSyntax exactly.
