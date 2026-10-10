@@ -52,7 +52,11 @@ this setup. If the provider does not start, the app records a typed local error
 event. The regular runtime also shows the error in Privacy & Diagnostics.
 
 Baseline forwarding sends stable event metadata and shareable classified fields only.
-Debug-full forwarding can send the complete payload and context after user opt-in.
+Diagnostic forwarding uses the event's filtered projection, never its raw Codable payload.
+Independent controls govern identifiers, locations, user content, and other personal data.
+Local-only fields remain excluded with every control enabled.
+Unclassified tags, scope paths, and attachment metadata require all four built-in grants.
+Folded ambient snapshots remain local because they do not retain field policies. Classified ambient events retain their own export rules.
 Neither mode sends attachment bytes. If payload or JSON encoding fails, the sink skips that record.
 It counts the failure and reports it through OSLog to prevent Periscope recursion.
 

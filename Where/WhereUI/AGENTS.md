@@ -46,6 +46,7 @@ Layering, localization, preview, and testing conventions live in the feature
   states distinct. Crash and replay choices stay pending until relaunch.
   Remote-log revisions apply live. A runtime failure invalidates in-flight
   applies. An older completion must never win.
+- Keep the combined personal-data switch scoped to its named controls. Preserve consumer-defined grants and use effective policy for privacy disclosures.
 - The DEBUG developer accordion may only update
   `WhereDeveloperLaunchController` for the next launch. Inspector and demo are
   mutually exclusive. It must not switch the current runtime. A demo request

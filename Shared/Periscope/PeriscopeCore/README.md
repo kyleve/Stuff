@@ -249,7 +249,7 @@ Do not wrap policy-bearing values in opaque Codable containers or pre-encode the
 - **Attachments** — `LogAttachment` (+ `.error`, `.json`, `.image`
   conveniences) rides along with any event. Blobs persist externally and
   load on demand.
-- **Remote approval** — a shareable field needs `.shareable` in `@LogField` and `.shared` at its call site. This is author approval. It does not inspect strings or JSON for personal data. Baseline sinks use the stable event name and `classifiedFields`. They exclude messages, restricted values, payloads, tags, dynamic scopes, ambient state, external IDs, and attachments. Debug-full sinks can encode the complete payload and context after user opt-in. They can include attachment names and MIME types. They never include attachment bytes.
+- **Remote approval** — a shareable field needs `.shareable` in `@LogField` and `.shared` at its call site. This is author approval. It does not inspect strings or JSON for personal data. Baseline sinks use the stable event name and `classifiedFields`. They exclude messages, restricted values, payloads, tags, dynamic scopes, ambient state, external IDs, and attachments. Diagnostic sinks use `exportedValue(using:)`, not raw Codable. Field controls filter the payload before encoding. Context needs separate approval; attachment bytes remain excluded.
 - **Structured values** — `JSONValue` represents natural provider-neutral JSON. Construct it directly. For an existing `Encodable` value, use the throwing `JSONValue.encoding(_:)` helper. A shareable JSON field accepts `JSONValue` only.
 - **System** — `Periscope`: the recorder and `LogSink` pipeline (OSLog sink
   built in; `add(sink:)` returns a `SinkToken` that `remove(_:)` detaches —
