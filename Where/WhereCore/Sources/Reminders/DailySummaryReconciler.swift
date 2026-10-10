@@ -69,9 +69,9 @@ public actor DailySummaryReconciler {
                     body: summaryBody(for: report),
                 )
             } catch {
-                Self.logger(attachments: [.error(error, name: "reconcile-error")]) {
-                    .reconcileFailed(description: error.localizedDescription)
-                }
+                Self.logger.reconcileFailed(
+                    error: .restricted(.errorDetails, error),
+                )
             }
         }
     }

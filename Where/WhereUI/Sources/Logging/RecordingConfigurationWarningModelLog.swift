@@ -1,19 +1,15 @@
 import PeriscopeCore
 
 /// Structured failures for the advisory recording-configuration warning.
-enum RecordingConfigurationWarningModelLog: LogEvent {
-    case authorityLoadFailed(description: String)
+@LogScope("RecordingConfigurationWarning")
+enum RecordingConfigurationWarningModelLog {
+    @LogEvent("authority-load-failed", level: .warning, version: 2)
+    struct AuthorityLoadFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
 
-    static let eventName = "RecordingConfigurationWarning"
-
-    var level: LogLevel {
-        .warning
-    }
-
-    var message: String {
-        switch self {
-            case let .authorityLoadFailed(description):
-                "Failed to resolve primary recording-device authority: \(description)"
+        var message: String {
+            "Failed to resolve primary recording-device authority: \(error.description)"
         }
     }
 }

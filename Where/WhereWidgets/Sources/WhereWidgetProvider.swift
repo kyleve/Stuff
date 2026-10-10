@@ -66,11 +66,11 @@ struct WhereWidgetProvider: TimelineProvider {
             if let snapshot = store.read() {
                 return WhereWidgetEntry(date: now, snapshot: snapshot, theme: theme)
             }
-            Self.logger { .noPublishedSnapshot }
+            Self.logger.noPublishedSnapshot()
         } catch {
-            Self.logger(attachments: [.error(error, name: "app-group-error")]) {
-                .appGroupUnavailable(description: String(describing: error))
-            }
+            Self.logger.appGroupUnavailable(
+                error: .restricted(.errorDetails, error),
+            )
         }
         return WhereWidgetEntry(
             date: now,

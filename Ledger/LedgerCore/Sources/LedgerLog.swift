@@ -1,16 +1,8 @@
 import PeriscopeCore
 
-/// Phantom root event naming Ledger's log scope tree. It is never emitted — its
-/// only job is to give ``LedgerLog``'s root `Log` the scope name `"Ledger"`, so
-/// every event sits under one filterable subtree in the process-wide
-/// `Periscope.shared` system.
-public struct LedgerRoot: LogEvent {
-    public static let eventName = "Ledger"
-
-    public var message: String {
-        ""
-    }
-}
+/// Root namespace for Ledger's log scope tree.
+@LogScope("Ledger")
+public enum LedgerRoot {}
 
 /// Central logging facade for the Ledger menu bar app.
 ///

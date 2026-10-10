@@ -24,13 +24,13 @@ PhotoDetailView()
     .logContext(screenLog)        // or any Log value
 
 struct PhotoDetailView: View {
-    @Environment(\.logContext) private var log
+    @Environment(\.logContext) private var logContext
 
     var body: some View {
         Button("Save") {
-            log.info("save tapped")             // freeform, full context
-            let photos = log(PhotoLogs.self)    // or derive typed loggers
-            photos { PhotoLogs.saved }
+            logContext.info("save tapped")
+            let photos = logContext(PhotoLogs.self)
+            photos.saved(photoID: .restricted(.identifier, photo.id))
         }
     }
 }
@@ -38,16 +38,16 @@ struct PhotoDetailView: View {
 
 ## Public API
 
-- `View.logContext(_ log: Log<some LogEvent>)` — contribute a logger's scopes and tags to descendants.
+- `View.logContext(_ log: Log<some LogScopeDefinition>)` — contribute a logger's scopes and tags to descendants.
 - `View.logContext(_ provider: some LogContextProviding)` — contribute a model object's instance context directly.
-- `EnvironmentValues.logContext: Log<Message>` — the accumulated context.
-  Falls back to a root logger on `Periscope.shared` outside any modifier.
+- `EnvironmentValues.logContext: LogContext` — the type-erased accumulated context.
+  It falls back to a freeform context on `Periscope.shared` outside any modifier.
 
 ## How it works
 
 Each `logContext` modifier **links** its context onto whatever enclosing modifiers already contributed (`Log.linked(with:)` semantics).
 Stacking modifiers unions scopes and merges tags, with the nearest modifier primary.
-The environment value is a plain `Log<Message>`.
+The stored accumulator is optional. This prevents the fallback freeform scope from linking into an explicit context.
 Deriving typed loggers or emitting events goes through the normal PeriscopeCore API, so nothing here duplicates logging behavior.
 
 ## Testing

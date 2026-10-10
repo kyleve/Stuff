@@ -39,15 +39,15 @@ public enum AppAttribution {
     public static func current(bundle: Bundle) -> AttributionManifest? {
         do {
             let manifest = try AttributionManifest.load(from: bundle, resource: resource)
-            logger { .loaded(creditCount: manifest.credits.count) }
+            logger.loaded(creditCount: .shared(.count, manifest.credits.count))
             return manifest
         } catch AttributionError.reportMissing {
-            logger { .noReport }
+            logger.noReport()
             return nil
         } catch {
-            logger(attachments: [.error(error, name: "decode-error")]) {
-                .decodeFailed(description: error.localizedDescription)
-            }
+            logger.decodeFailed(
+                error: .restricted(.errorDetails, error),
+            )
             assertionFailure("Failed to decode the bundled attribution report: \(error)")
             return nil
         }

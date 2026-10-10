@@ -121,7 +121,7 @@ public actor FileLocationOutbox: LocationOutbox {
             appropriateFor: nil,
             create: true,
         ) else {
-            logger { .noApplicationSupport }
+            logger.noApplicationSupport()
             return NoOpLocationOutbox()
         }
         let fileURL = directory
@@ -141,7 +141,7 @@ public actor FileLocationOutbox: LocationOutbox {
             try secureDirectoryIfPresent()
             let recovered = try JournalRecovery.recover(directory: directoryURL)
             if recovered.foundTornEntry {
-                Self.logger { .recoveredTornJournal }
+                Self.logger.recoveredTornJournal()
             }
             if let payload = recovered.payloads.last {
                 return try Self.decodeEntries(from: payload)
@@ -151,9 +151,9 @@ public actor FileLocationOutbox: LocationOutbox {
             }
             return try migrateLegacyJSONIfNeeded()
         } catch {
-            Self.logger(attachments: [.error(error, name: "read-error")]) {
-                .readBacklogFailed(description: error.localizedDescription)
-            }
+            Self.logger.readBacklogFailed(
+                error: .restricted(.errorDetails, error),
+            )
             throw error
         }
     }
@@ -167,9 +167,9 @@ public actor FileLocationOutbox: LocationOutbox {
             let data = try JSONEncoder().encode(entries)
             try openJournal().append(data, sync: .processDeath)
         } catch {
-            Self.logger(attachments: [.error(error, name: "persist-error")]) {
-                .persistBacklogFailed(description: error.localizedDescription)
-            }
+            Self.logger.persistBacklogFailed(
+                error: .restricted(.errorDetails, error),
+            )
             throw error
         }
     }
@@ -190,9 +190,9 @@ public actor FileLocationOutbox: LocationOutbox {
                 try FileManager.default.removeItem(at: legacyFileURL)
             }
         } catch {
-            Self.logger(attachments: [.error(error, name: "clear-error")]) {
-                .persistBacklogFailed(description: error.localizedDescription)
-            }
+            Self.logger.persistBacklogFailed(
+                error: .restricted(.errorDetails, error),
+            )
             throw error
         }
     }
@@ -217,9 +217,9 @@ public actor FileLocationOutbox: LocationOutbox {
         do {
             try excludeFromBackup(directoryURL)
         } catch {
-            Self.logger(attachments: [.error(error, name: "backup-exclusion-error")]) {
-                .excludeFromBackupFailed(description: error.localizedDescription)
-            }
+            Self.logger.excludeFromBackupFailed(
+                error: .restricted(.errorDetails, error),
+            )
             journal?.close()
             journal = nil
             Self.discardInsecureDirectory(at: directoryURL)
@@ -245,9 +245,9 @@ public actor FileLocationOutbox: LocationOutbox {
         do {
             entries = try Self.decodeEntries(from: data)
         } catch {
-            Self.logger(attachments: [.error(error, name: "decode-error")]) {
-                .droppedUnreadableBacklog(description: error.localizedDescription)
-            }
+            Self.logger.droppedUnreadableBacklog(
+                error: .restricted(.errorDetails, error),
+            )
             Self.discardInsecureFile(at: fileURL)
             throw error
         }
@@ -278,9 +278,9 @@ public actor FileLocationOutbox: LocationOutbox {
         do {
             try excludeFromBackup(directoryURL)
         } catch {
-            logger(attachments: [.error(error, name: "backup-exclusion-error")]) {
-                .excludeFromBackupFailed(description: error.localizedDescription)
-            }
+            logger.excludeFromBackupFailed(
+                error: .restricted(.errorDetails, error),
+            )
             discardInsecureDirectory(at: directoryURL)
             return
         }
@@ -293,9 +293,9 @@ public actor FileLocationOutbox: LocationOutbox {
                 try excludeFromBackup(url)
                 return true
             } catch {
-                logger(attachments: [.error(error, name: "backup-exclusion-error")]) {
-                    .excludeFromBackupFailed(description: error.localizedDescription)
-                }
+                logger.excludeFromBackupFailed(
+                    error: .restricted(.errorDetails, error),
+                )
                 discardInsecureFile(at: url)
                 return false
             }
@@ -309,17 +309,17 @@ public actor FileLocationOutbox: LocationOutbox {
         } catch {
             // Both copies are already excluded, so a transient file-protection failure may retry
             // next launch without sacrificing the newer pending snapshot.
-            logger(attachments: [.error(error, name: "pending-read-error")]) {
-                .readBacklogFailed(description: error.localizedDescription)
-            }
+            logger.readBacklogFailed(
+                error: .restricted(.errorDetails, error),
+            )
             return
         }
         do {
             _ = try decodeEntries(from: pendingData)
         } catch {
-            logger(attachments: [.error(error, name: "pending-decode-error")]) {
-                .droppedUnreadableBacklog(description: error.localizedDescription)
-            }
+            logger.droppedUnreadableBacklog(
+                error: .restricted(.errorDetails, error),
+            )
             discardInsecureFile(at: pendingURL)
             return
         }
@@ -336,18 +336,18 @@ public actor FileLocationOutbox: LocationOutbox {
                 try fileManager.moveItem(at: pendingURL, to: fileURL)
             }
         } catch {
-            logger(attachments: [.error(error, name: "pending-promotion-error")]) {
-                .persistBacklogFailed(description: error.localizedDescription)
-            }
+            logger.persistBacklogFailed(
+                error: .restricted(.errorDetails, error),
+            )
             return
         }
 
         do {
             try excludeFromBackup(fileURL)
         } catch {
-            logger(attachments: [.error(error, name: "backup-exclusion-error")]) {
-                .excludeFromBackupFailed(description: error.localizedDescription)
-            }
+            logger.excludeFromBackupFailed(
+                error: .restricted(.errorDetails, error),
+            )
             discardInsecureFile(at: fileURL)
             discardInsecureFile(at: pendingURL)
         }
@@ -373,9 +373,9 @@ public actor FileLocationOutbox: LocationOutbox {
                 try excludeFromBackup(fileURL)
             }
         } catch {
-            logger(attachments: [.error(error, name: "legacy-migration-error")]) {
-                .persistBacklogFailed(description: error.localizedDescription)
-            }
+            logger.persistBacklogFailed(
+                error: .restricted(.errorDetails, error),
+            )
             secureExistingFile(at: legacyURL)
         }
     }
@@ -387,9 +387,9 @@ public actor FileLocationOutbox: LocationOutbox {
         do {
             try excludeFromBackup(fileURL)
         } catch {
-            logger(attachments: [.error(error, name: "backup-exclusion-error")]) {
-                .excludeFromBackupFailed(description: error.localizedDescription)
-            }
+            logger.excludeFromBackupFailed(
+                error: .restricted(.errorDetails, error),
+            )
             discardInsecureFile(at: fileURL)
         }
     }
@@ -431,9 +431,9 @@ public actor FileLocationOutbox: LocationOutbox {
         do {
             try FileManager.default.removeItem(at: fileURL)
         } catch {
-            logger(attachments: [.error(error, name: "insecure-discard-error")]) {
-                .discardInsecureBacklogFailed(description: error.localizedDescription)
-            }
+            logger.discardInsecureBacklogFailed(
+                error: .restricted(.errorDetails, error),
+            )
         }
     }
 
@@ -445,9 +445,9 @@ public actor FileLocationOutbox: LocationOutbox {
         do {
             try FileManager.default.removeItem(at: directoryURL)
         } catch {
-            logger(attachments: [.error(error, name: "insecure-discard-error")]) {
-                .discardInsecureBacklogFailed(description: error.localizedDescription)
-            }
+            logger.discardInsecureBacklogFailed(
+                error: .restricted(.errorDetails, error),
+            )
         }
     }
 }

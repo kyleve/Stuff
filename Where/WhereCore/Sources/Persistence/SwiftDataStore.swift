@@ -514,7 +514,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public static func make(storage: Storage) throws -> SwiftDataStore {
         let container = try logger.measure(.open) { try makeContainer(storage: storage) }
         if storage == .inMemory {
-            logger { .openedInMemory(mode: String(describing: storage)) }
+            logger.openedInMemory(
+                mode: .restricted(.technicalState, String(describing: storage)),
+            )
         } else {
             // Log the resolved on-disk path and whether the App Group container
             // is actually reachable at runtime. If the App Group capability isn't
@@ -529,13 +531,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 )
             } != nil
             let url = container.configurations.first?.url.path(percentEncoded: false) ?? "unknown"
-            logger {
-                .openedOnDisk(
-                    mode: String(describing: storage),
-                    appGroupResolved: groupResolved,
-                    url: url,
-                )
-            }
+            logger.openedOnDisk(
+                mode: .restricted(.technicalState, String(describing: storage)),
+                appGroupResolved: .shared(.boolean, groupResolved),
+                url: .restricted(.pathOrURL, url),
+            )
         }
         let store = SwiftDataStore(modelContainer: container)
         // On-disk stores live in a shared App Group container, so another process
@@ -1959,9 +1959,10 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             }
         }
         if !unknown.isEmpty {
-            Self.logger {
-                .ignoredUnknownTrackedRegions(ids: unknown.sorted())
-            }
+            Self.logger.ignoredUnknownTrackedRegions(
+                ids: .restricted(.location, unknown.sorted()),
+                unknownRegionCount: .shared(.count, unknown.count),
+            )
         }
         return resolved
     }
@@ -2040,9 +2041,10 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             ))
         }
         if !unknown.isEmpty {
-            Self.logger {
-                .ignoredUnknownPrimaryRegions(ids: unknown.sorted())
-            }
+            Self.logger.ignoredUnknownPrimaryRegions(
+                ids: .restricted(.location, unknown.sorted()),
+                unknownRegionCount: .shared(.count, unknown.count),
+            )
         }
         return resolved
     }
@@ -2085,11 +2087,17 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     private static func logFault<Record>(forCorrupt _: Record) {
-        logger { .droppedCorruptRecord(type: String(describing: Record.self)) }
+        logger.droppedCorruptRecord(
+            type: .restricted(.technicalState, String(describing: Record.self)),
+        )
     }
 
     private static func logImmutableConflict(type: String, id: String, count: Int) {
-        logger { .resolvedConflictingImmutableRecords(type: type, id: id, count: count) }
+        logger.resolvedConflictingImmutableRecords(
+            type: .restricted(.technicalState, type),
+            id: .restricted(.identifier, id),
+            count: .shared(.count, count),
+        )
     }
 }
 
@@ -2255,7 +2263,7 @@ final class SDLocationSample {
             || (altitudeMeters == nil) != (altitudeAccuracyMeters == nil)
             || (motionPresent != true && hasMotionFields)
         {
-            Self.logger { .ignoredIncompleteSampleMotion }
+            Self.logger.ignoredIncompleteSampleMotion()
         }
         let speed: LocationMotion.Speed? = if let speedMetersPerSecond,
                                               let speedAccuracyMetersPerSecond

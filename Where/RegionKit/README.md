@@ -50,6 +50,8 @@ into it for lookup. RegionKit depends only on
   spans — the manifest decode, the full polygon load, and each region's geometry
   on its own — so a slow attributor build can be traced to the region
   responsible.
+  Load failures carry restricted `LogError` snapshots from the original error.
+  These version-2 events retain their severity and external IDs. Diagnostic export applies the snapshot's field controls.
 
 ## Installation
 

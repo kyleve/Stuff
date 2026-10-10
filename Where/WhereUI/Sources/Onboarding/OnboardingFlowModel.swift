@@ -115,9 +115,9 @@ final class OnboardingFlowModel {
                     preconditionFailure("A confirmed installation context must carry its choice.")
                 }
             } catch {
-                Self.logger(attachments: [.error(error, name: "context-error")]) {
-                    .installationContextWriteFailed(description: error.localizedDescription)
-                }
+                Self.logger.installationContextWriteFailed(
+                    error: .restricted(.errorDetails, error),
+                )
                 gate.fail(error)
                 return
             }
@@ -126,9 +126,9 @@ final class OnboardingFlowModel {
             do {
                 scope = try await model.resolveScope()
             } catch {
-                Self.logger(attachments: [.error(error, name: "scope-error")]) {
-                    .scopeCreationFailed(description: error.localizedDescription)
-                }
+                Self.logger.scopeCreationFailed(
+                    error: .restricted(.errorDetails, error),
+                )
                 gate.fail(error)
                 return
             }
@@ -140,9 +140,9 @@ final class OnboardingFlowModel {
             do {
                 try await configureRecording(in: scope)
             } catch {
-                Self.logger(attachments: [.error(error, name: "recording-configuration-error")]) {
-                    .recordingConfigurationFailed(description: error.localizedDescription)
-                }
+                Self.logger.recordingConfigurationFailed(
+                    error: .restricted(.errorDetails, error),
+                )
                 if let summary = restoreSelection.committedSummary {
                     gate.fail(OnboardingCommittedImportSetupError(
                         summary: summary,
@@ -158,9 +158,9 @@ final class OnboardingFlowModel {
                 do {
                     try await selection.commit(using: scope)
                 } catch {
-                    Self.logger(attachments: [.error(error, name: "commit-error")]) {
-                        .regionCommitFailed(description: error.localizedDescription)
-                    }
+                    Self.logger.regionCommitFailed(
+                        error: .restricted(.errorDetails, error),
+                    )
                 }
             }
             if !model.hasOnboarded {
@@ -184,9 +184,9 @@ final class OnboardingFlowModel {
                 intro.activity = .browsing
             } catch {
                 intro.activity = .failed(.init(flow: .demo, error: error))
-                Self.logger(attachments: [.error(error, name: "demo-error")]) {
-                    .demoBuildFailed(description: error.localizedDescription)
-                }
+                Self.logger.demoBuildFailed(
+                    error: .restricted(.errorDetails, error),
+                )
             }
         }
     }
@@ -253,9 +253,9 @@ final class OnboardingFlowModel {
                 ))
                 return false
             }
-            Self.logger(attachments: [.error(error.underlying, name: "cleanup-error")]) {
-                .backupRestoreCleanupFailed(description: error.underlying.localizedDescription)
-            }
+            Self.logger.backupRestoreCleanupFailed(
+                error: .restricted(.errorDetails, error.underlying),
+            )
             gate.fail(error)
             return false
         } catch let error as BackupCoordinator.CommittedImportSupersededError {
@@ -281,9 +281,9 @@ final class OnboardingFlowModel {
             intro.activity = .failed(.init(flow: .restoreBackup, error: error))
             phase = .intro
             isFinishing = false
-            Self.logger(attachments: [.error(error, name: "restore-error")]) {
-                .backupRestoreFailed(description: error.localizedDescription)
-            }
+            Self.logger.backupRestoreFailed(
+                error: .restricted(.errorDetails, error),
+            )
             return false
         }
     }
@@ -298,7 +298,7 @@ final class OnboardingFlowModel {
         do {
             try await scope.services.ingestor.requestPermission()
         } catch {
-            Self.logger { .locationPermissionDenied }
+            Self.logger.locationPermissionDenied()
         }
     }
 }

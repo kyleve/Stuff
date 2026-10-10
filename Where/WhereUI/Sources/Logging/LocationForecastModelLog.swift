@@ -1,24 +1,31 @@
 import PeriscopeCore
 
-enum LocationForecastModelLog: LogEvent {
-    case loadFailed(description: String)
-    case saveFailed(description: String)
-    case clearFailed(description: String)
-
-    static let eventName = "LocationForecast"
-
-    var level: LogLevel {
-        .warning
+@LogScope("LocationForecast")
+enum LocationForecastModelLog {
+    @LogEvent("load-failed", level: .warning, version: 2)
+    struct LoadFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+        var message: String {
+            "Failed to load the planned stay: \(error.description)"
+        }
     }
 
-    var message: String {
-        switch self {
-            case let .loadFailed(description):
-                "Failed to load the planned stay: \(description)"
-            case let .saveFailed(description):
-                "Failed to save the planned stay: \(description)"
-            case let .clearFailed(description):
-                "Failed to clear the planned stay: \(description)"
+    @LogEvent("save-failed", level: .warning, version: 2)
+    struct SaveFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+        var message: String {
+            "Failed to save the planned stay: \(error.description)"
+        }
+    }
+
+    @LogEvent("clear-failed", level: .warning, version: 2)
+    struct ClearFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+        var message: String {
+            "Failed to clear the planned stay: \(error.description)"
         }
     }
 }

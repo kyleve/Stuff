@@ -80,9 +80,9 @@ enum AppIconCatalog {
         do {
             return try load(from: .module)
         } catch {
-            logger(attachments: [.error(error, name: "load-error")]) {
-                .manifestUnreadable(description: String(describing: error))
-            }
+            logger.manifestUnreadable(
+                error: .restricted(.errorDetails, error),
+            )
             assertionFailure("Failed to load the bundled AppIcons.json manifest: \(error)")
             return []
         }

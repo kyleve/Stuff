@@ -99,13 +99,13 @@ final class ShareEvidenceModel {
                     try await store.write(evidence: item.evidence, blob: item.blob)
                 }
             }
-            Self.logger { .saved(evidenceCount: pending.count) }
+            Self.logger.saved(evidenceCount: .restricted(.count, pending.count))
             return true
         } catch {
             phase = .failed(error.localizedDescription)
-            Self.logger(attachments: [.error(error, name: "save-error")]) {
-                .saveFailed(description: error.localizedDescription)
-            }
+            Self.logger.saveFailed(
+                error: .restricted(.errorDetails, error),
+            )
             return false
         }
     }

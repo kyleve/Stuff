@@ -1,3 +1,4 @@
+import PeriscopeCore
 import Testing
 import WhereCore
 @testable import WhereUI
@@ -38,7 +39,7 @@ struct DiagnosticReportingSettingsModelTests {
         #expect(model.applyState == .idle)
         #expect(model.effectiveRemoteLogging == .enabled(
             minimumLevel: .notice,
-            metadataPolicy: .approvedFields,
+            exportPolicy: .init(mode: .baseline, enabledControls: []),
         ))
     }
 
@@ -49,7 +50,10 @@ struct DiagnosticReportingSettingsModelTests {
             sharesSessionReplays: false,
             remoteLogging: .enabled(
                 minimumLevel: .warning,
-                metadataPolicy: .allMetadataExcludingAttachmentData,
+                exportPolicy: .init(
+                    mode: .diagnostic,
+                    enabledControls: RemoteLoggingConfiguration.personalDataControls,
+                ),
             ),
         )
         let model = DiagnosticReportingSettingsModel(
@@ -62,10 +66,70 @@ struct DiagnosticReportingSettingsModelTests {
         await waitUntil { model.applyState != .applying }
 
         #expect(model.savedConfiguration.remoteLogging == .off)
-        #expect(model.includesAllLogMetadata == false)
+        #expect(model.includesPersonalData == false)
     }
 
     #if DEBUG
+        @Test(arguments: [
+            LogExportControl.identifiers,
+            .location,
+            .userContent,
+            .personalData,
+        ])
+        func partialPersonalDataGrantsKeepTheCombinedSwitchOn(control: LogExportControl) async {
+            let custom = LogExportControl("example.custom")
+            let preferences = WherePreferences(store: InMemoryKeyValueStore())
+            preferences.diagnosticReportingConfiguration = .init(
+                sharesCrashReports: false,
+                sharesSessionReplays: false,
+                remoteLogging: .enabled(
+                    minimumLevel: .warning,
+                    exportPolicy: .init(mode: .diagnostic, enabledControls: [control, custom]),
+                ),
+            )
+            let model = DiagnosticReportingSettingsModel(
+                preferences: preferences,
+                effectiveConfiguration: preferences.diagnosticReportingConfiguration,
+                applyRemoteLogging: { _, _ in },
+            )
+
+            #expect(model.includePersonalDataToggle)
+            model.includePersonalDataToggle = false
+            await waitUntil { model.applyState != .applying }
+
+            #expect(model.includePersonalDataToggle == false)
+            #expect(model.effectiveRemoteLogging.exportPolicy.enabledControls == [custom])
+            #expect(preferences.diagnosticReportingConfiguration.remoteLogging.exportPolicy
+                .enabledControls == [custom])
+        }
+
+        @Test func combinedPersonalDataSwitchPreservesConsumerControls() async {
+            let custom = LogExportControl("example.custom")
+            let preferences = WherePreferences(store: InMemoryKeyValueStore())
+            preferences.diagnosticReportingConfiguration = .init(
+                sharesCrashReports: false,
+                sharesSessionReplays: false,
+                remoteLogging: .enabled(
+                    minimumLevel: .warning,
+                    exportPolicy: .init(mode: .diagnostic, enabledControls: [custom]),
+                ),
+            )
+            let model = DiagnosticReportingSettingsModel(
+                preferences: preferences,
+                effectiveConfiguration: preferences.diagnosticReportingConfiguration,
+                applyRemoteLogging: { _, _ in },
+            )
+            #expect(model.includesPersonalData == false)
+            model.enablePersonalData()
+            #expect(model.includesPersonalData)
+            #expect(model.savedConfiguration.remoteLogging.exportPolicy[custom])
+            model.disablePersonalData()
+            await waitUntil { model.applyState != .applying }
+            #expect(model.includesPersonalData == false)
+            #expect(model.effectiveRemoteLogging.exportPolicy.enabledControls == [custom])
+            #expect(model.effectiveRemoteLogging.exportPolicy.mode == .diagnostic)
+        }
+
         @Test func fullMetadataRequiresConfirmationAndPersistsItsWarningState() async {
             let preferences = WherePreferences(store: InMemoryKeyValueStore())
             let model = DiagnosticReportingSettingsModel(
@@ -74,18 +138,19 @@ struct DiagnosticReportingSettingsModelTests {
                 applyRemoteLogging: { _, _ in },
             )
 
-            model.includeAllMetadataToggle = true
+            model.includePersonalDataToggle = true
 
-            #expect(model.isMetadataConfirmationPresented)
-            #expect(model.includesAllLogMetadata == false)
+            #expect(model.isPersonalDataConfirmationPresented)
+            #expect(model.includesPersonalData == false)
 
-            model.confirmAllLogMetadata()
+            model.confirmPersonalData()
             await waitUntil { model.applyState != .applying }
 
-            #expect(model.isMetadataConfirmationPresented == false)
-            #expect(model.includesAllLogMetadata)
-            #expect(preferences.diagnosticReportingConfiguration.remoteLogging.metadataPolicy
-                == .allMetadataExcludingAttachmentData)
+            #expect(model.isPersonalDataConfirmationPresented == false)
+            #expect(model.includesPersonalData)
+            #expect(preferences.diagnosticReportingConfiguration.remoteLogging.exportPolicy
+                .enabledControls
+                == RemoteLoggingConfiguration.personalDataControls)
         }
     #endif
 

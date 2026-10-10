@@ -36,7 +36,7 @@ struct WherePreferencesTests {
             true,
             RemoteLoggingConfiguration.enabled(
                 minimumLevel: .warning,
-                metadataPolicy: .approvedFields,
+                exportPolicy: .init(mode: .baseline, enabledControls: []),
             )
         ),
     ])
@@ -61,7 +61,10 @@ struct WherePreferencesTests {
             sharesSessionReplays: true,
             remoteLogging: .enabled(
                 minimumLevel: .notice,
-                metadataPolicy: .allMetadataExcludingAttachmentData,
+                exportPolicy: .init(
+                    mode: .diagnostic,
+                    enabledControls: RemoteLoggingConfiguration.personalDataControls,
+                ),
             ),
         )
 
@@ -220,7 +223,10 @@ struct WherePreferencesTests {
             sharesSessionReplays: true,
             remoteLogging: .enabled(
                 minimumLevel: .debug,
-                metadataPolicy: .allMetadataExcludingAttachmentData,
+                exportPolicy: .init(
+                    mode: .diagnostic,
+                    enabledControls: RemoteLoggingConfiguration.personalDataControls,
+                ),
             ),
         )
 

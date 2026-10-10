@@ -64,6 +64,7 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   loads against a budget (the manifest decode, the whole polygon load, and
   each region's geometry separately as `loadRegion(us-CA)`). One region
   with heavy geometry is otherwise invisible inside a slow attributor build.
+- Pass original errors through `.restricted(.errorDetails, error)`. Keep structured `LogError` payloads restricted and do not duplicate them in attachments.
 - **Object identities are `region://` URLs.** `RegionURL` (RegionKit's local
   analog of WhereCore's `StoreURL`) builds/parses `region://<collection>/<type>`
   URLs. `Region.regionURL` vends `region://regions/<id>`. Used to key a

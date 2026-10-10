@@ -104,9 +104,10 @@ final class FlightReviewModel {
                     await report.rescanForIssues()
             }
         } catch {
-            Self.logger(attachments: [.error(error, name: "sample-correction-error")]) {
-                .correctionApplyFailed(issueID: reviewID)
-            }
+            Self.logger.correctionApplyFailed(
+                issueID: .restricted(.identifier, reviewID),
+                attachments: [.error(error, name: "sample-correction-error")],
+            )
             saveState = .failed(error.localizedDescription)
         }
     }
@@ -130,9 +131,10 @@ final class FlightReviewModel {
                 case .stale: .refreshed
             }
         } catch {
-            Self.logger(attachments: [.error(error, name: "sample-correction-error")]) {
-                .correctionApplyFailed(issueID: reviewID)
-            }
+            Self.logger.correctionApplyFailed(
+                issueID: .restricted(.identifier, reviewID),
+                attachments: [.error(error, name: "sample-correction-error")],
+            )
             saveState = .failed(error.localizedDescription)
         }
     }

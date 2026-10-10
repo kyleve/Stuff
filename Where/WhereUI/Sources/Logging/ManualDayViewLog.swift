@@ -1,21 +1,15 @@
 import PeriscopeCore
 
-/// Structured events for `ManualDayView`, the manual add/edit form. A failure to
-/// load regions for grouping degrades to an ungrouped list, so it logs at
-/// `.warning`.
-enum ManualDayViewLog: LogEvent {
-    case regionGroupingLoadFailed(description: String)
+/// Structured events for `ManualDayView`.
+@LogScope("ManualDayView")
+enum ManualDayViewLog {
+    @LogEvent("region-grouping-load-failed", level: .warning, version: 2)
+    struct RegionGroupingLoadFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
 
-    static let eventName = "ManualDayView"
-
-    var level: LogLevel {
-        .warning
-    }
-
-    var message: String {
-        switch self {
-            case let .regionGroupingLoadFailed(description):
-                "Manual-day form couldn't load regions for grouping: \(description)"
+        var message: String {
+            "Manual-day form couldn't load regions for grouping: \(error.description)"
         }
     }
 }

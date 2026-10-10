@@ -51,6 +51,16 @@ An all-Off launch never starts the SDK. Performance tracing is not enabled by
 this setup. If the provider does not start, the app records a typed local error
 event. The regular runtime also shows the error in Privacy & Diagnostics.
 
+Baseline forwarding sends stable event metadata and shareable classified fields only.
+Diagnostic forwarding uses the event's filtered projection, never its raw Codable payload.
+Independent controls govern identifiers, locations, user content, and other personal data.
+The adapter uses PeriscopeCore's `LogContextExportRequirements` for context permissions. The UI control group does not define these requirements.
+Local-only fields remain excluded with every control enabled.
+Unclassified tags, scope paths, and attachment metadata require all four built-in grants.
+Folded ambient snapshots remain local because they do not retain field policies. Classified ambient events retain their own export rules.
+Neither mode sends attachment bytes. If payload or JSON encoding fails, the sink skips that record.
+It counts the failure and reports it through OSLog to prevent Periscope recursion.
+
 The Inspector runtime returns its standalone `InspectorView` and starts none of the model, launch, CoreLocation, notification, Periscope pipeline, App Intents, or Spotlight systems.
 It opens Where and Periscope containers only through their schema adapters for inspection.
 Each source's containment root is derived from the adapter's exact store URL, since SwiftData may place the Periscope database in the app-group container.

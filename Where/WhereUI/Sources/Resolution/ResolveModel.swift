@@ -92,12 +92,10 @@ public final class ResolveModel {
                 $0.id == issue.id ? $0.dismissingProposal() : $0
             }
         } catch {
-            Self.logger {
-                .dismissFailed(
-                    issueID: issue.id.storeURL.absoluteString,
-                    description: error.localizedDescription,
-                )
-            }
+            Self.logger.dismissFailed(
+                issueID: .restricted(.identifier, issue.id.storeURL.absoluteString),
+                error: .restricted(.errorDetails, error),
+            )
         }
     }
 }

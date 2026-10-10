@@ -1,5 +1,5 @@
 import Foundation
-import PeriscopeCore
+@_spi(Testing) import PeriscopeCore
 import Testing
 @testable import Where
 import WhereCore
@@ -7,6 +7,92 @@ import WhereCrashReporting
 
 @MainActor
 struct DiagnosticReportingControllerTests {
+    @Test func structuredErrorsNeverEnterBaselineExport() async throws {
+        let writer = RecordingBitdriftWriter()
+        let sink = BitdriftRemoteLogSink(
+            configuration: .enabled(
+                minimumLevel: .debug,
+                exportPolicy: .init(mode: .baseline, enabledControls: []),
+            ),
+            effectiveFrom: .distantPast,
+            writer: writer,
+        )
+        let original = NSError(
+            domain: "private-domain",
+            code: 42,
+            userInfo: [NSLocalizedDescriptionKey: "private-description"],
+        )
+        let event = RemoteTestLog.Failure(error: .restricted(.errorDetails, original))
+        let invalidDetails = RemoteTestLog.Failure(error: .restricted(
+            .errorDetails,
+            LogError(capturing: original, details: .double(.nan)),
+        ))
+        await sink.write([
+            LogRecord(date: .now, event: event, scopes: []),
+            LogRecord(date: .now, event: invalidDetails, scopes: []),
+        ])
+        let entries = await writer.entries
+        try #require(entries.count == 2)
+        for entry in entries {
+            #expect(entry.message == "RemoteTest.failure")
+            #expect(entry.level == .error)
+            #expect(entry.fields["event.error"] == nil)
+            #expect(entry.fields["event.payload"] == nil)
+            #expect(entry.fields.values.contains(.string("private-domain")) == false)
+            #expect(entry.fields.values.contains(.string("private-description")) == false)
+        }
+        #expect(await sink.encodingFailureCount == 0)
+    }
+
+    @Test func builtinAmbientApprovalDoesNotExportCustomPayloadsOrSnapshots() async throws {
+        let fixture = Fixture(configuration: DiagnosticReportingConfiguration(
+            sharesCrashReports: false,
+            sharesSessionReplays: false,
+            remoteLogging: .enabled(
+                minimumLevel: .debug,
+                exportPolicy: .init(mode: .baseline, enabledControls: []),
+            ),
+        ))
+        fixture.controller.start()
+        let log = Log<AmbientLog>(recorder: fixture.logSystem)
+        log.appLifecycle(phase: .shared(.category, .background))
+        log.thermalState(condition: .shared(.category, .serious))
+        log.powerMode(enabled: .shared(.boolean, true))
+        log.network(
+            status: .shared(.category, .satisfied),
+            interfaces: .restricted(.technicalState, [.wifi]),
+        )
+        log.memoryWarning()
+        log.event(
+            kind: .restricted(.technicalState, .appLifecycle),
+            value: .restricted(.domainValue, ["phase": "private-custom-phase"]),
+            level: .restricted(.technicalState, .info),
+            reporting: .restricted(.technicalState, .state),
+        )
+        log.event(
+            kind: .restricted(.technicalState, .accessibility),
+            value: .restricted(.domainValue, ["voiceover": true]),
+            level: .restricted(.technicalState, .info),
+            reporting: .restricted(.technicalState, .state),
+        )
+        await fixture.logSystem.flush()
+        let entries = await fixture.writer.entries
+        try #require(entries.count == 7)
+        #expect(entries[0].message == "ambient.app-lifecycle")
+        #expect(entries[0].fields["event.phase"] == .string("background"))
+        #expect(entries[1].fields["event.condition"] == .string("serious"))
+        #expect(entries[2].fields["event.low_power"] == .boolean(true))
+        #expect(entries[3].fields["event.status"] == .string("satisfied"))
+        #expect(entries[3].fields["event.interfaces"] == nil)
+        #expect(entries[4].message == "ambient.memory-warning")
+        for entry in entries {
+            #expect(entry.fields["event.value"] == nil)
+            #expect(entry.fields["event.payload"] == nil)
+            #expect(entry.fields["context.ambient"] == nil)
+            #expect(entry.fields.values.contains(.string("private-custom-phase")) == false)
+        }
+    }
+
     @Test(arguments: [
         DiagnosticReportingConfiguration(
             sharesCrashReports: false,
@@ -46,12 +132,12 @@ struct DiagnosticReportingControllerTests {
         let configuration = DiagnosticReportingConfiguration.defaults(isDebugBuild: true)
         let fixture = Fixture(configuration: configuration)
         fixture.controller.start()
-        let log = Log<RemoteTestEvent>(recorder: fixture.logSystem)
+        let log = Log<RemoteTestLog>(recorder: fixture.logSystem)
 
-        log { RemoteTestEvent(level: .debug) }
-        log { RemoteTestEvent(level: .warning) }
-        log { RemoteTestEvent(level: .error) }
-        log { RemoteTestEvent(level: .fault) }
+        emit(.debug, to: log)
+        emit(.warning, to: log)
+        emit(.error, to: log)
+        emit(.fault, to: log)
         await fixture.logSystem.flush()
 
         let entries = await fixture.writer.entries
@@ -62,14 +148,17 @@ struct DiagnosticReportingControllerTests {
         let configuration = DiagnosticReportingConfiguration(
             sharesCrashReports: false,
             sharesSessionReplays: false,
-            remoteLogging: .enabled(minimumLevel: .debug, metadataPolicy: .approvedFields),
+            remoteLogging: .enabled(
+                minimumLevel: .debug,
+                exportPolicy: .init(mode: .baseline, enabledControls: []),
+            ),
         )
         let fixture = Fixture(configuration: configuration)
         fixture.controller.start()
-        let log = Log<RemoteTestEvent>(recorder: fixture.logSystem)
+        let log = Log<RemoteTestLog>(recorder: fixture.logSystem)
 
         for level in LogLevel.standardLevels {
-            log { RemoteTestEvent(level: level) }
+            emit(level, to: log)
         }
         await fixture.logSystem.flush()
 
@@ -89,7 +178,7 @@ struct DiagnosticReportingControllerTests {
         let sink = BitdriftRemoteLogSink(
             configuration: .enabled(
                 minimumLevel: .debug,
-                metadataPolicy: .approvedFields,
+                exportPolicy: .init(mode: .baseline, enabledControls: []),
             ),
             effectiveFrom: effectiveFrom,
             writer: writer,
@@ -98,12 +187,12 @@ struct DiagnosticReportingControllerTests {
         await sink.write([
             LogRecord(
                 date: effectiveFrom.addingTimeInterval(-0.001),
-                event: RemoteTestEvent(level: .warning),
+                event: remoteTestEvent(level: .warning),
                 scopes: [],
             ),
             LogRecord(
                 date: effectiveFrom,
-                event: RemoteTestEvent(level: .warning),
+                event: remoteTestEvent(level: .warning),
                 scopes: [],
             ),
         ])
@@ -115,21 +204,23 @@ struct DiagnosticReportingControllerTests {
         let configuration = DiagnosticReportingConfiguration.defaults(isDebugBuild: true)
         let fixture = Fixture(configuration: configuration)
         fixture.controller.start()
-        let tagged = Log<RemoteTestEvent>(recorder: fixture.logSystem)
+        let tagged = Log<RemoteTestLog>(recorder: fixture.logSystem)
             .tagged(LogTagKey("private-tag"), "private-value")
         let log = tagged(for: "private-scope")
 
-        log(
+        log.event(
+            level: .restricted(.technicalState, .warning),
+            count: .shared(.count, 7),
             attachments: [LogAttachment(
                 name: "private-name",
                 contentType: .plainText,
                 data: Data("private-bytes".utf8),
             )],
-        ) { RemoteTestEvent(level: .warning) }
+        )
         await fixture.logSystem.flush()
 
         let entry = try #require(await fixture.writer.entries.first)
-        #expect(entry.message == "PII-free test event")
+        #expect(entry.message == "RemoteTest.event")
         #expect(entry.fields["event.count"] == .integer(7))
         #expect(entry.fields["event.payload"] == nil)
         #expect(entry.fields["context.tags"] == nil)
@@ -140,27 +231,273 @@ struct DiagnosticReportingControllerTests {
         #expect(entry.fields.values.contains(.string("private-scope")) == false)
     }
 
+    @Test func jsonExportsCanonicallyAsOneField() async throws {
+        let writer = RecordingBitdriftWriter()
+        let sink = BitdriftRemoteLogSink(
+            configuration: .enabled(
+                minimumLevel: .debug,
+                exportPolicy: .init(mode: .baseline, enabledControls: []),
+            ),
+            effectiveFrom: .distantPast,
+            writer: writer,
+        )
+        let event = RemoteTestLog.InvalidJSON(json: .shared(
+            .json,
+            .object(["z": .array([.int(1), .bool(true)]), "a": .string("value")]),
+        ))
+
+        await sink.write([LogRecord(date: .now, event: event, scopes: [])])
+
+        let entry = try #require(await writer.entries.first)
+        #expect(entry.fields["event.json"] == .string(#"{"a":"value","z":[1,true]}"#))
+        #expect(entry.fields.keys.contains("event.json.a") == false)
+    }
+
+    @Test func jsonEncodingFailureSkipsTheCompleteRecordAndIncrementsTheCounter() async {
+        let writer = RecordingBitdriftWriter()
+        let sink = BitdriftRemoteLogSink(
+            configuration: .enabled(
+                minimumLevel: .debug,
+                exportPolicy: .init(mode: .baseline, enabledControls: []),
+            ),
+            effectiveFrom: .distantPast,
+            writer: writer,
+        )
+        let event = RemoteTestLog.InvalidJSON(json: .shared(.json, .double(.nan)))
+
+        await sink.write([LogRecord(date: .now, event: event, scopes: [])])
+
+        #expect(await writer.entries.isEmpty)
+        #expect(await sink.encodingFailureCount == 1)
+    }
+
+    @Test func freeformTextIsExcludedFromBaselineExport() async throws {
+        let writer = RecordingBitdriftWriter()
+        let sink = BitdriftRemoteLogSink(
+            configuration: .enabled(
+                minimumLevel: .debug,
+                exportPolicy: .init(mode: .baseline, enabledControls: []),
+            ),
+            effectiveFrom: .distantPast,
+            writer: writer,
+        )
+        let event = Message(
+            level: .restricted(.technicalState, .info),
+            text: .restricted(.arbitraryText, "private freeform text"),
+        )
+
+        await sink.write([LogRecord(date: .now, event: event, scopes: [])])
+
+        let entry = try #require(await writer.entries.first)
+        #expect(entry.message == "message.message")
+        #expect(entry.fields.values.contains(.string("private freeform text")) == false)
+    }
+
     #if DEBUG
+        @Test func allPersonalDataGrantsStillExcludeNeverExportFields() async throws {
+            let writer = RecordingBitdriftWriter()
+            let sink = BitdriftRemoteLogSink(
+                configuration: .enabled(
+                    minimumLevel: .debug,
+                    exportPolicy: .init(
+                        mode: .diagnostic,
+                        enabledControls: RemoteLoggingConfiguration.personalDataControls,
+                    ),
+                ),
+                effectiveFrom: .distantPast,
+                writer: writer,
+            )
+            let event = RemoteTestLog.LocalOnly(secret: .restricted(.json, .double(.nan)))
+            let record = LogRecord(date: .now, event: event, scopes: []).stamped(ambient: .init(
+                id: UUID(),
+                values: [AmbientKind("private-state"): ["secret": .string("local-only")]],
+            ))
+            await sink.write([record])
+            let entry = try #require(await writer.entries.first)
+            #expect(entry.fields["event.payload"] == .string("{}"))
+            #expect(entry.fields["context.ambient"] == nil)
+            #expect(await sink.encodingFailureCount == 0)
+        }
+
+        @Test func diagnosticExportFiltersBeforeEncodingAndKeepsStructuredErrorCodes() async throws {
+            let writer = RecordingBitdriftWriter()
+            let sink = BitdriftRemoteLogSink(
+                configuration: .enabled(
+                    minimumLevel: .debug,
+                    exportPolicy: .init(mode: .diagnostic, enabledControls: []),
+                ),
+                effectiveFrom: .distantPast,
+                writer: writer,
+            )
+            let event = RemoteTestLog.Failure(error: .restricted(.errorDetails, LogError(
+                capturing: NSError(domain: "private-domain", code: 42, userInfo: [
+                    NSLocalizedDescriptionKey: "private-description",
+                ]),
+                details: .double(.nan),
+            )))
+            await sink.write([LogRecord(date: .now, event: event, scopes: [], tags: [
+                LogTag(key: .init("secret"), value: .string("private-tag")),
+            ])])
+            let entry = try #require(await writer.entries.first)
+            guard case let .string(payload)? = entry.fields["event.payload"] else {
+                Issue.record("Expected a filtered payload")
+                return
+            }
+            #expect(payload.contains("\"code\":42"))
+            #expect(payload.contains("private-") == false)
+            #expect(payload.contains("details") == false)
+            #expect(entry.fields["context.tags"] == nil)
+            #expect(await sink.encodingFailureCount == 0)
+        }
+
+        @Test func debugFullPreservesStructuredErrorsWithoutArbitraryUserInfoOrAttachmentBytes(
+        ) async throws {
+            let writer = RecordingBitdriftWriter()
+            let sink = BitdriftRemoteLogSink(
+                configuration: .enabled(
+                    minimumLevel: .debug,
+                    exportPolicy: .init(
+                        mode: .diagnostic,
+                        enabledControls: RemoteLoggingConfiguration.personalDataControls,
+                    ),
+                ),
+                effectiveFrom: .distantPast,
+                writer: writer,
+            )
+            let original = NSError(domain: "private-domain", code: 42, userInfo: [
+                NSLocalizedDescriptionKey: "private-description",
+                NSUnderlyingErrorKey: NSError(domain: "cause", code: 7),
+                "secret": "never-copy-user-info",
+            ])
+            let snapshot = LogError(capturing: original, details: .object(["attempt": .int(3)]))
+            let event = RemoteTestLog.Failure(error: .restricted(.errorDetails, snapshot))
+            await sink.write([LogRecord(date: .now, event: event, scopes: [], attachments: [
+                LogAttachment(
+                    name: "diagnostics",
+                    contentType: .plainText,
+                    data: Data("never-copy-bytes".utf8),
+                ),
+            ])])
+            let entry = try #require(await writer.entries.first)
+            #expect(entry.message == "RemoteTest.failure")
+            guard case let .string(payload)? = entry.fields["event.payload"] else {
+                Issue.record("Expected a structured JSON payload")
+                return
+            }
+            let decoded = try JSONDecoder().decode(
+                RemoteTestLog.Failure.self,
+                from: Data(payload.utf8),
+            )
+            #expect(decoded.error == snapshot)
+            #expect(decoded.error.code == 42)
+            #expect(decoded.error.causes.first?.code == 7)
+            #expect(decoded.error.details == .object(["attempt": .int(3)]))
+            #expect(payload.contains("never-copy-user-info") == false)
+            #expect(payload.contains("never-copy-bytes") == false)
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = .sortedKeys
+            #expect(try payload == String(
+                decoding: encoder.encode(event.exportedValue(using: .init(
+                    mode: .diagnostic,
+                    enabledControls: RemoteLoggingConfiguration.personalDataControls,
+                ))),
+                as: UTF8.self,
+            ))
+        }
+
+        @Test func unencodableErrorDetailsSkipDebugFullRecordAndCountFailure() async {
+            let writer = RecordingBitdriftWriter()
+            let sink = BitdriftRemoteLogSink(
+                configuration: .enabled(
+                    minimumLevel: .debug,
+                    exportPolicy: .init(
+                        mode: .diagnostic,
+                        enabledControls: RemoteLoggingConfiguration.personalDataControls,
+                    ),
+                ),
+                effectiveFrom: .distantPast,
+                writer: writer,
+            )
+            let event = RemoteTestLog.Failure(error: .restricted(
+                .errorDetails,
+                LogError(
+                    capturing: NSError(domain: "Example", code: 1),
+                    details: .double(.nan),
+                ),
+            ))
+            await sink.write([LogRecord(date: .now, event: event, scopes: [])])
+            #expect(await writer.entries.isEmpty)
+            #expect(await sink.encodingFailureCount == 1)
+        }
+
+        @Test(arguments: [LogExportControl.identifiers, .location, .userContent, .personalData])
+        func partialGrantsExcludeUnclassifiedContext(missing: LogExportControl) async throws {
+            let controls: Set<LogExportControl> = [
+                .identifiers,
+                .location,
+                .userContent,
+                .personalData,
+            ]
+            let fixture = Fixture(configuration: DiagnosticReportingConfiguration(
+                sharesCrashReports: false,
+                sharesSessionReplays: false,
+                remoteLogging: .enabled(
+                    minimumLevel: .warning,
+                    exportPolicy: .init(
+                        mode: .diagnostic,
+                        enabledControls: controls.subtracting([missing]),
+                    ),
+                ),
+            ))
+            fixture.controller.start()
+            let log = Log<RemoteTestLog>(recorder: fixture.logSystem)
+                .tagged(LogTagKey("private-tag"), "private-value")(for: "private-scope")
+            log.event(
+                level: .restricted(.technicalState, .warning),
+                count: .shared(.count, 7),
+                attachments: [LogAttachment(
+                    name: "diagnostic.txt",
+                    contentType: .plainText,
+                    data: Data("never-transmit-these-bytes".utf8),
+                )],
+            )
+            await fixture.logSystem.flush()
+            let entry = try #require(await fixture.writer.entries.first)
+            #expect(entry.fields["event.payload"] != nil)
+            #expect(entry.fields["context.tags"] == nil)
+            #expect(entry.fields["context.scopes"] == nil)
+            #expect(entry.fields["attachments.metadata"] == nil)
+            #expect(entry.fields["context.external_id"] == (missing == .identifiers
+                    ? nil : .string("private-external-id")))
+        }
+
         @Test func fullMetadataIncludesContextButNeverAttachmentBytes() async throws {
             let configuration = DiagnosticReportingConfiguration(
                 sharesCrashReports: false,
                 sharesSessionReplays: false,
                 remoteLogging: .enabled(
                     minimumLevel: .warning,
-                    metadataPolicy: .allMetadataExcludingAttachmentData,
+                    exportPolicy: .init(
+                        mode: .diagnostic,
+                        enabledControls: RemoteLoggingConfiguration.personalDataControls,
+                    ),
                 ),
             )
             let fixture = Fixture(configuration: configuration)
             fixture.controller.start()
-            let tagged = Log<RemoteTestEvent>(recorder: fixture.logSystem)
+            let tagged = Log<RemoteTestLog>(recorder: fixture.logSystem)
                 .tagged(LogTagKey("private-tag"), "private-value")
             let log = tagged(for: "private-scope")
 
-            log(attachments: [LogAttachment(
-                name: "diagnostic.txt",
-                contentType: .plainText,
-                data: Data("never-transmit-these-bytes".utf8),
-            )]) { RemoteTestEvent(level: .warning) }
+            log.event(
+                level: .restricted(.technicalState, .warning),
+                count: .shared(.count, 7),
+                attachments: [LogAttachment(
+                    name: "diagnostic.txt",
+                    contentType: .plainText,
+                    data: Data("never-transmit-these-bytes".utf8),
+                )],
+            )
             await fixture.logSystem.flush()
 
             let entry = try #require(await fixture.writer.entries.first)
@@ -170,6 +507,29 @@ struct DiagnosticReportingControllerTests {
             #expect(entry.fields["context.external_id"] == .string("private-external-id"))
             #expect(entry.fields["attachments.metadata"] == .string("diagnostic.txt:text/plain"))
             #expect(entry.fields.values.contains(.string("never-transmit-these-bytes")) == false)
+        }
+
+        @Test func fullMetadataEncodingFailureNeverSubstitutesAnEmptyObject() async {
+            let writer = RecordingBitdriftWriter()
+            let sink = BitdriftRemoteLogSink(
+                configuration: .enabled(
+                    minimumLevel: .debug,
+                    exportPolicy: .init(
+                        mode: .diagnostic,
+                        enabledControls: RemoteLoggingConfiguration.personalDataControls,
+                    ),
+                ),
+                effectiveFrom: .distantPast,
+                writer: writer,
+            )
+            let event = RemoteTestLog.InvalidDebug(
+                value: .restricted(.technicalState, .nan),
+            )
+
+            await sink.write([LogRecord(date: .now, event: event, scopes: [])])
+
+            #expect(await writer.entries.isEmpty)
+            #expect(await sink.encodingFailureCount == 1)
         }
     #endif
 
@@ -182,11 +542,14 @@ struct DiagnosticReportingControllerTests {
         let fixture = Fixture(configuration: configuration)
 
         try await fixture.controller.applyRemoteLogging(
-            .enabled(minimumLevel: .info, metadataPolicy: .approvedFields),
+            .enabled(
+                minimumLevel: .info,
+                exportPolicy: .init(mode: .baseline, enabledControls: []),
+            ),
             revision: 1,
         )
-        let log = Log<RemoteTestEvent>(recorder: fixture.logSystem)
-        log { RemoteTestEvent(level: .info) }
+        let log = Log<RemoteTestLog>(recorder: fixture.logSystem)
+        emit(.info, to: log)
         try await fixture.controller.applyRemoteLogging(.off, revision: 2)
 
         #expect(await fixture.writer.entries.count == 1)
@@ -202,7 +565,10 @@ struct DiagnosticReportingControllerTests {
 
         try await fixture.controller.applyRemoteLogging(.off, revision: 4)
         try await fixture.controller.applyRemoteLogging(
-            .enabled(minimumLevel: .debug, metadataPolicy: .approvedFields),
+            .enabled(
+                minimumLevel: .debug,
+                exportPolicy: .init(mode: .baseline, enabledControls: []),
+            ),
             revision: 3,
         )
 
@@ -219,7 +585,10 @@ struct DiagnosticReportingControllerTests {
 
         await #expect(throws: FakeBitdriftClient.Failure.startup) {
             try await fixture.controller.applyRemoteLogging(
-                .enabled(minimumLevel: .warning, metadataPolicy: .approvedFields),
+                .enabled(
+                    minimumLevel: .warning,
+                    exportPolicy: .init(mode: .baseline, enabledControls: []),
+                ),
                 revision: 1,
             )
         }
@@ -235,12 +604,15 @@ struct DiagnosticReportingControllerTests {
 
         await #expect(throws: DiagnosticReportingController.Failure.providerUnavailable) {
             try await fixture.controller.applyRemoteLogging(
-                .enabled(minimumLevel: .warning, metadataPolicy: .approvedFields),
+                .enabled(
+                    minimumLevel: .warning,
+                    exportPolicy: .init(mode: .baseline, enabledControls: []),
+                ),
                 revision: 1,
             )
         }
-        let log = Log<RemoteTestEvent>(recorder: fixture.logSystem)
-        log { RemoteTestEvent(level: .warning) }
+        let log = Log<RemoteTestLog>(recorder: fixture.logSystem)
+        emit(.warning, to: log)
         await fixture.logSystem.flush()
 
         #expect(await fixture.writer.entries.isEmpty)
@@ -251,32 +623,74 @@ struct DiagnosticReportingControllerTests {
         fixture.controller.start()
 
         await fixture.controller.providerDidFail()
-        let log = Log<RemoteTestEvent>(recorder: fixture.logSystem)
-        log { RemoteTestEvent(level: .warning) }
+        let log = Log<RemoteTestLog>(recorder: fixture.logSystem)
+        emit(.warning, to: log)
         await fixture.logSystem.flush()
 
         #expect(await fixture.writer.entries.isEmpty)
     }
 }
 
-private struct RemoteTestEvent: LogEvent {
-    let level: LogLevel
-    let count = 7
-    var message: String {
-        "PII-free test event"
+@LogScope("RemoteTest")
+private enum RemoteTestLog {
+    @LogEvent("local-only", message: "Local only")
+    struct LocalOnly {
+        @LogField(exposure: .restricted, kind: .json, export: .never)
+        var secret: JSONValue
     }
 
-    var remoteMessage: String {
-        message
+    @LogEvent("failure", level: .error)
+    struct Failure {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+
+        var message: String {
+            "Failed: \(error.description)"
+        }
     }
 
-    var externalID: String? {
-        "private-external-id"
+    @LogEvent("event")
+    struct Event {
+        @LogField(exposure: .restricted, kind: .technicalState)
+        var level: LogLevel
+
+        @LogField(exposure: .shareable, kind: .count)
+        var count: Int
+
+        var message: String {
+            "PII-free test event"
+        }
+
+        var externalID: String? {
+            "private-external-id"
+        }
     }
 
-    var remoteFields: [RemoteLogField] {
-        [RemoteLogField(key: RemoteLogFieldKey("count"), value: .count(count))]
+    @LogEvent("invalid-json", message: "Invalid JSON")
+    struct InvalidJSON {
+        @LogField(exposure: .shareable, kind: .json)
+        var json: JSONValue
     }
+
+    @LogEvent("invalid-debug", message: "Invalid debug payload")
+    struct InvalidDebug {
+        @LogField(exposure: .restricted, kind: .technicalState)
+        var value: Double
+    }
+}
+
+private func remoteTestEvent(level: LogLevel) -> RemoteTestLog.Event {
+    RemoteTestLog.Event(
+        level: .restricted(.technicalState, level),
+        count: .shared(.count, 7),
+    )
+}
+
+private func emit(_ level: LogLevel, to log: Log<RemoteTestLog>) {
+    log.event(
+        level: .restricted(.technicalState, level),
+        count: .shared(.count, 7),
+    )
 }
 
 @MainActor

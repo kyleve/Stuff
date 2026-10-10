@@ -1,4 +1,5 @@
 import Foundation
+import os
 import PeriscopeCore
 import WhereCore
 import WhereCrashReporting
@@ -137,10 +138,16 @@ extension DiagnosticReportingConfiguration {
 
 /// Actor-isolated mapping from Periscope's live records to Bitdrift fields.
 actor BitdriftRemoteLogSink: LogSink {
+    private static let encodingLogger = Logger(
+        subsystem: "com.stuff.Where",
+        category: "DiagnosticReportingEncoding",
+    )
+
     private var configuration: RemoteLoggingConfiguration
     private var effectiveFrom: Date
     private let writer: any BitdriftLogWriting
     private var scopes: [ScopeID: LogScope] = [:]
+    private(set) var encodingFailureCount = 0
 
     init(
         configuration: RemoteLoggingConfiguration,
@@ -165,11 +172,18 @@ actor BitdriftRemoteLogSink: LogSink {
 
     func write(_ records: [LogRecord]) async {
         guard let minimumLevel = configuration.minimumLevel else { return }
-        let metadataPolicy = configuration.metadataPolicy
+        let exportPolicy = configuration.exportPolicy
         for record in records
             where record.date >= effectiveFrom && record.level >= minimumLevel.periscopeLevel
         {
-            await writer.write(entry(for: record, metadataPolicy: metadataPolicy))
+            do {
+                try await writer.write(entry(for: record, exportPolicy: exportPolicy))
+            } catch {
+                encodingFailureCount += 1
+                Self.encodingLogger.error(
+                    "Skipped remote log record after encoding failure: \(String(describing: error), privacy: .public)",
+                )
+            }
         }
     }
 
@@ -177,8 +191,8 @@ actor BitdriftRemoteLogSink: LogSink {
 
     private func entry(
         for record: LogRecord,
-        metadataPolicy: RemoteLogMetadataPolicy,
-    ) -> BitdriftLogEntry {
+        exportPolicy: LogExportPolicy,
+    ) throws -> BitdriftLogEntry {
         var fields: [String: BitdriftLogValue] = [
             "event.name": .string(record.eventName),
             "event.version": .integer(record.eventVersion),
@@ -193,19 +207,20 @@ actor BitdriftRemoteLogSink: LogSink {
             fields["source.file"] = .string(callSite.fileID)
             fields["source.function"] = .string(callSite.function)
         }
-        for field in record.event.remoteFields {
-            fields["event.\(field.key.rawValue)"] = field.value.bitdriftValue
+        for field in record.event.classifiedFields {
+            guard case let .shareable(key, _, value) = field else { continue }
+            fields["event.\(key.rawValue)"] = try value.bitdriftValue()
         }
 
         #if DEBUG
-            if metadataPolicy == .allMetadataExcludingAttachmentData {
-                addFullMetadata(from: record, to: &fields)
+            if exportPolicy.mode == .diagnostic {
+                try addDiagnosticMetadata(from: record, policy: exportPolicy, to: &fields)
             }
         #endif
 
         return BitdriftLogEntry(
             level: record.level.bitdriftLevel,
-            message: record.event.remoteMessage,
+            message: record.eventName,
             fields: fields,
             file: record.callSite?.fileID,
             function: record.callSite?.function,
@@ -213,38 +228,41 @@ actor BitdriftRemoteLogSink: LogSink {
     }
 
     #if DEBUG
-        private func addFullMetadata(
+        private func addDiagnosticMetadata(
             from record: LogRecord,
+            policy: LogExportPolicy,
             to fields: inout [String: BitdriftLogValue],
-        ) {
-            fields["event.payload"] = encodedString(record.event)
-            fields["context.tags"] = encodedString(record.tags)
-            fields["context.scopes"] = .string(record.scopes.compactMap { id in
-                let path = LogScope.ancestry(of: id, resolve: { scopes[$0] })
-                return path.isEmpty ? nil : path.map(\.name).joined(separator: "/")
-            }.joined(separator: ","))
-            if let ambient = record.ambient {
-                fields["context.ambient"] = encodedString(ambient)
-            }
-            if let externalID = record.externalID {
+        ) throws {
+            fields["event.payload"] = try encodedString(record.event.exportedValue(using: policy))
+            if policy.allows(LogContextExportRequirements.externalID),
+               let externalID = record.externalID
+            {
                 fields["context.external_id"] = .string(externalID)
             }
-            if !record.attachments.isEmpty {
+            if policy.allows(LogContextExportRequirements.tags) {
+                fields["context.tags"] = try encodedString(record.tags)
+            }
+            if policy.allows(LogContextExportRequirements.scopes) {
+                fields["context.scopes"] = .string(record.scopes.compactMap { id in
+                    let path = LogScope.ancestry(of: id, resolve: { scopes[$0] })
+                    return path.isEmpty ? nil : path.map(\.name).joined(separator: "/")
+                }.joined(separator: ","))
+            }
+            // Folded snapshots no longer carry the originating fields' export requirements.
+            // Export the classified ambient events instead; raw snapshots could bypass .never.
+            if policy.allows(LogContextExportRequirements.attachmentMetadata),
+               !record.attachments.isEmpty
+            {
                 fields["attachments.metadata"] = .string(record.attachments.map {
                     "\($0.name):\($0.contentType.mimeType)"
                 }.joined(separator: ","))
             }
         }
 
-        private func encodedString(_ value: some Encodable) -> BitdriftLogValue {
-            do {
-                let encoder = JSONEncoder()
-                encoder.outputFormatting = [.sortedKeys]
-                return try .string(String(decoding: encoder.encode(value), as: UTF8.self))
-            } catch {
-                assertionFailure("Could not encode full diagnostic metadata: \(error)")
-                return .string("{}")
-            }
+        private func encodedString(_ value: some Encodable) throws -> BitdriftLogValue {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.sortedKeys]
+            return try .string(String(decoding: encoder.encode(value), as: UTF8.self))
         }
     #endif
 }
@@ -261,13 +279,23 @@ extension LogLevel {
     }
 }
 
-extension RemoteLogFieldValue {
-    fileprivate var bitdriftValue: BitdriftLogValue {
+extension ShareableLogFieldValue {
+    fileprivate func bitdriftValue() throws -> BitdriftLogValue {
         switch self {
-            case let .boolean(value): .boolean(value)
-            case let .count(value): .integer(value)
-            case let .durationMilliseconds(value): .double(value)
-            case let .category(value): .string(value.rawValue)
+            case let .string(value): .string(value)
+            case let .int(value): .integer(value)
+            case let .double(value): .double(value)
+            case let .bool(value): .boolean(value)
+            case let .json(value):
+                try .string(value.canonicalJSONString())
         }
+    }
+}
+
+extension JSONValue {
+    fileprivate func canonicalJSONString() throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return try String(decoding: encoder.encode(self), as: UTF8.self)
     }
 }

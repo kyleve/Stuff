@@ -56,7 +56,9 @@ The card opens the existing Elsewhere list.
   Sparse reports keep the illustrative Siri copy and empty widget state.
   Backup and destructive data management share one Data drill-in. Data is
   followed by a persisted **Privacy & Diagnostics** screen for crash reports,
-  redacted session replay, remote-log threshold, and Debug-only full metadata.
+  redacted session replay, remote-log threshold, and a Debug-only personal-data switch.
+  This switch grants an explicit set of independent export controls and preserves consumer-defined grants.
+  Local-only fields and attachment contents remain excluded.
   Data, Privacy & Diagnostics, and About lead with the same full-width, flat
   passport-style privacy statement. It keeps the location promise separate
   from icon-led rows that explain the purpose and scope of each active reporting

@@ -174,9 +174,9 @@ public actor ReminderReconciler {
                 ? today
                 : nil
         } catch {
-            Self.logger(attachments: [.error(error, name: "reconcile-error")]) {
-                .reconcileFailed(description: error.localizedDescription)
-            }
+            Self.logger.reconcileFailed(
+                error: .restricted(.errorDetails, error),
+            )
         }
     }
 
@@ -199,7 +199,9 @@ public actor ReminderReconciler {
                 driftThresholdMeters: config.driftThresholdMeters,
             )
         } catch {
-            Self.logger { .badgeScanFailed(description: error.localizedDescription) }
+            Self.logger.badgeScanFailed(
+                error: .restricted(.errorDetails, error),
+            )
             return 0
         }
     }
