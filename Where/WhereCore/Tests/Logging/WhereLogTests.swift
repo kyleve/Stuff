@@ -1,3 +1,4 @@
+import Foundation
 import PeriscopeCore
 import Testing
 @testable import WhereCore
@@ -131,16 +132,21 @@ struct WhereLogEventTests {
     }
 
     @Test func locationIngestorTracesSampleFailuresByID() {
+        let error = NSError(
+            domain: "LocationTest",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: "x"],
+        )
         #expect(
             LocationIngestorLog.PersistFailed(
                 sampleID: .restricted(.identifier, "abc"),
-                description: .restricted(.errorDetails, "x"),
+                error: .restricted(.errorDetails, error),
             )
             .externalID == WhereStoreID.sample("abc"),
         )
         #expect(LocationIngestorLog.PersistFailed(
             sampleID: .restricted(.identifier, "abc"),
-            description: .restricted(.errorDetails, "x"),
+            error: .restricted(.errorDetails, error),
         )
         .level == .error)
         #expect(LocationIngestorLog.MonitoringStarted().externalID == nil)

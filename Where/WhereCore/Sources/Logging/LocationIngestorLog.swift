@@ -35,13 +35,13 @@ enum LocationIngestorLog {
     )
     struct TodayIntervalUnavailable {}
 
-    @LogEvent("foreground-capture-read-failed", level: .warning)
+    @LogEvent("foreground-capture-read-failed", level: .warning, version: 2)
     struct ForegroundCaptureReadFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
 
         var message: String {
-            "Skipping foreground capture; could not read today's samples: \(description)"
+            "Skipping foreground capture; could not read today's samples: \(error.description)"
         }
     }
 
@@ -51,16 +51,16 @@ enum LocationIngestorLog {
     )
     struct CapturedForegroundFix {}
 
-    @LogEvent("persist-failed", level: .error)
+    @LogEvent("persist-failed", level: .error, version: 2)
     struct PersistFailed {
         @LogField(exposure: .restricted, kind: .identifier)
         var sampleID: String
 
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
 
         var message: String {
-            "Failed to persist GPS sample \(sampleID): \(description)"
+            "Failed to persist GPS sample \(sampleID): \(error.description)"
         }
 
         var externalID: String? {
@@ -68,13 +68,13 @@ enum LocationIngestorLog {
         }
     }
 
-    @LogEvent("retry-backlog-persistence-failed", level: .error)
+    @LogEvent("retry-backlog-persistence-failed", level: .error, version: 2)
     struct RetryBacklogPersistenceFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
 
         var message: String {
-            "Failed to durably persist the GPS retry backlog; stopping recording: \(description)"
+            "Failed to durably persist the GPS retry backlog; stopping recording: \(error.description)"
         }
     }
 
@@ -88,16 +88,16 @@ enum LocationIngestorLog {
         }
     }
 
-    @LogEvent("retry-still-failing", level: .error)
+    @LogEvent("retry-still-failing", level: .error, version: 2)
     struct RetryStillFailing {
         @LogField(exposure: .restricted, kind: .identifier)
         var sampleID: String
 
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
 
         var message: String {
-            "Retry still failing for GPS sample \(sampleID): \(description)"
+            "Retry still failing for GPS sample \(sampleID): \(error.description)"
         }
 
         var externalID: String? {

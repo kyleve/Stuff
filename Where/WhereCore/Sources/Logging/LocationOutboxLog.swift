@@ -10,23 +10,23 @@ enum LocationOutboxLog {
     )
     struct NoApplicationSupport {}
 
-    @LogEvent("dropped-unreadable-backlog", level: .error)
+    @LogEvent("dropped-unreadable-backlog", level: .error, version: 2)
     struct DroppedUnreadableBacklog {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
 
         var message: String {
-            "Dropping unreadable location retry backlog: \(description)"
+            "Dropping unreadable location retry backlog: \(error.description)"
         }
     }
 
-    @LogEvent("read-backlog-failed", level: .error)
+    @LogEvent("read-backlog-failed", level: .error, version: 2)
     struct ReadBacklogFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
 
         var message: String {
-            "Failed to read location retry backlog; preserving it for retry: \(description)"
+            "Failed to read location retry backlog; preserving it for retry: \(error.description)"
         }
     }
 
@@ -37,33 +37,33 @@ enum LocationOutboxLog {
     )
     struct RecoveredTornJournal {}
 
-    @LogEvent("persist-backlog-failed", level: .error)
+    @LogEvent("persist-backlog-failed", level: .error, version: 2)
     struct PersistBacklogFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
 
         var message: String {
-            "Failed to persist location retry backlog: \(description)"
+            "Failed to persist location retry backlog: \(error.description)"
         }
     }
 
-    @LogEvent("exclude-from-backup-failed", level: .error)
+    @LogEvent("exclude-from-backup-failed", level: .error, version: 2)
     struct ExcludeFromBackupFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
 
         var message: String {
-            "Failed to exclude location retry backlog from device backup: \(description)"
+            "Failed to exclude location retry backlog from device backup: \(error.description)"
         }
     }
 
-    @LogEvent("discard-insecure-backlog-failed", level: .error)
+    @LogEvent("discard-insecure-backlog-failed", level: .error, version: 2)
     struct DiscardInsecureBacklogFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
 
         var message: String {
-            "Failed to discard a backup-eligible location retry backlog: \(description)"
+            "Failed to discard a backup-eligible location retry backlog: \(error.description)"
         }
     }
 }
