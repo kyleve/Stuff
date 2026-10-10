@@ -190,4 +190,11 @@ struct LogErrorTests {
         #expect(snapshot.causes.isEmpty)
         #expect(snapshot.omittedCauses == [.cycle])
     }
+
+    @Test func cycleDoesNotDiscardUnrelatedSiblingCauses() {
+        let original = CyclicLogErrorTestFailure(siblings: [NSError(domain: "Sibling", code: 2)])
+        let snapshot = LogError(capturing: original)
+        #expect(snapshot.causes.map(\.domain) == ["Sibling"])
+        #expect(snapshot.omittedCauses == [.cycle])
+    }
 }

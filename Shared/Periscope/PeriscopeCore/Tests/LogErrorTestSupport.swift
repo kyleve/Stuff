@@ -46,7 +46,10 @@ enum LogErrorTestKey: String, CodingKey {
 
 /// Immutable NSError subclass exposes a cycle without retaining itself in stored state.
 final class CyclicLogErrorTestFailure: NSError, @unchecked Sendable {
-    init() {
+    private let siblings: [NSError]
+
+    init(siblings: [NSError] = []) {
+        self.siblings = siblings
         super.init(domain: "Cycle", code: 1, userInfo: nil)
     }
 
@@ -56,7 +59,7 @@ final class CyclicLogErrorTestFailure: NSError, @unchecked Sendable {
     }
 
     override var userInfo: [String: Any] {
-        [NSUnderlyingErrorKey: self]
+        [NSUnderlyingErrorKey: self, NSMultipleUnderlyingErrorsKey: siblings]
     }
 
     override var localizedDescription: String {

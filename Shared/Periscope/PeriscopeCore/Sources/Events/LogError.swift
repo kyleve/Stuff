@@ -194,15 +194,18 @@ public struct LogError: Codable, Equatable, LogExportable {
             underlying.append(contentsOf: causes)
         }
         for cause in underlying {
+            guard remainingNodes > 0 else {
+                omissions.append(.nodeLimit)
+                break
+            }
             let bridged = cause as NSError
             if path.contains(where: { $0 === bridged }) {
-                omissions.append(.cycle)
-                break
+                if !omissions.contains(.cycle) { omissions.append(.cycle) }
+                // Budget attempted nodes too, but do not discard unrelated siblings.
+                remainingNodes -= 1
+                continue
             } else if path.count >= Self.maximumDepth {
                 omissions.append(.depthLimit)
-                break
-            } else if remainingNodes == 0 {
-                omissions.append(.nodeLimit)
                 break
             } else {
                 captured.append(LogError(
