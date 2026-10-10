@@ -191,6 +191,8 @@ Shareable fields already approve baseline export and cannot declare an export ov
 Restricted identifiers, locations, and user content require their respective controls.
 Restricted scalar operational kinds need diagnostic mode. Other restricted values require personal-data consent by default.
 `LogError` fields use the nested error projection instead of a blanket text approval.
+This default uses the framework type's identity, including aliases and optionals.
+An unrelated type named `LogError` retains the personal-data permission requirement.
 
 Nested types implement `LogExportable` to filter their members with `LogExportField.object(_:using:)`.
 Optional values, arrays, and string-keyed dictionaries preserve nested projections.

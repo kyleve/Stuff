@@ -4,6 +4,20 @@ import SwiftSyntax
 import Testing
 
 struct SyntaxSupportTests {
+    @Test(arguments: ["LogError", "LogError?", "PeriscopeCore.LogError", "ErrorAlias", "String"])
+    func errorRequirementsUseTypeIdentity(type: String) {
+        let field = EventField(
+            name: "error",
+            type: type,
+            key: "error",
+            exposure: "restricted",
+            kind: .errorDetails,
+            isOptional: type.hasSuffix("?"),
+        )
+        #expect(field.resolvedExportRequirements
+            == ".classified(exposure: .restricted, kind: .errorDetails, valueType: (\(type)).self)")
+    }
+
     @Test(arguments: [
         "sampleCount": "sample_count",
         "sampleID": "sample_id",

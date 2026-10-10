@@ -63,10 +63,8 @@ struct EventField {
         if let exportRequirements {
             return "LogExportRequirements.diagnostic(requiring: []).constrained(by: \(exportRequirements))"
         }
-        if exposure == "restricted", kind == .errorDetails,
-           ["LogError", "LogError?"].contains(type)
-        {
-            return ".diagnostic(requiring: [])"
+        if exposure == "restricted", kind == .errorDetails {
+            return ".classified(exposure: .restricted, kind: .errorDetails, valueType: (\(type)).self)"
         }
         return ".classified(exposure: .\(exposure), kind: .\(kind))"
     }

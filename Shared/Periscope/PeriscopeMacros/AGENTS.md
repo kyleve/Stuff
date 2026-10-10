@@ -21,6 +21,7 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) and the Periscope [`AGENTS.md`](
 - Reject declarations that can create ambiguous generated code.
 - Keep reserved event method names aligned with the instance API of `Log` and its public extensions.
 - Keep restricted field values out of `classifiedFields`.
+- Resolve type-specific export defaults through runtime type identity, never a type name's source spelling.
 - Generate `exportDescription` through `LogExportField` for live projections and persisted metadata. Apply requirements before encoding, and reject export overrides on shareable fields.
 
 ## Testing

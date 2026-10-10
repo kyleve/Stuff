@@ -5,8 +5,37 @@ extension LogExportControl {
     static let futureControl = Self("example.future-control")
 }
 
+enum LogExportTestValues {
+    /// A consumer type whose name must not opt it into framework error permissions.
+    struct LogError: Codable {
+        let email: String
+    }
+}
+
 @LogScope("ExportTest")
 enum LogExportTestLog {
+    typealias LogError = LogExportTestValues.LogError
+    typealias ErrorAlias = PeriscopeCore.LogError
+    typealias OptionalErrorAlias = PeriscopeCore.LogError?
+
+    @LogEvent("error-defaults", message: "Error defaults")
+    struct ErrorDefaults {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var shadowed: LogError
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var optionalShadowed: LogError?
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var qualified: PeriscopeCore.LogError
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var optionalQualified: PeriscopeCore.LogError?
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var aliased: ErrorAlias
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var optionalAliased: OptionalErrorAlias
+        @LogField(exposure: .restricted, kind: .errorDetails, export: .never)
+        var denied: ErrorAlias
+    }
+
     @LogEvent("child", message: "Child")
     struct Child {
         @LogField(exposure: .restricted, kind: .arbitraryText, export: .never)

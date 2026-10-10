@@ -5,6 +5,21 @@ public enum LogExportRequirements: Equatable, Sendable {
     case diagnostic(requiring: Set<LogExportControl>)
     case never
 
+    /// Structured framework errors filter their own children. Other values retain the
+    /// classification's conservative default, regardless of their Swift source spelling.
+    public static func classified(
+        exposure: LogFieldExposure,
+        kind: LogFieldKind,
+        valueType: (some Any).Type,
+    ) -> Self {
+        if exposure == .restricted, kind == .errorDetails,
+           valueType == LogError.self || valueType == LogError?.self
+        {
+            return .diagnostic(requiring: [])
+        }
+        return classified(exposure: exposure, kind: kind)
+    }
+
     /// Conservative defaults for the existing declaration and emission classifications.
     public static func classified(exposure: LogFieldExposure, kind: LogFieldKind) -> Self {
         if exposure == .shareable { return .baseline(requiring: []) }
