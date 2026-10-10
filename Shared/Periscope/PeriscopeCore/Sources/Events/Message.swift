@@ -10,7 +10,6 @@ public enum FreeformLogScope {
     @LogEvent("message")
     public struct Message: Hashable {
         @LogField(
-            "level",
             exposure: .restricted,
             kind: .technicalState,
         )
@@ -18,7 +17,6 @@ public enum FreeformLogScope {
 
         /// The stored, already-rendered message text.
         @LogField(
-            "text",
             exposure: .restricted,
             kind: .arbitraryText,
         )

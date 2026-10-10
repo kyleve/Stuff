@@ -44,7 +44,8 @@ Duplicate resolved keys produce a diagnostic, including collisions between expli
 Inferred keys change with property names. They are not inherently rename-safe.
 Before you rename a property, add its previous key as an explicit literal.
 For an intentional incompatible key change, increase the event version.
-Existing explicit keys remain unchanged.
+Omit a field key when inference produces the intended wire key.
+Keep explicit overrides that differ from inference, including keys preserved after a property rename.
 
 Static messages and identifiers accept escaped, raw, and multiline string literals, but not interpolation.
 The generated values preserve the literal's decoded text.

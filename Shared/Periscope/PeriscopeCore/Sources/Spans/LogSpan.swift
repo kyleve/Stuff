@@ -46,10 +46,10 @@ public enum SpanLog {
         /// Half of a span pair — see `LogEvent.isProtectedFromDropping`.
         public static let isProtectedFromDropping = true
 
-        @LogField("span_id", exposure: .restricted, kind: .identifier)
+        @LogField(exposure: .restricted, kind: .identifier)
         public var spanID: SpanID
 
-        @LogField("name", exposure: .restricted, kind: .technicalState)
+        @LogField(exposure: .restricted, kind: .technicalState)
         public var name: String
 
         @LogField("lifetime", exposure: .restricted, kind: .technicalState)
@@ -58,7 +58,7 @@ public enum SpanLog {
         @LogField("budget_ms", exposure: .shareable, kind: .duration)
         public var budget: Duration?
 
-        @LogField("relaunch_policy", exposure: .shareable, kind: .category)
+        @LogField(exposure: .shareable, kind: .category)
         public var relaunchPolicy: SpanRelaunchPolicy
 
         public var lifetime: SpanLifetime {
@@ -80,10 +80,10 @@ public enum SpanLog {
         /// Half of a span pair — see `LogEvent.isProtectedFromDropping`.
         public static let isProtectedFromDropping = true
 
-        @LogField("span_id", exposure: .restricted, kind: .identifier)
+        @LogField(exposure: .restricted, kind: .identifier)
         public var spanID: SpanID
 
-        @LogField("name", exposure: .restricted, kind: .technicalState)
+        @LogField(exposure: .restricted, kind: .technicalState)
         public var name: String
 
         @LogField("duration_ms", exposure: .shareable, kind: .duration)
@@ -92,7 +92,7 @@ public enum SpanLog {
         @LogField("exit", exposure: .shareable, kind: .category)
         public var exitMode: SpanExit.Mode
 
-        @LogField("exit_reason", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         public var exitReason: String?
 
         public var exit: SpanExit {
@@ -140,10 +140,10 @@ public enum SpanLog {
     /// Emitted while a budgeted `measure` closure is still running past its budget.
     @LogEvent("overdue", level: .warning)
     public struct Overdue {
-        @LogField("span_id", exposure: .restricted, kind: .identifier)
+        @LogField(exposure: .restricted, kind: .identifier)
         public var spanID: SpanID
 
-        @LogField("name", exposure: .restricted, kind: .technicalState)
+        @LogField(exposure: .restricted, kind: .technicalState)
         public var name: String
 
         @LogField("budget_ms", exposure: .shareable, kind: .duration)

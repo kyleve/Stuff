@@ -6,7 +6,7 @@ public enum PeriscopeInternalLog {
     /// Reports records discarded by the bounded delivery queue.
     @LogEvent("dropped-events", level: .warning)
     public struct DroppedEvents {
-        @LogField("count", exposure: .shareable, kind: .count)
+        @LogField(exposure: .shareable, kind: .count)
         public var count: Int
 
         public var message: String {
@@ -17,10 +17,10 @@ public enum PeriscopeInternalLog {
     /// Marks a failed, rolled-back store write in the durable history.
     @LogEvent("store-write-failed", level: .warning)
     public struct StoreWriteFailed {
-        @LogField("lost_record_count", exposure: .shareable, kind: .count)
+        @LogField(exposure: .shareable, kind: .count)
         public var lostRecordCount: Int
 
-        @LogField("reason", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         public var reason: String
 
         public var message: String {

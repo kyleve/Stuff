@@ -129,7 +129,7 @@ public enum AmbientLog {
             case background, foreground, active, inactive
         }
 
-        @LogField("phase", exposure: .shareable, kind: .category)
+        @LogField(exposure: .shareable, kind: .category)
         public var phase: AmbientLog.AppLifecycle.Phase
 
         public var kind: AmbientKind {
@@ -156,7 +156,7 @@ public enum AmbientLog {
             case nominal, fair, serious, critical, unknown
         }
 
-        @LogField("condition", exposure: .shareable, kind: .category)
+        @LogField(exposure: .shareable, kind: .category)
         public var condition: AmbientLog.ThermalState.Condition
 
         public var kind: AmbientKind {
@@ -235,10 +235,10 @@ public enum AmbientLog {
             case wifi, cellular, wired, loopback, other, unknown
         }
 
-        @LogField("status", exposure: .shareable, kind: .category)
+        @LogField(exposure: .shareable, kind: .category)
         public var status: AmbientLog.Network.Status
 
-        @LogField("interfaces", exposure: .restricted, kind: .technicalState)
+        @LogField(exposure: .restricted, kind: .technicalState)
         public var interfaces: [AmbientLog.Network.Interface]
 
         public var kind: AmbientKind {
@@ -283,7 +283,6 @@ public enum AmbientLog {
         }
 
         @LogField(
-            "kind",
             exposure: .restricted,
             kind: .technicalState,
         )
@@ -293,21 +292,18 @@ public enum AmbientLog {
         /// `["voiceover": false]`) — a JSON object in the payload, not a
         /// formatted sentence the tooling would have to parse back apart.
         @LogField(
-            "value",
             exposure: .restricted,
             kind: .domainValue,
         )
         public var value: [String: AmbientValue]
 
         @LogField(
-            "level",
             exposure: .restricted,
             kind: .technicalState,
         )
         public var level: LogLevel
 
         @LogField(
-            "reporting",
             exposure: .restricted,
             kind: .technicalState,
         )
