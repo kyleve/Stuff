@@ -7,23 +7,23 @@ enum ReminderReconcilerLog {
         case reconcile
     }
 
-    @LogEvent("reconcile-failed", level: .error)
+    @LogEvent("reconcile-failed", level: .error, version: 2)
     struct ReconcileFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
 
         var message: String {
-            "Failed to reconcile logging reminders: \(description)"
+            "Failed to reconcile logging reminders: \(error.description)"
         }
     }
 
-    @LogEvent("badge-scan-failed", level: .warning)
+    @LogEvent("badge-scan-failed", level: .warning, version: 2)
     struct BadgeScanFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
 
         var message: String {
-            "Failed to scan data issues for badge: \(description)"
+            "Failed to scan data issues for badge: \(error.description)"
         }
     }
 }

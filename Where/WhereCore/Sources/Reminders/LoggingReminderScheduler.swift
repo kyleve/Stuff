@@ -128,7 +128,7 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
             return try await center.requestAuthorization(options: [.alert, .sound, .badge])
         } catch {
             Self.logger.authorizationRequestFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
+                error: .restricted(.errorDetails, error),
             )
             return false
         }
@@ -266,8 +266,7 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         } catch {
             Self.logger.scheduleFailed(
                 identifier: .restricted(.identifier, identifier),
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "schedule-error")],
+                error: .restricted(.errorDetails, error),
             )
         }
     }
@@ -301,7 +300,7 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
             try await center.setBadgeCount(max(0, count))
         } catch {
             Self.logger.badgeUpdateFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
+                error: .restricted(.errorDetails, error),
             )
         }
     }

@@ -16,13 +16,13 @@ enum AppAttributionLog {
         }
     }
 
-    @LogEvent("decode-failed", level: .fault)
+    @LogEvent("decode-failed", level: .fault, version: 2)
     struct DecodeFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
 
         var message: String {
-            "Failed to decode bundled attribution report: \(description)"
+            "Failed to decode bundled attribution report: \(error.description)"
         }
     }
 }

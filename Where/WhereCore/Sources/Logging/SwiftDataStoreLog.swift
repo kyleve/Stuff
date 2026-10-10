@@ -77,12 +77,12 @@ enum SwiftDataStoreLog {
         }
     }
 
-    @LogEvent("remote-change-classification-failed", level: .warning)
+    @LogEvent("remote-change-classification-failed", level: .warning, version: 2)
     struct RemoteChangeClassificationFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Could not classify persistent-store change; reconciling defensively: \(description)"
+            "Could not classify persistent-store change; reconciling defensively: \(error.description)"
         }
     }
 }

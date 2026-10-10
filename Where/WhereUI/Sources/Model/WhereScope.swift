@@ -392,8 +392,7 @@ public final class WhereScope {
                 logRouting = .failed(description: description)
                 onStateChange(self, .failed(description: description))
                 Self.logger.loggingStoreUnavailable(
-                    description: .restricted(.errorDetails, description),
-                    attachments: [.error(error, name: "open-error")],
+                    error: .restricted(.errorDetails, error),
                 )
                 return
             }
@@ -424,8 +423,7 @@ public final class WhereScope {
                 )
             } catch {
                 Self.logger.historyPruneFailed(
-                    description: .restricted(.errorDetails, String(describing: error)),
-                    attachments: [.error(error, name: "prune-error")],
+                    error: .restricted(.errorDetails, error),
                 )
             }
         }

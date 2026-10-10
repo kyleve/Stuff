@@ -116,8 +116,7 @@ final class OnboardingFlowModel {
                 }
             } catch {
                 Self.logger.installationContextWriteFailed(
-                    description: .restricted(.errorDetails, error.localizedDescription),
-                    attachments: [.error(error, name: "context-error")],
+                    error: .restricted(.errorDetails, error),
                 )
                 gate.fail(error)
                 return
@@ -128,8 +127,7 @@ final class OnboardingFlowModel {
                 scope = try await model.resolveScope()
             } catch {
                 Self.logger.scopeCreationFailed(
-                    description: .restricted(.errorDetails, error.localizedDescription),
-                    attachments: [.error(error, name: "scope-error")],
+                    error: .restricted(.errorDetails, error),
                 )
                 gate.fail(error)
                 return
@@ -143,8 +141,7 @@ final class OnboardingFlowModel {
                 try await configureRecording(in: scope)
             } catch {
                 Self.logger.recordingConfigurationFailed(
-                    description: .restricted(.errorDetails, error.localizedDescription),
-                    attachments: [.error(error, name: "recording-configuration-error")],
+                    error: .restricted(.errorDetails, error),
                 )
                 if let summary = restoreSelection.committedSummary {
                     gate.fail(OnboardingCommittedImportSetupError(
@@ -162,8 +159,7 @@ final class OnboardingFlowModel {
                     try await selection.commit(using: scope)
                 } catch {
                     Self.logger.regionCommitFailed(
-                        description: .restricted(.errorDetails, error.localizedDescription),
-                        attachments: [.error(error, name: "commit-error")],
+                        error: .restricted(.errorDetails, error),
                     )
                 }
             }
@@ -189,8 +185,7 @@ final class OnboardingFlowModel {
             } catch {
                 intro.activity = .failed(.init(flow: .demo, error: error))
                 Self.logger.demoBuildFailed(
-                    description: .restricted(.errorDetails, error.localizedDescription),
-                    attachments: [.error(error, name: "demo-error")],
+                    error: .restricted(.errorDetails, error),
                 )
             }
         }
@@ -259,8 +254,7 @@ final class OnboardingFlowModel {
                 return false
             }
             Self.logger.backupRestoreCleanupFailed(
-                description: .restricted(.errorDetails, error.underlying.localizedDescription),
-                attachments: [.error(error.underlying, name: "cleanup-error")],
+                error: .restricted(.errorDetails, error.underlying),
             )
             gate.fail(error)
             return false
@@ -288,8 +282,7 @@ final class OnboardingFlowModel {
             phase = .intro
             isFinishing = false
             Self.logger.backupRestoreFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "restore-error")],
+                error: .restricted(.errorDetails, error),
             )
             return false
         }

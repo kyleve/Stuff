@@ -4,13 +4,13 @@ import WhereCore
 /// Structured events for `AddEvidenceModel`, the compose form.
 @LogScope("AddEvidenceModel")
 enum AddEvidenceModelLog {
-    @LogEvent("attachment-pick-failed", level: .warning)
+    @LogEvent("attachment-pick-failed", level: .warning, version: 2)
     struct AttachmentPickFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
 
         var message: String {
-            "Evidence attachment pick failed: \(description)"
+            "Evidence attachment pick failed: \(error.description)"
         }
     }
 
@@ -28,13 +28,13 @@ enum AddEvidenceModelLog {
         }
     }
 
-    @LogEvent("save-failed", level: .warning)
+    @LogEvent("save-failed", level: .warning, version: 2)
     struct SaveFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
 
         var message: String {
-            "Failed to save evidence: \(description)"
+            "Failed to save evidence: \(error.description)"
         }
     }
 }

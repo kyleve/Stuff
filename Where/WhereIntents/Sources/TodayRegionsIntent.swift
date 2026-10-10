@@ -34,9 +34,9 @@ public struct TodayRegionsIntent: AppIntent {
                         ).read()
                     } catch {
                         WhereIntentsLog.logger.widgetSnapshotReadFailed(
-                            description: .restricted(
+                            error: .restricted(
                                 .errorDetails,
-                                String(describing: error),
+                                error,
                             ),
                             attachments: [.error(error, name: "snapshot-read-error")],
                         )

@@ -58,7 +58,7 @@ final class LocationForecastModel {
             if activePlannedStay != stay { activePlannedStay = stay }
         } catch {
             Self.logger.loadFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
+                error: .restricted(.errorDetails, error),
             )
         }
     }
@@ -185,7 +185,7 @@ final class LocationForecastModel {
             activePlannedStay = PlannedStay(region: region, through: day)
         } catch {
             Self.logger.saveFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
+                error: .restricted(.errorDetails, error),
             )
             throw error
         }
@@ -197,7 +197,7 @@ final class LocationForecastModel {
             activePlannedStay = nil
         } catch {
             Self.logger.clearFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
+                error: .restricted(.errorDetails, error),
             )
             throw error
         }

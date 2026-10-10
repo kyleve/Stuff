@@ -25,13 +25,13 @@ struct SharedAttachment {
 /// code couldn't tell apart from a reported failure.
 private enum LoadedValue<Value: Sendable> {
     case loaded(Value)
-    case missing(reason: String?)
+    case missing(error: (any Error)?)
 
     init(value: Value?, error: (any Error)?) {
         if let value {
             self = .loaded(value)
         } else {
-            self = .missing(reason: error.map { String(describing: $0) })
+            self = .missing(error: error)
         }
     }
 }
@@ -111,10 +111,10 @@ enum SharedItemLoader {
                     typeIdentifier: type.identifier,
                     filename: provider.suggestedName,
                 )
-            case let .missing(reason):
+            case let .missing(error):
                 logger.attachmentLoadFailed(
                     typeIdentifier: .restricted(.identifier, type.identifier),
-                    reason: .restricted(.errorDetails, reason),
+                    error: .restricted(.errorDetails, error.map { LogError(capturing: $0) }),
                 )
                 return nil
         }
@@ -145,8 +145,11 @@ enum SharedItemLoader {
                     typeIdentifier: UTType.plainText.identifier,
                     filename: provider.suggestedName,
                 )
-            case let .missing(reason):
-                logger.urlUnreadable(reason: .restricted(.errorDetails, reason))
+            case let .missing(error):
+                logger.urlUnreadable(error: .restricted(
+                    .errorDetails,
+                    error.map { LogError(capturing: $0) },
+                ))
                 return nil
         }
     }

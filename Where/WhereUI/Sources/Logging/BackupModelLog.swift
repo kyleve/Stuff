@@ -6,12 +6,12 @@ enum BackupModelLog {
     @LogEvent("exported", message: "Exported backup archive")
     struct Exported {}
 
-    @LogEvent("export-failed", level: .warning)
+    @LogEvent("export-failed", level: .warning, version: 2)
     struct ExportFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Backup export failed: \(description)"
+            "Backup export failed: \(error.description)"
         }
     }
 
@@ -35,21 +35,21 @@ enum BackupModelLog {
         }
     }
 
-    @LogEvent("import-failed", level: .warning)
+    @LogEvent("import-failed", level: .warning, version: 2)
     struct ImportFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Backup import failed: \(description)"
+            "Backup import failed: \(error.description)"
         }
     }
 
-    @LogEvent("import-cleanup-failed", level: .warning)
+    @LogEvent("import-cleanup-failed", level: .warning, version: 2)
     struct ImportCleanupFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Backup import committed but recording cleanup failed: \(description)"
+            "Backup import committed but recording cleanup failed: \(error.description)"
         }
     }
 }

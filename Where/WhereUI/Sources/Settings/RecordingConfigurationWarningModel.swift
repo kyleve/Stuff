@@ -82,8 +82,7 @@ final class RecordingConfigurationWarningModel {
         } catch {
             guard sequence == refreshSequence else { return }
             Self.logger.authorityLoadFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "recording-warning-error")],
+                error: .restricted(.errorDetails, error),
             )
         }
     }

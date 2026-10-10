@@ -27,8 +27,7 @@ public enum RegionSpotlightIndexer {
             // Degraded-but-handled: search integration is a nicety, so a failure
             // is logged and swallowed rather than surfaced to the user.
             logger.spotlightIndexFailed(
-                description: .restricted(.errorDetails, String(describing: error)),
-                attachments: [.error(error, name: "index-error")],
+                error: .restricted(.errorDetails, error),
             )
         }
     }

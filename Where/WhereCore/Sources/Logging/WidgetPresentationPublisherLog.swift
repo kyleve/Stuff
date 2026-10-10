@@ -12,12 +12,12 @@ enum WidgetPresentationPublisherLog {
         }
     }
 
-    @LogEvent("publish-failed", level: .error)
+    @LogEvent("publish-failed", level: .error, version: 2)
     struct PublishFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Failed to publish widget presentation: \(description)"
+            "Failed to publish widget presentation: \(error.description)"
         }
     }
 }

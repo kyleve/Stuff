@@ -156,8 +156,7 @@ struct RegionsSettingsView: View {
             built = PrimaryRegionSelectionModel(existing: existing)
         } catch {
             Self.logger.primaryRegionsLoadFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "load-error")],
+                error: .restricted(.errorDetails, error),
             )
             // Fall back to an empty picker rather than a stuck spinner.
             built = PrimaryRegionSelectionModel()
@@ -177,8 +176,7 @@ struct RegionsSettingsView: View {
                 dismiss()
             } catch {
                 Self.logger.primaryRegionsSaveFailed(
-                    description: .restricted(.errorDetails, error.localizedDescription),
-                    attachments: [.error(error, name: "save-error")],
+                    error: .restricted(.errorDetails, error),
                 )
                 saveError.message = error.localizedDescription
                 isSaving = false

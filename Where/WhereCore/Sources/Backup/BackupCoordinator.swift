@@ -253,7 +253,7 @@ public actor BackupCoordinator {
             try FileManager.default.removeItem(at: previous)
         } catch {
             Self.logger.removePreviousExportFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
+                error: .restricted(.errorDetails, error),
             )
         }
     }

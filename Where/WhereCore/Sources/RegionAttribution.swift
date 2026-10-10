@@ -123,7 +123,7 @@ final class RegionAttribution: RegionAttributing {
             // silently freezing on an empty/stale set, and surface the failure so
             // a persistent read error is observable instead of invisible.
             Self.logger.trackedRegionsReadFailed(
-                description: .restricted(.errorDetails, String(describing: error)),
+                error: .restricted(.errorDetails, error),
             )
             return
         }

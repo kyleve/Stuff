@@ -158,7 +158,7 @@ struct AddEvidenceView: View {
             case let .success(url):
                 readFile(at: url)
             case let .failure(error):
-                model.reportAttachmentError(error.localizedDescription)
+                model.reportAttachmentError(error)
         }
     }
 
@@ -184,7 +184,7 @@ struct AddEvidenceView: View {
                     filename: filename,
                 ))
             } catch {
-                model.reportAttachmentError(error.localizedDescription)
+                model.reportAttachmentError(error)
             }
         }
     }
@@ -194,8 +194,7 @@ struct AddEvidenceView: View {
         Task {
             do {
                 guard let data = try await item.loadTransferable(type: Data.self) else {
-                    model.reportAttachmentError(String(localized: .evidenceDetailPreviewFailed))
-                    return
+                    throw AddEvidenceModel.AttachmentFailure.unavailablePhotoData
                 }
                 model.setAttachment(PickedAttachment(
                     data: data,
@@ -203,7 +202,7 @@ struct AddEvidenceView: View {
                     filename: nil,
                 ))
             } catch {
-                model.reportAttachmentError(error.localizedDescription)
+                model.reportAttachmentError(error)
             }
         }
     }

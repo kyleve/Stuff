@@ -126,8 +126,7 @@ public struct RegionAttributor: RegionAttributing {
                 } catch {
                     logger.decodeFailed(
                         region: .restricted(.location, region),
-                        description: .restricted(.errorDetails, error.localizedDescription),
-                        attachments: [.error(error, name: "decode-error")],
+                        error: .restricted(.errorDetails, error),
                     )
                     assertionFailure(
                         "Failed to decode bundled GeoJSON for region \(region.rawValue): \(error)",

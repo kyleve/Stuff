@@ -7,12 +7,12 @@ enum LoggingReminderSchedulerLog {
         case reconcileNotifications
     }
 
-    @LogEvent("authorization-request-failed", level: .error)
+    @LogEvent("authorization-request-failed", level: .error, version: 2)
     struct AuthorizationRequestFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Notification authorization request failed: \(description)"
+            "Notification authorization request failed: \(error.description)"
         }
     }
 
@@ -44,23 +44,23 @@ enum LoggingReminderSchedulerLog {
         }
     }
 
-    @LogEvent("schedule-failed", level: .error)
+    @LogEvent("schedule-failed", level: .error, version: 2)
     struct ScheduleFailed {
         @LogField(exposure: .restricted, kind: .identifier)
         var identifier: String
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Failed to schedule reminder \(identifier): \(description)"
+            "Failed to schedule reminder \(identifier): \(error.description)"
         }
     }
 
-    @LogEvent("badge-update-failed", level: .error)
+    @LogEvent("badge-update-failed", level: .error, version: 2)
     struct BadgeUpdateFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Failed to set badge count: \(description)"
+            "Failed to set badge count: \(error.description)"
         }
     }
 }

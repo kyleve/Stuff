@@ -67,8 +67,7 @@ final class DetachedFailureReporter {
         for failure in new {
             Self.logger.detachedStepFailed(
                 stepID: .restricted(.identifier, String(describing: failure.stepID)),
-                description: .restricted(.errorDetails, failure.error.localizedDescription),
-                attachments: [.error(failure.error, name: "detached-error")],
+                error: .restricted(.errorDetails, failure.error),
             )
         }
         return new

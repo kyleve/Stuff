@@ -104,8 +104,7 @@ final class ShareEvidenceModel {
         } catch {
             phase = .failed(error.localizedDescription)
             Self.logger.saveFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "save-error")],
+                error: .restricted(.errorDetails, error),
             )
             return false
         }

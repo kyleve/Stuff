@@ -39,7 +39,7 @@ public struct WidgetCenterTimelineRefresher: WidgetTimelineRefreshing {
             Self.logger.wroteSnapshot()
         } catch {
             Self.logger.publishFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
+                error: .restricted(.errorDetails, error),
             )
         }
         WidgetCenter.shared.reloadAllTimelines()

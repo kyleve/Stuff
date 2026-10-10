@@ -34,14 +34,14 @@ enum YearReportModelLog {
         }
     }
 
-    @LogEvent("report-load-failed", level: .warning)
+    @LogEvent("report-load-failed", level: .warning, version: 2)
     struct ReportLoadFailed {
         @LogField(exposure: .restricted, kind: .domainValue)
         var year: Int
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Failed to load year report for \(year): \(description)"
+            "Failed to load year report for \(year): \(error.description)"
         }
 
         var externalID: String? {
@@ -49,14 +49,14 @@ enum YearReportModelLog {
         }
     }
 
-    @LogEvent("evidence-day-keys-load-failed", level: .warning)
+    @LogEvent("evidence-day-keys-load-failed", level: .warning, version: 2)
     struct EvidenceDayKeysLoadFailed {
         @LogField(exposure: .restricted, kind: .domainValue)
         var year: Int
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Failed to load evidence day keys for \(year): \(description)"
+            "Failed to load evidence day keys for \(year): \(error.description)"
         }
 
         var externalID: String? {
@@ -64,23 +64,23 @@ enum YearReportModelLog {
         }
     }
 
-    @LogEvent("data-issue-scan-failed", level: .warning)
+    @LogEvent("data-issue-scan-failed", level: .warning, version: 2)
     struct DataIssueScanFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Failed to scan for data issues: \(description)"
+            "Failed to scan for data issues: \(error.description)"
         }
     }
 
-    @LogEvent("clear-year-failed", level: .warning)
+    @LogEvent("clear-year-failed", level: .warning, version: 2)
     struct ClearYearFailed {
         @LogField(exposure: .restricted, kind: .domainValue)
         var year: Int
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Failed to clear year \(year): \(description)"
+            "Failed to clear year \(year): \(error.description)"
         }
 
         var externalID: String? {
@@ -88,16 +88,16 @@ enum YearReportModelLog {
         }
     }
 
-    @LogEvent("locations-load-failed", level: .warning)
+    @LogEvent("locations-load-failed", level: .warning, version: 2)
     struct LocationsLoadFailed {
         @LogField(exposure: .restricted, kind: .location)
         var region: String
         @LogField(exposure: .restricted, kind: .domainValue)
         var year: Int
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Failed to load locations for \(region) in \(year): \(description)"
+            "Failed to load locations for \(region) in \(year): \(error.description)"
         }
 
         var externalID: String? {
@@ -105,16 +105,16 @@ enum YearReportModelLog {
         }
     }
 
-    @LogEvent("day-locations-load-failed", level: .warning)
+    @LogEvent("day-locations-load-failed", level: .warning, version: 2)
     struct DayLocationsLoadFailed {
         @LogField(exposure: .restricted, kind: .dateTime)
         var day: String
         @LogField(exposure: .restricted, kind: .domainValue)
         var year: Int
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Failed to load locations for day \(day) in \(year): \(description)"
+            "Failed to load locations for day \(day) in \(year): \(error.description)"
         }
 
         var externalID: String? {
@@ -122,14 +122,14 @@ enum YearReportModelLog {
         }
     }
 
-    @LogEvent("representative-coordinates-load-failed", level: .warning)
+    @LogEvent("representative-coordinates-load-failed", level: .warning, version: 2)
     struct RepresentativeCoordinatesLoadFailed {
         @LogField(exposure: .restricted, kind: .domainValue)
         var year: Int
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Failed to load representative coordinates for \(year): \(description)"
+            "Failed to load representative coordinates for \(year): \(error.description)"
         }
 
         var externalID: String? {

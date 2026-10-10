@@ -117,8 +117,7 @@ extension RegionCatalog {
             return RegionCatalog(entries: entries)
         } catch {
             logger.decodeFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "decode-error")],
+                error: .restricted(.errorDetails, error),
             )
             assertionFailure("Failed to decode bundled regions.json: \(error)")
             return RegionCatalog(entries: [])

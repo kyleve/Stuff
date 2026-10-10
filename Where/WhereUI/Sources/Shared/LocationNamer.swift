@@ -100,8 +100,7 @@ actor LocationNamer {
             return PlaceComponents(representations).displayName
         } catch {
             logger.geocodeFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "geocode-error")],
+                error: .restricted(.errorDetails, error),
             )
             return nil
         }

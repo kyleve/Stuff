@@ -1,3 +1,4 @@
+import Foundation
 import PeriscopeCore
 import Testing
 @testable import WhereIntents
@@ -53,7 +54,14 @@ struct WhereIntentsLogTests {
 
     @Test func widgetSnapshotReadFailureKeepsErrorDetailsRestricted() {
         let event = WhereIntentsLog.WidgetSnapshotReadFailed(
-            description: .restricted(.errorDetails, "private error"),
+            error: .restricted(
+                .errorDetails,
+                NSError(
+                    domain: "Test",
+                    code: 1,
+                    userInfo: [NSLocalizedDescriptionKey: "private error"],
+                ),
+            ),
         )
 
         #expect(
@@ -62,7 +70,7 @@ struct WhereIntentsLogTests {
         )
         #expect(event.level == .warning)
         #expect(event.classifiedFields == [
-            .restricted(key: LogFieldKey("description"), kind: .errorDetails),
+            .restricted(key: LogFieldKey("error"), kind: .errorDetails),
         ])
     }
 }

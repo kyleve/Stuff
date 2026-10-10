@@ -175,8 +175,7 @@ public actor ReminderReconciler {
                 : nil
         } catch {
             Self.logger.reconcileFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "reconcile-error")],
+                error: .restricted(.errorDetails, error),
             )
         }
     }
@@ -201,7 +200,7 @@ public actor ReminderReconciler {
             )
         } catch {
             Self.logger.badgeScanFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
+                error: .restricted(.errorDetails, error),
             )
             return 0
         }

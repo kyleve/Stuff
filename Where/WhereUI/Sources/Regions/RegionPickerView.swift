@@ -230,8 +230,7 @@ struct RegionPickerView: View {
             // Keep the failure observable in both the UI (error state) and the
             // logs rather than showing a blank map.
             Self.logger.mapGeometryLoadFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "geometry-error")],
+                error: .restricted(.errorDetails, error),
             )
             mapData = .failure(error)
         }

@@ -79,7 +79,7 @@ public final class UserNotificationDailySummaryScheduler: DailySummaryScheduling
             return try await center.requestAuthorization(options: [.alert, .sound, .badge])
         } catch {
             Self.logger.authorizationRequestFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
+                error: .restricted(.errorDetails, error),
             )
             return false
         }
@@ -160,8 +160,7 @@ public final class UserNotificationDailySummaryScheduler: DailySummaryScheduling
             )
         } catch {
             Self.logger.scheduleFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "schedule-error")],
+                error: .restricted(.errorDetails, error),
             )
         }
     }

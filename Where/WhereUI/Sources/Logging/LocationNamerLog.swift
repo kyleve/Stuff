@@ -9,12 +9,12 @@ enum LocationNamerLog {
     )
     struct UnusableCoordinate {}
 
-    @LogEvent("geocode-failed", level: .warning)
+    @LogEvent("geocode-failed", level: .warning, version: 2)
     struct GeocodeFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Reverse geocoding failed: \(description)"
+            "Reverse geocoding failed: \(error.description)"
         }
     }
 }

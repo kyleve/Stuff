@@ -3,13 +3,13 @@ import PeriscopeCore
 /// Structured events for `DataIssueAlertScheduler`.
 @LogScope("DataIssueAlertScheduler")
 enum DataIssueAlertSchedulerLog {
-    @LogEvent("authorization-request-failed", level: .error)
+    @LogEvent("authorization-request-failed", level: .error, version: 2)
     struct AuthorizationRequestFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
 
         var message: String {
-            "Notification authorization request failed: \(description)"
+            "Notification authorization request failed: \(error.description)"
         }
     }
 
@@ -37,13 +37,13 @@ enum DataIssueAlertSchedulerLog {
         }
     }
 
-    @LogEvent("schedule-failed", level: .error)
+    @LogEvent("schedule-failed", level: .error, version: 2)
     struct ScheduleFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
 
         var message: String {
-            "Failed to schedule issue alert: \(description)"
+            "Failed to schedule issue alert: \(error.description)"
         }
     }
 }

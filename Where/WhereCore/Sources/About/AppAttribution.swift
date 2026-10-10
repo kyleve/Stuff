@@ -46,8 +46,7 @@ public enum AppAttribution {
             return nil
         } catch {
             logger.decodeFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "decode-error")],
+                error: .restricted(.errorDetails, error),
             )
             assertionFailure("Failed to decode the bundled attribution report: \(error)")
             return nil

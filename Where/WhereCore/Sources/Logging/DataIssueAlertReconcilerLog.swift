@@ -4,12 +4,12 @@ import PeriscopeCore
 enum DataIssueAlertReconcilerLog {
     enum SpanName: Hashable { case reconcile }
 
-    @LogEvent("reconcile-failed", level: .error)
+    @LogEvent("reconcile-failed", level: .error, version: 2)
     struct ReconcileFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Failed to reconcile issue alerts: \(description)"
+            "Failed to reconcile issue alerts: \(error.description)"
         }
     }
 }

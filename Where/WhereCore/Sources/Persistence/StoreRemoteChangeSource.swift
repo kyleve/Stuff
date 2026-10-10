@@ -107,8 +107,7 @@ final class HistoryObserverRemoteChangeSource: StoreRemoteChangeSource {
                     // duplicate rebuild. Log the classification failure so the
                     // degraded behavior is observable.
                     Self.logger.remoteChangeClassificationFailed(
-                        description: .restricted(.errorDetails, error.localizedDescription),
-                        attachments: [.error(error, name: "history-error")],
+                        error: .restricted(.errorDetails, error),
                     )
                     continuation.yield()
                 }
