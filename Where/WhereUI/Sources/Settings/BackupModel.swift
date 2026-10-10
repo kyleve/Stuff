@@ -83,7 +83,7 @@ public final class BackupModel {
             continuation.finish()
             presentBackupError(error)
             Self.logger.exportFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
+                error: .restricted(.errorDetails, error),
             )
             return nil
         }

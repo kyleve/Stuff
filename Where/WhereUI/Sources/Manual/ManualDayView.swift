@@ -267,8 +267,7 @@ struct ManualDayView: View {
             activeRegions.applyGrouping(tracked: tracked, usedThisYear: usedThisYear)
         } catch {
             Self.logger.regionGroupingLoadFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "grouping-error")],
+                error: .restricted(.errorDetails, error),
             )
         }
     }

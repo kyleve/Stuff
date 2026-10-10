@@ -101,11 +101,11 @@ public actor WidgetSnapshotPublisher {
                 await widgetRefresher.publish(snapshot)
                 lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: date)
                 Self.logger.buildFailed(
-                    description: .restricted(.errorDetails, error.localizedDescription),
+                    error: .restricted(.errorDetails, error),
                 )
             } catch {
                 Self.logger.buildFailed(
-                    description: .restricted(.errorDetails, error.localizedDescription),
+                    error: .restricted(.errorDetails, error),
                 )
             }
         }

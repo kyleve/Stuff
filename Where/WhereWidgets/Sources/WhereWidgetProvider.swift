@@ -69,8 +69,7 @@ struct WhereWidgetProvider: TimelineProvider {
             Self.logger.noPublishedSnapshot()
         } catch {
             Self.logger.appGroupUnavailable(
-                description: .restricted(.errorDetails, String(describing: error)),
-                attachments: [.error(error, name: "app-group-error")],
+                error: .restricted(.errorDetails, error),
             )
         }
         return WhereWidgetEntry(

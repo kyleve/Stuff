@@ -438,7 +438,7 @@ public final class YearReportModel {
         } catch {
             Self.logger.evidenceDayKeysLoadFailed(
                 year: .restricted(.domainValue, requestedYear),
-                description: .restricted(.errorDetails, error.localizedDescription),
+                error: .restricted(.errorDetails, error),
             )
         }
     }
@@ -476,9 +476,9 @@ public final class YearReportModel {
         } catch {
             guard requestedYear == selectedYear, scanRequestID == requestID else { return }
             dataIssueScanError = error.localizedDescription
-            Self.logger.dataIssueScanFailed(description: .restricted(
+            Self.logger.dataIssueScanFailed(error: .restricted(
                 .errorDetails,
-                error.localizedDescription,
+                error,
             ))
         }
     }
@@ -492,9 +492,9 @@ public final class YearReportModel {
         } catch is CancellationError {
             return
         } catch {
-            Self.logger.dataIssueScanFailed(description: .restricted(
+            Self.logger.dataIssueScanFailed(error: .restricted(
                 .errorDetails,
-                error.localizedDescription,
+                error,
             ))
         }
     }
@@ -518,9 +518,9 @@ public final class YearReportModel {
             } catch is CancellationError {
                 return
             } catch {
-                Self.logger.dataIssueScanFailed(description: .restricted(
+                Self.logger.dataIssueScanFailed(error: .restricted(
                     .errorDetails,
-                    error.localizedDescription,
+                    error,
                 ))
                 return
             }
@@ -562,7 +562,7 @@ public final class YearReportModel {
             loadState = .failed(.reportUnavailable(message: error.localizedDescription))
             Self.logger.reportLoadFailed(
                 year: .restricted(.domainValue, requestedYear),
-                description: .restricted(.errorDetails, error.localizedDescription),
+                error: .restricted(.errorDetails, error),
             )
         }
     }
@@ -646,7 +646,7 @@ public final class YearReportModel {
             loadState = .failed(.clearFailed(message: error.localizedDescription))
             Self.logger.clearYearFailed(
                 year: .restricted(.domainValue, selectedYear),
-                description: .restricted(.errorDetails, error.localizedDescription),
+                error: .restricted(.errorDetails, error),
             )
         }
     }
@@ -669,7 +669,7 @@ public final class YearReportModel {
             Self.logger.locationsLoadFailed(
                 region: .restricted(.location, region.rawValue),
                 year: .restricted(.domainValue, selectedYear),
-                description: .restricted(.errorDetails, error.localizedDescription),
+                error: .restricted(.errorDetails, error),
             )
             return []
         }
@@ -685,8 +685,7 @@ public final class YearReportModel {
             Self.logger.dayLocationsLoadFailed(
                 day: .restricted(.dateTime, day.description),
                 year: .restricted(.domainValue, selectedYear),
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "day-locations-error")],
+                error: .restricted(.errorDetails, error),
             )
             return [:]
         }
@@ -701,7 +700,7 @@ public final class YearReportModel {
         } catch {
             Self.logger.representativeCoordinatesLoadFailed(
                 year: .restricted(.domainValue, selectedYear),
-                description: .restricted(.errorDetails, error.localizedDescription),
+                error: .restricted(.errorDetails, error),
             )
             return [:]
         }

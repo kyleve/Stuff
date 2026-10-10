@@ -326,8 +326,7 @@ public final class WhereSession {
             regionStyles = RegionStyleResolver(primaryRegions: primary)
         } catch {
             Self.logger.regionStylesLoadFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "region-styles-error")],
+                error: .restricted(.errorDetails, error),
             )
         }
     }
@@ -389,8 +388,7 @@ public final class WhereSession {
             didRegisterRecordingDevice = false
             await synchronizeRecordingRuntimeState()
             Self.logger.recordingReconcileFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "recording-reconcile-error")],
+                error: .restricted(.errorDetails, error),
             )
         }
     }
@@ -459,8 +457,7 @@ public final class WhereSession {
             try await setRecordingEnabled(true)
         } catch {
             Self.logger.recordingReconcileFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "recording-enable-error")],
+                error: .restricted(.errorDetails, error),
             )
         }
     }
@@ -470,8 +467,7 @@ public final class WhereSession {
             try await setRecordingEnabled(false)
         } catch {
             Self.logger.recordingReconcileFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "recording-disable-error")],
+                error: .restricted(.errorDetails, error),
             )
         }
     }

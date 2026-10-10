@@ -689,11 +689,11 @@ public final class FileInstallationRecordingContextStore:
             try fileManager.removeItem(at: directoryURL)
         } catch {
             logger.installationContextSecurityCleanupFailed(
-                exclusionDescription: .restricted(
+                exclusionError: .restricted(
                     .errorDetails,
-                    exclusionError.localizedDescription,
+                    exclusionError,
                 ),
-                cleanupDescription: .restricted(.errorDetails, error.localizedDescription),
+                cleanupError: .restricted(.errorDetails, error),
             )
             throw SecurityCleanupError()
         }

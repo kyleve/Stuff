@@ -17,26 +17,26 @@ enum ShareExtensionLog {
         }
     }
 
-    @LogEvent("attachment-load-failed", level: .warning)
+    @LogEvent("attachment-load-failed", level: .warning, version: 2)
     struct AttachmentLoadFailed {
         @LogField(exposure: .restricted, kind: .identifier)
         var typeIdentifier: String
 
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var reason: String?
+        var error: LogError?
 
         var message: String {
-            "Failed to load shared \(typeIdentifier): \(reason ?? "provider returned nothing")"
+            "Failed to load shared \(typeIdentifier): \(error?.description ?? "provider returned nothing")"
         }
     }
 
-    @LogEvent("url-unreadable", level: .warning)
+    @LogEvent("url-unreadable", level: .warning, version: 2)
     struct URLUnreadable {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var reason: String?
+        var error: LogError?
 
         var message: String {
-            "Shared URL provider yielded no readable URL: \(reason ?? "provider returned nothing")"
+            "Shared URL provider yielded no readable URL: \(error?.description ?? "provider returned nothing")"
         }
     }
 
@@ -50,13 +50,13 @@ enum ShareExtensionLog {
         }
     }
 
-    @LogEvent("save-failed", level: .error)
+    @LogEvent("save-failed", level: .error, version: 2)
     struct SaveFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
 
         var message: String {
-            "Failed to save shared evidence: \(description)"
+            "Failed to save shared evidence: \(error.description)"
         }
     }
 }

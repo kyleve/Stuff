@@ -43,21 +43,21 @@ enum WhereIntentsLog {
         }
     }
 
-    @LogEvent("spotlight-index-failed", level: .warning)
+    @LogEvent("spotlight-index-failed", level: .warning, version: 2)
     struct SpotlightIndexFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Failed to index regions for Spotlight: \(description)"
+            "Failed to index regions for Spotlight: \(error.description)"
         }
     }
 
-    @LogEvent("widget-snapshot-read-failed", level: .warning)
+    @LogEvent("widget-snapshot-read-failed", level: .warning, version: 2)
     struct WidgetSnapshotReadFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Failed to read the widget snapshot: \(description)"
+            "Failed to read the widget snapshot: \(error.description)"
         }
     }
 }

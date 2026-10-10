@@ -73,7 +73,7 @@ public final class LoggedDaysModel {
             loadState = .failed(error.localizedDescription)
             Self.logger.loadFailed(
                 year: .restricted(.domainValue, year),
-                description: .restricted(.errorDetails, error.localizedDescription),
+                error: .restricted(.errorDetails, error),
             )
         }
     }

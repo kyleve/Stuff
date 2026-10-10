@@ -120,7 +120,7 @@ public struct RegionMapView: View {
             // showing an empty map.
             RegionLog.geometryCatalog.loadFailed(
                 kind: .restricted(.technicalState, kind.rawValue),
-                description: .restricted(.errorDetails, String(describing: error)),
+                error: .restricted(.errorDetails, error),
             )
             outlines = .failure(error)
         }

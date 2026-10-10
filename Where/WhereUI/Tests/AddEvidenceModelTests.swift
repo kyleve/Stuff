@@ -9,6 +9,16 @@ import Testing
 /// save persists something the evidence reader can read back.
 @MainActor
 struct AddEvidenceModelTests {
+    @Test func attachmentFailureAcceptsTheOriginalError() throws {
+        let model = try AddEvidenceModel(services: makeServices())
+        let error = NSError(domain: "Attachment", code: 7, userInfo: [
+            NSLocalizedDescriptionKey: "Cannot read attachment",
+        ])
+        model.reportAttachmentError(error)
+        #expect(model.attachmentError == error.localizedDescription)
+        #expect(model.isShowingAttachmentError)
+    }
+
     private func makeServices() throws -> WhereServices {
         try WhereServices(
             store: SwiftDataStore.inMemory(),

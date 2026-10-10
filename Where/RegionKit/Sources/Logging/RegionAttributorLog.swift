@@ -41,14 +41,14 @@ enum RegionAttributorLog {
         }
     }
 
-    @LogEvent("decode-failed", level: .fault)
+    @LogEvent("decode-failed", level: .fault, version: 2)
     struct DecodeFailed {
         @LogField(exposure: .restricted, kind: .location)
         var region: Region
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Failed to decode bundled GeoJSON for region \(region.rawValue): \(description)"
+            "Failed to decode bundled GeoJSON for region \(region.rawValue): \(error.description)"
         }
 
         var externalID: String? {

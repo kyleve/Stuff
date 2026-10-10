@@ -133,7 +133,7 @@ struct CalendarContentView: View {
         }
         .onAppear {
             Self.logger.layoutFailed(
-                description: .restricted(.errorDetails, String(describing: error)),
+                error: .restricted(.errorDetails, error),
             )
         }
     }

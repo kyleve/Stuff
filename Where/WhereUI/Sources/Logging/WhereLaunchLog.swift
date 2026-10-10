@@ -28,24 +28,24 @@ enum WhereLaunchLog {
     @LogEvent("services-assembled", message: "WhereServices assembled")
     struct ServicesAssembled {}
 
-    @LogEvent("services-assembly-failed", level: .error)
+    @LogEvent("services-assembly-failed", level: .error, version: 2)
     struct ServicesAssemblyFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Failed to assemble WhereServices: \(description)"
+            "Failed to assemble WhereServices: \(error.description)"
         }
     }
 
     @LogEvent("logging-store-ready", message: "Log store ready")
     struct LoggingStoreReady {}
 
-    @LogEvent("logging-store-unavailable", level: .error)
+    @LogEvent("logging-store-unavailable", level: .error, version: 2)
     struct LoggingStoreUnavailable {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Log store unavailable: \(description)"
+            "Log store unavailable: \(error.description)"
         }
     }
 
@@ -61,22 +61,22 @@ enum WhereLaunchLog {
         }
     }
 
-    @LogEvent("history-prune-failed", level: .warning)
+    @LogEvent("history-prune-failed", level: .warning, version: 2)
     struct HistoryPruneFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Failed to prune log history: \(description)"
+            "Failed to prune log history: \(error.description)"
         }
     }
 
-    @LogEvent("detached-step-failed", level: .warning)
+    @LogEvent("detached-step-failed", level: .warning, version: 2)
     struct DetachedStepFailed {
         @LogField(exposure: .restricted, kind: .identifier) var stepID: String
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Detached launch step '\(stepID)' failed: \(description)"
+            "Detached launch step '\(stepID)' failed: \(error.description)"
         }
     }
 }

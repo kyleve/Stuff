@@ -70,8 +70,7 @@ public actor DailySummaryReconciler {
                 )
             } catch {
                 Self.logger.reconcileFailed(
-                    description: .restricted(.errorDetails, error.localizedDescription),
-                    attachments: [.error(error, name: "reconcile-error")],
+                    error: .restricted(.errorDetails, error),
                 )
             }
         }

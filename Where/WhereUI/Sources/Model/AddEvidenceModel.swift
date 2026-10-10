@@ -29,6 +29,16 @@ public struct PickedAttachment: Equatable, Sendable {
 @MainActor
 @Observable
 public final class AddEvidenceModel {
+    public enum AttachmentFailure: LocalizedError {
+        case unavailablePhotoData
+
+        public var errorDescription: String? {
+            switch self {
+                case .unavailablePhotoData: String(localized: .evidenceDetailPreviewFailed)
+            }
+        }
+    }
+
     /// Where a save is in its lifecycle. Success isn't a case — the view
     /// dismisses on the `true` return from `save()`.
     public enum SaveState: Equatable {
@@ -91,10 +101,10 @@ public final class AddEvidenceModel {
         attachment = nil
     }
 
-    public func reportAttachmentError(_ message: String) {
-        attachmentError = message
+    public func reportAttachmentError(_ error: any Error) {
+        attachmentError = error.localizedDescription
         Self.logger.attachmentPickFailed(
-            description: .restricted(.errorDetails, message),
+            error: .restricted(.errorDetails, error),
         )
     }
 
@@ -114,7 +124,7 @@ public final class AddEvidenceModel {
         } catch {
             saveState = .failed(error.localizedDescription)
             Self.logger.saveFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
+                error: .restricted(.errorDetails, error),
             )
             return false
         }

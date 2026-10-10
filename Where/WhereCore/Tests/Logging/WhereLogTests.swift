@@ -156,7 +156,10 @@ struct WhereLogEventTests {
         #expect(LoggingReminderSchedulerLog.AuthorizationNotGranted().level == .warning)
         #expect(
             LoggingReminderSchedulerLog.AuthorizationRequestFailed(
-                description: .restricted(.errorDetails, "x"),
+                error: .restricted(
+                    .errorDetails,
+                    NSError(domain: "Test", code: 1, userInfo: [NSLocalizedDescriptionKey: "x"]),
+                ),
             )
             .level == .error,
         )

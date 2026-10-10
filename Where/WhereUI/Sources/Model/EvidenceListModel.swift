@@ -51,7 +51,7 @@ public final class EvidenceListModel {
             loadState = .failed(error.localizedDescription)
             Self.logger.loadFailed(
                 year: .restricted(.domainValue, year),
-                description: .restricted(.errorDetails, error.localizedDescription),
+                error: .restricted(.errorDetails, error),
             )
         }
     }

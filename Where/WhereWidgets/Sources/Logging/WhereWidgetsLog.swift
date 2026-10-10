@@ -9,12 +9,12 @@ enum WhereWidgetsLog {
     )
     struct NoPublishedSnapshot {}
 
-    @LogEvent("app-group-unavailable", level: .error)
+    @LogEvent("app-group-unavailable", level: .error, version: 2)
     struct AppGroupUnavailable {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Widget App Group unavailable: \(description)"
+            "Widget App Group unavailable: \(error.description)"
         }
     }
 }

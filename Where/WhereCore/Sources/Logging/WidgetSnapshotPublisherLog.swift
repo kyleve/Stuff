@@ -24,13 +24,13 @@ enum WidgetSnapshotPublisherLog {
         }
     }
 
-    @LogEvent("build-failed", level: .error)
+    @LogEvent("build-failed", level: .error, version: 2)
     struct BuildFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
 
         var message: String {
-            "Failed to build widget snapshot: \(description)"
+            "Failed to build widget snapshot: \(error.description)"
         }
     }
 }

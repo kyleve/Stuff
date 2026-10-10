@@ -44,8 +44,7 @@ public struct WidgetPresentationStore: Sendable {
             return try JSONDecoder().decode(WhereTheme.self, from: data)
         } catch {
             Self.logger.unreadablePresentation(
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "decode-error")],
+                error: .restricted(.errorDetails, error),
             )
             return .standard
         }

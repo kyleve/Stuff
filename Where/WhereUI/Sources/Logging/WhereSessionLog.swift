@@ -40,12 +40,12 @@ enum WhereSessionLog {
     @LogEvent("stopped-background-tracking", message: "Stopped background tracking")
     struct StoppedBackgroundTracking {}
 
-    @LogEvent("recording-reconcile-failed", level: .warning)
+    @LogEvent("recording-reconcile-failed", level: .warning, version: 2)
     struct RecordingReconcileFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Failed to reconcile device recording policy: \(description)"
+            "Failed to reconcile device recording policy: \(error.description)"
         }
     }
 
@@ -70,12 +70,12 @@ enum WhereSessionLog {
     )
     struct IssueAlertsUnauthorized {}
 
-    @LogEvent("region-styles-load-failed", level: .warning)
+    @LogEvent("region-styles-load-failed", level: .warning, version: 2)
     struct RegionStylesLoadFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
         var message: String {
-            "Failed to load region appearances for styling: \(description)"
+            "Failed to load region appearances for styling: \(error.description)"
         }
     }
 

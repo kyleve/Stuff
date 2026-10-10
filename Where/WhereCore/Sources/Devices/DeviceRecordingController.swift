@@ -304,8 +304,7 @@ public actor DeviceRecordingController {
             await ingestor.revokeRecordingAuthorization()
             publishRuntimeState(.unavailable)
             Self.logger.importRecoveryFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "import-recovery-error")],
+                error: .restricted(.errorDetails, error),
             )
         }
         endExclusive()
@@ -363,8 +362,7 @@ public actor DeviceRecordingController {
             await ingestor.revokeRecordingAuthorization()
             publishRuntimeState(.unavailable)
             Self.logger.rollbackRecoveryFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "rollback-recovery-error")],
+                error: .restricted(.errorDetails, error),
             )
         }
     }
@@ -574,8 +572,7 @@ public actor DeviceRecordingController {
             await ingestor.revokeRecordingAuthorization()
             publishRuntimeState(.unavailable)
             Self.logger.policyObservationFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "policy-observation-error")],
+                error: .restricted(.errorDetails, error),
             )
         }
         endExclusive()

@@ -1,3 +1,4 @@
+import Foundation
 import PeriscopeCore
 @testable import RegionKit
 import Testing
@@ -26,7 +27,10 @@ struct RegionLogTests {
     @Test func catalogEventsRenderAndLevel() {
         #expect(RegionCatalogLog.MissingManifest().level == .fault)
         #expect(RegionCatalogLog.DecodeFailed(
-            description: .restricted(.errorDetails, "boom"),
+            error: .restricted(
+                .errorDetails,
+                NSError(domain: "Test", code: 1, userInfo: [NSLocalizedDescriptionKey: "boom"]),
+            ),
         ).level == .fault)
         #expect(RegionCatalogLog.Loaded(regionCount: .shared(.count, 4)).level == .info)
         #expect(RegionCatalogLog.Loaded(
@@ -50,7 +54,10 @@ struct RegionLogTests {
         #expect(
             RegionAttributorLog.DecodeFailed(
                 region: .restricted(.location, .newYork),
-                description: .restricted(.errorDetails, "x"),
+                error: .restricted(
+                    .errorDetails,
+                    NSError(domain: "Test", code: 1, userInfo: [NSLocalizedDescriptionKey: "x"]),
+                ),
             )
             .externalID == Region.newYork.regionURL.absoluteString,
         )
@@ -69,7 +76,10 @@ struct RegionLogTests {
         #expect(
             RegionAttributorLog.DecodeFailed(
                 region: .restricted(.location, .california),
-                description: .restricted(.errorDetails, "x"),
+                error: .restricted(
+                    .errorDetails,
+                    NSError(domain: "Test", code: 1, userInfo: [NSLocalizedDescriptionKey: "x"]),
+                ),
             ).level == .fault,
         )
         #expect(RegionAttributorLog.Loaded(
@@ -82,7 +92,10 @@ struct RegionLogTests {
     @Test func geometryCatalogFailureIsWarning() {
         let event = RegionGeometryCatalogLog.LoadFailed(
             kind: .restricted(.technicalState, "source"),
-            description: .restricted(.errorDetails, "nope"),
+            error: .restricted(
+                .errorDetails,
+                NSError(domain: "Test", code: 1, userInfo: [NSLocalizedDescriptionKey: "nope"]),
+            ),
         )
         #expect(event.level == .warning)
         #expect(event.message.contains("source"))

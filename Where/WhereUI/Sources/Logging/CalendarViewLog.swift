@@ -13,13 +13,13 @@ enum CalendarViewLog {
         }
     }
 
-    @LogEvent("layout-failed", level: .warning)
+    @LogEvent("layout-failed", level: .warning, version: 2)
     struct LayoutFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
 
         var message: String {
-            "Calendar layout failed: \(description)"
+            "Calendar layout failed: \(error.description)"
         }
     }
 }

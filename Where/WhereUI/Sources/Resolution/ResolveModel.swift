@@ -94,7 +94,7 @@ public final class ResolveModel {
         } catch {
             Self.logger.dismissFailed(
                 issueID: .restricted(.identifier, issue.id.storeURL.absoluteString),
-                description: .restricted(.errorDetails, error.localizedDescription),
+                error: .restricted(.errorDetails, error),
             )
         }
     }

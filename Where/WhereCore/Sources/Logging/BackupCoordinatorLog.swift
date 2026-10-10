@@ -11,13 +11,13 @@ enum BackupCoordinatorLog {
         case importWrite
     }
 
-    @LogEvent("remove-previous-export-failed", level: .warning)
+    @LogEvent("remove-previous-export-failed", level: .warning, version: 2)
     struct RemovePreviousExportFailed {
         @LogField(exposure: .restricted, kind: .errorDetails)
-        var description: String
+        var error: LogError
 
         var message: String {
-            "Failed to remove previous backup export directory: \(description)"
+            "Failed to remove previous backup export directory: \(error.description)"
         }
     }
 }

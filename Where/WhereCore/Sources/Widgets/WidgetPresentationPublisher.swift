@@ -38,8 +38,7 @@ public actor WidgetPresentationPublisher {
             )
         } catch {
             Self.logger.publishFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "publish-error")],
+                error: .restricted(.errorDetails, error),
             )
         }
     }

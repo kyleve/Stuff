@@ -39,9 +39,9 @@ final class ScannerResolutionSource: ResolutionSource {
                 case let .failed(_, previous): previous
             }
             resolutionState = .failed(error.localizedDescription, previous: previous)
-            Self.logger.dataIssueScanFailed(description: .restricted(
+            Self.logger.dataIssueScanFailed(error: .restricted(
                 .errorDetails,
-                error.localizedDescription,
+                error,
             ))
         }
     }

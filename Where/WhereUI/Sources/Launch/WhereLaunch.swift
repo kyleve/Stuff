@@ -327,8 +327,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
             return services
         } catch {
             Self.logger.servicesAssemblyFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "assemble-error")],
+                error: .restricted(.errorDetails, error),
             )
             throw error
         }
