@@ -85,6 +85,38 @@ func plainInteger(from expression: ExprSyntax) -> Int? {
     return Int(literal.literal.text)
 }
 
+/// Resolves an explicit literal or an ASCII property name. Invalid explicit keys never fall back.
+func fieldKey(in arguments: LabeledExprListSyntax, propertyName: String) -> String? {
+    if let explicit = arguments.first(where: { $0.label == nil }) {
+        guard let key = plainString(from: explicit.expression), !key.isEmpty else { return nil }
+        return key
+    }
+    let bytes = Array(propertyName.filter { $0 != "`" }.utf8)
+    let uppercase: ClosedRange<UInt8> = 65 ... 90
+    let lowercase: ClosedRange<UInt8> = 97 ... 122
+    let digits: ClosedRange<UInt8> = 48 ... 57
+    guard !bytes.isEmpty, bytes.allSatisfy({
+        uppercase.contains($0) || lowercase.contains($0) || digits.contains($0) || $0 == 95
+    }) else { return nil }
+    var result: [UInt8] = []
+    for (index, byte) in bytes.enumerated() {
+        if uppercase.contains(byte) {
+            if index > 0 {
+                let previous = bytes[index - 1]
+                let followsLowercaseOrDigit = lowercase.contains(previous) || digits
+                    .contains(previous)
+                let endsAcronym = uppercase.contains(previous)
+                    && index + 1 < bytes.count && lowercase.contains(bytes[index + 1])
+                if followsLowercaseOrDigit || endsAcronym { result.append(95) }
+            }
+            result.append(byte + 32)
+        } else {
+            result.append(byte)
+        }
+    }
+    return String(decoding: result, as: UTF8.self)
+}
+
 func memberName(from expression: ExprSyntax) -> String? {
     expression.as(MemberAccessExprSyntax.self)?.declName.baseName.text
 }

@@ -4,6 +4,37 @@ import SwiftSyntax
 import Testing
 
 struct SyntaxSupportTests {
+    @Test(arguments: [
+        "sampleCount": "sample_count",
+        "sampleID": "sample_id",
+        "URLLoadFailed": "url_load_failed",
+        "http2Status": "http2_status",
+        "URL": "url",
+        "aB": "a_b",
+        "already_snake": "already_snake",
+        "_sample__ID_": "_sample__id_",
+        "`default`": "default",
+    ])
+    func infersASCIIKeys(property: String, expected: String) {
+        let arguments = LabeledExprListSyntax([])
+        #expect(fieldKey(in: arguments, propertyName: property) == expected)
+    }
+
+    @Test(arguments: ["café", "🚀", ""])
+    func nonASCIIOrEmptyNamesRequireExplicitKeys(property: String) {
+        #expect(fieldKey(in: LabeledExprListSyntax([]), propertyName: property) == nil)
+    }
+
+    @Test func explicitKeyOverridesAnyPropertyName() throws {
+        let call =
+            try #require(
+                expression(from: #"LogField("stable_key", exposure: .shareable, kind: .count)"#)
+                    .as(FunctionCallExprSyntax.self),
+            )
+        #expect(fieldKey(in: call.arguments, propertyName: "renamedCount") == "stable_key")
+        #expect(fieldKey(in: call.arguments, propertyName: "café") == "stable_key")
+    }
+
     @Test(arguments: EventFieldKind.allCases)
     func semanticKindsHaveExplicitPolicies(kind: EventFieldKind) {
         #expect(kind.policyType.isEmpty == false)

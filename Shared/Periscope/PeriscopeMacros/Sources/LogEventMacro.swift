@@ -243,7 +243,7 @@ extension LogEventMacro {
                 // participate in the persisted payload or classification.
                 continue
             }
-            if storedMetadataNames.contains(name) {
+            if storedMetadataNames.contains(name.filter { $0 != "`" }) {
                 context.diagnose(
                     variable,
                     id: "event-reserved",
@@ -265,8 +265,6 @@ extension LogEventMacro {
             }
             guard let fieldAttribute = attribute(named: "LogField", in: variable.attributes),
                   let arguments = argumentList(of: fieldAttribute),
-                  let keyExpression = arguments.first(where: { $0.label == nil })?.expression,
-                  let key = plainString(from: keyExpression), !key.isEmpty,
                   let exposureExpression = arguments.first(where: { $0.label?.text == "exposure" })?
                   .expression,
                   let exposure = memberName(from: exposureExpression),
@@ -283,6 +281,15 @@ extension LogEventMacro {
                 result.hasError = true
                 continue
             }
+            guard let key = fieldKey(in: arguments, propertyName: name) else {
+                context.diagnose(
+                    fieldAttribute,
+                    id: "event-field-key",
+                    message: "use a nonempty string-literal field key or omit it for an ASCII property name",
+                )
+                result.hasError = true
+                continue
+            }
             if !keys.insert(key).inserted {
                 context.diagnose(
                     fieldAttribute,
@@ -291,7 +298,7 @@ extension LogEventMacro {
                 )
                 result.hasError = true
             }
-            if reservedLabels.contains(name) {
+            if reservedLabels.contains(name.filter { $0 != "`" }) {
                 context.diagnose(
                     variable,
                     id: "reserved-label",
@@ -395,7 +402,7 @@ extension LogEventMacro {
         let parameters = fields.map { "        \($0.name): \($0.parameterType)" }
             .joined(separator: ",\n")
         let assignments = fields.map {
-            "        self._\($0.name) = LogField(wrappedValue: \($0.name).value, \"\(escapedStringLiteral($0.key))\", exposure: .\($0.exposure), kind: .\($0.kind))"
+            "        self._\($0.name.filter { $0 != "`" }) = LogField(wrappedValue: \($0.name).value, \"\(escapedStringLiteral($0.key))\", exposure: .\($0.exposure), kind: .\($0.kind))"
         }.joined(separator: "\n")
         if fields.isEmpty {
             return "\(access)init() {}"

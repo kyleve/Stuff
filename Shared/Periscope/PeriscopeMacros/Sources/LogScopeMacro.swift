@@ -201,8 +201,7 @@ extension LogScopeMacro {
                   let name = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text,
                   let type = binding.typeAnnotation?.type.trimmedDescription,
                   let arguments = argumentList(of: fieldAttribute),
-                  let keyExpression = arguments.first?.expression,
-                  let key = plainString(from: keyExpression),
+                  let key = fieldKey(in: arguments, propertyName: name),
                   let exposureExpression = arguments.first(where: { $0.label?.text == "exposure" })?
                   .expression,
                   let exposure = memberName(from: exposureExpression),

@@ -36,6 +36,11 @@ inspect mode live in [`PeriscopeTools`](../PeriscopeTools).
 
 ## Quick start
 
+The classified API supports `@LogField(exposure: .shareable, kind: .count)` without an explicit key.
+The macro converts the property name to an ASCII snake-case key.
+Exposure and kind remain mandatory.
+See the [macro authoring guide](../PeriscopeMacros/README.md) for key inference and rename rules.
+
 Define events, derive loggers, log:
 
 ```swift

@@ -17,6 +17,15 @@ public struct LogField<Value: Codable & Sendable>: Codable, Sendable {
         }
     }
 
+    /// Declares a field whose key is resolved by `@LogEvent` from the property name.
+    public init(
+        exposure _: LogFieldExposure,
+        kind _: LogFieldKind,
+    ) {
+        storage = nil
+        isInitialized = false
+    }
+
     public init(
         _: StaticString,
         exposure _: LogFieldExposure,

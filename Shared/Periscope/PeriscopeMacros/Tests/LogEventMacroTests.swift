@@ -8,15 +8,92 @@ private let macros: [String: any Macro.Type] = [
     "LogScope": LogScopeMacro.self,
 ]
 
-@Test
-func expandsClassifiedEventAndLogMethod() {
+@Test(arguments: ["", "\"sample_count\", "])
+func rejectsResolvedFieldKeyCollisions(key: String) {
+    assertMacroExpansion(
+        """
+        @LogScope("Sample")
+        enum SampleLog {
+            @LogEvent("event", message: "Event")
+            struct Event {
+                @LogField(exposure: .shareable, kind: .count)
+                var sampleCount: Int
+                @LogField(\(key)exposure: .shareable, kind: .count)
+                var sample_count: Int
+            }
+        }
+        """,
+        expandedSource: """
+        @LogScope("Sample")
+        enum SampleLog {
+            struct Event {
+                @LogField(exposure: .shareable, kind: .count)
+                var sampleCount: Int
+                @LogField(\(key)exposure: .shareable, kind: .count)
+                var sample_count: Int
+            }
+        }
+
+        extension SampleLog.Event: LogEvent {
+        }
+        """,
+        diagnostics: [DiagnosticSpec(
+            message: "event field key 'sample_count' is duplicated",
+            line: 7,
+            column: 9,
+        )],
+        macros: ["LogEvent": LogEventMacro.self],
+    )
+}
+
+@Test(arguments: [
+    "\"\", ": "sampleCount",
+    "key, ": "sampleCount",
+    "\"\\(key)\", ": "sampleCount",
+    "": "café",
+])
+func rejectsInvalidFieldKeys(key: String, property: String) {
+    assertMacroExpansion(
+        """
+        @LogScope("Sample")
+        enum SampleLog {
+            @LogEvent("event", message: "Event")
+            struct Event {
+                @LogField(\(key)exposure: .shareable, kind: .count)
+                var \(property): Int
+            }
+        }
+        """,
+        expandedSource: """
+        @LogScope("Sample")
+        enum SampleLog {
+            struct Event {
+                @LogField(\(key)exposure: .shareable, kind: .count)
+                var \(property): Int
+            }
+        }
+
+        extension SampleLog.Event: LogEvent {
+        }
+        """,
+        diagnostics: [DiagnosticSpec(
+            message: "use a nonempty string-literal field key or omit it for an ASCII property name",
+            line: 5,
+            column: 9,
+        )],
+        macros: ["LogEvent": LogEventMacro.self],
+    )
+}
+
+@Test(arguments: ["\"count\", ", ""])
+func expandsClassifiedEventAndLogMethod(key: String) {
     assertMacroExpansion(
         """
         @LogScope("Sample")
         enum SampleLog {
             @LogEvent("counted", level: .notice, message: "Counted")
             struct Counted {
-                @LogField("count", exposure: .shareable, kind: .count)
+                @LogField(\(key)exposure: .shareable, kind: .count)
                 var count: Int
             }
         }
@@ -24,7 +101,7 @@ func expandsClassifiedEventAndLogMethod() {
         expandedSource: """
         enum SampleLog {
             struct Counted {
-                @LogField("count", exposure: .shareable, kind: .count)
+                @LogField(\(key)exposure: .shareable, kind: .count)
                 var count: Int
 
                 static let eventName = SampleLog.scopeName + ".counted"

@@ -13,8 +13,10 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) and the Periscope [`AGENTS.md`](
 
 ## Invariants
 
-- Accept stable identifiers only as plain literals.
-- Generate wire names from explicit identifiers, never Swift type names.
+- Require explicit string literals for scope and event IDs.
+- Resolve field keys through the shared parser. Infer ASCII snake case only when the key is omitted.
+- Reject invalid explicit keys and duplicate resolved keys. Require explicit keys for non-ASCII property names.
+- Before renaming a property with an inferred key, preserve its previous key as an explicit literal.
 - Generate classified method parameters from each `@LogField` declaration.
 - Reject declarations that can create ambiguous generated code.
 - Keep reserved event method names aligned with the instance API of `Log` and its public extensions.

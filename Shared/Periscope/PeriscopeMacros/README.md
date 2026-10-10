@@ -23,7 +23,28 @@ The macro diagnoses these names at the event declaration.
 
 Repository code must use these macros. The runtime protocols keep safe defaults for external manual conformances, but repository sources and tests cannot conform directly.
 
-Stable IDs are wire data. A macro accepts only plain string literals for scope, event, and field IDs. An incompatible event payload needs a positive new version.
+Scope and event IDs are explicit string literals. Field keys can be explicit string literals or inferred from property names.
+An incompatible event payload needs a positive new version.
+
+```swift
+@LogField(exposure: .shareable, kind: .count)
+var sampleCount: Int // sample_count
+
+@LogField("sample_count", exposure: .shareable, kind: .count)
+var numberOfSamples: Int // preserves the key after a rename
+```
+
+Inference converts ASCII names to snake case at compile time.
+It converts `sampleID` to `sample_id`, `URLLoadFailed` to `url_load_failed`, and `http2Status` to `http2_status`.
+Existing underscores remain unchanged. Identifier backticks do not enter the key.
+Non-ASCII property names require an explicit key.
+An empty or nonliteral explicit key produces a diagnostic, not an inferred key.
+Duplicate resolved keys produce a diagnostic, including collisions between explicit and inferred keys.
+
+Inferred keys change with property names. They are not inherently rename-safe.
+Before you rename a property, add its previous key as an explicit literal.
+For an intentional incompatible key change, increase the event version.
+Existing explicit keys remain unchanged.
 
 Static messages and identifiers accept escaped, raw, and multiline string literals, but not interpolation.
 The generated values preserve the literal's decoded text.
