@@ -329,6 +329,18 @@ extension ClassifiedLogInput where Exposure == LogFieldPolicy.Restricted,
     }
 }
 
+extension ClassifiedLogInput where Exposure == LogFieldPolicy.Restricted,
+    Kind == LogFieldPolicy.ErrorDetails, Value == LogError?
+{
+    /// Capture an optional live error without inventing a snapshot when it is absent.
+    public static func restricted(
+        _: LogFieldKindToken<Kind>,
+        _ error: (some Error)?,
+    ) -> Self {
+        .init(value: error.map { LogError(capturing: $0) })
+    }
+}
+
 extension Duration {
     /// The provider-neutral millisecond representation used by classified fields.
     public var periscopeMilliseconds: Double {

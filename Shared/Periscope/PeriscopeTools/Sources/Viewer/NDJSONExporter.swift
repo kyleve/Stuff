@@ -52,27 +52,25 @@ public enum NDJSONExporter {
         return (sessionLines + eventLines).joined(separator: "\n")
     }
 
-    private static let contextRequirements = LogExportRequirements.diagnostic(
-        requiring: [.identifiers, .location, .userContent, .personalData],
-    )
-
     private static func filteredLine(
         for session: LogSession,
         policy: LogExportPolicy,
     ) throws -> String? {
-        guard policy.allows(.diagnostic(requiring: [.identifiers])) else { return nil }
+        guard policy.allows(LogContextExportRequirements.sessionID) else { return nil }
         var object: [String: JSONValue] = [
             "record": .string("session"),
             "session": .string(session.id.uuidString),
         ]
-        if policy.allows(.diagnostic(requiring: [.personalData])) {
+        if policy.allows(LogContextExportRequirements.sessionDetails) {
             object["startedAt"] = .string(session.startedAt.formatted(timestampFormat))
             object["appVersion"] = .string(session.appVersion)
             object["buildNumber"] = .string(session.buildNumber)
             object["osVersion"] = .string(session.osVersion)
             object["deviceModel"] = .string(session.deviceModel)
         }
-        if policy.allows(contextRequirements), !session.attributes.isEmpty {
+        if policy.allows(LogContextExportRequirements.sessionAttributes),
+           !session.attributes.isEmpty
+        {
             object["attributes"] = .object(Dictionary(uniqueKeysWithValues: session.attributes.map {
                 ($0.key.rawValue, .string($0.value))
             }))
@@ -99,24 +97,30 @@ public enum NDJSONExporter {
             object["function"] = .string(callSite.function)
             object["file"] = .string(callSite.fileID)
         }
-        if policy.allows(.diagnostic(requiring: [.personalData])) {
+        if policy.allows(LogContextExportRequirements.date) {
             object["date"] = .string(event.date.formatted(timestampFormat))
         }
-        if policy.allows(.diagnostic(requiring: [.identifiers])) {
+        if policy.allows(LogContextExportRequirements.sessionID) {
             object["session"] = .string(event.sessionID.uuidString)
-            if let span = event.spanID { object["span"] = .string(span.rawValue.uuidString) }
-            if let externalID = event.externalID { object["externalID"] = .string(externalID) }
         }
-        if policy.allows(contextRequirements) {
+        if policy.allows(LogContextExportRequirements.spanID), let span = event.spanID {
+            object["span"] = .string(span.rawValue.uuidString)
+        }
+        if policy.allows(LogContextExportRequirements.externalID),
+           let externalID = event.externalID
+        {
+            object["externalID"] = .string(externalID)
+        }
+        if policy.allows(LogContextExportRequirements.scopes) {
             let path = scopePath(for: event, scopes: scopes)
             if !path.isEmpty { object["scopePath"] = .string(path) }
-            if !event.tags.isEmpty {
-                let data = try JSONSerialization
-                    .data(withJSONObject: Dictionary(uniqueKeysWithValues: event.tags.map {
-                        ($0.key.rawValue, jsonValue(for: $0.value))
-                    }))
-                object["tags"] = try JSONDecoder().decode(JSONValue.self, from: data)
-            }
+        }
+        if policy.allows(LogContextExportRequirements.tags), !event.tags.isEmpty {
+            let data = try JSONSerialization
+                .data(withJSONObject: Dictionary(uniqueKeysWithValues: event.tags.map {
+                    ($0.key.rawValue, jsonValue(for: $0.value))
+                }))
+            object["tags"] = try JSONDecoder().decode(JSONValue.self, from: data)
         }
         // Rendered messages and folded ambient snapshots cannot retain nested field policies.
         // Neither is included in filtered exports, regardless of grants.

@@ -73,6 +73,7 @@ Toggle("Log View Mode", isOn: $inspector.isEnabled)
 `NDJSONExporter.export(events:scopes:sessions:ambient:mode:)` requires an explicit mode and can throw.
 The existing viewer passes `.unfiltered`. Its output remains complete, including data marked `.never`.
 Framework consumers can pass `.filtered(policy)` to apply persisted payload permissions.
+The exporter uses PeriscopeCore's `LogContextExportRequirements` for context permissions, independently of an app's UI control groups.
 Historical rows without permissions include only the event name, version, level, severity, and stable message.
 Invalid metadata or payloads abort filtered export instead of returning raw data.
 

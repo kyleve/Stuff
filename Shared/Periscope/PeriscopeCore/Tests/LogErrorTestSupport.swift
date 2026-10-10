@@ -3,6 +3,12 @@ import PeriscopeCore
 
 @LogScope("ErrorFixture")
 enum LogErrorTestLog {
+    @LogEvent("optional-failure", level: .error, message: "Optional failure")
+    struct OptionalFailure {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError?
+    }
+
     @LogEvent("failed", level: .error)
     struct Failed {
         @LogField(exposure: .restricted, kind: .errorDetails)

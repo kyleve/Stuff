@@ -139,6 +139,14 @@ policy.setEnabled(includePersonalData, for: personalControls)
 This operation preserves unrelated grants. New framework controls and consumer controls remain off until explicitly enabled.
 The host owns labels, explanations, and the group membership shown in its UI.
 
+`LogContextExportRequirements` defines shared permissions for identifiers, dates, session details, tags, scopes, session attributes, and attachment metadata.
+Export adapters use these requirements independently of an app's UI control groups. Each adapter retains its own format and field selection.
+These requirements do not permit attachment bytes, rendered messages, or folded ambient snapshots.
+The unfiltered file exporter intentionally bypasses these requirements.
+
+The `.restricted(.errorDetails, error)` factory accepts both `any Error` and `(any Error)?`.
+It captures `LogError` at the logging boundary and preserves an absent error as `nil`. Explicit snapshots remain unchanged.
+
 `LogExportRequirements` describes author-approved eligibility and required controls:
 
 ```swift

@@ -45,6 +45,7 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) first. That file owns the build 
 - **Capture `LogError` at the logging boundary and classify it as restricted/errorDetails.** Keep the original error in services and failure state. Do not copy arbitrary `NSError.userInfo` into payloads. Restricted payloads remain eligible for opt-in debug-full export.
 - **Use closed `CaseIterable` values for category fields.** Reject values outside `allCases`.
 - **Export controls are explicit grants, not a wildcard.** A combined UI switch names its controls and preserves unrelated grants.
+- **Use `LogContextExportRequirements` for context export permissions.** Keep these requirements independent of consumer UI control groups.
 - **Export requirements compose restrictively.** Require every control, retain parent restrictions, and never override `.never`.
 - **Use `exportedValue(using:)`, never raw event encoding, for diagnostic export.** Denied fields must not invoke encoders.
 - **Preserve nested export policies.** Use `LogExportable` for structured members. Do not hide policy-bearing values in opaque Codable containers or pre-encoded JSON.
