@@ -4,6 +4,17 @@ import SwiftSyntax
 import Testing
 
 struct SyntaxSupportTests {
+    @Test(arguments: [
+        "Policy.shareable",
+        "LogFieldExposure.shareable",
+        "Policy.count",
+        "Policy.error",
+    ])
+    func classificationRequiresAnUnqualifiedCase(source: String) throws {
+        #expect(try literalMemberName(from: expression(from: source)) == nil)
+        #expect(try literalMemberName(from: expression(from: ".shareable")) == "shareable")
+    }
+
     @Test(arguments: ["LogError", "LogError?", "PeriscopeCore.LogError", "ErrorAlias", "String"])
     func errorRequirementsUseTypeIdentity(type: String) {
         let field = EventField(
@@ -12,7 +23,6 @@ struct SyntaxSupportTests {
             key: "error",
             exposure: "restricted",
             kind: .errorDetails,
-            isOptional: type.hasSuffix("?"),
         )
         #expect(field.resolvedExportRequirements
             == ".classified(exposure: .restricted, kind: .errorDetails, valueType: (\(type)).self)")

@@ -27,6 +27,20 @@ They do not import this implementation module.
 Generated parameters encode exposure, semantic kind, and Swift value type.
 A call site uses inputs such as `.shared(.count, value)` or `.restricted(.identifier, value)`.
 
+Exposure and kind require implicit case expressions, such as `.shareable` and `.count`.
+Qualified expressions and constants are rejected because a syntax macro cannot resolve their values.
+Severity accepts a complete expression, including a custom `LogLevel` value.
+
+Typed runtime helpers enforce shareable value types and category conformances.
+Type aliases, qualified types, and both optional spellings retain normal Swift behavior.
+Generated method proxies live inside each event, so event-local type aliases remain visible.
+Generated framework references use the `PeriscopeCore` module qualifier.
+Static properties cannot use `@LogField`.
+Conditional compilation inside an event is unsupported. Place the condition around the complete scope instead.
+
+The macro owns both `exportDescription` and `exportedValue(using:)`.
+Manual replacements are rejected, including escaped declarations and extension redeclarations of the generated method.
+
 Event method names must not collide with existing `Log` members, such as `info`, `record`, or `context`.
 The macro diagnoses these names at the event declaration.
 

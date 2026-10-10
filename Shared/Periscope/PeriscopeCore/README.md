@@ -109,6 +109,13 @@ Restricted does not mean local-only. Attachment bytes remain excluded from every
 
 ## Export controls
 
+Shareable categories require `Codable`, `Sendable`, `CaseIterable`, and string-backed `RawRepresentable` conformances.
+Projection rechecks membership in `allCases`, including values created through decoding or mutation.
+Filtered exports accept only declared category strings, or null for optional categories.
+Custom category encoding cannot export extra object fields under a category approval.
+The persisted export schema carries the same string allowlist for historical records.
+An incompatible encoded value causes an export error, without a raw-value fallback.
+
 `LogExportPolicy` separates the export mode from independent data permissions.
 `LogExportControl` is an extensible value type, not a closed enum.
 Consumers declare controls with stable, namespaced identifiers:

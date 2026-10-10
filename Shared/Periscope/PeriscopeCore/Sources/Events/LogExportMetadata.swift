@@ -21,6 +21,7 @@ public indirect enum LogExportSchema: Equatable, Sendable {
     case object([String: LogExportSchema])
     case array([LogExportSchema])
     case gated(LogExportRequirements, LogExportSchema)
+    case category(allowedValues: Set<String>, allowsNil: Bool)
 
     public enum Failure: Error, Equatable {
         case unsupportedVersion(Int)
@@ -30,6 +31,12 @@ public indirect enum LogExportSchema: Equatable, Sendable {
     public func filtered(_ value: JSONValue, using policy: LogExportPolicy) throws -> JSONValue? {
         switch self {
             case .value: return value
+            case let .category(allowedValues, allowsNil):
+                if value == .null, allowsNil { return value }
+                guard case let .string(rawValue) = value, allowedValues.contains(rawValue) else {
+                    throw Failure.shapeMismatch
+                }
+                return value
             case let .gated(requirements, child):
                 guard policy.allows(requirements) else { return nil }
                 return try child.filtered(value, using: policy)
@@ -56,12 +63,18 @@ public indirect enum LogExportSchema: Equatable, Sendable {
 
 /// Explicit tags decouple the persisted format from Swift associated-value encoding.
 extension LogExportSchema: Codable {
-    private enum CodingKeys: String, CodingKey { case type, fields, elements, requirement, child }
-    private enum Kind: String, Codable { case value, object, array, gated }
+    private enum CodingKeys: String,
+        CodingKey { case type, fields, elements, requirement, child, allowedValues, allowsNil }
+    private enum Kind: String, Codable { case value, object, array, gated, category }
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         switch try container.decode(Kind.self, forKey: .type) {
+            case .category:
+                self = try .category(
+                    allowedValues: Set(container.decode([String].self, forKey: .allowedValues)),
+                    allowsNil: container.decode(Bool.self, forKey: .allowsNil),
+                )
             case .value: self = .value
             case .object: self = try .object(container.decode([String: Self].self, forKey: .fields))
             case .array: self = try .array(container.decode([Self].self, forKey: .elements))
@@ -76,6 +89,10 @@ extension LogExportSchema: Codable {
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
+            case let .category(allowedValues, allowsNil):
+                try container.encode(Kind.category, forKey: .type)
+                try container.encode(allowedValues.sorted(), forKey: .allowedValues)
+                try container.encode(allowsNil, forKey: .allowsNil)
             case .value: try container.encode(Kind.value, forKey: .type)
             case let .object(fields):
                 try container.encode(Kind.object, forKey: .type)

@@ -31,6 +31,16 @@ public struct LogExportField: Sendable {
         return try description.exportedValue(using: policy)
     }
 
+    init(
+        _ key: LogFieldKey,
+        description: LogExportDescription,
+        requirements: LogExportRequirements,
+    ) {
+        self.key = key
+        self.description = description
+        self.requirements = requirements
+    }
+
     public static func object(_ fields: [Self], using policy: LogExportPolicy) throws -> JSONValue {
         try LogExportDescription.object(fields).exportedValue(using: policy)
     }

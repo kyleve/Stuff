@@ -43,7 +43,7 @@ func scopeRejectsEventMethodNamesThatCollideWithLoggerMembers(eventName: String)
             static let scopeName = "Sample"
         }
 
-        extension SampleLog: LogScopeDefinition {
+        extension SampleLog: PeriscopeCore.LogScopeDefinition {
         }
         """,
         diagnostics: [
@@ -83,7 +83,7 @@ func scopeRejectsInvalidIdentifiersCasesAndSpanNames() {
         expandedSource: """
         enum Scope {}
 
-        extension Scope: LogScopeDefinition {
+        extension Scope: PeriscopeCore.LogScopeDefinition {
         }
         """,
         diagnostics: [
@@ -108,7 +108,7 @@ func scopeRejectsInvalidIdentifiersCasesAndSpanNames() {
             case invalid
         }
 
-        extension Scope: LogScopeDefinition {
+        extension Scope: PeriscopeCore.LogScopeDefinition {
         }
         """,
         diagnostics: [
@@ -133,7 +133,7 @@ func scopeRejectsInvalidIdentifiersCasesAndSpanNames() {
             struct SpanName {}
         }
 
-        extension Scope: LogScopeDefinition {
+        extension Scope: PeriscopeCore.LogScopeDefinition {
         }
         """,
         diagnostics: [

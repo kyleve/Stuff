@@ -3,6 +3,40 @@ import PeriscopeCore
 import Testing
 
 struct LogExportMetadataTests {
+    @Test(arguments: [false, true])
+    func categorySchemaSurvivesPersistenceAndRejectsUnknownValues(allowsNil: Bool) throws {
+        let schema = LogExportSchema.category(
+            allowedValues: ["ready", "failed"],
+            allowsNil: allowsNil,
+        )
+        let metadata = LogExportMetadata(payload: schema)
+        let restored = try JSONDecoder().decode(
+            LogExportMetadata.self,
+            from: JSONEncoder().encode(metadata),
+        )
+        #expect(restored == metadata)
+        let policy = LogExportPolicy(mode: .baseline, enabledControls: [])
+        #expect(try restored.filtered(.string("ready"), using: policy) == .string("ready"))
+        for invalid: JSONValue in [
+            .string("private@example.test"),
+            .object(["email": .string("private")]),
+            .int(1),
+        ] {
+            #expect(throws: LogExportSchema.Failure.shapeMismatch) { try restored.filtered(
+                invalid,
+                using: policy,
+            ) }
+        }
+        if allowsNil {
+            #expect(try restored.filtered(.null, using: policy) == .null)
+        } else {
+            #expect(throws: LogExportSchema.Failure.shapeMismatch) { try restored.filtered(
+                .null,
+                using: policy,
+            ) }
+        }
+    }
+
     @Test func structuredErrorsMatchLiveProjectionIncludingNilFields() throws {
         let error = LogError(capturing: NSError(domain: "private-domain", code: 42))
         let raw = try JSONValue.encoding(error)

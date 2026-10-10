@@ -72,17 +72,9 @@ public struct LogScopeMacro: MemberMacro, ExtensionMacro {
             scope: scope.name.text,
             events: events,
         )))
-        members.append(contentsOf: events.map { event in
-            DeclSyntax(stringLiteral: methodProxy(
-                access: event.access,
-                name: event.name,
-                scope: scope.name.text,
-                event: event.event,
-                fields: event.fields,
-            ))
-        })
         members.append(DeclSyntax(stringLiteral: """
-        \(access)static func makeLogMethods(_ log: Log<\(scope.name.text)>) -> LogMethods {
+        \(access)static func makeLogMethods(_ log: PeriscopeCore.Log<\(scope.name
+            .text)>) -> LogMethods {
             LogMethods(log: log)
         }
         """))
@@ -97,7 +89,7 @@ public struct LogScopeMacro: MemberMacro, ExtensionMacro {
         in _: some MacroExpansionContext,
     ) throws -> [ExtensionDeclSyntax] {
         guard declaration.is(EnumDeclSyntax.self) else { return [] }
-        let extensionDecl: DeclSyntax = "extension \(type.trimmed): LogScopeDefinition {}"
+        let extensionDecl: DeclSyntax = "extension \(type.trimmed): PeriscopeCore.LogScopeDefinition {}"
         return [extensionDecl.cast(ExtensionDeclSyntax.self)]
     }
 }
@@ -132,7 +124,6 @@ extension LogScopeMacro {
         let access: String
         let name: String
         let event: String
-        let fields: [EventField]
     }
 
     fileprivate static func eventMethods(
@@ -178,14 +169,14 @@ extension LogScopeMacro {
                 )
                 continue
             }
-            let fields = eventFields(event)
+            let parsed = LogEventMacro.parseFields(event)
+            guard !parsed.hasError else { continue }
             let eventAccess = accessPrefix(event.modifiers)
             let access = scopeAccess == "public " && eventAccess == "public " ? "public " : ""
             methods.append(EventMethod(
                 access: access,
                 name: methodName,
                 event: event.name.text,
-                fields: fields,
             ))
         }
         return methods
@@ -193,62 +184,31 @@ extension LogScopeMacro {
 }
 
 extension LogScopeMacro {
-    fileprivate static func eventFields(_ event: StructDeclSyntax) -> [EventField] {
-        event.memberBlock.members.compactMap { member in
-            guard let variable = member.decl.as(VariableDeclSyntax.self),
-                  let fieldAttribute = attribute(named: "LogField", in: variable.attributes),
-                  let binding = variable.bindings.first,
-                  let name = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text,
-                  let type = binding.typeAnnotation?.type.trimmedDescription,
-                  let arguments = argumentList(of: fieldAttribute),
-                  let key = fieldKey(in: arguments, propertyName: name),
-                  let exposureExpression = arguments.first(where: { $0.label?.text == "exposure" })?
-                  .expression,
-                  let exposure = memberName(from: exposureExpression),
-                  let kindExpression = arguments.first(where: { $0.label?.text == "kind" })?
-                  .expression,
-                  let kindName = memberName(from: kindExpression),
-                  let kind = EventFieldKind(rawValue: kindName)
-            else {
-                return nil
-            }
-            return EventField(
-                name: name,
-                type: type,
-                key: key,
-                exposure: exposure,
-                kind: kind,
-                isOptional: type.hasSuffix("?"),
-            )
-        }
-    }
-
     fileprivate static func methodsContainer(
         access: String,
         scope: String,
         events: [EventMethod],
     ) -> String {
         let properties = events.map { event in
-            "    \(event.access)var `\(event.name)`: \(event.event)LogMethod { \(event.event)LogMethod(log: log) }"
+            "    \(event.access)var `\(event.name)`: \(event.event).LogMethod { \(event.event).LogMethod(log: log) }"
         }.joined(separator: "\n")
         return """
         \(access)struct LogMethods {
-            fileprivate let log: Log<\(scope)>
+            fileprivate let log: PeriscopeCore.Log<\(scope)>
 
         \(properties)
         }
         """
     }
 
-    fileprivate static func methodProxy(
+    static func methodProxy(
         access: String,
-        name _: String,
         scope: String,
         event: String,
         fields: [EventField],
     ) -> String {
         var parameters = fields.map { "        \($0.name): \($0.parameterType)" }
-        parameters.append("        attachments: [LogAttachment] = []")
+        parameters.append("        attachments: [PeriscopeCore.LogAttachment] = []")
         parameters.append("        function: StaticString = #function")
         parameters.append("        fileID: StaticString = #fileID")
         let arguments = fields.map { "                \($0.name): \($0.name)" }
@@ -259,8 +219,8 @@ extension LogScopeMacro {
                     )
         """
         return """
-        \(access)struct \(event)LogMethod {
-            fileprivate let log: Log<\(scope)>
+        \(access)struct LogMethod {
+            fileprivate let log: PeriscopeCore.Log<\(scope)>
 
             \(access)func callAsFunction(
         \(parameters.joined(separator: ",\n"))

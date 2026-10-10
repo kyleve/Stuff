@@ -56,12 +56,11 @@ struct EventField {
     let key: String
     let exposure: String
     let kind: EventFieldKind
-    let isOptional: Bool
     var exportRequirements: String?
 
     var resolvedExportRequirements: String {
         if let exportRequirements {
-            return "LogExportRequirements.diagnostic(requiring: []).constrained(by: \(exportRequirements))"
+            return "PeriscopeCore.LogExportRequirements.diagnostic(requiring: []).constrained(by: \(exportRequirements))"
         }
         if exposure == "restricted", kind == .errorDetails {
             return ".classified(exposure: .restricted, kind: .errorDetails, valueType: (\(type)).self)"
@@ -78,7 +77,7 @@ struct EventField {
     }
 
     var parameterType: String {
-        "ClassifiedLogInput<LogFieldPolicy.\(policyType), LogFieldPolicy.\(kindType), \(type)>"
+        "PeriscopeCore.ClassifiedLogInput<PeriscopeCore.LogFieldPolicy.\(policyType), PeriscopeCore.LogFieldPolicy.\(kindType), \(type)>"
     }
 }
 
@@ -128,8 +127,10 @@ func fieldKey(in arguments: LabeledExprListSyntax, propertyName: String) -> Stri
     return String(decoding: result, as: UTF8.self)
 }
 
-func memberName(from expression: ExprSyntax) -> String? {
-    expression.as(MemberAccessExprSyntax.self)?.declName.baseName.text
+func literalMemberName(from expression: ExprSyntax) -> String? {
+    guard let member = expression.as(MemberAccessExprSyntax.self),
+          member.base == nil else { return nil }
+    return member.declName.baseName.text
 }
 
 func attribute(named name: String, in attributes: AttributeListSyntax) -> AttributeSyntax? {

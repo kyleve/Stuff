@@ -24,6 +24,22 @@ public struct LogExportDescription: Sendable {
         try project(policy)
     }
 
+    /// A category's Codable representation must remain inside its declared string set.
+    /// Validation is lazy so denied fields never invoke their encoders.
+    static func category(
+        _ value: some Encodable & Sendable,
+        allowedValues: Set<String>,
+        allowsNil: Bool,
+    ) -> Self {
+        let schema = LogExportSchema.category(allowedValues: allowedValues, allowsNil: allowsNil)
+        return Self(schema: schema) { policy in
+            guard let result = try schema.filtered(JSONValue.encoding(value), using: policy) else {
+                throw LogExportSchema.Failure.shapeMismatch
+            }
+            return result
+        }
+    }
+
     public static func object(_ fields: [LogExportField]) -> Self {
         let keyed = Dictionary(uniqueKeysWithValues: fields.map { ($0.key.rawValue, $0) })
         return Self(schema: .object(keyed
