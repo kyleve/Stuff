@@ -290,6 +290,13 @@ one it belongs to rather than to a god-object:
   its `*Log`'s `SpanName` cases, so slow reads, commits, and reconciles show up
   in Periscope's span history rather than only as a slow screen.
 
+Location outbox and ingestor failures use restricted `LogError` payloads.
+Callers pass the original error through `.restricted(.errorDetails, error)`.
+The snapshot preserves typed diagnostics without a duplicate error attachment.
+Local messages and severities remain unchanged. These nine error events use payload version 2.
+Baseline export excludes their errors. Opt-in debug-full includes the structured snapshots.
+See [PeriscopeCore's error contract](../../Shared/Periscope/PeriscopeCore/README.md#structured-errors).
+
 ## Installation
 
 `WhereCore` is a local SPM library in this repo (`Where/WhereCore`). Add it to a

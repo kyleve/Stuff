@@ -388,7 +388,7 @@ public actor LocationIngestor {
             // Fail closed: if today's samples can't be read we skip rather than
             // risk logging a duplicate fix. Surfaced, not silently swallowed.
             Self.logger.foregroundCaptureReadFailed(
-                description: .restricted(.errorDetails, error.localizedDescription),
+                error: .restricted(.errorDetails, error),
             )
             return
         }
@@ -480,16 +480,14 @@ public actor LocationIngestor {
             // is queued for retry on the next save attempt.
             Self.logger.persistFailed(
                 sampleID: .restricted(.identifier, String(describing: sample.id)),
-                description: .restricted(.errorDetails, error.localizedDescription),
-                attachments: [.error(error, name: "persist-error")],
+                error: .restricted(.errorDetails, error),
             )
             enqueueForRetry(LocationOutboxEntry(sample: sample, dataGenerationID: dataGenerationID))
             do {
                 try await outbox.save(retryQueue)
             } catch {
                 Self.logger.retryBacklogPersistenceFailed(
-                    description: .restricted(.errorDetails, error.localizedDescription),
-                    attachments: [.error(error, name: "outbox-persist-error")],
+                    error: .restricted(.errorDetails, error),
                 )
                 // Continuing to accept locations would make the in-memory queue the only copy;
                 // fail closed until reconciliation can reopen recording with durable storage.
@@ -542,8 +540,7 @@ public actor LocationIngestor {
                 } catch {
                     Self.logger.retryStillFailing(
                         sampleID: .restricted(.identifier, String(describing: sample.id)),
-                        description: .restricted(.errorDetails, error.localizedDescription),
-                        attachments: [.error(error, name: "retry-error")],
+                        error: .restricted(.errorDetails, error),
                     )
                     enqueueForRetry(entry)
                 }

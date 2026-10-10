@@ -7,6 +7,40 @@ import WhereCrashReporting
 
 @MainActor
 struct DiagnosticReportingControllerTests {
+    @Test func structuredErrorsNeverEnterBaselineExport() async throws {
+        let writer = RecordingBitdriftWriter()
+        let sink = BitdriftRemoteLogSink(
+            configuration: .enabled(minimumLevel: .debug, metadataPolicy: .approvedFields),
+            effectiveFrom: .distantPast,
+            writer: writer,
+        )
+        let original = NSError(
+            domain: "private-domain",
+            code: 42,
+            userInfo: [NSLocalizedDescriptionKey: "private-description"],
+        )
+        let event = RemoteTestLog.Failure(error: .restricted(.errorDetails, original))
+        let invalidDetails = RemoteTestLog.Failure(error: .restricted(
+            .errorDetails,
+            LogError(capturing: original, details: .double(.nan)),
+        ))
+        await sink.write([
+            LogRecord(date: .now, event: event, scopes: []),
+            LogRecord(date: .now, event: invalidDetails, scopes: []),
+        ])
+        let entries = await writer.entries
+        try #require(entries.count == 2)
+        for entry in entries {
+            #expect(entry.message == "RemoteTest.failure")
+            #expect(entry.level == .error)
+            #expect(entry.fields["event.error"] == nil)
+            #expect(entry.fields["event.payload"] == nil)
+            #expect(entry.fields.values.contains(.string("private-domain")) == false)
+            #expect(entry.fields.values.contains(.string("private-description")) == false)
+        }
+        #expect(await sink.encodingFailureCount == 0)
+    }
+
     @Test func builtinAmbientApprovalDoesNotExportCustomPayloadsOrSnapshots() async throws {
         let fixture = Fixture(configuration: DiagnosticReportingConfiguration(
             sharesCrashReports: false,
@@ -242,6 +276,74 @@ struct DiagnosticReportingControllerTests {
     }
 
     #if DEBUG
+        @Test func debugFullPreservesStructuredErrorsWithoutArbitraryUserInfoOrAttachmentBytes(
+        ) async throws {
+            let writer = RecordingBitdriftWriter()
+            let sink = BitdriftRemoteLogSink(
+                configuration: .enabled(
+                    minimumLevel: .debug,
+                    metadataPolicy: .allMetadataExcludingAttachmentData,
+                ),
+                effectiveFrom: .distantPast,
+                writer: writer,
+            )
+            let original = NSError(domain: "private-domain", code: 42, userInfo: [
+                NSLocalizedDescriptionKey: "private-description",
+                NSUnderlyingErrorKey: NSError(domain: "cause", code: 7),
+                "secret": "never-copy-user-info",
+            ])
+            let snapshot = LogError(capturing: original, details: .object(["attempt": .int(3)]))
+            let event = RemoteTestLog.Failure(error: .restricted(.errorDetails, snapshot))
+            await sink.write([LogRecord(date: .now, event: event, scopes: [], attachments: [
+                LogAttachment(
+                    name: "diagnostics",
+                    contentType: .plainText,
+                    data: Data("never-copy-bytes".utf8),
+                ),
+            ])])
+            let entry = try #require(await writer.entries.first)
+            #expect(entry.message == "RemoteTest.failure")
+            guard case let .string(payload)? = entry.fields["event.payload"] else {
+                Issue.record("Expected a structured JSON payload")
+                return
+            }
+            let decoded = try JSONDecoder().decode(
+                RemoteTestLog.Failure.self,
+                from: Data(payload.utf8),
+            )
+            #expect(decoded.error == snapshot)
+            #expect(decoded.error.code == 42)
+            #expect(decoded.error.causes.first?.code == 7)
+            #expect(decoded.error.details == .object(["attempt": .int(3)]))
+            #expect(payload.contains("never-copy-user-info") == false)
+            #expect(payload.contains("never-copy-bytes") == false)
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = .sortedKeys
+            #expect(try payload == String(decoding: encoder.encode(event), as: UTF8.self))
+        }
+
+        @Test func unencodableErrorDetailsSkipDebugFullRecordAndCountFailure() async {
+            let writer = RecordingBitdriftWriter()
+            let sink = BitdriftRemoteLogSink(
+                configuration: .enabled(
+                    minimumLevel: .debug,
+                    metadataPolicy: .allMetadataExcludingAttachmentData,
+                ),
+                effectiveFrom: .distantPast,
+                writer: writer,
+            )
+            let event = RemoteTestLog.Failure(error: .restricted(
+                .errorDetails,
+                LogError(
+                    capturing: NSError(domain: "Example", code: 1),
+                    details: .double(.nan),
+                ),
+            ))
+            await sink.write([LogRecord(date: .now, event: event, scopes: [])])
+            #expect(await writer.entries.isEmpty)
+            #expect(await sink.encodingFailureCount == 1)
+        }
+
         @Test func fullMetadataIncludesContextButNeverAttachmentBytes() async throws {
             let configuration = DiagnosticReportingConfiguration(
                 sharesCrashReports: false,
@@ -386,6 +488,16 @@ struct DiagnosticReportingControllerTests {
 
 @LogScope("RemoteTest")
 private enum RemoteTestLog {
+    @LogEvent("failure", level: .error)
+    struct Failure {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+
+        var message: String {
+            "Failed: \(error.description)"
+        }
+    }
+
     @LogEvent("event")
     struct Event {
         @LogField(exposure: .restricted, kind: .technicalState)

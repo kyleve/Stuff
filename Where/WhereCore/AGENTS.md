@@ -176,7 +176,9 @@ internal shape.
   `DemoDataBuilderTests.holdsItsShapeWhereverInTheYearItIsEntered`.
 - **Impossible states trap. Recoverable ones surface.** `WhereStore` methods
   are `async throws`. A `catch` logs a typed `WhereLog` event (PII-free,
-  `.public`, error as `LogAttachment.error(_:)`) and leaves state honest.
+  `.public`) and leaves state honest. When the event accepts `LogError`, pass
+  the original error through `.restricted(.errorDetails, error)`. Do not add
+  a duplicate error attachment. Follow PeriscopeCore's structured-error contract.
   Never use a benign-looking default. The `WhereLog` facade and every
   `*Log.swift` event type live together in `Sources/Logging/`.
 - **Expensive Core work is spanned, with a budget.** That includes bulk reads
