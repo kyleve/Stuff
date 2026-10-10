@@ -5,7 +5,7 @@ import PeriscopeCore
 enum OnboardingViewLog {
     @LogEvent("region-commit-failed", level: .warning)
     struct RegionCommitFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
         var message: String {
             "Failed to commit onboarding region picks: \(description)"
@@ -14,7 +14,7 @@ enum OnboardingViewLog {
 
     @LogEvent("backup-restore-failed", level: .warning)
     struct BackupRestoreFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
         var message: String {
             "Onboarding backup restore failed: \(description)"
@@ -23,7 +23,7 @@ enum OnboardingViewLog {
 
     @LogEvent("backup-restore-cleanup-failed", level: .error)
     struct BackupRestoreCleanupFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
         var message: String {
             "Onboarding backup restore committed but recording cleanup failed: \(description)"
@@ -39,7 +39,7 @@ enum OnboardingViewLog {
 
     @LogEvent("installation-context-write-failed", level: .error)
     struct InstallationContextWriteFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
         var message: String {
             "Failed to persist the installation recording context: \(description)"
@@ -48,9 +48,9 @@ enum OnboardingViewLog {
 
     @LogEvent("installation-context-security-cleanup-failed", level: .error)
     struct InstallationContextSecurityCleanupFailed {
-        @LogField("exclusion_description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var exclusionDescription: String
-        @LogField("cleanup_description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var cleanupDescription: String
         var message: String {
             "Failed to exclude the installation recording context from backup "
@@ -67,7 +67,7 @@ enum OnboardingViewLog {
 
     @LogEvent("scope-creation-failed", level: .error)
     struct ScopeCreationFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
         var message: String {
             "Failed to open the store during onboarding: \(description)"
@@ -76,7 +76,7 @@ enum OnboardingViewLog {
 
     @LogEvent("recording-configuration-failed", level: .error)
     struct RecordingConfigurationFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
         var message: String {
             "Failed to apply the onboarding recording choice: \(description)"
@@ -85,7 +85,7 @@ enum OnboardingViewLog {
 
     @LogEvent("demo-build-failed", level: .warning)
     struct DemoBuildFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
         var message: String {
             "Failed to build the demo world: \(description)"

@@ -12,7 +12,7 @@ enum LocationOutboxLog {
 
     @LogEvent("dropped-unreadable-backlog", level: .error)
     struct DroppedUnreadableBacklog {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {
@@ -22,7 +22,7 @@ enum LocationOutboxLog {
 
     @LogEvent("read-backlog-failed", level: .error)
     struct ReadBacklogFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {
@@ -39,7 +39,7 @@ enum LocationOutboxLog {
 
     @LogEvent("persist-backlog-failed", level: .error)
     struct PersistBacklogFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {
@@ -49,7 +49,7 @@ enum LocationOutboxLog {
 
     @LogEvent("exclude-from-backup-failed", level: .error)
     struct ExcludeFromBackupFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {
@@ -59,7 +59,7 @@ enum LocationOutboxLog {
 
     @LogEvent("discard-insecure-backlog-failed", level: .error)
     struct DiscardInsecureBacklogFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {

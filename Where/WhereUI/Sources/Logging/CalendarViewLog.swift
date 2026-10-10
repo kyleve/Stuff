@@ -5,7 +5,7 @@ import PeriscopeCore
 enum CalendarViewLog {
     @LogEvent("opened-without-report", level: .warning)
     struct OpenedWithoutReport {
-        @LogField("load_state", exposure: .restricted, kind: .technicalState)
+        @LogField(exposure: .restricted, kind: .technicalState)
         var loadState: String
 
         var message: String {
@@ -15,7 +15,7 @@ enum CalendarViewLog {
 
     @LogEvent("layout-failed", level: .warning)
     struct LayoutFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {

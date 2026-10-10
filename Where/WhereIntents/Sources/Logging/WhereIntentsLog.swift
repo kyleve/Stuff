@@ -36,7 +36,7 @@ enum WhereIntentsLog {
 
     @LogEvent("spotlight-indexed")
     struct SpotlightIndexed {
-        @LogField("region_count", exposure: .restricted, kind: .count)
+        @LogField(exposure: .restricted, kind: .count)
         var regionCount: Int
         var message: String {
             "Indexed \(regionCount) region(s) for Spotlight"
@@ -45,7 +45,7 @@ enum WhereIntentsLog {
 
     @LogEvent("spotlight-index-failed", level: .warning)
     struct SpotlightIndexFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
         var message: String {
             "Failed to index regions for Spotlight: \(description)"
@@ -54,7 +54,7 @@ enum WhereIntentsLog {
 
     @LogEvent("widget-snapshot-read-failed", level: .warning)
     struct WidgetSnapshotReadFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
         var message: String {
             "Failed to read the widget snapshot: \(description)"

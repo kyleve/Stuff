@@ -11,7 +11,7 @@ enum LocationNamerLog {
 
     @LogEvent("geocode-failed", level: .warning)
     struct GeocodeFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
         var message: String {
             "Reverse geocoding failed: \(description)"

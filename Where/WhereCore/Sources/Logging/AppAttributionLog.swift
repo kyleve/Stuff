@@ -8,7 +8,7 @@ enum AppAttributionLog {
 
     @LogEvent("loaded", level: .info)
     struct Loaded {
-        @LogField("credit_count", exposure: .shareable, kind: .count)
+        @LogField(exposure: .shareable, kind: .count)
         var creditCount: Int
 
         var message: String {
@@ -18,7 +18,7 @@ enum AppAttributionLog {
 
     @LogEvent("decode-failed", level: .fault)
     struct DecodeFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {

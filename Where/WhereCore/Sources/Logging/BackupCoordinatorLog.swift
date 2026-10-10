@@ -13,7 +13,7 @@ enum BackupCoordinatorLog {
 
     @LogEvent("remove-previous-export-failed", level: .warning)
     struct RemovePreviousExportFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {

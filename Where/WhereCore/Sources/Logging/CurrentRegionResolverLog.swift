@@ -39,13 +39,13 @@ enum CurrentRegionResolverLog {
 
     @LogEvent("finished")
     struct Finished {
-        @LogField("reason", exposure: .shareable, kind: .category)
+        @LogField(exposure: .shareable, kind: .category)
         var reason: Reason
 
-        @LogField("age_bucket", exposure: .shareable, kind: .category)
+        @LogField(exposure: .shareable, kind: .category)
         var ageBucket: AgeBucket
 
-        @LogField("accuracy_bucket", exposure: .shareable, kind: .category)
+        @LogField(exposure: .shareable, kind: .category)
         var accuracyBucket: AccuracyBucket
 
         var level: LogLevel {

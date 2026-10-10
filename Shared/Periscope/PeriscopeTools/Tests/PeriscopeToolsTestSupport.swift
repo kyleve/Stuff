@@ -8,7 +8,7 @@ import UIKit
 enum PhotoLogs {
     @LogEvent("event")
     struct Event {
-        @LogField("photo_id", exposure: .restricted, kind: .identifier)
+        @LogField(exposure: .restricted, kind: .identifier)
         var photoID: String
         var message: String {
             "photo \(photoID)"

@@ -37,7 +37,7 @@ enum LocationIngestorLog {
 
     @LogEvent("foreground-capture-read-failed", level: .warning)
     struct ForegroundCaptureReadFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {
@@ -53,10 +53,10 @@ enum LocationIngestorLog {
 
     @LogEvent("persist-failed", level: .error)
     struct PersistFailed {
-        @LogField("sample_id", exposure: .restricted, kind: .identifier)
+        @LogField(exposure: .restricted, kind: .identifier)
         var sampleID: String
 
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {
@@ -70,7 +70,7 @@ enum LocationIngestorLog {
 
     @LogEvent("retry-backlog-persistence-failed", level: .error)
     struct RetryBacklogPersistenceFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {
@@ -80,7 +80,7 @@ enum LocationIngestorLog {
 
     @LogEvent("retry-queue-at-capacity", level: .warning)
     struct RetryQueueAtCapacity {
-        @LogField("capacity", exposure: .shareable, kind: .count)
+        @LogField(exposure: .shareable, kind: .count)
         var capacity: Int
 
         var message: String {
@@ -90,10 +90,10 @@ enum LocationIngestorLog {
 
     @LogEvent("retry-still-failing", level: .error)
     struct RetryStillFailing {
-        @LogField("sample_id", exposure: .restricted, kind: .identifier)
+        @LogField(exposure: .restricted, kind: .identifier)
         var sampleID: String
 
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {
@@ -107,10 +107,10 @@ enum LocationIngestorLog {
 
     @LogEvent("drained-backlog")
     struct DrainedBacklog {
-        @LogField("sample_count", exposure: .shareable, kind: .count)
+        @LogField(exposure: .shareable, kind: .count)
         var sampleCount: Int
 
-        @LogField("day_count", exposure: .shareable, kind: .count)
+        @LogField(exposure: .shareable, kind: .count)
         var dayCount: Int
 
         var message: String {

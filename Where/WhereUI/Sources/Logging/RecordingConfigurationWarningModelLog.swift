@@ -5,7 +5,7 @@ import PeriscopeCore
 enum RecordingConfigurationWarningModelLog {
     @LogEvent("authority-load-failed", level: .warning)
     struct AuthorityLoadFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {

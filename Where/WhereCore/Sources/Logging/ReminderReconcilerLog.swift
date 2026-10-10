@@ -9,7 +9,7 @@ enum ReminderReconcilerLog {
 
     @LogEvent("reconcile-failed", level: .error)
     struct ReconcileFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {
@@ -19,7 +19,7 @@ enum ReminderReconcilerLog {
 
     @LogEvent("badge-scan-failed", level: .warning)
     struct BadgeScanFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {
