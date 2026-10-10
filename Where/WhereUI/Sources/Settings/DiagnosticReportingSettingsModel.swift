@@ -81,7 +81,8 @@ public final class DiagnosticReportingSettingsModel {
     public var includesPersonalData: Bool {
         let policy = savedConfiguration.remoteLogging.exportPolicy
         return policy.mode == .diagnostic
-            && RemoteLoggingConfiguration.personalDataControls.isSubset(of: policy.enabledControls)
+            && !RemoteLoggingConfiguration.personalDataControls
+            .isDisjoint(with: policy.enabledControls)
     }
 
     public var includePersonalDataToggle: Bool {

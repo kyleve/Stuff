@@ -70,6 +70,39 @@ struct DiagnosticReportingSettingsModelTests {
     }
 
     #if DEBUG
+        @Test(arguments: [
+            LogExportControl.identifiers,
+            .location,
+            .userContent,
+            .personalData,
+        ])
+        func partialPersonalDataGrantsKeepTheCombinedSwitchOn(control: LogExportControl) async {
+            let custom = LogExportControl("example.custom")
+            let preferences = WherePreferences(store: InMemoryKeyValueStore())
+            preferences.diagnosticReportingConfiguration = .init(
+                sharesCrashReports: false,
+                sharesSessionReplays: false,
+                remoteLogging: .enabled(
+                    minimumLevel: .warning,
+                    exportPolicy: .init(mode: .diagnostic, enabledControls: [control, custom]),
+                ),
+            )
+            let model = DiagnosticReportingSettingsModel(
+                preferences: preferences,
+                effectiveConfiguration: preferences.diagnosticReportingConfiguration,
+                applyRemoteLogging: { _, _ in },
+            )
+
+            #expect(model.includePersonalDataToggle)
+            model.includePersonalDataToggle = false
+            await waitUntil { model.applyState != .applying }
+
+            #expect(model.includePersonalDataToggle == false)
+            #expect(model.effectiveRemoteLogging.exportPolicy.enabledControls == [custom])
+            #expect(preferences.diagnosticReportingConfiguration.remoteLogging.exportPolicy
+                .enabledControls == [custom])
+        }
+
         @Test func combinedPersonalDataSwitchPreservesConsumerControls() async {
             let custom = LogExportControl("example.custom")
             let preferences = WherePreferences(store: InMemoryKeyValueStore())
@@ -86,6 +119,7 @@ struct DiagnosticReportingSettingsModelTests {
                 effectiveConfiguration: preferences.diagnosticReportingConfiguration,
                 applyRemoteLogging: { _, _ in },
             )
+            #expect(model.includesPersonalData == false)
             model.enablePersonalData()
             #expect(model.includesPersonalData)
             #expect(model.savedConfiguration.remoteLogging.exportPolicy[custom])
