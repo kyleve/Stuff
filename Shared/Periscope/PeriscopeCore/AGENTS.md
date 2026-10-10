@@ -48,6 +48,7 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) first. That file owns the build 
 - **Export requirements compose restrictively.** Require every control, retain parent restrictions, and never override `.never`.
 - **Use `exportedValue(using:)`, never raw event encoding, for diagnostic export.** Denied fields must not invoke encoders.
 - **Preserve nested export policies.** Use `LogExportable` for structured members. Do not hide policy-bearing values in opaque Codable containers or pre-encoded JSON.
+- **Describe export permissions once through `exportDescription`.** Its keys and container shape must match local Codable. Capture its value-free metadata in both store rows and crash journals. Filter historical rows without metadata conservatively. Never infer approval from their raw payloads.
 - **Sink failures never propagate or vanish.** Log them to OSLog. Count them.
 - **Persist a synthetic `StoreWriteFailed` marker.** The pipeline reports drops with a synthetic `DroppedEvents` record.
 - **Roll back a failed store save** (`recoverFromFailedWrite`). One poisoned batch must never wedge subsequent saves or fork the session.

@@ -1,14 +1,20 @@
-/// A structured value that filters its members before encoding for export.
-/// Opaque Codable values use the containing field's approval for their complete contents.
+/// Describes permissions using the same JSON keys and container shape as the value's Codable
+/// representation. Opaque Codable members inherit their containing field's approval in full.
 public protocol LogExportable: Sendable {
-    func exportedValue(using policy: LogExportPolicy) throws -> JSONValue
+    var exportDescription: LogExportDescription { get }
 }
 
-/// One lazily encoded field. A denied field never invokes its encoder or nested projection.
+extension LogExportable {
+    public func exportedValue(using policy: LogExportPolicy) throws -> JSONValue {
+        try exportDescription.exportedValue(using: policy)
+    }
+}
+
+/// One lazily encoded field. A denied field never invokes its encoder.
 public struct LogExportField: Sendable {
     public let key: LogFieldKey
     public let requirements: LogExportRequirements
-    private let project: @Sendable (LogExportPolicy) throws -> JSONValue
+    let description: LogExportDescription
 
     public init(
         _ key: LogFieldKey,
@@ -17,55 +23,36 @@ public struct LogExportField: Sendable {
     ) {
         self.key = key
         self.requirements = requirements
-        project = { policy in try Self.project(value, using: policy) }
+        description = LogExportDescription(value)
     }
 
     public func exportedValue(using policy: LogExportPolicy) throws -> JSONValue? {
         guard policy.allows(requirements) else { return nil }
-        return try project(policy)
+        return try description.exportedValue(using: policy)
     }
 
     public static func object(_ fields: [Self], using policy: LogExportPolicy) throws -> JSONValue {
-        var values: [String: JSONValue] = [:]
-        for field in fields {
-            if let value = try field.exportedValue(using: policy) {
-                precondition(values[field.key.rawValue] == nil, "Duplicate export field key")
-                values[field.key.rawValue] = value
-            }
-        }
-        return .object(values)
-    }
-
-    fileprivate static func project(
-        _ value: some Encodable & Sendable,
-        using policy: LogExportPolicy,
-    ) throws -> JSONValue {
-        if let structured = value as? any LogExportable {
-            return try structured.exportedValue(using: policy)
-        }
-        return try JSONValue.encoding(value)
+        try LogExportDescription.object(fields).exportedValue(using: policy)
     }
 }
 
-/// Preserve nested policies through standard containers rather than invoking their raw Codable
-/// path.
 extension Optional: LogExportable where Wrapped: Encodable & LogExportable {
-    public func exportedValue(using policy: LogExportPolicy) throws -> JSONValue {
+    public var exportDescription: LogExportDescription {
         switch self {
-            case let .some(value): try LogExportField.project(value, using: policy)
-            case .none: .null
+            case let .some(value): value.exportDescription
+            case .none: LogExportDescription(JSONValue.null)
         }
     }
 }
 
 extension Array: LogExportable where Element: Encodable & LogExportable {
-    public func exportedValue(using policy: LogExportPolicy) throws -> JSONValue {
-        try .array(map { try LogExportField.project($0, using: policy) })
+    public var exportDescription: LogExportDescription {
+        .array(map(\.exportDescription))
     }
 }
 
 extension Dictionary: LogExportable where Key == String, Value: Encodable & LogExportable {
-    public func exportedValue(using policy: LogExportPolicy) throws -> JSONValue {
-        try .object(mapValues { try LogExportField.project($0, using: policy) })
+    public var exportDescription: LogExportDescription {
+        .object(mapValues(\.exportDescription))
     }
 }

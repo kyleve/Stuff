@@ -34,3 +34,45 @@ public enum LogExportRequirements: Equatable, Sendable {
         }
     }
 }
+
+/// Stable requirement tags and sorted control identities, independent of associated-value coding.
+extension LogExportRequirements: Codable {
+    private enum CodingKeys: String, CodingKey { case mode, controls }
+    private enum Mode: String, Codable { case baseline, diagnostic, never }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        switch try container.decode(Mode.self, forKey: .mode) {
+            case .never: self = .never
+            case .baseline:
+                self = try .baseline(requiring: Set(container.decode(
+                    [LogExportControl].self,
+                    forKey: .controls,
+                )))
+            case .diagnostic:
+                self = try .diagnostic(requiring: Set(container.decode(
+                    [LogExportControl].self,
+                    forKey: .controls,
+                )))
+        }
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+            case .never: try container.encode(Mode.never, forKey: .mode)
+            case let .baseline(controls):
+                try container.encode(Mode.baseline, forKey: .mode)
+                try container.encode(
+                    controls.sorted { $0.rawValue < $1.rawValue },
+                    forKey: .controls,
+                )
+            case let .diagnostic(controls):
+                try container.encode(Mode.diagnostic, forKey: .mode)
+                try container.encode(
+                    controls.sorted { $0.rawValue < $1.rawValue },
+                    forKey: .controls,
+                )
+        }
+    }
+}

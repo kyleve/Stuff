@@ -6,7 +6,14 @@ import PeriscopeCore
 /// per referenced session so the reader can join each event's `session` to
 /// the build it ran on. Structured payloads embed as nested JSON; keys are
 /// sorted so output is deterministic.
-enum NDJSONExporter {
+public enum NDJSONExporter {
+    /// Unfiltered export intentionally includes local-only data. Filtered export requires
+    /// persisted permissions and never falls back to the raw payload.
+    public enum Mode: Sendable {
+        case unfiltered
+        case filtered(LogExportPolicy)
+    }
+
     private static let timestampFormat = Date.ISO8601FormatStyle(
         includingFractionalSeconds: true,
     )
@@ -16,12 +23,25 @@ enum NDJSONExporter {
     /// reference export, oldest first. `ambient` resolves
     /// ``StoredLogEvent/ambientSnapshotID`` — one row serves many events,
     /// so the caller looks them up once.
-    static func export(
+    public static func export(
         events: [StoredLogEvent],
         scopes: [ScopeID: LogScope],
         sessions: [LogSession],
         ambient: [UUID: AmbientSnapshot],
-    ) -> String {
+        mode: Mode,
+    ) throws -> String {
+        if case let .filtered(policy) = mode {
+            let referenced = Set(events.filter { $0.exportMetadata != nil }.map(\.sessionID))
+            let headers = try sessions.filter { referenced.contains($0.id) }
+                .sorted { $0.startedAt < $1.startedAt }
+                .compactMap { try filteredLine(for: $0, policy: policy) }
+            let lines = try events.reversed().map { try filteredLine(
+                for: $0,
+                scopes: scopes,
+                policy: policy,
+            ) }
+            return (headers + lines).joined(separator: "\n")
+        }
         let referenced = Set(events.map(\.sessionID))
         let sessionLines = sessions
             .filter { referenced.contains($0.id) }
@@ -30,6 +50,83 @@ enum NDJSONExporter {
         let eventLines = events.reversed()
             .map { line(for: $0, scopes: scopes, ambient: ambient) }
         return (sessionLines + eventLines).joined(separator: "\n")
+    }
+
+    private static let contextRequirements = LogExportRequirements.diagnostic(
+        requiring: [.identifiers, .location, .userContent, .personalData],
+    )
+
+    private static func filteredLine(
+        for session: LogSession,
+        policy: LogExportPolicy,
+    ) throws -> String? {
+        guard policy.allows(.diagnostic(requiring: [.identifiers])) else { return nil }
+        var object: [String: JSONValue] = [
+            "record": .string("session"),
+            "session": .string(session.id.uuidString),
+        ]
+        if policy.allows(.diagnostic(requiring: [.personalData])) {
+            object["startedAt"] = .string(session.startedAt.formatted(timestampFormat))
+            object["appVersion"] = .string(session.appVersion)
+            object["buildNumber"] = .string(session.buildNumber)
+            object["osVersion"] = .string(session.osVersion)
+            object["deviceModel"] = .string(session.deviceModel)
+        }
+        if policy.allows(contextRequirements), !session.attributes.isEmpty {
+            object["attributes"] = .object(Dictionary(uniqueKeysWithValues: session.attributes.map {
+                ($0.key.rawValue, .string($0.value))
+            }))
+        }
+        return try serialized(.object(object))
+    }
+
+    private static func filteredLine(
+        for event: StoredLogEvent,
+        scopes: [ScopeID: LogScope],
+        policy: LogExportPolicy,
+    ) throws -> String {
+        var object: [String: JSONValue] = [
+            "level": .string(event.level.name),
+            "severity": .int(event.level.severity),
+            "event": .string(event.eventName),
+            "version": .int(event.eventVersion),
+            "message": .string(event.eventName),
+        ]
+        // Historical rows retain only known record metadata, even when all grants are enabled.
+        guard event.exportMetadata != nil else { return try serialized(.object(object)) }
+        object["payload"] = try event.exportedPayload(using: policy)
+        if let callSite = event.callSite {
+            object["function"] = .string(callSite.function)
+            object["file"] = .string(callSite.fileID)
+        }
+        if policy.allows(.diagnostic(requiring: [.personalData])) {
+            object["date"] = .string(event.date.formatted(timestampFormat))
+        }
+        if policy.allows(.diagnostic(requiring: [.identifiers])) {
+            object["session"] = .string(event.sessionID.uuidString)
+            if let span = event.spanID { object["span"] = .string(span.rawValue.uuidString) }
+            if let externalID = event.externalID { object["externalID"] = .string(externalID) }
+        }
+        if policy.allows(contextRequirements) {
+            let path = scopePath(for: event, scopes: scopes)
+            if !path.isEmpty { object["scopePath"] = .string(path) }
+            if !event.tags.isEmpty {
+                let data = try JSONSerialization
+                    .data(withJSONObject: Dictionary(uniqueKeysWithValues: event.tags.map {
+                        ($0.key.rawValue, jsonValue(for: $0.value))
+                    }))
+                object["tags"] = try JSONDecoder().decode(JSONValue.self, from: data)
+            }
+        }
+        // Rendered messages and folded ambient snapshots cannot retain nested field policies.
+        // Neither is included in filtered exports, regardless of grants.
+        return try serialized(.object(object))
+    }
+
+    private static func serialized(_ value: JSONValue) throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return try String(decoding: encoder.encode(value), as: UTF8.self)
     }
 
     /// One session's identity and build attribution — the line that makes

@@ -5,6 +5,20 @@ import Testing
 private struct InjectedSaveFailure: Error {}
 
 struct PeriscopeStoreTests {
+    @Test func persistedExportPermissionsRetainLocalValuesAndFilterAfterRead() async throws {
+        let store = try await PeriscopeStore.inMemory(session: .fixture())
+        let event = LogExportTestLog.Child(
+            secret: .restricted(.arbitraryText, .string("local secret")),
+            detail: .restricted(.arbitraryText, "custom"),
+            count: .shared(.count, 3),
+        )
+        await store.write([LogRecord(date: date(1), event: event, scopes: [])])
+        let row = try #require(try await store.events(matching: LogQuery()).first)
+        #expect(try row.decode(LogExportTestLog.Child.self).secret == .string("local secret"))
+        let policy = LogExportPolicy(mode: .diagnostic, enabledControls: [.customerDiagnostics])
+        #expect(try row.exportedPayload(using: policy) == event.exportedValue(using: policy))
+    }
+
     /// A store with a small defined hierarchy: app → photos → album-1.
     private func makeStore() async throws -> (
         store: PeriscopeStore,

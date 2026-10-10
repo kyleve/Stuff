@@ -61,8 +61,8 @@ public protocol LogEvent: LogScopeDefinition, Codable, LogExportable {
 
 extension LogEvent {
     /// Manual or historical events have no implicit diagnostic export approval.
-    public func exportedValue(using _: LogExportPolicy) throws -> JSONValue {
-        .object([:])
+    public var exportDescription: LogExportDescription {
+        .object([LogExportField]())
     }
 
     public static var scopeName: String {

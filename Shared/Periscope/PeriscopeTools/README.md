@@ -68,6 +68,19 @@ Toggle("Log View Mode", isOn: $inspector.isEnabled)
   The active scope is named above the list.
   Reachable from the viewer's Logs toolbar (the **Spans** menu), and usable standalone.
 
+## File export modes
+
+`NDJSONExporter.export(events:scopes:sessions:ambient:mode:)` requires an explicit mode and can throw.
+The existing viewer passes `.unfiltered`. Its output remains complete, including data marked `.never`.
+Framework consumers can pass `.filtered(policy)` to apply persisted payload permissions.
+Historical rows without permissions include only the event name, version, level, severity, and stable message.
+Invalid metadata or payloads abort filtered export instead of returning raw data.
+
+Filtered messages always use the event name. Folded ambient snapshots and attachment bytes never enter filtered files.
+Identifiers require the identifier grant. Dates and session build details require the personal-data grant.
+Tags, scope paths, and session attributes require all four built-in grants in diagnostic mode.
+Session headers also require the identifier grant. Consumer-defined grants remain independent.
+
 ## Design system
 
 Appearance — row geometry, badge chrome, typography, and the severity / span-exit / inspect color palette — lives in `PeriscopeStylesheet` ([`Sources/Styling/`](Sources/Styling)), a Broadway `BStylesheet`, rather than inline in views.

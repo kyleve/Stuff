@@ -77,6 +77,7 @@ struct LogHierarchyModelTests {
             eventVersion: 1,
             message: "linked",
             payload: Data(),
+            exportMetadata: nil,
             // Primary is child; root is a linked secondary scope.
             scopes: [child.id, root.id],
             tags: [],

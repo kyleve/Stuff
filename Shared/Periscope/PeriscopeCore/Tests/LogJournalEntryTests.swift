@@ -3,6 +3,20 @@ import Foundation
 import Testing
 
 struct LogJournalEntryTests {
+    @Test func historicalJournalRecordsWithoutPermissionsRemainReadable() throws {
+        let record = LogRecord(date: Date(), event: PhotoLogs(photoID: "historical"), scopes: [])
+        let data = try JSONEncoder().encode(LogJournalRecord(record: record, sequence: 1))
+        var object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        object.removeValue(forKey: "exportMetadata")
+        let historical = try JSONDecoder().decode(
+            LogJournalRecord.self,
+            from: JSONSerialization.data(withJSONObject: object),
+        )
+        #expect(historical.exportMetadata == nil)
+        #expect(try JSONDecoder().decode(PhotoLogs.self, from: historical.payload)
+            .photoID == "historical")
+    }
+
     @Test func sessionEntriesRoundTrip() throws {
         let entry = LogJournalEntry.session(.fixture())
         let decoded = try LogJournalEntry.decoded(from: entry.encoded())

@@ -73,6 +73,17 @@ struct PeriscopeStoreJournalIngestTests {
 
         let events = try await store.events(matching: LogQuery())
         let recovered = try #require(events.first { $0.message == "about to die" })
+        #expect(recovered.exportMetadata != nil)
+        #expect(try recovered
+            .exportedPayload(using: .init(mode: .baseline, enabledControls: [])) == .object([:]))
+        let diagnostic = try recovered.exportedPayload(using: .init(
+            mode: .diagnostic,
+            enabledControls: [.personalData],
+        ))
+        #expect(try diagnostic == .object([
+            "level": JSONValue.encoding(LogLevel.error),
+            "text": .string("about to die"),
+        ]))
         #expect(recovered.sessionID == crashed.id)
         #expect(recovered.level == .error)
         #expect(recovered.tags == [LogTag(key: key, value: "pay_1")])

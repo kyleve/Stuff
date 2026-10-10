@@ -2,7 +2,8 @@
 
 ## Diagnostic export
 
-Events generate `exportedValue(using:)` separately from their complete local `Codable` payload.
+Events generate `exportDescription` separately from their complete local `Codable` payload.
+The description drives `exportedValue(using:)` and the permissions persisted with each record.
 Restricted fields can specify `export: .never` or diagnostic requirements with built-in or consumer-defined controls.
 An override cannot promote a restricted field into baseline export.
 Shareable fields cannot declare export overrides.

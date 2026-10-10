@@ -133,6 +133,7 @@ func storedSpanEvent(
         eventVersion: 1,
         message: message,
         payload: payload,
+        exportMetadata: nil,
         scopes: [LogScope.root(named: "app").id],
         tags: [],
         spanID: spanID,

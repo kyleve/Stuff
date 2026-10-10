@@ -17,6 +17,7 @@ struct LogEventDetailViewTests {
             eventVersion: 1,
             message: "hello",
             payload: payload,
+            exportMetadata: nil,
             scopes: [LogScope.root(named: "app").id],
             tags: [],
             spanID: nil,

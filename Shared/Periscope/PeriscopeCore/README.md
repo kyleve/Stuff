@@ -147,12 +147,26 @@ let canExport = policy.allows(requirements)
 ```
 
 Every required control must be enabled. A child uses `constrained(by:)` to retain its parent's restrictions.
-The `.never` requirement denies export regardless of the mode or enabled controls.
+The `.never` requirement denies policy-filtered export regardless of the mode or enabled controls.
 These declarations express approval. They do not inspect values for personal data.
 
-`@LogEvent` generates `exportedValue(using:)`. Denied fields do not invoke their encoder.
+`@LogEvent` generates `exportDescription`. Its inherited `exportedValue(using:)` filters live values before encoding.
+Denied fields do not invoke their encoder.
 Local `Codable` persistence remains complete. Raw encoding is not an export API.
 Manual event conformances default to an empty export object.
+
+The store and crash journal persist versioned `LogExportMetadata` beside the unchanged raw payload.
+This value-free tree records stable field keys, requirements, object members, and array positions.
+It contains requirements, not the user's current grants.
+Metadata stays local. Dynamic dictionary keys can themselves contain personal data.
+`StoredLogEvent.exportedPayload(using:)` applies the requested policy without decoding the original event type.
+Unknown metadata versions and incompatible shapes throw. Historical rows without metadata return no approved payload.
+Synthesized Codable can omit nil optional members. Their approved export representation remains JSON null.
+
+Custom `LogExportable` values implement `exportDescription` with the same keys and container shape as their Codable representation.
+The description supplies both live filtering and stored permissions. No second set of privacy rules is required.
+Metadata increases journal size and record serialization work, but does not duplicate payload values.
+PeriscopeTools offers explicit unfiltered file export. That mode intentionally bypasses requirements, including `.never`.
 
 Restricted fields can override their diagnostic requirements:
 

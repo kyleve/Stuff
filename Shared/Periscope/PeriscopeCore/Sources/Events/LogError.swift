@@ -33,8 +33,8 @@ public struct LogError: Codable, Equatable, LogExportable {
         public let codingPath: [PathComponent]
         public let description: String
 
-        public func exportedValue(using policy: LogExportPolicy) throws -> JSONValue {
-            try LogExportField.object([
+        public var exportDescription: LogExportDescription {
+            LogExportDescription.object([
                 .init(.init("kind"), value: kind, requirements: .diagnostic(requiring: [])),
                 .init(
                     .init("coding_path"),
@@ -46,7 +46,7 @@ public struct LogError: Codable, Equatable, LogExportable {
                     value: description,
                     requirements: .diagnostic(requiring: [.personalData]),
                 ),
-            ], using: policy)
+            ])
         }
 
         private enum CodingKeys: String, CodingKey {
@@ -96,8 +96,8 @@ public struct LogError: Codable, Equatable, LogExportable {
     public let details: JSONValue?
     public let decoding: DecodingDetails?
 
-    public func exportedValue(using policy: LogExportPolicy) throws -> JSONValue {
-        try LogExportField.object([
+    public var exportDescription: LogExportDescription {
+        LogExportDescription.object([
             .init(.init("code"), value: code, requirements: .diagnostic(requiring: [])),
             .init(
                 .init("domain"),
@@ -131,7 +131,7 @@ public struct LogError: Codable, Equatable, LogExportable {
                 requirements: .diagnostic(requiring: []),
             ),
             .init(.init("decoding"), value: decoding, requirements: .diagnostic(requiring: [])),
-        ], using: policy)
+        ])
     }
 
     private enum CodingKeys: String, CodingKey {

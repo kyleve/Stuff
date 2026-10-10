@@ -19,6 +19,8 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
     public let message: String
     /// The event's stored properties, JSON-encoded.
     public let payload: Data
+    /// Versioned export permissions; absent on historical rows. Never infer permissions from JSON.
+    public let exportMetadata: Data?
     /// Every scope the event references, primary first, in emission order.
     public let scopes: [ScopeID]
     /// The tags the event was stamped with.
@@ -50,6 +52,7 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
         eventVersion: Int,
         message: String,
         payload: Data,
+        exportMetadata: Data?,
         scopes: [ScopeID],
         tags: [LogTag],
         spanID: SpanID?,
@@ -68,6 +71,7 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
         self.eventVersion = eventVersion
         self.message = message
         self.payload = payload
+        self.exportMetadata = exportMetadata
         self.scopes = scopes
         self.tags = tags
         self.spanID = spanID
@@ -81,6 +85,15 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
 
     public var primaryScope: ScopeID? {
         scopes.first
+    }
+
+    /// Historical records have no approved payload. Invalid metadata or payloads throw rather
+    /// than falling back to their unfiltered contents.
+    public func exportedPayload(using policy: LogExportPolicy) throws -> JSONValue? {
+        guard let exportMetadata else { return nil }
+        let metadata = try JSONDecoder().decode(LogExportMetadata.self, from: exportMetadata)
+        let value = try JSONDecoder().decode(JSONValue.self, from: payload)
+        return try metadata.filtered(value, using: policy)
     }
 
     /// Decode the structured payload back to its event type. Throws when

@@ -38,6 +38,7 @@ final class SDLogEvent {
     var message: String
     /// The event's stored properties, JSON-encoded.
     var payload: Data
+    var exportMetadata: Data?
     /// Every scope the event references, primary first, in emission order.
     var orderedScopeIDs: [UUID]
     var sessionID: UUID
@@ -77,6 +78,7 @@ final class SDLogEvent {
         eventVersion: Int,
         message: String,
         payload: Data,
+        exportMetadata: Data?,
         orderedScopeIDs: [UUID],
         sessionID: UUID,
         ambientSnapshotID: UUID?,
@@ -99,6 +101,7 @@ final class SDLogEvent {
         self.eventVersion = eventVersion
         self.message = message
         self.payload = payload
+        self.exportMetadata = exportMetadata
         self.orderedScopeIDs = orderedScopeIDs
         self.sessionID = sessionID
         self.ambientSnapshotID = ambientSnapshotID
