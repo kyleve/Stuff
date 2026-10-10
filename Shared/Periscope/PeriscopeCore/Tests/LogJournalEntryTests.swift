@@ -4,7 +4,7 @@ import Testing
 
 struct LogJournalEntryTests {
     @Test func historicalJournalRecordsWithoutPermissionsRemainReadable() throws {
-        let record = LogRecord(date: Date(), event: PhotoLogs(photoID: "historical"), scopes: [])
+        let record = LogRecord(date: Date(), event: makePhotoEvent("historical"), scopes: [])
         let data = try JSONEncoder().encode(LogJournalRecord(record: record, sequence: 1))
         var object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
         object.removeValue(forKey: "exportMetadata")
@@ -13,7 +13,7 @@ struct LogJournalEntryTests {
             from: JSONSerialization.data(withJSONObject: object),
         )
         #expect(historical.exportMetadata == nil)
-        #expect(try JSONDecoder().decode(PhotoLogs.self, from: historical.payload)
+        #expect(try JSONDecoder().decode(PhotoLogs.Event.self, from: historical.payload)
             .photoID == "historical")
     }
 
