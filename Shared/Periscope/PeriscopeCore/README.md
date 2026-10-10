@@ -105,6 +105,55 @@ Conversion throws on failure. The caller must handle that error, not replace the
 Baseline export excludes error snapshots. Opt-in debug-full includes their structured payloads.
 Restricted does not mean local-only. Attachment bytes remain excluded from every remote mode.
 
+## Export controls
+
+`LogExportPolicy` separates the export mode from independent data permissions.
+`LogExportControl` is an extensible value type, not a closed enum.
+Consumers declare controls with stable, namespaced identifiers:
+
+```swift
+extension LogExportControl {
+    static let myExportControl = Self("com.example.my-export-control")
+}
+
+var policy = LogExportPolicy(mode: .diagnostic, enabledControls: [])
+policy[.location] = true
+policy[.myExportControl] = true
+```
+
+The built-in controls cover identifiers, location, user content, and other personal data.
+Each control is independent. The personal-data control is not a wildcard.
+Diagnostic mode does not enable any control automatically.
+
+A host can present one switch for an explicit group:
+
+```swift
+let personalControls: Set<LogExportControl> = [
+    .identifiers, .location, .userContent, .personalData,
+]
+policy.setEnabled(includePersonalData, for: personalControls)
+```
+
+This operation preserves unrelated grants. New framework controls and consumer controls remain off until explicitly enabled.
+The host owns labels, explanations, and the group membership shown in its UI.
+
+`LogExportRequirements` describes author-approved eligibility and required controls:
+
+```swift
+let requirements = LogExportRequirements.diagnostic(requiring: [.location, .myExportControl])
+let canExport = policy.allows(requirements)
+```
+
+Every required control must be enabled. A child uses `constrained(by:)` to retain its parent's restrictions.
+The `.never` requirement denies export regardless of the mode or enabled controls.
+These declarations express approval. They do not inspect values for personal data.
+
+**Integration status:** these types provide the policy model only.
+The existing macros, reporting sink, and app settings do not consume this model yet.
+Raw `Codable` encoding does not apply these requirements.
+Field filtering must precede encoding before a sink can claim to enforce this policy.
+The existing baseline and debug-full behavior remains unchanged.
+
 ## Public API
 
 - **Events** — `LogEvent` (`Codable & Sendable`; `eventName`, `eventVersion`,

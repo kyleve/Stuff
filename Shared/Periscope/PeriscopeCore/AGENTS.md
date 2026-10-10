@@ -44,6 +44,9 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) first. That file owns the build 
 - **Never use attachment bytes as remote-export input, including in Debug full-metadata mode.**
 - **Capture `LogError` at the logging boundary and classify it as restricted/errorDetails.** Keep the original error in services and failure state. Do not copy arbitrary `NSError.userInfo` into payloads. Restricted payloads remain eligible for opt-in debug-full export.
 - **Use closed `CaseIterable` values for category fields.** Reject values outside `allCases`.
+- **Export controls are explicit grants, not a wildcard.** A combined UI switch names its controls and preserves unrelated grants.
+- **Export requirements compose restrictively.** Require every control, retain parent restrictions, and never override `.never`.
+- **The export policy model does not filter raw payloads.** Do not claim sink enforcement until generated projections and all context exports apply it.
 - **Sink failures never propagate or vanish.** Log them to OSLog. Count them.
 - **Persist a synthetic `StoreWriteFailed` marker.** The pipeline reports drops with a synthetic `DroppedEvents` record.
 - **Roll back a failed store save** (`recoverFromFailedWrite`). One poisoned batch must never wedge subsequent saves or fork the session.
