@@ -21,6 +21,7 @@ public struct LogField<Value: Codable & Sendable>: Codable, Sendable {
     public init(
         exposure _: LogFieldExposure,
         kind _: LogFieldKind,
+        export _: LogExportRequirements? = nil,
     ) {
         storage = nil
         isInitialized = false
@@ -30,6 +31,7 @@ public struct LogField<Value: Codable & Sendable>: Codable, Sendable {
         _: StaticString,
         exposure _: LogFieldExposure,
         kind _: LogFieldKind,
+        export _: LogExportRequirements? = nil,
     ) {
         storage = nil
         isInitialized = false
@@ -40,6 +42,7 @@ public struct LogField<Value: Codable & Sendable>: Codable, Sendable {
         _: StaticString,
         exposure _: LogFieldExposure,
         kind _: LogFieldKind,
+        export _: LogExportRequirements? = nil,
     ) {
         storage = wrappedValue
         isInitialized = true

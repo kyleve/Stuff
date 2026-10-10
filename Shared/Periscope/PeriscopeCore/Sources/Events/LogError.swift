@@ -2,8 +2,8 @@ import Foundation
 
 /// A restricted, immutable error snapshot captured at the logging boundary.
 /// This is diagnostic data, not a replacement for the original error in application state.
-public struct LogError: Codable, Equatable, Sendable {
-    public struct DecodingDetails: Codable, Equatable, Sendable {
+public struct LogError: Codable, Equatable, LogExportable {
+    public struct DecodingDetails: Codable, Equatable, LogExportable {
         public enum Kind: String, Codable, Sendable {
             case typeMismatch = "type_mismatch"
             case valueNotFound = "value_not_found"
@@ -32,6 +32,22 @@ public struct LogError: Codable, Equatable, Sendable {
         /// For a missing key, the path includes that key as its final component.
         public let codingPath: [PathComponent]
         public let description: String
+
+        public func exportedValue(using policy: LogExportPolicy) throws -> JSONValue {
+            try LogExportField.object([
+                .init(.init("kind"), value: kind, requirements: .diagnostic(requiring: [])),
+                .init(
+                    .init("coding_path"),
+                    value: codingPath,
+                    requirements: .diagnostic(requiring: [.personalData]),
+                ),
+                .init(
+                    .init("description"),
+                    value: description,
+                    requirements: .diagnostic(requiring: [.personalData]),
+                ),
+            ], using: policy)
+        }
 
         private enum CodingKeys: String, CodingKey {
             case kind, description
@@ -79,6 +95,44 @@ public struct LogError: Codable, Equatable, Sendable {
     public let omittedCauses: [CauseOmission]
     public let details: JSONValue?
     public let decoding: DecodingDetails?
+
+    public func exportedValue(using policy: LogExportPolicy) throws -> JSONValue {
+        try LogExportField.object([
+            .init(.init("code"), value: code, requirements: .diagnostic(requiring: [])),
+            .init(
+                .init("domain"),
+                value: domain,
+                requirements: .diagnostic(requiring: [.personalData]),
+            ),
+            .init(
+                .init("description"),
+                value: description,
+                requirements: .diagnostic(requiring: [.personalData]),
+            ),
+            .init(
+                .init("failure_reason"),
+                value: failureReason,
+                requirements: .diagnostic(requiring: [.personalData]),
+            ),
+            .init(
+                .init("recovery_suggestion"),
+                value: recoverySuggestion,
+                requirements: .diagnostic(requiring: [.personalData]),
+            ),
+            .init(
+                .init("details"),
+                value: details,
+                requirements: .diagnostic(requiring: [.personalData]),
+            ),
+            .init(.init("causes"), value: causes, requirements: .diagnostic(requiring: [])),
+            .init(
+                .init("omitted_causes"),
+                value: omittedCauses,
+                requirements: .diagnostic(requiring: []),
+            ),
+            .init(.init("decoding"), value: decoding, requirements: .diagnostic(requiring: [])),
+        ], using: policy)
+    }
 
     private enum CodingKeys: String, CodingKey {
         case domain

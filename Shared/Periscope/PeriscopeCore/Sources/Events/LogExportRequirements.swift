@@ -5,6 +5,21 @@ public enum LogExportRequirements: Equatable, Sendable {
     case diagnostic(requiring: Set<LogExportControl>)
     case never
 
+    /// Conservative defaults for the existing declaration and emission classifications.
+    public static func classified(exposure: LogFieldExposure, kind: LogFieldKind) -> Self {
+        if exposure == .shareable { return .baseline(requiring: []) }
+        switch kind {
+            case .identifier: return .diagnostic(requiring: [.identifiers])
+            case .location: return .diagnostic(requiring: [.location])
+            case .userContent: return .diagnostic(requiring: [.userContent])
+            case .boolean, .count, .limit, .duration, .category:
+                return .diagnostic(requiring: [])
+            case .pii, .json, .errorDetails, .dateTime, .pathOrURL, .arbitraryText, .domainValue,
+                 .technicalState:
+                return .diagnostic(requiring: [.personalData])
+        }
+    }
+
     /// A child cannot weaken its parent's eligibility or remove a required control.
     public func constrained(by parent: Self) -> Self {
         switch (self, parent) {

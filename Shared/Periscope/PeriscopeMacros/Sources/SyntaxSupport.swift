@@ -57,6 +57,19 @@ struct EventField {
     let exposure: String
     let kind: EventFieldKind
     let isOptional: Bool
+    var exportRequirements: String?
+
+    var resolvedExportRequirements: String {
+        if let exportRequirements {
+            return "LogExportRequirements.diagnostic(requiring: []).constrained(by: \(exportRequirements))"
+        }
+        if exposure == "restricted", kind == .errorDetails,
+           ["LogError", "LogError?"].contains(type)
+        {
+            return ".diagnostic(requiring: [])"
+        }
+        return ".classified(exposure: .\(exposure), kind: .\(kind))"
+    }
 
     var policyType: String {
         exposure == "shareable" ? "Shared" : "Restricted"

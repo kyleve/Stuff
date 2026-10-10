@@ -102,7 +102,9 @@ log.persistBacklogFailed(error: .restricted(.errorDetails, snapshot))
 ```
 
 Conversion throws on failure. The caller must handle that error, not replace the details with an empty value.
-Baseline export excludes error snapshots. Opt-in debug-full includes their structured payloads.
+Baseline export excludes error snapshots. Diagnostic export filters their structured payloads.
+Codes, cause structure, omission markers, and decoding kinds need no personal-data grant in diagnostic mode.
+Domains, descriptions, coding paths, and caller-supplied details require the personal-data control.
 Restricted does not mean local-only. Attachment bytes remain excluded from every remote mode.
 
 ## Export controls
@@ -148,11 +150,31 @@ Every required control must be enabled. A child uses `constrained(by:)` to retai
 The `.never` requirement denies export regardless of the mode or enabled controls.
 These declarations express approval. They do not inspect values for personal data.
 
-**Integration status:** these types provide the policy model only.
-The existing macros, reporting sink, and app settings do not consume this model yet.
-Raw `Codable` encoding does not apply these requirements.
-Field filtering must precede encoding before a sink can claim to enforce this policy.
-The existing baseline and debug-full behavior remains unchanged.
+`@LogEvent` generates `exportedValue(using:)`. Denied fields do not invoke their encoder.
+Local `Codable` persistence remains complete. Raw encoding is not an export API.
+Manual event conformances default to an empty export object.
+
+Restricted fields can override their diagnostic requirements:
+
+```swift
+@LogField(exposure: .restricted, kind: .identifier, export: .never)
+var credentialID: String
+
+@LogField(exposure: .restricted, kind: .domainValue,
+          export: .diagnostic(requiring: [.myExportControl]))
+var diagnostics: DiagnosticDetails
+```
+
+Shareable fields already approve baseline export and cannot declare an export override.
+Restricted identifiers, locations, and user content require their respective controls.
+Restricted scalar operational kinds need diagnostic mode. Other restricted values require personal-data consent by default.
+`LogError` fields use the nested error projection instead of a blanket text approval.
+
+Nested types implement `LogExportable` to filter their members with `LogExportField.object(_:using:)`.
+Optional values, arrays, and string-keyed dictionaries preserve nested projections.
+The containing field must pass its own requirements before any child can export.
+Opaque Codable values and `JSONValue` are atomic: their containing field approves their complete contents, including dictionary keys.
+Do not wrap policy-bearing values in opaque Codable containers or pre-encode them as JSON. Preserve their `LogExportable` projection instead.
 
 ## Public API
 

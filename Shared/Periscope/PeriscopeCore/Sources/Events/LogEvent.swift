@@ -17,7 +17,7 @@ import Foundation
 ///
 /// Events are emitted through a typed logger: `Log<PhotoUploaded>` can log
 /// only `PhotoUploaded` values (plus freeform ``Message`` conveniences).
-public protocol LogEvent: LogScopeDefinition, Codable, Sendable {
+public protocol LogEvent: LogScopeDefinition, Codable, LogExportable {
     /// Stable name the event persists under; defaults to the type name.
     ///
     /// Persisted payloads are keyed by this name (plus ``eventVersion``), so
@@ -60,6 +60,11 @@ public protocol LogEvent: LogScopeDefinition, Codable, Sendable {
 }
 
 extension LogEvent {
+    /// Manual or historical events have no implicit diagnostic export approval.
+    public func exportedValue(using _: LogExportPolicy) throws -> JSONValue {
+        .object([:])
+    }
+
     public static var scopeName: String {
         eventName
     }

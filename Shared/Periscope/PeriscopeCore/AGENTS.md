@@ -46,7 +46,8 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) first. That file owns the build 
 - **Use closed `CaseIterable` values for category fields.** Reject values outside `allCases`.
 - **Export controls are explicit grants, not a wildcard.** A combined UI switch names its controls and preserves unrelated grants.
 - **Export requirements compose restrictively.** Require every control, retain parent restrictions, and never override `.never`.
-- **The export policy model does not filter raw payloads.** Do not claim sink enforcement until generated projections and all context exports apply it.
+- **Use `exportedValue(using:)`, never raw event encoding, for diagnostic export.** Denied fields must not invoke encoders.
+- **Preserve nested export policies.** Use `LogExportable` for structured members. Do not hide policy-bearing values in opaque Codable containers or pre-encoded JSON.
 - **Sink failures never propagate or vanish.** Log them to OSLog. Count them.
 - **Persist a synthetic `StoreWriteFailed` marker.** The pipeline reports drops with a synthetic `DroppedEvents` record.
 - **Roll back a failed store save** (`recoverFromFailedWrite`). One poisoned batch must never wedge subsequent saves or fork the session.

@@ -1,5 +1,13 @@
 # PeriscopeMacros
 
+## Diagnostic export
+
+Events generate `exportedValue(using:)` separately from their complete local `Codable` payload.
+Restricted fields can specify `export: .never` or diagnostic requirements with built-in or consumer-defined controls.
+An override cannot promote a restricted field into baseline export.
+Shareable fields cannot declare export overrides.
+See the [Core export guide](../PeriscopeCore/README.md#export-controls) for nested projections and opaque-value limits.
+
 PeriscopeMacros generates classified event code for `PeriscopeCore`.
 It validates stable scope, event, and field identifiers at compile time.
 It also generates typed log methods that require classified inputs.

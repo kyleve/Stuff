@@ -3,6 +3,40 @@ import PeriscopeCore
 import Testing
 
 struct LogErrorTests {
+    @Test func diagnosticProjectionFiltersNestedTextAndInvalidDetailsBeforeEncoding() throws {
+        let cause = NSError(
+            domain: "private cause",
+            code: 2,
+            userInfo: [NSLocalizedDescriptionKey: "private description"],
+        )
+        let error = NSError(
+            domain: "private domain",
+            code: 1,
+            userInfo: [NSUnderlyingErrorKey: cause],
+        )
+        let snapshot = LogError(capturing: error, details: .double(.nan))
+        let event = LogErrorTestLog.Failed(error: .restricted(.errorDetails, snapshot))
+        let policy = LogExportPolicy(mode: .diagnostic, enabledControls: [])
+        let expectedCause: JSONValue = .object([
+            "code": .int(2),
+            "causes": .array([]),
+            "omitted_causes": .array([]),
+            "decoding": .null,
+        ])
+        #expect(try event.exportedValue(using: policy) == .object(["error": .object([
+            "code": .int(1),
+            "causes": .array([expectedCause]),
+            "omitted_causes": .array([]),
+            "decoding": .null,
+        ])]))
+        #expect(throws: EncodingError.self) {
+            try event.exportedValue(using: .init(
+                mode: .diagnostic,
+                enabledControls: [.personalData],
+            ))
+        }
+    }
+
     @Test func capturesExplicitCodableDetailsWithoutGuessing() throws {
         let original = CodableLogErrorTestFailure(attempt: 2, retryable: true)
         #expect(LogError(capturing: original).details == nil)
