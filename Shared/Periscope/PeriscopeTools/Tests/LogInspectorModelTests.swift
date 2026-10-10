@@ -120,6 +120,7 @@ struct LogInspectorModelTests {
             eventVersion: 1,
             message: "no scope",
             payload: Data(),
+            exportMetadata: nil,
             scopes: [],
             tags: [],
             spanID: nil,

@@ -23,6 +23,8 @@ Follow the repo [`building-ui`](../../../.agents/skills/building-ui/SKILL.md) sk
 
 ## Invariants
 
+- **Choose NDJSON export mode explicitly.** Keep the viewer unfiltered unless the product changes its behavior. Filtered export uses persisted payload permissions, excludes rendered messages and folded ambient snapshots, and never falls back to raw data after a filtering error.
+
 - **Stay read-only over the store.** Tooling queries `PeriscopeCore`'s store and live buffer. It never records events of its own (except through the normal logging API).
 - **Report tool failures to OSLog, not to Periscope.** `PeriscopeToolsLog.failures` is the channel for a store read that threw or a stored payload that would not decode.
 - **Logging those through Periscope would commit a change these surfaces then reload for.** One corrupt row becomes a refresh loop.

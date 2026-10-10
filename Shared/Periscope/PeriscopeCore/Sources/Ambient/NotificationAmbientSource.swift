@@ -21,7 +21,7 @@ import os
 open class NotificationAmbientSource: NSObject, AmbientEventSource, @unchecked Sendable {
     /// The logger handed in at `start`, read on the notification delivery
     /// thread; `nil` before `start`/after `stop`, which makes `emit` a no-op.
-    private let activeLog = OSAllocatedUnfairLock<Log<AmbientEvent>?>(uncheckedState: nil)
+    private let activeLog = OSAllocatedUnfairLock<Log<AmbientLog>?>(uncheckedState: nil)
 
     override public init() {
         super.init()
@@ -32,7 +32,7 @@ open class NotificationAmbientSource: NSObject, AmbientEventSource, @unchecked S
         []
     }
 
-    public func start(log: Log<AmbientEvent>) {
+    public func start(log: Log<AmbientLog>) {
         activeLog.withLockUnchecked { $0 = log }
         let center = NotificationCenter.default
         // Blanket-remove first so a restart re-adds rather than doubles.
@@ -63,7 +63,7 @@ open class NotificationAmbientSource: NSObject, AmbientEventSource, @unchecked S
 
     /// The event to log for a delivered notification, or `nil` to skip it.
     /// Runs on the notification's delivery thread. Override.
-    open func event(for _: Notification) -> AmbientEvent? {
+    open func event(for _: Notification) -> (any AmbientLogEvent & LogEvent)? {
         nil
     }
 
@@ -76,9 +76,9 @@ open class NotificationAmbientSource: NSObject, AmbientEventSource, @unchecked S
     }
 
     /// Log `event` when started (a no-op after `stop`).
-    public func emit(_ event: AmbientEvent) {
+    public func emit(_ event: some AmbientLogEvent & LogEvent) {
         guard let log = activeLog.withLockUnchecked({ $0 }) else { return }
-        log { event }
+        log.record(event)
     }
 
     @objc private func notify(_ notification: Notification) {

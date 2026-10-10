@@ -17,6 +17,7 @@ struct LogEventDetailViewTests {
             eventVersion: 1,
             message: "hello",
             payload: payload,
+            exportMetadata: nil,
             scopes: [LogScope.root(named: "app").id],
             tags: [],
             spanID: nil,
@@ -30,7 +31,7 @@ struct LogEventDetailViewTests {
     }
 
     @Test func exitReasonDecodesFromThePayload() throws {
-        let ended = SpanEnded(
+        let ended = classifiedSpanEnded(
             spanID: SpanID(),
             name: "checkout",
             duration: nil,
@@ -42,7 +43,12 @@ struct LogEventDetailViewTests {
     }
 
     @Test func exitReasonIsNilWithoutAReason() throws {
-        let ended = SpanEnded(spanID: SpanID(), name: "checkout", duration: nil, exit: .success)
+        let ended = classifiedSpanEnded(
+            spanID: SpanID(),
+            name: "checkout",
+            duration: nil,
+            exit: .success,
+        )
         let event = try stored(eventName: "span-ended", payload: JSONEncoder().encode(ended))
 
         #expect(event.exitReason == nil)

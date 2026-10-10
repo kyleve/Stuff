@@ -16,7 +16,7 @@ public protocol AmbientEventSource: AnyObject, Sendable {
     /// filter no-op updates against its own last state before emitting
     /// (so a signal that re-fires without changing doesn't flood the log).
     /// A restart must replace the prior observation, not double it.
-    func start(log: Log<AmbientEvent>)
+    func start(log: Log<AmbientLog>)
 
     /// End the observation: remove notification observers, cancel
     /// monitors. Nothing may keep logging (or retaining the logger's
@@ -29,7 +29,7 @@ extension Periscope {
     /// ambient scope.
     public func startAmbientSource(_ source: some AmbientEventSource) {
         retainAmbientSource(source)
-        source.start(log: Log<AmbientEvent>(recorder: self))
+        source.start(log: Log<AmbientLog>(recorder: self))
     }
 
     /// Stop and release every ambient source started on this system — the

@@ -6,7 +6,14 @@ struct OSLogSinkTests {
     let sink = OSLogSink(subsystem: "com.stuff.periscope.tests")
 
     private func record(primary: LogScope, message: String = "hello") -> LogRecord {
-        LogRecord(date: Date(), event: Message(level: .info, message), scopes: [primary.id])
+        LogRecord(
+            date: Date(),
+            event: Message(
+                level: .restricted(.technicalState, .info),
+                text: .restricted(.arbitraryText, message),
+            ),
+            scopes: [primary.id],
+        )
     }
 
     @Test func categoryIsTheRootScopeName() async {
@@ -37,7 +44,10 @@ struct OSLogSinkTests {
         await sink.defineScopes([root])
         let record = LogRecord(
             date: Date(),
-            event: Message(level: .info, "hello"),
+            event: Message(
+                level: .restricted(.technicalState, .info),
+                text: .restricted(.arbitraryText, "hello"),
+            ),
             scopes: [root.id],
             tags: [
                 LogTag(key: LogTagKey("b-key"), value: "2"),
@@ -61,7 +71,10 @@ struct OSLogSinkTests {
             record(primary: root, message: "smoke"),
             LogRecord(
                 date: Date(),
-                event: Message(level: .fault, "fault smoke"),
+                event: Message(
+                    level: .restricted(.technicalState, .fault),
+                    text: .restricted(.arbitraryText, "fault smoke"),
+                ),
                 scopes: [root.id],
             ),
         ])

@@ -3,6 +3,20 @@ import Foundation
 import Testing
 
 struct LogJournalEntryTests {
+    @Test func historicalJournalRecordsWithoutPermissionsRemainReadable() throws {
+        let record = LogRecord(date: Date(), event: PhotoLogs(photoID: "historical"), scopes: [])
+        let data = try JSONEncoder().encode(LogJournalRecord(record: record, sequence: 1))
+        var object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        object.removeValue(forKey: "exportMetadata")
+        let historical = try JSONDecoder().decode(
+            LogJournalRecord.self,
+            from: JSONSerialization.data(withJSONObject: object),
+        )
+        #expect(historical.exportMetadata == nil)
+        #expect(try JSONDecoder().decode(PhotoLogs.self, from: historical.payload)
+            .photoID == "historical")
+    }
+
     @Test func sessionEntriesRoundTrip() throws {
         let entry = LogJournalEntry.session(.fixture())
         let decoded = try LogJournalEntry.decoded(from: entry.encoded())
@@ -56,7 +70,7 @@ struct LogJournalEntryTests {
     @Test func spanBegansCarryTheirRelaunchPolicy() throws {
         let record = LogRecord(
             date: Date(timeIntervalSinceReferenceDate: 5),
-            event: SpanBegan(
+            event: makeSpanBegan(
                 spanID: SpanID(),
                 name: "long-download",
                 lifetime: .indefinite,
@@ -76,7 +90,7 @@ struct LogJournalEntryTests {
     @Test func nonBeganRecordsCarryNoRelaunchPolicy() throws {
         let record = LogRecord(
             date: Date(timeIntervalSinceReferenceDate: 6),
-            event: SpanEnded(
+            event: makeSpanEnded(
                 spanID: SpanID(),
                 name: "long-download",
                 duration: .seconds(1),
@@ -92,7 +106,7 @@ struct LogJournalEntryTests {
         let big = Data(repeating: 0xAB, count: LogJournalRecord.maximumInlineAttachmentBytes + 1)
         let record = LogRecord(
             date: Date(timeIntervalSinceReferenceDate: 1),
-            event: Message(level: .info, "screenshotted"),
+            event: makeMessage("screenshotted"),
             scopes: [scope.id],
             attachments: [
                 LogAttachment(name: "small", contentType: .json, data: Data([1])),
@@ -134,7 +148,7 @@ struct LogJournalEntryTests {
     @Test func entriesWithoutAmbientStateStillDecode() throws {
         let record = LogRecord(
             date: Date(timeIntervalSinceReferenceDate: 7),
-            event: Message(level: .info, "from an older build"),
+            event: makeMessage("from an older build"),
             scopes: [],
         )
         let journaled = try LogJournalRecord(record: record, sequence: 1)

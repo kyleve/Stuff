@@ -155,6 +155,7 @@ extension PeriscopeStore {
                 eventVersion: record.eventVersion,
                 message: record.message,
                 payload: record.payload,
+                exportMetadata: record.exportMetadata,
                 orderedScopeIDs: record.scopes,
                 sessionID: sessionRow.sessionID,
                 ambientSnapshotID: ambientRow(for: record.ambient, at: record.date)?
@@ -183,7 +184,10 @@ extension PeriscopeStore {
         if recovery.droppedOlderEntries {
             text += "; older entries were dropped by the journal's byte budget"
         }
-        let notice = Message(level: hasGaps ? .warning : .notice, text)
+        let notice = Message(
+            level: .restricted(.technicalState, hasGaps ? .warning : .notice),
+            text: .restricted(.arbitraryText, text),
+        )
         let marker = try SDLogEvent(
             eventID: UUID(),
             date: Date(),
@@ -194,6 +198,8 @@ extension PeriscopeStore {
             eventVersion: Message.eventVersion,
             message: notice.message,
             payload: JSONEncoder().encode(notice),
+            exportMetadata: JSONEncoder()
+                .encode(LogExportMetadata(payload: notice.exportDescription.schema)),
             orderedScopeIDs: [],
             sessionID: sessionRow.sessionID,
             // The marker describes the recovery, not a moment in the

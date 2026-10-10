@@ -83,7 +83,7 @@ struct PeriscopeViewerModelTests {
         await store.write([
             LogRecord(
                 date: date(1),
-                event: SpanEnded(
+                event: classifiedSpanEnded(
                     spanID: SpanID(),
                     name: "save",
                     duration: .seconds(1),
@@ -142,7 +142,7 @@ struct PeriscopeViewerModelTests {
         let model = PeriscopeViewerModel(store: store)
         await model.load()
 
-        #expect(model.eventNames == ["PhotoLogs", "message"].sorted())
+        #expect(model.eventNames == ["PhotoLogs", "message.message"].sorted())
         #expect(model.sessions.count == 1)
         #expect(model.scopeChoices.map(\.path).contains("app / photos / album-1"))
         #expect(model.availableLevels == LogLevel.standardLevels)

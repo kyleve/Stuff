@@ -23,9 +23,10 @@ CreditKit provides tools and types for working out what an app owes attribution 
 - **`SoftwareCredit` is `Identifiable` by `name`.** A library's name is its repo basename.
 - **Read notices at the pinned revision.** Never read the default branch. HEAD's text may not govern the code in the binary.
 - **The generator keys off `.product(name:package:)`, not `dependencies:`.**
-- **That keeps tooling-only packages (BumperBowling, swift-syntax) out of a report by construction.**
+- **Include packages that a target links.** A macro-linked package is a development tool.
 - **`kind` is derived from reachability, not declared.** `shippedFrom` names the app's root package targets.
 - **Anything inside that closure is a `library`.** Any other linked package is a `developmentTool`. Linking is not shipping.
+- **Stop shipping reachability at macro targets.** Macro implementations run on the build host.
 - **`shippedFrom` is the only hand-set part for SPM packages.**
 - **`agentSkills` and `developmentTools` declare `kind` in config** — both are development tools in Where today.
 

@@ -1,36 +1,5 @@
 import Foundation
 
-/// The synthetic event `PeriscopeStore` persists after a failed,
-/// rolled-back write — the durable history's marker for its own gap.
-/// The lost batch's contents are gone by definition; this records how
-/// many records vanished and why.
-public struct StoreWriteFailed: LogEvent {
-    public static let eventName = "store-write-failed"
-
-    public let lostRecordCount: Int
-    public let reason: String
-
-    public var level: LogLevel {
-        .warning
-    }
-
-    public var message: String {
-        "\(lostRecordCount) record(s) failed to persist: \(reason)"
-    }
-
-    public var remoteFields: [RemoteLogField] {
-        [RemoteLogField(
-            key: RemoteLogFieldKey("lost_record_count"),
-            value: .count(lostRecordCount),
-        )]
-    }
-
-    public init(lostRecordCount: Int, reason: String) {
-        self.lostRecordCount = lostRecordCount
-        self.reason = reason
-    }
-}
-
 /// A persisted log event, as returned by `PeriscopeStore` queries — the
 /// value-type snapshot of a stored row.
 ///
@@ -50,6 +19,8 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
     public let message: String
     /// The event's stored properties, JSON-encoded.
     public let payload: Data
+    /// Versioned export permissions; absent on historical rows. Never infer permissions from JSON.
+    public let exportMetadata: Data?
     /// Every scope the event references, primary first, in emission order.
     public let scopes: [ScopeID]
     /// The tags the event was stamped with.
@@ -81,6 +52,7 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
         eventVersion: Int,
         message: String,
         payload: Data,
+        exportMetadata: Data?,
         scopes: [ScopeID],
         tags: [LogTag],
         spanID: SpanID?,
@@ -99,6 +71,7 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
         self.eventVersion = eventVersion
         self.message = message
         self.payload = payload
+        self.exportMetadata = exportMetadata
         self.scopes = scopes
         self.tags = tags
         self.spanID = spanID
@@ -112,6 +85,15 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
 
     public var primaryScope: ScopeID? {
         scopes.first
+    }
+
+    /// Historical records have no approved payload. Invalid metadata or payloads throw rather
+    /// than falling back to their unfiltered contents.
+    public func exportedPayload(using policy: LogExportPolicy) throws -> JSONValue? {
+        guard let exportMetadata else { return nil }
+        let metadata = try JSONDecoder().decode(LogExportMetadata.self, from: exportMetadata)
+        let value = try JSONDecoder().decode(JSONValue.self, from: payload)
+        return try metadata.filtered(value, using: policy)
     }
 
     /// Decode the structured payload back to its event type. Throws when

@@ -85,6 +85,8 @@ The generator walks the manifest's target graph out from them.
 A package inside that closure is a `library`.
 Any other linked package is a `developmentTool`.
 Linking is not shipping.
+A macro target stops shipping reachability because its implementation runs on the build host.
+Packages that the macro links remain credited as development tools.
 A snapshot-testing engine linked by a test-support target is credited (the repo depends on it) but must not be described as being in the binary.
 `shippedFrom` is the only part set by hand.
 Adding a dependency cannot quietly land under the wrong kind.

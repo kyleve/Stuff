@@ -5,6 +5,20 @@ import Testing
 private struct InjectedSaveFailure: Error {}
 
 struct PeriscopeStoreTests {
+    @Test func persistedExportPermissionsRetainLocalValuesAndFilterAfterRead() async throws {
+        let store = try await PeriscopeStore.inMemory(session: .fixture())
+        let event = LogExportTestLog.Child(
+            secret: .restricted(.arbitraryText, .string("local secret")),
+            detail: .restricted(.arbitraryText, "custom"),
+            count: .shared(.count, 3),
+        )
+        await store.write([LogRecord(date: date(1), event: event, scopes: [])])
+        let row = try #require(try await store.events(matching: LogQuery()).first)
+        #expect(try row.decode(LogExportTestLog.Child.self).secret == .string("local secret"))
+        let policy = LogExportPolicy(mode: .diagnostic, enabledControls: [.customerDiagnostics])
+        #expect(try row.exportedPayload(using: policy) == event.exportedValue(using: policy))
+    }
+
     /// A store with a small defined hierarchy: app → photos → album-1.
     private func makeStore() async throws -> (
         store: PeriscopeStore,
@@ -299,7 +313,7 @@ struct PeriscopeStoreTests {
         let second = LogAttachment(name: "b", contentType: .png, data: Data([2, 3]))
         let record = LogRecord(
             date: date(1),
-            event: Message(level: .error, "failed"),
+            event: makeMessage("failed", level: .error),
             scopes: [root.id],
             attachments: [first, second],
         )
@@ -327,7 +341,7 @@ struct PeriscopeStoreTests {
         await store.write([
             LogRecord(
                 date: date(1),
-                event: SpanBegan(
+                event: makeSpanBegan(
                     spanID: span,
                     name: "save",
                     lifetime: .indefinite,
@@ -338,7 +352,7 @@ struct PeriscopeStoreTests {
             makeRecord("unrelated", date: date(2), scopes: [root.id]),
             LogRecord(
                 date: date(3),
-                event: SpanEnded(
+                event: makeSpanEnded(
                     spanID: span,
                     name: "save",
                     duration: .seconds(2),
@@ -364,7 +378,7 @@ struct PeriscopeStoreTests {
         await store.write([
             LogRecord(
                 date: date(1),
-                event: SpanEnded(
+                event: makeSpanEnded(
                     spanID: failedSpan,
                     name: "save",
                     duration: .seconds(1),
@@ -374,7 +388,7 @@ struct PeriscopeStoreTests {
             ),
             LogRecord(
                 date: date(2),
-                event: SpanEnded(
+                event: makeSpanEnded(
                     spanID: SpanID(),
                     name: "sync",
                     duration: .seconds(1),
@@ -408,7 +422,7 @@ struct PeriscopeStoreTests {
         await store.write([
             LogRecord(
                 date: date(1),
-                event: SpanBegan(
+                event: makeSpanBegan(
                     spanID: span,
                     name: name,
                     lifetime: .indefinite,
@@ -556,7 +570,7 @@ struct PeriscopeStoreTests {
         await store.write([
             LogRecord(
                 date: date(2),
-                event: SpanEnded(
+                event: makeSpanEnded(
                     spanID: span,
                     name: "save",
                     duration: .seconds(1),
@@ -579,13 +593,13 @@ struct PeriscopeStoreTests {
         await store.write([
             LogRecord(
                 date: date(1),
-                event: Message(level: .info, "for pay_1"),
+                event: makeMessage("for pay_1"),
                 scopes: [root.id],
                 tags: [LogTag(key: key, value: "pay_1")],
             ),
             LogRecord(
                 date: date(2),
-                event: Message(level: .info, "for pay_2"),
+                event: makeMessage("for pay_2"),
                 scopes: [root.id],
                 tags: [LogTag(key: key, value: "pay_2")],
             ),
@@ -644,7 +658,7 @@ struct PeriscopeStoreTests {
         await store.write([
             LogRecord(
                 date: date(1),
-                event: Message(level: .info, "located"),
+                event: makeMessage("located"),
                 scopes: [root.id],
                 callSite: LogCallSite(function: "uploadPhoto(_:)", fileID: "App/Uploader.swift"),
             ),
@@ -665,7 +679,7 @@ struct PeriscopeStoreTests {
         await store.write([
             LogRecord(
                 date: date(1),
-                event: Message(level: .info, "both"),
+                event: makeMessage("both"),
                 scopes: [root.id],
                 tags: [
                     LogTag(key: payment, value: "pay_1"),
@@ -674,13 +688,13 @@ struct PeriscopeStoreTests {
             ),
             LogRecord(
                 date: date(2),
-                event: Message(level: .info, "payment only"),
+                event: makeMessage("payment only"),
                 scopes: [root.id],
                 tags: [LogTag(key: payment, value: "pay_1")],
             ),
             LogRecord(
                 date: date(3),
-                event: Message(level: .info, "retry only"),
+                event: makeMessage("retry only"),
                 scopes: [root.id],
                 tags: [LogTag(key: retry, value: .int(2))],
             ),
@@ -701,13 +715,13 @@ struct PeriscopeStoreTests {
         await store.write([
             LogRecord(
                 date: date(1),
-                event: Message(level: .info, "typed int"),
+                event: makeMessage("typed int"),
                 scopes: [root.id],
                 tags: [LogTag(key: key, value: .int(3))],
             ),
             LogRecord(
                 date: date(2),
-                event: Message(level: .info, "stringly"),
+                event: makeMessage("stringly"),
                 scopes: [root.id],
                 tags: [LogTag(key: key, value: .string("3"))],
             ),
@@ -779,7 +793,7 @@ struct PeriscopeStoreTests {
         await store.write([
             LogRecord(
                 date: date(1),
-                event: Message(level: .info, "old"),
+                event: makeMessage("old"),
                 scopes: [album.id],
                 tags: [LogTag(key: key, value: "pay_old")],
             ),
@@ -791,7 +805,7 @@ struct PeriscopeStoreTests {
         await store.write([
             LogRecord(
                 date: date(200),
-                event: Message(level: .info, "new"),
+                event: makeMessage("new"),
                 scopes: [root.id],
                 tags: [LogTag(key: key, value: "pay_new")],
             ),
@@ -811,7 +825,7 @@ struct PeriscopeStoreTests {
         await store.write([
             LogRecord(
                 date: date(300),
-                event: Message(level: .info, "old pair reused"),
+                event: makeMessage("old pair reused"),
                 scopes: [root.id],
                 tags: [LogTag(key: key, value: "pay_old")],
             ),
@@ -897,8 +911,8 @@ struct PeriscopeStoreTests {
         let system = Periscope(configuration: Periscope.Configuration(), sinks: [])
         system.add(sink: store)
 
-        let ambient = Log<AmbientEvent>(system: system)
-        ambient { AmbientEvent(kind: .powerMode, value: ["low-power": true]) }
+        let ambient = Log<AmbientLog.Event>(system: system)
+        ambient { makeAmbientEvent(kind: .powerMode, value: ["low-power": true]) }
         Log<AppLogs>(system: system).error("slow while saving battery")
         await system.flush()
 
@@ -995,7 +1009,7 @@ struct PeriscopeStoreTests {
         await store.write([
             LogRecord(
                 date: date(1),
-                event: Message(level: .info, "poisoned"),
+                event: makeMessage("poisoned"),
                 scopes: [scope.id],
                 tags: [LogTag(key: key, value: "pay_1")],
             ),
@@ -1006,7 +1020,7 @@ struct PeriscopeStoreTests {
         await store.write([
             LogRecord(
                 date: date(2),
-                event: Message(level: .info, "healthy"),
+                event: makeMessage("healthy"),
                 scopes: [scope.id],
                 tags: [LogTag(key: key, value: "pay_1")],
             ),
