@@ -264,7 +264,9 @@ one it belongs to rather than to a god-object:
   and remote logs Off in Release / Warning in Debug. `WherePreferences` encodes
   this configuration directly. Invalid data keeps the channel defaults. Invalid data
   also turns remote logging Off. Reset removes every reporting key. Release always reduces
-  full-metadata intent to approved fields. `RecordingConfigurationWarningCondition` evaluates the live
+  diagnostic export to baseline fields. Export policies retain independent, extensible controls.
+  The legacy full-metadata preference grants only the four named built-in controls.
+  `RecordingConfigurationWarningCondition` evaluates the live
   device authority, recording choice, and authorization tuple in Core. The store has no
   default: production names `UserDefaults.standard` and everything else names
   `InMemoryKeyValueStore()`, so no test or preview can reach the host's real
@@ -290,11 +292,12 @@ one it belongs to rather than to a god-object:
   its `*Log`'s `SpanName` cases, so slow reads, commits, and reconciles show up
   in Periscope's span history rather than only as a slow screen.
 
-Location outbox and ingestor failures use restricted `LogError` payloads.
+Where's structured failure events use restricted `LogError` payloads.
 Callers pass the original error through `.restricted(.errorDetails, error)`.
 The snapshot preserves typed diagnostics without a duplicate error attachment.
-Local messages and severities remain unchanged. These nine error events use payload version 2.
-Baseline export excludes their errors. Opt-in debug-full includes the structured snapshots.
+Local messages use the snapshot's description. Severities remain unchanged.
+Events converted from error strings use payload version 2 and an `error` field.
+Baseline export excludes their errors. Diagnostic export filters each structured snapshot using its field controls.
 See [PeriscopeCore's error contract](../../Shared/Periscope/PeriscopeCore/README.md#structured-errors).
 
 ## Installation

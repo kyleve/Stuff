@@ -172,12 +172,12 @@ actor BitdriftRemoteLogSink: LogSink {
 
     func write(_ records: [LogRecord]) async {
         guard let minimumLevel = configuration.minimumLevel else { return }
-        let metadataPolicy = configuration.metadataPolicy
+        let exportPolicy = configuration.exportPolicy
         for record in records
             where record.date >= effectiveFrom && record.level >= minimumLevel.periscopeLevel
         {
             do {
-                try await writer.write(entry(for: record, metadataPolicy: metadataPolicy))
+                try await writer.write(entry(for: record, exportPolicy: exportPolicy))
             } catch {
                 encodingFailureCount += 1
                 Self.encodingLogger.error(
@@ -191,7 +191,7 @@ actor BitdriftRemoteLogSink: LogSink {
 
     private func entry(
         for record: LogRecord,
-        metadataPolicy: RemoteLogMetadataPolicy,
+        exportPolicy: LogExportPolicy,
     ) throws -> BitdriftLogEntry {
         var fields: [String: BitdriftLogValue] = [
             "event.name": .string(record.eventName),
@@ -213,8 +213,8 @@ actor BitdriftRemoteLogSink: LogSink {
         }
 
         #if DEBUG
-            if metadataPolicy == .allMetadataExcludingAttachmentData {
-                try addFullMetadata(from: record, to: &fields)
+            if exportPolicy.mode == .diagnostic {
+                try addDiagnosticMetadata(from: record, policy: exportPolicy, to: &fields)
             }
         #endif
 
@@ -228,22 +228,28 @@ actor BitdriftRemoteLogSink: LogSink {
     }
 
     #if DEBUG
-        private func addFullMetadata(
+        private func addDiagnosticMetadata(
             from record: LogRecord,
+            policy: LogExportPolicy,
             to fields: inout [String: BitdriftLogValue],
         ) throws {
-            fields["event.payload"] = try encodedString(record.event)
+            fields["event.payload"] = try encodedString(record.event.exportedValue(using: policy))
+            if policy.allows(.diagnostic(requiring: [.identifiers])),
+               let externalID = record.externalID
+            {
+                fields["context.external_id"] = .string(externalID)
+            }
+            // These unclassified strings can contain any personal-data category.
+            guard policy
+                .allows(.diagnostic(requiring: RemoteLoggingConfiguration.personalDataControls))
+            else { return }
             fields["context.tags"] = try encodedString(record.tags)
             fields["context.scopes"] = .string(record.scopes.compactMap { id in
                 let path = LogScope.ancestry(of: id, resolve: { scopes[$0] })
                 return path.isEmpty ? nil : path.map(\.name).joined(separator: "/")
             }.joined(separator: ","))
-            if let ambient = record.ambient {
-                fields["context.ambient"] = try encodedString(ambient)
-            }
-            if let externalID = record.externalID {
-                fields["context.external_id"] = .string(externalID)
-            }
+            // Folded snapshots no longer carry the originating fields' export requirements.
+            // Export the classified ambient events instead; raw snapshots could bypass .never.
             if !record.attachments.isEmpty {
                 fields["attachments.metadata"] = .string(record.attachments.map {
                     "\($0.name):\($0.contentType.mimeType)"

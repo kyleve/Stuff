@@ -61,6 +61,8 @@ layering, and the domain rules this target merely starts up.
   removal must drain before sleeping. A newly applied live policy uses a
   choice-time cutoff, so queued earlier records are not exported retroactively.
   Keep performance tracing separate.
+- Use filtered event projections for diagnostic export. Never encode raw events or folded ambient snapshots for upload.
+- Require all built-in personal-data grants for unclassified tags, dynamic scope paths, and attachment metadata. Never export attachment bytes.
 - **The regular runtime owns exactly one of each shared thing** — one
   `FileInstallationRecordingContextStore`, one `WhereModel`, one
   `IntentServices`, one launcher. Create them here and inject down, per

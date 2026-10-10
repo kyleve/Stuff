@@ -84,18 +84,18 @@ struct PrivacyDiagnosticsSettingsView: View {
                         Section {
                             Toggle(
                                 String(localized: .settingsDiagnosticsFullMetadata),
-                                isOn: $reporting.includeAllMetadataToggle,
+                                isOn: $reporting.includePersonalDataToggle,
                             )
                             .settingsRow(Item.fullMetadata)
                             .confirmationDialog(
                                 String(localized: .settingsDiagnosticsFullMetadataConfirmTitle),
-                                isPresented: $reporting.isMetadataConfirmationPresented,
+                                isPresented: $reporting.isPersonalDataConfirmationPresented,
                                 titleVisibility: .visible,
                             ) {
                                 Button(
                                     String(localized: .settingsDiagnosticsFullMetadataEnable),
                                     role: .destructive,
-                                    action: reporting.confirmAllLogMetadata,
+                                    action: reporting.confirmPersonalData,
                                 )
                                 Button(String(localized: .settingsDataCancel), role: .cancel) {}
                             } message: {
@@ -216,7 +216,10 @@ extension RemoteLogLevel {
                     sharesSessionReplays: false,
                     remoteLogging: .enabled(
                         minimumLevel: .warning,
-                        metadataPolicy: .allMetadataExcludingAttachmentData,
+                        exportPolicy: .init(
+                            mode: .diagnostic,
+                            enabledControls: RemoteLoggingConfiguration.personalDataControls,
+                        ),
                     ),
                 ),
             )
