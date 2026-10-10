@@ -494,9 +494,9 @@ if [ "$HOST_MACROS" = true ]; then
         tail -n 30 "$macro_build_log" >&2
         exit 1
     fi
-    macro_bundle="$(find .build -path '*/Products/Debug/PeriscopeMacrosTests.xctest' \
-        -type d -print -quit)"
-    if [ -z "$macro_bundle" ]; then
+    macro_bin_dir="$(mise exec -- swift build --show-bin-path)"
+    macro_bundle="$macro_bin_dir/PeriscopeMacrosTests.xctest"
+    if [ ! -d "$macro_bundle" ]; then
         echo "error: SwiftPM did not produce PeriscopeMacrosTests.xctest" >&2
         exit 1
     fi

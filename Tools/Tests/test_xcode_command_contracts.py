@@ -146,7 +146,10 @@ exit 0
             """#!/bin/bash
 printf 'mise %s\\n' "$*" >>"$TOOL_LOG"
 status="${MISE_STATUS:-0}"
-if [ "$status" -eq 0 ] && [[ " $* " == *" swift build --product PeriscopeMacrosTests "* ]]; then
+if [ "$status" -eq 0 ] && [[ " $* " == *" swift build --show-bin-path "* ]]; then
+  printf '%s/.build/fixture/Products/Debug\\n' "$PWD"
+fi
+if [ "$status" -eq 0 ] && [ "${MISSING_MACRO_BUNDLE:-0}" != 1 ] && [[ " $* " == *" swift build --product PeriscopeMacrosTests "* ]]; then
   /bin/mkdir -p .build/fixture/Products/Debug/PeriscopeMacrosTests.xctest
 fi
 exit "$status"
@@ -261,6 +264,32 @@ class XcodeCommandContractTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory(prefix="stuff-xcode-contract-")
         self.addCleanup(temporary.cleanup)
         return XcodeCommandFixture(temporary.name)
+
+    def test_macro_suite_uses_current_product_path_not_a_stale_bundle(self):
+        fixture = self.fixture()
+        stale = fixture.root / ".build/stale/Products/Debug/PeriscopeMacrosTests.xctest"
+        stale.mkdir(parents=True)
+
+        result = fixture.run("test", "--skip-architecture", "PeriscopeMacrosTests")
+
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        current = fixture.root / ".build/fixture/Products/Debug/PeriscopeMacrosTests.xctest"
+        self.assertIn(f"xcrun xctest {current}", fixture.command_log())
+        self.assertNotIn(f"xcrun xctest {stale}", fixture.command_log())
+        self.assertNotIn("xcodebuild ", fixture.command_log())
+
+    def test_macro_suite_rejects_missing_current_bundle_even_if_stale_bundle_exists(self):
+        fixture = self.fixture()
+        stale = fixture.root / ".build/stale/Products/Debug/PeriscopeMacrosTests.xctest"
+        stale.mkdir(parents=True)
+
+        result = fixture.run(
+            "test", "--skip-architecture", "PeriscopeMacrosTests", MISSING_MACRO_BUNDLE="1"
+        )
+
+        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+        self.assertIn("did not produce PeriscopeMacrosTests.xctest", result.stderr)
+        self.assertNotIn("xcrun xctest", fixture.command_log())
 
     def test_snapshot_run_rejects_a_different_xcode_build_before_generation(self):
         fixture = self.fixture()
