@@ -75,6 +75,36 @@ Periscope.shared.add(sink: store)
 Periscope.shared.startDefaultAmbientSources()
 ```
 
+## Structured errors
+
+Declare an error field as `LogError` with `.restricted/.errorDetails`.
+Pass the original error at emission:
+
+```swift
+log.persistBacklogFailed(error: .restricted(.errorDetails, error))
+```
+
+The classified input captures a snapshot before the log call returns.
+The snapshot preserves the domain, numeric code, localized description, failure reason, recovery suggestion, and underlying causes.
+Decoding errors also preserve their failure kind and coding path, including numeric array indices.
+The snapshot does not reconstruct the original error type. Services and failure state retain the original `Error`.
+
+Capture stops at eight levels or 32 nodes, including the root.
+A cycle or limit leaves an explicit omission marker and stops the remaining causes at that node.
+The snapshot never copies arbitrary `NSError.userInfo` or reflects stored properties.
+
+Use concrete event fields for domain-specific data with a known schema.
+For explicitly selected Codable diagnostics, convert them before emission:
+
+```swift
+let snapshot = try LogError(capturing: error, details: .encoding(diagnostics))
+log.persistBacklogFailed(error: .restricted(.errorDetails, snapshot))
+```
+
+Conversion throws on failure. The caller must handle that error, not replace the details with an empty value.
+Baseline export excludes error snapshots. Opt-in debug-full includes their structured payloads.
+Restricted does not mean local-only. Attachment bytes remain excluded from every remote mode.
+
 ## Public API
 
 - **Events** — `LogEvent` (`Codable & Sendable`; `eventName`, `eventVersion`,
@@ -102,6 +132,7 @@ Periscope.shared.startDefaultAmbientSources()
   (`.superseded`), and a relaunch closes `endsWithProcess` spans the dead
   process left open (`.orphaned`, duration unknowable). Durations use
   `ContinuousClock`. Spans mirror to `OSSignposter`.
+- **Structured errors** — `LogError` captures typed diagnostics as a restricted event field. See [Structured errors](#structured-errors).
 - **Attachments** — `LogAttachment` (+ `.error`, `.json`, `.image`
   conveniences) rides along with any event. Blobs persist externally and
   load on demand.

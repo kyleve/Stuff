@@ -42,6 +42,7 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) first. That file owns the build 
 - **Make remote export an explicit opt-in for each event.** Safe sinks use `remoteMessage` and `remoteFields`.
 - **Never infer remote data from payloads, tags, dynamic scopes, ambient state, external IDs, or attachments.**
 - **Never use attachment bytes as remote-export input, including in Debug full-metadata mode.**
+- **Capture `LogError` at the logging boundary and classify it as restricted/errorDetails.** Keep the original error in services and failure state. Do not copy arbitrary `NSError.userInfo` into payloads. Restricted payloads remain eligible for opt-in debug-full export.
 - **Use closed `CaseIterable` values for category fields.** Reject values outside `allCases`.
 - **Sink failures never propagate or vanish.** Log them to OSLog. Count them.
 - **Persist a synthetic `StoreWriteFailed` marker.** The pipeline reports drops with a synthetic `DroppedEvents` record.
