@@ -234,23 +234,25 @@ actor BitdriftRemoteLogSink: LogSink {
             to fields: inout [String: BitdriftLogValue],
         ) throws {
             fields["event.payload"] = try encodedString(record.event.exportedValue(using: policy))
-            if policy.allows(.diagnostic(requiring: [.identifiers])),
+            if policy.allows(LogContextExportRequirements.externalID),
                let externalID = record.externalID
             {
                 fields["context.external_id"] = .string(externalID)
             }
-            // These unclassified strings can contain any personal-data category.
-            guard policy
-                .allows(.diagnostic(requiring: RemoteLoggingConfiguration.personalDataControls))
-            else { return }
-            fields["context.tags"] = try encodedString(record.tags)
-            fields["context.scopes"] = .string(record.scopes.compactMap { id in
-                let path = LogScope.ancestry(of: id, resolve: { scopes[$0] })
-                return path.isEmpty ? nil : path.map(\.name).joined(separator: "/")
-            }.joined(separator: ","))
+            if policy.allows(LogContextExportRequirements.tags) {
+                fields["context.tags"] = try encodedString(record.tags)
+            }
+            if policy.allows(LogContextExportRequirements.scopes) {
+                fields["context.scopes"] = .string(record.scopes.compactMap { id in
+                    let path = LogScope.ancestry(of: id, resolve: { scopes[$0] })
+                    return path.isEmpty ? nil : path.map(\.name).joined(separator: "/")
+                }.joined(separator: ","))
+            }
             // Folded snapshots no longer carry the originating fields' export requirements.
             // Export the classified ambient events instead; raw snapshots could bypass .never.
-            if !record.attachments.isEmpty {
+            if policy.allows(LogContextExportRequirements.attachmentMetadata),
+               !record.attachments.isEmpty
+            {
                 fields["attachments.metadata"] = .string(record.attachments.map {
                     "\($0.name):\($0.contentType.mimeType)"
                 }.joined(separator: ","))

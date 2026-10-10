@@ -62,7 +62,7 @@ layering, and the domain rules this target merely starts up.
   choice-time cutoff, so queued earlier records are not exported retroactively.
   Keep performance tracing separate.
 - Use filtered event projections for diagnostic export. Never encode raw events or folded ambient snapshots for upload.
-- Require all built-in personal-data grants for unclassified tags, dynamic scope paths, and attachment metadata. Never export attachment bytes.
+- Use PeriscopeCore's `LogContextExportRequirements` for context permissions, not the UI control group. Never export attachment bytes.
 - **The regular runtime owns exactly one of each shared thing** — one
   `FileInstallationRecordingContextStore`, one `WhereModel`, one
   `IntentServices`, one launcher. Create them here and inject down, per
