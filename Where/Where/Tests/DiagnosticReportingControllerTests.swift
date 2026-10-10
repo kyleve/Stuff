@@ -430,6 +430,47 @@ struct DiagnosticReportingControllerTests {
             #expect(await sink.encodingFailureCount == 1)
         }
 
+        @Test(arguments: [LogExportControl.identifiers, .location, .userContent, .personalData])
+        func partialGrantsExcludeUnclassifiedContext(missing: LogExportControl) async throws {
+            let controls: Set<LogExportControl> = [
+                .identifiers,
+                .location,
+                .userContent,
+                .personalData,
+            ]
+            let fixture = Fixture(configuration: DiagnosticReportingConfiguration(
+                sharesCrashReports: false,
+                sharesSessionReplays: false,
+                remoteLogging: .enabled(
+                    minimumLevel: .warning,
+                    exportPolicy: .init(
+                        mode: .diagnostic,
+                        enabledControls: controls.subtracting([missing]),
+                    ),
+                ),
+            ))
+            fixture.controller.start()
+            let log = Log<RemoteTestLog>(recorder: fixture.logSystem)
+                .tagged(LogTagKey("private-tag"), "private-value")(for: "private-scope")
+            log.event(
+                level: .restricted(.technicalState, .warning),
+                count: .shared(.count, 7),
+                attachments: [LogAttachment(
+                    name: "diagnostic.txt",
+                    contentType: .plainText,
+                    data: Data("never-transmit-these-bytes".utf8),
+                )],
+            )
+            await fixture.logSystem.flush()
+            let entry = try #require(await fixture.writer.entries.first)
+            #expect(entry.fields["event.payload"] != nil)
+            #expect(entry.fields["context.tags"] == nil)
+            #expect(entry.fields["context.scopes"] == nil)
+            #expect(entry.fields["attachments.metadata"] == nil)
+            #expect(entry.fields["context.external_id"] == (missing == .identifiers
+                    ? nil : .string("private-external-id")))
+        }
+
         @Test func fullMetadataIncludesContextButNeverAttachmentBytes() async throws {
             let configuration = DiagnosticReportingConfiguration(
                 sharesCrashReports: false,
