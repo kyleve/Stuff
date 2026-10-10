@@ -217,7 +217,7 @@ func expandsClassifiedEventAndLogMethod(key: String) {
             struct LogMethods {
                 fileprivate let log: Log<SampleLog>
 
-                var counted: CountedLogMethod {
+                var `counted`: CountedLogMethod {
                     CountedLogMethod(log: log)
                 }
             }
@@ -231,7 +231,7 @@ func expandsClassifiedEventAndLogMethod(key: String) {
                     function: StaticString = #function,
                     fileID: StaticString = #fileID
                 ) {
-                    log.record(
+                    self.log.record(
                         SampleLog.Counted(
                             count: count
                         ),

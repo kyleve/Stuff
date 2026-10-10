@@ -4,6 +4,12 @@ import Testing
 
 @LogScope("macro-fixture")
 private enum MacroFixtureLog {
+    @LogEvent("repeat", message: "Repeated")
+    struct Repeat {
+        @LogField(exposure: .restricted, kind: .arbitraryText)
+        var log: String
+    }
+
     @LogEvent("inferred", message: "Inferred")
     struct Inferred {
         @LogField(exposure: .shareable, kind: .count)
@@ -75,6 +81,14 @@ private enum LiteralFixtureLog {
 }
 
 struct LogMacrosTests {
+    @Test func generatedMethodHandlesKeywordNamesAndLogPayload() throws {
+        let recorder = RecordingRecorder()
+        let log = Log<MacroFixtureLog>(recorder: recorder)
+        log.repeat(log: .restricted(.arbitraryText, "payload"))
+        let event = try #require(recorder.records.first?.event as? MacroFixtureLog.Repeat)
+        #expect(event.log == "payload")
+    }
+
     @Test(arguments: [nil, 7] as [Int?])
     func inferredKeysMatchExplicitKeysAfterRenaming(optionalCount: Int?) throws {
         let recorder = RecordingRecorder()

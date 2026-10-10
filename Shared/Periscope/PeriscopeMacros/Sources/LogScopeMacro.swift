@@ -229,7 +229,7 @@ extension LogScopeMacro {
         events: [EventMethod],
     ) -> String {
         let properties = events.map { event in
-            "    \(event.access)var \(event.name): \(event.event)LogMethod { \(event.event)LogMethod(log: log) }"
+            "    \(event.access)var `\(event.name)`: \(event.event)LogMethod { \(event.event)LogMethod(log: log) }"
         }.joined(separator: "\n")
         return """
         \(access)struct LogMethods {
@@ -265,7 +265,7 @@ extension LogScopeMacro {
             \(access)func callAsFunction(
         \(parameters.joined(separator: ",\n"))
             ) {
-                log.record(
+                self.log.record(
                     \(eventInit),
                     attachments: attachments,
                     function: function,
