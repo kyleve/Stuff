@@ -307,7 +307,7 @@ enum AppLogs {
 enum PhotoLogs {
     @LogEvent("event", level: .notice)
     struct Event {
-        @LogField("photo_id", exposure: .restricted, kind: .identifier)
+        @LogField(exposure: .restricted, kind: .identifier)
         var photoID: String
 
         var message: String {

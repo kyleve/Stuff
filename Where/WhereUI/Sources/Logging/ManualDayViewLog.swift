@@ -5,7 +5,7 @@ import PeriscopeCore
 enum ManualDayViewLog {
     @LogEvent("region-grouping-load-failed", level: .warning)
     struct RegionGroupingLoadFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {

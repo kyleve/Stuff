@@ -388,10 +388,10 @@ struct DiagnosticReportingControllerTests {
 private enum RemoteTestLog {
     @LogEvent("event")
     struct Event {
-        @LogField("level", exposure: .restricted, kind: .technicalState)
+        @LogField(exposure: .restricted, kind: .technicalState)
         var level: LogLevel
 
-        @LogField("count", exposure: .shareable, kind: .count)
+        @LogField(exposure: .shareable, kind: .count)
         var count: Int
 
         var message: String {
@@ -405,13 +405,13 @@ private enum RemoteTestLog {
 
     @LogEvent("invalid-json", message: "Invalid JSON")
     struct InvalidJSON {
-        @LogField("json", exposure: .shareable, kind: .json)
+        @LogField(exposure: .shareable, kind: .json)
         var json: JSONValue
     }
 
     @LogEvent("invalid-debug", message: "Invalid debug payload")
     struct InvalidDebug {
-        @LogField("value", exposure: .restricted, kind: .technicalState)
+        @LogField(exposure: .restricted, kind: .technicalState)
         var value: Double
     }
 }

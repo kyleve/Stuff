@@ -18,10 +18,10 @@ public enum RegionGeometryCatalogLog {
 
     @LogEvent("load-failed", level: .warning)
     public struct LoadFailed {
-        @LogField("kind", exposure: .restricted, kind: .technicalState)
+        @LogField(exposure: .restricted, kind: .technicalState)
         public var kind: String
 
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         public var description: String
 
         public var message: String {
@@ -31,10 +31,10 @@ public enum RegionGeometryCatalogLog {
 
     @LogEvent("region-load-failed", level: .fault)
     public struct RegionLoadFailed {
-        @LogField("region", exposure: .restricted, kind: .location)
+        @LogField(exposure: .restricted, kind: .location)
         public var region: Region
 
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         public var description: String
 
         public var message: String {

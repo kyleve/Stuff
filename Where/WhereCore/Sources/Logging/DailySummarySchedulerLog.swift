@@ -5,7 +5,7 @@ import PeriscopeCore
 enum DailySummarySchedulerLog {
     @LogEvent("authorization-request-failed", level: .error)
     struct AuthorizationRequestFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {
@@ -29,7 +29,7 @@ enum DailySummarySchedulerLog {
 
     @LogEvent("scheduled", level: .info)
     struct Scheduled {
-        @LogField("time", exposure: .restricted, kind: .dateTime)
+        @LogField(exposure: .restricted, kind: .dateTime)
         var time: String
 
         var message: String {
@@ -39,7 +39,7 @@ enum DailySummarySchedulerLog {
 
     @LogEvent("schedule-failed", level: .error)
     struct ScheduleFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {

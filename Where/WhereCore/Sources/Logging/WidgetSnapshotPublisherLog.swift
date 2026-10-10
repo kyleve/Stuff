@@ -9,10 +9,10 @@ enum WidgetSnapshotPublisherLog {
 
     @LogEvent("published", level: .info)
     struct Published {
-        @LogField("day", exposure: .restricted, kind: .dateTime)
+        @LogField(exposure: .restricted, kind: .dateTime)
         var day: String
 
-        @LogField("region_count", exposure: .shareable, kind: .count)
+        @LogField(exposure: .shareable, kind: .count)
         var regionCount: Int
 
         var message: String {
@@ -26,7 +26,7 @@ enum WidgetSnapshotPublisherLog {
 
     @LogEvent("build-failed", level: .error)
     struct BuildFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {

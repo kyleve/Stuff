@@ -52,10 +52,10 @@ enum PhotoLog {
 
     @LogEvent("uploaded")
     struct Uploaded {
-        @LogField("photo_id", exposure: .restricted, kind: .identifier)
+        @LogField(exposure: .restricted, kind: .identifier)
         var photoID: String
 
-        @LogField("byte_count", exposure: .shareable, kind: .count)
+        @LogField(exposure: .shareable, kind: .count)
         var byteCount: Int
 
         var message: String { "Uploaded \(photoID)" }

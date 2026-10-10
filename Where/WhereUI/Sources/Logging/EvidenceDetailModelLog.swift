@@ -5,10 +5,10 @@ import WhereCore
 enum EvidenceDetailModelLog {
     @LogEvent("blob-load-failed", level: .warning)
     struct BlobLoadFailed {
-        @LogField("evidence_id", exposure: .restricted, kind: .identifier)
+        @LogField(exposure: .restricted, kind: .identifier)
         var evidenceID: String
 
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {

@@ -5,7 +5,7 @@ import PeriscopeCore
 enum RegionPickerViewLog {
     @LogEvent("map-geometry-load-failed", level: .warning)
     struct MapGeometryLoadFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {

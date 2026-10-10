@@ -15,8 +15,8 @@ enum DayJournalLog {
 
     @LogEvent("added-manual-day")
     struct AddedManualDay {
-        @LogField("day", exposure: .restricted, kind: .dateTime) var day: String
-        @LogField("region_count", exposure: .shareable, kind: .count) var regionCount: Int
+        @LogField(exposure: .restricted, kind: .dateTime) var day: String
+        @LogField(exposure: .shareable, kind: .count) var regionCount: Int
         var message: String {
             "Added manual day \(day) with \(regionCount) region(s)"
         }
@@ -28,8 +28,8 @@ enum DayJournalLog {
 
     @LogEvent("overrode-day")
     struct OverrodeDay {
-        @LogField("day", exposure: .restricted, kind: .dateTime) var day: String
-        @LogField("region_count", exposure: .shareable, kind: .count) var regionCount: Int
+        @LogField(exposure: .restricted, kind: .dateTime) var day: String
+        @LogField(exposure: .shareable, kind: .count) var regionCount: Int
         var message: String {
             "Overrode day \(day) with \(regionCount) region(s)"
         }
@@ -41,7 +41,7 @@ enum DayJournalLog {
 
     @LogEvent("cleared-manual-day")
     struct ClearedManualDay {
-        @LogField("day", exposure: .restricted, kind: .dateTime) var day: String
+        @LogField(exposure: .restricted, kind: .dateTime) var day: String
         var message: String {
             "Cleared manual overlay for day \(day)"
         }
@@ -53,7 +53,7 @@ enum DayJournalLog {
 
     @LogEvent("cleared-manual-days")
     struct ClearedManualDays {
-        @LogField("day_count", exposure: .shareable, kind: .count) var dayCount: Int
+        @LogField(exposure: .shareable, kind: .count) var dayCount: Int
         var message: String {
             "Cleared manual overlays for \(dayCount) day(s)"
         }
@@ -61,8 +61,8 @@ enum DayJournalLog {
 
     @LogEvent("backfilled-manual-days")
     struct BackfilledManualDays {
-        @LogField("day_count", exposure: .shareable, kind: .count) var dayCount: Int
-        @LogField("region_count", exposure: .shareable, kind: .count) var regionCount: Int
+        @LogField(exposure: .shareable, kind: .count) var dayCount: Int
+        @LogField(exposure: .shareable, kind: .count) var regionCount: Int
         var message: String {
             "Backfilled \(dayCount) manual day(s) with \(regionCount) region(s)"
         }
@@ -70,7 +70,7 @@ enum DayJournalLog {
 
     @LogEvent("cleared-year")
     struct ClearedYear {
-        @LogField("year", exposure: .restricted, kind: .domainValue) var year: Int
+        @LogField(exposure: .restricted, kind: .domainValue) var year: Int
         var message: String {
             "Cleared year \(year)"
         }
@@ -85,8 +85,8 @@ enum DayJournalLog {
 
     @LogEvent("wrote-evidence")
     struct WroteEvidence {
-        @LogField("id", exposure: .restricted, kind: .identifier) var id: String
-        @LogField("has_blob", exposure: .shareable, kind: .boolean) var hasBlob: Bool
+        @LogField(exposure: .restricted, kind: .identifier) var id: String
+        @LogField(exposure: .shareable, kind: .boolean) var hasBlob: Bool
         var message: String {
             "Wrote evidence \(id) (blob: \(hasBlob))"
         }

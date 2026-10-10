@@ -14,7 +14,7 @@ enum WhereSessionLog {
 
     @LogEvent("location-access-denied", level: .warning)
     struct LocationAccessDenied {
-        @LogField("status", exposure: .restricted, kind: .technicalState) var status: String
+        @LogField(exposure: .restricted, kind: .technicalState) var status: String
         var message: String {
             "Location access \(status); background tracking unavailable"
         }
@@ -28,7 +28,7 @@ enum WhereSessionLog {
 
     @LogEvent("permission-granted")
     struct PermissionGranted {
-        @LogField("status", exposure: .restricted, kind: .technicalState) var status: String
+        @LogField(exposure: .restricted, kind: .technicalState) var status: String
         var message: String {
             "Location permission granted (\(status))"
         }
@@ -42,7 +42,7 @@ enum WhereSessionLog {
 
     @LogEvent("recording-reconcile-failed", level: .warning)
     struct RecordingReconcileFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
         var message: String {
             "Failed to reconcile device recording policy: \(description)"
@@ -72,7 +72,7 @@ enum WhereSessionLog {
 
     @LogEvent("region-styles-load-failed", level: .warning)
     struct RegionStylesLoadFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
         var message: String {
             "Failed to load region appearances for styling: \(description)"

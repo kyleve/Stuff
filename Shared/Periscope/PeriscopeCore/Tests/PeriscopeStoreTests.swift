@@ -8,7 +8,7 @@ private struct InjectedSaveFailure: Error {}
 private enum StoreExternalIDLog {
     @LogEvent("photo-uploaded", message: "uploaded")
     struct PhotoUploaded {
-        @LogField("photo_uri", exposure: .restricted, kind: .identifier)
+        @LogField(exposure: .restricted, kind: .identifier)
         var photoURI: String
 
         var externalID: String? {

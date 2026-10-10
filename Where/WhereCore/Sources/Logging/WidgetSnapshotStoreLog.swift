@@ -5,7 +5,7 @@ import PeriscopeCore
 enum WidgetSnapshotStoreLog {
     @LogEvent("unreadable-snapshot", level: .warning)
     struct UnreadableSnapshot {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {

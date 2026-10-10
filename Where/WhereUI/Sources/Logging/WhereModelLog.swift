@@ -11,7 +11,7 @@ enum WhereModelLog {
 
     @LogEvent("started-session")
     struct StartedSession {
-        @LogField("year", exposure: .restricted, kind: .domainValue)
+        @LogField(exposure: .restricted, kind: .domainValue)
         var year: Int
 
         var message: String {

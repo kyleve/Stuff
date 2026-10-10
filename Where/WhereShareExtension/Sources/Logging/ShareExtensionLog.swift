@@ -9,7 +9,7 @@ enum ShareExtensionLog {
 
     @LogEvent("opened", level: .info)
     struct Opened {
-        @LogField("item_count", exposure: .restricted, kind: .count)
+        @LogField(exposure: .restricted, kind: .count)
         var itemCount: Int
 
         var message: String {
@@ -19,10 +19,10 @@ enum ShareExtensionLog {
 
     @LogEvent("attachment-load-failed", level: .warning)
     struct AttachmentLoadFailed {
-        @LogField("type_identifier", exposure: .restricted, kind: .identifier)
+        @LogField(exposure: .restricted, kind: .identifier)
         var typeIdentifier: String
 
-        @LogField("reason", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var reason: String?
 
         var message: String {
@@ -32,7 +32,7 @@ enum ShareExtensionLog {
 
     @LogEvent("url-unreadable", level: .warning)
     struct URLUnreadable {
-        @LogField("reason", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var reason: String?
 
         var message: String {
@@ -42,7 +42,7 @@ enum ShareExtensionLog {
 
     @LogEvent("saved", level: .info)
     struct Saved {
-        @LogField("evidence_count", exposure: .restricted, kind: .count)
+        @LogField(exposure: .restricted, kind: .count)
         var evidenceCount: Int
 
         var message: String {
@@ -52,7 +52,7 @@ enum ShareExtensionLog {
 
     @LogEvent("save-failed", level: .error)
     struct SaveFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {

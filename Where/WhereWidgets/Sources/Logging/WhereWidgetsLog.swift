@@ -11,7 +11,7 @@ enum WhereWidgetsLog {
 
     @LogEvent("app-group-unavailable", level: .error)
     struct AppGroupUnavailable {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
         var message: String {
             "Widget App Group unavailable: \(description)"

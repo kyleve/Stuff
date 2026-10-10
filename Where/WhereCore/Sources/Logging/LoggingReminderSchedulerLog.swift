@@ -9,7 +9,7 @@ enum LoggingReminderSchedulerLog {
 
     @LogEvent("authorization-request-failed", level: .error)
     struct AuthorizationRequestFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
         var message: String {
             "Notification authorization request failed: \(description)"
@@ -46,9 +46,9 @@ enum LoggingReminderSchedulerLog {
 
     @LogEvent("schedule-failed", level: .error)
     struct ScheduleFailed {
-        @LogField("identifier", exposure: .restricted, kind: .identifier)
+        @LogField(exposure: .restricted, kind: .identifier)
         var identifier: String
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
         var message: String {
             "Failed to schedule reminder \(identifier): \(description)"
@@ -57,7 +57,7 @@ enum LoggingReminderSchedulerLog {
 
     @LogEvent("badge-update-failed", level: .error)
     struct BadgeUpdateFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
         var message: String {
             "Failed to set badge count: \(description)"

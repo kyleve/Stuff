@@ -5,7 +5,7 @@ import PeriscopeCore
 enum DeviceRecordingControllerLog {
     @LogEvent("policy-observation-failed", level: .error)
     struct PolicyObservationFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
         var message: String {
             "Failed to reconcile recording state; recording was stopped: \(description)"
@@ -14,7 +14,7 @@ enum DeviceRecordingControllerLog {
 
     @LogEvent("rollback-recovery-failed", level: .error)
     struct RollbackRecoveryFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
         var message: String {
             "Failed to restore recording after an operation rolled back: \(description)"
@@ -23,7 +23,7 @@ enum DeviceRecordingControllerLog {
 
     @LogEvent("import-recovery-failed", level: .error)
     struct ImportRecoveryFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
         var message: String {
             "Backup committed, but recording could not be restored and was stopped: \(description)"

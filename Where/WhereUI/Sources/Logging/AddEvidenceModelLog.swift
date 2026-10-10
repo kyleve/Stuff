@@ -6,7 +6,7 @@ import WhereCore
 enum AddEvidenceModelLog {
     @LogEvent("attachment-pick-failed", level: .warning)
     struct AttachmentPickFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {
@@ -16,7 +16,7 @@ enum AddEvidenceModelLog {
 
     @LogEvent("saved", level: .info)
     struct Saved {
-        @LogField("evidence_id", exposure: .restricted, kind: .identifier)
+        @LogField(exposure: .restricted, kind: .identifier)
         var evidenceID: String
 
         var message: String {
@@ -30,7 +30,7 @@ enum AddEvidenceModelLog {
 
     @LogEvent("save-failed", level: .warning)
     struct SaveFailed {
-        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        @LogField(exposure: .restricted, kind: .errorDetails)
         var description: String
 
         var message: String {
