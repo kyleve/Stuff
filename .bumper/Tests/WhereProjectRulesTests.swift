@@ -4,6 +4,23 @@ import Testing
 
 struct WhereProjectRulesTests {
     @Test
+    func `direct CloudKit authority has one adapter`() throws {
+        let allowed = try evaluate(
+            path: "Where/WhereCore/Sources/Coordination/CloudKitRecordingAuthorityTransport.swift",
+            component: .whereCore,
+            source: "func open() { _ = CKContainer(identifier: \"example\") }",
+        )
+        let rejected = try evaluate(
+            path: "Where/WhereUI/Sources/Model/CompetingAuthority.swift",
+            component: .whereUI,
+            source: "func open() { _ = CKContainer(identifier: \"example\") }",
+        )
+        #expect(allowed.violations.isEmpty)
+        #expect(rejected.violations
+            .contains { $0.rule.id == "where.recording_cloud_authority_ownership" })
+    }
+
+    @Test
     func `production store opens at process composition roots`() throws {
         let allowed = try evaluate(
             path: "Where/WhereUI/Sources/Launch/WhereLaunch.swift",
