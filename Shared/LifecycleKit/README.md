@@ -113,6 +113,7 @@ Add it to a target's dependencies in [`Package.swift`](../../Package.swift):
 // The engine-minted token for one parked gate — the only way to resume it.
 @MainActor public final class LifecycleGateHandle {
     public let id: AnyHashable
+    public func perform(_ body: @escaping @MainActor () async -> Void)
     public func complete()
     public func fail(_ error: Error)
 }
@@ -238,6 +239,13 @@ There is no retry re-walk that would consult a live launch memo, so no cross-pla
   A new drive cancels the in-flight one and awaits it draining first.
   A parked gate's wait throws `CancellationError` on cancellation — "drive cancelled" (stop quietly) is distinct from a node throwing (→ `.failed`) — which is what lets `teardown()` / `enterForeground()` interrupt a launch parked on onboarding instead of hanging forever behind it.
   A superseded drive that throws a *real* error reports cancelled rather than clobbering the phase the new drive owns, and a superseded drive's gate handle resolves to a no-op.
+  Use `handle.perform { ... }` for asynchronous actions from a gate's UI.
+  The handle accepts one operation at a time while pending. Resolution drains it;
+  a superseding drive cancels and drains it before teardown or replacement launch.
+  The operation must check cancellation after suspended dependencies before applying
+  further effects. A stale handle cannot start another operation.
+  An asynchronous `isNeeded` check publishes `.running` with the gate's ID before
+  suspension, so lifecycle observers can also interrupt it before a handle exists.
 - **Synchronous `initializePrerequisites` vs. async steps.** It runs synchronously at `init` for cheap, must-exist-now wiring (e.g. installing a `CLLocationManager` delegate a queued background event cannot wait for).
   Everything expensive — including opening a store that may run a slow migration — belongs in an async step, so it never blocks `didFinishLaunching` (and the system watchdog).
 

@@ -38,7 +38,7 @@ public final class LifecycleRunner<Launch: Sendable> {
     public enum Phase {
         /// Before (or between) trunk nodes — show the splash.
         case launching
-        /// A trunk step is running; its context feeds splash caption/progress.
+        /// A trunk step or gate check is running; its context feeds splash caption/progress.
         case running(LifecycleStepContext)
         /// A gate parked the trunk; the UI resolves the handle to continue.
         case awaitingGate(LifecycleGateHandle)
@@ -307,6 +307,7 @@ public final class LifecycleRunner<Launch: Sendable> {
                 case let .gate(node):
                     if memo[node.id] != nil { break }
                     guard node.modes.contains(reason.modeSet) else { break }
+                    phase = .running(LifecycleStepContext(stepID: node.id, reason: reason))
                     // A skipped gate is *not* memoized: `isNeeded` re-evaluates
                     // on the promotion re-drive, so a gate skipped headless
                     // still shows once the launch is user-visible.

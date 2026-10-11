@@ -11,7 +11,11 @@ final class CompatibilityBootstrap: WhereScopeAssembling {
     let authority: RecordingAuthorityCoordinator
     let recording: RecordingDeviceCoordination
     let compatibility: DataCompatibilityCoordinator
+    var preparationError: (any Error)?
+    var serviceAssemblyGate: CompatibilityOperationGate?
+    var locationSource: any LocationSource = ScriptedLocationSource(authorizationStatus: .always)
     private(set) var makeServicesCount = 0
+    private(set) var makeLogStoreCount = 0
     private(set) var lastDomainStore: (any WhereStore)?
 
     init() throws {
@@ -48,7 +52,8 @@ final class CompatibilityBootstrap: WhereScopeAssembling {
 
     func prepareLocation() {}
     func prepareCompatibility() async throws -> DataCompatibilityCoordinator? {
-        compatibility
+        if let preparationError { throw preparationError }
+        return compatibility
     }
 
     func prepareDeviceCoordination() async throws -> RecordingDeviceCoordination? {
@@ -60,19 +65,22 @@ final class CompatibilityBootstrap: WhereScopeAssembling {
     }
 
     func makeLogStore() async throws -> PeriscopeStore? {
-        nil
+        makeLogStoreCount += 1
+        return nil
     }
 
     func makeServices() async throws -> WhereServices {
         let domain = try await compatibility.openDomainStore()
         makeServicesCount += 1
         lastDomainStore = domain
-        return try WhereServices(
+        let services = try WhereServices(
             store: domain,
-            locationSource: ScriptedLocationSource(authorizationStatus: .always),
+            locationSource: locationSource,
             installationContext: installation.resolve(),
             recordingAuthority: authority,
             deviceCoordination: recording,
         )
+        await serviceAssemblyGate?.wait()
+        return services
     }
 }
