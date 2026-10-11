@@ -22,6 +22,7 @@ struct RecordingDeviceRoleModelTests {
         )
         _ = try await authority.submit(claim)
         let coordination = RecordingDeviceCoordination(
+            supportedVersion: .current,
             authority: authority,
             installation: installation,
         )
@@ -60,6 +61,7 @@ struct RecordingDeviceRoleModelTests {
         )
         _ = try await authority.submit(claim)
         let coordination = RecordingDeviceCoordination(
+            supportedVersion: .current,
             authority: authority,
             installation: installation,
         )

@@ -367,6 +367,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
             }
             let authority = RecordingAuthorityCoordinator(store: store, transport: transport)
             return RecordingDeviceCoordination(
+                supportedVersion: .current,
                 authority: authority,
                 installation: self.installationContextStore,
             )

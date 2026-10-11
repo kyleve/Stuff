@@ -1,7 +1,7 @@
 import Foundation
 import RegionKit
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 /// Covers export/import round-trips and the post-commit lifecycle hook the
 /// coordinator invokes once new data lands.
@@ -47,6 +47,7 @@ struct BackupCoordinatorTests {
 
     @Test func unsupportedArchiveDoesNotMutateDestinationAuthority() async throws {
         let source = try Self.makeHarness()
+        await source.store.setSupportedDataCompatibilityVersionForTesting(.init(rawValue: 2))
         try await source.store.perform {
             try await source.store.addDataCompatibilityRequirement(.init(
                 id: UUID(),

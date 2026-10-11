@@ -278,3 +278,20 @@ public struct RecordingAuthorityCommit: Codable, Sendable, Equatable {
         self.committedAt = committedAt
     }
 }
+
+extension RecordingAuthority {
+    static func resolve(commits input: [RecordingAuthorityCommit]) throws -> Self {
+        let commits = input.sorted {
+            ($0.proposal.result.revision?.sequence ?? 0) <
+                ($1.proposal.result.revision?.sequence ?? 0)
+        }
+        var state = RecordingAuthority.initial
+        for commit in commits {
+            try commit.proposal.validate()
+            guard commit.proposal.expected == state
+            else { throw RecordingAuthorityError.invalidRecord }
+            state = commit.proposal.result
+        }
+        return state
+    }
+}

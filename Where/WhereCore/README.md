@@ -480,3 +480,29 @@ Backup format 7 preserves sample tenures, recovery exclusions, and the required
 compatibility version. It excludes live authority grants and installation consent.
 Merge and Replace retain the greater destination requirement. Unsupported versions
 fail before mutation. The external upgrader assigns version 1 to earlier archives.
+
+### Global compatibility and access lifetimes
+
+`DataCompatibilityCoordinator` evaluates one global version before a normal
+world opens. The supported version comes from the injected recording coordinator.
+Version 1 is the initial contract. Equal versions permit access. A higher shared
+version requires an app update. A newer secondary waits for the recording device.
+Only that device can advance the server authority, including during background
+launch. An offline device can retain an established contract but cannot advance it.
+
+```swift
+let state = await compatibility.recheck()
+guard case .compatible = state else { return }
+let scopedStore = try await compatibility.openDomainStore()
+// Assemble the normal world's services with scopedStore.
+```
+
+Each scope gets an irrevocable permit over the existing store. Revoking it rejects
+suspended operations and permanently retires that scope. Resuming requires a new
+scope. `SwiftDataStore` also checks current requirements at domain entry points,
+snapshot completion, and before/after commit. Pending requirements participate in
+the pre-save check. Failed transactions cannot leave a raised floor behind.
+
+Control-plane inspection and recording coordination remain available while blocked.
+The production raw store remains at the bootstrap; services receive the scoped
+boundary. Startup and output adapters are integrated in subsequent stack layers.
