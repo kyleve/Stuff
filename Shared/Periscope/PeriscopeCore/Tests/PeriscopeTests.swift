@@ -3,6 +3,14 @@ import os
 @_spi(Testing) import PeriscopeCore
 import Testing
 
+@LogScope("AuditTest")
+private enum AuditTestLog {
+    @LogEvent("entry", message: "audit-entry")
+    struct Entry {
+        static let isProtectedFromDropping = true
+    }
+}
+
 struct PeriscopeTests {
     let sink = CapturingSink()
 
@@ -345,7 +353,7 @@ struct PeriscopeTests {
         log.debug("quiet")
         log.info("quiet")
         log.warning("loud")
-        log { AppLogs() } // AppLogs is .info — below the floor.
+        log.event() // AppLogs is .info — below the floor.
         await system.flush()
 
         #expect(sink.records.map(\.message) == ["loud"])
@@ -523,7 +531,7 @@ struct PeriscopeTests {
                 LogRecord(
                     id: record.id,
                     date: record.date,
-                    event: Message(level: record.level, "[redacted]"),
+                    event: makeMessage("[redacted]", level: record.level),
                     scopes: record.scopes,
                 )
             }),
@@ -551,7 +559,7 @@ struct PeriscopeTests {
         let log = Log<AppLogs>(system: system)
 
         log.debug("filtered freeform")
-        log { AppLogs() } // .info structured event — filtered in record()
+        log.event() // .info structured event — filtered in record()
         log.warning("admitted")
         await system.flush()
 
@@ -930,13 +938,6 @@ struct PeriscopeTests {
     }
 
     @Test func customEventsCanOptIntoDropProtection() async throws {
-        struct AuditEvent: LogEvent {
-            static let isProtectedFromDropping = true
-            var message: String {
-                "audit-entry"
-            }
-        }
-
         let gate = GateSink()
         let system = Periscope(
             configuration: Periscope.Configuration(pendingBufferCapacity: 3),
@@ -948,7 +949,7 @@ struct PeriscopeTests {
         let drainBlocked = await waitUntil { gate.batchCount >= 1 }
         try #require(drainBlocked)
 
-        log(AuditEvent.self) { AuditEvent() }
+        log(AuditTestLog.self).entry()
         for index in 1 ... 5 {
             log.info("r\(index)")
         }
@@ -1169,8 +1170,8 @@ struct PeriscopeTests {
 
     @Test func ambientStateStampsOntoEverySubsequentRecord() async throws {
         let system = makeSystem()
-        let ambient = Log<AmbientEvent>(system: system)
-        ambient { AmbientEvent(kind: .network, value: ["status": "satisfied"]) }
+        let ambient = Log<AmbientLog>(system: system)
+        ambient.record(makeAmbientEvent(kind: .network, value: ["status": "satisfied"]))
         Log<AppLogs>(system: system).info("after")
         await system.flush()
 
@@ -1182,12 +1183,12 @@ struct PeriscopeTests {
     /// replaced — otherwise the event and its own snapshot disagree.
     @Test func anAmbientEventCarriesTheStateItAnnounces() async {
         let system = makeSystem()
-        let ambient = Log<AmbientEvent>(system: system)
-        ambient { AmbientEvent(kind: .thermalState, value: ["level": "nominal"]) }
-        ambient { AmbientEvent(kind: .thermalState, value: ["level": "serious"]) }
+        let ambient = Log<AmbientLog>(system: system)
+        ambient.record(makeAmbientEvent(kind: .thermalState, value: ["level": "nominal"]))
+        ambient.record(makeAmbientEvent(kind: .thermalState, value: ["level": "serious"]))
         await system.flush()
 
-        let changes = sink.records.filter { $0.eventName == AmbientEvent.eventName }
+        let changes = sink.records.filter { $0.eventName == AmbientLog.Event.eventName }
         #expect(changes.map { $0.ambient?[.thermalState] } == [
             ["level": "nominal"],
             ["level": "serious"],
@@ -1196,16 +1197,16 @@ struct PeriscopeTests {
 
     @Test func momentaryAmbientEventsDoNotStickToLaterRecords() async throws {
         let system = makeSystem()
-        let ambient = Log<AmbientEvent>(system: system)
-        ambient { AmbientEvent(kind: .network, value: ["status": "satisfied"]) }
-        ambient {
-            AmbientEvent(
+        let ambient = Log<AmbientLog>(system: system)
+        ambient.record(makeAmbientEvent(kind: .network, value: ["status": "satisfied"]))
+        ambient.record(
+            makeAmbientEvent(
                 kind: .memory,
                 value: ["pressure": "warning"],
                 level: .warning,
                 reporting: .occurrence,
-            )
-        }
+            ),
+        )
         Log<AppLogs>(system: system).info("after")
         await system.flush()
 
@@ -1218,11 +1219,11 @@ struct PeriscopeTests {
     /// or the store would write a row per repeat instead of per state.
     @Test func unchangedAmbientStateReusesOneSnapshotIdentity() async {
         let system = makeSystem()
-        let ambient = Log<AmbientEvent>(system: system)
+        let ambient = Log<AmbientLog>(system: system)
         let log = Log<AppLogs>(system: system)
-        ambient { AmbientEvent(kind: .network, value: ["status": "satisfied"]) }
+        ambient.record(makeAmbientEvent(kind: .network, value: ["status": "satisfied"]))
         log.info("one")
-        ambient { AmbientEvent(kind: .network, value: ["status": "satisfied"]) }
+        ambient.record(makeAmbientEvent(kind: .network, value: ["status": "satisfied"]))
         log.info("two")
         await system.flush()
 
@@ -1233,8 +1234,8 @@ struct PeriscopeTests {
 
     @Test func spanRecordsCarryAmbientState() async {
         let system = makeSystem()
-        let ambient = Log<AmbientEvent>(system: system)
-        ambient { AmbientEvent(kind: .powerMode, value: ["low-power": true]) }
+        let ambient = Log<AmbientLog>(system: system)
+        ambient.record(makeAmbientEvent(kind: .powerMode, value: ["low-power": true]))
         Log<AppLogs>(system: system).measure("work") {}
         await system.flush()
 
@@ -1253,8 +1254,8 @@ struct PeriscopeTests {
             sinks: [gate, sink],
         )
         let log = Log<AppLogs>(system: system)
-        let ambient = Log<AmbientEvent>(system: system)
-        ambient { AmbientEvent(kind: .network, value: ["status": "unsatisfied"]) }
+        let ambient = Log<AmbientLog>(system: system)
+        ambient.record(makeAmbientEvent(kind: .network, value: ["status": "unsatisfied"]))
 
         log.info("r0")
         let drainBlocked = await waitUntil { gate.batchCount >= 1 }
@@ -1273,8 +1274,8 @@ struct PeriscopeTests {
 
     @Test func liveObserversSeeTheStampedRecord() async throws {
         let system = makeSystem()
-        let ambient = Log<AmbientEvent>(system: system)
-        ambient { AmbientEvent(kind: .network, value: ["status": "satisfied"]) }
+        let ambient = Log<AmbientLog>(system: system)
+        ambient.record(makeAmbientEvent(kind: .network, value: ["status": "satisfied"]))
         let records = system.liveRecords()
 
         Log<AppLogs>(system: system).info("live")
@@ -1288,21 +1289,66 @@ struct PeriscopeTests {
     /// carry the state the discarded event replaced.
     @Test func flooredAmbientEventsStillFoldIntoTheSnapshot() async throws {
         let system = makeSystem()
-        let ambient = Log<AmbientEvent>(system: system)
-        ambient { AmbientEvent(kind: .network, value: ["status": "satisfied"]) }
+        let ambient = Log<AmbientLog>(system: system)
+        ambient.record(makeAmbientEvent(kind: .network, value: ["status": "satisfied"]))
         system.minimumLevel = .warning
 
         // .info — floored.
-        ambient { AmbientEvent(kind: .network, value: ["status": "unsatisfied"]) }
+        ambient.record(makeAmbientEvent(kind: .network, value: ["status": "unsatisfied"]))
         Log<AppLogs>(system: system).warning("after")
         await system.flush()
 
         let record = try #require(sink.records.first { $0.message == "after" })
         #expect(record.ambient?[.network] == ["status": "unsatisfied"])
         // The floor still discarded the event itself.
-        #expect(!sink.records.contains { $0.eventName == AmbientEvent.eventName
+        #expect(!sink.records.contains { $0.eventName == AmbientLog.Event.eventName
                 && $0.message.contains("unsatisfied")
         })
+    }
+
+    @Test func classifiedBuiltinAmbientEventsStillFoldBelowTheFloor() async throws {
+        let system = makeSystem()
+        let log = Log<AmbientLog>(system: system)
+        log.appLifecycle(phase: .shared(.category, .active))
+        system.minimumLevel = .warning
+        log.appLifecycle(phase: .shared(.category, .background))
+        log.memoryWarning()
+        log.warning("after classified ambient")
+        await system.flush()
+
+        let record = try #require(sink.records.first { $0.message == "after classified ambient" })
+        #expect(record.ambient?[.appLifecycle] == ["phase": "background"])
+        #expect(record.ambient?[.memory] == nil)
+        #expect(sink.records
+            .contains {
+                $0.eventName == AmbientLog.AppLifecycle.eventName && $0.message
+                    .contains("background")
+            } == false)
+    }
+
+    @Test func suppressingAClassifiedBuiltinClearsItsSnapshotState() async throws {
+        let system = Periscope(
+            configuration: Periscope.Configuration(redact: { record in
+                if let event = record.event as? AmbientLog.AppLifecycle,
+                   event.phase == .background
+                {
+                    return nil
+                }
+                return record
+            }),
+            sinks: [sink],
+        )
+        let log = Log<AmbientLog>(system: system)
+        log.appLifecycle(phase: .shared(.category, .active))
+        log.powerMode(enabled: .shared(.boolean, true))
+        log.appLifecycle(phase: .shared(.category, .background))
+        log.info("after classified suppression")
+        await system.flush()
+
+        let record = try #require(sink.records
+            .first { $0.message == "after classified suppression" })
+        #expect(record.ambient?[.appLifecycle] == nil)
+        #expect(record.ambient?[.powerMode] == ["low-power": true])
     }
 
     /// Suppression is content scrubbing: the snapshot must neither smear
@@ -1315,12 +1361,12 @@ struct PeriscopeTests {
             }),
             sinks: [sink],
         )
-        let ambient = Log<AmbientEvent>(system: system)
-        ambient { AmbientEvent(kind: .network, value: ["ssid": "wifi-public"]) }
-        ambient { AmbientEvent(kind: .thermalState, value: ["level": "nominal"]) }
+        let ambient = Log<AmbientLog>(system: system)
+        ambient.record(makeAmbientEvent(kind: .network, value: ["ssid": "wifi-public"]))
+        ambient.record(makeAmbientEvent(kind: .thermalState, value: ["level": "nominal"]))
 
         // Suppressed by the redaction hook.
-        ambient { AmbientEvent(kind: .network, value: ["ssid": "wifi-secret"]) }
+        ambient.record(makeAmbientEvent(kind: .network, value: ["ssid": "wifi-secret"]))
         Log<AppLogs>(system: system).info("after")
         await system.flush()
 

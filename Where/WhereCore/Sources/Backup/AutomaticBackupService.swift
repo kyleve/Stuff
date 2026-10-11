@@ -204,9 +204,8 @@ public actor AutomaticBackupService {
             try await storage.reconcileRetention(recoveryKeys: recoveryKeys)
             notifyChanges()
         } catch {
-            WhereLog.backup(AutomaticBackupLog.self) {
-                .cleanupFailed(description: error.localizedDescription)
-            }
+            WhereLog.backup(AutomaticBackupLog.self)
+                .cleanupFailed(error: .restricted(.errorDetails, error))
         }
     }
 

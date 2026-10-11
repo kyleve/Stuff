@@ -29,7 +29,7 @@ Pick the **narrowest tier that covers the change**:
 | One bundle | `./test WhereCoreTests` | You know exactly what you touched |
 | Unit suite | `./test --all` | Change spans modules; before a wide commit |
 | Image suite | `./test --snapshots` | Triggers below |
-| Everything | `./test --everything` | Full revalidation; what CI runs |
+| Everything | `./test --everything` | All iOS unit and image bundles plus default host/architecture checks |
 
 Examples:
 
@@ -50,6 +50,10 @@ that sequence. Do not use this flag for normal local validation.
 
 Affected and unit-capable scopes run the backup-upgrader regression. A scope
 that contains only image bundles skips that host-side unit regression.
+
+For retained scripts, also run the applicable direct and public-command tests
+from [`Tools/README.md`](../../../Tools/README.md#testing).
+Use `./shellcheck` for shell changes. `./test` does not replace these checks.
 
 ## Snapshots
 
@@ -87,13 +91,27 @@ After a green build:
 `--only` takes a full xcodebuild test identifier — bundle, suite, or
 `Bundle/Suite/testName()`. Repeatable for several tests.
 
+Use `--no-build` only when the existing products include every change being validated.
+After source or dependency changes, rebuild before claiming test coverage for them.
+Use `--no-generate` only while project-generation inputs remain unchanged.
+
 ## When tests fail
 
 - Swift Testing's headline is often contentless ("Issue recorded"). Read the
   **`↳` block** below it for the real reason, path, and snapshot paths.
 - Snapshot mismatch → `./test --snapshots --review` on the failing reference.
-- Green locally / red on CI → merge latest `main` and re-run before debugging
-  (see [`github-workflow`](../github-workflow/SKILL.md)).
+- Async or race failure → control the relevant suspension and await the
+  observable outcome. Do not replace the failure with an arbitrary sleep.
+- Stable placeholder → use the fixture's readiness hook before measurement or
+  capture. Pixel settling alone cannot prove async completion
+  ([capture contract](../../../Shared/SnapshotKitTesting/AGENTS.md)).
+- Green locally / red on CI → compare the provider's tested revision,
+  toolchain, and selected suites through
+  [`github-workflow`](../github-workflow/SKILL.md#merging-main-and-other-branches).
+  Do not infer a branch conflict from a failing check alone.
+
+Report the suites and test/image counts that actually ran. A successful build,
+empty selection, or skipped test does not establish behavior coverage.
 
 ## Simulator
 
@@ -126,7 +144,7 @@ Raw one-off `xcodebuild` (rare):
   table in the root [`AGENTS.md`](../../../AGENTS.md#what-works-on-linux) for the
   three macOS-coupled carve-outs among those.
 
-## Full macOS validation (matches CI)
+## Broad local iOS and macOS validation
 
 ```bash
 mise install
@@ -137,3 +155,8 @@ mise install
 mise exec -- tuist test Ledger-macOS-Tests --no-selective-testing -- \
   -destination 'platform=macOS'
 ```
+
+This recipe is not the complete CI gate. Read
+[GitHub Actions](../../../.github/workflows/ci.yml) for the format and retained-tool checks.
+Read [CircleCI](../../../.circleci/config.yml) for audience builds and artifact/shard validation.
+Select additional checks for the changed inputs rather than treating one green command as all CI coverage.

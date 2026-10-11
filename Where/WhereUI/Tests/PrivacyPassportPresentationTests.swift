@@ -21,7 +21,10 @@ struct PrivacyPassportPresentationTests {
             PrivacyPassportPresentation(configuration: DiagnosticReportingConfiguration(
                 sharesCrashReports: false,
                 sharesSessionReplays: false,
-                remoteLogging: .enabled(minimumLevel: level, metadataPolicy: .approvedFields),
+                remoteLogging: .enabled(
+                    minimumLevel: level,
+                    exportPolicy: .init(mode: .baseline, enabledControls: []),
+                ),
             ))
 
         #expect(presentation.disclosures == [.diagnosticLogs(level)])
@@ -34,7 +37,7 @@ struct PrivacyPassportPresentationTests {
                 sharesSessionReplays: true,
                 remoteLogging: .enabled(
                     minimumLevel: .notice,
-                    metadataPolicy: .approvedFields,
+                    exportPolicy: .init(mode: .baseline, enabledControls: []),
                 ),
             ))
 
@@ -64,7 +67,10 @@ struct PrivacyPassportPresentationTests {
                     sharesSessionReplays: false,
                     remoteLogging: .enabled(
                         minimumLevel: .debug,
-                        metadataPolicy: .allMetadataExcludingAttachmentData,
+                        exportPolicy: .init(
+                            mode: .diagnostic,
+                            enabledControls: RemoteLoggingConfiguration.personalDataControls,
+                        ),
                     ),
                 ))
 
@@ -72,6 +78,8 @@ struct PrivacyPassportPresentationTests {
                 .diagnosticLogs(.debug),
                 .fullMetadata,
             ])
+            #expect(presentation
+                .locationDetail == String(localized: .settingsPrivacyLocationDiagnostics))
         }
     #endif
 }

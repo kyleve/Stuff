@@ -58,9 +58,8 @@ jobs:
     runs-on: xcode-27
     env:
       BUMPER_CACHE_DIR: .build/bumper-cache
-      # Where evaluates in about one second; optimize the cold runner build
-      # instead of spending minutes compiling SwiftSyntax in release mode.
       BUMPER_RUNNER_BUILD_CONFIGURATION: debug
+      BUMPER_EVALUATION_TIMEOUT_SECONDS: '120'
     steps:
       - uses: actions/checkout@v4
       - name: Restore Bumper build cache
@@ -68,7 +67,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .build
-          key: ${{ runner.os }}-${{ runner.arch }}-bumper-${{ hashFiles('Package.swift', 'Package.resolved', 'BumperBowling.swift', '.bumper/Sources/**/*.swift', '.bumper/Tests/**/*.swift') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-bumper-${{ env.BUMPER_RUNNER_BUILD_CONFIGURATION }}-${{ hashFiles('Package.swift', 'Package.resolved', 'BumperBowling.swift', '.bumper/Sources/**/*.swift', '.bumper/Tests/**/*.swift') }}
       - name: Validate and enforce architecture
         run: ./test --architecture-only
       # Lint builds and populates the cached Bumper consumer runner. Save only

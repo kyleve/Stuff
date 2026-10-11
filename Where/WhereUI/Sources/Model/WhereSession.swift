@@ -298,11 +298,11 @@ public final class WhereSession {
             case .always, .notDetermined:
                 break
             case .whenInUse:
-                Self.logger { .whenInUseOnly }
+                Self.logger.whenInUseOnly()
             case .denied, .restricted:
-                Self.logger {
-                    .locationAccessDenied(status: String(describing: authorizationStatus))
-                }
+                Self.logger.locationAccessDenied(
+                    status: .restricted(.technicalState, String(describing: authorizationStatus)),
+                )
         }
     }
 
@@ -334,9 +334,9 @@ public final class WhereSession {
             let primary = try await services.primaryRegions()
             regionStyles = RegionStyleResolver(primaryRegions: primary)
         } catch {
-            Self.logger(attachments: [.error(error, name: "region-styles-error")]) {
-                .regionStylesLoadFailed(description: error.localizedDescription)
-            }
+            Self.logger.regionStylesLoadFailed(
+                error: .restricted(.errorDetails, error),
+            )
         }
     }
 
@@ -394,17 +394,17 @@ public final class WhereSession {
             }
             await synchronizeRecordingRuntimeState()
             if isTracking, !wasTracking {
-                Self.logger { .backgroundTrackingStarted }
+                Self.logger.backgroundTrackingStarted()
             } else if !isTracking, wasTracking {
-                Self.logger { .backgroundTrackingStopped }
+                Self.logger.backgroundTrackingStopped()
             }
         } catch {
             // Core fails closed and stops its source. Keep the UI mirror equally honest.
             didRegisterRecordingDevice = false
             await synchronizeRecordingRuntimeState()
-            Self.logger(attachments: [.error(error, name: "recording-reconcile-error")]) {
-                .recordingReconcileFailed(description: error.localizedDescription)
-            }
+            Self.logger.recordingReconcileFailed(
+                error: .restricted(.errorDetails, error),
+            )
         }
     }
 
@@ -456,7 +456,9 @@ public final class WhereSession {
         await syncAuthorization()
         await reconcileTracking()
         if authorizationStatus.allowsBackgroundTracking {
-            Self.logger { .permissionGranted(status: String(describing: authorizationStatus)) }
+            Self.logger.permissionGranted(
+                status: .restricted(.technicalState, String(describing: authorizationStatus)),
+            )
         }
     }
 
@@ -469,9 +471,9 @@ public final class WhereSession {
         do {
             try await setRecordingEnabled(true)
         } catch {
-            Self.logger(attachments: [.error(error, name: "recording-enable-error")]) {
-                .recordingReconcileFailed(description: error.localizedDescription)
-            }
+            Self.logger.recordingReconcileFailed(
+                error: .restricted(.errorDetails, error),
+            )
         }
     }
 
@@ -479,9 +481,9 @@ public final class WhereSession {
         do {
             try await setRecordingEnabled(false)
         } catch {
-            Self.logger(attachments: [.error(error, name: "recording-disable-error")]) {
-                .recordingReconcileFailed(description: error.localizedDescription)
-            }
+            Self.logger.recordingReconcileFailed(
+                error: .restricted(.errorDetails, error),
+            )
         }
     }
 
@@ -514,9 +516,9 @@ public final class WhereSession {
         await synchronizeRecordingRuntimeState()
         permissionDenied = enabled && permissionRequestFailed
         if configuration.localAutomaticRecordingEnabled == true, isTracking {
-            Self.logger { .trackingEnabled }
+            Self.logger.trackingEnabled()
         } else if configuration.localAutomaticRecordingEnabled == false {
-            Self.logger { .stoppedBackgroundTracking }
+            Self.logger.stoppedBackgroundTracking()
         }
         await runAutomaticBackupIfDue()
     }
@@ -542,9 +544,7 @@ public final class WhereSession {
             }
             return result
         } catch {
-            Self.logger(attachments: [.error(error, name: "automatic-backup-error")]) {
-                .automaticBackupFailed(description: error.localizedDescription)
-            }
+            Self.logger.automaticBackupFailed(error: .restricted(.errorDetails, error))
             return nil
         }
     }
@@ -588,7 +588,7 @@ public final class WhereSession {
         let authorized = await services.reminders.isAuthorized()
         if enabled, !authorized {
             if !warnedRemindersUnauthorized {
-                Self.logger { .remindersUnauthorized }
+                Self.logger.remindersUnauthorized()
                 warnedRemindersUnauthorized = true
             }
         } else {
@@ -606,7 +606,7 @@ public final class WhereSession {
         let authorized = await services.reminders.isAuthorized()
         if enabled, !authorized {
             if !warnedSummaryUnauthorized {
-                Self.logger { .summaryUnauthorized }
+                Self.logger.summaryUnauthorized()
                 warnedSummaryUnauthorized = true
             }
         } else {
@@ -629,7 +629,7 @@ public final class WhereSession {
         let authorized = await services.reminders.isAuthorized()
         if enabled, !authorized {
             if !warnedIssueAlertsUnauthorized {
-                Self.logger { .issueAlertsUnauthorized }
+                Self.logger.issueAlertsUnauthorized()
                 warnedIssueAlertsUnauthorized = true
             }
         } else {
@@ -675,6 +675,6 @@ public final class WhereSession {
             throw error
         }
         recordingRuntimeState = .unavailable
-        Self.logger { .erasedSession }
+        Self.logger.erasedSession()
     }
 }

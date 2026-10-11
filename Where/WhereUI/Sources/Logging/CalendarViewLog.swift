@@ -1,23 +1,25 @@
 import PeriscopeCore
 
-/// Structured events for `CalendarView`'s layout. Both cases are
-/// degraded-but-handled presentation states, so they log at `.warning`.
-enum CalendarViewLog: LogEvent {
-    case openedWithoutReport(loadState: String)
-    case layoutFailed(description: String)
+/// Structured events for `CalendarView`'s degraded presentation states.
+@LogScope("CalendarView")
+enum CalendarViewLog {
+    @LogEvent("opened-without-report", level: .warning)
+    struct OpenedWithoutReport {
+        @LogField(exposure: .restricted, kind: .technicalState)
+        var loadState: String
 
-    static let eventName = "CalendarView"
-
-    var level: LogLevel {
-        .warning
+        var message: String {
+            "Calendar opened without a year report (loadState: \(loadState))"
+        }
     }
 
-    var message: String {
-        switch self {
-            case let .openedWithoutReport(loadState):
-                "Calendar opened without a year report (loadState: \(loadState))"
-            case let .layoutFailed(description):
-                "Calendar layout failed: \(description)"
+    @LogEvent("layout-failed", level: .warning, version: 2)
+    struct LayoutFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+
+        var message: String {
+            "Calendar layout failed: \(error.description)"
         }
     }
 }

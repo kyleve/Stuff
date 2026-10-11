@@ -87,12 +87,12 @@ public actor AutomaticBackupStorage {
                     coordinated: true,
                 )
             } else {
-                Self.logger { .iCloudUnavailable }
+                Self.logger.iCloudUnavailable()
             }
         } catch is CancellationError {
             throw CancellationError()
         } catch {
-            Self.logger { .iCloudAccessFailed(description: error.localizedDescription) }
+            Self.logger.iCloudAccessFailed(error: .restricted(.errorDetails, error))
             iCloudFailure = error
         }
 
@@ -137,14 +137,14 @@ public actor AutomaticBackupStorage {
                 isICloudUnavailable = cloud.isICloudUnavailable
             } else {
                 isICloudUnavailable = true
-                Self.logger { .iCloudUnavailable }
+                Self.logger.iCloudUnavailable()
             }
         } catch is CancellationError {
             throw CancellationError()
         } catch {
             try Task.checkCancellation()
             isICloudUnavailable = true
-            Self.logger { .iCloudAccessFailed(description: error.localizedDescription) }
+            Self.logger.iCloudAccessFailed(error: .restricted(.errorDetails, error))
         }
 
         files += try enumerate(
@@ -235,11 +235,9 @@ public actor AutomaticBackupStorage {
                 // waits for iCloud to download the item before its accessor runs.
                 if coordinated, try !availability.isDownloaded(at: url) {
                     hasUnavailableFiles = true
-                    Self
-                        .logger {
-                            .iCloudAccessFailed(description: StorageError.downloadPending
-                                .localizedDescription)
-                        }
+                    Self.logger.iCloudAccessFailed(
+                        error: .restricted(.errorDetails, StorageError.downloadPending),
+                    )
                     continue
                 }
                 let operation = { (coordinatedURL: URL) in
@@ -250,16 +248,25 @@ public actor AutomaticBackupStorage {
                     : operation(url)
                 files.append(file)
             } catch is BackupService.EncryptedBackupError {
-                Self.logger { .ignoredUnrecognizedFile(name: url.lastPathComponent) }
+                Self.logger.ignoredUnrecognizedFile(name: .restricted(
+                    .identifier,
+                    url.lastPathComponent,
+                ))
             } catch is DecodingError {
-                Self.logger { .ignoredUnrecognizedFile(name: url.lastPathComponent) }
+                Self.logger.ignoredUnrecognizedFile(name: .restricted(
+                    .identifier,
+                    url.lastPathComponent,
+                ))
             } catch is Archive.ArchiveError {
-                Self.logger { .ignoredUnrecognizedFile(name: url.lastPathComponent) }
+                Self.logger.ignoredUnrecognizedFile(name: .restricted(
+                    .identifier,
+                    url.lastPathComponent,
+                ))
             } catch {
                 try Task.checkCancellation()
                 guard coordinated else { throw error }
                 hasUnavailableFiles = true
-                Self.logger { .iCloudAccessFailed(description: error.localizedDescription) }
+                Self.logger.iCloudAccessFailed(error: .restricted(.errorDetails, error))
             }
         }
         return AutomaticBackupCatalog(files: files, isICloudUnavailable: hasUnavailableFiles)
@@ -313,7 +320,10 @@ public actor AutomaticBackupStorage {
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
-                Self.logger { .ignoredUnrecognizedFile(name: file.url.lastPathComponent) }
+                Self.logger.ignoredUnrecognizedFile(name: .restricted(
+                    .identifier,
+                    file.url.lastPathComponent,
+                ))
             }
         }
         try await AutomaticBackupRetention(verified: verified, retainedFileCount: retainedFileCount)
@@ -325,7 +335,7 @@ public actor AutomaticBackupStorage {
         do {
             try fileManager.removeItem(at: url)
         } catch {
-            Self.logger { .cleanupFailed(description: error.localizedDescription) }
+            Self.logger.cleanupFailed(error: .restricted(.errorDetails, error))
         }
     }
 }

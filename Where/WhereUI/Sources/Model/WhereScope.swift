@@ -391,9 +391,9 @@ public final class WhereScope {
                 let description = String(describing: error)
                 logRouting = .failed(description: description)
                 onStateChange(self, .failed(description: description))
-                Self.logger(attachments: [.error(error, name: "open-error")]) {
-                    .loggingStoreUnavailable(description: description)
-                }
+                Self.logger.loggingStoreUnavailable(
+                    error: .restricted(.errorDetails, error),
+                )
                 return
             }
             guard let store else {
@@ -402,7 +402,7 @@ public final class WhereScope {
                 return
             }
             onStateChange(self, .ready(store))
-            Self.logger { .loggingStoreReady }
+            Self.logger.loggingStoreReady()
             pruneHistory(in: store)
         }
     }
@@ -417,16 +417,14 @@ public final class WhereScope {
                 let pruned = try await Self.logger.measure(.pruneHistory, budget: .seconds(2)) {
                     try await Self.historyPruner.prune(store)
                 }
-                Self.logger {
-                    .historyPruned(
-                        expiredEventCount: pruned.expired,
-                        overflowEventCount: pruned.overflowed,
-                    )
-                }
+                Self.logger.historyPruned(
+                    expiredEventCount: .shared(.count, pruned.expired),
+                    overflowEventCount: .shared(.count, pruned.overflowed),
+                )
             } catch {
-                Self.logger(attachments: [.error(error, name: "prune-error")]) {
-                    .historyPruneFailed(description: String(describing: error))
-                }
+                Self.logger.historyPruneFailed(
+                    error: .restricted(.errorDetails, error),
+                )
             }
         }
     }

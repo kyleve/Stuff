@@ -6,6 +6,10 @@ at their established paths in the repository root; shell launchers own public
 argument handling, process orchestration, and bootstrap, while structured
 parsing and reporting policy live here.
 
+[`AGENTS.md`](AGENTS.md) owns the maintenance rules for these implementations
+and their public wrappers. It covers failure propagation, transactional
+replacement, simulator ownership, and validation at the command boundary.
+
 The existing CircleCI artifact, JUnit, and snapshot-shard helpers remain Python
 because they are already integrated and directly tested. `tla_check.py`
 similarly owns TLA+ manifest validation, isolated translation, TLC argv, and
@@ -22,6 +26,19 @@ with rollback to the icon catalogs and Ledger installer. The icon, physical
 device-selection, and app-install policies are likewise tested with temporary
 catalogs and captured command output rather than tracked assets, devices, or
 `/Applications`.
+
+## Snapshot shard policy
+
+`snapshot_shards.py` keeps weekly assignments stable. Its bounded greedy search
+places intake first, then stops existing-suite moves at a 5% reduction in the
+slowest worker. If single-suite moves cannot reach that target, it discards them.
+It does not search swaps or claim a globally minimal number of moves.
+Explicit shard-count changes retain full longest-processing-time balancing.
+The balance command emits a JSON report on stdout and diagnostics on stderr;
+only version and assignments are persisted. Legacy plans containing timing
+metadata remain readable. No-op writes preserve their original bytes.
+The [rebalance skill](../.agents/skills/rebalance-snapshot-shards/SKILL.md)
+owns sample selection and publication.
 
 ## Testing
 

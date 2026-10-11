@@ -376,7 +376,9 @@ public actor BackupCoordinator {
         do {
             try FileManager.default.removeItem(at: previous)
         } catch {
-            Self.logger { .removePreviousExportFailed(description: error.localizedDescription) }
+            Self.logger.removePreviousExportFailed(
+                error: .restricted(.errorDetails, error),
+            )
         }
     }
 
@@ -384,9 +386,8 @@ public actor BackupCoordinator {
         do {
             try FileManager.default.removeItem(at: url)
         } catch {
-            WhereLog.backup(AutomaticBackupLog.self) {
-                .cleanupFailed(description: error.localizedDescription)
-            }
+            WhereLog.backup(AutomaticBackupLog.self)
+                .cleanupFailed(error: .restricted(.errorDetails, error))
         }
     }
 

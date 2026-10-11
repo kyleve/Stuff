@@ -1,31 +1,39 @@
 import PeriscopeCore
 
-enum AutomaticBackupLog: LogEvent {
-    case iCloudUnavailable
-    case iCloudAccessFailed(description: String)
-    case ignoredUnrecognizedFile(name: String)
-    case cleanupFailed(description: String)
+/// Classified automatic-backup diagnostics. File names and errors stay restricted.
+@LogScope("AutomaticBackup")
+enum AutomaticBackupLog {
+    @LogEvent(
+        "icloud-unavailable",
+        level: .warning,
+        message: "iCloud Drive is unavailable; using local backup storage",
+    )
+    struct ICloudUnavailable {}
 
-    static let eventName = "AutomaticBackup"
-
-    var level: LogLevel {
-        switch self {
-            case .iCloudUnavailable, .iCloudAccessFailed, .ignoredUnrecognizedFile,
-                 .cleanupFailed:
-                .warning
+    @LogEvent("icloud-access-failed", level: .warning)
+    struct ICloudAccessFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+        var message: String {
+            "iCloud backup access failed; using local storage: \(error.description)"
         }
     }
 
-    var message: String {
-        switch self {
-            case .iCloudUnavailable:
-                "iCloud Drive is unavailable; using local backup storage"
-            case let .iCloudAccessFailed(description):
-                "iCloud backup access failed; using local storage: \(description)"
-            case let .ignoredUnrecognizedFile(name):
-                "Ignored unrecognized automatic-backup file: \(name)"
-            case let .cleanupFailed(description):
-                "Automatic-backup staging cleanup failed: \(description)"
+    @LogEvent("ignored-unrecognized-file", level: .warning)
+    struct IgnoredUnrecognizedFile {
+        @LogField(exposure: .restricted, kind: .identifier)
+        var name: String
+        var message: String {
+            "Ignored unrecognized automatic-backup file: \(name)"
+        }
+    }
+
+    @LogEvent("cleanup-failed", level: .warning)
+    struct CleanupFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+        var message: String {
+            "Automatic-backup staging cleanup failed: \(error.description)"
         }
     }
 }

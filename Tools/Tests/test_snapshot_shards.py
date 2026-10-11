@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """Tests for deterministic snapshot-suite shards."""
 
+import contextlib
 import importlib.util
+import io
 import json
 import pathlib
+import random
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 import xml.etree.ElementTree as ET
 
 
@@ -261,17 +265,17 @@ class ShardTests(unittest.TestCase):
                 )
                 documents.append(path)
 
-            candidate = MODULE.rebalanced_plan(self.make_plan(), repo, documents)
+            candidate = MODULE.rebalance_report(self.make_plan(), repo, documents)
 
             self.assertEqual(candidate["timings"]["ModuleSnapshotTests/FirstSnapshotTests"], 10)
-            self.assertEqual(candidate["shards"][0]["estimatedSeconds"], 10)
-            self.assertEqual(candidate["shards"][1]["estimatedSeconds"], 8)
+            self.assertEqual(candidate["afterSeconds"][0], 10)
+            self.assertEqual(candidate["afterSeconds"][1], 8)
 
-            candidate = MODULE.rebalanced_plan(
+            candidate = MODULE.rebalance_report(
                 self.make_plan(), repo, documents, shard_count=3
             )
             self.assertEqual(
-                [shard["estimatedSeconds"] for shard in candidate["shards"]],
+                candidate["afterSeconds"][:-1],
                 [10, 5, 3],
             )
 
@@ -293,10 +297,10 @@ class ShardTests(unittest.TestCase):
                 "</testsuites>"
             )
 
-            candidate = MODULE.rebalanced_plan(self.make_plan(), repo, [path])
+            candidate = MODULE.rebalance_report(self.make_plan(), repo, [path])
             assigned = {
                 suite
-                for shard in candidate["shards"]
+                for shard in candidate["plan"]["shards"]
                 for suite in shard["suites"]
             }
 
@@ -312,7 +316,224 @@ class ShardTests(unittest.TestCase):
             )
 
             with self.assertRaisesRegex(ValueError, "no durations"):
-                MODULE.rebalanced_plan(self.make_plan(), repo, [path])
+                MODULE.rebalance_report(self.make_plan(), repo, [path])
+
+    def test_stops_after_one_move_reaches_threshold(self):
+        partition = [["A", "B", "C"], ["D"], ["E"], ["New"]]
+        weights = {"A": 50, "B": 31, "C": 19, "D": 80, "E": 65, "New": 5}
+        result = MODULE.stable_partition(partition, weights)
+        self.assertEqual(result, [["A", "B"], ["D"], ["E", "New", "C"]])
+        self.assertEqual(partition, [["A", "B", "C"], ["D"], ["E"], ["New"]])
+
+    def test_intake_placement_alone_can_reach_target(self):
+        partition = [["A"], ["B"], ["New1", "New2"]]
+        weights = {"A": 10, "B": 10, "New1": 20, "New2": 20}
+        self.assertEqual(MODULE.stable_partition(partition, weights),
+                         [["A", "New1"], ["B", "New2"]])
+
+    def test_discards_subthreshold_moves_but_keeps_intake(self):
+        partition = [["A", "Small"], ["B"], ["New"]]
+        weights = {"A": 97, "Small": 3, "B": 94, "New": 1}
+        self.assertEqual(MODULE.stable_partition(partition, weights),
+                         [["A", "Small"], ["B", "New"]])
+
+    def test_accepts_exactly_five_percent(self):
+        partition = [["A", "Small"], ["B"], []]
+        weights = {"A": 95, "Small": 5, "B": 90}
+        self.assertEqual(MODULE.stable_partition(partition, weights),
+                         [["A"], ["B", "Small"]])
+
+    def test_zero_durations_and_one_planned_shard(self):
+        self.assertEqual(MODULE.stable_partition([["A"], ["New"]], {"A": 0, "New": 0}),
+                         [["A", "New"]])
+
+    def test_never_empties_a_planned_shard(self):
+        partition = [["A"], ["B"], []]
+        self.assertEqual(MODULE.stable_partition(partition, {"A": 100, "B": 1}),
+                         partition[:-1])
+
+    def balance_cli(self, repo, plan, junit, *extra):
+        return subprocess.run(
+            [str(SCRIPT.parents[1] / "snapshot-shards"), "--plan", str(plan),
+             "balance", "--repo", str(repo), "--junit", str(junit), *extra],
+            cwd=repo, capture_output=True, text=True,
+        )
+
+    def timing_fixture(self, repo, durations):
+        path = repo / "timings.xml"
+        root = ET.Element("testsuites")
+        for suite, elapsed in zip(
+            ("FirstSnapshotTests", "SecondSnapshotTests", "ThirdSnapshotTests"), durations
+        ):
+            ET.SubElement(root, "testcase", file=f"ModuleSnapshotTests/{suite}",
+                          name=suite, time=str(elapsed))
+        ET.ElementTree(root).write(path, encoding="utf-8")
+        return path
+
+    def test_cli_dry_run_write_and_second_run_are_stable(self):
+        with tempfile.TemporaryDirectory(prefix="shards ü ") as directory:
+            repo = self.make_repo(directory)
+            plan = repo / "plan.json"
+            legacy = self.make_plan()
+            legacy["timings"] = {"obsolete": 99}
+            plan.write_text(json.dumps(legacy))
+            original = plan.read_bytes()
+            junit = self.timing_fixture(repo, [10, 5, 3])
+            dry = self.balance_cli(repo, plan, junit)
+            self.assertEqual(dry.returncode, 0, dry.stderr)
+            report = json.loads(dry.stdout)
+            self.assertTrue(report["changed"])
+            self.assertEqual(len(report["movedSuites"]), 1)
+            self.assertIn("Dry run", dry.stderr)
+            self.assertEqual(plan.read_bytes(), original)
+            written = self.balance_cli(repo, plan, junit, "--write")
+            self.assertEqual(written.returncode, 0, written.stderr)
+            self.assertEqual(json.loads(written.stdout), report)
+            self.assertEqual(json.loads(plan.read_text()), report["plan"])
+            self.assertEqual(set(report["plan"]), {"formatVersion", "shards"})
+            self.assertTrue(all(set(shard) == {"index", "suites"}
+                                for shard in report["plan"]["shards"]))
+            self.assertIn("Updated", written.stderr)
+            result = plan.read_bytes()
+            again = self.balance_cli(repo, plan, junit, "--write")
+            self.assertEqual(again.returncode, 0, again.stderr)
+            self.assertFalse(json.loads(again.stdout)["changed"])
+            self.assertIn("plan unchanged", again.stderr)
+            self.assertEqual(plan.read_bytes(), result)
+
+    def test_cli_does_not_refresh_legacy_metadata_without_rebalance(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            plan = repo / "plan.json"
+            legacy = self.make_plan()
+            legacy["sampleDocuments"] = 999
+            plan.write_text(json.dumps(legacy))
+            original = plan.read_bytes()
+            junit = self.timing_fixture(repo, [5, 10, 5])
+            result = self.balance_cli(repo, plan, junit, "--write")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse(json.loads(result.stdout)["changed"])
+            self.assertEqual(plan.read_bytes(), original)
+
+    def test_cli_rejects_invalid_measurements_before_writing(self):
+        for duration in ("nan", "inf", "-1", "invalid"):
+            with self.subTest(duration=duration), tempfile.TemporaryDirectory() as directory:
+                repo = self.make_repo(directory)
+                plan = repo / "plan.json"
+                plan.write_text(json.dumps(self.make_plan()))
+                original = plan.read_bytes()
+                junit = self.timing_fixture(repo, [10, duration, 3])
+                result = self.balance_cli(repo, plan, junit, "--write")
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertIn("duration is invalid", result.stderr)
+                self.assertEqual(plan.read_bytes(), original)
+
+    def test_rejects_failed_skipped_missing_and_duplicate_timing_inputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            for tag in ("failure", "error", "skipped"):
+                path = self.timing_fixture(repo, [10, 5, 3])
+                tree = ET.parse(path)
+                ET.SubElement(tree.getroot().find("testcase"), tag)
+                tree.write(path)
+                with self.assertRaisesRegex(ValueError, tag):
+                    MODULE.rebalance_report(self.make_plan(), repo, [path])
+            path = self.timing_fixture(repo, [10, 5, 3])
+            tree = ET.parse(path)
+            del tree.getroot().find("testcase").attrib["time"]
+            tree.write(path)
+            with self.assertRaisesRegex(ValueError, "duration is invalid"):
+                MODULE.rebalance_report(self.make_plan(), repo, [path])
+            path = self.timing_fixture(repo, [10, 5, 3])
+            with self.assertRaisesRegex(ValueError, "duplicate JUnit"):
+                MODULE.rebalance_report(self.make_plan(), repo, [path, path])
+
+    def test_cli_explicit_count_change_and_invalid_zero_count(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            plan = repo / "plan.json"
+            plan.write_text(json.dumps(self.make_plan()))
+            original = plan.read_bytes()
+            junit = self.timing_fixture(repo, [10, 5, 3])
+            invalid = self.balance_cli(repo, plan, junit, "--shards", "0", "--write")
+            self.assertEqual(invalid.returncode, 1)
+            self.assertIn("shard count must be positive", invalid.stderr)
+            self.assertEqual(plan.read_bytes(), original)
+            valid = self.balance_cli(repo, plan, junit, "--shards", "3", "--write")
+            self.assertEqual(valid.returncode, 0, valid.stderr)
+            report = json.loads(valid.stdout)
+            self.assertEqual(report["reason"], "shard count changed")
+            self.assertEqual(report["afterSeconds"], [10, 5, 3, 0])
+            self.assertEqual(len(json.loads(plan.read_text())["shards"]), 3)
+
+    def test_zero_duration_count_change_keeps_every_shard_nonempty(self):
+        partition, totals = MODULE.balanced_partition({"A": 0, "B": 0, "C": 0}, 3)
+        self.assertEqual(partition, [["A"], ["B"], ["C"]])
+        self.assertEqual(totals, [0, 0, 0])
+
+    def test_seeded_balances_preserve_coverage_and_gate_existing_moves(self):
+        randomizer = random.Random(354)
+        for _ in range(100):
+            suites = [f"Suite{index}" for index in range(12)]
+            weights = {suite: randomizer.randint(0, 100) for suite in suites}
+            partition = [suites[:4], suites[4:7], suites[7:10], suites[10:]]
+            result = MODULE.stable_partition(partition, weights)
+            self.assertEqual(result, MODULE.stable_partition(partition, weights))
+            flattened = [suite for shard in result for suite in shard]
+            self.assertEqual(len(flattened), len(set(flattened)))
+            self.assertEqual(set(flattened), set(suites))
+            self.assertTrue(all(result))
+            moved = any(suite not in result[index]
+                        for index, shard in enumerate(partition[:-1]) for suite in shard)
+            if moved:
+                self.assertLessEqual(max(MODULE.partition_totals(result, weights)),
+                                     max(MODULE.partition_totals(partition, weights)) * 0.95 + 1e-9)
+
+    def test_write_failure_is_reported_as_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            plan = repo / "plan.json"
+            plan.write_text(json.dumps(self.make_plan()))
+            original = plan.read_bytes()
+            junit = self.timing_fixture(repo, [10, 5, 3])
+            argv = [str(SCRIPT), "--plan", str(plan), "balance", "--repo", str(repo),
+                    "--junit", str(junit), "--write"]
+            stderr = io.StringIO()
+            with mock.patch.object(sys, "argv", argv), \
+                    mock.patch.object(pathlib.Path, "write_text", side_effect=OSError("injected write failure")), \
+                    contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
+                with self.assertRaises(SystemExit) as error:
+                    MODULE.main()
+            self.assertEqual(error.exception.code, 1)
+            self.assertIn("injected write failure", stderr.getvalue())
+            self.assertNotIn("Updated", stderr.getvalue())
+            self.assertEqual(plan.read_bytes(), original)
+
+    def test_single_move_ties_use_suite_then_worker(self):
+        result = MODULE.stable_partition(
+            [["C", "B", "A"], ["D"], ["E"], []],
+            {"A": 90, "B": 5, "C": 5, "D": 90, "E": 90},
+        )
+        self.assertEqual(result, [["C", "A"], ["D", "B"], ["E"]])
+
+    def test_cli_intake_qualifies_without_five_percent_improvement(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            plan = repo / "plan.json"
+            baseline = self.make_plan()
+            baseline["shards"][0]["suites"].remove("ModuleSnapshotTests/ThirdSnapshotTests")
+            plan.write_text(json.dumps(baseline))
+            junit = self.timing_fixture(repo, [100, 95, 2])
+            result = self.balance_cli(repo, plan, junit, "--write")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            report = json.loads(result.stdout)
+            self.assertTrue(report["changed"])
+            self.assertEqual(report["improvementPercent"], 0)
+            self.assertEqual(report["movedSuites"], [])
+            self.assertEqual(report["afterSeconds"], [100, 97, 0])
+            _, partition = MODULE.execution_partition(MODULE.load_plan(plan), repo)
+            self.assertEqual(partition[-1], [])
 
     def write_junit(self, path, suites):
         root = ET.Element("testsuites")

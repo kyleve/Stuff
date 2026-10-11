@@ -122,7 +122,9 @@ public enum WhereLaunch {
         prepareProtectedData: @escaping @MainActor () async throws -> Void = {},
         onServicesReady: @escaping @MainActor (WhereServices) async -> Void = { _ in },
     ) -> LifecycleRunner<WhereSession> {
-        logger { .runnerCreated(reason: String(describing: reason)) }
+        logger.runnerCreated(
+            reason: .restricted(.technicalState, String(describing: reason)),
+        )
         let runner = LifecycleRunner(
             reason: reason,
             initializePrerequisites: {
@@ -343,12 +345,12 @@ public final class WhereBootstrap: WhereScopeAssembling {
                 automaticBackupStorage: automaticBackupStorage,
                 automaticBackupScheduler: automaticBackupScheduler,
             )
-            Self.logger { .servicesAssembled }
+            Self.logger.servicesAssembled()
             return services
         } catch {
-            Self.logger(attachments: [.error(error, name: "assemble-error")]) {
-                .servicesAssemblyFailed(description: error.localizedDescription)
-            }
+            Self.logger.servicesAssemblyFailed(
+                error: .restricted(.errorDetails, error),
+            )
             throw error
         }
     }

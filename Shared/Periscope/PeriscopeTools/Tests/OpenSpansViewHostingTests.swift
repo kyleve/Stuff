@@ -6,11 +6,8 @@ import TestHostSupport
 import Testing
 import UIKit
 
-private struct AppLogs: LogEvent {
-    var message: String {
-        "app"
-    }
-}
+@LogScope("AppLogs")
+private enum AppLogs {}
 
 @MainActor
 struct OpenSpansViewHostingTests {

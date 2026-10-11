@@ -40,6 +40,21 @@ struct WhereProjectRulesTests {
     }
 
     @Test
+    func `sidecar fixtures can construct and prepare isolated contexts`() throws {
+        let result = try evaluate(
+            path: "Where/WhereUI/Tests/InstallationRecordingContextStoreTests.swift",
+            component: .whereUI,
+            source: """
+            func fixture() throws {
+                let store = FileInstallationRecordingContextStore()
+                try store.prepareAfterFirstUnlock()
+            }
+            """,
+        )
+        #expect(result.violations.isEmpty)
+    }
+
+    @Test
     func `production store opens at process composition roots`() throws {
         let allowed = try evaluate(
             path: "Where/WhereUI/Sources/Launch/WhereLaunch.swift",

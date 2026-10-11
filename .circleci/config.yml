@@ -378,6 +378,9 @@ jobs:
           artifact_name: where-audience-build
 
   snapshot:
+    # Shards run on isolated VMs. Keep captures serial inside each worker:
+    # one Mac shares a render server, and in-process captures share host state.
+    # Measurements and guards: Shared/SnapshotKitTesting/AGENTS.md.
     executor: m4-pro-medium
     parallelism: 4
     environment:

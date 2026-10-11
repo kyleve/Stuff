@@ -580,7 +580,7 @@ public final class FileInstallationRecordingContextStore:
                 // An atomic write either produced a complete current value or unusable bytes.
                 // Keep an older authoritative context when one exists, but never retry a
                 // permanently malformed pending replacement on every launch.
-                Self.logger { .discardedCorruptInstallationContextPending }
+                Self.logger.discardedCorruptInstallationContextPending()
                 try fileManager.removeItem(at: pendingURL)
                 return try loadAuthoritativeContext(
                     from: fileURL,
@@ -714,12 +714,13 @@ public final class FileInstallationRecordingContextStore:
         do {
             try fileManager.removeItem(at: directoryURL)
         } catch {
-            logger {
-                .installationContextSecurityCleanupFailed(
-                    exclusionDescription: exclusionError.localizedDescription,
-                    cleanupDescription: error.localizedDescription,
-                )
-            }
+            logger.installationContextSecurityCleanupFailed(
+                exclusionError: .restricted(
+                    .errorDetails,
+                    exclusionError,
+                ),
+                cleanupError: .restricted(.errorDetails, error),
+            )
             throw SecurityCleanupError()
         }
         throw exclusionError

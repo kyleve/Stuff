@@ -38,7 +38,10 @@ struct PrivacyPassportPresentation: Equatable {
     }
 
     init(configuration: DiagnosticReportingConfiguration) {
-        locationDetail = String(localized: .settingsPrivacyLocation)
+        let policy = configuration.remoteLogging.exportPolicy
+        locationDetail = policy.mode == .diagnostic && policy[.location]
+            ? String(localized: .settingsPrivacyLocationDiagnostics)
+            : String(localized: .settingsPrivacyLocation)
 
         var disclosures: [Disclosure] = []
         if !configuration.sharesCrashReports,
@@ -57,8 +60,8 @@ struct PrivacyPassportPresentation: Equatable {
                 disclosures.append(.diagnosticLogs(level))
             }
             #if DEBUG
-                if configuration.remoteLogging.metadataPolicy
-                    == .allMetadataExcludingAttachmentData
+                if configuration.remoteLogging.exportPolicy.mode == .diagnostic,
+                   !configuration.remoteLogging.exportPolicy.enabledControls.isEmpty
                 {
                     disclosures.append(.fullMetadata)
                 }

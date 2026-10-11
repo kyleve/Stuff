@@ -273,10 +273,11 @@ public actor PeriscopeStore: LogSink {
                 orphansBySession[row.sessionID, default: []].append(LogRecord(
                     date: Date(),
                     event: SpanEnded(
-                        spanID: SpanID(rawValue: spanID),
-                        name: event?.name ?? row.message,
-                        duration: nil,
-                        exit: .orphaned,
+                        spanID: .restricted(.identifier, SpanID(rawValue: spanID)),
+                        name: .restricted(.technicalState, event?.name ?? row.message),
+                        duration: .shared(.duration, nil),
+                        exitMode: .shared(.category, .orphaned),
+                        exitReason: .restricted(.errorDetails, nil),
                     ),
                     scopes: row.orderedScopeIDs.map(ScopeID.init(rawValue:)),
                     tags: Self.tags(from: row),
@@ -400,7 +401,10 @@ public actor PeriscopeStore: LogSink {
     private func persistWriteFailureMarker(lostRecordCount: Int, reason: String) {
         let marker = LogRecord(
             date: Date(),
-            event: StoreWriteFailed(lostRecordCount: lostRecordCount, reason: reason),
+            event: StoreWriteFailed(
+                lostRecordCount: .shared(.count, lostRecordCount),
+                reason: .restricted(.errorDetails, reason),
+            ),
             scopes: [],
         )
         do {
@@ -505,12 +509,17 @@ public actor PeriscopeStore: LogSink {
         let session = try sessionID ?? ensureActiveSession().sessionID
         for record in records {
             let payload: Data
+            let exportMetadata: Data?
             do {
-                payload = try JSONEncoder().encode(record.event)
+                let encodedPayload = try JSONEncoder().encode(record.event)
+                exportMetadata = try JSONEncoder()
+                    .encode(LogExportMetadata(payload: record.event.exportDescription.schema))
+                payload = encodedPayload
             } catch {
                 // Keep the row (message, level, scopes survive) — degraded
                 // but handled.
                 payload = Data()
+                exportMetadata = nil
                 Self.failureLogger.warning(
                     "Payload for \(record.eventName) failed to encode: \(error)",
                 )
@@ -537,6 +546,7 @@ public actor PeriscopeStore: LogSink {
                 eventVersion: record.eventVersion,
                 message: record.message,
                 payload: payload,
+                exportMetadata: exportMetadata,
                 orderedScopeIDs: record.scopes.map(\.rawValue),
                 sessionID: session,
                 ambientSnapshotID: ambientRow(for: record.ambient, at: record.date)?
@@ -1064,6 +1074,7 @@ public actor PeriscopeStore: LogSink {
             eventVersion: row.eventVersion,
             message: row.message,
             payload: row.payload,
+            exportMetadata: row.exportMetadata,
             scopes: row.orderedScopeIDs.map(ScopeID.init(rawValue:)),
             tags: tags(from: row),
             spanID: row.spanID.map(SpanID.init(rawValue:)),

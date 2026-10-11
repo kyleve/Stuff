@@ -51,9 +51,10 @@ It streams progress while tests run:
 ```bash
 ./test                  # just what your change affects
 ./test WhereCoreTests   # one bundle
+./test PeriscopeMacrosTests # the host-side macro suite, without a simulator
 ./test --all            # the whole unit suite
 ./test --snapshots      # the image-snapshot suite
-./test --everything     # both CI suites in one local run
+./test --everything     # unit, snapshot, and host macro suites
 ```
 
 See `./test --help` for the rest, including `--timings` and `--review` for reading a snapshot run.
@@ -114,6 +115,12 @@ See `./circleci-artifacts --help` to choose another destination or open it in Fi
 Use `./snapshot-shards check` to validate the deterministic snapshot assignment.
 Use `./snapshot-shards balance --junit PATH` to propose a new assignment from downloaded timing artifacts.
 Pass several `--junit PATH` arguments to use median durations from several pipelines.
+Balancing preserves existing assignments, places intake on the lightest shards,
+and stops moving suites once the slowest-worker estimate improves by 5%.
+If strictly improving single-suite moves cannot reach that target, only intake placements remain.
+Stdout is a JSON report with measured before/after totals, moved suites, and a full-rebalance comparison.
+Save it outside version control and include the evidence in the PR.
+`--write` writes only assignments and leaves the plan untouched when no rebalance qualifies.
 Use `./snapshot-shards balance --shards COUNT --junit PATH --write` to change the shard count.
 Set the snapshot job `parallelism` to the planned count plus one intake worker.
 The intake worker stops after checkout when it has no new suites.

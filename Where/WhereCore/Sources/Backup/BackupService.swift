@@ -180,23 +180,19 @@ public struct BackupService: Sendable {
                 )
             }
             try Task.checkCancellation()
-            Self.logger {
-                .wroteBackup(
-                    sampleCount: samples.count,
-                    evidenceCount: evidence.count,
-                    manualDayCount: manualDays.count,
-                    dismissedIssueCount: dismissedIssues.count,
-                    trackedRegionCount: trackedRegions.count,
-                )
-            }
+            Self.logger.wroteBackup(
+                sampleCount: .shared(.count, samples.count),
+                evidenceCount: .shared(.count, evidence.count),
+                manualDayCount: .shared(.count, manualDays.count),
+                dismissedIssueCount: .shared(.count, dismissedIssues.count),
+                trackedRegionCount: .shared(.count, trackedRegions.count),
+            )
             return zipURL
         } catch {
             do {
                 try fileManager.removeItem(at: workRoot)
             } catch let cleanupError {
-                Self.logger {
-                    .stagingCleanupFailed(description: cleanupError.localizedDescription)
-                }
+                Self.logger.stagingCleanupFailed(error: .restricted(.errorDetails, cleanupError))
             }
             throw error
         }
@@ -261,7 +257,9 @@ public struct BackupService: Sendable {
                     do {
                         blobs[entry.evidenceId] = try Data(contentsOf: assetURL)
                     } catch {
-                        Self.logger { .assetMissing(evidenceID: entry.evidenceId.uuidString) }
+                        Self.logger.assetMissing(
+                            evidenceID: .restricted(.identifier, entry.evidenceId.uuidString),
+                        )
                         throw error
                     }
                 }
