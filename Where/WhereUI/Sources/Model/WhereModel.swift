@@ -575,8 +575,9 @@ public final class WhereModel {
     /// other's records, which is why a demo can't currently run *beside* the
     /// real app rather than instead of it.
     public func activateDemo(_ scope: WhereScope) async {
-        guard !isInDemoMode else { return }
+        guard !isInDemoMode, !Task.isCancelled else { return }
         await logOut()
+        guard !Task.isCancelled else { return }
         scopeState = .demo(scope)
         scope.startLogRouting()
         logStoreState = scope.logStoreState

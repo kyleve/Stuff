@@ -185,3 +185,12 @@ own. Guard: `compatibilityPermitsComeFromTheCoordinator`.
 ### `where.compatibility_coordination_composition`
 
 Construct the production app's `DataCompatibilityCoordinator` only in `WhereLaunch.swift` over the existing bootstrap store. Isolated test fixtures may construct their own. Mutation coverage: `compatibilityCoordinatorIsComposedAtBootstrap`.
+
+### `where.onboarding_gate_lifetime`
+
+`OnboardingFlowModel` starts operations through `LifecycleGateHandle.perform`.
+The rule rejects explicit `Task` construction and `Task.detached`, including generic
+and explicit initializer spellings. Mutation guard: `onboardingWorkBelongsToTheGate`.
+Aliases and contextually inferred `.init` calls are outside this syntax check.
+Cancellation checkpoints and draining are behavior guards in `LifecycleGateHandleTests`,
+`LifecycleRunnerResetTests`, and `WhereCompatibilityLifecycleTests`.

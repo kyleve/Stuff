@@ -192,6 +192,7 @@ public final class WhereScope {
             logSystem: logSystem,
             sessionNow: nil,
         )
+        try Task.checkCancellation()
         scope.openDurableLogStore(
             from: bootstrap,
             onStateChange: onLogStoreStateChange,

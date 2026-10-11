@@ -45,6 +45,7 @@ let whereProjectRules = RuleSet {
         id: "where.compatibility_coordination_composition",
     )
     compatibilityStoreBoundaryRule
+    onboardingGateLifetimeRule
     productionStoreOpeningRule
     checkedConcurrencyBoundaryRule
     gregorianCalendarRule
@@ -60,6 +61,42 @@ private let whereProductionScope = RuleScope { file in
 
 private let nonWhereProductionScope = RuleScope { file in
     !whereProductionScope.includes(file)
+}
+
+private let onboardingGateLifetimeRule = Rules.files(
+    "where.onboarding_gate_lifetime",
+    severity: .error,
+    summary: "Onboarding operations run within their lifecycle gate's cancellation and drain boundary.",
+    scope: .files(["Where/WhereUI/Sources/Onboarding/OnboardingFlowModel.swift"]),
+) { file in
+    functionCalls()
+        .filter { match in isUnstructuredTaskCreation(match.node.calledExpression) }
+        .matches(in: file)
+        .map { match in
+            match.failure(
+                message: "Onboarding starts work outside its lifecycle gate.",
+                evidence: ViolationEvidence(
+                    observed: match.node.calledExpression.trimmedDescription,
+                    expectation: "gate.perform { ... }",
+                ),
+            )
+        }
+}
+
+private func isUnstructuredTaskCreation(_ expression: ExprSyntax) -> Bool {
+    if let name = expression.as(DeclReferenceExprSyntax.self) {
+        return name.baseName.text == "Task"
+    }
+    if let specialization = expression.as(GenericSpecializationExprSyntax.self) {
+        return isUnstructuredTaskCreation(specialization.expression)
+    }
+    if let member = expression.as(MemberAccessExprSyntax.self),
+       ["init", "detached"].contains(member.declName.baseName.text),
+       let base = member.base
+    {
+        return isUnstructuredTaskCreation(base)
+    }
+    return false
 }
 
 private let whereServicesConstructionScope = RuleScope

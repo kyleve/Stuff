@@ -559,9 +559,16 @@ compatibility retries the upgrade.
 
 `WhereCompatibilityModel` observes store history and publishes explicit checking,
 compatible, update-required, waiting-for-recorder, and verification-failed states.
-`WhereCompatibilityLifecycle` retires the active scope when verification blocks
-access. It then drives launch back to the gate. A successful retry creates new
+`WhereCompatibilityLifecycle` interrupts onboarding or normal launch when verification
+blocks access. It cancels and drains gate-owned work, retires any active scope,
+then drives launch back to the compatibility gate. No normal scope is needed to
+interrupt onboarding. A successful retry resumes through a fresh onboarding gate
+when onboarding is incomplete, and can be interrupted again. Otherwise, it creates new
 services over the same store; the old scope remains revoked.
+
+Onboarding uses `gate.perform { ... }` for finish and demo preparation. After each
+suspended dependency, it checks cancellation before activating a scope or completing
+onboarding. A committed backup retains its durable marker for recovery by the next gate.
 
 `DataCompatibilityView` displays update instructions, diagnostics, and retry.
 `AppUpdateAvailability.noBuildsPublished` is the current app configuration.

@@ -5,7 +5,7 @@ import WhereCore
 /// Connects compatibility to launch even when there is no foreground view tree.
 @MainActor
 final class WhereCompatibilityLifecycle {
-    private var restarting = false
+    private var interruptionScheduled = false
 
     static func observe(runner: LifecycleRunner<WhereSession>, model: WhereModel) {
         WhereCompatibilityLifecycle().observe(runner: runner, model: model)
@@ -33,16 +33,44 @@ final class WhereCompatibilityLifecycle {
             return
         }
         if case .checking = state { return }
-        guard !restarting, model.activeScope != nil else { return }
-        restarting = true
+        guard !interruptionScheduled, needsInterruption(phase) else { return }
+        interruptionScheduled = true
         Task { @MainActor [weak runner, weak model] in
+            self.interruptionScheduled = false
             guard let runner, let model else { return }
+            // Observation callbacks can coalesce. The queued interruption must
+            // still apply to the current gate or launch step.
+            guard !model.isInDemoMode, !model.compatibility.isCompatible,
+                  model.compatibility.state != .checking,
+                  self.needsInterruption(runner.phase) else { return }
             await runner.teardown(
                 LaunchPlan(SuspendCompatibilityStep(model: model).measured()),
                 input: (),
             )
-            self.restarting = false
             self.reconcile(runner: runner, model: model)
+        }
+    }
+
+    private func needsInterruption(_ phase: LifecycleRunner<WhereSession>.Phase) -> Bool {
+        switch phase {
+            case .launching: false
+            case .ready: true
+            case let .awaitingGate(handle):
+                handle.id == AnyHashable(LaunchStepID.onboarding)
+            case let .running(context):
+                needsCompatibility(context.stepID)
+            case let .failed(failure):
+                needsCompatibility(failure.stepID)
+        }
+    }
+
+    private func needsCompatibility(_ stepID: AnyHashable) -> Bool {
+        guard let step = stepID.base as? LaunchStepID else { return false }
+        return switch step {
+            case .onboarding, .resolveScope, .startSession, .syncAuth, .reconcileTracking,
+                 .captureToday, .reminders, .summary, .issueAlerts, .widgetSnapshot: true
+            case .activateDemo, .compatibility, .suspendCompatibility, .eraseData,
+                 .resetPreferences, .exitDemo, .rejoinDevice: false
         }
     }
 }
