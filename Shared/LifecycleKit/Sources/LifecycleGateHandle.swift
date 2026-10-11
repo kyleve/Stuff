@@ -31,8 +31,9 @@ public final class LifecycleGateHandle {
         case resolved(Result<Void, Error>)
     }
 
-    private var continuation: CheckedContinuation<Void, Error>?
+    private var continuation: CheckedContinuation<Result<Void, Error>, Never>?
     private var resolution: Resolution = .pending
+    private var operation: Task<Void, Never>?
 
     /// Create a standalone handle. The engine creates one per parked gate, but
     /// this is public so consumers can build and drive their gate views in
@@ -62,36 +63,58 @@ public final class LifecycleGateHandle {
         resolve(.failure(error))
     }
 
+    /// Run one operation within this gate's lifetime. Duplicate starts and starts
+    /// from a resolved handle are ignored. The operation handles its errors and
+    /// may resolve the gate, or leave it pending for another user choice.
+    ///
+    /// A superseding drive cancels and drains this work before proceeding. Check
+    /// cancellation after suspended dependencies before committing further effects.
+    public func perform(_ body: @escaping @MainActor () async -> Void) {
+        guard case .pending = resolution, operation == nil else { return }
+        operation = Task {
+            defer { operation = nil }
+            guard !Task.isCancelled else { return }
+            await body()
+        }
+    }
+
     /// Suspends until `complete()` or `fail(_:)` is called. Resolving before a
     /// caller starts waiting is supported (the buffered result is delivered
     /// immediately), so there is no lost-wakeup race.
     ///
-    /// Cancelling the surrounding task resumes the wait by throwing
-    /// `CancellationError`, which lets the engine drain a parked gate when a
-    /// new drive supersedes it (rather than hanging on a tap that will never
-    /// come).
+    /// Resolution drains any operation before returning. Cancellation also
+    /// cancels that operation, then throws `CancellationError` after it drains.
     func waitForResolution() async throws {
         try await withTaskCancellationHandler {
-            switch resolution {
-                case let .resolved(result):
-                    try result.get()
+            if Task.isCancelled { cancel() }
+            let result: Result<Void, Error> = switch resolution {
+                case let .resolved(resolved):
+                    resolved
                 case .pending:
-                    try await withCheckedThrowingContinuation { continuation in
+                    await withCheckedContinuation { continuation in
                         // A cancellation could land before we store the
                         // continuation; if so, resolution is already set, so
                         // deliver it here instead of parking forever.
                         if case let .resolved(result) = resolution {
-                            continuation.resume(with: result)
+                            continuation.resume(returning: result)
                         } else {
                             self.continuation = continuation
                         }
                     }
             }
+            await operation?.value
+            try Task.checkCancellation()
+            try result.get()
         } onCancel: {
             Task { @MainActor [weak self] in
-                self?.resolve(.failure(CancellationError()))
+                self?.cancel()
             }
         }
+    }
+
+    private func cancel() {
+        operation?.cancel()
+        resolve(.failure(CancellationError()))
     }
 
     private func resolve(_ result: Result<Void, Error>) {
@@ -99,7 +122,7 @@ public final class LifecycleGateHandle {
         resolution = .resolved(result)
         if let continuation {
             self.continuation = nil
-            continuation.resume(with: result)
+            continuation.resume(returning: result)
         }
     }
 }

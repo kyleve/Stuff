@@ -32,9 +32,11 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build system,
 - **If a node is genuinely flaky, retry inside it at the layer that understands the failure.**
 - **Funnel all drives through a single in-flight task** (cancel-and-drain). Two drives never overlap.
 - **`teardown()`/`enterForeground()` can interrupt a launch parked on a gate.**
+- **Publish `.running` with a gate's own ID before awaiting its `isNeeded` check.** Observers must be able to interrupt suspended gate checks before a handle exists (`LifecycleRunnerResetTests`).
 - **A cancelled drive is distinct from a thrown node (`.failed`).**
 - **A superseded drive never writes the phase the new drive owns.**
 - **A superseded drive's gate handle resolves to a no-op.** Do not add a drive path that bypasses that serialization.
+- **Start gate-owned async actions through `LifecycleGateHandle.perform`.** The wait drains this work on resolution and cancels it on supersession. Consumers check cancellation after suspended dependencies before applying further effects (`LifecycleGateHandleTests`, `LifecycleRunnerResetTests`).
 - **Memoize completed nodes for promotion.** Completed nodes' outputs are memoized so an `enterForeground()` promotion's re-walk skips completed work.
 - **Skipped gates are deliberately not memoized** so they re-evaluate on promotion.
 - **Fresh attempts clear the memo:** first `run()`, the start of a teardown, the post-teardown relaunch.

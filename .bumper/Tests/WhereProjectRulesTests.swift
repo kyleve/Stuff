@@ -3,6 +3,23 @@ import BumperBowlingTestSupport
 import Testing
 
 struct WhereProjectRulesTests {
+    @Test(arguments: ["Task", "Task<Void, Never>", "Task.detached", "Task.init"])
+    func onboardingWorkBelongsToTheGate(constructor: String) throws {
+        let path: RelativeFilePath = "Where/WhereUI/Sources/Onboarding/OnboardingFlowModel.swift"
+        let rejected = try evaluate(
+            path: path,
+            component: .whereUI,
+            source: "func finish() { \(constructor) { await model.resolveScope() } }",
+        )
+        #expect(rejected.violations.map(\.rule.id) == ["where.onboarding_gate_lifetime"])
+        let allowed = try evaluate(
+            path: path,
+            component: .whereUI,
+            source: "func finish() { gate.perform { try Task.checkCancellation(); await model.resolveScope() } }",
+        )
+        #expect(allowed.violations.isEmpty)
+    }
+
     @Test func compatibilityCoordinatorIsComposedAtBootstrap() throws {
         let source = "func make() { _ = DataCompatibilityCoordinator(store: store, recording: recording, installation: installation) }"
         let allowed = try evaluate(
