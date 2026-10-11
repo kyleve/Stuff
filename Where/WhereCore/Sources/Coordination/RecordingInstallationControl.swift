@@ -19,7 +19,11 @@ public struct RecordingInstallationControl: Codable, Sendable, Equatable {
     public static let initial = Self(selection: .unconfirmed, pendingTransition: nil)
 
     public var isRelinquishing: Bool {
-        pendingTransition?.kind == .transfer
+        guard let pendingTransition else { return false }
+        switch pendingTransition.kind {
+            case .transfer, .cancel: return true
+            case .claim, .request, .recover, .upgrade: return false
+        }
     }
 }
 
