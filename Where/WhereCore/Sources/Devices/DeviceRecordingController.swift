@@ -370,6 +370,19 @@ public actor DeviceRecordingController {
         endExclusive()
     }
 
+    /// A compatibility failure retires this controller while preserving consent and the outbox.
+    func retireForCompatibility() async {
+        await beginExclusive()
+        defer { endExclusive() }
+        acceptsOperations = false
+        recordingLifecycleStarted = false
+        shouldResumeAfterPause = false
+        observationTask?.cancel()
+        observationTask = nil
+        await ingestor.pause()
+        publishRuntimeState(.unavailable)
+    }
+
     /// Permanently close the removed scope before the app rotates its local identity.
     public func retireForRejoin() async throws {
         await beginExclusive()

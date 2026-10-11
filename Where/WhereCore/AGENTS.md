@@ -228,3 +228,4 @@ derived from the demo world must stay made of no-ops.
 - Begin each public domain store operation with `assertDataCompatible()`. Recheck pending and committed requirements before save; keep only the documented control-plane methods available while blocked (`where.compatibility_store_boundary`, `SwiftDataStoreCompatibilityTests`).
 - Construct `CompatibilityScopedStore` only through `DataCompatibilityCoordinator`. Revoke a scope permanently and build a new one after recovery (`where.compatibility_scope_ownership`).
 - Advance the global version only through the current recording owner's server-conditional transition. Retain cached compatibility only for temporary network failures; authentication failures block (`DataCompatibilityCoordinatorTests`).
+- Retire a normal scope's location source permanently on compatibility loss. Cancel one-shot work, reject late samples, and preserve consent and accepted outbox entries (`CompatibilityLocationSourceTests`).

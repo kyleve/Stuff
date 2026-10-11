@@ -126,10 +126,8 @@ a screen felt slow.
   `WhereServices`, the `WherePreferences` driving it, and the durable log store
   they record into. It is created whole. `WhereSession` is built from one. A
   surface must not read one world's store against another's preferences.
-- **Onboarding may prepare the real store only for recording-authority
-  discovery.** Retain that exact store for scope resolution. Do not construct
-  services, expose App Intents, start GPS, or open the log store until the
-  user finishes choosing a world.
+- **Open the real store once in the process bootstrap for compatibility and recording authority.** Retain it across normal scope replacement. Gate onboarding data operations and normal services on verified compatibility.
+- Keep role selection and lost-phone recovery available through the minimal bootstrap while blocked. Never start GPS or expose normal App Intents before the gate passes.
 - **At most one scope is active and log-routing at a time.** Logging out — a
   reset, or leaving a demo — releases and tears down the scope. Logging back in
   builds a fresh one. Flyover is the narrow exception to "one open world". It
@@ -141,7 +139,7 @@ a screen felt slow.
 - **The onboarding gate declares `modes: .all`,** not the `.foreground`
   default. Parking a headless launch is the point. Keep recording confirmation
   in the backup-excluded installation sidecar. Then restoring backed-up
-  `hasOnboarded` onto another device parks at the final choice page.
+  `hasOnboarded` onto another device parks for an explicit recording-role choice.
 - **A gate carries no value.** A choice made *at* it reaches `resolve-scope`
   through `WhereModel`. That is the one step that reads model state rather than
   the trunk.

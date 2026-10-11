@@ -15,11 +15,8 @@ import PeriscopeCore
 /// free of any "is the store open yet?" nil-guarding spread across a
 /// god-object.
 ///
-/// **Nothing is opened until the user asks for it.** The launch parks on the
-/// onboarding gate before any scope exists, so an install the user never
-/// finishes onboarding creates no store file and contacts no CloudKit; the
-/// real scope is built the moment they choose to use the app for real (see
-/// ``resolveScope()``).
+/// Compatibility opens the minimal store/control plane first. Normal services and
+/// onboarding data operations remain behind that gate.
 @MainActor
 @Observable
 public final class WhereModel {
@@ -47,10 +44,8 @@ public final class WhereModel {
     /// app is logged in to is one fact, and the states it can legally be in
     /// are few enough to enumerate.
     enum ScopeState {
-        /// No scope active, carrying what it takes to build one. Logging in
-        /// consumes the bootstrap, so a spent one — its location source handed
-        /// over, its store opened — never lingers behind a live scope.
-        case loggedOut(bootstrap: any WhereScopeAssembling)
+        /// No normal scope is active. The process bootstrap remains available.
+        case loggedOut
         /// Logged in to the user's real, persisted world.
         case real(WhereScope)
         /// Logged in to a throwaway demo world.
@@ -138,17 +133,15 @@ public final class WhereModel {
 
     /// The one device-local recording context store composed for this process.
     /// It owns the non-backed-up installation sidecar and is shared with every
-    /// bootstrap this model creates, so onboarding and service assembly cannot
+    /// bootstrap, so onboarding and service assembly cannot
     /// resolve different identities.
     private let installationContextStore: any InstallationRecordingContextStoring
     private let onboardingImportRecovery: OnboardingImportRecoveryModel
 
-    /// Makes the bootstrap a logged-out state carries. A factory rather than
-    /// a stored instance, because a bootstrap is spent by the login it serves:
-    /// logging out needs a fresh one for the next login, and holding the used
-    /// one would keep a consumed location source alive beside the live scope.
-    private let makeBootstrap:
-        @MainActor (any InstallationRecordingContextStoring) -> any WhereScopeAssembling
+    /// One process-owned bootstrap retains the store across normal scope replacement.
+    private let bootstrap: any WhereScopeAssembling
+    public let compatibility: WhereCompatibilityModel
+    public let updateAvailability: AppUpdateAvailability
 
     /// Called when the app logs out of a scope — a reset, or entering or
     /// leaving demo mode — so the composition root can release whatever it
@@ -208,7 +201,7 @@ public final class WhereModel {
 
     func recordingDeviceCoordination() async throws -> RecordingDeviceCoordination? {
         if let activeScope { return activeScope.services.deviceCoordination }
-        guard case let .loggedOut(bootstrap) = scopeState else { return nil }
+        guard case .loggedOut = scopeState else { return nil }
         return try await bootstrap.prepareDeviceCoordination()
     }
 
@@ -224,7 +217,7 @@ public final class WhereModel {
                 recentRecordingDevice: nil,
             )
         }
-        guard case let .loggedOut(bootstrap) = scopeState else {
+        guard case .loggedOut = scopeState else {
             let devices = try await activeScope?.services.recording.devices() ?? []
             return RecordingOnboardingRecommendation(
                 for: context.currentDevice,
@@ -345,14 +338,13 @@ public final class WhereModel {
         return calendar.component(.year, from: Date())
     }
 
-    /// The app-level model, logged out: no store is open, and none will be
-    /// until something asks for a scope.
+    /// The app-level model, before the compatibility bootstrap opens the store.
     ///
     /// - Parameters:
     ///   - installationContextStore: one non-backed-up installation context,
-    ///     shared with every bootstrap created for this model.
+    ///     shared with the process bootstrap.
     ///   - makeBootstrap: makes the assembler a login builds from that same
-    ///     context store. Called once per logged-out state, so a test can hand
+    ///     context store. Called once for this model, so a test can hand
     ///     back the same instance and count what was asked of it. Deliberately
     ///     has no default, for the same reason `logSystem` doesn't: a test that
     ///     omitted it would open the app's real durable stores on the next
@@ -368,6 +360,7 @@ public final class WhereModel {
             any InstallationRecordingContextStoring,
         ) -> any WhereScopeAssembling,
         logSystem: Periscope,
+        updateAvailability: AppUpdateAvailability = .noBuildsPublished,
         effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration? = nil,
         applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging = {
             _, _ in
@@ -386,10 +379,13 @@ public final class WhereModel {
         onboardingImportRecovery = OnboardingImportRecoveryModel(
             installationContextStore: installationContextStore,
         )
-        self.makeBootstrap = makeBootstrap
+        let bootstrap = makeBootstrap(installationContextStore)
+        self.bootstrap = bootstrap
+        compatibility = WhereCompatibilityModel(bootstrap: bootstrap, initialState: .checking)
+        self.updateAvailability = updateAvailability
         self.logSystem = logSystem
         self.now = now
-        scopeState = .loggedOut(bootstrap: makeBootstrap(installationContextStore))
+        scopeState = .loggedOut
         initialSelectedYear = WhereModel.currentYear
         initialYearDetails = nil
     }
@@ -409,6 +405,7 @@ public final class WhereModel {
         selectedYear: Int = WhereModel.currentYear,
         preferences: WherePreferences,
         logSystem: Periscope,
+        updateAvailability: AppUpdateAvailability = .noBuildsPublished,
         effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration? = nil,
         applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging = {
             _, _ in
@@ -436,7 +433,13 @@ public final class WhereModel {
         onboardingImportRecovery = OnboardingImportRecoveryModel(
             installationContextStore: installationContextStore,
         )
-        makeBootstrap = { _ in InjectedServicesAssembler(services: services) }
+        let bootstrap = InjectedServicesAssembler(services: services)
+        self.bootstrap = bootstrap
+        compatibility = WhereCompatibilityModel(
+            bootstrap: bootstrap,
+            initialState: .compatible(.current),
+        )
+        self.updateAvailability = updateAvailability
         self.logSystem = logSystem
         self.now = now
         initialSelectedYear = selectedYear
@@ -493,7 +496,7 @@ public final class WhereModel {
         switch scopeState {
             case let .real(scope), let .demo(scope):
                 return scope
-            case let .loggedOut(bootstrap):
+            case .loggedOut:
                 let scope = try await WhereScope.real(
                     bootstrap: bootstrap,
                     preferences: preferences,
@@ -503,9 +506,7 @@ public final class WhereModel {
                         self?.logStoreState = state
                     },
                 )
-                // Replacing the state releases the bootstrap: it has handed
-                // over its location source and opened its store, and the next
-                // login gets a fresh one.
+                try Task.checkCancellation()
                 scopeState = .real(scope)
                 logStoreState = scope.logStoreState
                 Self.logger { .openedRealScope }
@@ -518,7 +519,7 @@ public final class WhereModel {
     /// buffered rather than dropped. Runs on the launch's synchronous
     /// prerequisites path; opens no store, and prompts for nothing.
     public func prepareLocation() {
-        guard case let .loggedOut(bootstrap) = scopeState else { return }
+        guard case .loggedOut = scopeState else { return }
         bootstrap.prepareLocation()
     }
 
@@ -616,11 +617,17 @@ public final class WhereModel {
 
     /// Drop the logged-in session and release the scope. Run by the reset
     /// teardown after `eraseAllData()` and when onboarding abandons a failed
-    /// restore attempt: the next login builds a fresh scope over a newly-opened
+    /// restore attempt: the next login builds a fresh scope over the retained
     /// store and the installation context current at that attempt.
     public func endSession() async {
         await logOut()
         Self.logger { .endedSession }
+    }
+
+    /// Release a revoked world without changing preferences, consent, or queued samples.
+    func suspendForCompatibility() async {
+        guard let scope = activeScope, scope.kind == .real else { return }
+        await logOut()
     }
 
     func rejoinInstallation() async throws {
@@ -632,15 +639,15 @@ public final class WhereModel {
     /// Release whatever scope is active and return to logged out, ready to
     /// build a new one.
     ///
-    /// Releasing rather than parking the scope is what keeps the store open
-    /// once: the next login opens a fresh container, and the onboarding gate
-    /// always sits between the two — every path here leaves `hasOnboarded`
-    /// false or unset, so the relaunch parks for the user before anything
-    /// re-opens. The old container is long gone by the time they answer.
+    /// Retain the bootstrap and its one store while replacing the normal service scope.
     private func logOut() async {
+        if compatibility.hasControlPlane, let scope = activeScope, scope.kind == .real {
+            await compatibility.revokeAccess()
+            await scope.services.suspendForCompatibility()
+        }
         await activeScope?.stopLogRouting()
         session = nil
-        scopeState = .loggedOut(bootstrap: makeBootstrap(installationContextStore))
+        scopeState = .loggedOut
         logStoreState = .unavailable
         await onLoggedOut()
     }

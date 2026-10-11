@@ -3,6 +3,23 @@ import BumperBowlingTestSupport
 import Testing
 
 struct WhereProjectRulesTests {
+    @Test func compatibilityCoordinatorIsComposedAtBootstrap() throws {
+        let source = "func make() { _ = DataCompatibilityCoordinator(store: store, recording: recording, installation: installation) }"
+        let allowed = try evaluate(
+            path: "Where/WhereUI/Sources/Launch/WhereLaunch.swift",
+            component: .whereUI,
+            source: source,
+        )
+        let rejected = try evaluate(
+            path: "Where/WhereUI/Sources/Model/Other.swift",
+            component: .whereUI,
+            source: source,
+        )
+        #expect(allowed.violations.isEmpty)
+        #expect(rejected.violations
+            .contains { $0.rule.id == "where.compatibility_coordination_composition" })
+    }
+
     @Test
     func `recording coordination is composed once at bootstrap`() throws {
         let allowed = try evaluate(

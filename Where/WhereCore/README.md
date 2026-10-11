@@ -506,3 +506,11 @@ the pre-save check. Failed transactions cannot leave a raised floor behind.
 Control-plane inspection and recording coordination remain available while blocked.
 The production raw store remains at the bootstrap; services receive the scoped
 boundary. Startup and output adapters are integrated in subsequent stack layers.
+
+### Retiring a compatibility scope
+
+`WhereServices.suspendForCompatibility()` permanently retires that world's
+location source, cancels pending one-shot requests, and stops recording. It
+preserves installation consent and accepted outbox entries. Late callbacks
+cannot enqueue new samples through a revoked store. Recovery assembles a new
+service world with a new store permit.

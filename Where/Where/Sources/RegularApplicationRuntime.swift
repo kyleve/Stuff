@@ -110,6 +110,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
                 )
             },
             logSystem: .shared,
+            updateAvailability: .noBuildsPublished,
             effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
             applyRemoteLogging: applyRemoteLogging,
         )

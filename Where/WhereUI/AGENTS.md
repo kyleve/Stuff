@@ -235,3 +235,6 @@ recording/reviewing references.
 - Require an explicit role choice for a new installation even when restored preferences say onboarding finished. Keep identity, consent, and pending handoffs in the backup-excluded installation sidecar.
 
 - Bind lost-phone recovery confirmation to the reviewed owner. Show the offline overlap and history choices before submitting (`RecordingDeviceRoleModel`).
+
+- Retain one bootstrap and compatibility coordinator across normal scope replacement. Evaluate compatibility before onboarding data operations and service assembly (`where.compatibility_coordination_composition`).
+- Keep blocked recording-role recovery on the bootstrap. Never create normal services to show update, retry, or replacement-device choices (`WhereCompatibilityLifecycleTests`).
