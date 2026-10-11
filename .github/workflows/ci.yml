@@ -58,7 +58,7 @@ jobs:
     runs-on: xcode-27
     env:
       BUMPER_CACHE_DIR: .build/bumper-cache
-      BUMPER_RUNNER_BUILD_CONFIGURATION: release
+      BUMPER_RUNNER_BUILD_CONFIGURATION: debug
       BUMPER_EVALUATION_TIMEOUT_SECONDS: '120'
     steps:
       - uses: actions/checkout@v4
