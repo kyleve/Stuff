@@ -29,6 +29,7 @@ public actor LocationIngestor {
 
     private let store: any WhereStore
     private let locationSource: any LocationSource
+    private let authorityReader: any RecordingAuthorityReading
     private let recordingDeviceID: RecordingDeviceID
     private let calendar: Calendar
     private let onPersisted: PostPersistHook
@@ -71,12 +72,16 @@ public actor LocationIngestor {
     /// monitoring remains paused.
     /// The automatic-sample gate. An open authority always carries both the logical generation
     /// that may receive writes and the consent cutoff for buffered Core Location callbacks.
-    private enum RecordingAuthority {
+    private enum AutomaticRecordingAuthorization {
         case closed
-        case open(dataGenerationID: WhereDataGenerationID, effectiveAt: Date)
+        case open(
+            dataGenerationID: WhereDataGenerationID,
+            effectiveAt: Date,
+            owner: RecordingAuthority.Owner,
+        )
     }
 
-    private var recordingAuthority = RecordingAuthority.closed
+    private var recordingAuthority = AutomaticRecordingAuthorization.closed
 
     /// Samples whose persist call failed (e.g. transient SwiftData / CloudKit
     /// error). Drained before each new GPS save and on the next `start()` so a
@@ -107,6 +112,7 @@ public actor LocationIngestor {
         store: any WhereStore,
         locationSource: any LocationSource,
         recordingDeviceID: RecordingDeviceID,
+        authorityReader: any RecordingAuthorityReading,
         calendar: Calendar,
         outbox: any LocationOutbox = NoOpLocationOutbox(),
         retryQueueCapacity: Int = 1000,
@@ -116,6 +122,7 @@ public actor LocationIngestor {
         self.store = store
         self.locationSource = locationSource
         self.recordingDeviceID = recordingDeviceID
+        self.authorityReader = authorityReader
         self.calendar = calendar
         self.outbox = outbox
         self.retryQueueCapacity = retryQueueCapacity
@@ -154,6 +161,18 @@ public actor LocationIngestor {
         effectiveAt: Date,
         dataGenerationID: WhereDataGenerationID,
     ) async throws {
+        let observed: RecordingAuthority
+        do { observed = try await authorityReader.observed() }
+        catch {
+            await closeRecordingAuthority()
+            throw error
+        }
+        guard let owner = observed.owner,
+              owner.deviceID == recordingDeviceID
+        else {
+            await closeRecordingAuthority()
+            throw RecordingAuthorityError.ownerRequired
+        }
         let currentGenerationID: WhereDataGenerationID
         do {
             currentGenerationID = try await store
@@ -166,8 +185,8 @@ public actor LocationIngestor {
             await closeRecordingAuthority()
             throw RecordingPersistenceError.dataGenerationChanged
         }
-        if case let .open(currentDataGenerationID, _) = recordingAuthority,
-           currentDataGenerationID == dataGenerationID
+        if case let .open(currentDataGenerationID, _, currentOwner) = recordingAuthority,
+           currentDataGenerationID == dataGenerationID, currentOwner == owner
         {
             return
         }
@@ -190,7 +209,14 @@ public actor LocationIngestor {
         guard confirmedGenerationID == dataGenerationID else {
             throw RecordingPersistenceError.dataGenerationChanged
         }
-        recordingAuthority = .open(dataGenerationID: dataGenerationID, effectiveAt: effectiveAt)
+        guard try await authorityReader.observed().owner == owner else {
+            throw RecordingAuthorityError.ownerRequired
+        }
+        recordingAuthority = .open(
+            dataGenerationID: dataGenerationID,
+            effectiveAt: effectiveAt,
+            owner: owner,
+        )
         await Self.logger.measure(.postPersist, budget: .seconds(2)) {
             await onPersisted(IngestOutcome(
                 changedDays: drainedDays,
@@ -198,6 +224,19 @@ public actor LocationIngestor {
                 needsFullWidgetRebuild: !drainedDays.isEmpty,
             ))
         }
+    }
+
+    /// Persist previously accepted history without reopening automatic location capture.
+    /// The controller calls this only after quiescing ingestion and resolving the live generation.
+    func flushAcceptedSamples(dataGenerationID: WhereDataGenerationID) async throws {
+        try await prepareRetryBacklog()
+        let days = try await drainRetryQueue(expectedDataGenerationID: dataGenerationID)
+        guard !days.isEmpty else { return }
+        await onPersisted(IngestOutcome(
+            changedDays: days,
+            liveSample: nil,
+            needsFullWidgetRebuild: true,
+        ))
     }
 
     /// Load the durable retry sidecar without opening sample authority or draining it. Recording
@@ -255,7 +294,7 @@ public actor LocationIngestor {
     private func closeRecordingAuthority(
         ifAuthorizedFor dataGenerationID: WhereDataGenerationID,
     ) async {
-        guard case let .open(currentDataGenerationID, _) = recordingAuthority,
+        guard case let .open(currentDataGenerationID, _, _) = recordingAuthority,
               currentDataGenerationID == dataGenerationID
         else { return }
         await closeRecordingAuthorityUnconditionally()
@@ -441,7 +480,7 @@ public actor LocationIngestor {
     }
 
     private func accepts(_ sample: LocationSample) -> Bool {
-        guard case let .open(_, effectiveAt) = recordingAuthority else { return false }
+        guard case let .open(_, effectiveAt, _) = recordingAuthority else { return false }
         return sample.horizontalAccuracy >= 0 && sample.timestamp >= effectiveAt
     }
 
@@ -449,12 +488,17 @@ public actor LocationIngestor {
     /// failure. Drains any backlog first so a single transient outage doesn't
     /// permanently reorder samples on disk.
     private func processIngestedSample(_ sample: LocationSample) async {
-        guard case let .open(dataGenerationID, _) = recordingAuthority else { return }
+        guard case let .open(dataGenerationID, _, owner) = recordingAuthority else { return }
         let sample = sample.recorded(by: recordingDeviceID)
         do {
             let drainedDays = try await drainRetryQueue(expectedDataGenerationID: dataGenerationID)
             try await store.perform(expectedDataGenerationID: dataGenerationID) {
-                try await store.add(sample: sample)
+                try await store.readSnapshot {
+                    guard try await self.authorityReader.observed().owner == owner else {
+                        throw RecordingAuthorityError.ownerRequired
+                    }
+                    try await store.add(sample: sample)
+                }
             }
             var changedDays = drainedDays
             changedDays.insert(calendar.startOfDay(for: sample.timestamp))
@@ -465,6 +509,8 @@ public actor LocationIngestor {
                     needsFullWidgetRebuild: !drainedDays.isEmpty,
                 ))
             }
+        } catch RecordingAuthorityError.ownerRequired {
+            await closeRecordingAuthority(ifAuthorizedFor: dataGenerationID)
         } catch RecordingPersistenceError.dataGenerationChanged {
             // A reset/Replace revoked the authority this sample was admitted
             // under. Stop immediately and never put the known-stale sample into
@@ -482,7 +528,11 @@ public actor LocationIngestor {
                     description: error.localizedDescription,
                 )
             }
-            enqueueForRetry(LocationOutboxEntry(sample: sample, dataGenerationID: dataGenerationID))
+            enqueueForRetry(LocationOutboxEntry(
+                sample: sample,
+                dataGenerationID: dataGenerationID,
+                recordingTenureID: owner.tenureID,
+            ))
             do {
                 try await outbox.save(retryQueue)
             } catch {
@@ -588,7 +638,11 @@ public actor LocationIngestor {
             _ sample: LocationSample,
             dataGenerationID: WhereDataGenerationID,
         ) {
-            enqueueForRetry(LocationOutboxEntry(sample: sample, dataGenerationID: dataGenerationID))
+            enqueueForRetry(LocationOutboxEntry(
+                sample: sample,
+                dataGenerationID: dataGenerationID,
+                recordingTenureID: nil,
+            ))
         }
 
         /// Sample IDs currently in the retry queue, in FIFO order.

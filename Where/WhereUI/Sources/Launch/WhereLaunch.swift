@@ -228,6 +228,7 @@ public protocol WhereScopeAssembling {
     /// Open the store and assemble the services over it. The app process's
     /// **one** store open.
     func makeServices() async throws -> WhereServices
+    func prepareDeviceCoordination() async throws -> RecordingDeviceCoordination?
 
     /// Open and retain the real store while onboarding remains dormant, then read synced device
     /// status without constructing services or activating location/App Intents.
@@ -260,15 +261,21 @@ public final class WhereBootstrap: WhereScopeAssembling {
     private let locationOutbox: any LocationOutbox
     private var locationSource: CoreLocationSource?
     private var preparedStore: SwiftDataStore?
+    private var openingStore: Task<SwiftDataStore, Error>?
+    private var preparingCoordination: Task<RecordingDeviceCoordination, Error>?
+    private var preparedCoordination: RecordingDeviceCoordination?
+    private let authorityEnvironment: RecordingAuthorityEnvironment
 
     public init(
         installationContextStore: any InstallationRecordingContextStoring,
         storeStorage: SwiftDataStore.Storage,
+        authorityEnvironment: RecordingAuthorityEnvironment,
         widgetRefresher: any WidgetTimelineRefreshing,
         locationOutbox: any LocationOutbox,
     ) {
         self.installationContextStore = installationContextStore
         self.storeStorage = storeStorage
+        self.authorityEnvironment = authorityEnvironment
         self.widgetRefresher = widgetRefresher
         self.locationOutbox = locationOutbox
     }
@@ -306,10 +313,14 @@ public final class WhereBootstrap: WhereScopeAssembling {
                 "A real scope cannot open before this installation confirms recording.",
             )
             let store = try await prepareStore()
+            let coordination = try await prepareCoordination()
+            _ = try await coordination.refreshForUse()
             let services = try await WhereServices.make(
                 store: store,
                 locationSource: source,
                 installationContext: installationContext,
+                recordingAuthority: coordination,
+                deviceCoordination: coordination,
                 // The real world's seams, named here because this is the only
                 // place that wants them: the demo scope builds the same stack
                 // out of no-ops, and every test and preview gets no-ops by
@@ -331,6 +342,47 @@ public final class WhereBootstrap: WhereScopeAssembling {
         }
     }
 
+    public func prepareDeviceCoordination() async throws -> RecordingDeviceCoordination? {
+        try await prepareCoordination()
+    }
+
+    private func prepareCoordination() async throws -> RecordingDeviceCoordination {
+        if let preparedCoordination { return preparedCoordination }
+        if let preparingCoordination { return try await preparingCoordination.value }
+        let task = Task { @MainActor in
+            let store = try await self.prepareStore()
+            let transport: any RecordingAuthorityTransport
+            switch self.authorityEnvironment {
+                case let .cloudKit(containerIdentifier):
+                    transport =
+                        CloudKitRecordingAuthorityTransport(
+                            containerIdentifier: containerIdentifier,
+                        )
+                case .local:
+                    let commits = try await store.recordingAuthorityCommits()
+                    transport = try LocalRecordingAuthorityTransport(
+                        restoring: commits,
+                        now: { Date() },
+                    )
+            }
+            let authority = RecordingAuthorityCoordinator(store: store, transport: transport)
+            return RecordingDeviceCoordination(
+                authority: authority,
+                installation: self.installationContextStore,
+            )
+        }
+        preparingCoordination = task
+        do {
+            let result = try await task.value
+            preparedCoordination = result
+            preparingCoordination = nil
+            return result
+        } catch {
+            preparingCoordination = nil
+            throw error
+        }
+    }
+
     public func discoverRecordingDevices() async throws -> [RecordingDevice] {
         let readiness = CloudKitImportReadiness()
         if storeStorage.usesCloudKit { readiness.start() }
@@ -343,12 +395,20 @@ public final class WhereBootstrap: WhereScopeAssembling {
 
     private func prepareStore() async throws -> SwiftDataStore {
         if let preparedStore { return preparedStore }
-        let storeStorage = storeStorage
-        let store = try await Task.detached(priority: .userInitiated) {
-            try SwiftDataStore.make(storage: storeStorage)
-        }.value
-        preparedStore = store
-        return store
+        if let openingStore { return try await openingStore.value }
+        let storage = storeStorage
+        let task = Task
+            .detached(priority: .userInitiated) { try SwiftDataStore.make(storage: storage) }
+        openingStore = task
+        do {
+            let store = try await task.value
+            preparedStore = store
+            openingStore = nil
+            return store
+        } catch {
+            openingStore = nil
+            throw error
+        }
     }
 
     /// Open the app's durable log store: `Periscope.store` on disk, plus this

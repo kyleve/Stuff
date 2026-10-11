@@ -102,6 +102,9 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
                 WhereBootstrap(
                     installationContextStore: $0,
                     storeStorage: storeStorage,
+                    authorityEnvironment: storeStorage
+                        .usesCloudKit ? .cloudKit(containerIdentifier: "iCloud.com.stuff.where") :
+                        .local,
                     widgetRefresher: buildEnvironment.makeWidgetRefresher(),
                     locationOutbox: locationOutbox,
                 )

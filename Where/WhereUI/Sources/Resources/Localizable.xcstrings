@@ -5460,6 +5460,138 @@
         }
       }
     },
+    "recordingRole.anotherDevice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Another device"
+          }
+        }
+      }
+    },
+    "recordingRole.approve" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approve transfer"
+          }
+        }
+      }
+    },
+    "recordingRole.checkAgain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check again"
+          }
+        }
+      }
+    },
+    "recordingRole.noOwner" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose the device you keep with you to record automatically. Your other devices can view and edit your history."
+          }
+        }
+      }
+    },
+    "recordingRole.otherRequest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Another device replacement is waiting for approval."
+          }
+        }
+      }
+    },
+    "recordingRole.owner" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is currently your recording device."
+          }
+        }
+      }
+    },
+    "recordingRole.request" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ has requested to become your recording device. Approving will stop automatic recording here."
+          }
+        }
+      }
+    },
+    "recordingRole.secondary" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep as secondary"
+          }
+        }
+      }
+    },
+    "recordingRole.thisDevice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This is your recording device."
+          }
+        }
+      }
+    },
+    "recordingRole.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record on this device?"
+          }
+        }
+      }
+    },
+    "recordingRole.useThis" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use this device"
+          }
+        }
+      }
+    },
+    "recordingRole.waiting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for approval on your current recording device. Automatic recording is still off here."
+          }
+        }
+      }
+    },
     "regionCustomize.color" : {
       "extractionState" : "manual",
       "localizations" : {

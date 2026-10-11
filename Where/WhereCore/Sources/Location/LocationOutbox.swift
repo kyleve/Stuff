@@ -8,10 +8,16 @@ import PeriscopeCore
 public struct LocationOutboxEntry: Codable, Sendable, Hashable {
     public let sample: LocationSample
     public let dataGenerationID: WhereDataGenerationID
+    public let recordingTenureID: RecordingAuthority.EventID?
 
-    public init(sample: LocationSample, dataGenerationID: WhereDataGenerationID) {
+    public init(
+        sample: LocationSample,
+        dataGenerationID: WhereDataGenerationID,
+        recordingTenureID: RecordingAuthority.EventID?,
+    ) {
         self.sample = sample
         self.dataGenerationID = dataGenerationID
+        self.recordingTenureID = recordingTenureID
     }
 }
 
@@ -416,7 +422,11 @@ public actor FileLocationOutbox: LocationOutbox {
         } catch let currentError {
             do {
                 return try decoder.decode([LocationSample].self, from: data).map {
-                    LocationOutboxEntry(sample: $0, dataGenerationID: .initial)
+                    LocationOutboxEntry(
+                        sample: $0,
+                        dataGenerationID: .initial,
+                        recordingTenureID: nil,
+                    )
                 }
             } catch {
                 throw currentError

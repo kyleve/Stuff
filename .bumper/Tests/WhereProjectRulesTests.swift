@@ -4,6 +4,23 @@ import Testing
 
 struct WhereProjectRulesTests {
     @Test
+    func `recording coordination is composed once at bootstrap`() throws {
+        let allowed = try evaluate(
+            path: "Where/WhereUI/Sources/Launch/WhereLaunch.swift",
+            component: .whereUI,
+            source: "func make() { _ = RecordingAuthorityCoordinator(store: store, transport: transport) }",
+        )
+        let rejected = try evaluate(
+            path: "Where/WhereUI/Sources/Settings/CompetingCoordinator.swift",
+            component: .whereUI,
+            source: "func make() { _ = RecordingAuthorityCoordinator(store: store, transport: transport) }",
+        )
+        #expect(allowed.violations.isEmpty)
+        #expect(rejected.violations
+            .contains { $0.rule.id == "where.recording_coordination_composition" })
+    }
+
+    @Test
     func `direct CloudKit authority has one adapter`() throws {
         let allowed = try evaluate(
             path: "Where/WhereCore/Sources/Coordination/CloudKitRecordingAuthorityTransport.swift",

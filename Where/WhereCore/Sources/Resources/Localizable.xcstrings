@@ -244,6 +244,61 @@
         }
       }
     },
+    "recordingAuthority.changed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The recording-device configuration changed. Refresh and review it before trying again."
+          }
+        }
+      }
+    },
+    "recordingAuthority.ownerRequired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This action requires your current recording device. Transfer recording ownership first."
+          }
+        }
+      }
+    },
+    "recordingAuthority.revisionExhausted" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The recording-device configuration cannot accept another change. Open diagnostics for help."
+          }
+        }
+      }
+    },
+    "recordingAuthority.updateRequired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update this app before changing the recording-device configuration."
+          }
+        }
+      }
+    },
+    "recordingAuthority.verificationFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The recording-device configuration could not be verified. Retry when connected to iCloud."
+          }
+        }
+      }
+    },
     "reminder.notification.body" : {
       "extractionState" : "manual",
       "localizations" : {

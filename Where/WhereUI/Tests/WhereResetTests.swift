@@ -397,6 +397,7 @@ struct WhereResetTests {
                 recordingDeviceID: installationID,
             ),
             dataGenerationID: .initial,
+            recordingTenureID: nil,
         )])
         await outbox.setFailsToClear(true)
 
@@ -506,6 +507,10 @@ private final class CommittedFailingResetInstallationContextStore:
 
     init(context: InstallationRecordingContext) {
         onboardingContext = context
+    }
+
+    func setRecordingControl(_ control: RecordingInstallationControl) throws {
+        onboardingContext = onboardingContext.settingRecordingControl(control)
     }
 
     func resolve() throws -> InstallationRecordingContext {

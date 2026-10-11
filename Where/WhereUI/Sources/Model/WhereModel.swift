@@ -203,6 +203,13 @@ public final class WhereModel {
     /// this false even when `hasOnboarded` arrived in the backup.
     public var hasConfirmedRecordingChoice: Bool {
         installationRecordingContext.automaticRecordingEnabled != nil
+            && installationRecordingContext.recordingControl.selection != .unconfirmed
+    }
+
+    func recordingDeviceCoordination() async throws -> RecordingDeviceCoordination? {
+        if let activeScope { return activeScope.services.deviceCoordination }
+        guard case let .loggedOut(bootstrap) = scopeState else { return nil }
+        return try await bootstrap.prepareDeviceCoordination()
     }
 
     /// Derive an advisory local default from synced device status while the app remains logged out.
@@ -264,12 +271,18 @@ public final class WhereModel {
     ) throws -> InstallationRecordingContext {
         let context = try installationContextStore.resolve()
         if let existing = context.automaticRecordingEnabled {
-            if existing != isEnabled {
-                try installationContextStore.setAutomaticRecordingEnabled(isEnabled)
-            }
-            return try installationContextStore.resolve()
+            if existing !=
+                isEnabled { try installationContextStore.setAutomaticRecordingEnabled(isEnabled) }
+        } else {
+            _ = try installationContextStore.confirmInitialRecording(isEnabled: isEnabled)
         }
-        return try installationContextStore.confirmInitialRecording(isEnabled: isEnabled)
+        if context.recordingControl.selection == .unconfirmed {
+            try installationContextStore.setRecordingControl(.init(
+                selection: isEnabled ? .recordingRequested : .secondary,
+                pendingTransition: nil,
+            ))
+        }
+        return try installationContextStore.resolve()
     }
 
     /// Mark the first-run app flow complete after its scope and selections have
@@ -673,6 +686,11 @@ public final class WhereModel {
 /// quietly open the user's on-disk SwiftData and Periscope stores from inside
 /// a test host.
 private struct InjectedServicesAssembler: WhereScopeAssembling {
+    func prepareDeviceCoordination() async throws -> RecordingDeviceCoordination? {
+        services
+            .deviceCoordination
+    }
+
     let services: WhereServices
 
     func prepareLocation() {}
