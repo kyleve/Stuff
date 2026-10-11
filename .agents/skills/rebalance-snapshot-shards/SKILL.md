@@ -49,18 +49,32 @@ circleci artifact JOB_UUID --json
 
 1. Run `./snapshot-shards balance` with one `--junit PATH` argument per selected timing document or timing-only directory.
    Unless the user requests a count change, keep the current planned shard count.
+   Save stdout as an untracked JSON report; diagnostics go to stderr.
    The command uses median suite durations and leaves the plan unchanged without `--write`.
-2. Compare both assignments with the candidate's measured suite weights.
-   Include the existing intake shard in the current assignment.
-   Report the current and proposed maximum loads, per-shard totals, sample counts, and intake suites.
-   Label these numbers as estimates of test duration, excluding CI startup and checkout time.
-3. If intake contains suites, apply the candidate.
-   If intake is empty and the maximum load estimate decreases by at least 5%, apply the candidate.
-   Otherwise, leave tracked files unchanged and report that no rebalance is needed.
+2. Preserve existing assignments. The command places intake suites, longest first, on the lightest planned shard.
+   It then chooses the single-suite move that most reduces the maximum load, with stable suite/worker tie-breaks.
+   It stops as soon as the estimated slowest worker improves by at least 5% against the original assignment, including intake.
+   It never empties a planned shard or moves an existing suite more than once.
+   If the target cannot be reached through these strictly improving moves, it discards them and retains only intake placements.
+   This bounded local search does not guarantee the globally smallest move count; swaps and moves that temporarily worsen the maximum are not searched.
+   Do not replace it with a fresh full rebalance merely to shave off additional seconds.
+   An explicit shard-count change uses a full longest-processing-time assignment.
+3. Read `changed`, `reason`, `beforeSeconds`, `afterSeconds`, `improvementPercent`, `movedSuites`, and `intakeSuites` from the report.
+   Both assignments use the report's measured suite weights.
+   Report per-worker totals, sample counts, existing-suite moves, and intake placements in the PR.
+   `fullRebalanceSeconds` is a comparison estimate, not an instruction to apply that assignment or a proof of optimality.
+   Label all totals as estimates of test duration, excluding CI startup and checkout time.
+4. Apply a candidate only when `changed` is true, with the same command and `--write`.
+   Intake always qualifies; otherwise moving existing suites requires at least 5% improvement.
+   `--write` leaves the file byte-for-byte unchanged when no candidate qualifies.
+   The written plan contains only the format version and assignments; keep timing measurements and sample metadata in the report and PR.
    Do not open a PR solely to refresh timing metadata.
-4. Apply an accepted candidate with the same command and `--write`.
-   Keep `parallelism` equal to the planned shard count plus one intake worker.
-   Keep test execution within each worker serial.
+   Keep `parallelism` equal to the planned shard count plus one intake worker and keep execution within each worker serial.
+5. When revising an unmerged rebalance PR, compare against the latest main assignment, not the PR's earlier candidate.
+   Save `git show origin/main:.circleci/snapshot-shards.json` to an untracked temporary plan and use `--plan PATH` before `balance`.
+   After validating the report, apply to that temporary plan and copy the accepted plan into the checkout.
+   If no candidate qualifies, restore main's plan instead of retaining the PR's superseded candidate.
+   If the original PR has merged, use a follow-up branch from main and preserve the now-merged assignments.
 
 ## Verify and publish
 

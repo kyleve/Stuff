@@ -29,6 +29,12 @@ These rules also apply when changing a root command or installer that calls this
 - Keep dry runs free of the mutations they preview. Test the public command
   with fake processes and temporary destinations, not developer devices or installed apps.
 
+## Snapshot shard plans
+
+- Keep measured timings in balance reports, not the persisted execution plan.
+- Preserve assignments unless intake, the improvement threshold, or an explicit shard-count change requires an update.
+  Guard: [test_snapshot_shards.py](Tests/test_snapshot_shards.py).
+
 ## Validation
 
 - For policy changes, exercise both the policy and its public command boundary.
