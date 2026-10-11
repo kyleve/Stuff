@@ -5,6 +5,35 @@ private struct ResetError: Error {}
 
 @MainActor
 struct LifecycleRunnerResetTests {
+    @Test func teardownCanIdentifyAndDrainASuspendedGateCheck() async throws {
+        let dependency = LifecycleOperationGate()
+        var retired = false
+        let runner = LifecycleRunner(
+            reason: .userForeground,
+            plan: LaunchPlan(FixtureGate<Void>("onboarding") { _ in
+                if retired { return false }
+                await dependency.wait()
+                return true
+            }),
+        )
+        let drive = Task { await runner.run() }
+        try await waitUntil { dependency.entered }
+        #expect(runner.phase.isRunning("onboarding"))
+        let replacement = Task {
+            await runner.teardown(
+                LaunchPlan(FixtureStep<Void, Void>("retire") { _, _ in retired = true }),
+                input: (),
+            )
+        }
+        try await waitUntil { dependency.cancelled }
+        #expect(!retired)
+        dependency.release()
+        await replacement.value
+        await drive.value
+        #expect(retired)
+        #expect(runner.phase.isReady)
+    }
+
     @Test func teardownRunsThenRelaunchesWithItsTypedInput() async {
         var events: [String] = []
         let runner = LifecycleRunner(
@@ -165,6 +194,42 @@ struct LifecycleRunnerResetTests {
         #expect(teardownRan)
         // The cancelled gate was treated as a drained drive, not a failure.
         #expect(runner.phase.failure == nil)
+        #expect(runner.phase.isReady)
+    }
+
+    @Test func teardownDrainsGateWorkBeforeRetiringAndRelaunching() async throws {
+        var events: [String] = []
+        let dependency = LifecycleOperationGate()
+        let runner = LifecycleRunner(
+            reason: .userForeground,
+            plan: LaunchPlan(FixtureGate<Void>("onboarding") { _ in
+                !events.contains("teardown")
+            }).then(FixtureStep<Void, Void>("launch") { _, _ in events.append("launch") }),
+        )
+        let drive = Task { await runner.run() }
+        try await waitUntil { runner.phase.isAwaitingGate("onboarding") }
+        let oldGate = try #require(runner.phase.gateHandle)
+        oldGate.perform {
+            await dependency.wait()
+            #expect(Task.isCancelled)
+            events.append("drained")
+            oldGate.complete()
+        }
+        try await waitUntil { dependency.entered }
+        let replacement = Task {
+            await runner.teardown(
+                LaunchPlan(FixtureStep<Void, Void>("retire") { _, _ in
+                    events.append("teardown")
+                }),
+                input: (),
+            )
+        }
+        try await waitUntil { dependency.cancelled }
+        #expect(events.isEmpty)
+        dependency.release()
+        await replacement.value
+        await drive.value
+        #expect(events == ["drained", "teardown", "launch"])
         #expect(runner.phase.isReady)
     }
 }

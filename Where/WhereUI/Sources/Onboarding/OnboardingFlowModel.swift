@@ -107,7 +107,18 @@ final class OnboardingFlowModel {
     }
 
     func finish(using model: WhereModel) {
-        guard !isFinishing else { return }
+        gate.perform {
+            defer { self.isFinishing = false }
+            await self.finishOperation(using: model)
+            if Task.isCancelled {
+                await model.endSession()
+                self.restoreSelection.discardUncommittedSelection()
+            }
+        }
+    }
+
+    private func finishOperation(using model: WhereModel) async {
+        guard !isFinishing, !Task.isCancelled else { return }
         let readyImport = restoreSelection.readyImport
         if restoreSelection.selectedURL != nil {
             guard readyImport != nil else {
@@ -119,87 +130,86 @@ final class OnboardingFlowModel {
             phase = .intro
         }
         isFinishing = true
-        Task {
-            do {
-                let context = try model.confirmInitialRecordingChoice(
-                    isEnabled: recordingEnabled,
-                )
-                guard context.automaticRecordingEnabled != nil else {
-                    preconditionFailure("A confirmed installation context must carry its choice.")
-                }
-            } catch {
-                Self.logger.installationContextWriteFailed(
-                    error: .restricted(.errorDetails, error),
-                )
-                gate.fail(error)
-                return
+        do {
+            let context = try model.confirmInitialRecordingChoice(
+                isEnabled: recordingEnabled,
+            )
+            guard context.automaticRecordingEnabled != nil else {
+                preconditionFailure("A confirmed installation context must carry its choice.")
             }
-
-            let scope: WhereScope
-            do {
-                scope = try await model.resolveScope()
-            } catch {
-                Self.logger.scopeCreationFailed(
-                    error: .restricted(.errorDetails, error),
-                )
-                gate.fail(error)
-                return
-            }
-
-            if let readyImport {
-                guard await importBackup(readyImport, into: scope, using: model) else { return }
-            }
-
-            do {
-                try await configureRecording(in: scope)
-            } catch {
-                Self.logger.recordingConfigurationFailed(
-                    error: .restricted(.errorDetails, error),
-                )
-                if let summary = restoreSelection.committedSummary {
-                    gate.fail(OnboardingCommittedImportSetupError(
-                        summary: summary,
-                        underlying: error,
-                    ))
-                } else {
-                    gate.fail(error)
-                }
-                return
-            }
-
-            if selection.hasSelection {
-                do {
-                    try await selection.commit(using: scope)
-                } catch {
-                    Self.logger.regionCommitFailed(
-                        error: .restricted(.errorDetails, error),
-                    )
-                }
-            }
-            if !model.hasOnboarded {
-                model.completeOnboarding()
-            }
-            gate.complete()
+        } catch {
+            Self.logger.installationContextWriteFailed(error: .restricted(.errorDetails, error))
+            gate.fail(error)
+            return
         }
+
+        let scope: WhereScope
+        do {
+            scope = try await model.resolveScope()
+        } catch {
+            guard !Task.isCancelled else { return }
+            Self.logger.scopeCreationFailed(error: .restricted(.errorDetails, error))
+            gate.fail(error)
+            return
+        }
+        guard !Task.isCancelled else { return }
+
+        if let readyImport {
+            guard await importBackup(readyImport, into: scope, using: model) else { return }
+        }
+        guard !Task.isCancelled else { return }
+
+        do {
+            try await configureRecording(in: scope)
+        } catch {
+            guard !Task.isCancelled else { return }
+            Self.logger.recordingConfigurationFailed(error: .restricted(.errorDetails, error))
+            if let summary = restoreSelection.committedSummary {
+                gate.fail(OnboardingCommittedImportSetupError(
+                    summary: summary,
+                    underlying: error,
+                ))
+            } else {
+                gate.fail(error)
+            }
+            return
+        }
+
+        if selection.hasSelection {
+            do {
+                try await selection.commit(using: scope)
+            } catch {
+                guard !Task.isCancelled else { return }
+                Self.logger.regionCommitFailed(error: .restricted(.errorDetails, error))
+            }
+        }
+        guard !Task.isCancelled else { return }
+        if !model.hasOnboarded {
+            model.completeOnboarding()
+        }
+        gate.complete()
     }
 
     func enterDemoMode(using model: WhereModel) {
-        guard !intro.isBuildingDemo else { return }
-        intro.activity = .buildingDemo
-        Task {
+        gate.perform {
+            guard !self.intro.isBuildingDemo else { return }
+            self.intro.activity = .buildingDemo
             do {
                 async let scope = model.makeDemoScope()
                 async let settle: Void = Task.sleep(for: Self.demoBuildDisplayTime)
                 _ = try await settle
-                try await model.activateDemo(scope)
-                gate.complete()
+                let builtScope = try await scope
+                try Task.checkCancellation()
+                await model.activateDemo(builtScope)
+                try Task.checkCancellation()
+                self.gate.complete()
             } catch is CancellationError {
-                intro.activity = .browsing
+                await model.endSession()
+                self.intro.activity = .browsing
             } catch {
-                intro.activity = .failed(.init(flow: .demo, error: error))
-                Self.logger.demoBuildFailed(
-                    error: .restricted(.errorDetails, error),
-                )
+                guard !Task.isCancelled else { return }
+                self.intro.activity = .failed(.init(flow: .demo, error: error))
+                Self.logger.demoBuildFailed(error: .restricted(.errorDetails, error))
             }
         }
     }
@@ -228,6 +238,9 @@ final class OnboardingFlowModel {
     }
 
     func discardPendingRestore() {
+        // Dismissing an interrupted gate must not release or erase a selection
+        // that its draining import still needs, including to mark a late commit.
+        guard !isFinishing else { return }
         showRestoreStrategyDialog = false
         restoreSelection.discardUncommittedSelection()
     }
@@ -243,6 +256,9 @@ final class OnboardingFlowModel {
                 strategy: readyImport.strategy,
             ) { _ in }
             restoreSelection.markCommitted(summary)
+            // A committed import retains its durable completion marker. A fresh
+            // onboarding gate reconciles it if this gate was interrupted.
+            guard !Task.isCancelled else { return false }
             model.completeOnboarding()
             do {
                 try await scope.services.backup.acknowledgeOnboardingImport()
@@ -256,6 +272,7 @@ final class OnboardingFlowModel {
             return true
         } catch let error as BackupCoordinator.CommittedImportCleanupError {
             restoreSelection.markCommitted(error.summary)
+            guard !Task.isCancelled else { return false }
             model.completeOnboarding()
             do {
                 try await scope.services.backup.acknowledgeOnboardingImport()
@@ -273,6 +290,7 @@ final class OnboardingFlowModel {
             return false
         } catch let error as BackupCoordinator.CommittedImportSupersededError {
             restoreSelection.markCommitted(error.summary)
+            guard !Task.isCancelled else { return false }
             model.completeOnboarding()
             do {
                 try await scope.services.backup.acknowledgeOnboardingImport()
@@ -289,6 +307,7 @@ final class OnboardingFlowModel {
             gate.fail(error)
             return false
         } catch {
+            guard !Task.isCancelled else { return false }
             restoreSelection.discardUncommittedSelection()
             await model.endSession()
             intro.activity = .failed(.init(flow: .restoreBackup, error: error))
@@ -303,15 +322,19 @@ final class OnboardingFlowModel {
 
     private func configureRecording(in scope: WhereScope) async throws {
         let authorization = await scope.services.ingestor.authorizationStatus()
+        try Task.checkCancellation()
         try await scope.services.recording.registerForOnboarding(
             desiredEnabled: recordingEnabled,
             authorization: authorization,
         )
+        try Task.checkCancellation()
         guard recordingEnabled else { return }
         do {
             try await scope.services.ingestor.requestPermission()
         } catch {
+            try Task.checkCancellation()
             Self.logger.locationPermissionDenied()
         }
+        try Task.checkCancellation()
     }
 }
