@@ -246,6 +246,16 @@
             var screenOrdinal = 0
             for (groupIndex, group) in catalog.groups.enumerated() {
                 for (screenIndex, screen) in group.screens.enumerated() {
+                    if case let .fixed(size) = screen.viewport {
+                        guard size.width.isFinite, size.height.isFinite,
+                              size.width > 0, size.height > 0
+                        else {
+                            throw FlyoverExportError.invalidViewport(
+                                group: group.title,
+                                screen: screen.title,
+                            )
+                        }
+                    }
                     screenOrdinal += 1
                     let stableID = screenIdentifier(screen.id)
                     guard stableID.isEmpty == false else {

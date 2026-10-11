@@ -29,6 +29,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build, format
 - **Render connectors as vector views.** A graph-sized Canvas texture can exceed the GPU dimension limit. Guard: `WhereFlyoverViewSnapshotTests` (PR #329).
 - **Type erase only at the heterogeneous content/control registry boundary.**
 - **Validate every stable screen and variant identifier before capture.** Use generated ordinals for image paths.
+- **Reject non-finite or non-positive fixed viewport dimensions before capture.** Guard: `FlyoverWebExporterTests`.
 - **Preserve snapshot-backed capture intent.** Reject mixed sizing matrices unless the app supplies an explicit export policy.
 - **Fail full-content export when sizing does not converge.** Never publish a viewport fallback.
 

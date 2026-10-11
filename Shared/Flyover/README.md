@@ -151,6 +151,8 @@ The exporter validates the complete plan before its first capture. The host
 provides one stable string for each typed screen ID and one capture closure.
 Stable IDs must be nonempty and unique. Variant IDs must also be nonempty and
 unique within a screen. Image paths use generated ordinals, never these IDs.
+Fixed viewports must have finite, positive dimensions. Invalid dimensions fail
+before the exporter resets a screen, builds content, or captures an image.
 
 Hosted variants have a `FlyoverExportPolicy` with a fixed viewport by default.
 Snapshot-backed variants inherit their settle, readiness, and hook behavior.

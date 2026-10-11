@@ -72,6 +72,84 @@
             #expect(script.hasPrefix("window.FLYOVER_MANIFEST = {"))
         }
 
+        @Test(arguments: [
+            CGSize.zero,
+            CGSize(width: -1, height: 100),
+            CGSize(width: 100, height: -1),
+            CGSize(width: CGFloat.infinity, height: 100),
+            CGSize(width: 100, height: CGFloat.infinity),
+            CGSize(width: CGFloat.nan, height: 100),
+            CGSize(width: 100, height: CGFloat.nan),
+        ])
+        func rejectsInvalidViewportsBeforeBuildingOrCapturingContent(size: CGSize) async throws {
+            let directory = try makeTemporaryDirectory()
+            defer {
+                do {
+                    try FileManager.default.removeItem(at: directory)
+                } catch {
+                    Issue.record(error)
+                }
+            }
+            var didBuild = false
+            var didReset = false
+            let catalog = FlyoverCatalog(groups: [
+                FlyoverGroup(
+                    id: FlyoverGroupID("main"),
+                    title: "Main",
+                    root: FlyoverTestScreen.root,
+                    screens: [
+                        FlyoverScreen(
+                            id: .root,
+                            title: "Valid",
+                            variants: [FlyoverVariant(
+                                id: FlyoverVariantID("default"),
+                                title: "Default",
+                            ) {
+                                didBuild = true
+                                return EmptyView()
+                            }],
+                            reset: { didReset = true },
+                        ),
+                        FlyoverScreen(
+                            id: .pushed,
+                            title: "Invalid",
+                            viewport: .fixed(size),
+                            variants: [FlyoverVariant(
+                                id: FlyoverVariantID("default"),
+                                title: "Default",
+                            ) {
+                                EmptyView()
+                            }],
+                        ),
+                    ],
+                ),
+            ])
+            let exporter = FlyoverWebExporter(
+                catalog: catalog,
+                applicationID: "test",
+                title: "Test",
+                screenIdentifier: \FlyoverTestScreen.rawValue,
+            )
+            await #expect(throws: FlyoverExportError.invalidViewport(
+                group: "Main",
+                screen: "Invalid",
+            )) {
+                try await exporter
+                    .export(to: directory, profiles: [.phoneLight], build: build) { _ in
+                        Issue.record("Capture must not run after validation fails.")
+                        return FlyoverCapturedImage(
+                            pngData: Data(),
+                            pointSize: .zero,
+                            pixelSize: .zero,
+                            scale: 1,
+                        )
+                    }
+            }
+            #expect(didBuild == false)
+            #expect(didReset == false)
+            #expect(try FileManager.default.contentsOfDirectory(atPath: directory.path).isEmpty)
+        }
+
         @Test func validatesEverySizingPolicyBeforeTheFirstCapture() async throws {
             let mixed = SnapshotCase(
                 name: "Mixed",
