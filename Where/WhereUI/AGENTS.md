@@ -334,3 +334,6 @@ lightweight widget/snippet surfaces do not need duplicate theme cases.
 Other themes use stable consumer-owned groups (`flat/` for `.alternate`). Mixed-theme
 sheets use `themes/`. Special trait images use `other/` inside the selected group.
 Never derive the folder from a localized label or rename a persisted theme identity.
+
+- Compose production recording coordination once in `WhereBootstrap` over its existing store, then inject it into onboarding and services. Isolated test fixtures may construct their own (`where.recording_coordination_composition`).
+- Require an explicit role choice for a new installation even when restored preferences say onboarding finished. Keep identity, consent, and pending handoffs in the backup-excluded installation sidecar.
