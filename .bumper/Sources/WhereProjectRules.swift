@@ -38,6 +38,12 @@ let whereProjectRules = RuleSet {
         ).union(nonWhereProductionScope),
         id: "where.compatibility_scope_ownership",
     )
+    Rules.constructionOwnership(
+        "DataCompatibilityCoordinator",
+        allowed: RuleScope.files(["Where/WhereUI/Sources/Launch/WhereLaunch.swift"])
+            .union(nonWhereProductionScope),
+        id: "where.compatibility_coordination_composition",
+    )
     compatibilityStoreBoundaryRule
     productionStoreOpeningRule
     checkedConcurrencyBoundaryRule
