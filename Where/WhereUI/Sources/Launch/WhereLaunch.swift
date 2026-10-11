@@ -11,14 +11,12 @@ import WhereCore
 public enum LaunchStepID: String, Sendable {
     /// Consume an optional one-shot demo request before onboarding can open a real store.
     case activateDemo = "activate-demo"
-    /// First-run onboarding gate, after optional demo activation: until the user
-    /// chooses a world to work in, nothing downstream runs and no store is
-    /// opened. Applies to every launch reason — a headless launch parks here
-    /// rather than opening the user's store unseen.
+    /// Confirm onboarding after the minimal compatibility control plane permits domain access.
     case onboarding
-    /// Resolve the scope the launch runs against, opening the user's real
-    /// store if they onboarded on an earlier launch — the trunk's logged-in
-    /// scope. The splash's slow-launch caption most often shows here.
+    /// Verify the shared contract before normal services or onboarding data operations.
+    case compatibility = "data-compatibility"
+    case suspendCompatibility = "suspend-compatibility"
+    /// Assemble a fresh normal scope over the bootstrap's existing store.
     case resolveScope = "resolve-scope"
     /// Build the logged-in session over the scope and fire the app's
     /// composition hook — promotes the trunk to the session scope.
@@ -65,16 +63,10 @@ public enum LaunchStepID: String, Sendable {
 /// is `LifecycleContainer`'s `content` (see `RootView`), handed the
 /// `WhereSession` the trunk produced once the runner reaches `.ready`.
 ///
-/// The trunk consumes an optional one-shot demo request, then reaches the
-/// onboarding gate — nothing real may be built until the user has chosen a
-/// world to work in — and its value then grows monotonically
-/// by embedding: `ResolveScopeStep` mints the `WhereScope` the app is logged in
-/// to, `StartSessionStep` promotes it to `WhereSession` (which carries the
-/// scope's services non-optionally), and every downstream node takes the session as
-/// its typed input. The compiler holds the ordering — a node cannot be
-/// placed before its input exists, and only pass-through nodes (the
-/// onboarding gate, `thenKeeping` steps, the detached fan) may skip, so a
-/// skipped node can't leave a hole in the data flow.
+/// The trunk consumes an optional demo request, then verifies compatibility through
+/// the retained bootstrap before onboarding or normal service assembly. ResolveScopeStep
+/// builds a scope over that same store; StartSessionStep promotes it to a session.
+/// Downstream steps consume that typed session.
 @MainActor
 public enum WhereLaunch {
     private static let logger = WhereLog.root(WhereLaunchLog.self)
@@ -133,6 +125,7 @@ public enum WhereLaunch {
         // renders — without this a throwing detached step would fail with no
         // trace in logs.
         DetachedFailureReporter.observe(runner)
+        WhereCompatibilityLifecycle.observe(runner: runner, model: model)
         return runner
     }
 
@@ -144,10 +137,8 @@ public enum WhereLaunch {
     /// after the trunk — they take the session, return nothing, and never
     /// block `.ready`.
     ///
-    /// Keeping the gate ahead of real scope resolution is what makes the app's store open *lazily*:
-    /// a user
-    /// who hasn't onboarded parks here, and nothing downstream — including the
-    /// store open — runs until they choose. `onServicesReady` fires from
+    /// Compatibility opens the minimal store first. Onboarding parks before normal
+    /// service assembly until the installation has confirmed its role. `onServicesReady` fires from
     /// `start-session` whenever a session is (re)started (see `makeLauncher`);
     /// callers that only inspect the node list (the parity test) can rely on
     /// the default.
@@ -162,6 +153,7 @@ public enum WhereLaunch {
         onServicesReady: @escaping @MainActor (WhereServices) async -> Void = { _ in },
     ) -> LaunchPlan<LaunchStepID, Void, WhereSession> {
         LaunchPlan(ActivateLaunchDemoStep(model: model).measured())
+            .gate(DataCompatibilityGate(model: model))
             .gate(OnboardingGate(model: model))
             .then(ResolveScopeStep(model: model).measured())
             .then(StartSessionStep(model: model, onServicesReady: onServicesReady).measured())
@@ -229,6 +221,7 @@ public protocol WhereScopeAssembling {
     /// **one** store open.
     func makeServices() async throws -> WhereServices
     func prepareDeviceCoordination() async throws -> RecordingDeviceCoordination?
+    func prepareCompatibility() async throws -> DataCompatibilityCoordinator?
 
     /// Open and retain the real store while onboarding remains dormant, then read synced device
     /// status without constructing services or activating location/App Intents.
@@ -260,6 +253,8 @@ public final class WhereBootstrap: WhereScopeAssembling {
     private let widgetRefresher: any WidgetTimelineRefreshing
     private let locationOutbox: any LocationOutbox
     private var locationSource: CoreLocationSource?
+    private var preparedCompatibility: DataCompatibilityCoordinator?
+    private var preparingCompatibility: Task<DataCompatibilityCoordinator, Error>?
     private var preparedStore: SwiftDataStore?
     private var openingStore: Task<SwiftDataStore, Error>?
     private var preparingCoordination: Task<RecordingDeviceCoordination, Error>?
@@ -287,13 +282,12 @@ public final class WhereBootstrap: WhereScopeAssembling {
         locationSource = CoreLocationSource()
     }
 
-    /// Open the SwiftData store (on a detached task so a slow open or first
-    /// creation runs off the main actor the splash renders on) and assemble
-    /// the services from it and the prepared location source. Throws on
+    /// Verify compatibility and assemble services over the bootstrap's retained store
+    /// and the prepared location source. Throws on
     /// persistence failure so the `resolve-scope` step can surface it.
     ///
-    /// This is the app process's **one** store open — everything else shares
-    /// the instance by injection (the App Intents stack derives from these
+    /// The bootstrap's prepareStore owns the process's **one** open. Services share
+    /// it through a revocable facade (the App Intents stack derives from these
     /// services via `WhereServices.forIntents(sharingStoreOf:)`; see the
     /// app's `AppDelegate`), so no second container ever races this one over
     /// the same store file.
@@ -312,9 +306,11 @@ public final class WhereBootstrap: WhereScopeAssembling {
                 installationContext.automaticRecordingEnabled != nil,
                 "A real scope cannot open before this installation confirms recording.",
             )
-            let store = try await prepareStore()
+            let compatibility = try await compatibilityCoordinator()
+            guard case .compatible = await compatibility.recheck()
+            else { throw DataCompatibilityError.notReady }
+            let store = try await compatibility.openDomainStore()
             let coordination = try await prepareCoordination()
-            _ = try await coordination.refreshForUse()
             let services = try await WhereServices.make(
                 store: store,
                 locationSource: source,
@@ -338,6 +334,34 @@ public final class WhereBootstrap: WhereScopeAssembling {
             Self.logger(attachments: [.error(error, name: "assemble-error")]) {
                 .servicesAssemblyFailed(description: error.localizedDescription)
             }
+            throw error
+        }
+    }
+
+    public func prepareCompatibility() async throws -> DataCompatibilityCoordinator? {
+        try await compatibilityCoordinator()
+    }
+
+    private func compatibilityCoordinator() async throws -> DataCompatibilityCoordinator {
+        if let preparedCompatibility { return preparedCompatibility }
+        if let preparingCompatibility { return try await preparingCompatibility.value }
+        let task = Task { @MainActor in
+            let store = try await self.prepareStore()
+            let coordination = try await self.prepareCoordination()
+            return DataCompatibilityCoordinator(
+                store: store,
+                recording: coordination,
+                installation: self.installationContextStore,
+            )
+        }
+        preparingCompatibility = task
+        do {
+            let result = try await task.value
+            preparedCompatibility = result
+            preparingCompatibility = nil
+            return result
+        } catch {
+            preparingCompatibility = nil
             throw error
         }
     }
@@ -468,5 +492,12 @@ final class ForegroundNotificationPresenter:
         willPresent _: UNNotification,
     ) async -> UNNotificationPresentationOptions {
         [.banner, .sound, .badge]
+    }
+}
+
+extension WhereScopeAssembling {
+    /// Injected preview/test worlds have no shared compatibility control plane.
+    public func prepareCompatibility() async throws -> DataCompatibilityCoordinator? {
+        nil
     }
 }

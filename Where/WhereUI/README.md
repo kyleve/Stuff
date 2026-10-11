@@ -544,3 +544,20 @@ The recording-role panel opens `RecordingRecoveryView` for an unavailable owner.
 It explains possible offline overlap and offers explicit keep/exclude history
 choices. `RecordingDeviceRoleModel` binds the confirmation to the reviewed owner.
 A changed owner requires a new review. Reset preserves this installation's choice.
+
+### Compatibility startup and recovery
+
+The process retains one `WhereBootstrap`, its open store, and its compatibility
+coordinator. `DataCompatibilityGate` runs before onboarding data operations and
+normal service assembly, including headless launch. The bootstrap remains
+available for recording-role selection and lost-phone recovery while blocked.
+
+`WhereCompatibilityModel` observes store history and publishes explicit checking,
+compatible, update-required, waiting-for-recorder, and verification-failed states.
+`WhereCompatibilityLifecycle` retires the active scope when verification blocks
+access. It then drives launch back to the gate. A successful retry creates new
+services over the same store; the old scope remains revoked.
+
+`DataCompatibilityView` displays update instructions, diagnostics, and retry.
+`AppUpdateAvailability.noBuildsPublished` is the current app configuration.
+Published builds can supply TestFlight, App Store, or both links.

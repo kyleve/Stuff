@@ -509,6 +509,11 @@ public actor LocationIngestor {
                     needsFullWidgetRebuild: !drainedDays.isEmpty,
                 ))
             }
+        } catch let error as DataCompatibilityError {
+            await closeRecordingAuthority(ifAuthorizedFor: dataGenerationID)
+            Self.logger(attachments: [.error(error, name: "compatibility-error")]) {
+                .foregroundCaptureReadFailed(description: error.localizedDescription)
+            }
         } catch RecordingAuthorityError.ownerRequired {
             await closeRecordingAuthority(ifAuthorizedFor: dataGenerationID)
         } catch RecordingPersistenceError.dataGenerationChanged {
@@ -568,6 +573,7 @@ public actor LocationIngestor {
         var persistedDays: Set<Date> = []
         var persistedSampleCount = 0
         var generationChanged = false
+        var compatibilityFailure: DataCompatibilityError?
         await Self.logger.measure(.drainBacklog, budget: .seconds(5)) {
             for (index, entry) in pending.enumerated() {
                 guard entry.dataGenerationID == expectedDataGenerationID else { continue }
@@ -578,6 +584,16 @@ public actor LocationIngestor {
                     }
                     persistedSampleCount += 1
                     persistedDays.insert(calendar.startOfDay(for: sample.timestamp))
+                } catch let error as DataCompatibilityError {
+                    enqueueForRetry(entry)
+                    for remaining in pending.dropFirst(index + 1)
+                        where remaining
+                        .dataGenerationID == expectedDataGenerationID
+                    {
+                        enqueueForRetry(remaining)
+                    }
+                    compatibilityFailure = error
+                    break
                 } catch RecordingPersistenceError.dataGenerationChanged {
                     enqueueForRetry(entry)
                     for remaining in pending.dropFirst(index + 1)
@@ -607,6 +623,7 @@ public actor LocationIngestor {
             }
         }
         try await outbox.save(retryQueue)
+        if let compatibilityFailure { throw compatibilityFailure }
         if generationChanged {
             throw RecordingPersistenceError.dataGenerationChanged
         }

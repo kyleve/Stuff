@@ -163,6 +163,9 @@ public struct RootView: View {
                 },
                 failure: { WhereLifecycleFailureView(failure: $0) },
                 gates: {
+                    GateView(for: DataCompatibilityGate.self) { _, _ in
+                        CompatibilityGateView(model: model)
+                    }
                     // The gate precedes every world-building step, so there is
                     // no session (and no open store) behind it yet — onboarding
                     // builds the scope it commits regions with, through the model.
@@ -183,7 +186,9 @@ public struct RootView: View {
                 // monotonic `id` (never reused within the process) rather than
                 // its address, so a rebuilt session can't collide with a freed
                 // one and skip the rebuild.
-                if session.isCurrentDeviceRemoved {
+                if !model.isInDemoMode, !model.compatibility.isCompatible {
+                    CompatibilityGateView(model: model)
+                } else if session.isCurrentDeviceRemoved {
                     RemovedDeviceView(model: model, session: session)
                 } else {
                     MainTabs(

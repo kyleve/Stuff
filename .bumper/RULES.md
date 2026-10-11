@@ -172,3 +172,7 @@ Mutation guard: `domainStoreMethodsRequireCompatibilityChecks`.
 
 `where.compatibility_scope_ownership` permits scoped-store construction only in
 `DataCompatibilityCoordinator`. Guard: `compatibilityPermitsComeFromTheCoordinator`.
+
+### `where.compatibility_coordination_composition`
+
+Construct the app's `DataCompatibilityCoordinator` only in `WhereLaunch.swift` over the existing bootstrap store. Mutation coverage: `compatibilityCoordinatorIsComposedAtBootstrap`.
