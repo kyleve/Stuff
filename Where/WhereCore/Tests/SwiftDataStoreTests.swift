@@ -73,6 +73,28 @@ struct SwiftDataStoreTests {
         #expect(try await reader.homeRegionRecords().isEmpty)
     }
 
+    @Test func historyResetPreservesOwnerAndCompatibilityRequirements() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let fixture = RecordingAuthorityFixture()
+        let authority = RecordingAuthorityCoordinator(
+            store: store,
+            transport: LocalRecordingAuthorityTransport(now: { Date() }),
+        )
+        let claim = try fixture.proposal(.initial, .claim, device: fixture.phone)
+        _ = try await authority.submit(claim)
+        let requirement = DataCompatibilityRequirement(id: UUID(), version: .initial)
+        try await store.perform {
+            try await store.addDataCompatibilityRequirement(requirement)
+            _ = try await store.rotateDataGeneration(
+                reason: .historyReset,
+                changedBy: fixture.phone,
+                at: Date(),
+            )
+        }
+        #expect(try await store.recordingAuthority() == claim.result)
+        #expect(try await store.dataCompatibilityRequirements() == [requirement])
+    }
+
     enum IncompleteMotion: CaseIterable {
         case missingSpeedValue
         case missingSpeedAccuracy

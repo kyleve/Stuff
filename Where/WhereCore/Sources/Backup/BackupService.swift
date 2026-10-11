@@ -94,6 +94,8 @@ public struct BackupService: Sendable {
     /// `blobs` holds the evidence bytes keyed by `Evidence.id`; evidence
     /// without an entry is exported as metadata only.
     public func makeArchiveFile(
+        requiredCompatibilityVersion: DataCompatibilityVersion,
+        recordingRecoveryExclusions: [RecordingRecoveryExclusion],
         samples: [LocationSample],
         evidence: [Evidence],
         manualDays: [DayPresence],
@@ -138,6 +140,8 @@ public struct BackupService: Sendable {
         }
 
         let archive = BackupArchive(
+            requiredCompatibilityVersion: requiredCompatibilityVersion,
+            recordingRecoveryExclusions: recordingRecoveryExclusions,
             exportedAt: exportedAt,
             samples: samples,
             evidence: evidence,
@@ -153,6 +157,7 @@ public struct BackupService: Sendable {
             sampleAttributionRevisions: sampleAttributionRevisions,
             assets: assetEntries,
         )
+        try Self.validateRecordingData(archive)
         try Self.logger.measure(.encodeManifest) {
             let manifestData = try Self.makeEncoder().encode(archive)
             try manifestData.write(to: staging.appendingPathComponent(Self.manifestFilename))
@@ -254,6 +259,8 @@ public struct BackupService: Sendable {
             throw BackupError.unsupportedFormatVersion(envelope.formatVersion)
         }
         let archive = try decoder.decode(BackupArchive.self, from: data)
+        guard archive.requiredCompatibilityVersion <= .current
+        else { throw RecordingAuthorityError.unsupportedVersion }
         try validatePlanningData(
             stays: archive.plannedStayRecords,
             homes: archive.homeRegionRecords,
@@ -283,6 +290,16 @@ public struct BackupService: Sendable {
     /// initializers. Kept separate so malformed input is rejected before the import transaction,
     /// rather than being committed and silently disappearing from later materialized reads.
     static func validateRecordingData(_ archive: BackupArchive) throws {
+        guard archive.samples.allSatisfy(\.hasValidRecordingProvenance)
+        else { throw BackupError.invalidRecordingData }
+        for exclusions in Dictionary(grouping: archive.recordingRecoveryExclusions, by: \.id)
+            .values
+        {
+            guard Set(exclusions).count == 1 else { throw BackupError.invalidRecordingData }
+            for exclusion in exclusions {
+                try exclusion.validate()
+            }
+        }
         try validateRecordingData(
             metadataChanges: archive.recordingDeviceMetadataChanges,
             sampleAttributionRevisions: archive.sampleAttributionRevisions,

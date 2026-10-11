@@ -30,7 +30,7 @@ private struct DerivedDataReconciler {
 /// (`await services.journal.…`, `await services.reports.…`).
 ///
 /// The only cross-cutting operation that doesn't belong to a single
-/// collaborator is `reset()` (pause GPS, erase synced user data, retire recording
+/// collaborator is `reset()` (pause GPS, erase synced user history while retaining recording
 /// authority, then discard pending fixes) — it lives here so teardown stays in
 /// Core rather than leaking into the UI layer.
 public struct WhereServices: Sendable {

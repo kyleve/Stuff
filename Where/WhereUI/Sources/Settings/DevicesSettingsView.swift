@@ -45,9 +45,13 @@ struct DevicesSettingsView: View {
         ) {
             Form {
                 if let role = model.role {
+                    @Bindable var role = role
                     Section {
                         RecordingDeviceRoleView(
                             state: role.state,
+                            recoveryReview: $role.recoveryReview,
+                            reviewRecovery: { role.reviewRecovery() },
+                            recover: { history in Task { await role.recover(history: history) } },
                             canApprove: role.canApprove,
                             choose: { recording in
                                 Task { _ = await role.choose(recording: recording)
@@ -207,6 +211,7 @@ extension DevicesSettingsView: SettingsSection {
         static let flyoverData = WhereFlyoverData.hosted(
             DevicesSettingsView.self,
             title: "Devices",
+            routes: [.modal(to: RecordingRecoveryView.flyoverID)],
         ) { world in
             DevicesSettingsView(
                 session: world.session,
