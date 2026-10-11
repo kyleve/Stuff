@@ -69,3 +69,88 @@ final class RecordingCoordinationInstallation: InstallationRecordingContextStori
         _ = try rejoin()
     }
 }
+
+/// Holds a network boundary until the test applies its competing transition.
+actor RecordingCoordinationGate {
+    private enum State {
+        case idle([CheckedContinuation<Void, Never>])
+        case held(CheckedContinuation<Void, Never>)
+        case resumed
+    }
+
+    private var state: State = .idle([])
+
+    func suspend() async {
+        await withCheckedContinuation { continuation in
+            guard case let .idle(waiters) = state else { preconditionFailure("Gate reused") }
+            state = .held(continuation)
+            for waiter in waiters {
+                waiter.resume()
+            }
+        }
+    }
+
+    func waitUntilEntered() async {
+        guard case .idle = state else { return }
+        await withCheckedContinuation { continuation in
+            guard case let .idle(waiters) = state else { preconditionFailure("Gate changed") }
+            state = .idle(waiters + [continuation])
+        }
+    }
+
+    func resume() {
+        guard case let .held(continuation) = state else { return }
+        state = .resumed
+        continuation.resume()
+    }
+}
+
+/// Reproduces uncertain server outcomes without touching CloudKit.
+actor RecordingCoordinationTransport: RecordingAuthorityTransport {
+    enum Response { case normal, lostAfterCommit, delayedCommit }
+    struct LostResponse: Error {}
+    private let server = LocalRecordingAuthorityTransport(now: { Date() })
+    private var response: Response = .normal
+    private var delayed: RecordingAuthorityProposal?
+    private var cancelGate: RecordingCoordinationGate?
+
+    func setResponse(_ response: Response) {
+        self.response = response
+    }
+
+    func holdCancellation(_ gate: RecordingCoordinationGate) {
+        cancelGate = gate
+    }
+
+    func current() async -> RecordingAuthorityCommit? {
+        await server.current()
+    }
+
+    func receipt(for eventID: RecordingAuthority.EventID) async -> RecordingAuthorityCommit? {
+        await server.receipt(for: eventID)
+    }
+
+    func commit(_ proposal: RecordingAuthorityProposal) async throws -> RecordingAuthorityCommit {
+        if proposal.kind == .cancel, let gate = cancelGate {
+            cancelGate = nil
+            await gate.suspend()
+        }
+        let response = response
+        self.response = .normal
+        switch response {
+            case .normal: return try await server.commit(proposal)
+            case .lostAfterCommit:
+                _ = try await server.commit(proposal)
+                throw LostResponse()
+            case .delayedCommit:
+                delayed = proposal
+                throw LostResponse()
+        }
+    }
+
+    func commitDelayedProposal() async throws {
+        guard let delayed else { preconditionFailure("No delayed proposal") }
+        _ = try await server.commit(delayed)
+        self.delayed = nil
+    }
+}

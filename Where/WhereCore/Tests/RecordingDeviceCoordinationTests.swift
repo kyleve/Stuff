@@ -41,6 +41,229 @@ struct RecordingDeviceCoordinationTests {
         #expect(oldInstallation.onboardingContext.recordingControl.pendingTransition == nil)
     }
 
+    @Test @MainActor func refreshResolvesCommittedTransferAndAllowsAnotherRequest() async throws {
+        let fixture = RecordingAuthorityFixture()
+        let store = try SwiftDataStore.inMemory()
+        let transport = RecordingCoordinationTransport()
+        let authority = RecordingAuthorityCoordinator(store: store, transport: transport)
+        let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
+        let coordination = RecordingDeviceCoordination(
+            authority: authority,
+            installation: installation,
+        )
+        let owned = try await coordination.selectRecordingRole(.recordingRequested)
+        let requested = try fixture.proposal(owned, .requestHandoff, device: fixture.tablet)
+        _ = try await authority.submit(requested)
+        let approval = try await coordination
+            .prepareApproval(requestID: #require(requested.result.pendingHandoff?.requestID))
+        await transport.setResponse(.lostAfterCommit)
+        await #expect(throws: RecordingCoordinationTransport.LostResponse.self) {
+            try await coordination.commitStoppedApproval(approval)
+        }
+        #expect(try await coordination.isRelinquishing())
+        installation.failsControlWrite = true
+        await #expect(throws: RecordingCoordinationInstallation.WriteFailure.self) {
+            _ = try await coordination.refresh()
+        }
+        #expect(try await coordination.isRelinquishing())
+        installation.failsControlWrite = false
+        #expect(try await coordination.refresh().owner?.deviceID == fixture.tablet)
+        #expect(installation.onboardingContext.recordingControl.pendingTransition == nil)
+        let next = try await coordination.selectRecordingRole(.recordingRequested)
+        #expect(next.pendingHandoff?.requestedBy == fixture.phone)
+        #expect(installation.onboardingContext.automaticRecordingEnabled == true)
+    }
+
+    @Test @MainActor func refreshResolvesCommittedClaimWithoutReplayingIt() async throws {
+        let fixture = RecordingAuthorityFixture()
+        let store = try SwiftDataStore.inMemory()
+        let transport = RecordingCoordinationTransport()
+        let authority = RecordingAuthorityCoordinator(store: store, transport: transport)
+        let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
+        let coordination = RecordingDeviceCoordination(
+            authority: authority,
+            installation: installation,
+        )
+        await transport.setResponse(.lostAfterCommit)
+        await #expect(throws: RecordingCoordinationTransport.LostResponse.self) {
+            _ = try await coordination.selectRecordingRole(.recordingRequested)
+        }
+        let pending = try #require(installation.onboardingContext.recordingControl
+            .pendingTransition)
+        #expect(try await coordination.refreshForUse() == pending.result)
+        #expect(installation.onboardingContext.recordingControl.pendingTransition == nil)
+        #expect(try await store.recordingAuthorityCommits().count == 1)
+    }
+
+    @Test @MainActor func cancellationKeepsRecordingFencedUntilTheServerOutcomeIsKnown(
+    ) async throws {
+        let fixture = RecordingAuthorityFixture()
+        let store = try SwiftDataStore.inMemory()
+        let transport = RecordingCoordinationTransport()
+        let authority = RecordingAuthorityCoordinator(store: store, transport: transport)
+        let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
+        let coordination = RecordingDeviceCoordination(
+            authority: authority,
+            installation: installation,
+        )
+        let owned = try await coordination.selectRecordingRole(.recordingRequested)
+        let requested = try fixture.proposal(owned, .requestHandoff, device: fixture.tablet)
+        _ = try await authority.submit(requested)
+        let requestID = try #require(requested.result.pendingHandoff?.requestID)
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(authorizationStatus: .always),
+            installationContext: installation.onboardingContext,
+            recordingAuthority: coordination,
+            deviceCoordination: coordination,
+        )
+        _ = try await services.recording.register(authorization: .always)
+        await transport.setResponse(.delayedCommit)
+        await #expect(throws: RecordingCoordinationTransport.LostResponse.self) {
+            try await services.recording.approveHandoff(requestID: requestID)
+        }
+        let gate = RecordingCoordinationGate()
+        await transport.holdCancellation(gate)
+        let cancellation = Task { try await coordination.cancelHandoff(requestID: requestID) }
+        await gate.waitUntilEntered()
+        defer { Task { await gate.resume() } }
+        #expect(try await coordination.isRelinquishing())
+        _ = try await services.recording.reconcile(authorization: .always)
+        #expect(await services.ingestor.isActive == false)
+        try await transport.commitDelayedProposal()
+        await gate.resume()
+        await #expect(throws: RecordingAuthorityError.conflict) { try await cancellation.value }
+        #expect(try await coordination.refresh().owner?.deviceID == fixture.tablet)
+        #expect(try await coordination.isRelinquishing() == false)
+        #expect(await services.ingestor.isActive == false)
+    }
+
+    @Test @MainActor func cancellationRetryReusesItsDurableEventID() async throws {
+        let fixture = RecordingAuthorityFixture()
+        let store = try SwiftDataStore.inMemory()
+        let transport = RecordingCoordinationTransport()
+        let authority = RecordingAuthorityCoordinator(store: store, transport: transport)
+        let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
+        let coordination = RecordingDeviceCoordination(
+            authority: authority,
+            installation: installation,
+        )
+        let owned = try await coordination.selectRecordingRole(.recordingRequested)
+        let requested = try fixture.proposal(owned, .requestHandoff, device: fixture.tablet)
+        _ = try await authority.submit(requested)
+        let requestID = try #require(requested.result.pendingHandoff?.requestID)
+        await transport.setResponse(.delayedCommit)
+        await #expect(throws: RecordingCoordinationTransport.LostResponse.self) {
+            try await coordination.cancelHandoff(requestID: requestID)
+        }
+        let pending = try #require(installation.onboardingContext.recordingControl
+            .pendingTransition)
+        try await coordination.cancelHandoff(requestID: requestID)
+        #expect(try await authority.observed() == pending.result)
+        #expect(installation.onboardingContext.recordingControl.pendingTransition == nil)
+        try await transport.commitDelayedProposal()
+        #expect(try await coordination.refresh() == pending.result)
+    }
+
+    @Test @MainActor func removedTargetCannotReceiveAPendingApproval() async throws {
+        let fixture = RecordingAuthorityFixture()
+        let store = try SwiftDataStore.inMemory()
+        let authority = RecordingAuthorityCoordinator(
+            store: store,
+            transport: LocalRecordingAuthorityTransport(now: { Date() }),
+        )
+        let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
+        let coordination = RecordingDeviceCoordination(
+            authority: authority,
+            installation: installation,
+        )
+        let owned = try await coordination.selectRecordingRole(.recordingRequested)
+        let requested = try fixture.proposal(owned, .requestHandoff, device: fixture.tablet)
+        _ = try await authority.submit(requested)
+        try await store.perform {
+            try await store.addRecordingDeviceRemoval(.init(
+                id: .init(rawValue: UUID()),
+                deviceID: fixture.tablet,
+                removedAt: Date(),
+                removedByDeviceID: fixture.phone,
+            ))
+        }
+        await #expect(throws: RecordingAuthorityError.invalidHandoff) {
+            _ = try await coordination
+                .prepareApproval(requestID: #require(requested.result.pendingHandoff?.requestID))
+        }
+        #expect(try await authority.observed() == requested.result)
+        #expect(installation.onboardingContext.recordingControl.pendingTransition == nil)
+    }
+
+    @Test @MainActor func removalAfterPreparationCannotCommitTheApproval() async throws {
+        let fixture = RecordingAuthorityFixture()
+        let store = try SwiftDataStore.inMemory()
+        let authority = RecordingAuthorityCoordinator(
+            store: store,
+            transport: LocalRecordingAuthorityTransport(now: { Date() }),
+        )
+        let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
+        let coordination = RecordingDeviceCoordination(
+            authority: authority,
+            installation: installation,
+        )
+        let owned = try await coordination.selectRecordingRole(.recordingRequested)
+        let requested = try fixture.proposal(owned, .requestHandoff, device: fixture.tablet)
+        _ = try await authority.submit(requested)
+        let approval = try await coordination
+            .prepareApproval(requestID: #require(requested.result.pendingHandoff?.requestID))
+        try await store.perform {
+            try await store.addRecordingDeviceRemoval(.init(
+                id: .init(rawValue: UUID()),
+                deviceID: fixture.tablet,
+                removedAt: Date(),
+                removedByDeviceID: fixture.phone,
+            ))
+        }
+        await #expect(throws: RecordingAuthorityError.invalidHandoff) {
+            try await coordination.commitStoppedApproval(approval)
+        }
+        #expect(try await authority.observed() == requested.result)
+        #expect(try await coordination.isRelinquishing())
+    }
+
+    @Test @MainActor func pendingTargetMustBeCancelledBeforeRemoval() async throws {
+        let fixture = RecordingAuthorityFixture()
+        let store = try SwiftDataStore.inMemory()
+        let authority = RecordingAuthorityCoordinator(
+            store: store,
+            transport: LocalRecordingAuthorityTransport(now: { Date() }),
+        )
+        let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
+        let coordination = RecordingDeviceCoordination(
+            authority: authority,
+            installation: installation,
+        )
+        _ = try await coordination.selectRecordingRole(.recordingRequested)
+        let replacement = RecordingDeviceCoordination(
+            authority: authority,
+            installation: RecordingCoordinationInstallation(deviceID: fixture.tablet),
+        )
+        let requested = try await replacement.selectRecordingRole(.recordingRequested)
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(authorizationStatus: .always),
+            installationContext: installation.onboardingContext,
+            recordingAuthority: coordination,
+            deviceCoordination: coordination,
+        )
+        _ = try await services.recording.register(authorization: .always)
+        await #expect(throws: RecordingAuthorityError.invalidHandoff) {
+            _ = try await services.recording.remove(fixture.tablet)
+        }
+        #expect(try await store.recordingDeviceRemovals().isEmpty)
+        try await coordination
+            .cancelHandoff(requestID: #require(requested.pendingHandoff?.requestID))
+        _ = try await services.recording.remove(fixture.tablet)
+        #expect(try await store.recordingDeviceRemovals().map(\.deviceID) == [fixture.tablet])
+    }
+
     @Test @MainActor func durableApprovalFencesRecordingAfterRestart() async throws {
         let fixture = RecordingAuthorityFixture()
         let store = try SwiftDataStore.inMemory()
