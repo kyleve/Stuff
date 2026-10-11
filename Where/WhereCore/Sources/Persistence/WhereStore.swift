@@ -16,6 +16,9 @@ import RegionKit
 /// production `SwiftDataStore` implementation traps with a
 /// `preconditionFailure` if a mutation is called outside `perform`.
 public protocol WhereStore: Sendable {
+    /// Recheck access before publishing data outside the store.
+    func validateDataAccess() async throws
+    func requiredDataCompatibilityVersion() async throws -> DataCompatibilityVersion
     func dataCompatibilityRequirements() async throws -> [DataCompatibilityRequirement]
     func addDataCompatibilityRequirement(_ requirement: DataCompatibilityRequirement) async throws
     func importedRecordingRecoveryExclusions() async throws -> [RecordingRecoveryExclusion]
@@ -256,19 +259,13 @@ public protocol WhereStore: Sendable {
 }
 
 extension WhereStore {
+    public func validateDataAccess() async throws {
+        let required = try await requiredDataCompatibilityVersion()
+        guard required <= .current else { throw DataCompatibilityError.updateRequired(required) }
+    }
+
     public func recordingAuthority() async throws -> RecordingAuthority {
-        let commits = try await recordingAuthorityCommits().sorted {
-            ($0.proposal.result.revision?.sequence ?? 0) <
-                ($1.proposal.result.revision?.sequence ?? 0)
-        }
-        var state = RecordingAuthority.initial
-        for commit in commits {
-            try commit.proposal.validate()
-            guard commit.proposal.expected == state
-            else { throw RecordingAuthorityError.invalidRecord }
-            state = commit.proposal.result
-        }
-        return state
+        try await RecordingAuthority.resolve(commits: recordingAuthorityCommits())
     }
 
     /// Run one mutation against the generation current at command start, failing if a reset or

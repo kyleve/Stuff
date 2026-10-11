@@ -2,14 +2,17 @@ import Foundation
 
 /// User-driven device-role changes; approval is internal so only recording can stop and transfer.
 public actor RecordingDeviceCoordination: RecordingAuthorityReading {
+    public nonisolated let supportedVersion: DataCompatibilityVersion
     private let authority: RecordingAuthorityCoordinator
     private var isOperating = false
     private let installation: any InstallationRecordingContextStoring
 
     public init(
+        supportedVersion: DataCompatibilityVersion,
         authority: RecordingAuthorityCoordinator,
         installation: any InstallationRecordingContextStoring,
     ) {
+        self.supportedVersion = supportedVersion
         self.authority = authority
         self.installation = installation
     }
@@ -93,7 +96,7 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
             state: state,
             action: state.owner == nil ? .claim : .requestHandoff,
             deviceID: context.currentDevice.id,
-            buildVersion: .current,
+            buildVersion: supportedVersion,
             eventID: .init(rawValue: UUID()),
         )
         try await submitPersisted(proposal, selection: selection)
@@ -125,11 +128,38 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
             state: state,
             action: .recover(history),
             deviceID: context.currentDevice.id,
-            buildVersion: .current,
+            buildVersion: supportedVersion,
             eventID: .init(rawValue: UUID()),
         )
         try await submitPersisted(proposal, selection: .recordingRequested)
         return try await authority.observed()
+    }
+
+    /// Only the designated owner can advance the global contract, including on background boot.
+    public func advanceCompatibility() async throws {
+        let version = supportedVersion
+        guard !isOperating else { throw RecordingAuthorityError.conflict }
+        isOperating = true
+        defer { isOperating = false }
+        let context = try await installation.resolve()
+        if let pending = context.recordingControl.pendingTransition {
+            guard pending.kind == .upgrade, pending.result.requiredVersion == version
+            else { throw RecordingAuthorityError.conflict }
+            try await submitPersisted(pending, selection: context.recordingControl.selection)
+            return
+        }
+        let state = try await authority.refresh()
+        guard state.owner?.deviceID == context.currentDevice.id
+        else { throw RecordingAuthorityError.ownerRequired }
+        if state.requiredVersion == version { return }
+        let proposal = try RecordingAuthorityProposal(
+            state: state,
+            action: .upgrade,
+            deviceID: context.currentDevice.id,
+            buildVersion: version,
+            eventID: .init(rawValue: UUID()),
+        )
+        try await submitPersisted(proposal, selection: context.recordingControl.selection)
     }
 
     public func cancelHandoff(requestID: RecordingAuthority.EventID) async throws {
@@ -161,7 +191,7 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
             state: state,
             action: .cancelHandoff(requestID: requestID),
             deviceID: context.currentDevice.id,
-            buildVersion: .current,
+            buildVersion: supportedVersion,
             eventID: .init(rawValue: UUID()),
         )
         try await submitPersisted(proposal, selection: context.recordingControl.selection)
@@ -182,6 +212,8 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
         guard let proposal = context.recordingControl.pendingTransition
         else { return state }
         guard proposal.kind != .transfer else { return state }
+        guard proposal.result.requiredVersion <= supportedVersion
+        else { throw RecordingAuthorityError.unsupportedVersion }
         try await submitPersisted(proposal, selection: context.recordingControl.selection)
         return try await authority.observed()
     }
@@ -222,7 +254,7 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
             state: state,
             action: .approveHandoff(requestID: requestID),
             deviceID: context.currentDevice.id,
-            buildVersion: .current,
+            buildVersion: supportedVersion,
             eventID: .init(rawValue: UUID()),
         )
         guard let target = proposal.result.owner
