@@ -95,3 +95,12 @@ they do not call an intent's `perform()`. The framework's `@Dependency` lookup
 traps outside the system perform flow. Dependency resolution, snippet wiring,
 and error-to-dialog mapping therefore require a Siri/Shortcuts invocation on a
 device; these are not covered by the unit suite.
+
+### Compatibility
+
+`IntentServices.setCompatibility(_:)` rejects waiting and future callers while the
+app is blocked. Clearing the installed services preserves that error. Successful
+verification allows a fresh service installation. Intent results and the cached
+Today fast path validate access before returning. The process-owned
+`RegionSpotlightIndexer` serializes indexing with withdrawal and clears stale items
+when the app loses access.

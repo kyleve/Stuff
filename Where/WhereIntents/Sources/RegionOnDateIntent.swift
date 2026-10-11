@@ -35,6 +35,7 @@ public struct RegionOnDateIntent: AppIntent {
             try await WhereIntentReader(services: services).regions(on: date)
         }
         let ordered = orderedRegions(regions)
+        try await services.validateDataAccess()
         return .result(
             dialog: IntentDialog("\(IntentStrings.regionsOnDate(date, regions: ordered))"),
             view: RegionsSnippetView.onDate(date, regions: ordered)

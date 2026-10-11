@@ -25,12 +25,12 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   reliably discovers the phrases from there. Intent/entity types are `public`
   for it.
 - **Intents never start GPS.** `WhereServices.forIntents(sharingStoreOf:)`
-  wires an `IdleLocationSource`. An intent-logged manual entry records a
+  shares the app's existing services; intent actions do not drive recording. An intent-logged manual entry records a
   "Logged with Siri" audit and no captured location.
 - **Resolve services through the `@Dependency`-injected `IntentServices`.
   Intents never open a store.** The app's `AppDelegate` owns the one instance
-  and registers it in `didFinishLaunching`. The launch's `resolve-scope` step is
-  the process's only store open. The `onServicesReady` hook derives and
+  and registers it in `didFinishLaunching`. The process bootstrap owns
+  the only store open; normal scopes receive revocable access. The `onServicesReady` hook derives and
   installs the store-sharing intents stack (re-fired on retry and reset
   relaunches). If an intent fires before installation, it **parks** in
   `current()` (cancellation-aware). There is deliberately no self-open
@@ -91,3 +91,5 @@ outside the intent perform flow (a probe was tried and trapped). Verify it by
 invoking a Siri/Shortcuts intent on a device. Do not construct extra
 `AppDelegate`s in tests. Each `didFinishLaunching` re-registers the handoff.
 `AppDependencyManager`'s re-registration behavior is undocumented.
+- Reject parked and new intent callers while compatibility is blocked; `clear()` must preserve that block. Require a fresh installation after successful verification (`IntentServicesTests`).
+- Validate scope access before returning an intent result, including cached widget answers. Serialize Spotlight publication and withdrawal (`WhereIntentReaderTests`).

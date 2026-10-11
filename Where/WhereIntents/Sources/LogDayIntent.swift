@@ -40,6 +40,7 @@ public struct LogDayIntent: AppIntent {
         try await measureIntent(.logDay) {
             try await WhereIntentWriter(services: services).logDay(date: day, regions: regionSet)
         }
+        try await services.validateDataAccess()
         return .result(
             dialog: IntentDialog(
                 "\(IntentStrings.loggedDay(date: day, regions: orderedRegions(regionSet)))",

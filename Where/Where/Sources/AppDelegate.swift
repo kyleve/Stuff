@@ -142,4 +142,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         }
         return runtime.didFinishLaunching(application: application, options: options)
     }
+
+    func application(
+        _: UIApplication,
+        didReceiveRemoteNotification _: [AnyHashable: Any],
+        fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void,
+    ) {
+        Task { await completionHandler(runtime.refreshCompatibility()) }
+    }
 }

@@ -14,5 +14,13 @@ protocol WhereApplicationRuntime: AnyObject {
         options: [UIApplication.LaunchOptionsKey: Any]?,
     ) -> Bool
 
+    func refreshCompatibility() async -> UIBackgroundFetchResult
+
     func makeRootView() -> AnyView
+}
+
+extension WhereApplicationRuntime {
+    func refreshCompatibility() async -> UIBackgroundFetchResult {
+        .noData
+    }
 }
