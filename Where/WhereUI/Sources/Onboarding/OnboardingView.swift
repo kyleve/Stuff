@@ -269,8 +269,12 @@ public struct OnboardingView: View {
                     Spacer(minLength: 0)
 
                     if let role = flow.role {
+                        @Bindable var role = role
                         RecordingDeviceRoleView(
                             state: role.state,
+                            recoveryReview: $role.recoveryReview,
+                            reviewRecovery: { role.reviewRecovery() },
+                            recover: { history in Task { await role.recover(history: history) } },
                             canApprove: false,
                             choose: { recording in Task {
                                 if let confirmed = await role
@@ -287,7 +291,9 @@ public struct OnboardingView: View {
                         .task { await role.run() }
                         .onChange(of: role.isOwner, initial: true) { _, isOwner in
                             if isOwner {
-                                flow.recordingEnabled = true; flow.finish(using: model)
+                                flow.recordingEnabled = model.installationRecordingContext
+                                    .automaticRecordingEnabled == true
+                                flow.finish(using: model)
                             }
                         }
                     } else {

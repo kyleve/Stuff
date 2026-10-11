@@ -491,7 +491,7 @@ public actor LocationIngestor {
     /// permanently reorder samples on disk.
     private func processIngestedSample(_ sample: LocationSample) async {
         guard case let .open(dataGenerationID, _, owner) = recordingAuthority else { return }
-        let sample = sample.recorded(by: recordingDeviceID)
+        let sample = sample.recorded(under: owner)
         do {
             let drainedDays = try await drainRetryQueue(expectedDataGenerationID: dataGenerationID)
             try await store.perform(expectedDataGenerationID: dataGenerationID) {
@@ -531,7 +531,7 @@ public actor LocationIngestor {
             enqueueForRetry(LocationOutboxEntry(
                 sample: sample,
                 dataGenerationID: dataGenerationID,
-                recordingOwnershipID: owner.ownershipID,
+
             ))
             do {
                 try await outbox.save(retryQueue)
@@ -637,7 +637,7 @@ public actor LocationIngestor {
             enqueueForRetry(LocationOutboxEntry(
                 sample: sample,
                 dataGenerationID: dataGenerationID,
-                recordingOwnershipID: nil,
+
             ))
         }
 

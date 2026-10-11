@@ -38,7 +38,7 @@ public struct RecordingAuthority: Codable, Sendable, Equatable {
     }
 
     /// One installation's ownership grant. Each new grant has a distinct `ownershipID`.
-    public struct Owner: Codable, Sendable, Equatable {
+    public struct Owner: Codable, Sendable, Hashable {
         public let deviceID: RecordingDeviceID
         public let ownershipID: EventID
     }

@@ -6,6 +6,9 @@ import SwiftUI
 /// Presents role selection without owning coordination or location work.
 struct RecordingDeviceRoleView: View {
     let state: RecordingDeviceRoleModel.State
+    @Binding var recoveryReview: RecordingDeviceRoleModel.RecoveryReview?
+    let reviewRecovery: () -> Void
+    let recover: (RecordingRecoveryHistory) -> Void
     let canApprove: Bool
     let choose: (Bool) -> Void
     let retry: () -> Void
@@ -29,6 +32,9 @@ struct RecordingDeviceRoleView: View {
                     Label(message, systemSymbol: .exclamationmarkIcloud)
                     Button(String(localized: .commonRetry), action: retry)
             }
+        }
+        .sheet(item: $recoveryReview) { review in
+            RecordingRecoveryView(deviceName: review.deviceName, confirm: recover)
         }
     }
 
@@ -63,6 +69,9 @@ struct RecordingDeviceRoleView: View {
                     .buttonStyle(.borderedProminent)
             } else {
                 Text(String(localized: .recordingRoleOtherRequest))
+            }
+            if details.authority.owner != nil {
+                Button(String(localized: .recordingRecoveryUnavailable), action: reviewRecovery)
             }
             Button(String(localized: .recordingRoleSecondary)) { choose(false) }
         }
@@ -135,6 +144,9 @@ struct RecordingDeviceRoleView: View {
                         Section {
                             RecordingDeviceRoleView(
                                 state: state,
+                                recoveryReview: .constant(nil),
+                                reviewRecovery: {},
+                                recover: { _ in },
                                 canApprove: canApprove,
                                 choose: { _ in },
                                 retry: {},
@@ -155,6 +167,9 @@ struct RecordingDeviceRoleView: View {
                 currentDeviceID: .init(rawValue: UUID()),
                 names: [:],
             )),
+            recoveryReview: .constant(nil),
+            reviewRecovery: {},
+            recover: { _ in },
             canApprove: false,
             choose: { _ in },
             retry: {},
