@@ -244,6 +244,9 @@ public final class WhereScope {
             store: store,
             locationSource: locationSource,
             installationContext: .demo,
+            recordingAuthority: RecordingAuthority
+                .ownedForTesting(by: InstallationRecordingContext.demo.currentDevice.id),
+            deviceCoordination: nil,
             aggregator: aggregator,
             // Authorized, like the location source is: the demo presents a user
             // who has granted everything, so the alerts screen shows its real

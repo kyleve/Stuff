@@ -38,7 +38,11 @@ struct LocationOutboxTests {
     }
 
     private func entries(_ samples: [LocationSample]) -> [LocationOutboxEntry] {
-        samples.map { LocationOutboxEntry(sample: $0, dataGenerationID: .initial) }
+        samples.map { LocationOutboxEntry(
+            sample: $0,
+            dataGenerationID: .initial,
+            recordingTenureID: nil,
+        ) }
     }
 
     private func loadedSamples(from outbox: FileLocationOutbox) async throws -> [LocationSample] {
@@ -86,7 +90,11 @@ struct LocationOutboxTests {
                 altitude: .init(meters: 10500, accuracyMeters: 12),
             ),
         )
-        let entry = LocationOutboxEntry(sample: sample, dataGenerationID: .initial)
+        let entry = LocationOutboxEntry(
+            sample: sample,
+            dataGenerationID: .initial,
+            recordingTenureID: nil,
+        )
         try await outbox.save([entry])
         let reopened = FileLocationOutbox(fileURL: url)
         #expect(try await reopened.load() == [entry])
@@ -101,6 +109,7 @@ struct LocationOutboxTests {
             dataGenerationID: WhereDataGenerationID(rawValue: #require(UUID(
                 uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",
             ))),
+            recordingTenureID: nil,
         )
 
         try await outbox.save([entry])
