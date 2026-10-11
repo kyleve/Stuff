@@ -47,3 +47,4 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 No hosted bundle. Exercise `EvidenceContentType.classify` and the store write
 contract in **WhereCore**. Preview the compose sheet via the in-file `#Preview`
 (DEBUG). It uses an `.inMemory` model with no shared-container access.
+- Retain one store for the extension request. Check `StandaloneDataCompatibility.requireAccess` before and inside the write transaction. A newer extension must ask the user to open the recording app first; it never advances the floor (`StandaloneDataCompatibilityTests`).

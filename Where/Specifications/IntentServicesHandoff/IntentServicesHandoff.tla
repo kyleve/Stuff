@@ -5,11 +5,12 @@ CONSTANTS Implementation
 
 ASSUME Implementation \in {"current", "broken"}
 
-Phases == {"idle", "parked", "holding", "cancelled"}
+Phases == {"idle", "parked", "holding", "cancelled", "rejected"}
 InstallStates == {"none", "installed", "cleared"}
 
 (* --algorithm IntentServicesHandoffAlgorithm {
 variables installed = FALSE,
+          blocked = FALSE,
           installState = "none",
           waiterCount = 0,
           consumerPhase = "idle",
@@ -19,7 +20,9 @@ fair process (IntentFiresEarly = "IntentFiresEarly") {
 IntentFiresEarlyStep:
     while (TRUE) {
         await consumerPhase = "idle";
-        if (installed) {
+        if (blocked) {
+            consumerPhase := "rejected";
+        } else if (installed) {
             consumerPhase := "holding";
         } else if (Implementation = "broken") {
             selfCreated := TRUE ||
@@ -36,7 +39,7 @@ IntentFiresEarlyStep:
 fair process (Install = "Install") {
 InstallStep:
     while (TRUE) {
-        await installState \in {"none", "cleared"};
+        await ~blocked /\ installState \in {"none", "cleared"};
         if (waiterCount > 0) {
             installed := TRUE ||
             installState := "installed" ||
@@ -62,7 +65,7 @@ ClearStep:
 fair process (InstallReplace = "InstallReplace") {
 InstallReplaceStep:
     while (TRUE) {
-        await installState = "installed";
+        await ~blocked /\ installState = "installed";
         if (waiterCount > 0) {
             installed := TRUE ||
             consumerPhase := "holding" ||
@@ -70,6 +73,26 @@ InstallReplaceStep:
         } else {
             installed := TRUE;
         };
+    }
+}
+
+fair process (CompatibilityBlock = "CompatibilityBlock") {
+CompatibilityBlockStep:
+    while (TRUE) {
+        await ~blocked;
+        blocked := TRUE ||
+        installed := FALSE ||
+        installState := "cleared" ||
+        waiterCount := 0 ||
+        consumerPhase := IF consumerPhase \in {"holding", "parked"} THEN "rejected" ELSE consumerPhase;
+    }
+}
+
+fair process (CompatibilityRetry = "CompatibilityRetry") {
+CompatibilityRetryStep:
+    while (TRUE) {
+        await blocked;
+        blocked := FALSE;
     }
 }
 
@@ -97,6 +120,7 @@ TypeOK ==
     /\ consumerPhase \in Phases
     /\ selfCreated \in BOOLEAN
     /\ installed \in BOOLEAN
+    /\ blocked \in BOOLEAN
 
 NoSelfCreate ==
     ~selfCreated
@@ -112,5 +136,8 @@ AfterClearMustPark ==
 
 NoMixedWorld ==
     consumerPhase = "holding" => installed
+
+NoUseWhileBlocked ==
+    blocked => (~installed /\ consumerPhase /= "holding" /\ waiterCount = 0)
 
 ====
