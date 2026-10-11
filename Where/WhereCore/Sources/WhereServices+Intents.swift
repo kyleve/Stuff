@@ -37,6 +37,9 @@ extension WhereServices {
             store: store,
             locationSource: IdleLocationSource(),
             installationContext: .testing,
+            recordingAuthority: RecordingAuthority
+                .ownedForTesting(by: InstallationRecordingContext.testing.currentDevice.id),
+            deviceCoordination: nil,
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
             issueAlertScheduler: NoopDataIssueAlertScheduler(),

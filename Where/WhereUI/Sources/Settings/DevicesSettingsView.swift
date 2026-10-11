@@ -44,6 +44,21 @@ struct DevicesSettingsView: View {
             revealWhen: model.state.isReadyForSearchFocus,
         ) {
             Form {
+                if let role = model.role {
+                    Section {
+                        RecordingDeviceRoleView(
+                            state: role.state,
+                            canApprove: role.canApprove,
+                            choose: { recording in
+                                Task { _ = await role.choose(recording: recording)
+                                }
+                            },
+                            retry: { Task { await role.refresh() } },
+                            approve: { Task { await role.approveRequest() } },
+                            cancel: { Task { await role.cancelRequest() } },
+                        )
+                    }.task { await role.run() }
+                }
                 switch model.state {
                     case .idle, .loading:
                         Section {

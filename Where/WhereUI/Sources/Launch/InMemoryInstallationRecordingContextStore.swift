@@ -46,6 +46,10 @@ public final class InMemoryInstallationRecordingContextStore:
         return onboardingContext
     }
 
+    public func setRecordingControl(_ control: RecordingInstallationControl) throws {
+        onboardingContext = onboardingContext.settingRecordingControl(control)
+    }
+
     public func setAutomaticRecordingEnabled(_ isEnabled: Bool) throws {
         onboardingContext = onboardingContext.settingAutomaticRecordingEnabled(isEnabled, at: now())
     }

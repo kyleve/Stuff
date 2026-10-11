@@ -6,6 +6,17 @@ import UIKit
 
 @MainActor
 struct InstallationRecordingContextStoreTests {
+    @Test func confirmedRoleSurvivesRestartInBackupExcludedSidecar() throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        let store = fixture.makeStore()
+        _ = try store.confirmInitialRecording(isEnabled: true)
+        try store.setRecordingControl(.init(selection: .recordingRequested, pendingTransition: nil))
+        #expect(try fixture.makeStore().resolve().recordingControl.selection == .recordingRequested)
+        #expect(try fixture.directory.resourceValues(forKeys: [.isExcludedFromBackupKey])
+            .isExcludedFromBackup == true)
+    }
+
     @Test func mapsInterfaceIdiomsToRecordingKinds() {
         #expect(FileInstallationRecordingContextStore.kind(for: .phone) == .phone)
         #expect(FileInstallationRecordingContextStore.kind(for: .pad) == .tablet)
@@ -108,7 +119,12 @@ struct InstallationRecordingContextStoreTests {
         let fixture = try makeFixture()
         defer { fixture.cleanup() }
         let installationStore = fixture.makeStore()
-        let installationContext = try installationStore.confirmInitialRecording(isEnabled: true)
+        _ = try installationStore.confirmInitialRecording(isEnabled: true)
+        try installationStore.setRecordingControl(.init(
+            selection: .recordingRequested,
+            pendingTransition: nil,
+        ))
+        let installationContext = try installationStore.resolve()
         let details = try BackupCoordinator.ImportRecoveryDetails(
             transactionID: #require(UUID(
                 uuidString: "11111111-2222-3333-4444-555555555555",

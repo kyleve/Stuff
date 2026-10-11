@@ -84,7 +84,7 @@ public struct RecordingAuthority: Codable, Sendable, Equatable {
     }
 }
 
-public enum RecordingAuthorityError: Error, Sendable, Equatable {
+public enum RecordingAuthorityError: LocalizedError, Sendable, Equatable {
     case invalidRecord
     case conflict
     case ownerRequired
@@ -93,6 +93,21 @@ public enum RecordingAuthorityError: Error, Sendable, Equatable {
     case unsupportedVersion
     case revisionExhausted
     case authorityDisappeared
+
+    public var errorDescription: String? {
+        switch self {
+            case .invalidRecord, .authorityDisappeared:
+                String(localized: .recordingAuthorityVerificationFailed)
+            case .conflict, .invalidHandoff:
+                String(localized: .recordingAuthorityChanged)
+            case .ownerRequired, .alreadyOwned:
+                String(localized: .recordingAuthorityOwnerRequired)
+            case .unsupportedVersion:
+                String(localized: .recordingAuthorityUpdateRequired)
+            case .revisionExhausted:
+                String(localized: .recordingAuthorityRevisionExhausted)
+        }
+    }
 }
 
 /// User-selected treatment of automatic history from a forcibly replaced ownership period.

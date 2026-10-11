@@ -125,6 +125,7 @@ public struct RootView: View {
                 WhereBootstrap(
                     installationContextStore: $0,
                     storeStorage: .inMemory,
+                    authorityEnvironment: .local,
                     widgetRefresher: NoopWidgetTimelineRefresher(),
                     locationOutbox: NoOpLocationOutbox(),
                 )
