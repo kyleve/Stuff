@@ -636,6 +636,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             SDWhereDataGeneration.self,
             SDBackupImportReceipt.self,
             SDRecordingAuthorityCommit.self,
+            SDDataCompatibilityRequirement.self,
+            SDRecordingRecoveryExclusion.self,
             SDLocationSample.self,
             SDSampleAttributionRevision.self,
             SDEvidence.self,
@@ -1481,6 +1483,66 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 return duplicates.min(by: RecordingDeviceProfile.isCanonicalBefore)
             }
             .sorted { $0.id.storeURL.absoluteString < $1.id.storeURL.absoluteString }
+    }
+
+    public func dataCompatibilityRequirements() async throws -> [DataCompatibilityRequirement] {
+        let rows = try readContext().fetch(FetchDescriptor<SDDataCompatibilityRequirement>())
+        var unique: [UUID: DataCompatibilityRequirement] = [:]
+        for row in rows {
+            guard let payload = row.payload else { throw RecordingAuthorityError.invalidRecord }
+            let value = try JSONDecoder().decode(DataCompatibilityRequirement.self, from: payload)
+            guard value.id == row.id else { throw RecordingAuthorityError.invalidRecord }
+            if let previous = unique[value.id],
+               previous != value { throw RecordingAuthorityError.invalidRecord }
+            unique[value.id] = value
+        }
+        return Array(unique.values)
+    }
+
+    public func addDataCompatibilityRequirement(
+        _ requirement: DataCompatibilityRequirement,
+    ) async throws {
+        let context = mutationContext()
+        if let previous = try await dataCompatibilityRequirements()
+            .first(where: { $0.id == requirement.id })
+        {
+            guard previous == requirement else { throw RecordingAuthorityError.invalidRecord }
+            return
+        }
+        let row = SDDataCompatibilityRequirement()
+        row.id = requirement.id
+        row.payload = try JSONEncoder().encode(requirement)
+        context.insert(row)
+    }
+
+    public func importedRecordingRecoveryExclusions() async throws -> [RecordingRecoveryExclusion] {
+        let rows = try readContext().fetch(FetchDescriptor<SDRecordingRecoveryExclusion>())
+        var unique: [RecordingAuthority.EventID: RecordingRecoveryExclusion] = [:]
+        for row in rows {
+            guard let payload = row.payload else { throw RecordingAuthorityError.invalidRecord }
+            let value = try JSONDecoder().decode(RecordingRecoveryExclusion.self, from: payload)
+            try value.validate()
+            guard value.id.rawValue == row.id else { throw RecordingAuthorityError.invalidRecord }
+            if let previous = unique[value.id],
+               previous != value { throw RecordingAuthorityError.invalidRecord }
+            unique[value.id] = value
+        }
+        return Array(unique.values)
+    }
+
+    public func addRecordingRecoveryExclusion(_ exclusion: RecordingRecoveryExclusion) async throws {
+        try exclusion.validate()
+        let context = mutationContext()
+        if let previous = try await recordingRecoveryExclusions()
+            .first(where: { $0.id == exclusion.id })
+        {
+            guard previous == exclusion else { throw RecordingAuthorityError.invalidRecord }
+            return
+        }
+        let row = SDRecordingRecoveryExclusion()
+        row.id = exclusion.id.rawValue
+        row.payload = try JSONEncoder().encode(exclusion)
+        context.insert(row)
     }
 
     public func recordingAuthorityCommits() async throws -> [RecordingAuthorityCommit] {
@@ -2339,6 +2401,7 @@ final class SDLocationSample {
     /// Installation that produced an automatic sample. Nil on legacy rows and
     /// manual/evidence-implied samples.
     var recordingDeviceID: UUID?
+    var recordingTenureID: UUID?
     /// Retains the distinction between absent motion and a present, empty measurement bundle.
     var motionPresent: Bool?
     var speedMetersPerSecond: Double?
@@ -2364,6 +2427,7 @@ final class SDLocationSample {
         evidenceId = value.source.evidenceId
         evidenceKindRaw = value.source.evidenceKind?.discriminator
         recordingDeviceID = value.recordingDeviceID?.rawValue
+        recordingTenureID = value.recordingProvenance?.tenureID?.rawValue
         motionPresent = value.motion.map { _ in true }
         speedMetersPerSecond = value.motion?.speed?.metersPerSecond
         speedAccuracyMetersPerSecond = value.motion?.speed?.accuracyMetersPerSecond
@@ -2380,6 +2444,10 @@ final class SDLocationSample {
             evidenceId: evidenceId,
             evidenceKindRaw: evidenceKindRaw,
         ) else { return nil }
+        guard recordingTenureID == nil || (recordingDeviceID != nil && source.isGPS) else {
+            Self.logger { .droppedCorruptRecord(type: "SDLocationSample recording provenance") }
+            return nil
+        }
         // Optional motion may arrive partially without invalidating the raw
         // position. Preserve each complete measurement independently, and keep
         // these reads non-mutating so a later sync can complete the other one.
@@ -2402,7 +2470,7 @@ final class SDLocationSample {
         let altitude: LocationMotion.Altitude? = if let altitudeMeters, let altitudeAccuracyMeters {
             .init(meters: altitudeMeters, accuracyMeters: altitudeAccuracyMeters)
         } else { nil }
-        return LocationSample(
+        let sample = LocationSample(
             id: id,
             timestamp: timestamp,
             coordinate: Coordinate(latitude: latitude, longitude: longitude),
@@ -2412,6 +2480,13 @@ final class SDLocationSample {
             motion: motionPresent == true || speed != nil || altitude != nil
                 ? LocationMotion(speed: speed, altitude: altitude) : nil,
         )
+        if let recordingTenureID, let recordingDeviceID {
+            return sample.recorded(under: .init(
+                deviceID: .init(rawValue: recordingDeviceID),
+                tenureID: .init(rawValue: recordingTenureID),
+            ))
+        }
+        return sample
     }
 }
 
@@ -2953,6 +3028,22 @@ final class SDRecordingDeviceRemoval {
 /// Immutable control receipt; deliberately has no user-data generation membership.
 @Model
 final class SDRecordingAuthorityCommit {
+    var id: UUID?
+    var payload: Data?
+    init() {}
+}
+
+/// Immutable account floor, retained across destructive user-history generations.
+@Model
+final class SDDataCompatibilityRequirement {
+    var id: UUID?
+    var payload: Data?
+    init() {}
+}
+
+/// Imported historical policy; never grants live recording ownership.
+@Model
+final class SDRecordingRecoveryExclusion {
     var id: UUID?
     var payload: Data?
     init() {}

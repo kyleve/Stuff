@@ -43,7 +43,7 @@ struct LocationIngestorTests {
             entries = contents.map { LocationOutboxEntry(
                 sample: $0,
                 dataGenerationID: .initial,
-                recordingTenureID: nil,
+
             ) }
             self.failsToClear = failsToClear
             self.failsToSave = failsToSave
@@ -665,7 +665,7 @@ struct LocationIngestorTests {
         try await outbox.save([LocationOutboxEntry(
             sample: sample(at: "2026-03-15T12:00:00-07:00"),
             dataGenerationID: .initial,
-            recordingTenureID: nil,
+
         )])
         let ingestor = Self.makeIngestor(
             store: store,
@@ -1012,6 +1012,26 @@ private actor OneShotGate {
 /// other API forwards to a real in-memory `SwiftDataStore`.
 private actor ToggleFailingStore: WhereStore {
     private let backing: SwiftDataStore
+
+    func dataCompatibilityRequirements() async throws
+        -> [DataCompatibilityRequirement]
+    {
+        try await backing.dataCompatibilityRequirements()
+    }
+
+    func addDataCompatibilityRequirement(_ requirement: DataCompatibilityRequirement) async throws {
+        try await backing.addDataCompatibilityRequirement(requirement)
+    }
+
+    func importedRecordingRecoveryExclusions() async throws
+        -> [RecordingRecoveryExclusion]
+    {
+        try await backing.importedRecordingRecoveryExclusions()
+    }
+
+    func addRecordingRecoveryExclusion(_ exclusion: RecordingRecoveryExclusion) async throws {
+        try await backing.addRecordingRecoveryExclusion(exclusion)
+    }
 
     func recordingAuthorityCommits() async throws -> [RecordingAuthorityCommit] {
         try await backing.recordingAuthorityCommits()

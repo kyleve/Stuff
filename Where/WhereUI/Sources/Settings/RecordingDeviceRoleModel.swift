@@ -20,6 +20,16 @@ final class RecordingDeviceRoleModel {
         }
     }
 
+    struct RecoveryReview: Identifiable {
+        let owner: RecordingAuthority.Owner
+        let deviceName: String
+        var id: RecordingAuthority.EventID {
+            owner.tenureID
+        }
+    }
+
+    var recoveryReview: RecoveryReview?
+
     enum State: Equatable {
         case loading
         case loaded(Details)
@@ -106,6 +116,29 @@ final class RecordingDeviceRoleModel {
             state = .failed(details, error.localizedDescription)
             return nil
         }
+    }
+
+    func reviewRecovery() {
+        guard case let .loaded(details) = state,
+              let owner = details.authority.owner, !details.isOwner else { return }
+        recoveryReview = .init(
+            owner: owner,
+            deviceName: details
+                .names[owner.deviceID] ?? String(localized: .recordingRoleAnotherDevice),
+        )
+    }
+
+    func recover(history: RecordingRecoveryHistory) async {
+        guard case let .loaded(details) = state, let review = recoveryReview else { return }
+        recoveryReview = nil
+        readID = UUID()
+        state = .working(details)
+        do {
+            _ = try await coordination.recover(replacing: review.owner, history: history)
+            try await selectionChanged?(true)
+            state = .loaded(details)
+            await loadFromStore()
+        } catch { state = .failed(details, error.localizedDescription) }
     }
 
     func approveRequest() async {

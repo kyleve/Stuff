@@ -16,6 +16,10 @@ import RegionKit
 /// production `SwiftDataStore` implementation traps with a
 /// `preconditionFailure` if a mutation is called outside `perform`.
 public protocol WhereStore: Sendable {
+    func dataCompatibilityRequirements() async throws -> [DataCompatibilityRequirement]
+    func addDataCompatibilityRequirement(_ requirement: DataCompatibilityRequirement) async throws
+    func importedRecordingRecoveryExclusions() async throws -> [RecordingRecoveryExclusion]
+    func addRecordingRecoveryExclusion(_ exclusion: RecordingRecoveryExclusion) async throws
     /// Operational authority is global, excluded from backups, and survives history reset/Replace.
     func recordingAuthorityCommits() async throws -> [RecordingAuthorityCommit]
     func addRecordingAuthorityCommit(_ commit: RecordingAuthorityCommit) async throws
@@ -357,4 +361,30 @@ extension WhereStore {
     public func replaceHomeRegionRecord(with _: HomeRegionRecord) async throws {}
 
     public func restoreHomeRegionRecord(_: HomeRegionRecord) async throws {}
+}
+
+extension WhereStore {
+    public func requiredDataCompatibilityVersion() async throws -> DataCompatibilityVersion {
+        try await readSnapshot {
+            let imported = try await dataCompatibilityRequirements().map(\.version)
+                .max() ?? .initial
+            return try await max(imported, recordingAuthority().requiredVersion)
+        }
+    }
+
+    public func recordingRecoveryExclusions() async throws -> [RecordingRecoveryExclusion] {
+        try await readSnapshot {
+            let historical = try await importedRecordingRecoveryExclusions()
+            let live = try await recordingAuthorityCommits()
+                .compactMap(RecordingRecoveryExclusion.from)
+            var unique: [RecordingAuthority.EventID: RecordingRecoveryExclusion] = [:]
+            for exclusion in historical + live {
+                try exclusion.validate()
+                if let previous = unique[exclusion.id],
+                   previous != exclusion { throw RecordingAuthorityError.invalidRecord }
+                unique[exclusion.id] = exclusion
+            }
+            return unique.values.sorted { $0.id.rawValue.uuidString < $1.id.rawValue.uuidString }
+        }
+    }
 }

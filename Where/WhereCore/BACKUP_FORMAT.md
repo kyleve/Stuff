@@ -1,4 +1,4 @@
-# Where backup format v7
+# Where backup format v8
 
 `BackupArchive` is the authoritative manifest schema. A ZIP contains its JSON
 manifest and the referenced evidence assets. The production `BackupService`
@@ -21,6 +21,7 @@ Current imports require the current schema, including its required collections.
 | 5 | Added `plannedStayRecords`, including clearing tombstones. | [Annual forecasts](https://github.com/kyleve/Stuff/commit/c2dbdf90b3e88e11e32de8bf76d7a41ac617130f) |
 | 6 | Added optional sample motion and immutable attribution revisions. | [Sample corrections](https://github.com/kyleve/Stuff/commit/0da3b36dbce465edd93380993c7f2e13f718ebf8) |
 | 7 | Adds independent stay identities, arrival/departure windows, and `homeRegionRecords`. | [`BackupArchive.swift`](Sources/Backup/BackupArchive.swift) |
+| 8 | Adds the required compatibility version, sample recording tenures, and recovery exclusions. | [`BackupArchive.swift`](Sources/Backup/BackupArchive.swift) |
 
 The device feature also used prototype versions 4–7 before its merge.
 Those versions described recording assignments, registration epochs, causal parents, and merge barriers.
@@ -81,3 +82,13 @@ The offline upgrader converts the singular v5/v6 stay register into one shared l
 It infers exact arrival from the revision's UTC Gregorian day, capped at the existing departure.
 It preserves revision IDs, timestamps, motion readings, correction history, and assets.
 The earlier itinerary prototype also used v6. Records with `stayID` retain their independent identities and date windows.
+
+## Version 8 contents
+
+`requiredCompatibilityVersion` records the archive's data requirement.
+Samples retain their optional `recordingTenureID`, and `recordingRecoveryExclusions` retain recovery cutoffs.
+Live ownership grants and local recording consent remain outside the archive.
+
+The external upgrader assigns compatibility version 1 and empty recovery exclusions to older archives without these fields.
+It preserves planning revisions and never invents recording tenures.
+The production decoder rejects unsupported requirements before import mutation.

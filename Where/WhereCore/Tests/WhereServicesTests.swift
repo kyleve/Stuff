@@ -853,7 +853,7 @@ struct WhereServicesTests {
         try await outbox.save([LocationOutboxEntry(
             sample: pending,
             dataGenerationID: .initial,
-            recordingTenureID: nil,
+
         )])
         await outbox.setFailsToClear(true)
 
@@ -866,22 +866,20 @@ struct WhereServicesTests {
         #expect(await services.ingestor.isActive == false)
         #expect(try await store.recordingDeviceProfiles().count == 1)
         #expect(try await store.recordingDeviceCheckIns().isEmpty)
-        #expect(try await store.recordingDeviceRemovals().map(\.deviceID) == [
-            CurrentRecordingDevice.preview.id,
-        ])
-        #expect(try await store.dataGeneration().reason == .accountReset)
+        #expect(try await store.recordingDeviceRemovals().isEmpty)
+        #expect(try await store.dataGeneration().reason == .historyReset)
 
-        // A retained installation context must not mistake the reset-empty generation for first
-        // run and restore its original On choice after process restart.
+        // A restart retains ownership and consent, but the prior generation cannot repopulate
+        // history.
         let relaunched = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(authorizationStatus: .always),
+            locationOutbox: outbox,
         )
-        await #expect(throws: RecordingPersistenceError.self) {
-            try await relaunched.recording.register(authorization: .always)
-        }
-        #expect(await relaunched.recording.currentRuntimeUpdate()?.state == .removed)
-        #expect(await relaunched.ingestor.isActive == false)
+        _ = try await relaunched.recording.register(authorization: .always)
+        #expect(await relaunched.ingestor.isActive)
+        #expect(try await store.allSamples().isEmpty)
+        #expect(await outbox.persistedSamples.isEmpty)
     }
 
     @Test func committedResetDiscardsPendingLocationsAndPreservesTheGlobalProfile() async throws {
@@ -907,18 +905,15 @@ struct WhereServicesTests {
         try await outbox.save([LocationOutboxEntry(
             sample: pending,
             dataGenerationID: .initial,
-            recordingTenureID: nil,
+
         )])
 
         try await services.reset()
 
         #expect(await outbox.persistedSamples.isEmpty)
         #expect(try await store.recordingDeviceProfiles().count == 2)
-        #expect(try await Set(store.recordingDeviceRemovals().map(\.deviceID)) == [
-            CurrentRecordingDevice.preview.id,
-            remoteDeviceID,
-        ])
-        #expect(try await store.dataGeneration().reason == .accountReset)
+        #expect(try await store.recordingDeviceRemovals().isEmpty)
+        #expect(try await store.dataGeneration().reason == .historyReset)
         #expect(await services.ingestor.isActive == false)
     }
 
@@ -1765,6 +1760,26 @@ private struct ToggleFailingStoreError: Error {}
 /// narrow.
 private actor ToggleFailingStore: WhereStore {
     private let backing: SwiftDataStore
+
+    func dataCompatibilityRequirements() async throws
+        -> [DataCompatibilityRequirement]
+    {
+        try await backing.dataCompatibilityRequirements()
+    }
+
+    func addDataCompatibilityRequirement(_ requirement: DataCompatibilityRequirement) async throws {
+        try await backing.addDataCompatibilityRequirement(requirement)
+    }
+
+    func importedRecordingRecoveryExclusions() async throws
+        -> [RecordingRecoveryExclusion]
+    {
+        try await backing.importedRecordingRecoveryExclusions()
+    }
+
+    func addRecordingRecoveryExclusion(_ exclusion: RecordingRecoveryExclusion) async throws {
+        try await backing.addRecordingRecoveryExclusion(exclusion)
+    }
 
     func recordingAuthorityCommits() async throws -> [RecordingAuthorityCommit] {
         try await backing.recordingAuthorityCommits()
