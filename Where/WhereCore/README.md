@@ -621,7 +621,11 @@ try await services.recording.approveHandoff(requestID: request.requestID)
 
 Approval persists an installation-local fence, stops GPS, then commits the
 reviewed server transition. Uncertain responses reuse the same event ID.
-Restart honors the fence. Consent remains local and unchanged on the old phone.
+Restart and pending cancellation honor the fence. A cancellation retry retains its event ID.
+A verified newer server revision resolves a completed or rejected pending command.
+An unchanged head retains the command because a request can still be in flight.
+Consent remains local and unchanged on the old phone.
+Known removed targets cannot receive approval. A pending request must be cancelled before its target is removed.
 An offline established installation uses its last verified authority; malformed
 or unauthenticated responses fail closed. Foreground reconciliation refreshes
 authority before starting recording. Cloud push refresh is added in the system

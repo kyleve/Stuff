@@ -265,6 +265,8 @@ public actor DeviceRecordingController {
         else { try await authority.observed() }
         guard currentAuthority.owner?.deviceID != deviceID
         else { throw RecordingAuthorityError.ownerRequired }
+        guard currentAuthority.pendingHandoff?.requestedBy != deviceID
+        else { throw RecordingAuthorityError.invalidHandoff }
         let snapshot = try await storeSnapshot()
         guard snapshot.profiles.contains(where: { $0.id == deviceID }) else {
             throw RecordingPersistenceError.deviceNotFound(deviceID)
@@ -279,8 +281,11 @@ public actor DeviceRecordingController {
             removedByDeviceID: currentDevice.id,
         )
         try await store.perform(expectedDataGenerationID: snapshot.generation.id) {
-            guard try await self.authority.observed().owner?.deviceID != deviceID
+            let authority = try await self.authority.observed()
+            guard authority.owner?.deviceID != deviceID
             else { throw RecordingAuthorityError.ownerRequired }
+            guard authority.pendingHandoff?.requestedBy != deviceID
+            else { throw RecordingAuthorityError.invalidHandoff }
             try await self.store.addRecordingDeviceRemoval(removal)
         }
         await onPolicyChanged()
