@@ -238,3 +238,6 @@ recording/reviewing references.
 
 - Retain one bootstrap and compatibility coordinator across normal scope replacement. Evaluate compatibility before onboarding data operations and service assembly (`where.compatibility_coordination_composition`).
 - Keep blocked recording-role recovery on the bootstrap. Never create normal services to show update, retry, or replacement-device choices (`WhereCompatibilityLifecycleTests`).
+- Withdraw process-owned outputs even when bootstrap verification fails before service assembly. Recheck compatibility on foreground entry before session refresh; keep demo activation independent of the real bootstrap (`WhereCompatibilityLifecycleTests`).
+- Inspect higher local requirements without waiting for a suspended server refresh. A higher floor is permanent for the current process; an older refresh completion must never restore the normal world.
+- Unblock process handoffs before publishing a compatible state that resumes launch (`WhereCompatibilityModelTests`).

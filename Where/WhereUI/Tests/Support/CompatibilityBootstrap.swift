@@ -11,6 +11,11 @@ final class CompatibilityBootstrap: WhereScopeAssembling {
     let authority: RecordingAuthorityCoordinator
     let recording: RecordingDeviceCoordination
     let compatibility: DataCompatibilityCoordinator
+    private(set) var withdrawals = 0
+    func withdrawCompatibilityOutputs() async {
+        withdrawals += 1
+    }
+
     private(set) var makeServicesCount = 0
     private(set) var lastDomainStore: (any WhereStore)?
 

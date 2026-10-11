@@ -34,6 +34,10 @@ public struct ReportReader: Sendable {
     /// the daily summary, the widget snapshot, and the issue scan all go through
     /// it — so it is spanned with a budget: past a second, whatever asked for it
     /// is visibly waiting.
+    func validateDataAccess() async throws {
+        try await store.validateDataAccess()
+    }
+
     public func yearReport(for year: Int) async throws -> YearReport {
         try await Self.logger.measure(.yearReport, budget: .seconds(1)) {
             try await store.readSnapshot {

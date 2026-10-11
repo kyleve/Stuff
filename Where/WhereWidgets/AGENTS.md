@@ -47,3 +47,5 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   `WhereUI`. That is why the seam lives there rather than a `broadwayRoot` call
   here (see the root
   [`AGENTS.md`](../../AGENTS.md#never-double-link-a-product-whereui-already-carries)).
+- Read cached data through `CompatibleWidgetSnapshotReader`. Missing, malformed, unsupported, or changing compatibility publications hide data. Never reopen SwiftData to bypass that check.
+- Exclude widget compatibility metadata from device backups so a restored phone cannot inherit the prior installation's widget access.

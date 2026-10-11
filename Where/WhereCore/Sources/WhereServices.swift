@@ -34,6 +34,7 @@ private struct DerivedDataReconciler {
 /// authority, then discard pending fixes) — it lives here so teardown stays in
 /// Core rather than leaking into the UI layer.
 public struct WhereServices: Sendable {
+    private let outputLifetime: DataCompatibilityOutputs
     private let locationLifetime: CompatibilityLocationSource
     /// Pure reads: `YearReport` + location projections.
     public let reports: ReportReader
@@ -132,6 +133,20 @@ public struct WhereServices: Sendable {
             NoopBackupImportRecoveryPersistence(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
+        let outputs = DataCompatibilityOutputs(
+            store: store,
+            destinations: .init(
+                reminders: reminderScheduler,
+                summary: summaryScheduler,
+                issues: issueAlertScheduler,
+                widgets: widgetRefresher,
+            ),
+        )
+        outputLifetime = outputs
+        let reminderScheduler = outputs.reminders
+        let summaryScheduler = outputs.summary
+        let issueAlertScheduler = outputs.issueAlerts
+        let widgetRefresher = outputs.widgets
         let locationSource = CompatibilityLocationSource(base: locationSource, store: store)
         locationLifetime = locationSource
         let currentDevice = installationContext.currentDevice
@@ -413,12 +428,17 @@ public struct WhereServices: Sendable {
         }
     }
 
+    public func validateDataAccess() async throws {
+        try await store.validateDataAccess()
+    }
+
     /// Permanently retire a normal world without changing consent or discarding its queued fixes.
     public func suspendForCompatibility() async {
+        async let outputsStopped: Void = outputLifetime.retire()
         async let locationStopped: Void = locationLifetime.retire()
         await recording.retireForCompatibility()
         await resolution.invalidate()
-        await locationStopped
+        _ = await (locationStopped, outputsStopped)
     }
 
     /// Return the services to a clean slate for the app's "erase all data & reset" teardown:

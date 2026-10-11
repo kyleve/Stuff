@@ -176,3 +176,7 @@ Mutation guard: `domainStoreMethodsRequireCompatibilityChecks`.
 ### `where.compatibility_coordination_composition`
 
 Construct the app's `DataCompatibilityCoordinator` only in `WhereLaunch.swift` over the existing bootstrap store. Mutation coverage: `compatibilityCoordinatorIsComposedAtBootstrap`.
+
+### `where.compatibility_output_composition`
+
+Construct each `DataCompatibilityOutputs` lifetime in `WhereServices` over that scope's store. Mutation coverage: `outputLifetimesBelongToTheServiceScope`.

@@ -63,7 +63,10 @@ struct WhereWidgetProvider: TimelineProvider {
             theme = try WidgetPresentationStore.shared(
                 appGroupIdentifier: appGroupIdentifier,
             ).readTheme()
-            if let snapshot = store.read() {
+            if let snapshot = try CompatibleWidgetSnapshotReader(
+                snapshotStore: store,
+                compatibilityStore: .shared(appGroupIdentifier: appGroupIdentifier),
+            ).read() {
                 return WhereWidgetEntry(date: now, snapshot: snapshot, theme: theme)
             }
             Self.logger { .noPublishedSnapshot }

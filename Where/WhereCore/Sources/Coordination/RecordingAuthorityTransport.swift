@@ -2,6 +2,7 @@ import Foundation
 
 /// All authority mutations use compare-and-save against server state.
 public protocol RecordingAuthorityTransport: Sendable {
+    func subscribe() async throws
     func current() async throws -> RecordingAuthorityCommit?
     func receipt(for eventID: RecordingAuthority.EventID) async throws -> RecordingAuthorityCommit?
     func commit(_ proposal: RecordingAuthorityProposal) async throws -> RecordingAuthorityCommit
@@ -38,6 +39,8 @@ public actor LocalRecordingAuthorityTransport: RecordingAuthorityTransport {
             state = receipt.proposal.result
         }
     }
+
+    public func subscribe() {}
 
     public func current() -> RecordingAuthorityCommit? {
         latest

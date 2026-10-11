@@ -514,3 +514,25 @@ location source, cancels pending one-shot requests, and stops recording. It
 preserves installation consent and accepted outbox entries. Late callbacks
 cannot enqueue new samples through a revoked store. Recovery assembles a new
 service world with a new store permit.
+
+### System outputs
+
+Each normal service world wraps its injected notification and widget adapters in
+`DataCompatibilityOutputs`. Publication and withdrawal share one serial boundary.
+Checks before and after external awaits prevent a suspended publication from
+winning after retirement. `Destinations` holds the process-owned raw adapters so
+startup can withdraw old outputs even when opening or verifying the store fails.
+Saved notification preferences remain unchanged.
+
+Widget publication first writes blocked metadata, then fresh snapshot data, then
+a compatible publication revision. `CompatibleWidgetSnapshotReader` requires the
+same supported revision before and after reading the cache. Missing or malformed
+metadata hides cached data. WidgetKit refresh remains asynchronous.
+
+`StandaloneDataCompatibility.requireAccess(to:)` permits a short-lived extension
+to write only at the current global version. It never claims recording ownership
+or advances the floor. The share extension checks it inside the store transaction.
+
+History observation uses local verified metadata. Explicit retry, foreground,
+CloudKit pushes, and account changes refresh server authority. A known verification
+failure remains blocked until remote verification succeeds.

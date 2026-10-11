@@ -221,6 +221,7 @@ public protocol WhereScopeAssembling {
     /// **one** store open.
     func makeServices() async throws -> WhereServices
     func prepareDeviceCoordination() async throws -> RecordingDeviceCoordination?
+    func withdrawCompatibilityOutputs() async
     func prepareCompatibility() async throws -> DataCompatibilityCoordinator?
 
     /// Open and retain the real store while onboarding remains dormant, then read synced device
@@ -250,7 +251,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
 
     private let installationContextStore: any InstallationRecordingContextStoring
     private let storeStorage: SwiftDataStore.Storage
-    private let widgetRefresher: any WidgetTimelineRefreshing
+    private let outputDestinations: DataCompatibilityOutputs.Destinations
     private let locationOutbox: any LocationOutbox
     private var locationSource: CoreLocationSource?
     private var preparedCompatibility: DataCompatibilityCoordinator?
@@ -271,7 +272,12 @@ public final class WhereBootstrap: WhereScopeAssembling {
         self.installationContextStore = installationContextStore
         self.storeStorage = storeStorage
         self.authorityEnvironment = authorityEnvironment
-        self.widgetRefresher = widgetRefresher
+        outputDestinations = .init(
+            reminders: UserNotificationReminderScheduler(),
+            summary: UserNotificationDailySummaryScheduler(),
+            issues: UserNotificationDataIssueAlertScheduler(),
+            widgets: widgetRefresher,
+        )
         self.locationOutbox = locationOutbox
     }
 
@@ -321,10 +327,10 @@ public final class WhereBootstrap: WhereScopeAssembling {
                 // place that wants them: the demo scope builds the same stack
                 // out of no-ops, and every test and preview gets no-ops by
                 // default.
-                reminderScheduler: UserNotificationReminderScheduler(),
-                summaryScheduler: UserNotificationDailySummaryScheduler(),
-                issueAlertScheduler: UserNotificationDataIssueAlertScheduler(),
-                widgetRefresher: widgetRefresher,
+                reminderScheduler: outputDestinations.reminders,
+                summaryScheduler: outputDestinations.summary,
+                issueAlertScheduler: outputDestinations.issues,
+                widgetRefresher: outputDestinations.widgets,
                 locationOutbox: locationOutbox,
                 importRecoveryPersistence: installationContextStore,
             )
@@ -336,6 +342,10 @@ public final class WhereBootstrap: WhereScopeAssembling {
             }
             throw error
         }
+    }
+
+    public func withdrawCompatibilityOutputs() async {
+        await outputDestinations.withdraw()
     }
 
     public func prepareCompatibility() async throws -> DataCompatibilityCoordinator? {
@@ -496,6 +506,7 @@ final class ForegroundNotificationPresenter:
 }
 
 extension WhereScopeAssembling {
+    public func withdrawCompatibilityOutputs() async {}
     /// Injected preview/test worlds have no shared compatibility control plane.
     public func prepareCompatibility() async throws -> DataCompatibilityCoordinator? {
         nil
