@@ -24,4 +24,26 @@ struct LocationSampleTests {
         #expect(try JSONDecoder()
             .decode(LocationSample.self, from: JSONEncoder().encode(stamped)) == stamped)
     }
+
+    @Test func ownershipStampSurvivesCodableWithoutDroppingLegacyOutboxIdentity() throws {
+        let deviceID = RecordingDeviceID(rawValue: UUID())
+        let sample = LocationSample(
+            timestamp: Date(),
+            coordinate: .init(latitude: 40, longitude: -100),
+            horizontalAccuracy: 5,
+            source: .gpsVisit,
+            recordingDeviceID: deviceID,
+        )
+        let legacyData = try JSONEncoder().encode(sample)
+        #expect(try JSONDecoder().decode(LocationSample.self, from: legacyData)
+            .recordingDeviceID == deviceID)
+        let owner = RecordingAuthority.Owner(
+            deviceID: deviceID,
+            ownershipID: .init(rawValue: UUID()),
+        )
+        let stamped = sample.recorded(under: owner)
+        #expect(try JSONDecoder()
+            .decode(LocationSample.self, from: JSONEncoder().encode(stamped)) == stamped)
+        #expect(stamped.recordingProvenance?.ownershipID == owner.ownershipID)
+    }
 }
