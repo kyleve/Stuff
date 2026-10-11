@@ -1,0 +1,8 @@
+{
+  "source": "pluscal",
+  "module": "RecordingAuthority.tla",
+  "cases": [
+    { "name": "current", "config": "Current.cfg", "expect": "pass" },
+    { "name": "broken", "config": "Broken.cfg", "expect": "fail", "outputContains": "Invariant OwnerOnlyUpgrade is violated." }
+  ]
+}
