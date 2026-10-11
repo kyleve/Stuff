@@ -398,3 +398,44 @@ notification and widget seams to, so a test or preview that names nothing
 posts nothing and reloads nothing. The public `WhereServices.make(...)`
 requires those seams instead: naming the real world is the composition root's
 job, not something a caller falls into by omission.
+
+## Recording authority foundation
+
+`RecordingAuthorityCoordinator` reconciles a server-confirmed owner and data
+version into the existing store. This foundation does not yet change recording
+behavior. The single-recorder lifecycle is the next stack slice.
+
+```swift
+let authority = RecordingAuthorityCoordinator(store: store, transport: transport)
+let state = try await authority.refresh()
+let claim = try RecordingAuthorityProposal(
+    state: state, action: .claim, deviceID: installation.currentDevice.id,
+    buildVersion: .current,
+    eventID: .init(rawValue: UUID())
+)
+try await authority.submit(claim)
+```
+
+Keep the proposal until its outcome is known. A retry uses the same event ID;
+it returns the original immutable receipt even after later transitions. A
+conflicting proposal requires a fresh read and user review, not automatic retry.
+An approval proposal does not stop hardware: the recording controller must
+durably stop before submitting it.
+
+The live transport uses the private custom zone `WhereRecordingAuthority`,
+with `WhereAuthorityHead` and `WhereAuthorityEvent` records. Each has a `payload`
+Bytes field. The head and immutable event are saved atomically with
+`ifServerRecordUnchanged`. Deploy those record types/fields to the production
+CloudKit environment before distributing the completed stack. Do not edit or
+query SwiftData-generated zones. No public database or external service is used.
+A record-zone subscription supplies refresh hints; launch/foreground refreshes
+remain required. `LocalRecordingAuthorityTransport` supplies development/demo
+state without networking.
+
+`refresh()` resolves the immutable predecessor chain, including recovery choices
+missed while offline, then projects receipts in one store transaction. Missing
+predecessors and conflicting records throw. The projection is operational metadata:
+reset and Replace must retain it and backups must not restore its live grants.
+CloudKit account changes must invalidate a consumer's cached authority before
+allowing offline recording; consumers must not treat a missing established head
+as permission to claim again.

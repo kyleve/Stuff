@@ -187,6 +187,10 @@ internal shape.
   `DataIssueScanner` measures detector passes with `detect(category)` and the
   shared flight/boundary assessment with `assessGPS`; see `DataIssueScannerLog`.
 
+- Keep direct CloudKit coordination in `CloudKitRecordingAuthorityTransport`; never access SwiftData-managed CloudKit records there.
+- Bind authority transitions to the reviewed state and reuse their event ID after uncertain responses. Resolve every immutable predecessor before publishing authority. Guard: `RecordingAuthorityCoordinatorTests` / `RecordingAuthorityTransportTests`.
+- Preserve authority receipts across destructive data generations; exclude operational ownership from backups. All projection writes use `WhereStore.perform`.
+
 ## Testing
 
 Swift Testing in [`Tests/`](Tests) (`WhereCoreTests`), hosted in
