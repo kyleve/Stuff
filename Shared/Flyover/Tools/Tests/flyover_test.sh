@@ -10,6 +10,329 @@ fail() {
     exit 1
 }
 
+expect_failure() {
+    if "$@" >"$TEMP/stdout" 2>"$TEMP/stderr"; then
+        fail "command unexpectedly succeeded: $*"
+    fi
+}
+
+SUCCESS_RUNNER="$TEMP/success-runner"
+cat >"$SUCCESS_RUNNER" <<'RUNNER'
+#!/bin/bash
+set -euo pipefail
+expected='WhereUISnapshotTests/WhereFlyoverWebExportTests/exportsRequestedAtlas()'
+if [ "$#" -ne 2 ] || [ "${1-}" != --only ] || [ "${2-}" != "$expected" ]; then
+    echo "unexpected capture runner arguments: $*" >&2
+    exit 64
+fi
+python3 - <<'PY'
+import json, os, pathlib
+root = pathlib.Path(os.environ['FLYOVER_EXPORT_DIRECTORY'])
+profiles = os.environ['FLYOVER_EXPORT_PROFILES'].split(',')
+images = []
+paths = {}
+for index, profile in enumerate(profiles, 1):
+    relative = f'images/screen-0001/variant-0001/{profile}.png'
+    path = root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b'PNG')
+    paths[profile] = relative
+    images.append({'screenID': 'screen', 'variantID': 'default', 'profileID': profile,
+                   'relativePath': relative, 'pointWidth': 1, 'pointHeight': 1,
+                   'pixelWidth': 3, 'pixelHeight': 3, 'scale': 3,
+                   'captureExtent': 'viewport'})
+manifest = {
+    'schemaVersion': 1,
+    'application': {'id': 'where', 'title': 'Where'},
+    'build': {
+        'commit': os.environ['FLYOVER_EXPORT_COMMIT'],
+        'dirty': os.environ.get('FLYOVER_EXPORT_DIRTY') == 'true',
+        'branch': os.environ.get('FLYOVER_EXPORT_BRANCH') or None,
+        'generatedAt': os.environ['FLYOVER_EXPORT_GENERATED_AT'],
+        'xcodeVersion': os.environ['FLYOVER_EXPORT_XCODE_VERSION'],
+        'simulatorDevice': os.environ['FLYOVER_EXPORT_SIMULATOR_DEVICE'],
+        'simulatorOS': os.environ['FLYOVER_EXPORT_SIMULATOR_OS'],
+    },
+    'profiles': [{
+        'id': profile,
+        'title': profile,
+        'device': 'phone',
+        'orientation': 'portrait',
+        'colorScheme': 'dark' if profile == 'phone-dark' else 'light',
+        'dynamicType': 'large',
+        'contrast': 'standard',
+        'layoutDirection': 'left-to-right',
+        'legibilityWeight': 'regular',
+        'snapshotType': 'standard',
+    } for profile in profiles],
+    'canvas': {
+        'size': {'width': 500, 'height': 700},
+        'initialFitSize': {'width': 500, 'height': 700},
+        'groupFrames': [{
+            'id': 'group',
+            'frame': {'x': 0, 'y': 0, 'width': 500, 'height': 700},
+        }],
+        'depthBandFrames': [{
+            'groupID': 'group',
+            'kind': 'route',
+            'depth': 0,
+            'frame': {'x': 20, 'y': 20, 'width': 460, 'height': 660},
+        }],
+        'screenFrames': [{
+            'id': 'screen',
+            'frame': {'x': 50, 'y': 50, 'width': 300, 'height': 650},
+        }],
+        'connectors': [],
+    },
+    'groups': [{
+        'id': 'group',
+        'title': 'Group',
+        'order': 0,
+        'rootScreenID': 'screen',
+        'screenIDs': ['screen'],
+    }],
+    'screens': [{
+        'id': 'screen',
+        'title': 'Screen',
+        'groupID': 'group',
+        'groupOrder': 0,
+        'screenOrder': 0,
+        'viewport': {'kind': 'device'},
+        'navigationContainer': 'stack',
+        'frame': {'x': 50, 'y': 50, 'width': 300, 'height': 650},
+        'variants': [{
+            'id': 'default',
+            'title': 'Default',
+            'captureExtent': 'viewport',
+            'imagesByProfile': paths,
+        }],
+        'incomingRouteIDs': [],
+        'outgoingRouteIDs': [],
+    }],
+    'routes': [],
+    'images': images,
+}
+if os.environ.get('FLYOVER_INVALID_MANIFEST') == 'missing-application':
+    del manifest['application']
+data = json.dumps(manifest, sort_keys=True, indent=2)
+(root / 'manifest.json').write_text(data)
+(root / 'manifest.js').write_text('window.FLYOVER_MANIFEST = ' + data + ';\n')
+PY
+if [ -n "${FLYOVER_RACE_DESTINATION:-}" ]; then
+    mkdir -p "$FLYOVER_RACE_DESTINATION"
+    printf '%s\n' retained >"$FLYOVER_RACE_DESTINATION/retained"
+fi
+if [ -n "${FLYOVER_RACE_SYMLINK_DESTINATION:-}" ]; then
+    ln -s "$FLYOVER_RACE_SYMLINK_DESTINATION.missing" "$FLYOVER_RACE_SYMLINK_DESTINATION"
+fi
+if [ -n "${FLYOVER_STALE_BACKUP_DESTINATION:-}" ]; then
+    stale_parent="$(dirname "$FLYOVER_STALE_BACKUP_DESTINATION")"
+    stale_name="$(basename "$FLYOVER_STALE_BACKUP_DESTINATION")"
+    stale="$stale_parent/.flyover-previous.$stale_name.$PPID"
+    mkdir -p "$stale"
+    printf '%s\n' retained >"$stale/retained"
+fi
+RUNNER
+chmod +x "$SUCCESS_RUNNER"
+
+FAILURE_RUNNER="$TEMP/failure-runner"
+cat >"$FAILURE_RUNNER" <<'RUNNER'
+#!/bin/bash
+exit 19
+RUNNER
+chmod +x "$FAILURE_RUNNER"
+
+"$ROOT/flyover" --help | grep -q 'flyover export' || fail "export help is incomplete"
+"$ROOT/flyover" export --help | grep -q 'phone-voiceover' \
+    || fail "export help does not list the supported profiles"
+"$ROOT/flyover" export --help | grep -q 'defaults are phone-light and phone-dark' \
+    || fail "export help does not list both default profiles"
+expect_failure "$ROOT/flyover" export --profile system
+grep -q "unknown profile" "$TEMP/stderr" || fail "unknown profile error is unclear"
+expect_failure "$ROOT/flyover" export --output
+expect_failure "$ROOT/flyover" export --profile
+expect_failure "$ROOT/flyover" export --output /
+expect_failure "$ROOT/flyover" export --output "$HOME"
+expect_failure "$ROOT/flyover" export --output "$ROOT"
+
+ln -s / "$TEMP/root-alias"
+expect_failure "$ROOT/flyover" export --output "$TEMP/root-alias"
+grep -q "filesystem root" "$TEMP/stderr" || fail "root alias was not rejected as root"
+ln -s "$HOME" "$TEMP/home-alias"
+expect_failure "$ROOT/flyover" export --output "$TEMP/home-alias"
+grep -q "home directory" "$TEMP/stderr" || fail "home alias was not rejected as home"
+ln -s "$ROOT" "$TEMP/workspace-alias"
+expect_failure "$ROOT/flyover" export --output "$TEMP/workspace-alias"
+grep -q "workspace root" "$TEMP/stderr" || fail "workspace alias was not rejected as workspace"
+
+UNMARKED="$TEMP/unmarked"
+mkdir -p "$UNMARKED"
+expect_failure env FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" \
+    FLYOVER_XCODE_VERSION_OVERRIDE=Tests "$ROOT/flyover" export --output "$UNMARKED"
+grep -q "unmarked" "$TEMP/stderr" || fail "unmarked-directory error is unclear"
+
+UNSUPPORTED_MARKER="$TEMP/unsupported-marker"
+mkdir -p "$UNSUPPORTED_MARKER"
+printf '%s\n' schemaVersion=2 >"$UNSUPPORTED_MARKER/.flyover-generated"
+expect_failure env FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" \
+    FLYOVER_XCODE_VERSION_OVERRIDE=Tests \
+    "$ROOT/flyover" export --output "$UNSUPPORTED_MARKER"
+grep -q "unsupported marker" "$TEMP/stderr" \
+    || fail "unsupported generated marker was not rejected"
+
+SYMLINK_MARKER="$TEMP/symlink-marker"
+mkdir -p "$SYMLINK_MARKER"
+printf '%s\n' schemaVersion=1 >"$TEMP/marker-target"
+ln -s "$TEMP/marker-target" "$SYMLINK_MARKER/.flyover-generated"
+expect_failure env FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" \
+    FLYOVER_XCODE_VERSION_OVERRIDE=Tests "$ROOT/flyover" export --output "$SYMLINK_MARKER"
+grep -q "symbolic-link marker" "$TEMP/stderr" \
+    || fail "symbolic-link generated marker was not rejected"
+
+RACED="$TEMP/raced"
+expect_failure env FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" \
+    FLYOVER_XCODE_VERSION_OVERRIDE=Tests FLYOVER_RACE_DESTINATION="$RACED" \
+    "$ROOT/flyover" export --output "$RACED"
+grep -q "unmarked" "$TEMP/stderr" || fail "publish-time destination change was not rejected"
+[ -f "$RACED/retained" ] || fail "publish-time destination change was deleted"
+
+RACED_SYMLINK="$TEMP/raced-symlink"
+expect_failure env FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" \
+    FLYOVER_XCODE_VERSION_OVERRIDE=Tests \
+    FLYOVER_RACE_SYMLINK_DESTINATION="$RACED_SYMLINK" \
+    "$ROOT/flyover" export --output "$RACED_SYMLINK"
+grep -q "non-directory" "$TEMP/stderr" \
+    || fail "publish-time dangling symlink was not rejected"
+[ -L "$RACED_SYMLINK" ] || fail "publish-time dangling symlink was deleted"
+
+CALLER="$TEMP/caller"
+mkdir -p "$CALLER"
+(
+    cd "$CALLER"
+    FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" FLYOVER_XCODE_VERSION_OVERRIDE=Tests \
+        "$ROOT/flyover" export >/dev/null
+)
+[ -f "$CALLER/.build/flyover/where/.flyover-generated" ] \
+    || fail "default output path did not resolve from the caller directory"
+python3 - "$CALLER/.build/flyover/where/manifest.json" <<'PY'
+import json, pathlib, sys
+manifest = json.loads(pathlib.Path(sys.argv[1]).read_text())
+profiles = [item['id'] for item in manifest['profiles']]
+if profiles != ['phone-light', 'phone-dark']:
+    raise SystemExit(f'default profiles are wrong: {profiles}')
+if len(manifest['images']) != 2:
+    raise SystemExit(f'default image count is wrong: {len(manifest["images"])}')
+PY
+
+OUTPUT="$TEMP/output"
+FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" FLYOVER_XCODE_VERSION_OVERRIDE=Tests \
+    "$ROOT/flyover" export --output "$OUTPUT" \
+    --profile phone-dark --profile phone-light --profile phone-dark >/dev/null
+python3 - "$OUTPUT" <<'PY'
+import json, pathlib, stat, sys
+root = pathlib.Path(sys.argv[1])
+profiles = [item['id'] for item in json.loads((root / 'manifest.json').read_text())['profiles']]
+if profiles != ['phone-dark', 'phone-light']:
+    raise SystemExit(f'profile order or deduplication is wrong: {profiles}')
+bad_directories = [path for path in [root, *root.rglob('*')]
+                   if path.is_dir() and stat.S_IMODE(path.stat().st_mode) != 0o755]
+bad_files = [path for path in root.rglob('*')
+             if path.is_file() and stat.S_IMODE(path.stat().st_mode) != 0o644]
+if bad_directories or bad_files:
+    raise SystemExit(f'unsafe published modes: directories={bad_directories}, files={bad_files}')
+PY
+
+STANDARD_CACHE_PYTHON_BIN="$TEMP/standard-cache-python-bin"
+mkdir -p "$STANDARD_CACHE_PYTHON_BIN"
+cat >"$STANDARD_CACHE_PYTHON_BIN/python3" <<'PYTHON'
+#!/bin/bash
+set -euo pipefail
+exec "$FLYOVER_REAL_PYTHON" -X pycache_prefix= "$@"
+PYTHON
+chmod +x "$STANDARD_CACHE_PYTHON_BIN/python3"
+REAL_PYTHON="$(command -v python3)"
+
+CLEAN_REPO="$TEMP/clean-repo"
+mkdir -p "$CLEAN_REPO/Shared/Flyover/Web/assets"
+mkdir -p "$CLEAN_REPO/Tools"
+cp "$ROOT/flyover" "$CLEAN_REPO/flyover"
+cp "$ROOT/Tools/flyover_manifest.py" "$CLEAN_REPO/Tools/flyover_manifest.py"
+cp "$ROOT/Tools/flyover_preview.py" "$CLEAN_REPO/Tools/flyover_preview.py"
+cp "$ROOT/Shared/Flyover/Web/index.html" "$CLEAN_REPO/Shared/Flyover/Web/index.html"
+cp "$ROOT/Shared/Flyover/Web/assets/app.js" "$CLEAN_REPO/Shared/Flyover/Web/assets/app.js"
+cp "$ROOT/Shared/Flyover/Web/assets/styles.css" "$CLEAN_REPO/Shared/Flyover/Web/assets/styles.css"
+chmod +x "$CLEAN_REPO/flyover"
+git -C "$CLEAN_REPO" init -q
+git -C "$CLEAN_REPO" add .
+git -C "$CLEAN_REPO" -c user.name=Flyover -c user.email=flyover@example.com \
+    -c commit.gpgsign=false commit -qm fixture
+PATH="$STANDARD_CACHE_PYTHON_BIN:$PATH" FLYOVER_REAL_PYTHON="$REAL_PYTHON" \
+    FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" FLYOVER_XCODE_VERSION_OVERRIDE=Tests \
+    "$CLEAN_REPO/flyover" export --output "$CLEAN_REPO/site" >/dev/null
+PATH="$STANDARD_CACHE_PYTHON_BIN:$PATH" FLYOVER_REAL_PYTHON="$REAL_PYTHON" \
+    FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" FLYOVER_XCODE_VERSION_OVERRIDE=Tests \
+    "$CLEAN_REPO/flyover" export --output "$CLEAN_REPO/site" >/dev/null
+python3 - "$CLEAN_REPO/site/manifest.json" <<'PY'
+import json, pathlib, sys
+dirty = json.loads(pathlib.Path(sys.argv[1]).read_text())['build']['dirty']
+if dirty:
+    raise SystemExit('staging a clean in-repository export marked the source dirty')
+PY
+[ ! -e "$CLEAN_REPO/Tools/__pycache__" ] \
+    || fail "Flyover Python tooling wrote bytecode into the source tree"
+
+FAILING_GIT_BIN="$TEMP/failing-git-bin"
+mkdir -p "$FAILING_GIT_BIN"
+cat >"$FAILING_GIT_BIN/git" <<'GIT'
+#!/bin/bash
+for argument in "$@"; do
+    if [ "$argument" = status ]; then
+        exit 71
+    fi
+done
+exec "$FLYOVER_REAL_GIT" "$@"
+GIT
+chmod +x "$FAILING_GIT_BIN/git"
+expect_failure env PATH="$FAILING_GIT_BIN:$PATH" FLYOVER_REAL_GIT="$(command -v git)" \
+    FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" FLYOVER_XCODE_VERSION_OVERRIDE=Tests \
+    "$CLEAN_REPO/flyover" export --output "$CLEAN_REPO/status-failure"
+grep -q "could not read the Git working-tree status" "$TEMP/stderr" \
+    || fail "a Git status failure was treated as a clean source tree"
+
+printf '%s\n' retained-before-invalid >"$OUTPUT/retained-before-invalid"
+expect_failure env FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" \
+    FLYOVER_XCODE_VERSION_OVERRIDE=Tests FLYOVER_INVALID_MANIFEST=missing-application \
+    "$ROOT/flyover" export --output "$OUTPUT"
+grep -q "manifest.application is not an object" "$TEMP/stderr" \
+    || fail "an incomplete browser manifest did not report its missing section"
+[ -f "$OUTPUT/retained-before-invalid" ] \
+    || fail "an incomplete browser manifest replaced the last successful output"
+
+FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" FLYOVER_XCODE_VERSION_OVERRIDE=Tests \
+    FLYOVER_STALE_BACKUP_DESTINATION="$OUTPUT" \
+    "$ROOT/flyover" export --output "$OUTPUT" >/dev/null
+STALE_BACKUP="$(find "$TEMP" -maxdepth 1 -type d \
+    -name '.flyover-previous.output.*' -print -quit)"
+[ -n "$STALE_BACKUP" ] && [ -f "$STALE_BACKUP/retained" ] \
+    || fail "replacement removed a backup directory that it did not create"
+rm -rf "$STALE_BACKUP"
+if find "$TEMP" -maxdepth 1 -name '.flyover-replacement.*' | grep -q .; then
+    fail "a successful export left its replacement directory"
+fi
+
+printf '%s\n' old >"$OUTPUT/old-file"
+FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" FLYOVER_XCODE_VERSION_OVERRIDE=Tests \
+    "$ROOT/flyover" export --output "$OUTPUT" >/dev/null
+[ ! -e "$OUTPUT/old-file" ] || fail "a marked directory was not replaced"
+
+printf '%s\n' retained >"$OUTPUT/retained"
+expect_failure env FLYOVER_CAPTURE_RUNNER="$FAILURE_RUNNER" \
+    FLYOVER_XCODE_VERSION_OVERRIDE=Tests "$ROOT/flyover" export --output "$OUTPUT"
+[ -f "$OUTPUT/retained" ] || fail "a failed export replaced the last successful output"
+if find "$TEMP" -maxdepth 1 -name '.flyover-staging.*' | grep -q .; then
+    fail "a failed export left a staging directory"
+fi
+
 if grep -R -E 'fetch\(|https?://' "$ROOT/Shared/Flyover/Web" \
     | grep -v 'http://www.w3.org/2000/svg' >/dev/null; then
     fail "the web shell contains a network dependency"

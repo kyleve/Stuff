@@ -30,6 +30,7 @@ functions returned expected values.
 | `Where/install` | macOS/Xcode/device | signing and device inventory | physical device | Dry run performs no build/install/launch |
 | `Ledger/install` | macOS/Xcode | built/installed apps | `/Applications/Ledger.app` | Exact-process and transactional replacement |
 | `tla-check` | macOS/Linux-compatible tooling | manifests/specs | retained run artifacts | Pinned tools and honest pass/fail policy |
+| `flyover` | macOS/Xcode | catalog, generated atlas | generated directory | Export is atomic and validates every asset |
 
 The original comparison used `main` before the retained-tooling changes.
 Those changes added `--dry-run` modes to the mutating commands.
@@ -137,6 +138,12 @@ Report the remaining backups.
 
 If rollback itself fails, report both failures and preserve recovery material.
 Do not claim that restoration succeeded. Guard: `test_surfaces_apply_and_rollback_failures_together`.
+
+### Flyover export
+
+Cover unsafe output aliases, replacement races, invalid markers, incomplete
+manifests, missing or extra images, symbolic links, path traversal, paths with
+spaces, and cleanup after capture or publication failure.
 
 ### Installers
 
