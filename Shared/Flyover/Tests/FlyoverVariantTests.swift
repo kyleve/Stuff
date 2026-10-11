@@ -55,4 +55,30 @@ struct FlyoverVariantTests {
         _ = variant.overviewContent()
         #expect(buildCount == 1)
     }
+
+    @Test func mixedSnapshotSizingDoesNotExposeAFallbackPolicy() {
+        let snapshotCase = SnapshotCase(
+            name: "Mixed",
+            configurations: [
+                SnapshotConfiguration(
+                    device: SnapshotConfiguration.Frame(
+                        name: "viewport",
+                        size: .fixed(CGSize(width: 100, height: 100)),
+                    ),
+                ),
+                SnapshotConfiguration(
+                    device: .fullContent(name: "full-content", width: 100),
+                ),
+            ],
+        ) {
+            Color.red
+        }
+
+        let variant = FlyoverVariant(
+            id: FlyoverVariantID("mixed"),
+            snapshotCase: snapshotCase,
+        )
+
+        #expect(variant.exportPolicy == nil)
+    }
 }

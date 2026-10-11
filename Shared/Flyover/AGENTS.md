@@ -7,6 +7,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build, format
 ## Scope & dependencies
 
 - **Flyover may import SwiftUI, SFSafeSymbols, BroadwayCore/BroadwayUI, and SnapshotKit.** It must not import WhereCore, WhereUI, persistence frameworks, or any app module.
+- **Keep the static exporter generic over `ScreenID`.** Accept the hosted PNG operation as a closure. Never import SnapshotKitTesting.
 - **Apps own their typed screen IDs, demo/synthetic state, catalog construction, and the DEBUG-only entry point** that hosts ``FlyoverView``.
 - **Use English literals for strings** in this developer-only shared tool. An app localizes the entry point it adds to its own UI.
 
@@ -27,6 +28,9 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build, format
 - **Register forward push/modal routes only.** Flyover derives Back/Dismiss cues from incoming routes.
 - **Render connectors as vector views.** A graph-sized Canvas texture can exceed the GPU dimension limit. Guard: `WhereFlyoverViewSnapshotTests` (PR #329).
 - **Type erase only at the heterogeneous content/control registry boundary.**
+- **Validate every stable screen and variant identifier before capture.** Use generated ordinals for image paths.
+- **Preserve snapshot-backed capture intent.** Reject mixed sizing matrices unless the app supplies an explicit export policy.
+- **Fail full-content export when sizing does not converge.** Never publish a viewport fallback.
 
 ## Testing
 
