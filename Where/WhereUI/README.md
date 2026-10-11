@@ -553,6 +553,9 @@ The process retains one `WhereBootstrap`, its open store, and its compatibility
 coordinator. `DataCompatibilityGate` runs before onboarding data operations and
 normal service assembly, including headless launch. The bootstrap remains
 available for recording-role selection and lost-phone recovery while blocked.
+An owner can cancel an interrupted handoff from this bootstrap surface, even
+when approval is unavailable. Cancellation resolves the pending command before
+compatibility retries the upgrade.
 
 `WhereCompatibilityModel` observes store history and publishes explicit checking,
 compatible, update-required, waiting-for-recorder, and verification-failed states.

@@ -238,4 +238,4 @@ recording/reviewing references.
 - Bind lost-phone recovery confirmation to the reviewed owner. Show the offline overlap and history choices before submitting (`RecordingDeviceRoleModel`).
 
 - Retain one bootstrap and compatibility coordinator across normal scope replacement. Construct the production coordinator only in `WhereLaunch`; isolated test fixtures may construct their own. Evaluate compatibility before onboarding data operations and service assembly (`where.compatibility_coordination_composition`).
-- Keep blocked recording-role recovery on the bootstrap. Never create normal services to show update, retry, or replacement-device choices (`WhereCompatibilityLifecycleTests`).
+- Keep blocked recording-role recovery on the bootstrap. Allow cancellation of an owner's pending handoff even when approval is unavailable. Never create normal services to show update, retry, or replacement-device choices (`WhereCompatibilityLifecycleTests`, `RecordingDeviceRoleModelTests`).

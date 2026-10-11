@@ -5,6 +5,67 @@ import Testing
 
 @MainActor
 struct RecordingDeviceRoleModelTests {
+    @Test(arguments: [true, false])
+    func blockedUpgradeCanCancelAnUncommittedHandoff(approval: Bool) async throws {
+        let bootstrap = try CompatibilityBootstrap()
+        let owner = try await bootstrap.recording.selectRecordingRole(.recordingRequested)
+        let request = try RecordingAuthorityProposal(
+            state: owner,
+            action: .requestHandoff,
+            deviceID: .init(rawValue: UUID()),
+            buildVersion: .current,
+            eventID: .init(rawValue: UUID()),
+        )
+        _ = try await bootstrap.authority.submit(request)
+        let requestID = try #require(request.result.pendingHandoff?.requestID)
+        let context = try bootstrap.installation.resolve()
+        let pending = try RecordingAuthorityProposal(
+            state: request.result,
+            action: approval ? .approveHandoff(requestID: requestID) :
+                .cancelHandoff(requestID: requestID),
+            deviceID: context.currentDevice.id,
+            buildVersion: .current,
+            eventID: .init(rawValue: UUID()),
+        )
+        try bootstrap.installation.setRecordingControl(.init(
+            selection: .recordingRequested,
+            pendingTransition: pending,
+        ))
+        // Relaunch a newer build after persisting the command, before its server commit.
+        let version = DataCompatibilityVersion(rawValue: 2)
+        let recording = RecordingDeviceCoordination(
+            supportedVersion: version,
+            authority: bootstrap.authority,
+            installation: bootstrap.installation,
+        )
+        let compatibility = DataCompatibilityCoordinator(
+            store: bootstrap.store,
+            recording: recording,
+            installation: bootstrap.installation,
+        )
+        guard case .verificationFailed = await compatibility.recheck() else {
+            Issue.record("The unresolved command must prevent an automatic upgrade.")
+            return
+        }
+        let role = RecordingDeviceRoleModel(
+            coordination: recording,
+            currentDeviceID: context.currentDevice.id,
+            selectionChanged: nil,
+            approve: nil,
+        )
+        await role.refresh()
+        #expect(role.isOwner)
+        #expect(!role.canApprove)
+        #expect(role.state.details?.interruptedApproval == requestID)
+        await role.cancelRequest()
+        #expect(try bootstrap.installation.resolve().recordingControl.pendingTransition == nil)
+        #expect(await compatibility.recheck() == .compatible(version))
+        let resolved = try await recording.observed()
+        #expect(resolved.owner == owner.owner)
+        #expect(resolved.pendingHandoff == nil)
+        #expect(bootstrap.makeServicesCount == 0)
+    }
+
     @Test func waitingRequestUpdatesLocalConsentWithoutCompletingOnboarding() async throws {
         let installation = InMemoryInstallationRecordingContextStore(context: .testing)
         let store = try SwiftDataStore.inMemory()
