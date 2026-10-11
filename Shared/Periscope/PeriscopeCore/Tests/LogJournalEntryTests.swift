@@ -4,7 +4,7 @@ import Testing
 
 struct LogJournalEntryTests {
     @Test func historicalJournalRecordsWithoutPermissionsRemainReadable() throws {
-        let record = LogRecord(date: Date(), event: PhotoLogs(photoID: "historical"), scopes: [])
+        let record = LogRecord(date: Date(), event: makePhotoEvent("historical"), scopes: [])
         let data = try JSONEncoder().encode(LogJournalRecord(record: record, sequence: 1))
         var object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
         object.removeValue(forKey: "exportMetadata")
@@ -13,7 +13,7 @@ struct LogJournalEntryTests {
             from: JSONSerialization.data(withJSONObject: object),
         )
         #expect(historical.exportMetadata == nil)
-        #expect(try JSONDecoder().decode(PhotoLogs.self, from: historical.payload)
+        #expect(try JSONDecoder().decode(PhotoLogs.Event.self, from: historical.payload)
             .photoID == "historical")
     }
 
@@ -35,7 +35,7 @@ struct LogJournalEntryTests {
         let scope = LogScope.root(named: "app")
         let record = LogRecord(
             date: Date(timeIntervalSinceReferenceDate: 123),
-            event: PhotoLogs(photoID: "p1"),
+            event: makePhotoEvent("p1"),
             scopes: [scope.id],
             tags: [LogTag(key: key, value: .int(3))],
             attachments: [
@@ -55,12 +55,12 @@ struct LogJournalEntryTests {
         #expect(back == journaled)
         #expect(back.sequence == 42)
         #expect(back.ambient?[.network] == ["status": "satisfied"])
-        #expect(back.eventName == PhotoLogs.eventName)
+        #expect(back.eventName == PhotoLogs.Event.eventName)
         #expect(back.scopes == [scope.id.rawValue])
         #expect(back.tags[key] == .int(3))
         #expect(back.callFunction == "upload(_:)")
         // The payload decodes back to the typed event.
-        let event = try JSONDecoder().decode(PhotoLogs.self, from: back.payload)
+        let event = try JSONDecoder().decode(PhotoLogs.Event.self, from: back.payload)
         #expect(event.photoID == "p1")
     }
 

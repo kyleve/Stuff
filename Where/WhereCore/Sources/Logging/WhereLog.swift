@@ -1,15 +1,8 @@
 import PeriscopeCore
 
-/// Phantom root event naming the Where app's log scope tree. It is never
-/// emitted — its only job is to give ``WhereLog``'s root `Log` the scope name
-/// `"Where"`, so every app event sits under one filterable subtree in the
-/// process-wide `Periscope.shared` system.
-public struct WhereRoot: LogEvent {
-    public static let eventName = "Where"
-    public var message: String {
-        ""
-    }
-}
+/// Root namespace for the Where app's log scope tree.
+@LogScope("Where")
+public enum WhereRoot {}
 
 /// Central logging facade for the Where app and its modules.
 ///

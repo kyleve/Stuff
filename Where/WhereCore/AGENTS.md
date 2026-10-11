@@ -161,7 +161,7 @@ internal shape.
   snapshots year-keyed by stable `Region` id. Clear them through
   `WherePreferences.reset()`. Current report totals remain the source of truth.
 - **Keep diagnostic reporting intent in one encoded composite preference.** Keep crash,
-  replay, remote threshold, and metadata policy vendor-neutral. Invalid stored
+  replay, remote threshold, and export policy vendor-neutral. Invalid stored
   values assert in Debug and resolve remote logging Off. Reset removes every reporting key.
 - **`WhereTheme` is device-local preference state, not backup/domain data.**
   Preserve its stable raw values. Make unknown or missing values Standard. Publish it through
@@ -176,7 +176,9 @@ internal shape.
   `DemoDataBuilderTests.holdsItsShapeWhereverInTheYearItIsEntered`.
 - **Impossible states trap. Recoverable ones surface.** `WhereStore` methods
   are `async throws`. A `catch` logs a typed `WhereLog` event (PII-free,
-  `.public`, error as `LogAttachment.error(_:)`) and leaves state honest.
+  `.public`) and leaves state honest. When the event accepts `LogError`, pass
+  the original error through `.restricted(.errorDetails, error)`. Do not add
+  a duplicate error attachment. Follow PeriscopeCore's structured-error contract.
   Never use a benign-looking default. The `WhereLog` facade and every
   `*Log.swift` event type live together in `Sources/Logging/`.
 - **Expensive Core work is spanned, with a budget.** That includes bulk reads

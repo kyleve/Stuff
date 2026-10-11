@@ -7471,7 +7471,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Include all log metadata"
+            "value" : "Include personal data"
           }
         }
       }
@@ -7482,7 +7482,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Structured log payloads, complete scopes, tags, ambient state, external IDs, and attachment names may contain personal data. Attachment contents are never sent."
+            "value" : "Allow identifiers, locations, user content, and personal error details in diagnostic logs. Local-only fields and attachment contents are never sent."
           }
         }
       }
@@ -7493,7 +7493,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Include potentially personal metadata?"
+            "value" : "Include personal data in logs?"
           }
         }
       }
@@ -7504,7 +7504,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Include all metadata"
+            "value" : "Include personal data"
           }
         }
       }
@@ -7515,7 +7515,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Warning: full log metadata may contain personal data. Attachment contents are never sent."
+            "value" : "Personal data helps diagnose problems. Local-only fields and attachment contents stay on this device."
           }
         }
       }
@@ -9969,7 +9969,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Extra metadata helps diagnose difficult problems, but it may contain personal data."
+            "value" : "Diagnostic logs may include identifiers, locations, user content, and personal error details. Local-only fields and attachment contents stay on this device."
           }
         }
       }
@@ -9980,7 +9980,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Full log metadata"
+            "value" : "Personal data in logs"
           }
         }
       }
@@ -9992,6 +9992,17 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Your location history stays on your devices and in your private iCloud account."
+          }
+        }
+      }
+    },
+    "settings.privacy.locationDiagnostics" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your location history is stored on your devices and in your private iCloud account. Diagnostic logs can also include locations with your permission."
           }
         }
       }

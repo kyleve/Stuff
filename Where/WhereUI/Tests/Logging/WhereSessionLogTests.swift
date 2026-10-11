@@ -1,37 +1,24 @@
-import PeriscopeCore
 import Testing
 @testable import WhereUI
 
 struct WhereSessionLogTests {
-    @Test func everyEventCaseExportsADistinctSafeKind() {
-        let events: [WhereSessionLog] = [
-            .whenInUseOnly,
-            .locationAccessDenied(status: "private status"),
-            .backgroundTrackingStarted,
-            .backgroundTrackingStopped,
-            .permissionGranted(status: "private status"),
-            .trackingEnabled,
-            .stoppedBackgroundTracking,
-            .recordingReconcileFailed(description: "private error"),
-            .remindersUnauthorized,
-            .summaryUnauthorized,
-            .issueAlertsUnauthorized,
-            .regionStylesLoadFailed(description: "private error"),
-            .erasedSession,
+    @Test func everyEventHasAStableDistinctName() {
+        let names = [
+            WhereSessionLog.WhenInUseOnly.eventName,
+            WhereSessionLog.LocationAccessDenied.eventName,
+            WhereSessionLog.BackgroundTrackingStarted.eventName,
+            WhereSessionLog.BackgroundTrackingStopped.eventName,
+            WhereSessionLog.PermissionGranted.eventName,
+            WhereSessionLog.TrackingEnabled.eventName,
+            WhereSessionLog.StoppedBackgroundTracking.eventName,
+            WhereSessionLog.RecordingReconcileFailed.eventName,
+            WhereSessionLog.RemindersUnauthorized.eventName,
+            WhereSessionLog.SummaryUnauthorized.eventName,
+            WhereSessionLog.IssueAlertsUnauthorized.eventName,
+            WhereSessionLog.RegionStylesLoadFailed.eventName,
+            WhereSessionLog.ErasedSession.eventName,
         ]
-
-        let kinds = events.compactMap(remoteKind)
-        #expect(kinds.count == events.count)
-        #expect(Set(kinds).count == events.count)
-        #expect(kinds.contains("private status") == false)
-        #expect(kinds.contains("private error") == false)
-    }
-
-    private func remoteKind(_ event: WhereSessionLog) -> String? {
-        guard let field = event.remoteFields.first,
-              field.key == RemoteLogFieldKey("kind"),
-              case let .category(category) = field.value
-        else { return nil }
-        return category.rawValue
+        #expect(Set(names).count == names.count)
+        #expect(names.allSatisfy { $0.hasPrefix("WhereSession.") })
     }
 }

@@ -1,93 +1,139 @@
 import PeriscopeCore
 import WhereCore
 
-/// Structured events for `YearReportModel`. The affected year rides on
-/// `externalID`. A successful load is `.info`; read failures that leave a
-/// degraded UI state are `.warning`.
-enum YearReportModelLog: LogEvent {
-    /// Names the model's timed span.
-    ///
-    /// Only the composed pass is timed: the report read, the evidence-day fetch,
-    /// and the issue scan each already span themselves in `WhereCore`, so what's
-    /// missing at this layer is their *sum* — what a screen waits on.
-    enum SpanName: Hashable {
-        /// The scene's whole data pull: year report, evidence day keys, and the
-        /// Resolve badge recount. Runs on activation, on a year switch, and on
-        /// every committed write, so its duration is the refresh cost the UI
-        /// pays per store change.
-        case sceneRefresh
-    }
+/// Structured events and spans for `YearReportModel`.
+@LogScope("YearReport")
+enum YearReportModelLog {
+    enum SpanName: Hashable { case sceneRefresh }
 
-    case selectedYear(year: Int)
-    case reportLoaded(year: Int, dayCount: Int)
-    case reportLoadFailed(year: Int, description: String)
-    case evidenceDayKeysLoadFailed(year: Int, description: String)
-    case dataIssueScanFailed(description: String)
-    case clearYearFailed(year: Int, description: String)
-    case locationsLoadFailed(region: String, year: Int, description: String)
-    case dayLocationsLoadFailed(day: String, year: Int, description: String)
-    case representativeCoordinatesLoadFailed(year: Int, description: String)
+    @LogEvent("selected-year")
+    struct SelectedYear {
+        @LogField(exposure: .restricted, kind: .domainValue)
+        var year: Int
+        var message: String {
+            "Selected year \(year)"
+        }
 
-    static let eventName = "YearReport"
-
-    var level: LogLevel {
-        switch self {
-            case .selectedYear, .reportLoaded: .info
-            case .reportLoadFailed, .evidenceDayKeysLoadFailed, .dataIssueScanFailed,
-                 .clearYearFailed, .locationsLoadFailed, .dayLocationsLoadFailed,
-                 .representativeCoordinatesLoadFailed:
-                .warning
+        var externalID: String? {
+            WhereStoreID.year(year)
         }
     }
 
-    var message: String {
-        switch self {
-            case let .selectedYear(year):
-                "Selected year \(year)"
-            case let .reportLoaded(year, dayCount):
-                "Year report loaded for \(year) (\(dayCount) day(s))"
-            case let .reportLoadFailed(year, description):
-                "Failed to load year report for \(year): \(description)"
-            case let .evidenceDayKeysLoadFailed(year, description):
-                "Failed to load evidence day keys for \(year): \(description)"
-            case let .dataIssueScanFailed(description):
-                "Failed to scan for data issues: \(description)"
-            case let .clearYearFailed(year, description):
-                "Failed to clear year \(year): \(description)"
-            case let .locationsLoadFailed(region, year, description):
-                "Failed to load locations for \(region) in \(year): \(description)"
-            case let .dayLocationsLoadFailed(day, year, description):
-                "Failed to load locations for day \(day) in \(year): \(description)"
-            case let .representativeCoordinatesLoadFailed(year, description):
-                "Failed to load representative coordinates for \(year): \(description)"
+    @LogEvent("report-loaded")
+    struct ReportLoaded {
+        @LogField(exposure: .restricted, kind: .domainValue)
+        var year: Int
+        @LogField(exposure: .shareable, kind: .count)
+        var dayCount: Int
+        var message: String {
+            "Year report loaded for \(year) (\(dayCount) day(s))"
+        }
+
+        var externalID: String? {
+            WhereStoreID.year(year)
         }
     }
 
-    var externalID: String? {
-        switch self {
-            case let .selectedYear(year), let .reportLoaded(year, _),
-                 let .reportLoadFailed(year, _), let .evidenceDayKeysLoadFailed(year, _),
-                 let .clearYearFailed(year, _), let .locationsLoadFailed(_, year, _),
-                 let .representativeCoordinatesLoadFailed(year, _):
-                WhereStoreID.year(year)
-            case let .dayLocationsLoadFailed(day, _, _):
-                WhereStoreID.day(day)
-            case .dataIssueScanFailed:
-                nil
+    @LogEvent("report-load-failed", level: .warning, version: 2)
+    struct ReportLoadFailed {
+        @LogField(exposure: .restricted, kind: .domainValue)
+        var year: Int
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+        var message: String {
+            "Failed to load year report for \(year): \(error.description)"
+        }
+
+        var externalID: String? {
+            WhereStoreID.year(year)
         }
     }
 
-    var remoteFields: [RemoteLogField] {
-        switch self {
-            case let .reportLoaded(_, dayCount):
-                [RemoteLogField(
-                    key: RemoteLogFieldKey("day_count"),
-                    value: .count(dayCount),
-                )]
-            case .selectedYear, .reportLoadFailed, .evidenceDayKeysLoadFailed,
-                 .dataIssueScanFailed, .clearYearFailed, .locationsLoadFailed,
-                 .dayLocationsLoadFailed, .representativeCoordinatesLoadFailed:
-                []
+    @LogEvent("evidence-day-keys-load-failed", level: .warning, version: 2)
+    struct EvidenceDayKeysLoadFailed {
+        @LogField(exposure: .restricted, kind: .domainValue)
+        var year: Int
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+        var message: String {
+            "Failed to load evidence day keys for \(year): \(error.description)"
+        }
+
+        var externalID: String? {
+            WhereStoreID.year(year)
+        }
+    }
+
+    @LogEvent("data-issue-scan-failed", level: .warning, version: 2)
+    struct DataIssueScanFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+        var message: String {
+            "Failed to scan for data issues: \(error.description)"
+        }
+    }
+
+    @LogEvent("clear-year-failed", level: .warning, version: 2)
+    struct ClearYearFailed {
+        @LogField(exposure: .restricted, kind: .domainValue)
+        var year: Int
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+        var message: String {
+            "Failed to clear year \(year): \(error.description)"
+        }
+
+        var externalID: String? {
+            WhereStoreID.year(year)
+        }
+    }
+
+    @LogEvent("locations-load-failed", level: .warning, version: 2)
+    struct LocationsLoadFailed {
+        @LogField(exposure: .restricted, kind: .location)
+        var region: String
+        @LogField(exposure: .restricted, kind: .domainValue)
+        var year: Int
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+        var message: String {
+            "Failed to load locations for \(region) in \(year): \(error.description)"
+        }
+
+        var externalID: String? {
+            WhereStoreID.year(year)
+        }
+    }
+
+    @LogEvent("day-locations-load-failed", level: .warning, version: 2)
+    struct DayLocationsLoadFailed {
+        @LogField(exposure: .restricted, kind: .dateTime)
+        var day: String
+        @LogField(exposure: .restricted, kind: .domainValue)
+        var year: Int
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+        var message: String {
+            "Failed to load locations for day \(day) in \(year): \(error.description)"
+        }
+
+        var externalID: String? {
+            WhereStoreID.day(day)
+        }
+    }
+
+    @LogEvent("representative-coordinates-load-failed", level: .warning, version: 2)
+    struct RepresentativeCoordinatesLoadFailed {
+        @LogField(exposure: .restricted, kind: .domainValue)
+        var year: Int
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+        var message: String {
+            "Failed to load representative coordinates for \(year): \(error.description)"
+        }
+
+        var externalID: String? {
+            WhereStoreID.year(year)
         }
     }
 }

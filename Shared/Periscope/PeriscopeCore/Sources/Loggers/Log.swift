@@ -1,8 +1,8 @@
 import Foundation
 
 /// A typed, hierarchical logger: a pure value that captures *where in the
-/// system* events come from, and can only emit `Event` values (plus freeform
-/// ``Message`` conveniences).
+/// system* events come from. Macro-generated methods emit its classified
+/// events. Every logger also provides freeform ``Message`` conveniences.
 ///
 /// Loggers form a tree of scopes. Calling a log with an event type derives a
 /// child logger typed to it; calling with an identifier derives a child scope
@@ -10,10 +10,13 @@ import Foundation
 /// contexts:
 ///
 /// ```swift
-/// let root = Log<AppLogs>(recorder: recorder)
-/// let photos = root(PhotoLogs.self)          // child scope, typed PhotoLogs
+/// let root = Log<AppLog>(recorder: recorder)
+/// let photos = root(PhotoLog.self)            // child scope, typed PhotoLog
 /// let album = photos(for: album.id)          // child scope keyed by id
-/// album { PhotoLogs.uploaded(photo.id) }     // emits with full context
+/// album.uploaded(
+///     photoID: .restricted(.identifier, photo.id),
+///     byteCount: .shared(.count, data.count)
+/// )
 ///
 /// let joined = album + uiLog                 // events reference both scopes
 /// ```
@@ -95,8 +98,8 @@ public struct Log<Scope: LogScopeDefinition>: Sendable {
     // MARK: Retyping
 
     /// This same context — scopes, tags, recorder — retyped to emit a
-    /// different event type. No child scope is derived (unlike calling with
-    /// an event type); adapters use this to carry a context across a typed
+    /// a different scope type. No child scope is derived. Adapters use this
+    /// to carry a context across a typed
     /// boundary, e.g. the SwiftUI environment's freeform accessor.
     public func retyped<Other: LogScopeDefinition>(to _: Other.Type) -> Log<Other> {
         Log<Other>(scopes: scopes, tags: tags, recorder: recorder)
@@ -117,61 +120,6 @@ public struct Log<Scope: LogScopeDefinition>: Sendable {
     }
 
     // MARK: Emitting
-
-    /// Log a structured event with this logger's full context.
-    public func callAsFunction(
-        function: StaticString = #function,
-        fileID: StaticString = #fileID,
-        _ event: () -> Scope,
-    ) where Scope: LogEvent {
-        emit(event(), callSite: LogCallSite(function: function, fileID: fileID))
-    }
-
-    /// Log a structured event with attached data — errors, payloads,
-    /// screenshots (see ``LogAttachment``).
-    public func callAsFunction(
-        attachments: [LogAttachment],
-        function: StaticString = #function,
-        fileID: StaticString = #fileID,
-        _ event: () -> Scope,
-    ) where Scope: LogEvent {
-        emit(
-            event(),
-            attachments: attachments,
-            callSite: LogCallSite(function: function, fileID: fileID),
-        )
-    }
-
-    /// Derive the typed child scope and log one event into it, in a single
-    /// expression: `log(PhotoLogs.self) { PhotoLogs(photoID: id) }`.
-    ///
-    /// This overload exists because Swift resolves a *value* call's
-    /// arguments and trailing closure as one `callAsFunction` application —
-    /// unlike *type* callees (SwiftUI's Layouts), which get an implicit
-    /// init-then-call split. Without it, the spelling above fails to
-    /// compile and must be written as two statements.
-    public func callAsFunction<Child: LogEvent>(
-        _ type: Child.Type,
-        function: StaticString = #function,
-        fileID: StaticString = #fileID,
-        _ event: () -> Child,
-    ) {
-        let child: Log<Child> = callAsFunction(type)
-        child.emit(event(), callSite: LogCallSite(function: function, fileID: fileID))
-    }
-
-    /// Derive the entity-keyed child scope and log one event into it, in a
-    /// single expression: `album(for: photo.id) { .uploaded }`. Exists for
-    /// the same trailing-closure reason as the typed variant above.
-    public func callAsFunction(
-        for id: some Hashable & Sendable,
-        function: StaticString = #function,
-        fileID: StaticString = #fileID,
-        _ event: () -> Scope,
-    ) where Scope: LogEvent {
-        let child: Log<Scope> = callAsFunction(for: id)
-        child.emit(event(), callSite: LogCallSite(function: function, fileID: fileID))
-    }
 
     /// Records one event with this logger's scopes, tags, attachments, and call site.
     public func record(
@@ -207,8 +155,7 @@ public struct Log<Scope: LogScopeDefinition>: Sendable {
 }
 
 /// Freeform logging: every `Log` can emit ``Message`` events at any level,
-/// regardless of its `Event` type — the generic constraint applies to custom
-/// structured events only.
+/// regardless of its scope type.
 extension Log {
     public func log(
         _ level: LogLevel,

@@ -1,3 +1,4 @@
+import Foundation
 import PeriscopeCore
 import Testing
 @testable import WhereIntents
@@ -47,5 +48,29 @@ struct WhereIntentsLogTests {
         let read = WhereIntentsLog.IntentName.todayRegions.budget
         #expect(WhereIntentsLog.IntentName.logTrip.budget > read)
         #expect(WhereIntentsLog.IntentName.logDay.budget == read)
+    }
+
+    // MARK: - Events
+
+    @Test func widgetSnapshotReadFailureKeepsErrorDetailsRestricted() {
+        let event = WhereIntentsLog.WidgetSnapshotReadFailed(
+            error: .restricted(
+                .errorDetails,
+                NSError(
+                    domain: "Test",
+                    code: 1,
+                    userInfo: [NSLocalizedDescriptionKey: "private error"],
+                ),
+            ),
+        )
+
+        #expect(
+            WhereIntentsLog.WidgetSnapshotReadFailed.eventName
+                == "WhereIntents.widget-snapshot-read-failed",
+        )
+        #expect(event.level == .warning)
+        #expect(event.classifiedFields == [
+            .restricted(key: LogFieldKey("error"), kind: .errorDetails),
+        ])
     }
 }

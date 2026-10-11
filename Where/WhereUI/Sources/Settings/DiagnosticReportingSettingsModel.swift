@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import PeriscopeCore
 import WhereCore
 
 /// Observable saved-versus-effective diagnostic reporting state for Settings.
@@ -20,7 +21,7 @@ public final class DiagnosticReportingSettingsModel {
     public private(set) var savedConfiguration: DiagnosticReportingConfiguration
     public private(set) var effectiveRemoteLogging: RemoteLoggingConfiguration
     public private(set) var applyState: ApplyState = .idle
-    public var isMetadataConfirmationPresented = false
+    public var isPersonalDataConfirmationPresented = false
 
     private let launchCrashReports: Bool
     private let launchSessionReplays: Bool
@@ -77,18 +78,21 @@ public final class DiagnosticReportingSettingsModel {
         set { selectRemoteLevel(newValue) }
     }
 
-    public var includesAllLogMetadata: Bool {
-        savedConfiguration.remoteLogging.metadataPolicy == .allMetadataExcludingAttachmentData
+    public var includesPersonalData: Bool {
+        let policy = savedConfiguration.remoteLogging.exportPolicy
+        return policy.mode == .diagnostic
+            && !RemoteLoggingConfiguration.personalDataControls
+            .isDisjoint(with: policy.enabledControls)
     }
 
-    public var includeAllMetadataToggle: Bool {
-        get { includesAllLogMetadata }
+    public var includePersonalDataToggle: Bool {
+        get { includesPersonalData }
         set {
             if newValue {
-                guard !includesAllLogMetadata else { return }
-                isMetadataConfirmationPresented = true
+                guard !includesPersonalData else { return }
+                isPersonalDataConfirmationPresented = true
             } else {
-                disableAllLogMetadata()
+                disablePersonalData()
             }
         }
     }
@@ -102,16 +106,16 @@ public final class DiagnosticReportingSettingsModel {
     }
 
     public func selectRemoteLevel(_ level: RemoteLogLevel?) {
-        let metadataPolicy: RemoteLogMetadataPolicy
+        let exportPolicy: LogExportPolicy
         #if DEBUG
-            metadataPolicy = level == nil
-                ? .approvedFields
-                : savedConfiguration.remoteLogging.metadataPolicy
+            exportPolicy = level == nil
+                ? .init(mode: .baseline, enabledControls: [])
+                : savedConfiguration.remoteLogging.exportPolicy
         #else
-            metadataPolicy = .approvedFields
+            exportPolicy = .init(mode: .baseline, enabledControls: [])
         #endif
         let configuration: RemoteLoggingConfiguration = if let level {
-            .enabled(minimumLevel: level, metadataPolicy: metadataPolicy)
+            .enabled(minimumLevel: level, exportPolicy: exportPolicy)
         } else {
             .off
         }
@@ -120,27 +124,32 @@ public final class DiagnosticReportingSettingsModel {
         persistAndApply(configuration)
     }
 
-    public func enableAllLogMetadata() {
+    public func enablePersonalData() {
         guard let level = savedConfiguration.remoteLogging.minimumLevel else { return }
+        var policy = savedConfiguration.remoteLogging.exportPolicy
+        policy.mode = .diagnostic
+        policy.setEnabled(true, for: RemoteLoggingConfiguration.personalDataControls)
         let configuration = RemoteLoggingConfiguration.enabled(
             minimumLevel: level,
-            metadataPolicy: .allMetadataExcludingAttachmentData,
+            exportPolicy: policy,
         )
         guard configuration != savedConfiguration.remoteLogging else { return }
         savedConfiguration.remoteLogging = configuration
         persistAndApply(configuration)
     }
 
-    public func confirmAllLogMetadata() {
-        isMetadataConfirmationPresented = false
-        enableAllLogMetadata()
+    public func confirmPersonalData() {
+        isPersonalDataConfirmationPresented = false
+        enablePersonalData()
     }
 
-    public func disableAllLogMetadata() {
+    public func disablePersonalData() {
         guard let level = savedConfiguration.remoteLogging.minimumLevel else { return }
+        var policy = savedConfiguration.remoteLogging.exportPolicy
+        policy.setEnabled(false, for: RemoteLoggingConfiguration.personalDataControls)
         let configuration = RemoteLoggingConfiguration.enabled(
             minimumLevel: level,
-            metadataPolicy: .approvedFields,
+            exportPolicy: policy,
         )
         guard configuration != savedConfiguration.remoteLogging else { return }
         savedConfiguration.remoteLogging = configuration
@@ -165,7 +174,7 @@ public final class DiagnosticReportingSettingsModel {
     /// The new build default is applied live without writing those keys back.
     public func preferencesDidReset() {
         savedConfiguration = preferences.diagnosticReportingConfiguration
-        isMetadataConfirmationPresented = false
+        isPersonalDataConfirmationPresented = false
         requestApply(savedConfiguration.remoteLogging, persist: false)
     }
 

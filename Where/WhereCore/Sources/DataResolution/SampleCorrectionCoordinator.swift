@@ -77,10 +77,10 @@ public struct SampleCorrectionCoordinator: Sendable {
         } catch RecordingPersistenceError.dataGenerationChanged {
             // The review belongs to a retired data world. Show the new world's
             // assessment, which is usually absent after Reset or Replace.
-            Self.logger { .reviewInvalidated }
+            Self.logger.reviewInvalidated()
             return try await refreshedReview(for: proposal)
         } catch WhereStoreReadConflictError.changedDuringTransaction {
-            Self.logger { .reviewInvalidated }
+            Self.logger.reviewInvalidated()
             return try await refreshedReview(for: proposal)
         }
         if case .applied = result { await onCommitted() }
@@ -126,10 +126,10 @@ public struct SampleCorrectionCoordinator: Sendable {
                     return .applied
                 }
         } catch RecordingPersistenceError.dataGenerationChanged {
-            Self.logger { .reviewInvalidated }
+            Self.logger.reviewInvalidated()
             return try await .stale(pointReview(for: correction))
         } catch WhereStoreReadConflictError.changedDuringTransaction {
-            Self.logger { .reviewInvalidated }
+            Self.logger.reviewInvalidated()
             return try await .stale(pointReview(for: correction))
         }
         if case .applied = result { await onCommitted() }

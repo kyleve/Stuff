@@ -29,6 +29,16 @@ public struct PickedAttachment: Equatable, Sendable {
 @MainActor
 @Observable
 public final class AddEvidenceModel {
+    public enum AttachmentFailure: LocalizedError {
+        case unavailablePhotoData
+
+        public var errorDescription: String? {
+            switch self {
+                case .unavailablePhotoData: String(localized: .evidenceDetailPreviewFailed)
+            }
+        }
+    }
+
     /// Where a save is in its lifecycle. Success isn't a case — the view
     /// dismisses on the `true` return from `save()`.
     public enum SaveState: Equatable {
@@ -91,9 +101,11 @@ public final class AddEvidenceModel {
         attachment = nil
     }
 
-    public func reportAttachmentError(_ message: String) {
-        attachmentError = message
-        Self.logger { .attachmentPickFailed(description: message) }
+    public func reportAttachmentError(_ error: any Error) {
+        attachmentError = error.localizedDescription
+        Self.logger.attachmentPickFailed(
+            error: .restricted(.errorDetails, error),
+        )
     }
 
     /// Build the `Evidence` from the form and persist it (with any attachment
@@ -105,11 +117,15 @@ public final class AddEvidenceModel {
         let evidence = buildEvidence()
         do {
             try await services.journal.addEvidence(evidence, blob: attachment?.data)
-            Self.logger { .saved(evidenceID: String(describing: evidence.id)) }
+            Self.logger.saved(
+                evidenceID: .restricted(.identifier, String(describing: evidence.id)),
+            )
             return true
         } catch {
             saveState = .failed(error.localizedDescription)
-            Self.logger { .saveFailed(description: error.localizedDescription) }
+            Self.logger.saveFailed(
+                error: .restricted(.errorDetails, error),
+            )
             return false
         }
     }

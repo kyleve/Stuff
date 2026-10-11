@@ -47,9 +47,9 @@ struct LogAttachmentTests {
     }
 
     @Test func jsonAttachmentRoundTripsEncodableValues() throws {
-        let attachment = try LogAttachment.json(PhotoLogs(photoID: "p1"), name: "photo")
+        let attachment = try LogAttachment.json(makePhotoEvent("p1"), name: "photo")
         #expect(attachment.contentType == .json)
-        let decoded = try JSONDecoder().decode(PhotoLogs.self, from: attachment.data)
+        let decoded = try JSONDecoder().decode(PhotoLogs.Event.self, from: attachment.data)
         #expect(decoded.photoID == "p1")
     }
 

@@ -81,9 +81,9 @@ final class RecordingConfigurationWarningModel {
             register(isWarningConditionActive: condition.isActive)
         } catch {
             guard sequence == refreshSequence else { return }
-            Self.logger(attachments: [.error(error, name: "recording-warning-error")]) {
-                .authorityLoadFailed(description: error.localizedDescription)
-            }
+            Self.logger.authorityLoadFailed(
+                error: .restricted(.errorDetails, error),
+            )
         }
     }
 
