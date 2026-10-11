@@ -549,4 +549,8 @@ or advances the floor. The share extension checks it inside the store transactio
 
 History observation uses local verified metadata. Explicit retry, foreground,
 CloudKit pushes, and account changes refresh server authority. A known verification
-failure remains blocked until remote verification succeeds.
+failure remains blocked until remote verification succeeds. A remote retry that
+joins a local check waits for a remote verification before returning. Concurrent
+remote callers share that verification. Local imports can still enforce a higher
+floor while it is suspended. The `CompatibilityVerification` model checks this
+ordering; `CompatibilityOutputs` checks retirement across external awaits.
