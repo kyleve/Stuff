@@ -537,3 +537,10 @@ A replacement phone requests a handoff. The current recorder approves through
 `DeviceRecordingController`, which stops GPS before transferring ownership.
 The waiting phone can check again or cancel. Local recording consent remains
 separate from ownership. `WhereSession` refreshes authority before reconciling GPS.
+
+### Replacing an unavailable phone
+
+The recording-role panel opens `RecordingRecoveryView` for an unavailable owner.
+It explains possible offline overlap and offers explicit keep/exclude history
+choices. `RecordingDeviceRoleModel` binds the confirmation to the reviewed owner.
+A changed owner requires a new review. Reset preserves this installation's choice.

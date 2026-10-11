@@ -233,3 +233,5 @@ recording/reviewing references.
 
 - Compose recording coordination once in `WhereBootstrap` over its existing store, then inject it into onboarding and services (`where.recording_coordination_composition`).
 - Require an explicit role choice for a new installation even when restored preferences say onboarding finished. Keep identity, consent, and pending handoffs in the backup-excluded installation sidecar.
+
+- Bind lost-phone recovery confirmation to the reviewed owner. Show the offline overlap and history choices before submitting (`RecordingDeviceRoleModel`).

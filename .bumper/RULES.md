@@ -116,9 +116,9 @@ Attribution revisions use this same boundary; their coordinator also requires
 the reviewed data generation and reassesses before writing.
 Guard: `sample attribution revisions require a guarded transaction`.
 
-The checked methods are `add`, `write`, `setManualDay`, `clearManualDay`,
-`clear`, `clearAll`, `setIssueDismissed`, `restoreDismissedIssue`,
-`setTrackedRegion`, `setPrimaryRegions`, and `addSampleAttributionRevision`.
+The checked method inventory lives in `Sources/WhereProjectRules.swift`.
+Recovery exclusions and imported compatibility requirements use this boundary.
+Guard: `recoveryMetadataRequiresTransaction`.
 
 ## App Shortcuts provider ownership
 

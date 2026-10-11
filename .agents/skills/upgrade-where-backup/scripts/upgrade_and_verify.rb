@@ -13,7 +13,7 @@ class UpgradeAndVerify
   PRESERVED_COLLECTIONS = %w[
     samples evidence manualDays dismissedIssues trackedRegions
     recordingDeviceProfiles recordingDeviceMetadataChanges recordingDeviceRemovals assets
-    plannedStayRecords sampleAttributionRevisions
+    plannedStayRecords sampleAttributionRevisions recordingRecoveryExclusions
   ].freeze
 
   def initialize(argv)
@@ -151,6 +151,8 @@ class UpgradeAndVerify
       deviceRemovalsCount: manifest.fetch("recordingDeviceRemovals").length,
       plannedStayRecordsCount: manifest.fetch("plannedStayRecords").length,
       sampleAttributionRevisionsCount: manifest.fetch("sampleAttributionRevisions").length,
+      recordingRecoveryExclusionsCount: manifest.fetch("recordingRecoveryExclusions").length,
+      requiredCompatibilityVersion: manifest.fetch("requiredCompatibilityVersion"),
       assetsCount: manifest.fetch("assets").length,
     }
   end

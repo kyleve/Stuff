@@ -8,16 +8,13 @@ import PeriscopeCore
 public struct LocationOutboxEntry: Codable, Sendable, Hashable {
     public let sample: LocationSample
     public let dataGenerationID: WhereDataGenerationID
-    public let recordingTenureID: RecordingAuthority.EventID?
 
     public init(
         sample: LocationSample,
         dataGenerationID: WhereDataGenerationID,
-        recordingTenureID: RecordingAuthority.EventID?,
     ) {
         self.sample = sample
         self.dataGenerationID = dataGenerationID
-        self.recordingTenureID = recordingTenureID
     }
 }
 
@@ -418,20 +415,27 @@ public actor FileLocationOutbox: LocationOutbox {
     private static func decodeEntries(from data: Data) throws -> [LocationOutboxEntry] {
         let decoder = JSONDecoder()
         do {
-            return try decoder.decode([LocationOutboxEntry].self, from: data)
+            return try validatedEntries(decoder.decode([LocationOutboxEntry].self, from: data))
         } catch let currentError {
             do {
-                return try decoder.decode([LocationSample].self, from: data).map {
+                return try validatedEntries(decoder.decode([LocationSample].self, from: data).map {
                     LocationOutboxEntry(
                         sample: $0,
                         dataGenerationID: .initial,
-                        recordingTenureID: nil,
                     )
-                }
+                })
             } catch {
                 throw currentError
             }
         }
+    }
+
+    private static func validatedEntries(_ entries: [LocationOutboxEntry]) throws
+        -> [LocationOutboxEntry]
+    {
+        guard entries.allSatisfy(\.sample.hasValidRecordingProvenance)
+        else { throw RecordingAuthorityError.invalidRecord }
+        return entries
     }
 
     private static func discardInsecureFile(at fileURL: URL) {

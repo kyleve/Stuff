@@ -364,9 +364,9 @@ rotates to a Reset child generation, and discards the retry queue only after com
   the target identity's samples at and after its timestamp and makes that installation stop when
   it next observes the change. Turning recording on or off affects only the installation where
   the user made the choice. Device check-ins are advisory status, not command acknowledgements. 
-  Apple Lost Mode or remote erase remains the security boundary for a missing device. Account
-  Reset also retires an installation registered before its causal reset boundary, even when that
-  installation's profile did not reach the resetting device until later.
+  Apple Lost Mode or remote erase remains the security boundary for a missing device.
+  Reset clears history while retaining installation identity, consent, ownership, and the
+  compatibility floor. Historical account-reset events keep their original retirement semantics.
 - **Destructive operations are logical generations.** Old rows may remain in
   CloudKit as sync/audit history, but ordinary reads select only the resolved
   generation. Concurrent unjoined resets select a synthetic empty generation. An
@@ -459,3 +459,24 @@ An offline established installation uses its last verified authority; malformed
 or unauthenticated responses fail closed. Foreground reconciliation refreshes
 authority before starting recording. Cloud push refresh is added in the system
 integration slice of this stack.
+
+### Lost-phone recovery and backup format 7
+
+When the former phone cannot approve, review its current owner and choose whether
+to keep its later automatic observations. The server receipt supplies the cutoff.
+
+```swift
+try await coordination.recover(
+    replacing: reviewedOwner,
+    history: .excludeAfterReplacement
+)
+```
+
+An exclusion applies only to that ownership tenure at or after the server cutoff.
+Raw observations remain stored. Manual entries and earlier tenures remain visible.
+An offline former phone stops when it next observes the replacement.
+
+Backup format 7 preserves sample tenures, recovery exclusions, and the required
+compatibility version. It excludes live authority grants and installation consent.
+Merge and Replace retain the greater destination requirement. Unsupported versions
+fail before mutation. The external upgrader assigns version 1 to earlier archives.

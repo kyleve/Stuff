@@ -647,28 +647,13 @@ public final class WhereModel {
 
     // MARK: - Reset / erase all
 
-    /// Clear the device-local installation context and every persisted
-    /// preference so the next launch behaves like a fresh install: onboarding
-    /// shows again, recording gets a new identity and explicit choice, and the
-    /// reminder/summary schedules revert to their defaults.
+    /// Reset preferences while retaining the installation identity, local consent, and ownership.
+    /// Onboarding and reminder/summary schedules return to their defaults.
     ///
     /// `WherePreferences.reset()` removes the keys (rather than writing
     /// `false`/`0`) so the default-valued getters report first-install state
     /// again; the re-driven launch's fresh session reads those defaults back.
     public func resetPreferences() throws {
-        do {
-            try installationContextStore.reset()
-        } catch let error as WhereServices.ResetCleanupError {
-            // The old installation identity is already retired. Finish the logical reset even
-            // though deleting its tombstone still needs a retry, so a relaunch cannot combine a
-            // fresh unconfirmed identity with stale "already onboarded" preferences.
-            preferences.reset()
-            diagnosticReporting.preferencesDidReset()
-            theme = preferences.theme
-            publishThemeChange(theme)
-            Self.logger { .resetPreferences }
-            throw error
-        }
         preferences.reset()
         diagnosticReporting.preferencesDidReset()
         theme = preferences.theme

@@ -161,6 +161,8 @@ private let whereStoreMutatingMethods: Set<String> = [
     "setPrimaryRegions",
     "addSampleAttributionRevision",
     "addRecordingAuthorityCommit",
+    "addDataCompatibilityRequirement",
+    "addRecordingRecoveryExclusion",
 ]
 
 private let storeTransactionBoundaryRule = Rules.files(

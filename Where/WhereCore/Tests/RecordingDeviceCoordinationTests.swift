@@ -184,4 +184,47 @@ struct RecordingDeviceCoordinationTests {
         )).map(\.id) == [sample.id])
         #expect(await outbox.persistedSamples.isEmpty)
     }
+
+    @Test @MainActor func forcedReplacementUsesServerTimeAndRetainsRawHistory() async throws {
+        let fixture = RecordingAuthorityFixture()
+        let store = try SwiftDataStore.inMemory()
+        let cutoff = Date(timeIntervalSince1970: 2000)
+        let authority = RecordingAuthorityCoordinator(
+            store: store,
+            transport: LocalRecordingAuthorityTransport(now: { cutoff }),
+        )
+        let old = RecordingDeviceCoordination(
+            authority: authority,
+            installation: RecordingCoordinationInstallation(deviceID: fixture.phone),
+        )
+        let owned = try await old.selectRecordingRole(.recordingRequested)
+        let owner = try #require(owned.owner)
+        let raw = LocationSample(
+            timestamp: cutoff.addingTimeInterval(1),
+            coordinate: .init(latitude: 40, longitude: -100),
+            horizontalAccuracy: 5,
+            source: .gpsVisit,
+        ).recorded(under: owner)
+        try await store.perform { try await store.add(sample: raw) }
+        let newInstallation = RecordingCoordinationInstallation(deviceID: fixture.tablet)
+        let replacement = RecordingDeviceCoordination(
+            authority: authority,
+            installation: newInstallation,
+        )
+        let recovered = try await replacement.recover(
+            replacing: owner,
+            history: .excludeAfterReplacement,
+        )
+        #expect(recovered.owner?.deviceID == fixture.tablet)
+        #expect(newInstallation.onboardingContext.automaticRecordingEnabled == true)
+        #expect(try await store.recordingRecoveryExclusions().first?.replacedAt == cutoff)
+        #expect(try await store.allSamples() == [raw])
+        #expect(try await LocationHistoryReader(store: store).samples(in: .init(
+            start: cutoff,
+            end: cutoff.addingTimeInterval(100),
+        )).isEmpty)
+        await #expect(throws: RecordingAuthorityError.conflict) {
+            _ = try await replacement.recover(replacing: owner, history: .keep)
+        }
+    }
 }

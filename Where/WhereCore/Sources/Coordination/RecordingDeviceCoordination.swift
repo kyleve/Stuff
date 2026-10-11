@@ -93,6 +93,38 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
         return try await authority.observed()
     }
 
+    /// Explicit replacement when the former phone cannot approve. Bind the choice to the reviewed
+    /// owner.
+    public func recover(
+        replacing reviewedOwner: RecordingAuthority.Owner,
+        history: RecordingRecoveryHistory,
+    ) async throws -> RecordingAuthority {
+        guard !isOperating else { throw RecordingAuthorityError.conflict }
+        isOperating = true
+        defer { isOperating = false }
+        let context = try await installation.resolve()
+        if let pending = context.recordingControl.pendingTransition {
+            guard pending.kind == .recover, pending.expected.owner == reviewedOwner,
+                  pending.recoveryHistory == history else { throw RecordingAuthorityError.conflict }
+            try await submitPersisted(pending, selection: .recordingRequested)
+            return try await authority.observed()
+        }
+        let state = try await authority.refresh()
+        guard state.owner == reviewedOwner else { throw RecordingAuthorityError.conflict }
+        _ = try await installation.confirmInitialRecording(isEnabled: true)
+        try await installation.setAutomaticRecordingEnabled(true)
+        try await authority.registerInstallation(context)
+        let proposal = try RecordingAuthorityProposal(
+            state: state,
+            action: .recover(history),
+            deviceID: context.currentDevice.id,
+            buildVersion: .current,
+            eventID: .init(rawValue: UUID()),
+        )
+        try await submitPersisted(proposal, selection: .recordingRequested)
+        return try await authority.observed()
+    }
+
     public func cancelHandoff(requestID: RecordingAuthority.EventID) async throws {
         guard !isOperating else { throw RecordingAuthorityError.conflict }
         isOperating = true

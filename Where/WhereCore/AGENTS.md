@@ -221,3 +221,6 @@ derived from the demo world must stay made of no-ops.
 
 - Require the current server-confirmed owner and local consent for automatic GPS. Recheck tenure before persisting a callback; preserve accepted outbox entries on ownership loss.
 - Persist an approval fence before stopping GPS and committing a handoff. Keep uncertain approvals fenced across restart until a server-confirmed retry or cancellation (`RecordingDeviceCoordinationTests`).
+
+- Keep recovery exclusions bound to the former ownership tenure and server receipt time. Preserve raw samples and apply exclusions through `LocationHistoryReader` (`RecordingRecoveryExclusionTests`).
+- Preserve authority, installation identity, local consent, and the compatibility floor across history Reset and Replace. Backups carry historical exclusions and the floor, never live ownership (`BackupCoordinatorTests`, `WhereResetTests`).
