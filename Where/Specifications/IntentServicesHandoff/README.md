@@ -3,13 +3,14 @@
 Models [`IntentServices`](../../WhereIntents/Sources/IntentServices.swift): the App Intents
 stack must never self-open a store. at most one installed stack is authoritative. 
 parked intents resume exactly once. `clear()` forces later callers to park until
-the next `install(_:)`.
+the next `install(_:)`. A compatibility block rejects parked and new callers;
+clearing the handoff preserves that block until verification succeeds.
 
 ## Correspondence
 
 | Model | Production |
 | --- | --- |
-| `installed` | `IntentServices.installed` |
+| `installed` | `IntentServices.availability` (installed case) |
 | `waiterCount` | parked continuations in `current()` |
 | `consumerPhase` | intent awaiting / holding / cancelled |
 | `selfCreated` | forbidden fallback store open |
@@ -20,6 +21,7 @@ the next `install(_:)`.
 - `AtMostOneAuthoritative` — single install generation
 - `WaiterExactlyOnce` — park has a matching resume or cancel
 - `AfterClearMustPark` — holding requires an installed stack
+- `NoUseWhileBlocked` — blocked access has no installed stack, usable consumer, or parked waiter
 - `NoMixedWorld` — consumers never run against a cleared install
 
 ## Result

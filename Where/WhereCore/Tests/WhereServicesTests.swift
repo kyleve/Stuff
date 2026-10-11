@@ -11,6 +11,33 @@ import Testing
 /// BackupCoordinatorTests, ReminderReconcilerTests, …) cover each piece in
 /// isolation; these prove they work together once `WhereServices` glues them up.
 struct WhereServicesTests {
+    @Test func retiredServicesCannotRestoreNotificationsButANewScopeCan() async throws {
+        let world = try CompatibilityOutputTestSupport.makeWorld()
+        func makeServices() -> WhereServices {
+            WhereServices(
+                store: world.store,
+                locationSource: ScriptedLocationSource(),
+                reminderScheduler: world.reminders,
+                summaryScheduler: world.summary,
+                issueAlertScheduler: world.issues,
+                widgetRefresher: world.widgets,
+            )
+        }
+        let old = makeServices()
+        await old.summary.configure(enabled: true, time: .defaultMorning)
+        #expect(await world.summary.enabled)
+        await old.suspendForCompatibility()
+        await old.summary.configure(enabled: true, time: .defaultMorning)
+        #expect(await !world.summary.enabled)
+        let replacement = makeServices()
+        await replacement.summary.configure(enabled: true, time: .defaultMorning)
+        #expect(await world.summary.enabled)
+        // A stale caller must not clear the replacement world's publication either.
+        await old.summary.configure(enabled: true, time: .defaultMorning)
+        await old.suspendForCompatibility()
+        #expect(await world.summary.enabled)
+    }
+
     private static func makeAggregator() -> DayAggregator {
         DayAggregator(
             calendar: WhereCoreTestSupport.calendar(),
@@ -1737,6 +1764,7 @@ private actor SpyDailySummaryScheduler: DailySummaryScheduling {
 /// widgets repaint with the right data after committed writes — and stay
 /// untouched when a write fails.
 private actor SpyWidgetRefresher: WidgetTimelineRefreshing {
+    func publishCompatibility(_: WidgetCompatibilitySnapshot) async {}
     private(set) var publishedSnapshots: [WidgetSnapshot] = []
 
     var publishCount: Int {
