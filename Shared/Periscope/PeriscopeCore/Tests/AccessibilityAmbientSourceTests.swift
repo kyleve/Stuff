@@ -22,7 +22,7 @@
 
         private func summaries(in sink: CapturingSink) -> [[String: AmbientValue]] {
             sink.records
-                .compactMap { $0.event as? AmbientEvent }
+                .compactMap { $0.event as? AmbientLog.Event }
                 .filter { $0.kind == .accessibility }
                 .map(\.value)
         }

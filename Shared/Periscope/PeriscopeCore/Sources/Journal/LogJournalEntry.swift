@@ -89,6 +89,8 @@ import Foundation
     @_spi(Testing) public var eventVersion: Int
     @_spi(Testing) public var message: String
     @_spi(Testing) public var payload: Data
+    /// Absent in older journals; absence does not grant export permission.
+    @_spi(Testing) public var exportMetadata: Data?
     @_spi(Testing) public var scopes: [UUID]
     @_spi(Testing) public var tags: [LogTag]
     @_spi(Testing) public var spanID: UUID?
@@ -120,6 +122,8 @@ import Foundation
         eventVersion = record.eventVersion
         message = record.message
         payload = try JSONEncoder().encode(record.event)
+        exportMetadata = try JSONEncoder()
+            .encode(LogExportMetadata(payload: record.event.exportDescription.schema))
         scopes = record.scopes.map(\.rawValue)
         tags = record.tags
         spanID = record.spanID?.rawValue

@@ -16,6 +16,7 @@ struct NDJSONExporterTests {
         message: String,
         date: Date,
         payload: Data = Data(),
+        exportMetadata: Data? = nil,
         tags: [LogTag] = [],
         spanExitMode: SpanExit.Mode? = nil,
         ambientSnapshotID: UUID? = nil,
@@ -29,6 +30,7 @@ struct NDJSONExporterTests {
             eventVersion: 1,
             message: message,
             payload: payload,
+            exportMetadata: exportMetadata,
             scopes: [root.child(named: "photos").id],
             tags: tags,
             spanID: nil,
@@ -58,8 +60,119 @@ struct NDJSONExporterTests {
         #expect(object["payloadError"] as? String == "unparseable (2 bytes)")
     }
 
-    @Test func exportsOneLinePerEventOldestFirst() {
-        let export = NDJSONExporter.export(
+    @Test func filteredExportUsesPersistedPermissionsAndKeepsRawMessagesLocal() throws {
+        let payload = Data(#"{"count":3,"sample_id":"sample-1","secret":"never-share"}"#.utf8)
+        let metadata = try JSONEncoder().encode(LogExportMetadata(payload: .object([
+            "count": .gated(.baseline(requiring: []), .value),
+            "sample_id": .gated(.diagnostic(requiring: [.identifiers]), .value),
+            "secret": .gated(.never, .value),
+        ])))
+        let snapshot = AmbientSnapshot(
+            id: UUID(),
+            values: [.network: ["private": "ambient-secret"]],
+        )
+        let event = stored(
+            message: "never-share",
+            date: date(1),
+            payload: payload,
+            exportMetadata: metadata,
+            tags: [LogTag(key: LogTagKey("secret"), value: "tag-secret")],
+            ambientSnapshotID: snapshot.id,
+        )
+        let session = makeSession(id: sessionID, attributes: [.commit: "session-secret"])
+        let baseline = try NDJSONExporter.export(
+            events: [event],
+            scopes: scopes,
+            sessions: [session],
+            ambient: [snapshot.id: snapshot],
+            mode: .filtered(.init(mode: .baseline, enabledControls: [])),
+        )
+        let object = try #require(try JSONSerialization
+            .jsonObject(with: Data(baseline.utf8)) as? [String: Any])
+        #expect(object["message"] as? String == "message")
+        #expect(object["payload"] as? [String: Int] == ["count": 3])
+        #expect(object["tags"] == nil)
+        #expect(object["scopePath"] == nil)
+        #expect(object["session"] == nil)
+        #expect(object["ambient"] == nil)
+        let identifiers = try NDJSONExporter.export(
+            events: [event],
+            scopes: scopes,
+            sessions: [session],
+            ambient: [snapshot.id: snapshot],
+            mode: .filtered(.init(mode: .diagnostic, enabledControls: [.identifiers])),
+        )
+        #expect(identifiers.contains("sample-1"))
+        #expect(identifiers.contains("never-share") == false)
+        #expect(identifiers.contains("session-secret") == false)
+        #expect(identifiers.contains("tag-secret") == false)
+        let all = try NDJSONExporter.export(
+            events: [event],
+            scopes: scopes,
+            sessions: [session],
+            ambient: [snapshot.id: snapshot],
+            mode: .filtered(.init(
+                mode: .diagnostic,
+                enabledControls: [.identifiers, .location, .userContent, .personalData],
+            )),
+        )
+        #expect(all.contains("session-secret"))
+        #expect(all.contains("tag-secret"))
+        #expect(all.contains("never-share") == false)
+        #expect(all.contains("ambient-secret") == false)
+        let unfiltered = try NDJSONExporter.export(
+            events: [event],
+            scopes: scopes,
+            sessions: [session],
+            ambient: [snapshot.id: snapshot],
+            mode: .unfiltered,
+        )
+        #expect(unfiltered.contains("never-share"))
+        #expect(unfiltered.contains("ambient-secret"))
+    }
+
+    @Test func historicalRowsNeverFallBackToRawDataInFilteredMode() throws {
+        let event = stored(
+            message: "historical-secret",
+            date: date(1),
+            payload: Data(#"{"value":"historical-secret"}"#.utf8),
+        )
+        let export = try NDJSONExporter.export(
+            events: [event],
+            scopes: scopes,
+            sessions: [makeSession(id: sessionID)],
+            ambient: [:],
+            mode: .filtered(.init(
+                mode: .diagnostic,
+                enabledControls: [.identifiers, .location, .userContent, .personalData],
+            )),
+        )
+        let object = try #require(try JSONSerialization
+            .jsonObject(with: Data(export.utf8)) as? [String: Any])
+        #expect(Set(object.keys) == ["event", "version", "message", "level", "severity"])
+        #expect(export.contains("historical-secret") == false)
+    }
+
+    @Test func invalidMetadataThrowsInsteadOfReturningAnUnfilteredFile() throws {
+        let event = stored(
+            message: "secret",
+            date: date(1),
+            payload: Data(#"{"secret":1}"#.utf8),
+            exportMetadata: Data("invalid".utf8),
+        )
+        #expect(throws: DecodingError.self) {
+            try NDJSONExporter.export(
+                events: [event],
+                scopes: scopes,
+                sessions: [],
+                ambient: [:],
+                mode: .filtered(.init(mode: .diagnostic, enabledControls: [.personalData])),
+            )
+        }
+    }
+
+    @Test func exportsOneLinePerEventOldestFirst() throws {
+        let export = try NDJSONExporter.export(
             events: [
                 stored(message: "newest", date: date(2)),
                 stored(message: "oldest", date: date(1)),
@@ -67,6 +180,7 @@ struct NDJSONExporterTests {
             scopes: scopes,
             sessions: [],
             ambient: [:],
+            mode: .unfiltered,
         )
 
         let lines = export.split(separator: "\n")
@@ -84,11 +198,12 @@ struct NDJSONExporterTests {
             attributes: [.optimizationLevel: "-Onone", .commit: "abc123"],
         )
         let unreferenced = makeSession()
-        let export = NDJSONExporter.export(
+        let export = try NDJSONExporter.export(
             events: [stored(message: "hello", date: date(1))],
             scopes: scopes,
             sessions: [unreferenced, session],
             ambient: [:],
+            mode: .unfiltered,
         )
 
         let lines = export.split(separator: "\n")
@@ -153,6 +268,7 @@ struct NDJSONExporterTests {
             eventVersion: 1,
             message: "bare",
             payload: Data(),
+            exportMetadata: nil,
             scopes: [LogScope.root(named: "never-defined").id],
             tags: [],
             spanID: nil,

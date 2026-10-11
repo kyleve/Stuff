@@ -3,6 +3,14 @@ import PeriscopeCore
 import Testing
 
 struct StoredLogEventTests {
+    @Test func historicalPayloadHasNoImplicitExportApproval() throws {
+        let stored = makeStored(payload: Data(#"{"secret":"historical"}"#.utf8))
+        #expect(try stored.exportedPayload(using: .init(
+            mode: .diagnostic,
+            enabledControls: [.personalData],
+        )) == nil)
+    }
+
     private func makeStored(payload: Data) -> StoredLogEvent {
         let scope = LogScope.root(named: "photos")
         return StoredLogEvent(
@@ -14,6 +22,7 @@ struct StoredLogEventTests {
             eventVersion: PhotoLogs.eventVersion,
             message: "photo p1",
             payload: payload,
+            exportMetadata: nil,
             scopes: [scope.id],
             tags: [LogTag(key: LogTagKey("payment-id"), value: "pay_123")],
             spanID: nil,
@@ -35,7 +44,10 @@ struct StoredLogEventTests {
     }
 
     @Test func decodeThrowsWhenTheShapeNoLongerMatches() throws {
-        let payload = try JSONEncoder().encode(Message(level: .info, "not a photo"))
+        let payload = try JSONEncoder().encode(Message(
+            level: .restricted(.technicalState, .info),
+            text: .restricted(.arbitraryText, "not a photo"),
+        ))
         let stored = makeStored(payload: payload)
 
         #expect(throws: (any Error).self) {

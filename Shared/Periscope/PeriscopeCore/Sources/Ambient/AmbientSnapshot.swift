@@ -15,7 +15,7 @@ import Foundation
 public struct AmbientSnapshot: Sendable, Hashable, Codable, Identifiable {
     public let id: UUID
     /// The latest value per kind. Momentary events
-    /// (``AmbientEvent/Reporting/occurrence``) never appear here.
+    /// (``AmbientLog.Event/Reporting/occurrence``) never appear here.
     public let values: [AmbientKind: [String: AmbientValue]]
 
     public init(id: UUID, values: [AmbientKind: [String: AmbientValue]]) {
@@ -31,7 +31,7 @@ public struct AmbientSnapshot: Sendable, Hashable, Codable, Identifiable {
     /// value is already current, otherwise a **new identity** carrying the
     /// new value. Returning `self` unchanged is what keeps one row per
     /// distinct state rather than one per record.
-    public func applying(_ event: AmbientEvent) -> AmbientSnapshot {
+    public func applying(_ event: any AmbientLogEvent) -> AmbientSnapshot {
         guard event.reporting == .state, values[event.kind] != event.value else { return self }
         var updated = values
         updated[event.kind] = event.value
@@ -59,7 +59,7 @@ public struct AmbientSnapshot: Sendable, Hashable, Codable, Identifiable {
     /// snapshot — a row claiming to describe a system state it knows nothing
     /// about — can't come into existence.
     public static func folding(
-        _ event: AmbientEvent,
+        _ event: any AmbientLogEvent,
         into snapshot: AmbientSnapshot?,
     ) -> AmbientSnapshot? {
         guard let snapshot else {
@@ -74,7 +74,7 @@ public struct AmbientSnapshot: Sendable, Hashable, Codable, Identifiable {
 /// kind, instead of the flat alternating key/value array a dictionary with
 /// non-string keys falls back to. Deliberately *not* `RawRepresentable`,
 /// which would come with stdlib conformances that could change how a kind
-/// encodes inside an `AmbientEvent` payload — invalidating stored rows.
+/// encodes inside an `AmbientLog.Event` payload — invalidating stored rows.
 extension AmbientKind: CodingKeyRepresentable {
     private struct Key: CodingKey {
         let stringValue: String

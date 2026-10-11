@@ -27,7 +27,7 @@ public final class NetworkPathAmbientSource: AmbientEventSource {
 
     public init() {}
 
-    public func start(log: Log<AmbientEvent>) {
+    public func start(log: Log<AmbientLog>) {
         let started = NWPathMonitor()
         started.pathUpdateHandler = { [weak self] path in
             self?.emit(Self.describe(path), to: log)
@@ -62,43 +62,55 @@ public final class NetworkPathAmbientSource: AmbientEventSource {
     /// flooding the log. Exposed for tests via `@_spi(Testing)` so the
     /// coalescing is covered without a live monitor (an `NWPath` can't be
     /// constructed in a test).
-    @_spi(Testing) public func emit(_ value: [String: AmbientValue], to log: Log<AmbientEvent>) {
+    @_spi(Testing) public func emit(_ event: AmbientLog.Network, to log: Log<AmbientLog>) {
+        let value = event.value
         let changed = state.withLockUnchecked { state -> Bool in
             guard state.lastValue != value else { return false }
             state.lastValue = value
             return true
         }
         guard changed else { return }
-        log { AmbientEvent(kind: .network, value: value) }
+        log.record(event)
     }
 
-    private static func describe(_ path: NWPath) -> [String: AmbientValue] {
+    private static func describe(_ path: NWPath) -> AmbientLog.Network {
         switch path.status {
             case .satisfied:
-                let interfaces = path.availableInterfaces.map(\.type.ambientName)
-                return [
-                    "status": .string("satisfied"),
-                    "interfaces": .string(interfaces.joined(separator: ", ")),
-                ]
+                return AmbientLog.Network(
+                    status: .shared(.category, .satisfied),
+                    interfaces: .restricted(
+                        .technicalState,
+                        path.availableInterfaces.map(\.type.ambientInterface),
+                    ),
+                )
             case .unsatisfied:
-                return ["status": .string("unsatisfied")]
+                return AmbientLog.Network(
+                    status: .shared(.category, .unsatisfied),
+                    interfaces: .restricted(.technicalState, []),
+                )
             case .requiresConnection:
-                return ["status": .string("requires-connection")]
+                return AmbientLog.Network(
+                    status: .shared(.category, .requiresConnection),
+                    interfaces: .restricted(.technicalState, []),
+                )
             @unknown default:
-                return ["status": .string("unknown")]
+                return AmbientLog.Network(
+                    status: .shared(.category, .unknown),
+                    interfaces: .restricted(.technicalState, []),
+                )
         }
     }
 }
 
 extension NWInterface.InterfaceType {
-    fileprivate var ambientName: String {
+    fileprivate var ambientInterface: AmbientLog.Network.Interface {
         switch self {
-            case .wifi: "wifi"
-            case .cellular: "cellular"
-            case .wiredEthernet: "wired"
-            case .loopback: "loopback"
-            case .other: "other"
-            @unknown default: "unknown"
+            case .wifi: .wifi
+            case .cellular: .cellular
+            case .wiredEthernet: .wired
+            case .loopback: .loopback
+            case .other: .other
+            @unknown default: .unknown
         }
     }
 }

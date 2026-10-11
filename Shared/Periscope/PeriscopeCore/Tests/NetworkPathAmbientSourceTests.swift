@@ -19,7 +19,7 @@ struct NetworkPathAmbientSourceTests {
         let sink = CapturingSink()
         let system = Periscope(configuration: Periscope.Configuration(), sinks: [sink])
         let source = NetworkPathAmbientSource()
-        let log = Log<AmbientEvent>(recorder: system)
+        let log = Log<AmbientLog>(recorder: system)
 
         source.start(log: log)
         source.start(log: log) // replaces (and cancels) the first monitor
@@ -34,7 +34,7 @@ struct NetworkPathAmbientSourceTests {
         let sink = CapturingSink()
         let system = Periscope(configuration: Periscope.Configuration(), sinks: [sink])
         let source = NetworkPathAmbientSource()
-        let log = Log<AmbientEvent>(recorder: system)
+        let log = Log<AmbientLog>(recorder: system)
 
         source.emit(wifi, to: log)
         source.emit(wifi, to: log) // NWPathMonitor churn: dropped
@@ -52,7 +52,7 @@ struct NetworkPathAmbientSourceTests {
         let sink = CapturingSink()
         let system = Periscope(configuration: Periscope.Configuration(), sinks: [sink])
         let source = NetworkPathAmbientSource()
-        let log = Log<AmbientEvent>(recorder: system)
+        let log = Log<AmbientLog>(recorder: system)
 
         source.emit(wifi, to: log)
         source.emit(cellular, to: log)
@@ -70,7 +70,7 @@ struct NetworkPathAmbientSourceTests {
         let sink = CapturingSink()
         let system = Periscope(configuration: Periscope.Configuration(), sinks: [sink])
         let source = NetworkPathAmbientSource()
-        let log = Log<AmbientEvent>(recorder: system)
+        let log = Log<AmbientLog>(recorder: system)
 
         source.emit(wifi, to: log)
         source.stop() // clears the last-value filter
@@ -81,22 +81,29 @@ struct NetworkPathAmbientSourceTests {
         #expect(networkValues(sink) == [wifi, wifi, offline])
     }
 
-    private var wifi: [String: AmbientValue] {
-        ["status": "satisfied", "interfaces": "wifi"]
+    private var wifi: AmbientLog.Network {
+        AmbientLog.Network(
+            status: .shared(.category, .satisfied),
+            interfaces: .restricted(.technicalState, [.wifi]),
+        )
     }
 
-    private var cellular: [String: AmbientValue] {
-        ["status": "satisfied", "interfaces": "cellular"]
+    private var cellular: AmbientLog.Network {
+        AmbientLog.Network(
+            status: .shared(.category, .satisfied),
+            interfaces: .restricted(.technicalState, [.cellular]),
+        )
     }
 
-    private var offline: [String: AmbientValue] {
-        ["status": "unsatisfied"]
+    private var offline: AmbientLog.Network {
+        AmbientLog.Network(
+            status: .shared(.category, .unsatisfied),
+            interfaces: .restricted(.technicalState, []),
+        )
     }
 
-    private func networkValues(_ sink: CapturingSink) -> [[String: AmbientValue]] {
+    private func networkValues(_ sink: CapturingSink) -> [AmbientLog.Network] {
         sink.records
-            .compactMap { $0.event as? AmbientEvent }
-            .filter { $0.kind == .network }
-            .map(\.value)
+            .compactMap { $0.event as? AmbientLog.Network }
     }
 }

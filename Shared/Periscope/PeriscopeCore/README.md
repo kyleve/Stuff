@@ -36,6 +36,11 @@ inspect mode live in [`PeriscopeTools`](../PeriscopeTools).
 
 ## Quick start
 
+The classified API supports `@LogField(exposure: .shareable, kind: .count)` without an explicit key.
+The macro converts the property name to an ASCII snake-case key.
+Exposure and kind remain mandatory.
+See the [macro authoring guide](../PeriscopeMacros/README.md) for key inference and rename rules.
+
 Define events, derive loggers, log:
 
 ```swift
@@ -70,6 +75,138 @@ Periscope.shared.add(sink: store)
 Periscope.shared.startDefaultAmbientSources()
 ```
 
+## Structured errors
+
+Declare an error field as `LogError` with `.restricted/.errorDetails`.
+Pass the original error at emission:
+
+```swift
+log.persistBacklogFailed(error: .restricted(.errorDetails, error))
+```
+
+The classified input captures a snapshot before the log call returns.
+The snapshot preserves the domain, numeric code, localized description, failure reason, recovery suggestion, and underlying causes.
+Decoding errors also preserve their failure kind and coding path, including numeric array indices.
+The snapshot does not reconstruct the original error type. Services and failure state retain the original `Error`.
+
+Capture stops at eight levels or 32 nodes, including the root.
+A cycle or limit leaves an explicit omission marker and stops the remaining causes at that node.
+The snapshot never copies arbitrary `NSError.userInfo` or reflects stored properties.
+
+Use concrete event fields for domain-specific data with a known schema.
+For explicitly selected Codable diagnostics, convert them before emission:
+
+```swift
+let snapshot = try LogError(capturing: error, details: .encoding(diagnostics))
+log.persistBacklogFailed(error: .restricted(.errorDetails, snapshot))
+```
+
+Conversion throws on failure. The caller must handle that error, not replace the details with an empty value.
+Baseline export excludes error snapshots. Diagnostic export filters their structured payloads.
+Codes, cause structure, omission markers, and decoding kinds need no personal-data grant in diagnostic mode.
+Domains, descriptions, coding paths, and caller-supplied details require the personal-data control.
+Restricted does not mean local-only. Attachment bytes remain excluded from every remote mode.
+
+## Export controls
+
+Shareable categories require `Codable`, `Sendable`, `CaseIterable`, and string-backed `RawRepresentable` conformances.
+Projection rechecks membership in `allCases`, including values created through decoding or mutation.
+Filtered exports accept only declared category strings, or null for optional categories.
+Custom category encoding cannot export extra object fields under a category approval.
+The persisted export schema carries the same string allowlist for historical records.
+An incompatible encoded value causes an export error, without a raw-value fallback.
+
+`LogExportPolicy` separates the export mode from independent data permissions.
+`LogExportControl` is an extensible value type, not a closed enum.
+Consumers declare controls with stable, namespaced identifiers:
+
+```swift
+extension LogExportControl {
+    static let myExportControl = Self("com.example.my-export-control")
+}
+
+var policy = LogExportPolicy(mode: .diagnostic, enabledControls: [])
+policy[.location] = true
+policy[.myExportControl] = true
+```
+
+The built-in controls cover identifiers, location, user content, and other personal data.
+Each control is independent. The personal-data control is not a wildcard.
+Diagnostic mode does not enable any control automatically.
+
+A host can present one switch for an explicit group:
+
+```swift
+let personalControls: Set<LogExportControl> = [
+    .identifiers, .location, .userContent, .personalData,
+]
+policy.setEnabled(includePersonalData, for: personalControls)
+```
+
+This operation preserves unrelated grants. New framework controls and consumer controls remain off until explicitly enabled.
+The host owns labels, explanations, and the group membership shown in its UI.
+
+`LogContextExportRequirements` defines shared permissions for identifiers, dates, session details, tags, scopes, session attributes, and attachment metadata.
+Export adapters use these requirements independently of an app's UI control groups. Each adapter retains its own format and field selection.
+These requirements do not permit attachment bytes, rendered messages, or folded ambient snapshots.
+The unfiltered file exporter intentionally bypasses these requirements.
+
+The `.restricted(.errorDetails, error)` factory accepts both `any Error` and `(any Error)?`.
+It captures `LogError` at the logging boundary and preserves an absent error as `nil`. Explicit snapshots remain unchanged.
+
+`LogExportRequirements` describes author-approved eligibility and required controls:
+
+```swift
+let requirements = LogExportRequirements.diagnostic(requiring: [.location, .myExportControl])
+let canExport = policy.allows(requirements)
+```
+
+Every required control must be enabled. A child uses `constrained(by:)` to retain its parent's restrictions.
+The `.never` requirement denies policy-filtered export regardless of the mode or enabled controls.
+These declarations express approval. They do not inspect values for personal data.
+
+`@LogEvent` generates `exportDescription`. Its inherited `exportedValue(using:)` filters live values before encoding.
+Denied fields do not invoke their encoder.
+Local `Codable` persistence remains complete. Raw encoding is not an export API.
+Manual event conformances default to an empty export object.
+
+The store and crash journal persist versioned `LogExportMetadata` beside the unchanged raw payload.
+This value-free tree records stable field keys, requirements, object members, and array positions.
+It contains requirements, not the user's current grants.
+Metadata stays local. Dynamic dictionary keys can themselves contain personal data.
+`StoredLogEvent.exportedPayload(using:)` applies the requested policy without decoding the original event type.
+Unknown metadata versions and incompatible shapes throw. Historical rows without metadata return no approved payload.
+Synthesized Codable can omit nil optional members. Their approved export representation remains JSON null.
+
+Custom `LogExportable` values implement `exportDescription` with the same keys and container shape as their Codable representation.
+The description supplies both live filtering and stored permissions. No second set of privacy rules is required.
+Metadata increases journal size and record serialization work, but does not duplicate payload values.
+PeriscopeTools offers explicit unfiltered file export. That mode intentionally bypasses requirements, including `.never`.
+
+Restricted fields can override their diagnostic requirements:
+
+```swift
+@LogField(exposure: .restricted, kind: .identifier, export: .never)
+var credentialID: String
+
+@LogField(exposure: .restricted, kind: .domainValue,
+          export: .diagnostic(requiring: [.myExportControl]))
+var diagnostics: DiagnosticDetails
+```
+
+Shareable fields already approve baseline export and cannot declare an export override.
+Restricted identifiers, locations, and user content require their respective controls.
+Restricted scalar operational kinds need diagnostic mode. Other restricted values require personal-data consent by default.
+`LogError` fields use the nested error projection instead of a blanket text approval.
+This default uses the framework type's identity, including aliases and optionals.
+An unrelated type named `LogError` retains the personal-data permission requirement.
+
+Nested types implement `LogExportable` to filter their members with `LogExportField.object(_:using:)`.
+Optional values, arrays, and string-keyed dictionaries preserve nested projections.
+The containing field must pass its own requirements before any child can export.
+Opaque Codable values and `JSONValue` are atomic: their containing field approves their complete contents, including dictionary keys.
+Do not wrap policy-bearing values in opaque Codable containers or pre-encode them as JSON. Preserve their `LogExportable` projection instead.
+
 ## Public API
 
 - **Events** — `LogEvent` (`Codable & Sendable`; `eventName`, `eventVersion`,
@@ -97,6 +234,7 @@ Periscope.shared.startDefaultAmbientSources()
   (`.superseded`), and a relaunch closes `endsWithProcess` spans the dead
   process left open (`.orphaned`, duration unknowable). Durations use
   `ContinuousClock`. Spans mirror to `OSSignposter`.
+- **Structured errors** — `LogError` captures typed diagnostics as a restricted event field. See [Structured errors](#structured-errors).
 - **Attachments** — `LogAttachment` (+ `.error`, `.json`, `.image`
   conveniences) rides along with any event. Blobs persist externally and
   load on demand.
@@ -118,7 +256,7 @@ Periscope.shared.startDefaultAmbientSources()
   PeriscopeTools' log view mode.
 - **Ambient state** — `AmbientEventSource`s report what the system is doing
   (`NetworkPathAmbientSource`, thermal, low-power, lifecycle, memory
-  warnings, accessibility). Each `AmbientEvent` carries its state as named
+  warnings, accessibility). Each `AmbientLogEvent` projects its local state as named
   fields (`[String: AmbientValue]` — a plain JSON object in the payload,
   e.g. `["status": "satisfied", "voiceover": false]`) and declares its
   `reporting`: a `.state` event is a lasting condition, an `.occurrence` a
@@ -126,6 +264,16 @@ Periscope.shared.startDefaultAmbientSources()
   into an `AmbientSnapshot` and stamps it on **every** record — so any error
   joins to the connectivity, thermal state, and power mode at that moment
   without a timestamp hunt.
+  Named built-in events approve lifecycle phases, thermal conditions, power mode,
+  memory warnings, and connectivity for baseline export. Network interfaces,
+  accessibility settings, and custom `AmbientLog.Event` payloads remain restricted.
+  A custom event never inherits approval from its `AmbientKind`.
+  These approvals deliberately expand the previous ambient export boundary.
+  The snapshot itself remains local and is excluded from baseline export.
+  Sources receive `Log<AmbientLog>`. Notification adapters return
+  `any AmbientLogEvent & LogEvent` so the same folding path handles every event type.
+  Built-ins now use distinct `ambient.*` event names and payload shapes.
+  This is a deliberate wire break, without historical typed-decode compatibility.
 - **Session attributes** — `LogSession.current(attributes:)` takes
   `[LogSessionAttributeKey: String]`, the build facts only the app can name:
   `.commit` / `.commitStatus`, `.configuration`, `.optimizationLevel`,

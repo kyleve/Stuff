@@ -87,13 +87,18 @@
         /// both the baseline and change events report, so the snapshot
         /// always carries the complete picture.
         @MainActor
-        private static func summaryEvent() -> AmbientEvent {
-            AmbientEvent(
-                kind: .accessibility,
-                value: Dictionary(
-                    uniqueKeysWithValues: settings
-                        .map { ($0.name, AmbientValue.bool($0.isEnabled())) },
+        private static func summaryEvent() -> AmbientLog.Event {
+            AmbientLog.Event(
+                kind: .restricted(.technicalState, .accessibility),
+                value: .restricted(
+                    .domainValue,
+                    Dictionary(
+                        uniqueKeysWithValues: settings
+                            .map { ($0.name, AmbientValue.bool($0.isEnabled())) },
+                    ),
                 ),
+                level: .restricted(.technicalState, .info),
+                reporting: .restricted(.technicalState, .state),
             )
         }
     }

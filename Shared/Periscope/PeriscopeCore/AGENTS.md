@@ -21,7 +21,8 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) first. That file owns the build 
 - **Custom levels are values, not cases.** `LogLevel` is a struct ordered by `severity`. Never switch exhaustively over "all" levels.
 - **Log change-only where the signal is chatty.** `NetworkPathAmbientSource` dedupes `NWPathMonitor`'s repeat callbacks.
 - **Notification-based sources are deliberately not deduped.** Each repeated memory warning is a distinct event.
-- **An ambient event declares whether it is a state or an occurrence.** `AmbientEvent.reporting` decides whether the event folds into the `AmbientSnapshot` stamped on later records.
+- **Use `AmbientLogEvent.reporting` to distinguish state from occurrence.** Both built-in and custom events fold through this local-only protocol.
+- **Keep custom ambient payloads and accessibility settings restricted.** Built-in lifecycle, thermal, power, memory, and connectivity events carry explicit baseline approvals.
 - **A momentary signal (a memory warning) is `.occurrence` and never becomes state.**
 - **Folding it in would leave every subsequent record claiming the app was mid-memory-warning.**
 - **A source whose signal is a lasting condition must also report it at `started()`.** Otherwise the state is unknown until it next changes.
@@ -41,7 +42,15 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) first. That file owns the build 
 - **Make remote export an explicit opt-in for each event.** Safe sinks use `remoteMessage` and `remoteFields`.
 - **Never infer remote data from payloads, tags, dynamic scopes, ambient state, external IDs, or attachments.**
 - **Never use attachment bytes as remote-export input, including in Debug full-metadata mode.**
+- **Capture `LogError` at the logging boundary and classify it as restricted/errorDetails.** Keep the original error in services and failure state. Do not copy arbitrary `NSError.userInfo` into payloads. Restricted payloads remain eligible for opt-in debug-full export.
 - **Use closed `CaseIterable` values for category fields.** Reject values outside `allCases`.
+- **Revalidate category membership during projection.** Filtered live and persisted exports accept only declared category strings, or null for optional categories.
+- **Export controls are explicit grants, not a wildcard.** A combined UI switch names its controls and preserves unrelated grants.
+- **Use `LogContextExportRequirements` for context export permissions.** Keep these requirements independent of consumer UI control groups.
+- **Export requirements compose restrictively.** Require every control, retain parent restrictions, and never override `.never`.
+- **Use `exportedValue(using:)`, never raw event encoding, for diagnostic export.** Denied fields must not invoke encoders.
+- **Preserve nested export policies.** Use `LogExportable` for structured members. Do not hide policy-bearing values in opaque Codable containers or pre-encoded JSON.
+- **Describe export permissions once through `exportDescription`.** Its keys and container shape must match local Codable. Capture its value-free metadata in both store rows and crash journals. Filter historical rows without metadata conservatively. Never infer approval from their raw payloads.
 - **Sink failures never propagate or vanish.** Log them to OSLog. Count them.
 - **Persist a synthetic `StoreWriteFailed` marker.** The pipeline reports drops with a synthetic `DroppedEvents` record.
 - **Roll back a failed store save** (`recoverFromFailedWrite`). One poisoned batch must never wedge subsequent saves or fork the session.
