@@ -2357,7 +2357,9 @@ final class SDLocationSample {
             evidenceKindRaw: evidenceKindRaw,
         ) else { return nil }
         guard recordingTenureID == nil || (recordingDeviceID != nil && source.isGPS) else {
-            Self.logger { .droppedCorruptRecord(type: "SDLocationSample recording provenance") }
+            Self.logger.droppedCorruptRecord(
+                type: .restricted(.technicalState, "SDLocationSample recording provenance"),
+            )
             return nil
         }
         // Optional motion may arrive partially without invalidating the raw
