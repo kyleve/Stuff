@@ -80,11 +80,9 @@ actor CompatibilityLocationSource: LocationSource {
     }
 
     private func log(_ error: any Error) {
-        WhereLog.root(DataCompatibilityLog.self)(attachments: [.error(
+        WhereLog.root(DataCompatibilityLog.self).accessBlocked(error: .restricted(
+            .errorDetails,
             error,
-            name: "location-access-error",
-        )]) {
-            .accessBlocked(description: error.localizedDescription)
-        }
+        ))
     }
 }
