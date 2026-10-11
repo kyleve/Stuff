@@ -482,6 +482,7 @@ Screen identities derive from their view types. Each view declares its own
 registration and forward routes. Catalog tests check that each registration
 appears once. The planning routes connect Locations, Planned stays, and the
 individual stay editor.
+The catalog does not use source scanning or macros to discover navigation.
 
 Opening Flyover asynchronously builds one `WhereScope.demo` and shares its
 seeded in-memory services, preferences, and session across live frames. That
@@ -501,6 +502,19 @@ out. Selecting the inspect button opens the same screen in a full-screen
 interactive viewport. Flyover's appearance, device, Dynamic Type, contrast,
 layout-direction, and bold-text choices are session-only and apply only to
 registered content.
+
+`WhereFlyoverWebExportTests` is the hosted static-export adapter. It reads the
+request supplied through test-runner environment values and otherwise returns without work. One
+`WhereFlyoverWorld` supplies every capture in an export. Its frozen date,
+in-memory store, in-memory preferences, no-op services, private logs, and
+Broadway root are the same synthetic fixtures used by native Flyover. The
+export never activates that scope or reads app data.
+
+`WhereFlyoverScreenID.exportIdentifier` maps normal screens to their reflected
+type name. Contextual screens include both reflected type names. Snapshot-backed
+variant IDs use the snapshot case name. These identifiers are stable web and
+deep-link identities; process-local `ObjectIdentifier` values never leave the
+runtime catalog.
 
 ### Artwork loading
 

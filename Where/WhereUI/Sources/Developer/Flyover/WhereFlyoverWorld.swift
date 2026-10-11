@@ -7,6 +7,7 @@
     @MainActor
     final class WhereFlyoverWorld {
         let scope: WhereScope
+        let openSpansLogSystem: Periscope
         let model: WhereModel
         let session: WhereSession
         let report: YearReportModel
@@ -15,6 +16,7 @@
 
         private init(
             scope: WhereScope,
+            openSpansLogSystem: Periscope,
             model: WhereModel,
             session: WhereSession,
             report: YearReportModel,
@@ -22,6 +24,7 @@
             backup: BackupModel,
         ) {
             self.scope = scope
+            self.openSpansLogSystem = openSpansLogSystem
             self.model = model
             self.session = session
             self.report = report
@@ -30,6 +33,16 @@
         }
 
         static func build() async throws -> WhereFlyoverWorld {
+            try await build(openSpansSource: .shared)
+        }
+
+        static func buildForWebExport() async throws -> WhereFlyoverWorld {
+            try await build(openSpansSource: .syntheticWorld)
+        }
+
+        private static func build(
+            openSpansSource: OpenSpansSource,
+        ) async throws -> WhereFlyoverWorld {
             let now: @Sendable () -> Date = { PreviewSupport.referenceNow }
             let logSystem = Periscope(
                 configuration: Periscope.Configuration(),
@@ -61,9 +74,14 @@
                 now: now,
             )
             await report.activate()
+            let openSpansLogSystem: Periscope = switch openSpansSource {
+                case .shared: .shared
+                case .syntheticWorld: logSystem
+            }
 
             return WhereFlyoverWorld(
                 scope: scope,
+                openSpansLogSystem: openSpansLogSystem,
                 model: model,
                 session: session,
                 report: report,
@@ -104,6 +122,7 @@
             )
             return WhereFlyoverWorld(
                 scope: scope,
+                openSpansLogSystem: .shared,
                 model: model,
                 session: session,
                 report: report,
@@ -114,6 +133,11 @@
                 ),
                 backup: BackupModel(services: services),
             )
+        }
+
+        private enum OpenSpansSource {
+            case shared
+            case syntheticWorld
         }
     }
 #endif
