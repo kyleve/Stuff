@@ -11,7 +11,7 @@ import UIKit
 /// exchange is a parity toggle, and a second capture's swizzle un-swizzled the
 /// first's (the Phase 13 parallel experiment produced 24+ spurious mismatches
 /// this way). `renderSnapshotImage` now serializes captures through a FIFO
-/// mutex, so concurrent calls must produce exactly the images serial calls do.
+/// mutex, so concurrent hosted PNG calls must match serial calls exactly.
 ///
 /// The probe view paints its safe area red over a green backdrop that ignores
 /// it, so the rendered green strip *is* the effective top inset: capture A
@@ -89,13 +89,24 @@ private struct SafeAreaProbeView: View {
 
 @MainActor
 private func captureProbeImage(topInset: CGFloat) async throws -> UIImage {
-    let host = UIHostingController(rootView: SafeAreaProbeView())
-    host.view.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
-    return try await renderSnapshotImage(
-        of: host,
-        named: "safe-area-\(Int(topInset))pt-probe",
-        safeAreaInsets: UIEdgeInsets(top: topInset, left: 0, bottom: 0, right: 0),
+    let configuration = SnapshotConfiguration(
+        device: SnapshotConfiguration.Frame(
+            name: "safe-area-probe",
+            size: .fixed(CGSize(width: 100, height: 100)),
+        ),
     )
+    let png = try await captureSnapshotPNG(
+        of: SafeAreaProbeView(),
+        configuration: configuration,
+        named: "safe-area-\(Int(topInset))pt-probe",
+        sizing: .fixed,
+        safeAreaInsets: UIEdgeInsets(top: topInset, left: 0, bottom: 0, right: 0),
+        measurementReadiness: .sameAsCapture,
+        onReadyToMeasure: nil,
+        settle: .settled,
+        onReadyToSnapshot: nil,
+    )
+    return try #require(UIImage(data: png.data, scale: png.scale))
 }
 
 private func expectations(for image: UIImage) -> ProbedCapture {
