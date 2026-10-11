@@ -9,6 +9,7 @@
         case duplicateScreenIdentifier(String)
         case emptyVariantIdentifier(screen: String)
         case duplicateVariantIdentifier(screen: String, variant: String)
+        case invalidViewport(group: String, screen: String)
         case mixedSizingPolicy(screen: String, variant: String, extents: [String])
         case measurementHookRequiresMeasuredSizing(screen: String, variant: String)
         case missingManifestGeometry(kind: String, identifier: String)
@@ -41,6 +42,8 @@
                     "A variant export identifier is empty in \(screen)."
                 case let .duplicateVariantIdentifier(screen, variant):
                     "The variant export identifier \(variant) is not unique in \(screen)."
+                case let .invalidViewport(group, screen):
+                    "The fixed viewport for \(group) / \(screen) is invalid. Use finite, positive width and height values."
                 case let .mixedSizingPolicy(screen, variant, extents):
                     "The export policy for \(screen) / \(variant) mixes sizing classes: \(extents.joined(separator: ", "))."
                 case let .measurementHookRequiresMeasuredSizing(screen, variant):
