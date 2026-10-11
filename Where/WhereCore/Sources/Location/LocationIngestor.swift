@@ -513,9 +513,7 @@ public actor LocationIngestor {
             }
         } catch let error as DataCompatibilityError {
             await closeRecordingAuthority(ifAuthorizedFor: dataGenerationID)
-            Self.logger(attachments: [.error(error, name: "compatibility-error")]) {
-                .foregroundCaptureReadFailed(description: error.localizedDescription)
-            }
+            Self.logger.foregroundCaptureReadFailed(error: .restricted(.errorDetails, error))
         } catch RecordingAuthorityError.ownerRequired {
             await closeRecordingAuthority(ifAuthorizedFor: dataGenerationID)
         } catch RecordingPersistenceError.dataGenerationChanged {
