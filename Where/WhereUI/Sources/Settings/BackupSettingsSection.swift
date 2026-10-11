@@ -1,92 +1,142 @@
 import PeriscopeCore
-import SFSafeSymbols
+#if DEBUG
+    import SnapshotKit
+#endif
 import SwiftUI
 import WhereCore
 
-/// The whole-database backup section embedded in ``DataSettingsView``.
-/// Imports deliberately live only in onboarding, where the app can recover a
-/// committed archive before exposing a running session.
+/// Owns the Data page's automatic-backup observations and recovery-key lifetime.
 struct BackupSettingsSection: View {
     let backup: BackupModel
-
-    /// Backup export: the ready-to-share archive built up-front, presented as
-    /// soon as the background export finishes.
-    @State private var presentedShareItem: BackupShareSheet.Item?
+    let recordingEnabled: Bool
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
-        @Bindable var backup = backup
-        backupSection
-            .sheet(item: $presentedShareItem) { item in
-                BackupShareSheet(item: item)
+        BackupSettingsContent(backup: backup, recordingEnabled: recordingEnabled)
+            .task(id: recordingEnabled) {
+                await backup.activate(recordingEnabled: recordingEnabled)
             }
-            .alert(
-                String(localized: .settingsBackupErrorTitle),
-                isPresented: $backup.isShowingBackupError,
-                presenting: backup.backupError,
-            ) { _ in
-                Button(String(localized: .commonOk), role: .cancel) {}
-            } message: { message in
-                Text(message)
-            }
-    }
-
-    private var backupSection: some View {
-        Section {
-            // The archive is built up-front on a background task (with an
-            // in-app "Exporting…" bar), then handed to the system activity sheet
-            // as a ready file — so it opens instantly instead of sitting in the
-            // system's blocking "Preparing…" state.
-            Button {
-                runExport()
-            } label: {
-                if backup.backupState == .exporting {
-                    backupProgressLabel(
-                        String(localized: .settingsBackupExporting),
-                        systemSymbol: .squareAndArrowUp,
-                    )
-                } else {
-                    Label(
-                        String(localized: .settingsBackupExport),
-                        systemSymbol: .squareAndArrowUp,
-                    )
+            .onChange(of: scenePhase) { _, phase in
+                switch phase {
+                    case .active:
+                        Task { await backup.activate(recordingEnabled: recordingEnabled) }
+                    case .inactive, .background:
+                        backup.hideRecoveryKey()
+                    @unknown default:
+                        backup.hideRecoveryKey()
                 }
             }
-            .disabled(backup.backupState != .idle)
-            .settingsRow(DataSettingsView.Item.exportBackup)
-        } header: {
-            Text(String(localized: .settingsBackupHeader))
-        } footer: {
-            Text(String(localized: .settingsBackupFooter))
-        }
-        // Log View Mode: reveal an inspect badge for backup export
-        // events on this section. A no-op in release.
-        .debugLogInspectable(WhereLog.session(BackupModelLog.self))
-    }
-
-    /// Determinate progress for an in-flight export, driven by
-    /// `backup.backupProgress` as the backup coordinator makes progress.
-    private func backupProgressLabel(_ title: String, systemSymbol: SFSymbol) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label(title, systemSymbol: systemSymbol)
-            ProgressView(value: backup.backupProgress)
-        }
-    }
-
-    /// Build the archive in the background, then present its system activity
-    /// sheet. The coordinator purges the previous export when this one starts.
-    private func runExport() {
-        Task {
-            if let url = await backup.exportBackup() {
-                presentedShareItem = BackupShareSheet.Item(url: url)
-            }
-        }
+            .onDisappear { backup.deactivate() }
     }
 }
 
 #if DEBUG
+    extension BackupSettingsSection: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            [
+                whereSnapshot(
+                    name: "RecordingDisabled",
+                    configurations: .fullContentPhoneLightDark,
+                ) {
+                    snapshotForm(recordingEnabled: false)
+                },
+                whereSnapshot(
+                    name: "NoBackups",
+                    configurations: .fullContentPhoneLightDark,
+                ) {
+                    snapshotForm(recordingEnabled: true)
+                },
+                whereSnapshot(
+                    name: "Populated",
+                    configurations: .fullContentPhoneLightDark,
+                ) {
+                    snapshotForm(
+                        recordingEnabled: true,
+                        catalog: AutomaticBackupCatalog(
+                            files: snapshotFiles,
+                            isICloudUnavailable: false,
+                        ),
+                    )
+                },
+                whereSnapshot(
+                    name: "PartialICloudFailure",
+                    configurations: .fullContentPhoneLightDark,
+                ) {
+                    snapshotForm(
+                        recordingEnabled: true,
+                        catalog: AutomaticBackupCatalog(
+                            files: [],
+                            isICloudUnavailable: true,
+                        ),
+                    )
+                },
+                whereSnapshot(
+                    name: "RevealedKey",
+                    configurations: .fullContentPhoneLightDark,
+                ) {
+                    snapshotForm(
+                        recordingEnabled: true,
+                        recoveryKey: "VGhpcy1pcy1hLXNhbXBsZS1yZWNvdmVyeS1rZXku",
+                    )
+                },
+            ]
+        }
+
+        private static var snapshotFiles: [AutomaticBackupFile] {
+            [
+                AutomaticBackupFile(
+                    url: URL(fileURLWithPath: "/backup/newest.wherebackup"),
+                    exportedAt: PreviewSupport.referenceNow,
+                    byteCount: 2_450_000,
+                    storageLocation: .iCloudDrive,
+                    protection: .aesGCM256,
+                ),
+                AutomaticBackupFile(
+                    url: URL(fileURLWithPath: "/backup/older.wherebackup"),
+                    exportedAt: PreviewSupport.referenceNow.addingTimeInterval(-7 * 24 * 60 * 60),
+                    byteCount: nil,
+                    storageLocation: .appDocuments,
+                    protection: .aesGCM256,
+                ),
+            ]
+        }
+
+        private static func snapshotForm(
+            recordingEnabled: Bool,
+            catalog: AutomaticBackupCatalog = AutomaticBackupCatalog(
+                files: [],
+                isICloudUnavailable: false,
+            ),
+            recoveryKey: String? = nil,
+        ) -> some View {
+            let model = PreviewSupport.backupModel()
+            model.configurePreview(
+                catalogState: .loaded(catalog),
+                recoveryKey: recoveryKey,
+            )
+            return snapshotForm(model: model, recordingEnabled: recordingEnabled)
+        }
+
+        private static func snapshotForm(model: BackupModel, recordingEnabled: Bool) -> some View {
+            NavigationStack {
+                Form {
+                    BackupSettingsContent(
+                        backup: model,
+                        recordingEnabled: recordingEnabled,
+                    )
+                }
+                .navigationTitle("Data")
+                .navigationBarTitleDisplayMode(.inline)
+            }
+        }
+    }
+
     #Preview {
         Form {
-            BackupSettingsSection(backup: PreviewSupport.backupModel())
+            BackupSettingsSection(
+                backup: PreviewSupport.backupModel(),
+                recordingEnabled: true,
+            )
         }
         .whereBroadwayRoot()
     }

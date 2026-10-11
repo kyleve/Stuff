@@ -1,4 +1,5 @@
 import Foundation
+@_spi(Testing) import KeychainKit
 import Testing
 @_spi(Testing) import WhereCore
 @testable import WhereUI
@@ -6,6 +7,62 @@ import Testing
 /// Exercises `BackupModel`'s Settings-only export bridge and error presentation.
 @MainActor
 struct BackupModelTests {
+    @Test func disappearingDuringAutomaticBackupStillPersistsTheCompletedResult() async throws {
+        let gate = BackupKeyAccessGate()
+        let root = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let preferences = WherePreferences(store: InMemoryKeyValueStore())
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: ScriptedLocationSource(),
+            backupRecoveryKeys: BackupRecoveryKeyProvider(
+                store: InMemoryKeychainStore(),
+                isProtectedDataAvailable: { await gate.wait() },
+            ),
+            automaticBackupStorage: AutomaticBackupStorage(
+                iCloudRoot: { nil },
+                localRoot: { root },
+            ),
+            now: { now },
+        )
+        let model = BackupModel(services: services, preferences: preferences)
+        let activation = Task { await model.activate(recordingEnabled: true) }
+        await gate.waitForArrival()
+        model.deactivate()
+        activation.cancel()
+        await gate.release()
+        await activation.value
+        #expect(preferences.lastAutomaticBackupAt == now)
+        #expect(model.backupError == nil)
+        #expect(model.catalogState == .idle)
+        #expect(model.revealedRecoveryKey == nil)
+    }
+
+    @Test func hidingWhileKeyAccessIsPendingDiscardsTheLateResult() async throws {
+        let gate = BackupKeyAccessGate()
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: ScriptedLocationSource(),
+            backupRecoveryKeys: BackupRecoveryKeyProvider(
+                store: InMemoryKeychainStore(),
+                isProtectedDataAvailable: { await gate.wait() },
+            ),
+            automaticBackupStorage: AutomaticBackupStorage(
+                iCloudRoot: { nil },
+                localRoot: { URL.temporaryDirectory.appendingPathComponent(UUID().uuidString) },
+            ),
+        )
+        let model = BackupModel(services: services)
+        let request = Task { await model.revealRecoveryKey() }
+        await gate.waitForArrival()
+        model.hideRecoveryKey()
+        await gate.release()
+        await request.value
+        #expect(model.revealedRecoveryKey == nil)
+        #expect(model.backupError == nil)
+    }
+
     private func date(year: Int, month: Int, day: Int) -> Date {
         Calendar.current.date(
             from: DateComponents(year: year, month: month, day: day, hour: 12),
@@ -61,6 +118,26 @@ struct BackupModelTests {
         backup.isShowingBackupError = false
         #expect(backup.backupError == nil)
         #expect(!backup.isShowingBackupError)
+    }
+
+    @Test func automaticBackupChoicesMirrorAndPersist() throws {
+        let preferences = WherePreferences(store: InMemoryKeyValueStore())
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: ScriptedLocationSource(),
+        )
+        let backup = BackupModel(services: services, preferences: preferences)
+
+        #expect(backup.automaticBackupsEnabled)
+        #expect(backup.automaticBackupInterval == .weekly)
+
+        backup.setAutomaticBackupsEnabled(false)
+        backup.setAutomaticBackupInterval(.monthly)
+
+        #expect(!backup.automaticBackupsEnabled)
+        #expect(backup.automaticBackupInterval == .monthly)
+        #expect(!preferences.automaticBackupsEnabled)
+        #expect(preferences.automaticBackupInterval == .monthly)
     }
 }
 

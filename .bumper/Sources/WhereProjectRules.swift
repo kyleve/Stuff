@@ -13,6 +13,13 @@ let whereProjectRules = RuleSet {
             .union(nonWhereProductionScope),
         id: "where.live_location_source_ownership",
     )
+    Rules.constructionOwnership(
+        "FileInstallationRecordingContextStore",
+        allowed: RuleScope.files(["Where/Where/Sources/RegularApplicationRuntime.swift"])
+            .union(nonWhereProductionScope),
+        id: "where.installation_context_ownership",
+    )
+    installationContextPreparationRule
     Rules.singleNominalSpelling(
         suffix: "Log",
         owner: whereLoggingScope.union(nonWhereProductionScope),
@@ -25,6 +32,30 @@ let whereProjectRules = RuleSet {
     appShortcutsProviderOwnershipRule
     loggingFacadeRule
     previewCoverageRule
+}
+
+private let installationContextPreparationRule = Rules.files(
+    "where.installation_context_preparation",
+    severity: .error,
+    summary: "Only the regular runtime prepares the protected installation sidecar.",
+    scope: whereProductionScope,
+) { file in
+    functionCalls()
+        .filter { match in
+            match.node.calledExpression.as(MemberAccessExprSyntax.self)?.declName.baseName.text
+                == "prepareAfterFirstUnlock"
+                && file.path != "Where/Where/Sources/RegularApplicationRuntime.swift"
+        }
+        .matches(in: file)
+        .map { match in
+            match.failure(
+                message: "Installation context preparation is outside the app's first-unlock owner.",
+                evidence: ViolationEvidence(
+                    observed: "prepareAfterFirstUnlock in \(file.path.rawValue)",
+                    expectation: "prepare the sidecar through RegularApplicationRuntime's shared launch barrier",
+                ),
+            )
+        }
 }
 
 private let whereProductionScope = RuleScope { file in

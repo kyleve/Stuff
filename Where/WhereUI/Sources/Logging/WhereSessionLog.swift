@@ -81,4 +81,13 @@ enum WhereSessionLog {
 
     @LogEvent("erased-session", message: "Erased session and reset state")
     struct ErasedSession {}
+
+    @LogEvent("automatic-backup-failed", level: .error)
+    struct AutomaticBackupFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+        var message: String {
+            "Automatic backup failed: \(error.description)"
+        }
+    }
 }

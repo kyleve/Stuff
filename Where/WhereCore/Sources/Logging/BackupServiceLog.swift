@@ -44,4 +44,13 @@ enum BackupServiceLog {
             WhereStoreID.evidence(evidenceID)
         }
     }
+
+    @LogEvent("staging-cleanup-failed", level: .warning)
+    struct StagingCleanupFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+        var message: String {
+            "Could not remove backup staging directory: \(error.description)"
+        }
+    }
 }

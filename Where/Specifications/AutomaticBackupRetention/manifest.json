@@ -1,0 +1,46 @@
+{
+  "source": "pluscal",
+  "module": "AutomaticBackupRetention.tla",
+  "cases": [
+    {
+      "name": "candidate",
+      "config": "Candidate.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "candidate-two-devices",
+      "config": "CandidateTwoDevices.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "review",
+      "config": "Review.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant DeletionLeavesThreeHealthyFiles is violated."
+    },
+    {
+      "name": "unauthenticated",
+      "config": "Unauthenticated.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant DeletionLeavesThreeHealthyFiles is violated."
+    },
+    {
+      "name": "retry-on-maintenance",
+      "config": "RetryOnMaintenance.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoDuplicateFallback is violated."
+    },
+    {
+      "name": "stale-candidate",
+      "config": "StaleCandidate.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant PreserveChangedCandidates is violated."
+    },
+    {
+      "name": "reachability",
+      "config": "Reachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant CriticalStateNotReached is violated."
+    }
+  ]
+}

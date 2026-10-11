@@ -8,15 +8,16 @@
     /// wrapper. Use this instead of `SnapshotCase(...)` directly when authoring
     /// WhereUI ``SnapshotProviding`` conformances.
     ///
-    /// `onReadyToSnapshot` passes through to ``SnapshotCase``: the capture
-    /// pipeline runs it after the content settles and re-settles its effects —
-    /// the seam for a deterministic completion signal (e.g. awaiting a launch
-    /// runner's drive) that pixel stability alone can't provide.
+    /// Readiness hooks pass through to ``SnapshotCase``. `onReadyToMeasure`
+    /// prepares size-changing state before measurement. `onReadyToSnapshot`
+    /// runs after content settles; capture then settles its effects.
+    /// Use these hooks for readiness that pixel stability alone cannot prove.
     @MainActor
     public func whereSnapshot(
         name: String,
         configurations: [SnapshotConfiguration],
         measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
+        onReadyToMeasure: (@MainActor () async -> Void)? = nil,
         settle: SnapshotSettle = .settled,
         onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
         @ViewBuilder content: @escaping @MainActor () -> some View,
@@ -25,6 +26,7 @@
             name: name,
             configurations: configurations,
             measurementReadiness: measurementReadiness,
+            onReadyToMeasure: onReadyToMeasure,
             settle: settle,
             onReadyToSnapshot: onReadyToSnapshot,
         ) {
