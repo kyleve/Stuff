@@ -53,9 +53,10 @@ public struct WhereServices: Sendable {
     public let issueAlerts: DataIssueAlertReconciler
     /// Live GPS ingestion: monitoring, retry queue, authorization.
     public let ingestor: LocationIngestor
-    /// Synced per-device recording intent and the current installation's
-    /// serialized physical start/stop reconciliation.
+    /// Local recording consent, shared owner enforcement, and serialized GPS transitions.
     public let recording: DeviceRecordingController
+    public let deviceCoordination: RecordingDeviceCoordination?
+    let recordingAuthority: any RecordingAuthorityReading
     /// User-sourced writes: manual days, backfills, clears, evidence.
     public let journal: DayJournal
     /// Backup export / import.
@@ -119,6 +120,8 @@ public struct WhereServices: Sendable {
         store: any WhereStore,
         locationSource: any LocationSource,
         installationContext: InstallationRecordingContext = .testing,
+        recordingAuthority: (any RecordingAuthorityReading)? = nil,
+        deviceCoordination: RecordingDeviceCoordination? = nil,
         attributor: any RegionAttributing = RegionAttributor.shared,
         aggregator: DayAggregator = DayAggregator(),
         reminderScheduler: any LoggingReminderScheduling = NoopLoggingReminderScheduler(),
@@ -131,6 +134,10 @@ public struct WhereServices: Sendable {
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         let currentDevice = installationContext.currentDevice
+        let recordingAuthority = recordingAuthority ?? RecordingAuthority
+            .ownedForTesting(by: currentDevice.id)
+        self.recordingAuthority = recordingAuthority
+        self.deviceCoordination = deviceCoordination
         let reports = ReportReader(store: store, aggregator: aggregator, attributor: attributor)
         let evidence = EvidenceReader(store: store, aggregator: aggregator)
         // Built before the reconcilers that consume it: the reminder reconciler
@@ -197,6 +204,7 @@ public struct WhereServices: Sendable {
             store: store,
             locationSource: locationSource,
             recordingDeviceID: currentDevice.id,
+            authorityReader: recordingAuthority,
             calendar: aggregator.calendar,
             outbox: locationOutbox,
             onPersisted: { outcome in
@@ -225,6 +233,8 @@ public struct WhereServices: Sendable {
             store: store,
             ingestor: ingestor,
             installationContext: installationContext,
+            authority: recordingAuthority,
+            coordination: deviceCoordination,
             now: now,
             onPolicyChanged: {
                 // A cutoff can remove already-materialized history, so every derived output
@@ -329,6 +339,8 @@ public struct WhereServices: Sendable {
         store: any WhereStore,
         locationSource: any LocationSource,
         installationContext: InstallationRecordingContext,
+        recordingAuthority: any RecordingAuthorityReading,
+        deviceCoordination: RecordingDeviceCoordination?,
         aggregator: DayAggregator = DayAggregator(),
         reminderScheduler: any LoggingReminderScheduling,
         summaryScheduler: any DailySummaryScheduling,
@@ -351,6 +363,8 @@ public struct WhereServices: Sendable {
             store: store,
             locationSource: locationSource,
             installationContext: installationContext,
+            recordingAuthority: recordingAuthority,
+            deviceCoordination: deviceCoordination,
             attributor: attribution,
             aggregator: aggregator,
             reminderScheduler: reminderScheduler,

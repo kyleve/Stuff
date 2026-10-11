@@ -10,8 +10,34 @@ public actor RecordingAuthorityCoordinator {
         self.transport = transport
     }
 
+    public nonisolated func updates() -> AsyncStream<Void> {
+        store.changes()
+    }
+
     public func observed() async throws -> RecordingAuthority {
         try await store.recordingAuthority()
+    }
+
+    public func deviceNames() async throws -> [RecordingDeviceID: String] {
+        try await Dictionary(uniqueKeysWithValues: store.recordingDevices().map { (
+            $0.id,
+            $0.displayName,
+        ) })
+    }
+
+    public func registerInstallation(_ context: InstallationRecordingContext) async throws {
+        try await store.perform {
+            if try await self.store.recordingDeviceProfiles()
+                .contains(where: { $0.id == context.currentDevice.id }) { return }
+            let generation = try await self.store.dataGeneration()
+            try await self.store.addRecordingDeviceProfile(.init(
+                id: context.currentDevice.id,
+                systemName: context.currentDevice.systemName,
+                kind: context.currentDevice.kind,
+                registeredAt: context.registeredAt,
+                registrationGenerationID: generation.id,
+            ))
+        }
     }
 
     @discardableResult
