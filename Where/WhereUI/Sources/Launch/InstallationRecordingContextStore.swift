@@ -144,6 +144,7 @@ public final class FileInstallationRecordingContextStore:
         let isRejoining: Bool
         let backupImportRecovery: BackupImportRecovery?
         let onboardingImportCompletionID: UUID?
+        let recordingControl: RecordingInstallationControl?
 
         enum CodingKeys: String, CodingKey {
             case deviceID
@@ -155,6 +156,7 @@ public final class FileInstallationRecordingContextStore:
             case isRejoining
             case backupImportRecovery
             case onboardingImportCompletionID
+            case recordingControl
         }
 
         init(
@@ -162,6 +164,7 @@ public final class FileInstallationRecordingContextStore:
             backupImportRecovery: BackupCoordinator.DurableImportRecovery?,
             onboardingImportCompletion: BackupCoordinator.OnboardingImportCompletion?,
         ) {
+            recordingControl = context.recordingControl
             deviceID = context.currentDevice.id.rawValue
             systemName = context.currentDevice.systemName
             kind = context.currentDevice.kind
@@ -191,7 +194,7 @@ public final class FileInstallationRecordingContextStore:
                 registeredAt: registeredAt,
                 recordingChoice: recordingChoice,
                 isRejoining: isRejoining,
-            )
+            ).settingRecordingControl(recordingControl ?? .initial)
         }
     }
 
@@ -355,6 +358,16 @@ public final class FileInstallationRecordingContextStore:
         )
         resolution = .resolved(confirmed)
         return confirmed
+    }
+
+    public func setRecordingControl(_ control: RecordingInstallationControl) throws {
+        let updated = try resolution.get().settingRecordingControl(control)
+        try persist(
+            updated,
+            backupImportRecovery: backupImportRecovery,
+            onboardingImportCompletion: onboardingImportCompletion,
+        )
+        resolution = .resolved(updated)
     }
 
     public func setAutomaticRecordingEnabled(_ isEnabled: Bool) throws {

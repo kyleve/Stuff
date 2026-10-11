@@ -6,7 +6,7 @@ import Foundation
 /// therefore gets a new identity and must confirm its own initial recording
 /// choice, while repeated launches of the same installation reuse both the
 /// identity and its explicitly chosen local automatic-recording preference.
-public struct InstallationRecordingContext: Sendable, Hashable {
+public struct InstallationRecordingContext: Sendable, Equatable {
     public enum RecordingChoice: Sendable, Hashable {
         case unconfirmed
         case off
@@ -17,6 +17,14 @@ public struct InstallationRecordingContext: Sendable, Hashable {
     /// Stable creation time for this installation's immutable device profile.
     public let registeredAt: Date
     public let recordingChoice: RecordingChoice
+    public private(set) var recordingControl = RecordingInstallationControl.initial
+
+    public func settingRecordingControl(_ control: RecordingInstallationControl) -> Self {
+        var result = self
+        result.recordingControl = control
+        return result
+    }
+
     /// Whether this identity was created by the explicit rejoin flow.
     public let isRejoining: Bool
 
@@ -63,7 +71,7 @@ public struct InstallationRecordingContext: Sendable, Hashable {
             registeredAt: registeredAt,
             recordingChoice: isEnabled ? .on(enabledAt: registeredAt) : .off,
             isRejoining: false,
-        )
+        ).settingRecordingControl(recordingControl)
     }
 
     /// Return a copy carrying a later local Settings choice.
@@ -83,7 +91,7 @@ public struct InstallationRecordingContext: Sendable, Hashable {
             registeredAt: registeredAt,
             recordingChoice: updatedChoice,
             isRejoining: false,
-        )
+        ).settingRecordingControl(recordingControl)
     }
 
     /// The throwaway identity used by demo mode. It is intentionally distinct
@@ -100,7 +108,7 @@ public struct InstallationRecordingContext: Sendable, Hashable {
         registeredAt: Date(timeIntervalSinceReferenceDate: 0),
         recordingChoice: .on(enabledAt: Date(timeIntervalSinceReferenceDate: 0)),
         isRejoining: false,
-    )
+    ).settingRecordingControl(.init(selection: .recordingRequested, pendingTransition: nil))
 
     /// Deterministic context for tests and previews that do not care which
     /// installation is current.
@@ -116,5 +124,5 @@ public struct InstallationRecordingContext: Sendable, Hashable {
         registeredAt: Date(timeIntervalSinceReferenceDate: 0),
         recordingChoice: .on(enabledAt: Date(timeIntervalSinceReferenceDate: 0)),
         isRejoining: false,
-    )
+    ).settingRecordingControl(.init(selection: .recordingRequested, pendingTransition: nil))
 }

@@ -31,6 +31,7 @@ final class DevicesSettingsModel {
         }
     }
 
+    let role: RecordingDeviceRoleModel?
     private let session: WhereSession
     private(set) var state: LoadState = .idle
     private(set) var rows: [DeviceSettingsRowModel] = []
@@ -48,6 +49,14 @@ final class DevicesSettingsModel {
 
     init(session: WhereSession) {
         self.session = session
+        role = session.services.deviceCoordination.map {
+            RecordingDeviceRoleModel(
+                coordination: $0,
+                currentDeviceID: session.services.recording.currentDevice.id,
+                selectionChanged: { try await session.setRecordingEnabled($0) },
+                approve: { try await session.services.recording.approveHandoff(requestID: $0) },
+            )
+        }
     }
 
     #if DEBUG
@@ -56,6 +65,14 @@ final class DevicesSettingsModel {
             configurations: [RecordingDeviceConfiguration],
         ) {
             self.session = session
+            role = session.services.deviceCoordination.map {
+                RecordingDeviceRoleModel(
+                    coordination: $0,
+                    currentDeviceID: session.services.recording.currentDevice.id,
+                    selectionChanged: { try await session.setRecordingEnabled($0) },
+                    approve: { try await session.services.recording.approveHandoff(requestID: $0) },
+                )
+            }
             apply(configurations)
             state = configurations.isEmpty ? .empty : .loaded
         }

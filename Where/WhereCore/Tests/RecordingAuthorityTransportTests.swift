@@ -3,6 +3,16 @@ import Testing
 @testable import WhereCore
 
 struct RecordingAuthorityTransportTests {
+    @Test func localDevelopmentAuthoritySurvivesRestart() async throws {
+        let fixture = RecordingAuthorityFixture()
+        let server = LocalRecordingAuthorityTransport(now: { Date() })
+        let claim = try fixture.proposal(.initial, .claim, device: fixture.phone)
+        let receipt = try await server.commit(claim)
+        let restarted = try LocalRecordingAuthorityTransport(restoring: [receipt], now: { Date() })
+        #expect(await restarted.current() == receipt)
+        #expect(try await restarted.commit(claim) == receipt)
+    }
+
     @Test func competingClaimsHaveOneWinner() async throws {
         let fixture = RecordingAuthorityFixture()
         let server = LocalRecordingAuthorityTransport(now: { Date() })
