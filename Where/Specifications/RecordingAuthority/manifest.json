@@ -2,7 +2,68 @@
   "source": "pluscal",
   "module": "RecordingAuthority.tla",
   "cases": [
-    { "name": "current", "config": "Current.cfg", "expect": "pass" },
-    { "name": "broken", "config": "Broken.cfg", "expect": "fail", "outputContains": "Invariant OwnerOnlyUpgrade is violated." }
+    {
+      "name": "current",
+      "config": "Current.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "repeated",
+      "config": "Repeated.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "recovery",
+      "config": "Recovery.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "lost-response",
+      "config": "LostResponse.cfg",
+      "expect": "fail",
+      "outputContains": "Temporal properties were violated."
+    },
+    {
+      "name": "removed-target",
+      "config": "RemovedTarget.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant OwnerIsEligible is violated."
+    },
+    {
+      "name": "missing-fence",
+      "config": "MissingFence.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NormalHandoffExclusive is violated."
+    },
+    {
+      "name": "secondary-upgrade",
+      "config": "SecondaryUpgrade.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant OwnerOnlyUpgrade is violated."
+    },
+    {
+      "name": "cancel-fence",
+      "config": "CancelFence.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NormalHandoffExclusive is violated."
+    },
+    {
+      "name": "lost-reply-reachability",
+      "config": "LostReplyReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant LostReplyWasNotReconciled is violated."
+    },
+    {
+      "name": "reacquire-reachability",
+      "config": "ReacquireReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant PhoneNeverReacquired is violated."
+    },
+    {
+      "name": "recovery-overlap-reachability",
+      "config": "RecoveryOverlapReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RecoveryNeverOverlapped is violated."
+    }
   ]
 }

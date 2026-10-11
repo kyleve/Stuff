@@ -28,12 +28,18 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
     }
 
     public func refresh() async throws -> RecordingAuthority {
-        try await authority.refresh()
+        let state = try await authority.refresh()
+        // An in-flight command owns its sidecar until it completes or reports uncertainty.
+        guard !isOperating else { return state }
+        isOperating = true
+        defer { isOperating = false }
+        try await reconcilePendingTransition(verified: state)
+        return state
     }
 
     /// Network outages retain a verified local role. Authentication and malformed state do not.
     public func refreshForUse() async throws -> RecordingAuthority {
-        do { return try await authority.refresh() }
+        do { return try await refresh() }
         catch {
             guard CloudKitRecordingAuthorityTransport.isTemporarilyUnavailable(error),
                   try await installation.resolve().recordingControl.selection != .unconfirmed
@@ -64,9 +70,13 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
         isOperating = true
         defer { isOperating = false }
         precondition(selection != .unconfirmed)
+        if try await installation.resolve().recordingControl.pendingTransition != nil {
+            let state = try await retryPendingRequestImpl()
+            if try await installation.resolve().recordingControl.pendingTransition != nil {
+                return state
+            }
+        }
         let context = try await installation.resolve()
-        let existing = context.recordingControl
-        guard existing.pendingTransition == nil else { return try await retryPendingRequestImpl() }
         _ = try await installation
             .confirmInitialRecording(isEnabled: selection == .recordingRequested)
         try await installation.setAutomaticRecordingEnabled(selection == .recordingRequested)
@@ -108,6 +118,13 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
             ))
             return
         }
+        if let pending = context.recordingControl.pendingTransition,
+           pending.kind == .cancel,
+           pending.expected.pendingHandoff?.requestID == requestID
+        {
+            try await submitPersisted(pending, selection: context.recordingControl.selection)
+            return
+        }
         let proposal = try RecordingAuthorityProposal(
             state: state,
             action: .cancelHandoff(requestID: requestID),
@@ -127,12 +144,29 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
     }
 
     private func retryPendingRequestImpl() async throws -> RecordingAuthority {
+        let state = try await authority.refresh()
+        try await reconcilePendingTransition(verified: state)
         let context = try await installation.resolve()
         guard let proposal = context.recordingControl.pendingTransition
-        else { return try await authority.refresh() }
-        guard proposal.kind != .transfer else { return try await authority.refresh() }
+        else { return state }
+        guard proposal.kind != .transfer else { return state }
         try await submitPersisted(proposal, selection: context.recordingControl.selection)
         return try await authority.observed()
+    }
+
+    /// A newer verified revision proves the conditional command either committed or lost its CAS.
+    /// An unchanged head cannot disprove a request still in flight, so it retains the fence.
+    private func reconcilePendingTransition(verified state: RecordingAuthority) async throws {
+        let context = try await installation.resolve()
+        guard let pending = context.recordingControl.pendingTransition,
+              let proposedRevision = pending.result.revision,
+              let verifiedRevision = state.revision,
+              verifiedRevision.sequence >= proposedRevision.sequence
+        else { return }
+        try await installation.setRecordingControl(.init(
+            selection: context.recordingControl.selection,
+            pendingTransition: nil,
+        ))
     }
 
     func prepareApproval(requestID: RecordingAuthority
@@ -146,6 +180,9 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
             guard pending.kind == .transfer,
                   pending.expected.pendingHandoff?.requestID == requestID
             else { throw RecordingAuthorityError.invalidHandoff }
+            guard let target = pending.result.owner
+            else { throw RecordingAuthorityError.invalidHandoff }
+            try await authority.requireEligibleHandoffTarget(target.deviceID)
             return pending
         }
         let state = try await authority.refresh()
@@ -156,6 +193,9 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
             buildVersion: .current,
             eventID: .init(rawValue: UUID()),
         )
+        guard let target = proposal.result.owner
+        else { throw RecordingAuthorityError.invalidHandoff }
+        try await authority.requireEligibleHandoffTarget(target.deviceID)
         try await installation.setRecordingControl(.init(
             selection: context.recordingControl.selection,
             pendingTransition: proposal,
@@ -170,6 +210,9 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
         let context = try await installation.resolve()
         guard context.recordingControl.pendingTransition == proposal,
               proposal.kind == .transfer else { throw RecordingAuthorityError.invalidHandoff }
+        guard let target = proposal.result.owner
+        else { throw RecordingAuthorityError.invalidHandoff }
+        try await authority.requireEligibleHandoffTarget(target.deviceID)
         try await submitPersisted(proposal, selection: context.recordingControl.selection)
     }
 

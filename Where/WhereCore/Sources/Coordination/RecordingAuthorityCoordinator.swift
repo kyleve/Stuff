@@ -32,6 +32,9 @@ public actor RecordingAuthorityCoordinator {
 
     public func registerInstallation(_ context: InstallationRecordingContext) async throws {
         try await store.perform {
+            guard try await self.store.recordingDeviceRemovals()
+                .contains(where: { $0.deviceID == context.currentDevice.id }) == false
+            else { throw RecordingPersistenceError.currentDeviceRemoved(context.currentDevice.id) }
             if try await self.store.recordingDeviceProfiles()
                 .contains(where: { $0.id == context.currentDevice.id }) { return }
             let generation = try await self.store.dataGeneration()
@@ -43,6 +46,12 @@ public actor RecordingAuthorityCoordinator {
                 registrationGenerationID: generation.id,
             ))
         }
+    }
+
+    func requireEligibleHandoffTarget(_ deviceID: RecordingDeviceID) async throws {
+        guard try await store.recordingDeviceRemovals()
+            .contains(where: { $0.deviceID == deviceID }) == false
+        else { throw RecordingAuthorityError.invalidHandoff }
     }
 
     /// Fetches the head and every predecessor before adding commits in one local transaction.
