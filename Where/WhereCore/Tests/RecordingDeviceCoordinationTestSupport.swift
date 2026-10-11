@@ -122,6 +122,10 @@ actor RecordingCoordinationTransport: RecordingAuthorityTransport {
         cancelGate = gate
     }
 
+    func subscribe() async {
+        await server.subscribe()
+    }
+
     func current() async -> RecordingAuthorityCommit? {
         await server.current()
     }

@@ -3,15 +3,45 @@
   "module": "IntentServicesHandoff.tla",
   "cases": [
     {
-      "name": "broken",
-      "config": "Broken.cfg",
+      "name": "current",
+      "config": "Current.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "self-create",
+      "config": "SelfCreate.cfg",
       "expect": "fail",
       "outputContains": "Invariant NoSelfCreate is violated."
     },
     {
-      "name": "current",
-      "config": "Current.cfg",
-      "expect": "pass"
+      "name": "missing-validation",
+      "config": "MissingValidation.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoInvalidResult is violated."
+    },
+    {
+      "name": "clear-unblocks",
+      "config": "ClearUnblocks.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant ClearPreservesBlock is violated."
+    },
+    {
+      "name": "double-resume",
+      "config": "DoubleResume.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant WaiterAtMostOnce is violated."
+    },
+    {
+      "name": "old-consumer-after-recovery",
+      "config": "OldConsumerAfterRecovery.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant OldConsumerAfterRecoveryNotReached is violated."
+    },
+    {
+      "name": "two-waiters",
+      "config": "TwoWaiters.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant TwoWaitersNotReached is violated."
     }
   ]
 }
