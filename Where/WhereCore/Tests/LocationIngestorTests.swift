@@ -88,6 +88,35 @@ struct LocationIngestorTests {
         )
     }
 
+    @Test func compatibilityRevocationPreservesBacklogAndRejectsLateCallback() async throws {
+        let backing = try SwiftDataStore.inMemory()
+        let failing = ToggleFailingStore(backing: backing)
+        let permit = DataAccessPermit()
+        let store = CompatibilityScopedStore(base: failing, permit: permit)
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let outbox = SpyLocationOutbox()
+        let ingestor = Self.makeIngestor(
+            store: store,
+            source: source,
+            recorder: OutcomeRecorder(),
+            outbox: outbox,
+        )
+        try await ingestor.start()
+        await failing.setShouldFail(true)
+        source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
+        try await waitUntil { await outbox.contents.count == 1 }
+        await failing.setShouldFail(false)
+        permit.revoke()
+        let late = sample(at: "2026-03-15T13:00:00-07:00")
+        source.emit(late)
+        try await waitUntil { await ingestor.testingHasConsumedSample(id: late.id) }
+        #expect(await outbox.contents.count == 1)
+        #expect(await ingestor.retryQueueDepth == 1)
+        #expect(try await backing.allSamples().isEmpty)
+        #expect(await !ingestor.testingIsAcceptingSamples)
+        await ingestor.pause()
+    }
+
     @Test func callbackAfterOwnershipTransferCannotPersistOrQueue() async throws {
         let store = try SwiftDataStore.inMemory()
         let fixture = RecordingAuthorityFixture()

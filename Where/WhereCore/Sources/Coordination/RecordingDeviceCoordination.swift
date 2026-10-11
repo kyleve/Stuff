@@ -5,6 +5,7 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
     public nonisolated let supportedVersion: DataCompatibilityVersion
     private let authority: RecordingAuthorityCoordinator
     private var isOperating = false
+    private var idleWaiters: [CheckedContinuation<Void, Never>] = []
     private let installation: any InstallationRecordingContextStoring
 
     public init(
@@ -15,6 +16,21 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
         self.supportedVersion = supportedVersion
         self.authority = authority
         self.installation = installation
+    }
+
+    func waitUntilIdle() async {
+        while isOperating {
+            await withCheckedContinuation { idleWaiters.append($0) }
+        }
+    }
+
+    private func finishOperation() {
+        isOperating = false
+        let waiting = idleWaiters
+        idleWaiters.removeAll()
+        for waiter in waiting {
+            waiter.resume()
+        }
     }
 
     public nonisolated func updates() -> AsyncStream<Void> {
@@ -71,7 +87,7 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
     {
         guard !isOperating else { throw RecordingAuthorityError.conflict }
         isOperating = true
-        defer { isOperating = false }
+        defer { finishOperation() }
         precondition(selection != .unconfirmed)
         if try await installation.resolve().recordingControl.pendingTransition != nil {
             let state = try await retryPendingRequestImpl()
@@ -111,7 +127,7 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
     ) async throws -> RecordingAuthority {
         guard !isOperating else { throw RecordingAuthorityError.conflict }
         isOperating = true
-        defer { isOperating = false }
+        defer { finishOperation() }
         let context = try await installation.resolve()
         if let pending = context.recordingControl.pendingTransition {
             guard pending.kind == .recover, pending.expected.owner == reviewedOwner,
@@ -140,7 +156,7 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
         let version = supportedVersion
         guard !isOperating else { throw RecordingAuthorityError.conflict }
         isOperating = true
-        defer { isOperating = false }
+        defer { finishOperation() }
         let context = try await installation.resolve()
         if let pending = context.recordingControl.pendingTransition {
             guard pending.kind == .upgrade, pending.result.requiredVersion == version
@@ -165,7 +181,7 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
     public func cancelHandoff(requestID: RecordingAuthority.EventID) async throws {
         guard !isOperating else { throw RecordingAuthorityError.conflict }
         isOperating = true
-        defer { isOperating = false }
+        defer { finishOperation() }
         let context = try await installation.resolve()
         let state = try await authority.refresh()
         // Resolve an uncertain approval before considering cancellation. A completed transfer is
@@ -201,7 +217,7 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
     public func retryPendingRequest() async throws -> RecordingAuthority {
         guard !isOperating else { throw RecordingAuthorityError.conflict }
         isOperating = true
-        defer { isOperating = false }
+        defer { finishOperation() }
         return try await retryPendingRequestImpl()
     }
 
@@ -238,7 +254,7 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
     {
         guard !isOperating else { throw RecordingAuthorityError.conflict }
         isOperating = true
-        defer { isOperating = false }
+        defer { finishOperation() }
         let context = try await installation.resolve()
         if let pending = context.recordingControl.pendingTransition {
             guard pending.kind == .transfer,
@@ -270,7 +286,7 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
     func commitStoppedApproval(_ proposal: RecordingAuthorityProposal) async throws {
         guard !isOperating else { throw RecordingAuthorityError.conflict }
         isOperating = true
-        defer { isOperating = false }
+        defer { finishOperation() }
         let context = try await installation.resolve()
         guard context.recordingControl.pendingTransition == proposal,
               proposal.kind == .transfer else { throw RecordingAuthorityError.invalidHandoff }

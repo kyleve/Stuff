@@ -8,8 +8,8 @@ import RegionKit
 /// store, the preferences whose intent that layer is driven by, and the
 /// durable log store the two record into.
 ///
-/// A scope is created whole and never reconfigured — the store it carries is
-/// opened once, and changing what the app is logged in to means activating a
+/// A scope is created whole and never reconfigured. Its services carry a revocable
+/// facade over the process bootstrap's store. Changing worlds means activating a
 /// *different* scope rather than reassigning fields on this one. `WhereModel`
 /// owns which scope is active; `WhereSession` is built from one, so every
 /// logged-in surface reads the store and the preferences of the same scope
@@ -28,7 +28,7 @@ import RegionKit
 @Observable
 public final class WhereScope {
     /// The service layer — the entry point to the domain for every logged-in
-    /// surface. Owns this scope's store.
+    /// surface. Owns this scope's revocable access to the bootstrap store.
     ///
     /// Public because a scope *is* the composition value the app hands around:
     /// the launch builds sessions from it, and the app target derives the App
