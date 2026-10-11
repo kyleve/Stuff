@@ -11,7 +11,7 @@ import WhereCore
 /// derives a store-sharing stack from its services
 /// (`WhereServices.forIntents(sharingStoreOf:)`, wired through
 /// `WhereLaunch.makeLauncher`'s `onServicesReady` hook) and hands it to
-/// `install(_:)`. That makes the launch's `resolve-scope` step the process's
+/// `install(_:)`. The retained bootstrap owns the process's
 /// *only* store open — an intent can never race it with a second container
 /// over the same store file (the fresh-install creation race), and an intent
 /// write pings the same `changes()` signal the running UI refreshes from.
@@ -34,7 +34,21 @@ public actor IntentServices {
         let theme: WhereTheme
     }
 
-    private var installed: Context?
+    private enum Availability { case awaiting, installed(Context), blocked(DataCompatibilityError) }
+    private var availability: Availability = .awaiting
+
+    public func setCompatibility(_ state: DataCompatibilityState) {
+        if let error = state.blockingError {
+            availability = .blocked(error)
+            let parked = waiters
+            waiters = [:]
+            for continuation in parked.values {
+                continuation.resume(throwing: error)
+            }
+        } else if case .blocked = availability {
+            availability = .awaiting
+        }
+    }
 
     /// Intents parked in `current()` awaiting installation, keyed so a
     /// cancelled waiter can remove exactly itself.
@@ -52,9 +66,15 @@ public actor IntentServices {
     /// the launch's services, resuming any parked intents. Idempotent per
     /// stack; a later install (a fresh session after reset) replaces the
     /// cached one.
-    public func install(_ services: WhereServices, theme: WhereTheme) {
+    public func install(_ services: WhereServices, theme: WhereTheme) async {
+        do { try await services.validateDataAccess() }
+        catch {
+            setCompatibility(.verificationFailed(error.localizedDescription))
+            return
+        }
+        if case .blocked = availability { return }
         let context = Context(services: services, theme: theme)
-        installed = context
+        availability = .installed(context)
         let parked = waiters
         waiters = [:]
         for continuation in parked.values {
@@ -65,8 +85,8 @@ public actor IntentServices {
     /// Replace only the presentation identity while retaining the current
     /// store-sharing service stack.
     public func updateTheme(_ theme: WhereTheme) {
-        guard let installed else { return }
-        self.installed = Context(services: installed.services, theme: theme)
+        guard case let .installed(installed) = availability else { return }
+        availability = .installed(Context(services: installed.services, theme: theme))
     }
 
     /// Release the installed stack, so nothing here keeps the app's store alive
@@ -77,12 +97,11 @@ public actor IntentServices {
     /// first install — the alternative is answering from a store the app has
     /// abandoned, which is worse than waiting for the one it opens next.
     public func clear() {
-        installed = nil
+        if case .installed = availability { availability = .awaiting }
     }
 
     /// The installed stack, suspending until the launch installs one. Throws
-    /// only `CancellationError`, when the awaiting intent's task is cancelled
-    /// while parked.
+    /// cancellation or the current compatibility error while access is blocked.
     ///
     /// Only the parking path is timed: the span's duration is how long an intent
     /// waited on the launch, which is the whole question a Siri-racing-startup
@@ -94,12 +113,16 @@ public actor IntentServices {
 
     /// Resolve services and theme atomically for snippet presentation.
     func currentContext() async throws -> Context {
-        if let installed {
-            return installed
+        let context: Context
+        switch availability {
+            case let .installed(installed): context = installed
+            case let .blocked(error): throw error
+            case .awaiting:
+                context = try await WhereIntentsLog.logger
+                    .measure(.awaitServices) { try await park() }
         }
-        return try await WhereIntentsLog.logger.measure(.awaitServices) {
-            try await park()
-        }
+        try await context.services.validateDataAccess()
+        return context
     }
 
     /// Suspend until `install(_:)` resumes us, keyed so a cancelled waiter can

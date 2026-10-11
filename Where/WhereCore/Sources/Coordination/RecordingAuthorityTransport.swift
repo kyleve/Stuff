@@ -6,6 +6,7 @@ import Foundation
 /// commit even if the head advanced. Reusing an event ID for different content is a conflict.
 /// Consumers use `RecordingAuthorityCoordinator` to reconcile commits into the existing store.
 public protocol RecordingAuthorityTransport: Sendable {
+    func subscribe() async throws
     /// Returns the commit named by the current head, or nil for an absent head. Failures throw.
     func current() async throws -> RecordingAuthorityCommit?
     /// Finds a committed transition by identity without requiring it to remain the current head.
@@ -46,6 +47,8 @@ public actor LocalRecordingAuthorityTransport: RecordingAuthorityTransport {
             state = commit.proposal.result
         }
     }
+
+    public func subscribe() {}
 
     public func current() -> RecordingAuthorityCommit? {
         latest

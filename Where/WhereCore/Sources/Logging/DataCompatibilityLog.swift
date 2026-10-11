@@ -8,4 +8,14 @@ enum DataCompatibilityLog {
         @LogField(exposure: .restricted, kind: .errorDetails)
         var error: LogError
     }
+
+    @LogEvent(
+        "subscription-failed",
+        level: .warning,
+        message: "Recording authority push subscription failed.",
+    )
+    struct SubscriptionFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+    }
 }

@@ -44,6 +44,12 @@ let whereProjectRules = RuleSet {
             .union(nonWhereProductionScope),
         id: "where.compatibility_coordination_composition",
     )
+    Rules.constructionOwnership(
+        "DataCompatibilityOutputs",
+        allowed: RuleScope.files(["Where/WhereCore/Sources/WhereServices.swift"])
+            .union(nonWhereProductionScope),
+        id: "where.compatibility_output_composition",
+    )
     compatibilityStoreBoundaryRule
     onboardingGateLifetimeRule
     productionStoreOpeningRule

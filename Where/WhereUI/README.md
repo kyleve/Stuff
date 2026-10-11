@@ -740,3 +740,9 @@ onboarding. A committed backup retains its durable marker for recovery by the ne
 `DataCompatibilityView` displays update instructions, diagnostics, and retry.
 `AppUpdateAvailability.noBuildsPublished` is the current app configuration.
 Published builds can supply TestFlight, App Store, or both links.
+
+Foreground entry verifies compatibility before refreshing the normal session.
+The app also refreshes on authority pushes and iCloud account changes. History
+notifications check the local projection without a network round trip. Bootstrap
+output destinations remain available to clear stale notifications and widget
+access even when no normal service world can be assembled.
