@@ -29,18 +29,10 @@ struct MainTabs: View {
         let isEnabled: Bool
     }
 
-    private struct PlannedStayEditorTarget: Identifiable {
-        let region: Region
-
-        var id: Region {
-            region
-        }
-    }
-
     @State private var report: YearReportModel
     @State private var recordingWarning: RecordingConfigurationWarningModel
     @State private var welcome: LocationWelcomeModel
-    @State private var plannedStayEditorTarget: PlannedStayEditorTarget?
+    @State private var planningDestination: PlannedStaysDestination?
     @State private var selection: TabID = .locations
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.stylesheet) private var stylesheet
@@ -138,12 +130,8 @@ struct MainTabs: View {
                     break
             }
         }
-        .sheet(item: $plannedStayEditorTarget) { target in
-            PlannedStayEditor(
-                region: target.region,
-                model: report.forecasts,
-                driftThreshold: report.driftThreshold,
-            )
+        .sheet(item: $planningDestination) { destination in
+            PlannedStaysDestinationView(destination: destination, report: report)
         }
     }
 
@@ -173,7 +161,7 @@ struct MainTabs: View {
         withAnimation(stylesheet.locationWelcome.motion.departure.animation) {
             welcome.dismiss()
         } completion: {
-            plannedStayEditorTarget = PlannedStayEditorTarget(region: region)
+            planningDestination = .new(region)
         }
     }
 

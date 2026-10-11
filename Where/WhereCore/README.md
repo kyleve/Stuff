@@ -69,12 +69,18 @@ one it belongs to rather than to a god-object:
   dismissals. Writes await reminder/issue reconciliation and widget publication
   after committing. The local fan-out does not yet refresh daily summaries;
   that gap is tracked in [`../TODOs.md`](../TODOs.md).
-- **`PlannedStayCoordinator`** — the synced, generation-scoped last-writer register behind “I’ll
-  be here through…”. Clears and expiry write tombstones, and annual forecasts consume its current
-  value without coupling projection math to persistence.
+- **`PlannedStayCoordinator`** — stores independent travel plans and an optional forecast home
+  region. Each plan has a stable identity and inclusive arrival and departure windows.
+  `create(_:)`, `update(_:)`, and `delete(stayID:)` affect one plan. Completed plans remain
+  available. `snapshot()` reads plans and the home choice from one store snapshot.
+  `setHomeRegion(_:)` assigns unplanned days to that region; nil selects historical estimates.
+  This choice does not change tracked regions or recorded presence. Turning estimate display off
+  does not remove plans. Each register resolves synced revisions by timestamp, then revision UUID.
+  Deletion and historical selection retain tombstones to prevent stale imports from restoring old intent.
 - **`PlannedStayLocationVerifier`** — gets a current location and compares it with the selected
   region. The configured drift threshold expands the accepted area outside the region boundary.
   A missing location or missing geometry returns an unavailable result.
+  The itinerary editor does not request location verification.
 - **`CurrentRegionResolver`** — returns a typed live-region resolution only
   while automatic recording is authorized. A successful decision requires a
   fix no more than 60 seconds old, with valid horizontal accuracy at or below
@@ -231,7 +237,7 @@ one it belongs to rather than to a god-object:
 - **`WidgetPresentationPublisher`** — atomically writes the device-local `WhereTheme`
   to its own App Group file and reloads WidgetKit without reading or rebuilding widget data.
 - **`BackupCoordinator`** — ZIP export/import via `ZIPFoundation`. Export pins
-  tables, planned-stay revisions, sample-attribution revisions/tombstones, and evidence blobs
+  tables, planned-stay and home-region revisions, sample-attribution revisions, and evidence blobs
   to one generation-consistent snapshot. Merge preserves queued locations
   and the installation-local recording choice. Replace writes the archive into a new child generation,
   retains existing removal tombstones, and preserves the local choice before pending fixes are
@@ -244,12 +250,16 @@ one it belongs to rather than to a god-object:
   sidecar tombstone before clearing recovery, so a cold launch can repair a preference write
   that did not reach disk without offering the same archive again.
   Check-ins are deliberately neither exported nor restored because they are live advisory status.
-  Backup format **v6** retains optional grouped speed/altitude measurements and
-  every correction revision losslessly. Merge preserves revision IDs/timestamps;
-  Replace restores archive revisions into its new generation. The offline
-  [`upgrade-backup.rb`](../Tools/upgrade-backup.rb) transforms formats v1–v5 with
-  unknown motion and an empty correction history. The production decoder accepts
-  only the current format. See [backup format](BACKUP_FORMAT.md).
+  Backup format **v7** retains independent stays, date windows, Home choices, optional motion,
+  and every sample-attribution revision. Merge preserves revision IDs and timestamps.
+  Replace restores revisions into its new generation.
+  The offline [`upgrade-backup.rb`](../Tools/upgrade-backup.rb) command upgrades earlier archives.
+  Legacy stay revisions retain one shared identity, including deletion tombstones.
+  The converter infers arrival from each revision's UTC date, capped at its final day.
+  The production decoder accepts only the current format. See [backup format](BACKUP_FORMAT.md).
+  Export before upgrading the app. Upgrade the archive offline, then replace-import it.
+  Update every syncing installation before editing plans. Older builds use a single
+  stay register and can delete independent stays in the shared store.
 - **`InstallationRecordingContext`** — the device-local installation identity,
   explicitly confirmed local recording choice, and stable timestamp for recreating
   its immutable device profile idempotently.

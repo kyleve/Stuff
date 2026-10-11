@@ -66,6 +66,8 @@
                 RegionPickerView.flyoverData,
                 RegionCustomizeView.flyoverData,
                 LocationsView.flyoverData,
+                PlannedStaysView.flyoverData,
+                PlannedStayEditor.flyoverData,
                 CalendarContentView.flyoverData,
                 ElsewhereView.flyoverData,
                 RegionDaysView.flyoverData,

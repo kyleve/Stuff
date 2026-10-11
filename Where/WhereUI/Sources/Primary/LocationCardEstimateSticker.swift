@@ -1,10 +1,11 @@
 import SwiftUI
+import WhereCore
 
 /// Pairs a primary card's recorded total with its annual estimate, rendered as
 /// a compact visa-style endorsement that restacks when horizontal room runs out.
 struct LocationCardEstimateSticker: View {
     let recordedDays: Int
-    let estimatedDays: Int
+    let estimatedDays: DayBounds
     let regionTint: Color
     let securityPrintTint: Color
     let card: WhereStylesheet.CardStyle
@@ -28,7 +29,8 @@ struct LocationCardEstimateSticker: View {
             Text(WhereFormat.dayCount(estimatedDays))
                 .font(style.valueTypography.font.scaled(by: scale))
                 .monospacedDigit()
-                .contentTransition(transition.transition(days: estimatedDays))
+                .contentTransition(estimatedDays.isExact ? transition
+                    .transition(days: estimatedDays.lower) : .opacity)
         }
         .foregroundStyle(securityPrintTint.opacity(style.contentOpacity))
         .padding(.horizontal, style.horizontalPadding * scale)
@@ -79,7 +81,7 @@ struct LocationCardEstimateSticker: View {
         let stylesheet = WhereStylesheet.default
         LocationCardEstimateSticker(
             recordedDays: 148,
-            estimatedDays: 276,
+            estimatedDays: DayBounds(lower: 269, upper: 276),
             regionTint: .orange,
             securityPrintTint: .orange,
             card: stylesheet.card.regular,

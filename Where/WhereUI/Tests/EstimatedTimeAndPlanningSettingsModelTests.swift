@@ -5,70 +5,34 @@ import Testing
 
 @MainActor
 struct EstimatedTimeAndPlanningSettingsModelTests {
-    @Test func disablingClearsThePlanBeforePersistingOff() async throws {
+    @Test func hidingAndShowingEstimatesPreservesEveryStayAndHome() async throws {
         let store = try TestStore()
         let preferences = makePreferences()
-        let report = makeReport(store: store, preferences: preferences)
-        try await report.forecasts.set(
-            region: .california,
-            through: CalendarDay(year: 2027, month: 1, day: 1).startOfDay(in: report.calendar),
+        let report = YearReportModel(
+            services: PlanningModelTestSupport.services(store: store),
+            selectedYear: 2026,
+            preferences: preferences,
+            now: { PlanningModelTestSupport.now },
         )
-        let model = EstimatedTimeAndPlanningSettingsModel(report: report)
-
-        await model.setEnabled(false)
-
-        #expect(model.isEnabled == false)
-        #expect(preferences.showsEstimatedTimeAndPlanning == false)
-        #expect(report.forecasts.activePlannedStay == nil)
-        #expect(try await report.services.plannedStays.active() == nil)
-    }
-
-    @Test func failedClearLeavesTheFeatureOnAndPresentsTheFailure() async throws {
-        let store = try TestStore()
-        let preferences = makePreferences()
-        let report = makeReport(store: store, preferences: preferences)
-        try await report.forecasts.set(
-            region: .california,
-            through: CalendarDay(year: 2027, month: 1, day: 1).startOfDay(in: report.calendar),
-        )
+        let first = try PlanningModelTestSupport.stay(region: .newYork)
+        let second = try PlanningModelTestSupport.stay(region: .california)
+        try await report.forecasts.create(stay: first)
+        try await report.forecasts.create(stay: second)
+        try await report.forecasts.setHomeRegion(.california)
+        await report.forecasts.refresh()
+        let before = try await report.services.plannedStays.snapshot()
         await store.failPlannedStays()
         let model = EstimatedTimeAndPlanningSettingsModel(report: report)
 
         await model.setEnabled(false)
-
-        #expect(model.isEnabled)
-        #expect(preferences.showsEstimatedTimeAndPlanning)
-        #expect(report.forecasts.activePlannedStay?.region == .california)
-        #expect(model.presentedFailure != nil)
-    }
-
-    @Test func enablingDoesNotCreateAPlan() async throws {
-        let store = try TestStore()
-        let preferences = makePreferences()
-        preferences.showsEstimatedTimeAndPlanning = false
-        let report = makeReport(store: store, preferences: preferences)
-        let model = EstimatedTimeAndPlanningSettingsModel(report: report)
+        #expect(!model.isEnabled)
+        #expect(!preferences.showsEstimatedTimeAndPlanning)
+        #expect(try await report.services.plannedStays.snapshot() == before)
+        #expect(report.forecasts.planning == before)
+        #expect(model.presentedFailure == nil)
 
         await model.setEnabled(true)
-
         #expect(model.isEnabled)
-        #expect(preferences.showsEstimatedTimeAndPlanning)
-        #expect(try await report.services.plannedStays.active() == nil)
-    }
-
-    private func makeReport(
-        store: TestStore,
-        preferences: WherePreferences,
-    ) -> YearReportModel {
-        YearReportModel(
-            services: WhereServices(
-                store: store,
-                locationSource: ScriptedLocationSource(),
-                reminderScheduler: NoopLoggingReminderScheduler(),
-                widgetRefresher: NoopWidgetTimelineRefresher(),
-            ),
-            selectedYear: 2026,
-            preferences: preferences,
-        )
+        #expect(try await report.services.plannedStays.snapshot() == before)
     }
 }
