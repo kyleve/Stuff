@@ -192,6 +192,33 @@ metadata. A Git status error stops the export.
 SIGINT and SIGTERM stop publication and run cleanup. If replacement has not
 committed, cleanup restores the previous atlas. The exit status is 130 or 143.
 
+### Preview the export
+
+Serve the default export on this computer:
+
+```sh
+./flyover preview
+```
+
+The command selects a free port and prints the local URL. Press Control-C to
+stop the server.
+
+Use `--lan` to open the preview to other devices on the local network:
+
+```sh
+./flyover preview --lan
+./flyover preview --output /tmp/where-flyover --lan --port 8080
+```
+
+The command prints one URL for each network address that it finds. The other
+device must be able to reach this computer. A macOS firewall prompt can appear.
+The server pins the validated directory for its lifetime. It does not follow a
+symbolic link that replaces an allowed file or directory after startup.
+
+WARNING: LAN preview has no authentication or TLS. Any device that can reach
+the computer can view the native screenshots. Stop and restart the preview
+after each export.
+
 For a static host, upload the contents of the generated directory. Put
 `index.html` at the selected host root or subpath. The site needs no build step.
 All site URLs are relative.
