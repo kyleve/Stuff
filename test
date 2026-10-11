@@ -93,7 +93,8 @@ Runs this repo's tests against the simulator this checkout owns, streaming
 progress as it goes. With no arguments it runs only the bundles affected by the
 working tree's changes. Every normal invocation first validates and tests the
 Bumper Bowling rules, then enforces the architecture. Unit and affected scopes
-also run the fast host-side backup-upgrader regression suite.
+also run the fast host-side backup-upgrader regression suite. Every normal
+invocation runs the fast Flyover command regression suite.
 
 Scope:
   (no arguments)    Bundles affected by the diff against origin/main, including
@@ -274,6 +275,10 @@ if [ "$ARCHITECTURE_ONLY" = true ]; then
 fi
 
 if [ "$RUN_HOST_TESTS" = true ]; then
+    if [ -f Shared/Flyover/Tools/Tests/flyover_test.sh ]; then
+        echo "==> Testing flyover command"
+        bash Shared/Flyover/Tools/Tests/flyover_test.sh
+    fi
     echo "==> Testing attribution generator"
     mise exec -- ruby Shared/CreditKit/Tools/Tests/generate_attribution_test.rb
 fi
