@@ -251,3 +251,7 @@ derived from the demo world must stay made of no-ops.
 - Reject handoff targets with observed removal tombstones before approval and again before submission. Cancel a pending handoff before removing its target (`RecordingDeviceCoordinationTests`).
 - Keep recovery exclusions bound to the former ownership period and server commit time. Preserve raw samples and apply exclusions through `LocationHistoryReader` (`RecordingRecoveryExclusionTests`).
 - Preserve authority, installation identity, local consent, and the compatibility floor across history Reset and Replace. Backups carry historical exclusions and the floor, never live ownership (`BackupCoordinatorTests`, `WhereResetTests`).
+
+- Begin each public domain store operation with `assertDataCompatible()`. Recheck pending and committed requirements before save; keep only the documented control-plane methods available while blocked (`where.compatibility_store_boundary`, `SwiftDataStoreCompatibilityTests`).
+- Construct production `CompatibilityScopedStore` instances only through `DataCompatibilityCoordinator`; isolated test fixtures may construct their own. Revoke a scope permanently and build a new one after recovery (`where.compatibility_scope_ownership`).
+- Advance the global version only through the current recording owner's server-conditional transition. Retain cached compatibility only for temporary network failures; authentication failures block (`DataCompatibilityCoordinatorTests`).
