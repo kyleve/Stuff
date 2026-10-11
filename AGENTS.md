@@ -145,9 +145,6 @@ source-level invariants. The entry point is
 [`BumperBowling.swift`](BumperBowling.swift). Repository-owned shapes and rules
 live in [`.bumper/Sources`](.bumper/Sources). [`.bumper/RULES.md`](.bumper/RULES.md) is the rule catalog.
 
-CI builds the Bumper configuration runner in release mode and limits each
-evaluation to two minutes. The build cache key includes the runner build configuration.
-
 Run `./test --architecture-only` after changing a Where dependency,
 composition root, or documented concurrency boundary. This command validates
 the configuration, tests the rules, and runs the lint. Keep the relevant

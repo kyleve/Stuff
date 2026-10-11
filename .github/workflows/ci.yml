@@ -58,7 +58,6 @@ jobs:
     runs-on: xcode-27
     env:
       BUMPER_CACHE_DIR: .build/bumper-cache
-      # Optimize source analysis and allow headroom for the expanded rule scope.
       BUMPER_RUNNER_BUILD_CONFIGURATION: release
       BUMPER_EVALUATION_TIMEOUT_SECONDS: '120'
     steps:
