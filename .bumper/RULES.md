@@ -181,3 +181,7 @@ Mutation guard: `domainStoreMethodsRequireCompatibilityChecks`.
 `where.compatibility_scope_ownership` permits production scoped-store construction
 only in `DataCompatibilityCoordinator`. Isolated test fixtures may construct their
 own. Guard: `compatibilityPermitsComeFromTheCoordinator`.
+
+### `where.compatibility_coordination_composition`
+
+Construct the production app's `DataCompatibilityCoordinator` only in `WhereLaunch.swift` over the existing bootstrap store. Isolated test fixtures may construct their own. Mutation coverage: `compatibilityCoordinatorIsComposedAtBootstrap`.

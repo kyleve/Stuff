@@ -90,6 +90,7 @@
                 RegionsSettingsView.flyoverData,
                 DevicesSettingsView.flyoverData,
                 RecordingRecoveryView.flyoverData,
+                DataCompatibilityView.flyoverData,
                 AlertsSettingsView.flyoverData,
                 AppearanceSettingsView.flyoverData,
                 CardDesignerStudioView.flyoverData,
