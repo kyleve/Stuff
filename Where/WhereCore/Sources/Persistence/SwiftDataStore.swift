@@ -595,6 +595,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         [
             SDWhereDataGeneration.self,
             SDBackupImportReceipt.self,
+            SDRecordingAuthorityCommit.self,
             SDLocationSample.self,
             SDSampleAttributionRevision.self,
             SDEvidence.self,
@@ -1434,6 +1435,43 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 return duplicates.min(by: RecordingDeviceProfile.isCanonicalBefore)
             }
             .sorted { $0.id.storeURL.absoluteString < $1.id.storeURL.absoluteString }
+    }
+
+    public func recordingAuthorityCommits() async throws -> [RecordingAuthorityCommit] {
+        let rows = try readContext().fetch(FetchDescriptor<SDRecordingAuthorityCommit>())
+        var unique: [RecordingAuthority.EventID: RecordingAuthorityCommit] = [:]
+        for row in rows {
+            guard let payload = row.payload else { throw RecordingAuthorityError.invalidRecord }
+            let value = try JSONDecoder().decode(RecordingAuthorityCommit.self, from: payload)
+            try value.proposal.validate()
+            guard let eventID = value.proposal.result.revision?.eventID,
+                  row.id == eventID.rawValue
+            else {
+                throw RecordingAuthorityError.invalidRecord
+            }
+            if let existing = unique[eventID],
+               existing != value { throw RecordingAuthorityError.invalidRecord }
+            unique[eventID] = value
+        }
+        return Array(unique.values)
+    }
+
+    public func addRecordingAuthorityCommit(_ commit: RecordingAuthorityCommit) async throws {
+        try commit.proposal.validate()
+        guard let eventID = commit.proposal.result.revision?.eventID
+        else { throw RecordingAuthorityError.invalidRecord }
+        let context = mutationContext()
+        let commits = try await recordingAuthorityCommits()
+        if let existing = commits
+            .first(where: { $0.proposal.result.revision?.eventID == eventID })
+        {
+            guard existing == commit else { throw RecordingAuthorityError.invalidRecord }
+            return
+        }
+        let row = SDRecordingAuthorityCommit()
+        row.id = eventID.rawValue
+        row.payload = try JSONEncoder().encode(commit)
+        context.insert(row)
     }
 
     public func addRecordingDeviceProfile(_ profile: RecordingDeviceProfile) async throws {
@@ -2748,4 +2786,12 @@ final class SDRecordingDeviceRemoval {
             removedByDeviceID: RecordingDeviceID(rawValue: removedByDeviceID),
         )
     }
+}
+
+/// Immutable control receipt; deliberately has no user-data generation membership.
+@Model
+final class SDRecordingAuthorityCommit {
+    var id: UUID?
+    var payload: Data?
+    init() {}
 }

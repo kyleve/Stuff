@@ -16,6 +16,9 @@ import RegionKit
 /// production `SwiftDataStore` implementation traps with a
 /// `preconditionFailure` if a mutation is called outside `perform`.
 public protocol WhereStore: Sendable {
+    /// Operational authority is global, excluded from backups, and survives history reset/Replace.
+    func recordingAuthorityCommits() async throws -> [RecordingAuthorityCommit]
+    func addRecordingAuthorityCommit(_ commit: RecordingAuthorityCommit) async throws
     /// Run `block` inside a write transaction. On outermost success
     /// the staged writes are committed atomically; on outermost throw
     /// the entire transaction is rolled back (no partial writes
@@ -249,6 +252,21 @@ public protocol WhereStore: Sendable {
 }
 
 extension WhereStore {
+    public func recordingAuthority() async throws -> RecordingAuthority {
+        let commits = try await recordingAuthorityCommits().sorted {
+            ($0.proposal.result.revision?.sequence ?? 0) <
+                ($1.proposal.result.revision?.sequence ?? 0)
+        }
+        var state = RecordingAuthority.initial
+        for commit in commits {
+            try commit.proposal.validate()
+            guard commit.proposal.expected == state
+            else { throw RecordingAuthorityError.invalidRecord }
+            state = commit.proposal.result
+        }
+        return state
+    }
+
     /// Run one mutation against the generation current at command start, failing if a reset or
     /// Replace wins before commit. Use this when the command does not already hold a snapshot id.
     public func performInCurrentGeneration<T: Sendable>(

@@ -157,3 +157,5 @@ directory. Delete or reshape the rule if the repository deliberately adopts a
 different logging vocabulary layout. Bumper's standard
 `singleNominalSpelling` shaper expresses the invariant; no custom syntax rule
 is needed.
+
+- `where.recording_cloud_authority_ownership`: construct direct CloudKit containers only in the dedicated recording-authority transport. The existing SwiftData mirror remains separate. Guard: `WhereProjectRulesTests.direct CloudKit authority has one adapter`.
