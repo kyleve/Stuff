@@ -1,9 +1,10 @@
 import CloudKit
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 actor CompatibilityTestTransport: RecordingAuthorityTransport {
     enum Availability { case online, offline, signedOut }
     private let base = LocalRecordingAuthorityTransport(now: { .now })
+    private(set) var readCount = 0
     private var nextReadGate: CompatibilityTestGate?
     func holdNextRead(_ gate: CompatibilityTestGate) {
         nextReadGate = gate
@@ -27,6 +28,7 @@ actor CompatibilityTestTransport: RecordingAuthorityTransport {
     }
 
     func current() async throws -> RecordingAuthorityCommit? {
+        readCount += 1
         try check()
         let value = await base.current()
         if let gate = nextReadGate {
@@ -46,5 +48,23 @@ actor CompatibilityTestTransport: RecordingAuthorityTransport {
     func commit(_ proposal: RecordingAuthorityProposal) async throws -> RecordingAuthorityCommit {
         try check()
         return try await base.commit(proposal)
+    }
+}
+
+/// Server changes that a local-only history inspection cannot observe.
+enum CompatibilityRemoteChange {
+    case signedOut, newerRequirement
+}
+
+func waitForCompatibilityChecks(
+    _ count: Int,
+    in coordinator: DataCompatibilityCoordinator,
+) async throws {
+    struct TimedOut: Error {}
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: .seconds(10))
+    while await coordinator.pendingCheckCountForTesting != count {
+        guard clock.now < deadline else { throw TimedOut() }
+        await Task.yield()
     }
 }

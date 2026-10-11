@@ -1,0 +1,35 @@
+{
+  "source": "pluscal",
+  "module": "CompatibilityVerification.tla",
+  "cases": [
+    {
+      "name": "current",
+      "config": "Current.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "local-satisfies-remote",
+      "config": "LocalSatisfiesRemote.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RemoteMeansRemote is violated."
+    },
+    {
+      "name": "stale-completion",
+      "config": "StaleCompletion.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant HigherFloorWins is violated."
+    },
+    {
+      "name": "local-erases-failure",
+      "config": "LocalErasesFailure.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant LocalCannotEraseFailure is violated."
+    },
+    {
+      "name": "joined-local",
+      "config": "JoinedLocal.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant JoinedLocalNotReached is violated."
+    }
+  ]
+}
