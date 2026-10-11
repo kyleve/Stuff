@@ -274,6 +274,7 @@ public struct RootView: View {
             // entire (possibly slow) headless drive instead of the splash.
             .task {
                 if scenePhase == .active {
+                    await model.refreshCompatibility()
                     await launcher.enterForeground()
                 }
                 await launcher.run()
@@ -281,8 +282,11 @@ public struct RootView: View {
             .onChange(of: scenePhase) { _, newPhase in
                 guard newPhase == .active else { return }
                 Task {
+                    await model.refreshCompatibility()
                     await launcher.enterForeground()
-                    await model.session?.appBecameActive()
+                    if model.isInDemoMode || model.compatibility.isCompatible {
+                        await model.session?.appBecameActive()
+                    }
                 }
             }
     }

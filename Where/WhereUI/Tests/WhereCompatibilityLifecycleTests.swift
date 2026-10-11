@@ -22,6 +22,7 @@ struct WhereCompatibilityLifecycleTests {
         try await wait { runner.phase.gateHandle?.id == AnyHashable(LaunchStepID.compatibility) }
         #expect(model.compatibility.state == .recordingChoiceRequired)
         #expect(bootstrap.makeServicesCount == 0)
+        #expect(bootstrap.withdrawals > 0)
         #expect(model.activeScope == nil)
         _ = try await bootstrap.recording.selectRecordingRole(.recordingRequested)
         await model.compatibility.refresh()

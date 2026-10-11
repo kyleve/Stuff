@@ -33,6 +33,18 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
         }
     }
 
+    public func subscribeToChanges() async {
+        do { try await authority.subscribe() }
+        catch {
+            WhereLog.root(DataCompatibilityLog.self)(attachments: [.error(
+                error,
+                name: "authority-subscription-error",
+            )]) {
+                .subscriptionFailed(description: error.localizedDescription)
+            }
+        }
+    }
+
     public nonisolated func updates() -> AsyncStream<Void> {
         authority.updates()
     }

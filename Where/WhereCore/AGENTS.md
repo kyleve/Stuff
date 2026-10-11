@@ -229,3 +229,7 @@ derived from the demo world must stay made of no-ops.
 - Construct `CompatibilityScopedStore` only through `DataCompatibilityCoordinator`. Revoke a scope permanently and build a new one after recovery (`where.compatibility_scope_ownership`).
 - Advance the global version only through the current recording owner's server-conditional transition. Retain cached compatibility only for temporary network failures; authentication failures block (`DataCompatibilityCoordinatorTests`).
 - Retire a normal scope's location source permanently on compatibility loss. Cancel one-shot work, reject late samples, and preserve consent and accepted outbox entries (`CompatibilityLocationSourceTests`).
+- Route normal widget and notification publication through the service scope's `DataCompatibilityOutputs`. Recheck access after external awaits, and retire the output lifetime before recovery (`where.compatibility_output_composition`, `DataCompatibilityOutputsTests`).
+- Publish widget access only after a successful fresh snapshot write. Read the same compatible publication revision before and after cached data; missing or malformed metadata blocks it (`CompatibleWidgetSnapshotReaderTests`).
+- Preserve known verification failures through local-history checks. Foreground, account-change, push, and explicit retries perform remote verification (`DataCompatibilityCoordinatorTests`).
+- Gate cached issue scans as well as new reads (`DataIssueScannerTests.cachedScanCannotBypassACompatibilityLock`).

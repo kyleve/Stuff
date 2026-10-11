@@ -1,4 +1,5 @@
 import AppIntents
+import CloudKit
 import LifecycleKit
 import PeriscopeCore
 import SwiftUI
@@ -16,8 +17,10 @@ import WhereUI
 final class RegularApplicationRuntime: WhereApplicationRuntime {
     let model: WhereModel
     let intentServices: IntentServices
+    private let spotlight = RegionSpotlightIndexer()
     private let buildEnvironment: WhereBuildEnvironment
     private let widgetPresentationPublisher: WidgetPresentationPublisher
+    private var accountChanges: Task<Void, Never>?
     private(set) var launcher: LifecycleRunner<WhereSession>!
 
     #if DEBUG
@@ -117,13 +120,25 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
     }
 
     func didFinishLaunching(
-        application _: UIApplication,
+        application: UIApplication,
         options _: [UIApplication.LaunchOptionsKey: Any]?,
     ) -> Bool {
         AppDependencyManager.shared
             .add(dependency: { [intentServices = self.intentServices] in intentServices })
 
         WhereLaunch.startAmbientLogging(on: .shared)
+        application.registerForRemoteNotifications()
+        model.compatibility.onStateChange = { [weak model, intentServices, spotlight] state in
+            guard model?.isInDemoMode == false else { return }
+            await intentServices.setCompatibility(state)
+            if state.blockingError != nil { await spotlight.withdraw() }
+        }
+        accountChanges = Task { [weak model] in
+            for await _ in NotificationCenter.default.notifications(named: .CKAccountChanged) {
+                guard !Task.isCancelled else { return }
+                await model?.refreshCompatibility()
+            }
+        }
         model.onLoggedOut = { [intentServices] in await intentServices.clear() }
         model.onThemeChanged = { [intentServices, widgetPresentationPublisher] theme in
             await widgetPresentationPublisher.publish(theme)
@@ -132,19 +147,29 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
         }
         model.synchronizeTheme()
         let launcher = WhereLaunch
-            .makeLauncher(model: model, reason: .undetermined) { [intentServices, model] in
+            .makeLauncher(model: model, reason: .undetermined) { [
+                intentServices,
+                model,
+                spotlight,
+            ] in
                 await intentServices.install(
                     .forIntents(sharingStoreOf: $0),
                     theme: model.theme,
                 )
+                if !model.isInDemoMode {
+                    Task { await spotlight.indexRegions(resolving: intentServices) }
+                }
             }
         self.launcher = launcher
-        Task { [launcher, model, intentServices] in
-            await launcher.run()
-            guard !model.isInDemoMode else { return }
-            await RegionSpotlightIndexer.indexRegions(resolving: intentServices)
-        }
+        Task { [launcher] in await launcher.run() }
         return true
+    }
+
+    func refreshCompatibility() async -> UIBackgroundFetchResult {
+        let previous = model.compatibility.state
+        await model.refreshCompatibility()
+        if case .verificationFailed = model.compatibility.state { return .failed }
+        return previous == model.compatibility.state ? .noData : .newData
     }
 
     func makeRootView() -> AnyView {

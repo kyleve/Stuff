@@ -4,6 +4,29 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct DataIssueScannerTests {
+    @Test func cachedScanCannotBypassACompatibilityLock() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let scanner = makeScanner(store: store, now: { Self.day(2026, 3, 15) })
+        _ = try await scanner.scan(
+            year: 2026,
+            primaryRegions: [],
+            driftThresholdMeters: 1000,
+            force: false,
+        )
+        try await store.perform { try await store.addDataCompatibilityRequirement(.init(
+            id: UUID(),
+            version: .init(rawValue: 2),
+        )) }
+        await #expect(throws: DataCompatibilityError.self) {
+            _ = try await scanner.scan(
+                year: 2026,
+                primaryRegions: [],
+                driftThresholdMeters: 1000,
+                force: false,
+            )
+        }
+    }
+
     private static var calendar: Calendar {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = TimeZone(identifier: "America/Los_Angeles")!

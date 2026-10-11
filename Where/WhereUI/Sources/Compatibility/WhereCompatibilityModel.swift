@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 import WhereCore
 
@@ -5,10 +6,14 @@ import WhereCore
 @MainActor
 @Observable
 public final class WhereCompatibilityModel {
+    public var onStateChange: (@MainActor (DataCompatibilityState) async -> Void)?
     public private(set) var state: DataCompatibilityState
     @ObservationIgnored private var coordinator: DataCompatibilityCoordinator?
     private let bootstrap: any WhereScopeAssembling
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
+    @ObservationIgnored private var withdrawing: Task<Void, Never>?
+    @ObservationIgnored private var stateRevision: UInt64 = 0
+    @ObservationIgnored private var publicationID = UUID()
     @ObservationIgnored private var monitoring: Task<Void, Never>?
 
     init(bootstrap: any WhereScopeAssembling, initialState: DataCompatibilityState) {
@@ -35,7 +40,7 @@ public final class WhereCompatibilityModel {
         let task = Task { [weak self] in
             guard let self else { return }
             defer { refreshTask = nil }
-            if !isCompatible { state = .checking }
+            if !isCompatible, case .verificationFailed = state { state = .checking }
             do {
                 guard let coordinator = try await bootstrap.prepareCompatibility() else {
                     state = .compatible(.current)
@@ -47,16 +52,17 @@ public final class WhereCompatibilityModel {
                     monitoring = Task { [weak self] in
                         for await _ in changes {
                             guard !Task.isCancelled else { return }
-                            // A history event that lands during verification needs a fresh read
-                            // after that pass; joining the older result could miss the new floor.
-                            if let pending = self?.refreshTask { await pending.value }
-                            await self?.refresh()
+                            // Inspect local requirements even while remote verification is
+                            // suspended.
+                            _ = await coordinator.recheckLocalHistory()
+                            await self?.apply(coordinator.snapshot())
                         }
                     }
                 }
-                state = await coordinator.recheck()
+                _ = await coordinator.recheck()
+                await apply(coordinator.snapshot())
             } catch {
-                state = .verificationFailed(error.localizedDescription)
+                await apply(.verificationFailed(error.localizedDescription))
                 Self.logger(attachments: [.error(error, name: "compatibility-bootstrap-error")]) {
                     .verificationFailed(description: error.localizedDescription)
                 }
@@ -64,6 +70,41 @@ public final class WhereCompatibilityModel {
         }
         refreshTask = task
         await task.value
+    }
+
+    private func apply(_ snapshot: DataCompatibilitySnapshot) async {
+        guard snapshot.revision >= stateRevision else { return }
+        stateRevision = snapshot.revision
+        await apply(snapshot.state)
+    }
+
+    private func apply(_ newState: DataCompatibilityState) async {
+        let publicationID = UUID()
+        self.publicationID = publicationID
+        if case .compatible = newState { await withdrawing?.value }
+        guard self.publicationID == publicationID else { return }
+        let targetState: DataCompatibilityState = if case .updateRequired = state { state }
+        else { newState }
+        if case .compatible = targetState {
+            // Unblock the process handoff before observation can resume launch and
+            // install the replacement services.
+            await onStateChange?(targetState)
+            guard self.publicationID == publicationID else { return }
+            state = targetState
+            return
+        }
+        state = targetState
+        if !isCompatible {
+            if withdrawing == nil {
+                withdrawing = Task {
+                    await bootstrap.withdrawCompatibilityOutputs()
+                    withdrawing = nil
+                }
+            }
+            await withdrawing?.value
+        }
+        guard self.publicationID == publicationID else { return }
+        await onStateChange?(state)
     }
 
     private static let logger = WhereLog.root(WhereCompatibilityLog.self)

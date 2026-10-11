@@ -4,6 +4,11 @@ import CloudKit
 actor CompatibilityTestTransport: RecordingAuthorityTransport {
     enum Availability { case online, offline, signedOut }
     private let base = LocalRecordingAuthorityTransport(now: { .now })
+    private var nextReadGate: CompatibilityTestGate?
+    func holdNextRead(_ gate: CompatibilityTestGate) {
+        nextReadGate = gate
+    }
+
     private var availability: Availability = .online
     func setAvailability(_ value: Availability) {
         availability = value
@@ -17,9 +22,18 @@ actor CompatibilityTestTransport: RecordingAuthorityTransport {
         }
     }
 
+    func subscribe() throws {
+        try check()
+    }
+
     func current() async throws -> RecordingAuthorityCommit? {
         try check()
-        return await base.current()
+        let value = await base.current()
+        if let gate = nextReadGate {
+            nextReadGate = nil
+            await gate.suspend()
+        }
+        return value
     }
 
     func receipt(for eventID: RecordingAuthority
