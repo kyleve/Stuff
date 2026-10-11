@@ -553,9 +553,11 @@ reuses it after compatibility verification. The resulting `WhereScope` carries i
 it via the `onServicesReady` hook). Two subsystems independently "opening the
 same store" once raced a fresh install into a launch failure.
 
-**Create it when it's needed, not before.** That step runs *behind* the
-onboarding gate. An install whose user never onboards opens nothing. A
-second world (demo mode) is another scope rather than a flag threaded through
+**Separate bootstrap resources from domain scopes.** The real store opens for
+compatibility and recording-authority checks before onboarding. Retain that
+bootstrap across normal scope replacement. Create domain services only after
+the compatibility and onboarding gates pass, with a fresh access permit.
+A second world (demo mode) is another scope rather than a flag threaded through
 the first. See [`Where/AGENTS.md`](Where/AGENTS.md#scopes-and-the-launch).
 
 - **An alternate boot stack is a runtime implementation, not a mode switch.**
