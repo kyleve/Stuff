@@ -5,8 +5,8 @@ import Testing
 
 /// A source that logs one event the moment it starts.
 private final class ImmediateSource: AmbientEventSource {
-    func start(log: Log<AmbientEvent>) {
-        log { AmbientEvent(kind: AmbientKind("test-kind"), value: ["phase": "started"]) }
+    func start(log: Log<AmbientLog>) {
+        log.record(makeAmbientEvent(kind: AmbientKind("test-kind"), value: ["phase": "started"]))
     }
 
     func stop() {}
@@ -27,8 +27,8 @@ private final class NotificationSource: NotificationAmbientSource {
         [name]
     }
 
-    override func event(for _: Notification) -> AmbientEvent? {
-        AmbientEvent(kind: AmbientKind("test-kind"), value: ["phase": "fired"])
+    override func event(for _: Notification) -> (any AmbientLogEvent & LogEvent)? {
+        makeAmbientEvent(kind: AmbientKind("test-kind"), value: ["phase": "fired"])
     }
 }
 
@@ -48,7 +48,7 @@ struct AmbientEventSourceTests {
         #expect(sink.records.first?.message == "test-kind: phase=started")
 
         let scope = sink.records.first?.scopes.first
-        #expect(scope.flatMap { system.scope(for: $0) }?.name == AmbientEvent.eventName)
+        #expect(scope.flatMap { system.scope(for: $0) }?.name == AmbientLog.scopeName)
     }
 
     @Test func defaultSourcesStartAndStopWithoutIncident() async {
@@ -81,7 +81,7 @@ struct AmbientEventSourceTests {
     @Test func restartingASourceReplacesItsObservationInsteadOfDoubling() async {
         let name = Notification.Name("periscope-test-\(UUID().uuidString)")
         let source = NotificationSource(name: name)
-        let log = Log<AmbientEvent>(system: system)
+        let log = Log<AmbientLog>(system: system)
         source.start(log: log)
         source.start(log: log)
 

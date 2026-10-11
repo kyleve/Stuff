@@ -22,9 +22,9 @@ struct FeatureDataAccuracyPreview: View {
                     Text(status)
                         .font(.subheadline.bold())
                 } icon: {
-                    Image(systemSymbol: issueCount == 0 ? .checkmarkCircleFill :
+                    Image(systemSymbol: issueCount == 0 ? .checklist :
                         .exclamationmarkCircleFill)
-                        .foregroundStyle(issueCount == 0 ? .green : .orange)
+                        .foregroundStyle(issueCount == 0 ? Color.secondary : Color.orange)
                 }
 
                 Divider()
@@ -49,7 +49,7 @@ struct FeatureDataAccuracyPreview: View {
 
     private var status: String {
         if issueCount == 0 {
-            String(localized: .settingsExploreInsightsAllClear)
+            String(localized: .settingsExploreInsightsReviewStatus)
         } else {
             String(localized: .settingsExploreInsightsIssueCount(issueCount))
         }

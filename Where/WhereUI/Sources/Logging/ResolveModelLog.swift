@@ -1,31 +1,51 @@
 import PeriscopeCore
+import WhereCore
 
-/// Structured events for `ResolveModel`, the data-issue resolution flow. Read /
-/// dismiss failures leave an honest UI error, so they log at `.warning`. A
-/// dismissed issue's id rides on `externalID`.
-enum ResolveModelLog: LogEvent {
-    case dataIssueScanFailed(description: String)
-    case dismissFailed(issueID: String, description: String)
-
-    static let eventName = "Resolve"
-
-    var level: LogLevel {
-        .warning
-    }
-
-    var message: String {
-        switch self {
-            case let .dataIssueScanFailed(description):
-                "Failed to scan for data issues: \(description)"
-            case let .dismissFailed(issueID, description):
-                "Failed to dismiss data issue \(issueID): \(description)"
+@LogScope("Resolve")
+enum ResolveModelLog {
+    enum SpanName: String, CustomStringConvertible {
+        case prepareReview
+        var description: String {
+            rawValue
         }
     }
 
-    var externalID: String? {
-        switch self {
-            case let .dismissFailed(issueID, _): issueID
-            case .dataIssueScanFailed: nil
+    @LogEvent(
+        "correction-apply-failed",
+        level: .warning,
+        message: "Failed to apply reviewed GPS sample corrections",
+    )
+    struct CorrectionApplyFailed {
+        @LogField(exposure: .restricted, kind: .identifier)
+        var issueID: DataIssueID
+        var externalID: String? {
+            issueID.storeURL.absoluteString
+        }
+    }
+
+    @LogEvent("data-issue-scan-failed", level: .warning, version: 2)
+    struct DataIssueScanFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+        var message: String {
+            "Failed to scan for data issues: \(error.description)"
+        }
+    }
+
+    @LogEvent("dismiss-failed", level: .warning, version: 2)
+    struct DismissFailed {
+        @LogField(exposure: .restricted, kind: .identifier)
+        var issueID: String
+
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+
+        var message: String {
+            "Failed to dismiss data issue \(issueID): \(error.description)"
+        }
+
+        var externalID: String? {
+            issueID
         }
     }
 }

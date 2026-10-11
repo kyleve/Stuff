@@ -1,14 +1,44 @@
 import Foundation
+import PeriscopeCore
 import Testing
 @testable import WhereCore
 
 struct DiagnosticReportingConfigurationTests {
+    @Test func independentExportControlsRoundTrip() throws {
+        let configuration = RemoteLoggingConfiguration.enabled(
+            minimumLevel: .notice,
+            exportPolicy: .init(mode: .diagnostic, enabledControls: [
+                .location,
+                LogExportControl("example.custom"),
+            ]),
+        )
+        #expect(try JSONDecoder().decode(
+            RemoteLoggingConfiguration.self,
+            from: JSONEncoder().encode(configuration),
+        ) == configuration)
+    }
+
+    @Test func oldFullMetadataPreferenceGrantsOnlyTheNamedBuiltInControls() throws {
+        let data = Data(
+            #"{"enabled":{"minimum_level":"warning","metadata_policy":"allMetadataExcludingAttachmentData"}}"#
+                .utf8,
+        )
+        let configuration = try JSONDecoder().decode(RemoteLoggingConfiguration.self, from: data)
+        #expect(configuration.exportPolicy.mode == .diagnostic)
+        #expect(configuration.exportPolicy.enabledControls == RemoteLoggingConfiguration
+            .personalDataControls)
+        #expect(configuration.exportPolicy[LogExportControl("example.custom")] == false)
+    }
+
     @Test(arguments: [
         RemoteLoggingConfiguration.off,
-        .enabled(minimumLevel: .notice, metadataPolicy: .approvedFields),
+        .enabled(minimumLevel: .notice, exportPolicy: .init(mode: .baseline, enabledControls: [])),
         .enabled(
             minimumLevel: .debug,
-            metadataPolicy: .allMetadataExcludingAttachmentData,
+            exportPolicy: .init(
+                mode: .diagnostic,
+                enabledControls: RemoteLoggingConfiguration.personalDataControls,
+            ),
         ),
     ])
     func persistedConfigurationRoundTrips(_ remoteLogging: RemoteLoggingConfiguration) throws {
@@ -41,7 +71,7 @@ struct DiagnosticReportingConfigurationTests {
         #expect(configuration.sharesSessionReplays == false)
         #expect(configuration.remoteLogging == .enabled(
             minimumLevel: .warning,
-            metadataPolicy: .approvedFields,
+            exportPolicy: .init(mode: .baseline, enabledControls: []),
         ))
     }
 
@@ -51,7 +81,10 @@ struct DiagnosticReportingConfigurationTests {
             sharesSessionReplays: true,
             remoteLogging: .enabled(
                 minimumLevel: .debug,
-                metadataPolicy: .allMetadataExcludingAttachmentData,
+                exportPolicy: .init(
+                    mode: .diagnostic,
+                    enabledControls: RemoteLoggingConfiguration.personalDataControls,
+                ),
             ),
         )
 
@@ -60,7 +93,7 @@ struct DiagnosticReportingConfigurationTests {
             sharesSessionReplays: true,
             remoteLogging: .enabled(
                 minimumLevel: .debug,
-                metadataPolicy: .approvedFields,
+                exportPolicy: .init(mode: .baseline, enabledControls: []),
             ),
         ))
         #expect(saved.effective(isDebugBuild: true) == saved)
@@ -68,6 +101,9 @@ struct DiagnosticReportingConfigurationTests {
 
     @Test func offCannotCarryAFullMetadataPolicy() {
         #expect(RemoteLoggingConfiguration.off.minimumLevel == nil)
-        #expect(RemoteLoggingConfiguration.off.metadataPolicy == .approvedFields)
+        #expect(RemoteLoggingConfiguration.off.exportPolicy == LogExportPolicy(
+            mode: .baseline,
+            enabledControls: [],
+        ))
     }
 }

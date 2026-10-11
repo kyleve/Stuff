@@ -46,6 +46,7 @@ Layering, localization, preview, and testing conventions live in the feature
   states distinct. Crash and replay choices stay pending until relaunch.
   Remote-log revisions apply live. A runtime failure invalidates in-flight
   applies. An older completion must never win.
+- Keep the combined personal-data switch scoped to its named controls. Preserve consumer-defined grants and use effective policy for privacy disclosures.
 - The DEBUG developer accordion may only update
   `WhereDeveloperLaunchController` for the next launch. Inspector and demo are
   mutually exclusive. It must not switch the current runtime. A demo request
@@ -85,6 +86,22 @@ Layering, localization, preview, and testing conventions live in the feature
   Project Locations-card GPS points through the cache's shared
   `RegionArtworkProjection`. Never project, simplify, or spatially reduce
   artwork in a card's `body`.
+- Publish flight notices, correction reviews, and actionable counts from one
+  `YearReportModel` scan result. Inject that scene as the Resolve model's `ResolutionSource`. Re-key on raw evidence changes; never gate refresh
+  on aggregate-report equality. Schedule presentation deadlines only in the foreground.
+- Keep the raw GPS path visible in correction reviews after samples lose attribution.
+  Bound display geometry without changing the evidence or edits. Never join separate recording devices into one route.
+- Route automatic GPS fixes through Core's sample-correction coordinator. Keep
+  stale Apply results open for review and preserve manual editing while arrival is pending.
+  Show each flight's own progress when a daily review mixes completed and pending flights.
+  Retain pending information through Core's `dismissingProposal()` when dismissing completed-flight edits.
+- Resolve historical device labels through `DeviceRecordingController.displayNames()`, not the active device list.
+- Render point decisions from Core's reviewed corrections. Keep the review open after inclusion or restoration.
+  Clear a pending confirmation when its evidence changes. Guard: `FlightReviewModelTests`.
+- Keep each actionable flight point row as one accessible button, including its evidence and coordinate label.
+  Use the recorded coordinate for its map preview, including excluded points. Keep the preview noninteractive.
+- Use this installation's assessment for a live flight notice. Identify each
+  recording device in shared reviews and retain historical pending review access.
 - Use `regionArtworkTask` and `RegionArtworkModel` for cached artwork loading.
   Keep request identity complete; use a broader display key only when retaining
   compatible artwork during refresh is intentional.
@@ -102,8 +119,10 @@ Layering, localization, preview, and testing conventions live in the feature
 - Keep planned-stay persistence, forecast math, and location verification in WhereCore.
   `LocationForecastModel` mirrors the register and the advisory check for the Locations, calendar,
   and timeline surfaces.
-- Hide every forecast and planned-stay visualization behind
+- Gate live forecast and planned-stay surfaces on
   `YearReportModel.showsEstimatedTimeAndPlanning`; persist Off only after clearing the synced plan.
+  The read-only Estimated Time gallery keeps explanatory forecast examples
+  visible in grayscale when Off; it must not activate planning.
 - Continuous/looping motion (repeat-forever pulses, `TimelineView(.animation)`,
   typewriter reveals) must consult the shared `@MotionIsStatic` helper
   ([`Sources/Shared/MotionIsStatic.swift`](Sources/Shared/MotionIsStatic.swift))
@@ -181,6 +200,14 @@ worked examples.
   `MainTabs`. Resolve once per active-scene entry regardless of tab. Only denied
   or restricted access and disabled Precise Location stay visible as recovery
   actions; transient and confidence failures return to idle.
+
+## Feature discovery
+
+Keep gallery rows and Forms behind small named views inside focus and reveal scopes. Guard: `FeatureGuidePageTests` and the gallery view-size tests.
+Keep Explore Features browsing read-only. Use production presentation components and explicit actions into existing editors.
+Use `PresenceTimelineList` with `.excerpt` for embedded Timeline galleries; keep row layout and planned-stay joins in that view.
+Use process-effective diagnostics for privacy claims. Hide gallery links whose destinations are unavailable in demo mode.
+Use the [`update-explore-features`](../../.agents/skills/update-explore-features/SKILL.md) skill for periodic coverage updates.
 
 ## Testing
 

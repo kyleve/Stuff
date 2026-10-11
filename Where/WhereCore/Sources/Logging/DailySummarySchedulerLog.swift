@@ -1,39 +1,49 @@
 import PeriscopeCore
 
-/// Structured events for `DailySummaryScheduler` — authorization outcomes and
-/// the scheduling of the daily recap notification.
-enum DailySummarySchedulerLog: LogEvent {
-    case authorizationRequestFailed(description: String)
-    case authorizationNotGranted
-    case authorizationUnknown
-    case scheduled(time: String)
-    case scheduleFailed(description: String)
+/// Structured events for `DailySummaryScheduler`.
+@LogScope("DailySummaryScheduler")
+enum DailySummarySchedulerLog {
+    @LogEvent("authorization-request-failed", level: .error, version: 2)
+    struct AuthorizationRequestFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
 
-    static let eventName = "DailySummaryScheduler"
-
-    var level: LogLevel {
-        switch self {
-            case .authorizationRequestFailed, .scheduleFailed:
-                .error
-            case .authorizationNotGranted, .authorizationUnknown:
-                .warning
-            case .scheduled:
-                .info
+        var message: String {
+            "Notification authorization request failed: \(error.description)"
         }
     }
 
-    var message: String {
-        switch self {
-            case let .authorizationRequestFailed(description):
-                "Notification authorization request failed: \(description)"
-            case .authorizationNotGranted:
-                "Daily summary enabled but notification authorization not granted; summary disabled"
-            case .authorizationUnknown:
-                "Daily summary enabled but notification authorization status is unknown; summary disabled"
-            case let .scheduled(time):
-                "Scheduled daily summary at \(time)"
-            case let .scheduleFailed(description):
-                "Failed to schedule daily summary: \(description)"
+    @LogEvent(
+        "authorization-not-granted",
+        level: .warning,
+        message: "Daily summary enabled but notification authorization not granted; summary disabled",
+    )
+    struct AuthorizationNotGranted {}
+
+    @LogEvent(
+        "authorization-unknown",
+        level: .warning,
+        message: "Daily summary enabled but notification authorization status is unknown; summary disabled",
+    )
+    struct AuthorizationUnknown {}
+
+    @LogEvent("scheduled", level: .info)
+    struct Scheduled {
+        @LogField(exposure: .restricted, kind: .dateTime)
+        var time: String
+
+        var message: String {
+            "Scheduled daily summary at \(time)"
+        }
+    }
+
+    @LogEvent("schedule-failed", level: .error, version: 2)
+    struct ScheduleFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+
+        var message: String {
+            "Failed to schedule daily summary: \(error.description)"
         }
     }
 }

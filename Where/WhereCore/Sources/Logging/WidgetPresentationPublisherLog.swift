@@ -1,25 +1,23 @@
 import PeriscopeCore
 
 /// Structured events for publishing the widget presentation theme.
-enum WidgetPresentationPublisherLog: LogEvent {
-    case published(theme: String)
-    case publishFailed(description: String)
-
-    static let eventName = "WidgetPresentationPublisher"
-
-    var level: LogLevel {
-        switch self {
-            case .published: .info
-            case .publishFailed: .error
+@LogScope("WidgetPresentationPublisher")
+enum WidgetPresentationPublisherLog {
+    @LogEvent("published")
+    struct Published {
+        @LogField(exposure: .restricted, kind: .technicalState)
+        var theme: String
+        var message: String {
+            "Published widget presentation theme \(theme)"
         }
     }
 
-    var message: String {
-        switch self {
-            case let .published(theme):
-                "Published widget presentation theme \(theme)"
-            case let .publishFailed(description):
-                "Failed to publish widget presentation: \(description)"
+    @LogEvent("publish-failed", level: .error, version: 2)
+    struct PublishFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+        var message: String {
+            "Failed to publish widget presentation: \(error.description)"
         }
     }
 }

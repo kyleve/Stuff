@@ -24,7 +24,10 @@ public struct DiagnosticReportingConfiguration: Codable, Equatable, Sendable {
             sharesCrashReports: true,
             sharesSessionReplays: false,
             remoteLogging: isDebugBuild
-                ? .enabled(minimumLevel: .warning, metadataPolicy: .approvedFields)
+                ? .enabled(
+                    minimumLevel: .warning,
+                    exportPolicy: .init(mode: .baseline, enabledControls: []),
+                )
                 : .off,
         )
     }
@@ -45,7 +48,7 @@ public struct DiagnosticReportingConfiguration: Codable, Equatable, Sendable {
         if let minimumLevel = copy.remoteLogging.minimumLevel {
             copy.remoteLogging = .enabled(
                 minimumLevel: minimumLevel,
-                metadataPolicy: .approvedFields,
+                exportPolicy: .init(mode: .baseline, enabledControls: []),
             )
         }
         return copy
@@ -62,24 +65,42 @@ public struct DiagnosticReportingConfiguration: Codable, Equatable, Sendable {
 public struct RemoteLoggingConfiguration: Codable, Equatable, Sendable {
     private let enabledConfiguration: EnabledConfiguration?
 
+    /// The app's combined switch grants only this explicit set, never future controls.
+    public static let personalDataControls: Set<LogExportControl> = [
+        .identifiers,
+        .location,
+        .userContent,
+        .personalData,
+    ]
+
     public static let off = Self(enabledConfiguration: nil)
 
     public static func enabled(
         minimumLevel: RemoteLogLevel,
-        metadataPolicy: RemoteLogMetadataPolicy,
+        exportPolicy: LogExportPolicy,
     ) -> Self {
         Self(enabledConfiguration: EnabledConfiguration(
             minimumLevel: minimumLevel,
-            metadataPolicy: metadataPolicy,
+            metadataPolicy: .approvedFields,
+            exportPolicy: exportPolicy,
         ))
+    }
+
+    public var exportPolicy: LogExportPolicy {
+        if let policy = enabledConfiguration?.exportPolicy { return policy }
+        switch enabledConfiguration?.metadataPolicy ?? .approvedFields {
+            case .approvedFields:
+                return LogExportPolicy(mode: .baseline, enabledControls: [])
+            case .allMetadataExcludingAttachmentData:
+                return LogExportPolicy(
+                    mode: .diagnostic,
+                    enabledControls: Self.personalDataControls,
+                )
+        }
     }
 
     public var minimumLevel: RemoteLogLevel? {
         enabledConfiguration?.minimumLevel
-    }
-
-    public var metadataPolicy: RemoteLogMetadataPolicy {
-        enabledConfiguration?.metadataPolicy ?? .approvedFields
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -88,11 +109,14 @@ public struct RemoteLoggingConfiguration: Codable, Equatable, Sendable {
 
     private struct EnabledConfiguration: Codable, Equatable {
         let minimumLevel: RemoteLogLevel
-        let metadataPolicy: RemoteLogMetadataPolicy
+        let metadataPolicy: LegacyRemoteLogMetadataPolicy
+        /// Optional for preferences written before independent export controls existed.
+        let exportPolicy: LogExportPolicy?
 
         private enum CodingKeys: String, CodingKey {
             case minimumLevel = "minimum_level"
             case metadataPolicy = "metadata_policy"
+            case exportPolicy = "export_policy"
         }
     }
 }
@@ -117,7 +141,7 @@ public enum RemoteLogLevel: String, CaseIterable, Codable, Sendable {
     }
 }
 
-public enum RemoteLogMetadataPolicy: String, Codable, Sendable {
+private enum LegacyRemoteLogMetadataPolicy: String, Codable {
     case approvedFields
     case allMetadataExcludingAttachmentData
 }

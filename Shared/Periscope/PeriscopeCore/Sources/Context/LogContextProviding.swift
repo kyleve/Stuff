@@ -12,7 +12,7 @@ import os
 ///
 /// ```swift
 /// final class PhotoController: LogContextProviding {
-///     typealias LogEventType = PhotoLogs   // omit for freeform-only logging
+///     typealias LoggingScope = PhotoLogs   // omit for freeform-only logging
 ///
 ///     func refresh() {
 ///         log.info("refreshing")           // scoped to this instance
@@ -24,9 +24,9 @@ import os
 /// Conformers log into ``Periscope/shared`` unless they override
 /// ``logSystem``.
 public protocol LogContextProviding: AnyObject {
-    /// The structured event type `log` emits. Defaults to ``Message`` for
+    /// The scope that `log` uses. Defaults to ``FreeformLogScope`` for
     /// freeform-only conformers.
-    associatedtype LogEventType: LogEvent = Message
+    associatedtype LoggingScope: LogScopeDefinition = FreeformLogScope
 
     /// The system this object logs into; defaults to ``Periscope/shared``.
     var logSystem: Periscope { get }
@@ -38,7 +38,7 @@ extension LogContextProviding {
     }
 
     /// A logger scoped to this instance (type root scope → instance scope).
-    public var log: Log<LogEventType> {
+    public var log: Log<LoggingScope> {
         logSystem.instanceLog(for: self)
     }
 }
@@ -48,7 +48,7 @@ extension Periscope {
     /// Repeated calls for the same instance return the same scope.
     public func instanceLog<Object: LogContextProviding>(
         for object: Object,
-    ) -> Log<Object.LogEventType> {
+    ) -> Log<Object.LoggingScope> {
         let scopes = instanceScopes.scopes(for: object)
         defineScope(scopes.type)
         return Log(scopes: [scopes.instance], tags: [], recorder: self)

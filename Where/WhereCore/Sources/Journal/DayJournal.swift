@@ -128,7 +128,10 @@ public actor DayJournal {
             try await store.setManualDay(presence)
         }
         await reconcileAfterDayDataChange()
-        Self.logger { .addedManualDay(day: String(describing: day), regionCount: regions.count) }
+        Self.logger.addedManualDay(
+            day: .restricted(.dateTime, String(describing: day)),
+            regionCount: .shared(.count, regions.count),
+        )
     }
 
     /// Authoritatively set the regions for a single calendar day, *replacing*
@@ -147,20 +150,25 @@ public actor DayJournal {
             try await store.setManualDay(presence)
         }
         await reconcileAfterDayDataChange()
-        Self.logger { .overrodeDay(day: String(describing: day), regionCount: regions.count) }
+        Self.logger.overrodeDay(
+            day: .restricted(.dateTime, String(describing: day)),
+            regionCount: .shared(.count, regions.count),
+        )
     }
 
-    /// Drop the manual overlay for a single calendar day, restoring the
-    /// GPS-derived attribution (the relabel "reset to GPS" path). A no-op when
-    /// the day has no manual record. Raw samples are never touched, so this
-    /// simply lets the aggregator fall back to whatever GPS recorded.
+    /// Restore GPS attribution by atomically clearing the day's manual overlay
+    /// and appending reset tombstones for its sample corrections. Raw samples
+    /// remain unchanged and delayed older revisions cannot revive the correction.
     public func clearManualDay(date: Date) async throws {
         let day = CalendarDay(from: date, in: aggregator.calendar)
         try await store.performInCurrentGeneration {
             try await store.clearManualDay(day)
+            try await resetSampleCorrections(on: day)
         }
         await reconcileAfterDayDataChange()
-        Self.logger { .clearedManualDay(day: String(describing: day)) }
+        Self.logger.clearedManualDay(
+            day: .restricted(.dateTime, String(describing: day)),
+        )
     }
 
     /// Drop the manual overlays for several calendar days (the logged-days
@@ -179,11 +187,12 @@ public actor DayJournal {
             try await store.performInCurrentGeneration {
                 for day in days {
                     try await store.clearManualDay(day)
+                    try await resetSampleCorrections(on: day)
                 }
             }
         }
         await reconcileAfterDayDataChange()
-        Self.logger { .clearedManualDays(dayCount: days.count) }
+        Self.logger.clearedManualDays(dayCount: .shared(.count, days.count))
     }
 
     /// Assert `regions` for every calendar day in the inclusive range
@@ -217,12 +226,26 @@ public actor DayJournal {
             }
         }
         await reconcileAfterDayDataChange()
-        Self.logger {
-            .backfilledManualDays(dayCount: days.count, regionCount: regions.count)
-        }
+        Self.logger.backfilledManualDays(
+            dayCount: .shared(.count, days.count),
+            regionCount: .shared(.count, regions.count),
+        )
     }
 
     // MARK: - Clearing
+
+    private func resetSampleCorrections(on day: CalendarDay) async throws {
+        let start = day.startOfDay(in: aggregator.calendar)
+        guard let end = aggregator.calendar.date(byAdding: .day, value: 1, to: start) else {
+            preconditionFailure("A valid calendar day must have a successor")
+        }
+        let samples = try await store.samples(in: DateInterval(start: start, end: end))
+        try await SampleAttributionReset.write(
+            sampleIDs: Set(samples.filter(\.source.isGPS).map(\.id)),
+            store: store,
+            now: now(),
+        )
+    }
 
     public func clearYear(_ year: Int) async throws {
         let interval = aggregator.yearInterval(year: year)
@@ -233,7 +256,7 @@ public actor DayJournal {
             }
         }
         await reconcileAfterDayDataChange()
-        Self.logger { .clearedYear(year: year) }
+        Self.logger.clearedYear(year: .restricted(.domainValue, year))
     }
 
     /// Erase every sample, manual day, and piece of evidence in the store, then
@@ -263,7 +286,7 @@ public actor DayJournal {
             }
         }
         await reconcileAfterDayDataChange()
-        Self.logger { .erasedAllData }
+        Self.logger.erasedAllData()
     }
 
     // MARK: - Evidence
@@ -272,9 +295,10 @@ public actor DayJournal {
         try await store.performInCurrentGeneration {
             try await store.write(evidence: evidence, blob: blob)
         }
-        Self.logger {
-            .wroteEvidence(id: String(describing: evidence.id), hasBlob: blob != nil)
-        }
+        Self.logger.wroteEvidence(
+            id: .restricted(.identifier, String(describing: evidence.id)),
+            hasBlob: .shared(.boolean, blob != nil),
+        )
     }
 
     public func evidence(for year: Int) async throws -> [Evidence] {

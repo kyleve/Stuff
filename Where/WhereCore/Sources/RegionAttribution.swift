@@ -84,6 +84,14 @@ final class RegionAttribution: RegionAttributing {
         state.withLock { $0.attributor }
     }
 
+    /// Pin attribution to the tracked set read by an enclosing store snapshot.
+    /// A pending change-stream callback must not change an authority decision.
+    func snapshot(for tracked: Set<Region>) -> RegionAttributor {
+        let existing = state.withLock { $0 }
+        if existing.trackedIDs == Set(tracked.map(\.rawValue)) { return existing.attributor }
+        return RegionAttributor(for: Region.inCanonicalOrder(tracked))
+    }
+
     func region(at coordinate: Coordinate) -> Region {
         current.region(at: coordinate)
     }
@@ -114,7 +122,9 @@ final class RegionAttribution: RegionAttributing {
             // Degraded-but-handled: keep the last-good attributor rather than
             // silently freezing on an empty/stale set, and surface the failure so
             // a persistent read error is observable instead of invisible.
-            Self.logger { .trackedRegionsReadFailed(description: String(describing: error)) }
+            Self.logger.trackedRegionsReadFailed(
+                error: .restricted(.errorDetails, error),
+            )
             return
         }
         let ids = Set(tracked.map(\.rawValue))

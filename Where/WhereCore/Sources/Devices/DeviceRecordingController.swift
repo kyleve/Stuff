@@ -164,6 +164,17 @@ public actor DeviceRecordingController {
         return try await configurationsLocked(includeRemoved: false)
     }
 
+    /// Latest saved names for historical presentation, including removed devices.
+    public func displayNames() async throws -> [RecordingDeviceID: String] {
+        await beginExclusive()
+        defer { endExclusive() }
+        try requireActive()
+        return try await store.readSnapshot {
+            let devices = try await self.store.recordingDevices()
+            return Dictionary(uniqueKeysWithValues: devices.map { ($0.id, $0.displayName) })
+        }
+    }
+
     /// Append a user-editable nickname change. Empty or whitespace-only input clears it.
     public func rename(
         _ deviceID: RecordingDeviceID,
@@ -292,9 +303,9 @@ public actor DeviceRecordingController {
             needsReconciliation = true
             await ingestor.revokeRecordingAuthorization()
             publishRuntimeState(.unavailable)
-            Self.logger(attachments: [.error(error, name: "import-recovery-error")]) {
-                .importRecoveryFailed(description: error.localizedDescription)
-            }
+            Self.logger.importRecoveryFailed(
+                error: .restricted(.errorDetails, error),
+            )
         }
         endExclusive()
     }
@@ -350,9 +361,9 @@ public actor DeviceRecordingController {
             needsReconciliation = true
             await ingestor.revokeRecordingAuthorization()
             publishRuntimeState(.unavailable)
-            Self.logger(attachments: [.error(error, name: "rollback-recovery-error")]) {
-                .rollbackRecoveryFailed(description: error.localizedDescription)
-            }
+            Self.logger.rollbackRecoveryFailed(
+                error: .restricted(.errorDetails, error),
+            )
         }
     }
 
@@ -560,9 +571,9 @@ public actor DeviceRecordingController {
             needsReconciliation = true
             await ingestor.revokeRecordingAuthorization()
             publishRuntimeState(.unavailable)
-            Self.logger(attachments: [.error(error, name: "policy-observation-error")]) {
-                .policyObservationFailed(description: error.localizedDescription)
-            }
+            Self.logger.policyObservationFailed(
+                error: .restricted(.errorDetails, error),
+            )
         }
         endExclusive()
     }

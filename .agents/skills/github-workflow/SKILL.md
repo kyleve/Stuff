@@ -1,6 +1,6 @@
 ---
 name: github-workflow
-description: Open and maintain pull requests, including stacked PRs through gh stack. Handle review feedback. Check GitHub Actions and CircleCI. Post as the user via gh or ManagePullRequest. Use when you commit for push, open or update a PR after plan execution, create or maintain a PR stack, respond to review comments, or diagnose CI failures.
+description: Create and maintain PRs and gh stack chains. Handle review feedback and diagnose GitHub Actions or CircleCI failures. Use for publishing changes, responding to reviews, and managing stacks.
 ---
 
 GitHub workflow for this repo. Read root [`AGENTS.md`](../../../AGENTS.md) first for
@@ -70,6 +70,26 @@ authorizes replies on the threads you fix, decline, or defer — see
   anything worth a closer read (subtle behavior changes, incomplete migrations,
   assumptions about `main`).
 
+### Review the completed diff
+
+Before pushing reviewable work, review the complete branch diff against its PR base.
+For a stacked PR, use its parent branch as the base.
+Revisit the applicable invariants identified before implementation.
+For each material invariant, locate the evidence in the final code and relevant guard results.
+If a rule needs human judgment, inspect the affected implementation and state any validation limit.
+A statement that instructions were read is not evidence that the implementation follows them.
+
+1. Compare changed signatures and stored state with the root
+   [type rules](../../../AGENTS.md#types-state-and-api-design) and
+   [state rules](../../../AGENTS.md#modeling-state).
+   Inspect identity types, parameter defaults, coupled values, and enum subsets.
+2. Trace changed behavior through its consumers and alternate entry points.
+   Include extensions, historical reads, demo fixtures, and post-write reconciliation where applicable.
+3. Match each validation claim to the behavior exercised and the revision tested.
+   State separately what source inspection, unit tests, snapshots, and runtime interaction establish.
+4. Update the owning guidance only when the change exposes a missing invariant or obsolete instruction.
+   Keep an existing rule in one place. Do not copy a review thread into an agent file.
+
 ### Writing the PR body
 
 Squash merges on `main` use **PR title → commit subject** and **PR body → commit
@@ -103,8 +123,10 @@ branch.
   with **User-facing:** or **Internal:** so `git log` readers can scan quickly.
 - **Why / Problem** — what was wrong or missing before. Link prior PRs when
   building on them.
-- **Changes / Architecture / Product behavior** — deep walkthrough for large
-  PRs. Group by subsystem with bold labels.
+- **Changes / Architecture / Product behavior** — high-level structure and
+  behavior. Group by subsystem and explain ownership and data flow.
+- **Primary APIs** — important additions, changed contracts, and removals, with
+  short usage examples. Follow [Explain API and architecture changes](#explain-api-and-architecture-changes).
 - **Design decisions / Trade-offs** — explicit choices and what was rejected.
 - **⚠️ Breaking changes** — wire-format, persistence, backup, CloudKit schema,
   or API breaks. What existing data/installs lose or must do. Delete the section
@@ -113,8 +135,31 @@ branch.
   the change. Required upgrade order. Delete when N/A.
 - **Review focus** — subtle behavior, incomplete migrations, assumptions about
   `main`. Prefer inline review comments for specific lines.
-- **Testing** — exact commands with pass counts. For skipped checks, state
+- **Testing** — exact commands with pass counts and the relevant behavior or invariant they exercise.
+  Link source locations for conclusions based only on inspection.
+  For skipped checks, state
   **what** and **why**.
+
+#### Explain API and architecture changes
+
+When a PR changes APIs or architecture, show enough structure to understand the
+change without opening the diff.
+
+- Summarize the primary API additions, changes, and removals in a compact table
+  or bullets. Name each API's role and affected callers. For a removed or
+  replaced API, name its replacement or explain how callers now work.
+- Focus on entry points, important state/value types, and changed boundaries.
+  Omit exhaustive symbol lists and implementation helpers.
+- Add one or two short, language-tagged code samples showing composition,
+  injection, or the main calling flow. Use a before/after pair when it clarifies
+  an API replacement. Explain who owns the components and how they connect.
+- Use the current implementation's names, argument labels, and async/error
+  contracts. Mark omitted setup or illustrative future-feature code explicitly.
+  Do not present invented helpers as APIs shipped by the PR.
+- Link the key source files when readers need more detail. Keep the examples
+  focused on the design rather than copying full implementations.
+- Scale this material to the change. A small API edit can use one bullet and a
+  few lines of code. Omit API sections for changes with no relevant API impact.
 
 #### Common PR shapes
 
@@ -275,13 +320,17 @@ a long review, or to pick up a dependency:
   match, a new invariant your code violates, duplicate registrations. Re-read
   the merged result and run `./test` (at least the affected tier) after merging
   — a clean merge is not proof the branch still makes sense.
-- **CI merges `main` into the branch before it runs**, so green-locally /
-  red-on-CI usually means `main` moved rather than that you broke something.
-  Merge the latest `main` in locally and rebuild before digging further.
+- **Identify the revision the failing provider tested before changing branch history.**
+  GitHub Actions PR jobs use the default PR merge checkout in
+  [ci.yml](../../../.github/workflows/ci.yml).
+  CircleCI checks out `pipeline.git.revision` directly in
+  [config.yml](../../../.circleci/config.yml).
+  Compare that revision, base, toolchain, and selected suites with the local run.
+  If the failure is an integration conflict, bring in the current base through the applicable branch or stack workflow.
 
 ## Review comments
 
-Two modes — don't mix them up:
+Three modes:
 
 **Exploring (user has not asked you to act):** read open review threads, summarize
 what's there, and ask which to take on. Do not change code or post replies yet.
@@ -291,8 +340,17 @@ what's there, and ask which to take on. Do not change code or post replies yet.
 in that thread. A code change without a reply is an incomplete handoff — the
 reviewer cannot tell their note was seen.
 
+**Historical audit (lessons or guidance changes):**
+
+Use [review-lessons](../review-lessons/SKILL.md) for historical evidence,
+monthly audit windows, and guidance changes.
+Use this skill for publishing the resulting PR.
+
 When addressing:
 
+- Read the complete thread, including later corrections, before deciding on a fix.
+  Search for the same defect in sibling call sites and shared helpers.
+  Keep product changes within the requested scope and file deferred occurrences.
 - **One commit per review issue** — each distinct piece of feedback gets its
   own commit, unless several items fit together logically or address similar
   issues (then one commit for the group is fine). Either way, fixes stay

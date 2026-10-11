@@ -3,6 +3,7 @@
 
 import argparse
 import json
+import math
 import pathlib
 import re
 import statistics
@@ -13,6 +14,8 @@ import xml.etree.ElementTree as ET
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_PLAN = ROOT / ".circleci" / "snapshot-shards.json"
 FORMAT_VERSION = 1
+# Minimum reduction in the slowest worker required to move existing suites.
+MINIMUM_IMPROVEMENT = 0.05
 SNAPSHOT_TARGET_PATTERN = re.compile(
     r"unitTests\(\s*"
     r'name:\s*"(?P<bundle>[^"]+SnapshotTests)",'
@@ -202,23 +205,35 @@ def junit_duration_samples(paths, inventory):
             documents.append(candidate)
     if not documents:
         raise ValueError("no JUnit documents were provided")
+    if len({path.resolve() for path in documents}) != len(documents):
+        raise ValueError("duplicate JUnit documents were provided")
     for document in documents:
         totals = {}
         try:
             root = ET.parse(document).getroot()
         except (ET.ParseError, OSError) as error:
             raise ValueError(f"cannot read JUnit document {document}: {error}") from error
+        for node in root.iter():
+            if node.tag in ("failure", "error", "skipped"):
+                raise ValueError(f"JUnit document contains {node.tag}: {document}")
+            for attribute in ("failures", "errors", "skipped"):
+                if float(node.get(attribute, "0")) != 0:
+                    raise ValueError(f"JUnit document contains {attribute}: {document}")
         for case in root.iter("testcase"):
             suite = case.get("file")
             if not suite:
-                continue
+                raise ValueError(f"JUnit test case has no suite identifier: {document}")
             if suite not in inventory:
                 raise ValueError(f"JUnit document contains an unknown suite: {suite}")
             try:
-                elapsed = float(case.get("time", "0"))
+                elapsed = float(case.get("time", "nan"))
             except ValueError as error:
                 raise ValueError(f"JUnit duration is invalid for {suite}") from error
+            if not math.isfinite(elapsed) or elapsed < 0:
+                raise ValueError(f"JUnit duration is invalid for {suite}")
             totals[suite] = totals.get(suite, 0.0) + elapsed
+            if not math.isfinite(totals[suite]):
+                raise ValueError(f"JUnit duration total is invalid for {suite}")
         for suite, elapsed in totals.items():
             samples[suite].append(elapsed)
     missing = sorted(suite for suite, values in samples.items() if not values)
@@ -235,7 +250,7 @@ def balanced_partition(weights, shard_count):
     shards = [[] for _ in range(shard_count)]
     totals = [0.0 for _ in range(shard_count)]
     for suite, elapsed in sorted(weights.items(), key=lambda item: (-item[1], item[0])):
-        index = min(range(shard_count), key=lambda value: (totals[value], value))
+        index = min(range(shard_count), key=lambda value: (totals[value], bool(shards[value]), value))
         shards[index].append(suite)
         totals[index] += elapsed
     for shard in shards:
@@ -243,30 +258,106 @@ def balanced_partition(weights, shard_count):
     return shards, totals
 
 
-def rebalanced_plan(plan, repo, junit_paths, shard_count=None):
+def partition_totals(partition, weights):
+    return [round(sum(weights[suite] for suite in shard), 3) for shard in partition]
+
+
+def assignment_plan(partition):
+    """Persist execution policy only; measurements belong in the balance report."""
+    return {
+        "formatVersion": FORMAT_VERSION,
+        "shards": [
+            {"index": index, "suites": sorted(suites)}
+            for index, suites in enumerate(partition)
+        ],
+    }
+
+
+def stable_partition(partition, weights):
+    """Place intake first, then stop single-suite moves at the 5% target.
+
+    Greedy moves strictly reduce the maximum load and never move a suite twice.
+    This is a bounded local search, not a globally minimum-move solver. If the
+    target is unreachable this way, discard all moves of existing suites.
+    """
+    shards = [list(suites) for suites in partition[:-1]]
+    totals = partition_totals(shards, weights)
+    for suite in sorted(partition[-1], key=lambda suite: (-weights[suite], suite)):
+        index = min(range(len(shards)), key=lambda index: (totals[index], index))
+        shards[index].append(suite)
+        totals[index] = round(totals[index] + weights[suite], 3)
+    intake_only = [list(suites) for suites in shards]
+    baseline = max(partition_totals(partition, weights))
+    target = baseline * (1 - MINIMUM_IMPROVEMENT)
+    remaining = {suite for shard in partition[:-1] for suite in shard}
+    while max(totals) > target + 1e-9:
+        best = None
+        for source, suites in enumerate(shards):
+            if len(suites) == 1:
+                continue
+            for suite in sorted(remaining.intersection(suites)):
+                for destination in range(len(shards)):
+                    if source == destination:
+                        continue
+                    candidate = list(totals)
+                    candidate[source] = round(candidate[source] - weights[suite], 3)
+                    candidate[destination] = round(candidate[destination] + weights[suite], 3)
+                    if max(candidate) >= max(totals):
+                        continue
+                    key = (max(candidate), suite, source, destination)
+                    if best is None or key < best:
+                        best = key
+        if best is None:
+            return intake_only
+        _, suite, source, destination = best
+        shards[source].remove(suite)
+        shards[destination].append(suite)
+        remaining.remove(suite)
+        totals = partition_totals(shards, weights)
+    return shards
+
+
+def rebalance_report(plan, repo, junit_paths, shard_count=None):
     inventory, partition = execution_partition(plan, repo)
     samples, document_count = junit_duration_samples(junit_paths, inventory)
     weights = {
         suite: round(statistics.median(values), 3)
         for suite, values in samples.items()
     }
-    planned_shard_count = len(partition) - 1
-    shards, totals = balanced_partition(
-        weights, shard_count or planned_shard_count
-    )
+    planned_count = len(partition) - 1
+    requested_count = planned_count if shard_count is None else shard_count
+    full_partition, _ = balanced_partition(weights, requested_count)
+    count_changed = requested_count != planned_count
+    shards = full_partition if count_changed else stable_partition(partition, weights)
+    validate_partition(inventory, shards)
+    before = partition_totals(partition, weights)
+    after = partition_totals([*shards, []], weights)
+    original = {suite: index for index, shard in enumerate(partition[:-1]) for suite in shard}
+    proposed = {suite: index for index, shard in enumerate(shards) for suite in shard}
+    moves = [
+        {"suite": suite, "fromWorker": original[suite] + 1, "toWorker": proposed[suite] + 1}
+        for suite in sorted(original)
+        if original[suite] != proposed[suite]
+    ]
+    changed = bool(partition[-1] or moves or count_changed)
     return {
-        "formatVersion": FORMAT_VERSION,
-        "method": "longest-processing-time over median JUnit suite durations",
+        "plan": assignment_plan(shards),
+        "changed": changed,
+        "reason": (
+            "shard count changed" if count_changed else
+            "intake assigned" if partition[-1] else
+            "improvement threshold reached" if moves else
+            "no qualifying single-suite rebalance"
+        ),
+        "beforeSeconds": before,
+        "afterSeconds": after,
+        "improvementPercent": round(100 * (max(before) - max(after)) / max(before), 3) if max(before) else 0,
+        "fullRebalanceSeconds": partition_totals(full_partition, weights),
+        "intakeSuites": partition[-1],
+        "movedSuites": moves,
         "sampleDocuments": document_count,
+        "samplesPerSuite": {suite: len(samples[suite]) for suite in sorted(samples)},
         "timings": dict(sorted(weights.items())),
-        "shards": [
-            {
-                "index": index,
-                "estimatedSeconds": round(totals[index], 3),
-                "suites": suites,
-            }
-            for index, suites in enumerate(shards)
-        ],
     }
 
 
@@ -291,12 +382,12 @@ def parse_args():
     verify.add_argument("--junit", type=pathlib.Path, required=True)
 
     balance = subparsers.add_parser(
-        "balance", help="propose a plan from JUnit timing artifacts"
+        "balance", help="report measured loads and propose stable assignments"
     )
     balance.add_argument("--repo", type=pathlib.Path, default=ROOT)
     balance.add_argument("--junit", type=pathlib.Path, action="append", required=True)
-    balance.add_argument("--shards", type=int)
-    balance.add_argument("--write", action="store_true")
+    balance.add_argument("--shards", type=int, help="explicitly change the planned count using a full rebalance")
+    balance.add_argument("--write", action="store_true", help="write assignments only when a rebalance qualifies")
     return parser.parse_args()
 
 
@@ -325,16 +416,17 @@ def main():
             count = validate_execution(args.assignment, args.junit)
             print(f"Snapshot execution matches the assignment: {count} suites")
         elif args.command == "balance":
-            candidate = rebalanced_plan(
+            report = rebalance_report(
                 plan, args.repo.resolve(), args.junit, args.shards
             )
-            serialized = json.dumps(candidate, indent=2, sort_keys=True) + "\n"
-            print(serialized, end="")
-            if args.write:
-                args.plan.write_text(serialized)
-                print(f"Updated {args.plan}")
+            print(json.dumps(report, indent=2, sort_keys=True))
+            if args.write and report["changed"]:
+                args.plan.write_text(json.dumps(report["plan"], indent=2, sort_keys=True) + "\n")
+                print(f"Updated {args.plan}", file=sys.stderr)
+            elif args.write:
+                print("No rebalance needed; plan unchanged.", file=sys.stderr)
             else:
-                print("Dry run; pass --write to update the plan.")
+                print("Dry run; pass --write to apply a qualifying rebalance.", file=sys.stderr)
     except (OSError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)
         raise SystemExit(1) from error

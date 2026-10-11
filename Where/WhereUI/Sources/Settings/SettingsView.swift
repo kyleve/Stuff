@@ -196,7 +196,8 @@ struct SettingsView: View {
         switch destination {
             case .regions:
                 showRegions = true
-            case .attachments, .loggedDays, .devices, .alerts, .appearance, .year, .siri,
+            case .placesYear, .recording, .privacyBackups, .attachments, .loggedDays, .devices,
+                 .alerts, .appearance, .year, .siri,
                  .widgets, .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization,
                  .data, .privacyDiagnostics, .about:
                 assertionFailure("\(destination) is a push destination, not a sheet")
@@ -231,7 +232,8 @@ struct SettingsView: View {
                 )
             case .year:
                 report.selectedYear.formatted(.number.grouping(.never))
-            case .attachments, .loggedDays, .regions, .alerts, .appearance, .siri, .widgets,
+            case .placesYear, .recording, .privacyBackups, .attachments, .loggedDays, .regions,
+                 .alerts, .appearance, .siri, .widgets,
                  .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization, .data,
                  .privacyDiagnostics, .about:
                 nil
@@ -275,6 +277,19 @@ struct SettingsView: View {
                 AppearanceSettingsView(report: report, focus: route.focus)
             case .year:
                 VisibleYearSettingsView(report: report, focus: route.focus)
+            case .placesYear:
+                PlacesYearFeaturesView(report: report, focus: route.focus)
+            case .recording:
+                RecordingFeaturesView(
+                    authorizationStatus: session.authorizationStatus,
+                    isTracking: session.isTracking,
+                    focus: route.focus,
+                )
+            case .privacyBackups:
+                PrivacyBackupsFeaturesView(
+                    configuration: model.diagnosticReporting.effectiveConfiguration,
+                    focus: route.focus,
+                )
             case .siri:
                 SiriFeaturesView(
                     focus: route.focus,
@@ -400,6 +415,9 @@ struct SettingsView: View {
                 .push(to: AlertsSettingsView.flyoverID),
                 .push(to: AppearanceSettingsView.flyoverID),
                 .push(to: VisibleYearSettingsView.flyoverID),
+                .push(to: PlacesYearFeaturesView.flyoverID),
+                .push(to: RecordingFeaturesView.flyoverID),
+                .push(to: PrivacyBackupsFeaturesView.flyoverID),
                 .push(to: SiriFeaturesView.flyoverID),
                 .push(to: WidgetFeaturesView.flyoverID),
                 .push(to: ShareEvidenceFeaturesView.flyoverID),

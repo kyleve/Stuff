@@ -7,8 +7,8 @@ import RegionKit
 /// detectors never consult it pays nothing, and the result is reused across
 /// detectors. Built from the samples the scanner already read for the year's
 /// report (see `ReportReader.dataIssueReads(for:)`), so it adds no extra store
-/// read — only the speed-based `FlightDayDetector` currently needs per-fix
-/// timestamps, and even it only forces the grouping when it runs.
+/// read. Flight trajectory analysis uses the chronological raw projection directly
+/// so a calendar boundary cannot split its motion evidence.
 ///
 /// Only `.gpsVisit` / `.gpsSignificantChange` fixes are kept — manual and
 /// evidence-implied samples carry user-asserted timestamps that would produce

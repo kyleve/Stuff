@@ -25,6 +25,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build, format
 - **Canvas preview readiness is the latest nonempty visible-load expectation.** Variant or generation changes supersede stale completions. Cancelled waiters must resume. `FlyoverSnapshotTests` awaits it before full-content measurement.
 - **Keep global traits session-only.** Apply them to registered content, not Flyover chrome.
 - **Register forward push/modal routes only.** Flyover derives Back/Dismiss cues from incoming routes.
+- **Render connectors as vector views.** A graph-sized Canvas texture can exceed the GPU dimension limit. Guard: `WhereFlyoverViewSnapshotTests` (PR #329).
 - **Type erase only at the heterogeneous content/control registry boundary.**
 
 ## Testing

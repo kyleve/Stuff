@@ -1,37 +1,29 @@
 import PeriscopeCore
 
-/// Structured events for `ReminderReconciler`. Failing to reconcile the schedule
-/// is an outright failure (`.error`); failing only the badge scan is
-/// degraded-but-handled (`.warning`).
-enum ReminderReconcilerLog: LogEvent {
-    /// Names the reconciler's timed span.
+/// Structured events for `ReminderReconciler`.
+@LogScope("ReminderReconciler")
+enum ReminderReconcilerLog {
     enum SpanName: Hashable {
-        /// One badge + schedule reconcile: the year report, the issue scan
-        /// folded into the badge, and the scheduler round-trip. `reconcile()` is
-        /// the app's most-run derived-state refresh (every launch, foreground,
-        /// write, and settings change), so its span is the honest measure of
-        /// "what a write costs after it commits".
         case reconcile
     }
 
-    case reconcileFailed(description: String)
-    case badgeScanFailed(description: String)
+    @LogEvent("reconcile-failed", level: .error, version: 2)
+    struct ReconcileFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
 
-    static let eventName = "ReminderReconciler"
-
-    var level: LogLevel {
-        switch self {
-            case .reconcileFailed: .error
-            case .badgeScanFailed: .warning
+        var message: String {
+            "Failed to reconcile logging reminders: \(error.description)"
         }
     }
 
-    var message: String {
-        switch self {
-            case let .reconcileFailed(description):
-                "Failed to reconcile logging reminders: \(description)"
-            case let .badgeScanFailed(description):
-                "Failed to scan data issues for badge: \(description)"
+    @LogEvent("badge-scan-failed", level: .warning, version: 2)
+    struct BadgeScanFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+
+        var message: String {
+            "Failed to scan data issues for badge: \(error.description)"
         }
     }
 }

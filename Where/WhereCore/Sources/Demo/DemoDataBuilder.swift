@@ -53,16 +53,36 @@ public struct DemoDataBuilder: Sendable {
                     case .flightDay: 5
                 }
             }.max() ?? 1
-            guard elapsedDays < requiredElapsedDays else { return requestedDate }
-            guard let referenceDate = calendar.date(
+            guard let firstReference = calendar.date(
                 byAdding: .day,
-                value: requiredElapsedDays - elapsedDays,
+                value: max(0, requiredElapsedDays - elapsedDays),
                 to: requestedDate,
             ) else {
                 assertionFailure("Could not advance the demo reference date")
                 return requestedDate
             }
-            return referenceDate
+            let referenceDay = max(elapsedDays, requiredElapsedDays)
+            let fixtureEndMinute: Int? = if issueCategories.contains(.flightDay),
+                                            referenceDay == 5
+            {
+                11 * 60 + 30
+            } else if issueCategories.contains(.borderDrift), referenceDay == 4 {
+                12 * 60 + 20
+            } else {
+                nil
+            }
+            guard let fixtureEndMinute else { return firstReference }
+            guard let fixtureEnd = calendar.date(
+                byAdding: .minute,
+                value: fixtureEndMinute,
+                to: calendar.startOfDay(for: firstReference),
+            ) else {
+                assertionFailure("Could not resolve the demo fixture completion time")
+                return firstReference
+            }
+            // A current-day fixture needs its final real observation on the
+            // demo clock; future samples cannot establish flight arrival.
+            return max(firstReference, fixtureEnd)
         }
     }
 
@@ -137,7 +157,9 @@ public struct DemoDataBuilder: Sendable {
         try await services.setPrimaryRegions(Self.primaryRegions)
 
         let script = makeScript()
-        try await services.journal.ingest(script.samples)
+        try await services.journal.ingest(script.samples.map {
+            $0.recorded(by: services.recording.currentDevice.id)
+        })
         for entry in script.backfills {
             try await services.journal.addManualDay(
                 date: entry.date,
@@ -386,18 +408,17 @@ public struct DemoDataBuilder: Sendable {
             let day = elapsedDays < 30 ? 4 : allocatedDay(0.44, minimum: 4)
             detectorFixtureDays.insert(day)
             replaceDay(day, in: &script) { date in
-                var samples = samples(on: date, in: Self.newYorkPlaces, using: &random)
-                for point in Self.borderDriftCoordinates {
-                    samples.append(sample(
+                Self.borderDriftFixes.map { fix in
+                    sample(
                         on: date,
-                        hour: 18 + samples.count,
-                        at: point,
+                        hour: fix.minute / 60,
+                        minute: fix.minute % 60,
+                        at: fix.coordinate,
                         source: .gpsSignificantChange,
                         using: &random,
                         jittersCoordinate: false,
-                    ))
+                    )
                 }
-                return samples
             }
         }
 
@@ -405,11 +426,12 @@ public struct DemoDataBuilder: Sendable {
             let day = elapsedDays < 30 ? 5 : allocatedDay(0.70, minimum: 5)
             detectorFixtureDays.insert(day)
             replaceDay(day, in: &script) { date in
-                Self.flightCoordinates.enumerated().map { index, coordinate in
+                Self.flightFixes.enumerated().map { index, fix in
                     sample(
                         on: date,
-                        hour: 8 + index,
-                        at: coordinate,
+                        hour: fix.minute / 60,
+                        minute: fix.minute % 60,
+                        at: fix.coordinate,
                         source: index == 0 ? .gpsVisit : .gpsSignificantChange,
                         using: &random,
                         jittersCoordinate: false,
@@ -465,20 +487,54 @@ public struct DemoDataBuilder: Sendable {
         }
     }
 
-    private static let borderDriftCoordinates = [
-        Coordinate(latitude: 40.80015, longitude: -73.99439),
-        Coordinate(latitude: 40.81084, longitude: -73.98805),
-    ]
+    /// Timed GPS evidence for the ordinary shared correction assessment.
+    private struct FixtureFix {
+        let minute: Int
+        let coordinate: Coordinate
+    }
 
-    private static let flightCoordinates = [
-        Coordinate(latitude: 40.6413, longitude: -73.7781),
-        Coordinate(latitude: 40.6413, longitude: -73.7781),
-        Coordinate(latitude: 40.29, longitude: -90.39),
-        Coordinate(latitude: 39.53, longitude: -106.16),
-        Coordinate(latitude: 38.68, longitude: -116.90),
-        Coordinate(latitude: 37.6213, longitude: -122.3790),
-        Coordinate(latitude: 37.6213, longitude: -122.3790),
-    ]
+    private static let borderDriftFixes: [FixtureFix] = {
+        let retained = Coordinate(latitude: 40.80015, longitude: -73.971)
+        return [
+            FixtureFix(minute: 12 * 60, coordinate: retained),
+            FixtureFix(
+                minute: 12 * 60 + 5,
+                coordinate: Coordinate(latitude: 40.80015, longitude: -73.99439),
+            ),
+            FixtureFix(minute: 12 * 60 + 10, coordinate: retained),
+            FixtureFix(
+                minute: 12 * 60 + 15,
+                coordinate: Coordinate(latitude: 40.81084, longitude: -73.98805),
+            ),
+            FixtureFix(minute: 12 * 60 + 20, coordinate: retained),
+        ]
+    }()
+
+    private static let flightFixes: [FixtureFix] = {
+        let departure = Coordinate(latitude: 40.6413, longitude: -73.7781)
+        let arrival = Coordinate(latitude: 37.6213, longitude: -122.3790)
+        return [
+            FixtureFix(minute: 6 * 60, coordinate: departure),
+            FixtureFix(minute: 6 * 60 + 5, coordinate: departure),
+            FixtureFix(minute: 6 * 60 + 10, coordinate: departure),
+            FixtureFix(minute: 6 * 60 + 20, coordinate: departure),
+            FixtureFix(
+                minute: 7 * 60 + 50,
+                coordinate: Coordinate(latitude: 40.29, longitude: -90.39),
+            ),
+            FixtureFix(
+                minute: 9 * 60 + 20,
+                coordinate: Coordinate(latitude: 39.53, longitude: -106.16),
+            ),
+            FixtureFix(
+                minute: 10 * 60 + 20,
+                coordinate: Coordinate(latitude: 38.68, longitude: -116.90),
+            ),
+            FixtureFix(minute: 11 * 60 + 20, coordinate: arrival),
+            FixtureFix(minute: 11 * 60 + 25, coordinate: arrival),
+            FixtureFix(minute: 11 * 60 + 30, coordinate: arrival),
+        ]
+    }()
 
     private func replaceDay(
         _ dayOfYear: Int,
@@ -538,6 +594,7 @@ public struct DemoDataBuilder: Sendable {
     private func sample(
         on date: Date,
         hour: Int,
+        minute: Int = 0,
         at place: Coordinate,
         source: SampleSource,
         using random: inout SeededRandom,
@@ -547,7 +604,10 @@ public struct DemoDataBuilder: Sendable {
             latitude: place.latitude + (jittersCoordinate ? jitter(using: &random) : 0),
             longitude: place.longitude + (jittersCoordinate ? jitter(using: &random) : 0),
         )
-        let timestamp = calendar.date(byAdding: .hour, value: hour, to: date) ?? date
+        guard let timestamp = calendar.date(byAdding: .minute, value: hour * 60 + minute, to: date)
+        else {
+            preconditionFailure("Could not construct a demo sample timestamp")
+        }
         return LocationSample(
             timestamp: timestamp,
             coordinate: coordinate,

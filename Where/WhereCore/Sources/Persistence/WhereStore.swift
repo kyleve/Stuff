@@ -44,6 +44,8 @@ public protocol WhereStore: Sendable {
     /// for authority decisions and backup export; a remote commit crossing its reads invalidates
     /// the
     /// result through persistent history even if its notification has not arrived yet.
+    /// Inside `perform`, retain that evidence boundary until the outer save. An external commit
+    /// crossing it throws `WhereStoreReadConflictError.changedDuringTransaction` before saving.
     @discardableResult
     func readSnapshot<T: Sendable>(
         _ block: @Sendable () async throws -> T,
@@ -112,6 +114,17 @@ public protocol WhereStore: Sendable {
     func add(sample: LocationSample) async throws
     func samples(in interval: DateInterval) async throws -> [LocationSample]
     func allSamples() async throws -> [LocationSample]
+
+    /// Every current-generation attribution revision for the requested raw sample identities.
+    func sampleAttributionRevisions(for sampleIDs: Set<UUID>) async throws
+        -> [SampleAttributionRevision]
+    /// Full correction history, including reset tombstones and revisions whose sample has not
+    /// synced.
+    func allSampleAttributionRevisions() async throws -> [SampleAttributionRevision]
+    /// Insert an immutable revision, accepting identical retries and rejecting conflicting
+    /// identities.
+    /// Must run inside `perform { ... }`; the sample may arrive later through CloudKit.
+    func addSampleAttributionRevision(_ revision: SampleAttributionRevision) async throws
 
     /// Every assembled synced device read model, including removed devices.
     func recordingDevices() async throws -> [RecordingDevice]

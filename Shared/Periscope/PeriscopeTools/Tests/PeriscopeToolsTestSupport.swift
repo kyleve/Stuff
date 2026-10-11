@@ -4,11 +4,20 @@ import TestHostSupport
 import UIKit
 
 /// Shared fixture event for the tools suites.
-struct PhotoLogs: LogEvent {
-    var photoID: String
-    var message: String {
-        "photo \(photoID)"
+@LogScope("PhotoLogs")
+enum PhotoLogs {
+    @LogEvent("event")
+    struct Event {
+        @LogField(exposure: .restricted, kind: .identifier)
+        var photoID: String
+        var message: String {
+            "photo \(photoID)"
+        }
     }
+}
+
+func makePhotoEvent(_ photoID: String) -> PhotoLogs.Event {
+    PhotoLogs.Event(photoID: .restricted(.identifier, photoID))
 }
 
 /// A deterministic session for store-backed tests.
@@ -57,9 +66,19 @@ func makeRecord(
 ) -> LogRecord {
     LogRecord(
         date: date,
-        event: Message(level: level, text),
+        event: Message(
+            level: .restricted(.technicalState, level),
+            text: .restricted(.arbitraryText, text),
+        ),
         scopes: scopes,
         tags: tags,
+    )
+}
+
+func classifiedMessage(_ text: String, level: LogLevel = .info) -> Message {
+    Message(
+        level: .restricted(.technicalState, level),
+        text: .restricted(.arbitraryText, text),
     )
 }
 
@@ -77,10 +96,11 @@ func spanBegan(
     LogRecord(
         date: date,
         event: SpanBegan(
-            spanID: id,
-            name: name,
-            lifetime: .scoped,
-            relaunchPolicy: .endsWithProcess,
+            spanID: .restricted(.identifier, id),
+            name: .restricted(.technicalState, name),
+            lifetimeMode: .restricted(.technicalState, .scoped),
+            budget: .shared(.duration, nil),
+            relaunchPolicy: .shared(.category, .endsWithProcess),
         ),
         scopes: [scope],
     )
@@ -97,7 +117,7 @@ func spanEnded(
 ) -> LogRecord {
     LogRecord(
         date: date,
-        event: SpanEnded(spanID: id, name: name, duration: duration, exit: exit),
+        event: classifiedSpanEnded(spanID: id, name: name, duration: duration, exit: exit),
         scopes: [scope],
     )
 }
@@ -122,6 +142,7 @@ func storedSpanEvent(
         eventVersion: 1,
         message: message,
         payload: payload,
+        exportMetadata: nil,
         scopes: [LogScope.root(named: "app").id],
         tags: [],
         spanID: spanID,
@@ -142,7 +163,13 @@ func storedSpanBegan(_ id: SpanID, name: String, at date: Date) throws -> Stored
         message: "▶ \(name)",
         at: date,
         payload: JSONEncoder().encode(
-            SpanBegan(spanID: id, name: name, lifetime: .scoped, relaunchPolicy: .endsWithProcess),
+            SpanBegan(
+                spanID: .restricted(.identifier, id),
+                name: .restricted(.technicalState, name),
+                lifetimeMode: .restricted(.technicalState, .scoped),
+                budget: .shared(.duration, nil),
+                relaunchPolicy: .shared(.category, .endsWithProcess),
+            ),
         ),
     )
 }
@@ -161,9 +188,52 @@ func storedSpanEnded(
         message: "◀ \(name)",
         at: date,
         payload: JSONEncoder().encode(
-            SpanEnded(spanID: id, name: name, duration: duration, exit: exit),
+            classifiedSpanEnded(spanID: id, name: name, duration: duration, exit: exit),
         ),
         exitMode: exit.mode,
+    )
+}
+
+func classifiedSpanEnded(
+    spanID id: SpanID,
+    name: String,
+    duration: Duration?,
+    exit: SpanExit,
+) -> SpanEnded {
+    SpanEnded(
+        spanID: .restricted(.identifier, id),
+        name: .restricted(.technicalState, name),
+        duration: .shared(.duration, duration),
+        exitMode: .shared(.category, exit.mode),
+        exitReason: .restricted(.errorDetails, exit.reason),
+    )
+}
+
+func classifiedSpanBegan(
+    spanID id: SpanID,
+    name: String,
+    lifetime: SpanLifetime,
+    relaunchPolicy: SpanRelaunchPolicy,
+) -> SpanBegan {
+    let mode: SpanBegan.LifetimeMode
+    let budget: Duration?
+    switch lifetime {
+        case .scoped:
+            mode = .scoped
+            budget = nil
+        case let .bounded(value):
+            mode = .bounded
+            budget = value
+        case .indefinite:
+            mode = .indefinite
+            budget = nil
+    }
+    return SpanBegan(
+        spanID: .restricted(.identifier, id),
+        name: .restricted(.technicalState, name),
+        lifetimeMode: .restricted(.technicalState, mode),
+        budget: .shared(.duration, budget),
+        relaunchPolicy: .shared(.category, relaunchPolicy),
     )
 }
 

@@ -7,33 +7,11 @@ import Foundation
 /// and display. Each event also renders a human-readable `message` line and
 /// carries a `level`.
 ///
-/// ```swift
-/// struct PhotoUploaded: LogEvent {
-///     var photoID: String
-///     var byteCount: Int
-///     var message: String { "Uploaded photo \(photoID) (\(byteCount) bytes)" }
-/// }
-/// ```
-///
-/// Events are emitted through a typed logger: `Log<PhotoUploaded>` can log
-/// only `PhotoUploaded` values (plus freeform ``Message`` conveniences).
-public protocol LogEvent: Codable, Sendable {
-    /// The token type naming this event's spans — `log.measure(.saveEvent)`
-    /// resolves against it. Defaults to `String` for freeform span names;
-    /// declare a nested enum for typed tokens:
-    ///
-    /// ```swift
-    /// struct DatabaseLogs: LogEvent {
-    ///     enum SpanName: Hashable, Sendable { case saveEvent, migration }
-    ///     // ...
-    /// }
-    /// ```
-    associatedtype SpanName: Hashable, Sendable = String
-
-    /// Stable name the event persists under; defaults to the type name.
-    ///
-    /// Persisted payloads are keyed by this name (plus ``eventVersion``), so
-    /// renaming a type without overriding `eventName` orphans its history.
+/// Repository events use ``LogEvent(_:level:message:version:)`` inside a
+/// ``LogScope(_:)`` namespace. External clients can conform manually; the
+/// defaults keep manual events safe by exporting no classified values.
+public protocol LogEvent: Codable, LogExportable {
+    /// Stable name the event persists under.
     static var eventName: String { get }
 
     /// Version of the payload shape, persisted alongside ``eventName`` so
@@ -47,10 +25,6 @@ public protocol LogEvent: Codable, Sendable {
     /// Human-readable rendering, shown in Console.app and the log viewer.
     var message: String { get }
 
-    /// A deliberately PII-free rendering for approved remote export. The safe
-    /// default is the stable event name; events may opt into richer static copy.
-    var remoteMessage: String { get }
-
     /// An identifier linking this event to the object it's about — a
     /// photo's URI in the local store, a Core Data managed object ID's
     /// URI representation — so tooling can find every event about an
@@ -58,9 +32,8 @@ public protocol LogEvent: Codable, Sendable {
     /// event. Defaults to `nil`; the format is the app's to choose.
     var externalID: String? { get }
 
-    /// Operational fields this event explicitly approves for redacted remote
-    /// export. Arbitrary payload properties are never inferred or copied.
-    var remoteFields: [RemoteLogField] { get }
+    /// The compiler-checked projection approved for remote export.
+    var classifiedFields: [ClassifiedLogField] { get }
 
     /// Whether the overflow drop policy must keep records of this event
     /// under queue pressure (see
@@ -72,8 +45,9 @@ public protocol LogEvent: Codable, Sendable {
 }
 
 extension LogEvent {
-    public static var eventName: String {
-        String(describing: Self.self)
+    /// Manual or historical events have no implicit diagnostic export approval.
+    public var exportDescription: LogExportDescription {
+        .object([LogExportField]())
     }
 
     public static var eventVersion: Int {
@@ -92,11 +66,7 @@ extension LogEvent {
         nil
     }
 
-    public var remoteMessage: String {
-        Self.eventName
-    }
-
-    public var remoteFields: [RemoteLogField] {
+    public var classifiedFields: [ClassifiedLogField] {
         []
     }
 }

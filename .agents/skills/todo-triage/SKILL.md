@@ -100,6 +100,14 @@ the PR or commit, and what actually shipped if it differs from what the item
 proposed. Never delete it. A completed item whose fix was partial stays open with
 the remainder described, rather than being closed optimistically.
 
+Verify the original acceptance condition against current source and the relevant evidence.
+Distinguish a shipped fix from deletion, a superseded design, or an unmerged proposal.
+For visual defects, inspect the rendered image. LFS pointer size and a green
+comparison do not establish that the reference looks correct.
+For navigation or scroll reachability, require runtime evidence for that path.
+If the pass is static-only, retain the unverified requirement and state the limitation.
+Use the merge date when describing when a fix landed, not an earlier branch commit date.
+
 ## Refreshing MODULE_AUDIT.md
 
 `MODULE_AUDIT.md` is **derived and carries no actionable items**. Every finding

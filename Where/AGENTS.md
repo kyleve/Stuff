@@ -4,8 +4,11 @@ Where is an iOS/iPadOS app. It answers "what region was I in on which day?"
 It ingests passive GPS (Visits + significant-change). It accepts user-asserted
 history (manual coordinates, whole-day overlays, evidence like boarding passes).
 It rolls everything up into per-day region presence and per-year reports. A day
-"counts" for a region if **any** sample in that calendar day fell inside the
-region's polygon. A single day can belong to multiple regions.
+counts for each region in its effective sample attribution plus additive manual
+entries, unless an authoritative manual overlay replaces that presence.
+Device removal and GPS corrections affect
+effective attribution; raw observations remain available for review and backup.
+A single day can belong to multiple regions.
 
 This file complements the root [`AGENTS.md`](../AGENTS.md). That file owns the
 build system, formatting, and global conventions. Read that first.
@@ -49,8 +52,7 @@ Rules the code enforces and agents must preserve:
   refresh inline. Launch is a typed [`LifecycleKit`](../Shared/LifecycleKit)
   `LaunchPlan` (`WhereLaunch` in WhereUI). It renders in
   [`LifecycleKitUI`](../Shared/LifecycleKitUI)'s container in `RootView`.
-- **All logging goes through [Periscope](../Shared/Periscope).** Use typed
-  `LogEvent`s off the `WhereLog` facade. Never use a raw string. Each module
+- **All logging goes through [Periscope](../Shared/Periscope).** Define `@LogScope` namespaces and nested `@LogEvent` structs. Classify each payload property with `@LogField`. Emit it with a matching `.shared` or `.restricted` input. Use the `WhereLog` facade. Never write a direct `LogEvent` conformance or use a raw string. Each module
   keeps its `*Log.swift` event types in its `Sources/Logging/` folder. Not
   re-derivable from source: events log `.public`, so **keep PII out**. `info`
   = important success. `warning` = degraded-but-handled. `error`/`fault` =
@@ -283,10 +285,13 @@ Root [testing conventions](../AGENTS.md#testing) apply. What is specific here:
 - **Formal protocol specs** live under [`Specifications/`](Specifications/README.md). Run them locally with [`./tla-check`](../tla-check) (opt-in, not CI). PlusCal is the editable model source. The checker translates an isolated copy under `.build/tla/runs/` before running TLC. Each concern also holds TLC configs, a `manifest.json`, and a README tying the model to production code and cited Swift tests.
 - Test bundles run in `StuffTestHost` via the `unitTests` helper in
   `Project.swift`. They link `TestHostSupport` (`show(_:perform:)`, `waitFor`).
-- Use `ScriptedLocationSource` and `SwiftDataStore.inMemory()`. Never use
-  `CoreLocationSource` or the user's on-disk/CloudKit store. The CloudKit
-  remote-import path uses the `@_spi(Testing)`
-  `inMemory(remoteChangeSource:)` + `ScriptedStoreRemoteChangeSource`.
+- Use `ScriptedLocationSource` and `SwiftDataStore.inMemory()` for consumer tests.
+  Test `CoreLocationSource` only through its injected fake request driver.
+  Never use live location requests or the user’s on-disk/CloudKit store.
+  Consumer remote-import tests use the `@_spi(Testing)`
+  `inMemory(remoteChangeSource:)` + `ScriptedStoreRemoteChangeSource` seam;
+  production-source history tests use isolated temporary on-disk containers
+  without CloudKit (`StoreRemoteChangeSourceTests`).
 - How screens render is pinned by the image snapshots in
   `WhereUI/SnapshotTests/` (the `WhereUISnapshotTests` bundle, run from the
   shared `StuffSnapshotTests` scheme + CI job, not `Stuff-iOS-Tests`). See

@@ -138,6 +138,22 @@ struct WhereStylesheetTests {
         #expect(style.spacing.xxxLarge == 20)
     }
 
+    @Test func flightStatusStyle() {
+        #expect(style.flightStatus.padding == 14)
+        #expect(style.flightStatus.spacing == 8)
+        #expect(style.flightStatus.cornerRadius == 14)
+        #expect(style.flightStatus.titleFont == .headline)
+        #expect(style.flightStatus.bodyFont == .subheadline)
+        #expect(style.flightStatus.background == Color(uiColor: .secondarySystemGroupedBackground))
+    }
+
+    @Test func flightReviewPointStyle() {
+        #expect(style.flightReviewPoint.titleFont == .headline)
+        #expect(style.flightReviewPoint.detailFont == .caption)
+        #expect(style.flightReviewPoint.minimumActionHeight == 44)
+        #expect(style.flightReviewPoint.mapCornerRadius == 12)
+    }
+
     @Test func locationWelcomeStyle() {
         let welcome = style.locationWelcome
         #expect(welcome.maxWidth == 390)
@@ -583,10 +599,16 @@ struct WhereStylesheetTests {
 
     @Test func regionMapStyle() {
         let regionMap = style.regionMap
-        #expect(regionMap.height == 220)
+        #expect(regionMap[.overview].height == 220)
+        #expect(regionMap[.overview].minimumSpanMeters == 0)
+        #expect(regionMap[.pointPreview].height == 140)
+        #expect(regionMap[.pointPreview].minimumSpanMeters == 50000)
         #expect(regionMap.uncertaintyFillOpacity == 0.15)
         #expect(regionMap.uncertaintyStrokeOpacity == 0.6)
         #expect(regionMap.uncertaintyStrokeWidth == 1)
+        #expect(regionMap.routeLineWidth == 2)
+        #expect(regionMap.capturePointDiameter == 8)
+        #expect(regionMap.captureInset == 16)
     }
 
     @Test func regionPickerStyle() {

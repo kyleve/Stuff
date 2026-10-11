@@ -1,8 +1,16 @@
 # Where Architecture Rules
 
-`BumperBowling.swift` turns the module boundaries already documented in
-`Where/**/AGENTS.md` into source-level checks. It scans production sources only;
-tests and generated files are outside the architecture graph.
+`BumperBowling.swift` turns documented module boundaries and classified-event authoring rules into source-level checks. The Where architecture rules scan production sources. The Periscope authoring rules also scan affected test targets.
+
+## Classified Periscope events
+
+Repository scopes use `@LogScope`. Their direct nested event structs use `@LogEvent`, and `@LogField` appears only in those event structs.
+
+The rules reject manual `LogEvent` and `LogScopeDefinition` conformances. They also reject the removed remote-field API names.
+
+Macro expansion strings are ordinary test data, not source declarations. The typed syntax rules inspect declarations and identifiers, so they need no path exceptions for macro tests.
+
+Repair a violation with the macro authoring API. Do not add a file exception. Mutation tests in `PeriscopeAuthoringRulesTests` cover each rule.
 
 ## Layer boundaries
 
@@ -94,8 +102,11 @@ fully expresses Where's constructor facts.
 
 ## Gregorian calendar
 
-`where.gregorian_calendar` rejects `Calendar.current` throughout Where's
-production sources. Day and year math uses an injected Gregorian calendar or,
+`where.gregorian_calendar` rejects explicitly spelled `Calendar.current` in
+Where's production sources. It does not catch an implicit `.current` whose
+contextual type is `Calendar`. The enforcement gap and missing mutation test
+are tracked in the root [`TODOs.md`](../TODOs.md).
+Day and year math still requires an injected Gregorian calendar or,
 inside WhereIntents, `Calendar.whereIntents`.
 
 The architecture DSL and standard shapers cannot distinguish two static
@@ -109,10 +120,13 @@ and retained as the closest lower-level pattern.
 `where.store_transaction_boundary` requires calls to the mutating `WhereStore`
 surface through `store` or `self.store` to be lexically contained by
 `store.perform { ... }` or `store.performInCurrentGeneration { ... }`.
+Attribution revisions use this same boundary; their coordinator also requires
+the reviewed data generation and reassesses before writing.
+Guard: `sample attribution revisions require a guarded transaction`.
 
 The checked methods are `add`, `write`, `setManualDay`, `clearManualDay`,
 `clear`, `clearAll`, `setIssueDismissed`, `restoreDismissedIssue`,
-`setTrackedRegion`, and `setPrimaryRegions`.
+`setTrackedRegion`, `setPrimaryRegions`, and `addSampleAttributionRevision`.
 
 ## App Shortcuts provider ownership
 

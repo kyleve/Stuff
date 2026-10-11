@@ -158,11 +158,12 @@ final class PeriscopeViewerModel {
         let all = try await store.events(matching: activeQuery)
         let sessions = try await store.sessions()
         let ambient = try await store.ambientSnapshots()
-        return NDJSONExporter.export(
+        return try NDJSONExporter.export(
             events: all,
             scopes: scopes,
             sessions: sessions,
             ambient: Dictionary(uniqueKeysWithValues: ambient.map { ($0.id, $0) }),
+            mode: .unfiltered,
         )
     }
 

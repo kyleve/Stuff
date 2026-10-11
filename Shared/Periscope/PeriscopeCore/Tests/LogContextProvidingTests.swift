@@ -15,7 +15,7 @@ private final class FreeformController: LogContextProviding {
 }
 
 private final class TypedController: LogContextProviding {
-    typealias LogEventType = PhotoLogs
+    typealias LoggingScope = PhotoLogs
 
     let system: Periscope
 
@@ -71,7 +71,7 @@ struct LogContextProvidingTests {
     @Test func typedConformersGetATypedLogger() async {
         let controller = TypedController(system: system)
 
-        controller.log { PhotoLogs(photoID: "p1") }
+        controller.log.event(photoID: .restricted(.identifier, "p1"))
         await system.flush()
 
         #expect(sink.records.map(\.message) == ["photo p1"])

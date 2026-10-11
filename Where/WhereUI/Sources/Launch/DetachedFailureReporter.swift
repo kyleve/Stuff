@@ -65,12 +65,10 @@ final class DetachedFailureReporter {
         reportedCount = failures.count
         reportedTotal += new.count
         for failure in new {
-            Self.logger(attachments: [.error(failure.error, name: "detached-error")]) {
-                .detachedStepFailed(
-                    stepID: String(describing: failure.stepID),
-                    description: failure.error.localizedDescription,
-                )
-            }
+            Self.logger.detachedStepFailed(
+                stepID: .restricted(.identifier, String(describing: failure.stepID)),
+                error: .restricted(.errorDetails, failure.error),
+            )
         }
         return new
     }

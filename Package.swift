@@ -1,4 +1,5 @@
 // swift-tools-version: 6.2
+import CompilerPluginSupport
 import PackageDescription
 
 let package = Package(
@@ -45,8 +46,21 @@ let package = Package(
         .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.18.0"),
         .package(url: "https://github.com/cashapp/AccessibilitySnapshot", from: "0.12.0"),
         .package(url: "https://github.com/SFSafeSymbols/SFSafeSymbols", from: "7.0.0"),
+        .package(url: "https://github.com/swiftlang/swift-syntax", exact: "603.0.2"),
     ],
     targets: [
+        .macro(
+            name: "PeriscopeMacros",
+            dependencies: [
+                .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
+                .product(name: "SwiftDiagnostics", package: "swift-syntax"),
+                .product(name: "SwiftParser", package: "swift-syntax"),
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+            ],
+            path: "Shared/Periscope/PeriscopeMacros/Sources",
+        ),
         .target(
             name: "CreditKit",
             path: "Shared/CreditKit/Sources",
@@ -92,6 +106,7 @@ let package = Package(
             name: "PeriscopeCore",
             dependencies: [
                 .target(name: "JournalKit"),
+                .target(name: "PeriscopeMacros"),
             ],
             path: "Shared/Periscope/PeriscopeCore/Sources",
         ),
@@ -180,6 +195,12 @@ let package = Package(
                 .product(name: "ZIPFoundation", package: "ZIPFoundation"),
             ],
             path: "Where/WhereCore/Sources",
+            exclude: [
+                "DataResolution/AGENTS.md",
+                "DataResolution/CLAUDE.md",
+                "DataResolution/Flights/AGENTS.md",
+                "DataResolution/Flights/CLAUDE.md",
+            ],
             resources: [
                 .process("Resources"),
             ],
@@ -230,6 +251,17 @@ let package = Package(
                 .target(name: "BroadwayCore"),
             ],
             path: "Shared/Broadway/BroadwayUI/Sources",
+        ),
+        .testTarget(
+            name: "PeriscopeMacrosTests",
+            dependencies: [
+                .target(name: "PeriscopeMacros"),
+                .product(name: "SwiftParser", package: "swift-syntax"),
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
+            ],
+            path: "Shared/Periscope/PeriscopeMacros/Tests",
         ),
     ],
 )

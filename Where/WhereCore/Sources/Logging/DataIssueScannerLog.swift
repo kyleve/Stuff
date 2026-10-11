@@ -3,7 +3,8 @@ import PeriscopeCore
 /// Names `DataIssueScanner`'s timed spans, and nothing else — the scanner throws
 /// its read failures to the caller, so what's worth recording about it is what a
 /// scan costs. A span-only facade, like ``PresenceCalendarLog``.
-struct DataIssueScannerLog: LogEvent {
+@LogScope("DataIssueScanner")
+enum DataIssueScannerLog {
     /// Names the scan spans (`log.measure(.scan) { … }`).
     ///
     /// `description` is written out because ``detect(_:)`` carries the detector's
@@ -13,6 +14,7 @@ struct DataIssueScannerLog: LogEvent {
     enum SpanName: Hashable, CustomStringConvertible {
         /// A full scan on a cache miss: the reads, then every detector.
         case scan
+        case assessGPS
         /// One detector's pass over the already-read input, so a scan that runs
         /// long attributes to the detector responsible rather than to "the scan".
         case detect(DataIssueCategory)
@@ -20,18 +22,11 @@ struct DataIssueScannerLog: LogEvent {
         var description: String {
             switch self {
                 case .scan: "scan"
+                case .assessGPS: "assess-gps"
                 case let .detect(category): "detect(\(category.name))"
             }
         }
     }
-
-    static let eventName = "DataIssueScanner"
-
-    var message: String {
-        ""
-    }
-
-    private init() {}
 }
 
 extension DataIssueCategory {

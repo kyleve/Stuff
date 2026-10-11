@@ -28,11 +28,16 @@ public struct DayAggregator: Sendable {
         samples: [LocationSample],
         attributor: any RegionAttributing,
     ) -> [DayPresence] {
+        aggregate(history: AttributedLocationSample.raw(samples, attributor: attributor))
+    }
+
+    public func aggregate(history: [AttributedLocationSample]) -> [DayPresence] {
         var dayRegions: [CalendarDay: Set<Region>] = [:]
-        for sample in samples {
-            let day = CalendarDay(from: sample.timestamp, in: calendar)
-            let region = attributor.region(at: sample.coordinate)
-            dayRegions[day, default: []].insert(region)
+        // A reviewed transit-only day remains recorded even when no region
+        // receives presence. It must not become a new missing-day suggestion.
+        for entry in history {
+            let day = CalendarDay(from: entry.sample.timestamp, in: calendar)
+            dayRegions[day, default: []].formUnion(entry.regions)
         }
         return dayRegions
             .map { DayPresence(day: $0.key, regions: $0.value) }
@@ -67,19 +72,37 @@ public struct DayAggregator: Sendable {
         samples: [LocationSample],
         attributor: any RegionAttributing,
     ) -> [Region: [RegionDayLocations]] {
+        locations(
+            in: regions,
+            history: AttributedLocationSample.raw(samples, attributor: attributor),
+        )
+    }
+
+    public func locations(
+        in region: Region,
+        history: [AttributedLocationSample],
+    ) -> [RegionDayLocations] {
+        locations(in: [region], history: history)[region] ?? []
+    }
+
+    public func locations(
+        in regions: Set<Region>,
+        history: [AttributedLocationSample],
+    ) -> [Region: [RegionDayLocations]] {
         guard regions.isEmpty == false else { return [:] }
 
         var pointsByRegionAndDay: [Region: [CalendarDay: [RegionDayPoint]]] = [:]
-        for sample in samples {
-            let region = attributor.region(at: sample.coordinate)
-            guard regions.contains(region) else { continue }
+        for entry in history {
+            let sample = entry.sample
             let day = CalendarDay(from: sample.timestamp, in: calendar)
-            pointsByRegionAndDay[region, default: [:]][day, default: []].append(
-                RegionDayPoint(
-                    coordinate: sample.coordinate,
-                    horizontalAccuracy: sample.horizontalAccuracy,
-                ),
-            )
+            for region in entry.regions.intersection(regions) {
+                pointsByRegionAndDay[region, default: [:]][day, default: []].append(
+                    RegionDayPoint(
+                        coordinate: sample.coordinate,
+                        horizontalAccuracy: sample.horizontalAccuracy,
+                    ),
+                )
+            }
         }
 
         return pointsByRegionAndDay.mapValues { byDay in
@@ -101,13 +124,24 @@ public struct DayAggregator: Sendable {
         samples: [LocationSample],
         attributor: any RegionAttributing,
     ) -> [Region: [RegionDayPoint]] {
+        pointsByRegion(
+            onDay: day,
+            history: AttributedLocationSample.raw(samples, attributor: attributor),
+        )
+    }
+
+    public func pointsByRegion(
+        onDay day: CalendarDay,
+        history: [AttributedLocationSample],
+    ) -> [Region: [RegionDayPoint]] {
         var byRegion: [Region: [RegionDayPoint]] = [:]
-        for sample in samples where CalendarDay(from: sample.timestamp, in: calendar) == day {
-            let region = attributor.region(at: sample.coordinate)
-            byRegion[region, default: []].append(RegionDayPoint(
-                coordinate: sample.coordinate,
-                horizontalAccuracy: sample.horizontalAccuracy,
-            ))
+        for entry in history where CalendarDay(from: entry.sample.timestamp, in: calendar) == day {
+            for region in entry.regions {
+                byRegion[region, default: []].append(RegionDayPoint(
+                    coordinate: entry.sample.coordinate,
+                    horizontalAccuracy: entry.sample.horizontalAccuracy,
+                ))
+            }
         }
         return byRegion
     }
@@ -120,23 +154,34 @@ public struct DayAggregator: Sendable {
         samples: [LocationSample],
         attributor: any RegionAttributing,
     ) -> [Region: Coordinate] {
+        representativeCoordinates(history: AttributedLocationSample.raw(
+            samples,
+            attributor: attributor,
+        ))
+    }
+
+    public func representativeCoordinates(history: [AttributedLocationSample])
+        -> [Region: Coordinate]
+    {
         let precision = 20.0
         var tallies: [Region: [Int: CellTally]] = [:]
-        for sample in samples {
-            let region = attributor.region(at: sample.coordinate)
+        for entry in history {
+            let sample = entry.sample
             let latBucket = Int((sample.coordinate.latitude * precision).rounded())
             let lngBucket = Int((sample.coordinate.longitude * precision).rounded())
             let cell = latBucket &* 100_000 &+ lngBucket
-            if let existing = tallies[region]?[cell] {
-                tallies[region]?[cell] = CellTally(
-                    count: existing.count + 1,
-                    coordinate: existing.coordinate,
-                )
-            } else {
-                tallies[region, default: [:]][cell] = CellTally(
-                    count: 1,
-                    coordinate: sample.coordinate,
-                )
+            for region in entry.regions {
+                if let existing = tallies[region]?[cell] {
+                    tallies[region]?[cell] = CellTally(
+                        count: existing.count + 1,
+                        coordinate: existing.coordinate,
+                    )
+                } else {
+                    tallies[region, default: [:]][cell] = CellTally(
+                        count: 1,
+                        coordinate: sample.coordinate,
+                    )
+                }
             }
         }
         var representatives: [Region: Coordinate] = [:]
@@ -167,8 +212,20 @@ public struct DayAggregator: Sendable {
         manualDays: [DayPresence] = [],
         attributor: any RegionAttributing,
     ) -> YearReport {
+        report(
+            for: year,
+            history: AttributedLocationSample.raw(samples, attributor: attributor),
+            manualDays: manualDays,
+        )
+    }
+
+    public func report(
+        for year: Int,
+        history: [AttributedLocationSample],
+        manualDays: [DayPresence],
+    ) -> YearReport {
         var dayRegions: [CalendarDay: Set<Region>] = [:]
-        for day in aggregate(samples: samples, attributor: attributor) {
+        for day in aggregate(history: history) {
             dayRegions[day.day, default: []].formUnion(day.regions)
         }
         // Additive manual days union with GPS (backfilling a region GPS

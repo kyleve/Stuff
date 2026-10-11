@@ -13,6 +13,9 @@ enum SettingsDestination: Hashable, CaseIterable {
     case alerts
     case appearance
     case year
+    case placesYear
+    case recording
+    case privacyBackups
     case siri
     case widgets
     case shareEvidence
@@ -34,6 +37,9 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .alerts: String(localized: .settingsAlertsGroup)
             case .appearance: String(localized: .settingsAppearanceGroup)
             case .year: String(localized: .settingsYearHeader)
+            case .placesYear: String(localized: .settingsExplorePlacesRow)
+            case .recording: String(localized: .settingsExploreRecordingRow)
+            case .privacyBackups: String(localized: .settingsExplorePrivacyBackupsRow)
             case .siri: String(localized: .settingsExploreSiriRow)
             case .widgets: String(localized: .settingsExploreWidgetsRow)
             case .shareEvidence: String(localized: .settingsExploreEvidenceRow)
@@ -56,6 +62,9 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .alerts: .bellBadge
             case .appearance: .paintbrushFill
             case .year: .calendar
+            case .placesYear: .mapFill
+            case .recording: .locationFill
+            case .privacyBackups: .lockShieldFill
             case .siri: .waveform
             case .widgets: .widgetSmall
             case .shareEvidence: .squareAndArrowDownFill
@@ -80,6 +89,9 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .alerts: .red
             case .appearance: .purple
             case .year: .orange
+            case .placesYear: .green
+            case .recording: .blue
+            case .privacyBackups: .teal
             case .siri: .pink
             case .widgets: .cyan
             case .shareEvidence: .indigo
@@ -101,7 +113,8 @@ enum SettingsDestination: Hashable, CaseIterable {
     var isAvailableInDemoMode: Bool {
         switch self {
             case .data, .appearance, .privacyDiagnostics: false
-            case .attachments, .loggedDays, .devices, .regions, .alerts, .year, .siri, .widgets,
+            case .placesYear, .recording, .privacyBackups, .attachments, .loggedDays, .devices,
+                 .regions, .alerts, .year, .siri, .widgets,
                  .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization, .about:
                 true
         }
@@ -113,7 +126,8 @@ enum SettingsDestination: Hashable, CaseIterable {
     var isSheet: Bool {
         switch self {
             case .regions: true
-            case .attachments, .loggedDays, .devices, .alerts, .appearance, .year, .siri, .widgets,
+            case .placesYear, .recording, .privacyBackups, .attachments, .loggedDays, .devices,
+                 .alerts, .appearance, .year, .siri, .widgets,
                  .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization, .data,
                  .privacyDiagnostics, .about:
                 false
@@ -144,12 +158,15 @@ enum SettingsListSection: CaseIterable {
             case .display: [.appearance, .year]
             case .exploreFeatures:
                 [
-                    .siri,
-                    .widgets,
-                    .shareEvidence,
+                    .placesYear,
+                    .recording,
                     .estimatedTime,
                     .insightsAccuracy,
+                    .shareEvidence,
+                    .siri,
+                    .widgets,
                     .personalization,
+                    .privacyBackups,
                 ]
             case .storage: [.data, .privacyDiagnostics]
             case .about: [.about]
@@ -264,6 +281,9 @@ enum SettingsCatalog {
             + AlertsSettingsView.searchResults
             + AppearanceSettingsView.searchResults
             + VisibleYearSettingsView.searchResults
+            + PlacesYearFeaturesView.searchResults
+            + RecordingFeaturesView.searchResults
+            + PrivacyBackupsFeaturesView.searchResults
             + SiriFeaturesView.searchResults
             + WidgetFeaturesView.searchResults
             + ShareEvidenceFeaturesView.searchResults

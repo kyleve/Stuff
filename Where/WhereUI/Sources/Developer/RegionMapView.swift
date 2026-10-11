@@ -97,7 +97,7 @@ public struct RegionMapView: View {
             color: { color(forTitle: $0.title, region: $0.region) },
             onSelect: select,
         )
-        .frame(height: stylesheet.regionMap.height)
+        .frame(height: stylesheet.regionMap[.overview].height)
     }
 
     // MARK: - Data
@@ -118,9 +118,10 @@ public struct RegionMapView: View {
             // Keep the failure observable in both the UI (the `.failure`
             // state renders an error) and the logs, rather than silently
             // showing an empty map.
-            RegionLog.geometryCatalog {
-                .loadFailed(kind: kind.rawValue, description: String(describing: error))
-            }
+            RegionLog.geometryCatalog.loadFailed(
+                kind: .restricted(.technicalState, kind.rawValue),
+                error: .restricted(.errorDetails, error),
+            )
             outlines = .failure(error)
         }
     }

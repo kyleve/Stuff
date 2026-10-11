@@ -29,24 +29,36 @@ The card opens the existing Elsewhere list.
   `MainTabs`, the Liquid Glass tab bar over three tabs — Locations, Your Year,
   Settings. Elsewhere is an entry card on Locations, Resolve a Locations toolbar
   button, and the data screens (attachments, logged days, regions) sit in the
-  Settings "Data" group. The **Explore Features** group demonstrates all five
-  Siri/Shortcuts intents as example conversations, demonstrates tracked-region
+  Settings "Data" group. **Explore Features** starts with Your Places & Your Year
+  and Recording & Devices. These guides explain cards, Elsewhere, calendars,
+  Timeline, welcomes, automatic recording, and manual entries.
+  Privacy & Backups explains effective diagnostics choices, archive export,
+  and onboarding-only restore. Its links respect demo availability.
+  The group also demonstrates all five Siri/Shortcuts intents as example conversations, demonstrates tracked-region
   results in Spotlight, and renders every supported
   widget family on miniature Home Screen and Lock Screen surfaces. A Share &
   Evidence walkthrough also reveals the system Share-sheet extension and links
   into the saved attachment archive. Insights & Accuracy introduces the
-  automatic issue detectors without running them merely to render the gallery,
-  while Estimated Time & Planning explains the live annual projection with a
-  worked pace-and-plan calculation, planned stays, and why overlapping travel
-  days do not sum neatly to one year.
+  automatic issue detectors, correction flows, and notification choices without
+  running a scan merely to render the gallery. Estimated Time & Planning explains the live annual projection with a
+  worked pace-and-plan calculation, production Timeline rows, and planned stays.
+  When estimates are Off, the gallery retains explanatory forecast examples in
+  grayscale while live planning remains disabled. It also explains why
+  overlapping travel days do not sum neatly to one year.
+  Both Timeline galleries use `PresenceTimelineList` with its `.excerpt` presentation.
+  This presentation shows the last two stays without scrolling or editing controls.
+  The full Timeline and excerpts share row rendering, rail continuity, and planned-stay joins.
   These galleries use a shared marketing header, quiet patterned backdrop, and
   staged entrance that resolves immediately for Reduce Motion and snapshot
   capture. Once the selected report has 14 recorded days, the Siri, Spotlight,
-  widget, and evidence examples use its real regions, counts, and dates. Sparse
-  reports keep the illustrative Siri copy and empty widget state.
+  and widget examples use its real regions, counts, and dates. Evidence uses
+  the latest available attachment, or a labeled example when none is available.
+  Sparse reports keep the illustrative Siri copy and empty widget state.
   Backup and destructive data management share one Data drill-in. Data is
   followed by a persisted **Privacy & Diagnostics** screen for crash reports,
-  redacted session replay, remote-log threshold, and Debug-only full metadata.
+  redacted session replay, remote-log threshold, and a Debug-only personal-data switch.
+  This switch grants an explicit set of independent export controls and preserves consumer-defined grants.
+  Local-only fields and attachment contents remain excluded.
   Data, Privacy & Diagnostics, and About lead with the same full-width, flat
   passport-style privacy statement. It keeps the location promise separate
   from icon-led rows that explain the purpose and scope of each active reporting
@@ -139,6 +151,41 @@ The card opens the existing Elsewhere list.
   services or presentation state.
   None reimplements Core rules.
 
+### Flight status and GPS corrections
+
+Locations shows a quiet notice for this installation's recent flight evidence.
+The Resolve list keeps pending and completed flight reviews separate from
+its actionable issue count. Historical device labels use the latest saved name, including after device removal.
+A shared review shows recording devices, the last
+observation, flight evidence, and the exact sample edits. Apply includes only flights with supported arrival.
+Completed flights remain correctable when another flight on the same day is pending.
+Each banner shows its flight's progress. Applying or dismissing the proposal retains pending flight information.
+Manual day editing stays available.
+The recorded-point list explains flight evidence and uncertain endpoints.
+Each point includes a map centered on its recorded coordinate and a text coordinate label.
+An actionable row is one button and one VoiceOver element. Its map preview does not intercept the row action.
+For completed flights, the user can include one GPS point in the flight or restore its GPS attribution.
+Both actions require confirmation and retain the original recording. A changed review requires a new decision.
+
+`YearReportModel` publishes one `DataIssueScanResult` for the banner, list,
+badge, and open detail. Committed raw GPS writes refresh it even when region
+totals do not change. Foreground-only deadlines update stale notices and remove
+live notices after 24 hours; unresolved historical reviews remain accessible.
+`ResolveModel` receives a `ResolutionSource`. The scene supplies its `YearReportModel`.
+Standalone consumers use `ScannerResolutionSource`; previews supply a synchronous fixture
+through the same protocol. Product models have no preview-mode refresh branches.
+
+`FlightReviewPresentation` prepares map geometry and edit lookups once per review.
+It also prepares unique point rows, individual point maps, inference explanations, and point correction actions.
+The map preserves corrected GPS observations and separates device tracks.
+Rendering uses at most 250 markers and 2,048 coordinates per device route, retaining both route endpoints.
+The full evidence and edit list remain available. Snapshot capture replaces remote map tiles with a deterministic substrate.
+
+`FlightReviewModel` submits reviewed proposals to Core and keeps a changed
+proposal on screen for review instead of reporting a stale Apply as success.
+Reset to GPS restores both manual and sample attribution through the existing
+journal intent.
+
 ### Reusable views & styling
 
 - **`RegionWelcomeCard`** — an app-wide overlay over the selected tab that combines a region's emoji,
@@ -212,7 +259,9 @@ The card opens the existing Elsewhere list.
   evidence, private insights, data accuracy, and personalization with shared
   patterned chrome and Reduce Motion-aware staged reveals. The examples reuse
   already-loaded user data when it is representative and link to the existing
-  feature surfaces for any action.
+  feature surfaces for any action. Gallery rows and Forms have separate view
+  boundaries. These boundaries limit stack copies during navigation. The gallery
+  view-size tests guard this constraint.
 - **`whereBroadwayRoot()`** — seeds the selected `WhereTheme` and Broadway
   design-system context so descendants resolve the `WhereStylesheet` tokens (see [Design
   system](#design-system)). Applied by `RootView` and by each widget.
