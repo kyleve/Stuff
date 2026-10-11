@@ -24,6 +24,11 @@ let whereProjectRules = RuleSet {
         ),
         id: "where.recording_cloud_authority_ownership",
     )
+    Rules.constructionOwnership(
+        "RecordingAuthorityCoordinator",
+        allowed: .files(["Where/WhereUI/Sources/Launch/WhereLaunch.swift"]),
+        id: "where.recording_coordination_composition",
+    )
     productionStoreOpeningRule
     checkedConcurrencyBoundaryRule
     gregorianCalendarRule

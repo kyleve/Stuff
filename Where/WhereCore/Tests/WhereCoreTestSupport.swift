@@ -71,7 +71,11 @@ actor ScriptedLocationOutbox: LocationOutbox {
         failsToLoad: Bool = false,
         failsToClear: Bool = false,
     ) {
-        entries = samples.map { LocationOutboxEntry(sample: $0, dataGenerationID: .initial) }
+        entries = samples.map { LocationOutboxEntry(
+            sample: $0,
+            dataGenerationID: .initial,
+            recordingTenureID: nil,
+        ) }
         self.failsToLoad = failsToLoad
         self.failsToClear = failsToClear
     }

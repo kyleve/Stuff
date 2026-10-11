@@ -40,7 +40,11 @@ struct LocationIngestorTests {
             failsToClear: Bool = false,
             failsToSave: Bool = false,
         ) {
-            entries = contents.map { LocationOutboxEntry(sample: $0, dataGenerationID: .initial) }
+            entries = contents.map { LocationOutboxEntry(
+                sample: $0,
+                dataGenerationID: .initial,
+                recordingTenureID: nil,
+            ) }
             self.failsToClear = failsToClear
             self.failsToSave = failsToSave
         }
@@ -75,11 +79,45 @@ struct LocationIngestorTests {
             store: store,
             locationSource: source,
             recordingDeviceID: CurrentRecordingDevice.preview.id,
+            authorityReader: RecordingAuthority
+                .ownedForTesting(by: CurrentRecordingDevice.preview.id),
             calendar: WhereCoreTestSupport.calendar(),
             outbox: outbox,
             retryQueueCapacity: retryQueueCapacity,
             onPersisted: { outcome in await recorder.record(outcome) },
         )
+    }
+
+    @Test func callbackAfterOwnershipTransferCannotPersistOrQueue() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let fixture = RecordingAuthorityFixture()
+        let coordinator = RecordingAuthorityCoordinator(
+            store: store,
+            transport: LocalRecordingAuthorityTransport(now: { Date() }),
+        )
+        let claim = try fixture.proposal(.initial, .claim, device: fixture.phone)
+        _ = try await coordinator.submit(claim)
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let ingestor = LocationIngestor(
+            store: store,
+            locationSource: source,
+            recordingDeviceID: fixture.phone,
+            authorityReader: coordinator,
+            calendar: WhereCoreTestSupport.calendar(),
+            onPersisted: { _ in },
+        )
+        try await ingestor.start()
+        _ = try await coordinator.submit(fixture.proposal(
+            claim.result,
+            .recover(.keep),
+            device: fixture.tablet,
+        ))
+        let late = sample(at: "2026-03-15T12:00:00-07:00")
+        source.emit(late)
+        try await waitUntil { await ingestor.testingHasConsumedSample(id: late.id) }
+        #expect(try await store.allSamples().isEmpty)
+        #expect(await ingestor.retryQueueDepth == 0)
+        #expect(await ingestor.testingIsAcceptingSamples == false)
     }
 
     @Test func startActivatesMonitoringAndStopPauses() async throws {
@@ -256,6 +294,8 @@ struct LocationIngestorTests {
             store: store,
             locationSource: source,
             recordingDeviceID: CurrentRecordingDevice.preview.id,
+            authorityReader: RecordingAuthority
+                .ownedForTesting(by: CurrentRecordingDevice.preview.id),
             calendar: WhereCoreTestSupport.calendar(),
             onPersisted: { outcome in await recorder.record(outcome) },
         )
@@ -285,6 +325,8 @@ struct LocationIngestorTests {
             store: store,
             locationSource: source,
             recordingDeviceID: CurrentRecordingDevice.preview.id,
+            authorityReader: RecordingAuthority
+                .ownedForTesting(by: CurrentRecordingDevice.preview.id),
             calendar: WhereCoreTestSupport.calendar(),
             onPersisted: { _ in },
         )
@@ -322,6 +364,8 @@ struct LocationIngestorTests {
             store: store,
             locationSource: source,
             recordingDeviceID: CurrentRecordingDevice.preview.id,
+            authorityReader: RecordingAuthority
+                .ownedForTesting(by: CurrentRecordingDevice.preview.id),
             calendar: WhereCoreTestSupport.calendar(),
             onPersisted: { _ in },
         )
@@ -621,6 +665,7 @@ struct LocationIngestorTests {
         try await outbox.save([LocationOutboxEntry(
             sample: sample(at: "2026-03-15T12:00:00-07:00"),
             dataGenerationID: .initial,
+            recordingTenureID: nil,
         )])
         let ingestor = Self.makeIngestor(
             store: store,

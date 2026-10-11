@@ -22,6 +22,8 @@ struct DeviceRecordingControllerTests {
             store: store,
             locationSource: source,
             recordingDeviceID: InstallationRecordingContext.testing.currentDevice.id,
+            authorityReader: RecordingAuthority
+                .ownedForTesting(by: InstallationRecordingContext.testing.currentDevice.id),
             calendar: WhereCoreTestSupport.calendar(),
             outbox: outbox,
             retryQueueCapacity: 1000,
@@ -39,6 +41,8 @@ struct DeviceRecordingControllerTests {
                 store: store,
                 ingestor: ingestor,
                 installationContext: context,
+                authority: RecordingAuthority.ownedForTesting(by: context.currentDevice.id),
+                coordination: nil,
                 now: { Self.now },
                 onPolicyChanged: {},
             ),

@@ -31,6 +31,7 @@ final class OnboardingFlowModel {
     var selection = PrimaryRegionSelectionModel()
     var recordingEnabled: Bool
     var deviceDiscovery = DeviceDiscovery.idle
+    var role: RecordingDeviceRoleModel?
     var isFinishing = false
     var restoreSelection = OnboardingRestoreSelection()
     var intro = OnboardingIntroState()
@@ -81,6 +82,18 @@ final class OnboardingFlowModel {
         guard deviceDiscovery == .idle else { return }
         deviceDiscovery = .loading
         do {
+            if let coordination = try await model.recordingDeviceCoordination() {
+                let role = RecordingDeviceRoleModel(
+                    coordination: coordination,
+                    currentDeviceID: installationContext.currentDevice.id,
+                    selectionChanged: nil,
+                    approve: nil,
+                )
+                self.role = role
+                await role.refresh()
+                deviceDiscovery = .ready(.init(isEnabled: false, recentRecordingDevice: nil))
+                return
+            }
             let recommendation = try await model.discoverRecordingRecommendation(
                 for: installationContext,
             )

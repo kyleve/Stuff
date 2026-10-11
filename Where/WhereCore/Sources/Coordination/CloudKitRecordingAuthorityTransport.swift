@@ -49,19 +49,36 @@ public actor CloudKitRecordingAuthorityTransport: RecordingAuthorityTransport {
         head["payload"] = payload as CKRecordValue
         event["payload"] = payload as CKRecordValue
         // Both records must succeed. A losing change tag cannot leave an orphan receipt.
-        let result = try await database.modifyRecords(
-            saving: [head, event],
-            deleting: [],
-            savePolicy: .ifServerRecordUnchanged,
-            atomically: true,
-        )
-        guard let savedHead = result.saveResults[headID],
-              let savedEvent = result.saveResults[immutableID]
+        let result: SaveResults
+        do {
+            let saved = try await database.modifyRecords(
+                saving: [head, event],
+                deleting: [],
+                savePolicy: .ifServerRecordUnchanged,
+                atomically: true,
+            )
+            result = SaveResults(records: saved.saveResults)
+        } catch {
+            if Self.isConflict(error) { throw RecordingAuthorityError.conflict }
+            throw error
+        }
+        guard let savedHead = result.records[headID],
+              let savedEvent = result.records[immutableID]
         else {
             throw RecordingAuthorityError.invalidRecord
         }
-        _ = try savedHead.get()
-        return try receipt(savedEvent.get())
+        for result in [savedHead, savedEvent] {
+            if case let .failure(error) = result, Self.isConflict(error) {
+                throw RecordingAuthorityError.conflict
+            }
+        }
+        do {
+            _ = try savedHead.get()
+            return try receipt(savedEvent.get())
+        } catch {
+            if Self.isConflict(error) { throw RecordingAuthorityError.conflict }
+            throw error
+        }
     }
 
     public func receipt(for transitionID: RecordingAuthority
@@ -81,6 +98,30 @@ public actor CloudKitRecordingAuthorityTransport: RecordingAuthorityTransport {
         notification.shouldSendContentAvailable = true
         subscription.notificationInfo = notification
         _ = try await database.save(subscription)
+    }
+
+    private struct SaveResults {
+        let records: [CKRecord.ID: Result<CKRecord, any Error>]
+    }
+
+    static func isTemporarilyUnavailable(_ error: any Error) -> Bool {
+        guard let error = error as? CKError else { return false }
+        return [
+            .networkUnavailable,
+            .networkFailure,
+            .serviceUnavailable,
+            .requestRateLimited,
+            .zoneBusy,
+        ].contains(error.code)
+    }
+
+    static func isConflict(_ error: any Error) -> Bool {
+        guard let error = error as? CKError else { return false }
+        if error.code == .serverRecordChanged { return true }
+        guard error.code == .partialFailure,
+              let errors = error.userInfo[CKPartialErrorsByItemIDKey] as? [AnyHashable: any Error]
+        else { return false }
+        return errors.values.contains(where: isConflict)
     }
 
     private var headID: CKRecord.ID {

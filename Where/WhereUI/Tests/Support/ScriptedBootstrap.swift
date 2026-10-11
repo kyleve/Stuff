@@ -14,6 +14,10 @@ import WhereUI
 /// double-open the dormant-scope handoff exists to prevent.
 @MainActor
 final class ScriptedBootstrap: WhereScopeAssembling {
+    func prepareDeviceCoordination() async throws -> RecordingDeviceCoordination? {
+        nil
+    }
+
     private let services: WhereServices
 
     /// What `makeLogStore()` hands back — an in-memory stand-in for the app's
@@ -73,6 +77,10 @@ final class ScriptedBootstrap: WhereScopeAssembling {
 /// must surface an unopenable store rather than swallow it.
 @MainActor
 final class FailingBootstrap: WhereScopeAssembling {
+    func prepareDeviceCoordination() async throws -> RecordingDeviceCoordination? {
+        nil
+    }
+
     struct AssemblyFailure: Error, Equatable {}
 
     func prepareLocation() {}
@@ -95,6 +103,10 @@ final class FailingBootstrap: WhereScopeAssembling {
 /// logging presents an honest diagnostic.
 @MainActor
 final class FailingLogStoreBootstrap: WhereScopeAssembling {
+    func prepareDeviceCoordination() async throws -> RecordingDeviceCoordination? {
+        nil
+    }
+
     struct StoreFailure: Error, CustomStringConvertible {
         var description: String {
             "scripted log store failure"
@@ -126,6 +138,10 @@ final class FailingLogStoreBootstrap: WhereScopeAssembling {
 /// world it will never assemble. Trips if a login is attempted anyway.
 @MainActor
 final class UnusedBootstrap: WhereScopeAssembling {
+    func prepareDeviceCoordination() async throws -> RecordingDeviceCoordination? {
+        nil
+    }
+
     struct Unexpected: Error {}
 
     func prepareLocation() {}

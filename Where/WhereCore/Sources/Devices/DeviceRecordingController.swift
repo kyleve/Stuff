@@ -9,6 +9,8 @@ import Foundation
 /// stop recording rather than trusting stale state.
 public actor DeviceRecordingController {
     private let store: any WhereStore
+    private let authority: any RecordingAuthorityReading
+    private let coordination: RecordingDeviceCoordination?
     private let ingestor: LocationIngestor
     public nonisolated let currentDevice: CurrentRecordingDevice
     private let registeredAt: Date
@@ -39,6 +41,8 @@ public actor DeviceRecordingController {
     private var isRewritePaused = false
     private var observationTask: Task<Void, Never>?
     private var needsReconciliation = false
+    private var lastObservedAuthority: RecordingAuthority?
+    private var authorityVerificationFailure: (any Error)?
     private var pendingOffCleanup = false
     private var nextRuntimeSequence: UInt64 = 0
     private var latestRuntimeUpdate: RecordingDeviceRuntimeUpdate?
@@ -50,12 +54,16 @@ public actor DeviceRecordingController {
         store: any WhereStore,
         ingestor: LocationIngestor,
         installationContext: InstallationRecordingContext,
+        authority: any RecordingAuthorityReading,
+        coordination: RecordingDeviceCoordination?,
         now: @escaping @Sendable () -> Date,
         onPolicyChanged: @escaping @Sendable () async -> Void,
     ) {
         guard let automaticRecordingEnabled = installationContext.automaticRecordingEnabled else {
             preconditionFailure("Recording services require a confirmed installation context.")
         }
+        self.authority = authority
+        self.coordination = coordination
         self.store = store
         self.ingestor = ingestor
         currentDevice = installationContext.currentDevice
@@ -83,6 +91,36 @@ public actor DeviceRecordingController {
 
     public nonisolated func runtimeUpdates() -> AsyncStream<RecordingDeviceRuntimeUpdate> {
         configurationBroadcaster.subscribe()
+    }
+
+    public func approveHandoff(requestID: RecordingAuthority.EventID) async throws {
+        await beginExclusive()
+        defer { endExclusive() }
+        try requireActive()
+        guard let coordination else { throw RecordingAuthorityError.invalidHandoff }
+        let proposal = try await coordination.prepareApproval(requestID: requestID)
+        // The durable pending approval already fences restart; now stop and drain before commit.
+        await ingestor.pause()
+        needsReconciliation = true
+        publishRuntimeState(.unavailable)
+        try await coordination.commitStoppedApproval(proposal)
+        let authorization = await ingestor.authorizationStatus()
+        _ = try await reconcileOrFailClosed(authorization: authorization)
+    }
+
+    public func refreshAuthority() async throws {
+        await beginExclusive()
+        defer { endExclusive() }
+        guard let coordination else { return }
+        do {
+            _ = try await coordination.refreshForUse()
+            authorityVerificationFailure = nil
+        } catch {
+            authorityVerificationFailure = error
+            await ingestor.revokeRecordingAuthorization()
+            publishRuntimeState(.unavailable)
+            throw error
+        }
     }
 
     public func currentRuntimeUpdate() -> RecordingDeviceRuntimeUpdate? {
@@ -223,6 +261,10 @@ public actor DeviceRecordingController {
         await beginExclusive()
         defer { endExclusive() }
         try requireActive()
+        let currentAuthority = if let coordination { try await coordination.refresh() }
+        else { try await authority.observed() }
+        guard currentAuthority.owner?.deviceID != deviceID
+        else { throw RecordingAuthorityError.ownerRequired }
         let snapshot = try await storeSnapshot()
         guard snapshot.profiles.contains(where: { $0.id == deviceID }) else {
             throw RecordingPersistenceError.deviceNotFound(deviceID)
@@ -237,6 +279,8 @@ public actor DeviceRecordingController {
             removedByDeviceID: currentDevice.id,
         )
         try await store.perform(expectedDataGenerationID: snapshot.generation.id) {
+            guard try await self.authority.observed().owner?.deviceID != deviceID
+            else { throw RecordingAuthorityError.ownerRequired }
             try await self.store.addRecordingDeviceRemoval(removal)
         }
         await onPolicyChanged()
@@ -435,6 +479,7 @@ public actor DeviceRecordingController {
     private func reconcileLocked(
         authorization: LocationAuthorizationStatus,
     ) async throws -> RecordingDeviceConfiguration {
+        if let authorityVerificationFailure { throw authorityVerificationFailure }
         if pendingOffCleanup {
             try await discardRetryBacklogForOffChoice()
         }
@@ -455,17 +500,21 @@ public actor DeviceRecordingController {
         }
 
         let generation = snapshot.generation
-        if preparedGenerationID != generation.id {
+        if let preparedGenerationID, preparedGenerationID != generation.id {
             try await ingestor.discardRetryBacklog()
-            preparedGenerationID = generation.id
         }
+        preparedGenerationID = generation.id
 
-        let status: RecordingDeviceStatus = if automaticRecordingChoice.isEnabled {
+        let ownership = try await authority.observed()
+        lastObservedAuthority = ownership
+        let relinquishing = try await coordination?.isRelinquishing() ?? false
+        let canRecord = ownership.owner?.deviceID == currentDevice.id && !relinquishing
+        let status: RecordingDeviceStatus = if automaticRecordingChoice.isEnabled && canRecord {
             authorization.allowsBackgroundTracking ? .recording : .permissionRequired
         } else {
             .off
         }
-        if case let .on(enabledAt) = automaticRecordingChoice {
+        if case let .on(enabledAt) = automaticRecordingChoice, canRecord {
             try await ingestor.prepareRetryBacklog()
             let effectiveAt = max(enabledAt, generation.changedAt)
             if authorization.allowsBackgroundTracking {
@@ -477,8 +526,10 @@ public actor DeviceRecordingController {
                 )
                 await ingestor.stop()
             }
-        } else {
+        } else if !automaticRecordingChoice.isEnabled {
             try await ingestor.discardRetryBacklog()
+        } else {
+            try await ingestor.flushAcceptedSamples(dataGenerationID: generation.id)
         }
 
         // Publish advisory status only after the physical transition succeeds. If the write
@@ -549,7 +600,11 @@ public actor DeviceRecordingController {
             let heartbeatDue = currentCheckIn.map {
                 now().timeIntervalSince($0.lastSeenAt) >= Self.checkInInterval
             } ?? true
-            let expectedStatus: RecordingDeviceStatus = if automaticRecordingChoice.isEnabled {
+            let ownership = try await authority.observed()
+            let relinquishing = try await coordination?.isRelinquishing() ?? false
+            let expectedStatus: RecordingDeviceStatus = if automaticRecordingChoice.isEnabled
+                && ownership.owner?.deviceID == currentDevice.id && !relinquishing
+            {
                 await ingestor.authorizationStatus().allowsBackgroundTracking
                     ? .recording
                     : .permissionRequired
@@ -559,7 +614,8 @@ public actor DeviceRecordingController {
             let profileMatches = snapshot.profiles.first(where: { $0.id == currentDevice.id }).map {
                 $0 == expectedProfile(registrationGenerationID: $0.registrationGenerationID)
             } ?? false
-            if needsReconciliation || removalExists || heartbeatDue
+            if needsReconciliation || removalExists || heartbeatDue || lastObservedAuthority !=
+                ownership
                 || currentCheckIn?.status != expectedStatus || !profileMatches
             {
                 let authorization = await ingestor.authorizationStatus()

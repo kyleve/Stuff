@@ -206,10 +206,11 @@ journal intent.
   there is no session behind it: a paged intro,
   then picking up to five primary US regions (map or searchable list) and
   giving each a look, then verifying this installation's automatic-recording
-  choice. The final page opens the real store in a dormant state to inspect recent synced advisory
-  status before any services, App Intents, or GPS are active. A phone recommends On only when no
-  other installation recently reported recording. Tablets, other devices, and explicit rejoins
-  recommend Off. Only an enabled confirmation requests location permission. A restored device can
+  choice. The final page opens the real store in a dormant state and verifies the
+  server-confirmed recording owner before services, App Intents, or GPS activate.
+  Users explicitly choose to record here or use this installation as a secondary.
+  An existing owner must approve a normal handoff. Only an enabled confirmation
+  requests location permission. A restored device can
   inherit the backed-up onboarding flag but not the installation sidecar, so it
   skips straight to that final page. Finishing logs in to the real scope. The
   app promotes that same store into its one real scope — and commits the picks as the tracked-region set +
@@ -523,3 +524,16 @@ for the mode values):
 ```
 
 Then review and commit the images.
+
+### Recording-device selection
+
+`WhereBootstrap.prepareDeviceCoordination()` shares the boot store and coalesces
+concurrent preparation. `RecordingDeviceRoleModel` drives the same panel in
+onboarding and Devices settings. A new installation must choose a role even if
+restored preferences contain completed onboarding. The installation sidecar
+stores that choice outside device backups.
+
+A replacement phone requests a handoff. The current recorder approves through
+`DeviceRecordingController`, which stops GPS before transferring ownership.
+The waiting phone can check again or cancel. Local recording consent remains
+separate from ownership. `WhereSession` refreshes authority before reconciling GPS.

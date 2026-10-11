@@ -159,3 +159,5 @@ different logging vocabulary layout. Bumper's standard
 is needed.
 
 - `where.recording_cloud_authority_ownership`: construct direct CloudKit containers only in the dedicated recording-authority transport. The existing SwiftData mirror remains separate. Guard: `WhereProjectRulesTests.direct CloudKit authority has one adapter`.
+
+- `where.recording_coordination_composition`: construct the authority coordinator once in `WhereLaunch`, then inject it into onboarding and services. Mutation guard: `recording coordination is composed once at bootstrap`.
