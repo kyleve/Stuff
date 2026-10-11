@@ -5460,6 +5460,83 @@
         }
       }
     },
+    "recordingRecovery.exclude" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replace and exclude later recordings"
+          }
+        }
+      }
+    },
+    "recordingRecovery.explanation %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replace %@ with this device without approval from the previous device."
+          }
+        }
+      }
+    },
+    "recordingRecovery.keep" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replace and keep all recordings"
+          }
+        }
+      }
+    },
+    "recordingRecovery.offlineWarning" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An offline device may continue recording until it reconnects. Choose how to handle those overlapping recordings."
+          }
+        }
+      }
+    },
+    "recordingRecovery.rawHistory" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If you choose to exclude later recordings, automatic recordings from the previous device after replacement will be hidden from your history. Raw samples and manual entries are preserved."
+          }
+        }
+      }
+    },
+    "recordingRecovery.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replace recording device"
+          }
+        }
+      }
+    },
+    "recordingRecovery.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Previous device unavailable?"
+          }
+        }
+      }
+    },
     "recordingRole.anotherDevice" : {
       "extractionState" : "manual",
       "localizations" : {

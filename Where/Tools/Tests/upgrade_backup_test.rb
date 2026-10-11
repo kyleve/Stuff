@@ -8,14 +8,14 @@ class UpgradeBackupTest < Minitest::Test
   def test_v1_adds_current_tables_without_inventing_recording_consent
     upgraded = upgrade_manifest(base_manifest(1))
 
-    assert_equal 6, upgraded.fetch("formatVersion")
+    assert_equal 7, upgraded.fetch("formatVersion")
     assert_equal [], upgraded.fetch("recordingDeviceProfiles")
     assert_equal [], upgraded.fetch("recordingDeviceMetadataChanges")
     assert_equal [], upgraded.fetch("recordingDeviceRemovals")
     assert_equal [], upgraded.fetch("plannedStayRecords")
     assert_equal [], upgraded.fetch("sampleAttributionRevisions")
     assert_nil upgraded.fetch("samples").first.fetch("motion")
-    assert_nil upgraded.fetch("samples").first.fetch("recordingDeviceID")
+    assert_nil upgraded.fetch("samples").first["recordingDeviceID"]
   end
 
   def test_v1_synthesizes_primary_regions_and_rekeys_legacy_ids
@@ -57,7 +57,7 @@ class UpgradeBackupTest < Minitest::Test
 
     upgraded = upgrade_manifest(manifest)
 
-    assert_equal 6, upgraded.fetch("formatVersion")
+    assert_equal 7, upgraded.fetch("formatVersion")
     assert_equal({
       "kind" => { "other" => {} },
       "registrationGenerationID" => "generation-id",
@@ -131,8 +131,26 @@ class UpgradeBackupTest < Minitest::Test
     assert_equal 1_700_000_100.5, upgraded.fetch("samples").first.fetch("timestamp")
   end
 
+  def test_v6_preserves_legacy_installation_without_inventing_a_tenure
+    manifest = base_manifest(6)
+    manifest["samples"].first["recordingDeviceID"] = "store://recording-devices/example"
+    upgraded = upgrade_manifest(manifest)
+    assert_equal 1, upgraded.fetch("requiredCompatibilityVersion")
+    assert_equal [], upgraded.fetch("recordingRecoveryExclusions")
+    assert_equal "store://recording-devices/example", upgraded.fetch("samples").first.fetch("recordingDeviceID")
+    refute upgraded.fetch("samples").first.key?("recordingTenureID")
+  end
+
+  def test_v7_preserves_floor_and_recovery_history
+    manifest = upgrade_manifest(base_manifest(6))
+    manifest["requiredCompatibilityVersion"] = 3
+    manifest["recordingRecoveryExclusions"] = [{ "id" => "receipt", "replacedAt" => 1000.25 }]
+    expected = Marshal.load(Marshal.dump(manifest))
+    assert_equal expected, upgrade_manifest(manifest)
+  end
+
   def test_rejects_branch_only_or_future_formats
-    error = assert_raises(SystemExit) { upgrade_manifest(base_manifest(7)) }
+    error = assert_raises(SystemExit) { upgrade_manifest(base_manifest(8)) }
     assert_equal 1, error.status
   end
 

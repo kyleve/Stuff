@@ -26,6 +26,7 @@ public struct WhereDataGenerationID: RawRepresentable, Codable, Sendable, Hashab
 public enum WhereDataGenerationReason: String, Codable, Sendable, Hashable {
     case initial
     case accountReset
+    case historyReset = "history-reset"
     case backupReplace
 
     var isDestructive: Bool {
@@ -38,7 +39,7 @@ public enum WhereDataGenerationReason: String, Codable, Sendable, Hashable {
         switch self {
             case .initial: 0
             case .backupReplace: 1
-            case .accountReset: 2
+            case .accountReset, .historyReset: 2
         }
     }
 }
@@ -125,7 +126,9 @@ public struct WhereDataGeneration: Identifiable, Codable, Sendable, Hashable {
         if lhs.reason.conflictPriority != rhs.reason.conflictPriority {
             return lhs.reason.conflictPriority < rhs.reason.conflictPriority
         }
-        if lhs.reason == .accountReset, lhs.changedAt != rhs.changedAt {
+        if lhs.reason == .accountReset || lhs.reason == .historyReset,
+           lhs.changedAt != rhs.changedAt
+        {
             return lhs.changedAt < rhs.changedAt
         }
         return lhs.id.rawValue.uuidString < rhs.id.rawValue.uuidString

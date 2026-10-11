@@ -225,3 +225,5 @@ derived from the demo world must stay made of no-ops.
 - Persist an approval fence before stopping GPS and committing a handoff. Keep uncertain approvals and their cancellations fenced across restart until a server-confirmed outcome. Reconcile terminal commands after refresh and preserve the event ID for retries (`RecordingDeviceCoordinationTests`, `RecordingAuthority` model).
 
 - Reject handoff targets with observed removal tombstones before approval and again before submission. Cancel a pending handoff before removing its target (`RecordingDeviceCoordinationTests`).
+- Keep recovery exclusions bound to the former ownership tenure and server receipt time. Preserve raw samples and apply exclusions through `LocationHistoryReader` (`RecordingRecoveryExclusionTests`).
+- Preserve authority, installation identity, local consent, and the compatibility floor across history Reset and Replace. Backups carry historical exclusions and the floor, never live ownership (`BackupCoordinatorTests`, `WhereResetTests`).
