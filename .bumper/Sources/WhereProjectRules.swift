@@ -29,6 +29,14 @@ let whereProjectRules = RuleSet {
         allowed: .files(["Where/WhereUI/Sources/Launch/WhereLaunch.swift"]),
         id: "where.recording_coordination_composition",
     )
+    Rules.constructionOwnership(
+        "CompatibilityScopedStore",
+        allowed: .files(
+            ["Where/WhereCore/Sources/Compatibility/DataCompatibilityCoordinator.swift"],
+        ),
+        id: "where.compatibility_scope_ownership",
+    )
+    compatibilityStoreBoundaryRule
     productionStoreOpeningRule
     checkedConcurrencyBoundaryRule
     gregorianCalendarRule
@@ -304,4 +312,63 @@ private let previewCoverageRule = Rules.files(
             ),
         )
     }
+}
+
+/// These operations inspect or maintain the control plane while normal data is unavailable.
+private let compatibilityMetadataMethods: Set<String> = [
+    "perform",
+    "readSnapshot",
+    "changes",
+    "remoteChanges",
+    "dataGeneration",
+    "recordingDeviceResetBarrier",
+    "backupImportReceipt",
+    "addBackupImportReceipt",
+    "removeBackupImportReceipt",
+    "recordingDevices",
+    "recordingDeviceProfiles",
+    "addRecordingDeviceProfile",
+    "recordingDeviceMetadataChanges",
+    "addRecordingDeviceMetadataChange",
+    "recordingDeviceCheckIns",
+    "setRecordingDeviceCheckIn",
+    "recordingDeviceRemovals",
+    "addRecordingDeviceRemoval",
+    "dataCompatibilityRequirements",
+    "addDataCompatibilityRequirement",
+    "importedRecordingRecoveryExclusions",
+    "recordingAuthorityCommits",
+    "addRecordingAuthorityCommit",
+    "requiredDataCompatibilityVersion",
+    "setSupportedDataCompatibilityVersionForTesting",
+    "simulateRemoteRecordingImport",
+    "simulateRemoteDayImport",
+]
+
+private let compatibilityStoreBoundaryRule = Rules.files(
+    "where.compatibility_store_boundary",
+    severity: .error,
+    summary: "Every public domain store operation checks compatibility before accessing data.",
+    scope: .files([
+        "Where/WhereCore/Sources/Persistence/SwiftDataStore.swift",
+        "Where/WhereCore/Sources/Persistence/SwiftDataStore+Compatibility.swift",
+    ]),
+) { file in
+    SyntaxQuery<FunctionDeclSyntax>()
+        .filter { match in
+            let modifiers = match.node.modifiers.map(\.name.text)
+            return modifiers.contains("public") && !modifiers.contains("static")
+                && !compatibilityMetadataMethods.contains(match.node.name.text)
+                && match.node.body?.statements.first?.item.trimmedDescription != "try assertDataCompatible()"
+        }
+        .matches(in: file)
+        .map { match in
+            match.failure(
+                message: "Domain store operation lacks its leading compatibility check.",
+                evidence: ViolationEvidence(
+                    observed: match.node.name.text,
+                    expectation: "begin with try assertDataCompatible()",
+                ),
+            )
+        }
 }

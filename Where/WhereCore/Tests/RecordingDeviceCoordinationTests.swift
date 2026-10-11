@@ -10,9 +10,14 @@ struct RecordingDeviceCoordinationTests {
         let server = LocalRecordingAuthorityTransport(now: { Date() })
         let authority = RecordingAuthorityCoordinator(store: store, transport: server)
         let oldInstallation = RecordingCoordinationInstallation(deviceID: fixture.phone)
-        let old = RecordingDeviceCoordination(authority: authority, installation: oldInstallation)
+        let old = RecordingDeviceCoordination(
+            supportedVersion: .current,
+            authority: authority,
+            installation: oldInstallation,
+        )
         let newInstallation = RecordingCoordinationInstallation(deviceID: fixture.tablet)
         let replacement = RecordingDeviceCoordination(
+            supportedVersion: .current,
             authority: authority,
             installation: newInstallation,
         )
@@ -48,6 +53,7 @@ struct RecordingDeviceCoordinationTests {
         let authority = RecordingAuthorityCoordinator(store: store, transport: server)
         let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
         let coordination = RecordingDeviceCoordination(
+            supportedVersion: .current,
             authority: authority,
             installation: installation,
         )
@@ -57,6 +63,7 @@ struct RecordingDeviceCoordinationTests {
         _ = try await coordination
             .prepareApproval(requestID: #require(request.result.pendingHandoff?.requestID))
         let restarted = RecordingDeviceCoordination(
+            supportedVersion: .current,
             authority: authority,
             installation: installation,
         )
@@ -81,6 +88,7 @@ struct RecordingDeviceCoordinationTests {
         )
         let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
         let coordination = RecordingDeviceCoordination(
+            supportedVersion: .current,
             authority: authority,
             installation: installation,
         )
@@ -98,6 +106,7 @@ struct RecordingDeviceCoordinationTests {
         )
         let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
         let coordination = RecordingDeviceCoordination(
+            supportedVersion: .current,
             authority: authority,
             installation: installation,
         )
@@ -121,6 +130,7 @@ struct RecordingDeviceCoordinationTests {
         )
         let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
         let coordination = RecordingDeviceCoordination(
+            supportedVersion: .current,
             authority: authority,
             installation: installation,
         )
@@ -152,6 +162,7 @@ struct RecordingDeviceCoordinationTests {
         )
         let installation = RecordingCoordinationInstallation(deviceID: fixture.phone)
         let coordination = RecordingDeviceCoordination(
+            supportedVersion: .current,
             authority: authority,
             installation: installation,
         )
@@ -194,6 +205,7 @@ struct RecordingDeviceCoordinationTests {
             transport: LocalRecordingAuthorityTransport(now: { cutoff }),
         )
         let old = RecordingDeviceCoordination(
+            supportedVersion: .current,
             authority: authority,
             installation: RecordingCoordinationInstallation(deviceID: fixture.phone),
         )
@@ -208,6 +220,7 @@ struct RecordingDeviceCoordinationTests {
         try await store.perform { try await store.add(sample: raw) }
         let newInstallation = RecordingCoordinationInstallation(deviceID: fixture.tablet)
         let replacement = RecordingDeviceCoordination(
+            supportedVersion: .current,
             authority: authority,
             installation: newInstallation,
         )

@@ -362,6 +362,37 @@ struct WhereProjectRulesTests {
         #expect(rejected.violations.map(\.rule.id) == ["where.store_transaction_boundary"])
     }
 
+    @Test func domainStoreMethodsRequireCompatibilityChecks() throws {
+        let path: RelativeFilePath = "Where/WhereCore/Sources/Persistence/SwiftDataStore.swift"
+        let allowed = try evaluate(
+            path: path,
+            component: .whereCore,
+            source: "public func samples() throws { try assertDataCompatible(); fetch() }",
+        )
+        let rejected = try evaluate(
+            path: path,
+            component: .whereCore,
+            source: "public func samples() throws { fetch() }",
+        )
+        #expect(allowed.violations.isEmpty)
+        #expect(rejected.violations.map(\.rule.id) == ["where.compatibility_store_boundary"])
+    }
+
+    @Test func compatibilityPermitsComeFromTheCoordinator() throws {
+        let allowed = try evaluate(
+            path: "Where/WhereCore/Sources/Compatibility/DataCompatibilityCoordinator.swift",
+            component: .whereCore,
+            source: "func open() { _ = CompatibilityScopedStore(base: store, permit: permit) }",
+        )
+        let rejected = try evaluate(
+            path: "Where/WhereCore/Sources/Worker.swift",
+            component: .whereCore,
+            source: "func open() { _ = CompatibilityScopedStore(base: store, permit: permit) }",
+        )
+        #expect(allowed.violations.isEmpty)
+        #expect(rejected.violations.map(\.rule.id) == ["where.compatibility_scope_ownership"])
+    }
+
     private func evaluate(
         path: RelativeFilePath,
         component: WhereComponent,
