@@ -81,6 +81,9 @@ public actor RecordingAuthorityCoordinator {
             cursor = commit
         }
         let verified = commits.reversed().map(\.self)
+        // An unchanged refresh must not emit a store change that triggers another refresh.
+        let existing = try await store.recordingAuthorityCommits()
+        if verified.allSatisfy(existing.contains) { return try await store.recordingAuthority() }
         try await store.perform {
             for commit in verified {
                 try await self.store.addRecordingAuthorityCommit(commit)

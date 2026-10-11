@@ -177,3 +177,15 @@ is needed.
 - `where.recording_cloud_authority_ownership`: construct direct CloudKit containers only in the dedicated recording-authority transport. The existing SwiftData mirror remains separate. Guard: `WhereProjectRulesTests.direct CloudKit authority has one adapter`.
 
 - `where.recording_coordination_composition`: construct the production authority coordinator once in `WhereLaunch`, then inject it into onboarding and services. Isolated test fixtures may construct their own. Mutation guard: `recording coordination is composed once at bootstrap`.
+
+## Compatibility access
+
+`where.compatibility_store_boundary` requires the leading compatibility assertion
+on public SwiftData domain operations. The explicit operational exception list
+lives beside the rule in `Sources/WhereProjectRules.swift`. Transaction and
+snapshot completion checks are covered by `SwiftDataStoreCompatibilityTests`.
+Mutation guard: `domainStoreMethodsRequireCompatibilityChecks`.
+
+`where.compatibility_scope_ownership` permits production scoped-store construction
+only in `DataCompatibilityCoordinator`. Isolated test fixtures may construct their
+own. Guard: `compatibilityPermitsComeFromTheCoordinator`.
