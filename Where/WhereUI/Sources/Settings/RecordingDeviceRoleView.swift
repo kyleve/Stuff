@@ -48,8 +48,8 @@ struct RecordingDeviceRoleView: View {
                         String(localized: .recordingRoleAnotherDevice))))
                 if canApprove {
                     Button(String(localized: .recordingRoleApprove), action: approve)
-                    Button(String(localized: .commonCancel), role: .cancel, action: cancel)
                 }
+                Button(String(localized: .commonCancel), role: .cancel, action: cancel)
             } else if details.interruptedApproval != nil {
                 Button(String(localized: .commonCancel), role: .cancel, action: cancel)
             }
@@ -114,6 +114,17 @@ struct RecordingDeviceRoleView: View {
                         names: names,
                     )),
                     canApprove: true,
+                ),
+                roleSnapshot(
+                    "Blocked owner cancellation",
+                    configurations: .fullContentScreenDefaults,
+                    state: .loaded(.init(
+                        authority: requested,
+                        currentDeviceID: phone,
+                        names: names,
+                        interruptedApproval: requested.pendingHandoff?.requestID,
+                    )),
+                    canApprove: false,
                 ),
                 roleSnapshot(
                     "Waiting",
