@@ -62,3 +62,11 @@ Each widget file ships `#Preview` timelines at the bottom (DEBUG only), using `W
 - There is no dedicated widget test bundle.
   Timeline logic is covered indirectly via **WhereCore** store tests and **WhereUI** widget view hosting tests.
 - Cross-process publish → read integration is not exercised in CI (see [`AGENTS.md`](AGENTS.md)).
+
+### Compatibility metadata
+
+The provider reads through `CompatibleWidgetSnapshotReader`. It checks the separate
+`widget-compatibility.json` publication before and after reading cached data. Both
+checks must identify the same revision at this build's global data version.
+Missing, malformed, or blocked metadata produces an empty widget. The extension
+never opens the database; refresh timing is controlled by WidgetKit.

@@ -4,6 +4,41 @@ import Testing
 
 @MainActor
 struct DataCompatibilityCoordinatorTests {
+    @Test func localHigherFloorWinsWhileRemoteVerificationIsSuspended() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let transport = CompatibilityTestTransport()
+        let authority = RecordingAuthorityCoordinator(store: store, transport: transport)
+        let installation = RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID()))
+        let recording = RecordingDeviceCoordination(
+            supportedVersion: .current,
+            authority: authority,
+            installation: installation,
+        )
+        _ = try await recording.selectRecordingRole(.recordingRequested)
+        let coordinator = DataCompatibilityCoordinator(
+            store: store,
+            recording: recording,
+            installation: installation,
+        )
+        #expect(await coordinator.recheck() == .compatible(.current))
+        let domain = try await coordinator.openDomainStore()
+        let gate = CompatibilityTestGate()
+        await transport.holdNextRead(gate)
+        let remote = Task { await coordinator.recheck() }
+        await gate.waitUntilEntered()
+        let version = DataCompatibilityVersion(rawValue: 2)
+        try await store.perform { try await store.addDataCompatibilityRequirement(.init(
+            id: UUID(),
+            version: version,
+        )) }
+        #expect(await coordinator.recheckLocalHistory() == .updateRequired(version))
+        await #expect(throws: DataCompatibilityError.accessRevoked) {
+            _ = try await domain.allSamples()
+        }
+        gate.resume()
+        #expect(await remote.value == .updateRequired(version))
+    }
+
     @Test func secondaryUpdatingFirstWaitsWithoutRaisingTheFloor() async throws {
         let fixture = RecordingAuthorityFixture()
         let store = try SwiftDataStore.inMemory()
@@ -142,6 +177,10 @@ struct DataCompatibilityCoordinatorTests {
         await transport.setAvailability(.signedOut)
         guard case .verificationFailed = await established.recheck() else {
             Issue.record("Account failures must not authorize cached use.")
+            return
+        }
+        guard case .verificationFailed = await established.recheckLocalHistory() else {
+            Issue.record("Local history must not erase a known account-verification failure.")
             return
         }
     }

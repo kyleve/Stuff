@@ -10,6 +10,10 @@ public actor RecordingAuthorityCoordinator {
         self.transport = transport
     }
 
+    public func subscribe() async throws {
+        try await transport.subscribe()
+    }
+
     public nonisolated func updates() -> AsyncStream<Void> {
         store.changes()
     }
