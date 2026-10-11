@@ -96,11 +96,10 @@ struct WhereResetTests {
 
         try model.resetPreferences()
 
-        // Removing the sidecar and keys restores a real first-install state:
-        // onboarding returns with a new identity and schedules default back on.
+        // Reset returns to onboarding while preserving installation authority and local consent.
         #expect(model.hasOnboarded == false)
-        #expect(model.hasConfirmedRecordingChoice == false)
-        #expect(model.installationRecordingContext.currentDevice.id != originalInstallationID)
+        #expect(model.hasConfirmedRecordingChoice)
+        #expect(model.installationRecordingContext.currentDevice.id == originalInstallationID)
         #expect(preferences.remindersEnabled)
         #expect(preferences.summaryEnabled)
     }
@@ -277,7 +276,7 @@ struct WhereResetTests {
         // no session, since the relaunch rebuilds one only once the user has
         // chosen a world again.
         #expect(model.hasOnboarded == false)
-        #expect(model.hasConfirmedRecordingChoice == false)
+        #expect(model.hasConfirmedRecordingChoice)
         #expect(model.session == nil)
         #expect(launcher.phase.gateHandle != nil)
         // The erase paused GPS before its transaction, so the torn-down session is no
@@ -328,7 +327,7 @@ struct WhereResetTests {
         // the off state above.
         #expect(model.session == nil)
         #expect(model.hasOnboarded == false)
-        #expect(model.hasConfirmedRecordingChoice == false)
+        #expect(model.hasConfirmedRecordingChoice)
         #expect(preferences.remindersEnabled)
         #expect(preferences.summaryEnabled)
 
@@ -397,7 +396,7 @@ struct WhereResetTests {
                 recordingDeviceID: installationID,
             ),
             dataGenerationID: .initial,
-            recordingTenureID: nil,
+
         )])
         await outbox.setFailsToClear(true)
 
@@ -414,7 +413,7 @@ struct WhereResetTests {
         #expect(await outbox.samples.count == 1)
     }
 
-    @Test func committedInstallationCleanupFailureLogsOutAndUsesResetCleanupError() async throws {
+    @Test func resetDoesNotInvokeDestructiveInstallationCleanup() async throws {
         let services = try makeServices()
         let preferences = makePreferences()
         let contextStore = CommittedFailingResetInstallationContextStore(context: .testing)
@@ -434,17 +433,21 @@ struct WhereResetTests {
         let report = YearReportModel(services: services, preferences: preferences)
         try await report.setManualDay(date: Date(), regions: [.california])
 
-        await launcher.teardown(WhereLaunch.resetPlan(for: model), input: session)
-
-        #expect(launcher.phase.failed(at: LaunchStepID.resetPreferences))
-        #expect(launcher.phase.failure?.error is WhereServices.ResetCleanupError)
+        let task = Task {
+            await launcher.teardown(WhereLaunch.resetPlan(for: model), input: session)
+        }
+        try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
+        #expect(!launcher.phase.failed(at: LaunchStepID.resetPreferences))
         #expect(model.session == nil)
         #expect(model.activeScope == nil)
         #expect(logOuts == 1)
         #expect(model.hasOnboarded == false)
-        #expect(model.hasConfirmedRecordingChoice == false)
+        #expect(model.hasConfirmedRecordingChoice)
         await report.refresh()
         #expect(report.trackedDayCount == 0)
+        model.completeOnboarding()
+        launcher.phase.gateHandle?.complete()
+        await task.value
     }
 }
 

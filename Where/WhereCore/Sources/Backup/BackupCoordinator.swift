@@ -158,6 +158,8 @@ public actor BackupCoordinator {
                 // excluded: they are live proofs about a target's local outbox, not restorable
                 // user data.
                 try await ExportTables(
+                    requiredCompatibilityVersion: store.requiredDataCompatibilityVersion(),
+                    recordingRecoveryExclusions: store.recordingRecoveryExclusions(),
                     samples: store.allSamples(),
                     evidence: store.allEvidence(),
                     manualDays: store.allManualDays(),
@@ -192,6 +194,8 @@ public actor BackupCoordinator {
         let backupService = backupService
         let url = try await Task.detached(priority: .utility) {
             try backupService.makeArchiveFile(
+                requiredCompatibilityVersion: tables.requiredCompatibilityVersion,
+                recordingRecoveryExclusions: tables.recordingRecoveryExclusions,
                 samples: tables.samples,
                 evidence: tables.evidence,
                 manualDays: tables.manualDays,
@@ -216,6 +220,8 @@ public actor BackupCoordinator {
     /// A named value rather than five locals so the whole read leg fits inside
     /// one span without threading a tuple through it.
     private struct ExportTables {
+        let requiredCompatibilityVersion: DataCompatibilityVersion
+        let recordingRecoveryExclusions: [RecordingRecoveryExclusion]
         let samples: [LocationSample]
         let evidence: [Evidence]
         let manualDays: [DayPresence]
@@ -419,6 +425,7 @@ public actor BackupCoordinator {
             + archive.recordingDeviceRemovals.count
             + archive.plannedStayRecords.count
             + archive.sampleAttributionRevisions.count
+            + archive.recordingRecoveryExclusions.count
 
         // Decode and validate before touching live recording. Once the archive is known-good,
         // close ingestion before either merge or replace so a streamed sample cannot cross the
@@ -467,6 +474,14 @@ public actor BackupCoordinator {
                         guard percent != lastPercent else { return }
                         lastPercent = percent
                         onProgress(Double(completed) / Double(total))
+                    }
+                    try await store.addDataCompatibilityRequirement(.init(
+                        id: transactionID,
+                        version: archive.requiredCompatibilityVersion,
+                    ))
+                    for exclusion in archive.recordingRecoveryExclusions {
+                        try await store.addRecordingRecoveryExclusion(exclusion)
+                        report()
                     }
                     for sample in archive.samples {
                         try await store.add(sample: sample)

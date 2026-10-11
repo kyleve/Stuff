@@ -30,7 +30,7 @@ public struct RecordingAuthority: Codable, Sendable, Equatable {
         public let eventID: EventID
     }
 
-    public struct Owner: Codable, Sendable, Equatable {
+    public struct Owner: Codable, Sendable, Hashable {
         public let deviceID: RecordingDeviceID
         public let tenureID: EventID
     }

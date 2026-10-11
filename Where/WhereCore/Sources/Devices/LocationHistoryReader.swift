@@ -19,10 +19,11 @@ public struct LocationHistoryReader: Sendable {
                 samples,
                 removals,
             )
+            let exclusions = try await store.recordingRecoveryExclusions()
             return RecordingDeviceRemovalFilter.visibleSamples(
                 resolvedSamples,
                 removals: resolvedRemovals,
-            )
+            ).filter { sample in !exclusions.contains { $0.excludes(sample) } }
         }
     }
 

@@ -346,6 +346,22 @@ struct WhereProjectRulesTests {
         #expect(violation.path == rejectedPath)
     }
 
+    @Test(arguments: ["addRecordingRecoveryExclusion", "addDataCompatibilityRequirement"])
+    func recoveryMetadataRequiresTransaction(method: String) throws {
+        let allowed = try evaluate(
+            path: "Where/WhereCore/Sources/Recovery.swift",
+            component: .whereCore,
+            source: "func apply() async throws { try await store.perform { try await store.\(method)(value) } }",
+        )
+        let rejected = try evaluate(
+            path: "Where/WhereCore/Sources/Recovery.swift",
+            component: .whereCore,
+            source: "func apply() async throws { try await store.\(method)(value) }",
+        )
+        #expect(allowed.violations.isEmpty)
+        #expect(rejected.violations.map(\.rule.id) == ["where.store_transaction_boundary"])
+    }
+
     private func evaluate(
         path: RelativeFilePath,
         component: WhereComponent,
