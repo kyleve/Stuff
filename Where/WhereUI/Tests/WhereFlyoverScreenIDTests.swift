@@ -15,6 +15,12 @@
             #expect(Set([first, same, second, contextual]).count == 3)
             #expect(first.description.contains("FirstScreen"))
             #expect(contextual.description.contains("SecondScreen"))
+            #expect(first.exportIdentifier == String(reflecting: FirstScreen.self))
+            #expect(
+                contextual.exportIdentifier
+                    ==
+                    "\(String(reflecting: FirstScreen.self)) in \(String(reflecting: SecondScreen.self))",
+            )
         }
 
         private enum FirstScreen {}
