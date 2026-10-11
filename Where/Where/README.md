@@ -31,7 +31,7 @@ In DEBUG, `WhereDeveloperLaunchController` persists one mutually exclusive
 next-process choice: the standalone Inspector runtime or a configured,
 one-shot demo inside the regular runtime. The demo request is consumed as the
 regular runtime is built. Its first launch step activates an in-memory scope
-before onboarding can open the real store. A later process therefore returns
+before the bootstrap step can open the real store. A later process therefore returns
 to the user's untouched data unless another demo is scheduled.
 Every later callback and root-view request uses protocol dispatch, so no feature or lifecycle code switches on a mode.
 Before that selection, DEBUG boot completes any store-family recovery Inspector scheduled in the prior process.
@@ -41,6 +41,13 @@ In the regular runtime, `didFinishLaunching` does the wiring — not a SwiftUI `
 It registers the App Intents dependency, starts logging, and builds a [`LifecycleKit`](../../Shared/LifecycleKit) runner with the reason `.undetermined`, since the UIScene lifecycle cannot yet distinguish a user tap from a headless wake.
 The runner drives the background-safe launch steps immediately and builds no view tree.
 When a scene actually activates, `RootView` promotes the launch to `.userForeground` and the remaining steps run.
+
+The bootstrap opens and retains one real store for compatibility and recording
+authority. Compatibility and onboarding gate the domain services that use it.
+Blocking retires the active scope and permanently revokes its access permit.
+After verification succeeds again, a new scope receives a fresh permit over
+the retained store. Suspended operations keep their original revoked permit.
+The `ScopeExclusivity` model checks these ownership and lifetime boundaries.
 
 Before either the regular or Inspector runtime receives that callback, the app
 captures diagnostic preferences. It starts Bitdrift only if crash reports,

@@ -45,7 +45,7 @@ layering, and the domain rules this target merely starts up.
   Group, storage policy, widget refresher, App Intents handoff, and primary icon
   must be injected from that one value.
 - **A one-shot demo still selects the regular runtime.** Activate its in-memory
-  scope before the onboarding gate can resolve a real store.
+  scope before the bootstrap step can open a real store.
 - **Release always builds `RegularApplicationRuntime`.** Boot preference reads,
   Inspector configuration, and menu integration stay under `#if DEBUG`.
 - **Wire regular launch in `didFinishLaunching`, not a SwiftUI `.task`.** When
@@ -67,10 +67,11 @@ layering, and the domain rules this target merely starts up.
   `FileInstallationRecordingContextStore`, one `WhereModel`, one
   `IntentServices`, one launcher. Create them here and inject down, per
   [Composition](../../AGENTS.md#composition-create-once-inject-down). The
-  launch's `resolve-scope` step is the process's only store open. It runs
-  *behind* the onboarding gate. This target opens nothing at startup. The
-  intents stack derives from whatever scope the launch resolves, in the
-  `onServicesReady` hook.
+  launch retains one `WhereBootstrap` with the process's only real store.
+  Compatibility checks precede onboarding data operations. `resolve-scope`
+  reuses that store through a fresh access permit after the gates pass.
+  The intents stack derives from each resolved scope in `onServicesReady`.
+  Guards: `WhereCompatibilityLifecycleTests` and the `ScopeExclusivity` model.
 - **Only the app owns the CloudKit capability.** Keep its App Group, CloudKit
   container (`iCloud.com.stuff.where`), Push Notifications entitlement, and
   remote-notification background mode together in `Project.swift`; widgets and
