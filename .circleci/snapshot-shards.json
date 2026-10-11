@@ -1,10 +1,7 @@
 {
   "formatVersion": 1,
-  "method": "longest-processing-time over median JUnit suite durations",
-  "sampleDocuments": 12,
   "shards": [
     {
-      "estimatedSeconds": 303.33,
       "index": 0,
       "suites": [
         "WhereUISnapshotTests/AppIconViewSnapshotTests",
@@ -26,7 +23,6 @@
       ]
     },
     {
-      "estimatedSeconds": 303.31,
       "index": 1,
       "suites": [
         "WhereUISnapshotTests/AboutSettingsViewSnapshotTests",
@@ -51,7 +47,6 @@
       ]
     },
     {
-      "estimatedSeconds": 303.41,
       "index": 2,
       "suites": [
         "FlyoverSnapshotTests/FlyoverSnapshotTests",
@@ -78,64 +73,5 @@
         "WhereUISnapshotTests/YearTotalsWidgetViewSnapshotTests"
       ]
     }
-  ],
-  "timings": {
-    "FlyoverSnapshotTests/FlyoverSnapshotTests": 16.0,
-    "InspectorSnapshotTests/InspectorSnapshotTests": 3.0,
-    "PeriscopeToolsSnapshotTests/PeriscopeViewerSnapshotTests": 3.0,
-    "WhereUISnapshotTests/AboutSettingsViewSnapshotTests": 33.0,
-    "WhereUISnapshotTests/AppIconViewSnapshotTests": 3.0,
-    "WhereUISnapshotTests/AppearanceSettingsViewSnapshotTests": 28.0,
-    "WhereUISnapshotTests/CalendarContentViewSnapshotTests": 71.0,
-    "WhereUISnapshotTests/CardDesignerStudioViewSnapshotTests": 5.0,
-    "WhereUISnapshotTests/DataSettingsViewSnapshotTests": 10.0,
-    "WhereUISnapshotTests/DayRelabelViewSnapshotTests": 28.0,
-    "WhereUISnapshotTests/DeveloperCrashTestingViewSnapshotTests": 1.0,
-    "WhereUISnapshotTests/DeveloperDemoLaunchSheetSnapshotTests": 1.0,
-    "WhereUISnapshotTests/DeveloperOverlaySnapshotTests": 6.0,
-    "WhereUISnapshotTests/DevicesSettingsViewSnapshotTests": 11.0,
-    "WhereUISnapshotTests/ElsewhereSummaryCardSnapshotTests": 8.0,
-    "WhereUISnapshotTests/ElsewhereViewSnapshotTests": 15.0,
-    "WhereUISnapshotTests/EstimatedTimeFeaturesViewSnapshotTests": 23.0,
-    "WhereUISnapshotTests/FlightDayDetailViewSnapshotTests": 74.0,
-    "WhereUISnapshotTests/FlightReviewPointRowSnapshotTests": 19.0,
-    "WhereUISnapshotTests/FlightStatusBannerSnapshotTests": 63.0,
-    "WhereUISnapshotTests/InsightsAccuracyFeaturesViewSnapshotTests": 11.0,
-    "WhereUISnapshotTests/LaunchSplashViewSnapshotTests": 2.0,
-    "WhereUISnapshotTests/LicenseViewSnapshotTests": 6.0,
-    "WhereUISnapshotTests/LocationsBackgroundSnapshotTests": 10.0,
-    "WhereUISnapshotTests/LocationsViewSnapshotTests": 150.0,
-    "WhereUISnapshotTests/LoggedDaysViewSnapshotTests": 10.0,
-    "WhereUISnapshotTests/MainTabsSnapshotTests": 20.0,
-    "WhereUISnapshotTests/ManualDayViewSnapshotTests": 15.0,
-    "WhereUISnapshotTests/OnboardingThemeSelectionViewSnapshotTests": 21.0,
-    "WhereUISnapshotTests/OnboardingViewSnapshotTests": 7.0,
-    "WhereUISnapshotTests/PersonalizationFeaturesViewSnapshotTests": 9.0,
-    "WhereUISnapshotTests/PlacesYearFeaturesViewSnapshotTests": 17.0,
-    "WhereUISnapshotTests/PlannedStayEditorSnapshotTests": 10.0,
-    "WhereUISnapshotTests/PresenceTimelineListSnapshotTests": 26.0,
-    "WhereUISnapshotTests/PrivacyBackupsFeaturesViewSnapshotTests": 12.0,
-    "WhereUISnapshotTests/PrivacyDiagnosticsSettingsViewSnapshotTests": 5.0,
-    "WhereUISnapshotTests/RankingAnimationLabViewSnapshotTests": 2.0,
-    "WhereUISnapshotTests/RecordingFeaturesViewSnapshotTests": 8.0,
-    "WhereUISnapshotTests/RegionCustomizeViewSnapshotTests": 3.0,
-    "WhereUISnapshotTests/RegionDaysViewSnapshotTests": 8.0,
-    "WhereUISnapshotTests/RegionMapViewSnapshotTests": 1.0,
-    "WhereUISnapshotTests/RegionsSettingsViewSnapshotTests": 8.0,
-    "WhereUISnapshotTests/ResolutionViewSnapshotTests": 13.0,
-    "WhereUISnapshotTests/RootViewSnapshotTests": 19.0,
-    "WhereUISnapshotTests/SettingsViewSnapshotTests": 11.0,
-    "WhereUISnapshotTests/ShareEvidenceFeaturesViewSnapshotTests": 10.0,
-    "WhereUISnapshotTests/SiriFeaturesViewSnapshotTests": 7.0,
-    "WhereUISnapshotTests/SnapshotCaptureFlagProbeTests": 0.31,
-    "WhereUISnapshotTests/TodayCircularAccessoryViewSnapshotTests": 0.33,
-    "WhereUISnapshotTests/TodayInlineAccessoryViewSnapshotTests": 0.24,
-    "WhereUISnapshotTests/TodayWidgetViewSnapshotTests": 0.44,
-    "WhereUISnapshotTests/WhereFlyoverViewSnapshotTests": 7.0,
-    "WhereUISnapshotTests/WhereLifecycleFailureViewSnapshotTests": 6.0,
-    "WhereUISnapshotTests/WidgetFeaturesViewSnapshotTests": 8.0,
-    "WhereUISnapshotTests/YearTotalsRectangularAccessoryViewSnapshotTests": 0.33,
-    "WhereUISnapshotTests/YearTotalsWidgetViewSnapshotTests": 0.4,
-    "WhereUISnapshotTests/YearViewSnapshotTests": 45.0
-  }
+  ]
 }
