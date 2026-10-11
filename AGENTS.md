@@ -51,7 +51,7 @@ generating. Plain `./ide` fails fast and points at bootstrap.
 After a site lockfile change, run `mise exec -- npm ci --prefix Tools/InstallerKit/Site`.
 
 The executables in the repo root are the dev scripts. They are `ide`, `test`,
-`swiftformat`, `sf-symbols`, `sync-agents`, `profile`, `icons`, `flaky`, `simulator`,
+`swiftformat`, `sf-symbols`, `sync-agents`, `profile`, `flyover`, `icons`, `flaky`, `simulator`,
 `worktree`, `signing`, `xcstrings`, `attribution`, `shellcheck`, `codex-watchdog`, `tla-check`,
 `circleci-artifacts`, `snapshot-shards`, `loc`. Each takes `--help`. Use one of these scripts instead of
 hand-rolling its job. `./test` owns iOS tests; the native-macOS Ledger scheme is the exception
