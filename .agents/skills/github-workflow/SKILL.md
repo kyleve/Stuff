@@ -125,6 +125,8 @@ branch.
   building on them.
 - **Changes / Architecture / Product behavior** — high-level structure and
   behavior. Group by subsystem and explain ownership and data flow.
+- **Screenshots** — selected images that explain visible behavior. Follow
+  [Explain visible changes](#explain-visible-changes). When images add no useful context, omit this section.
 - **Primary APIs** — important additions, changed contracts, and removals, with
   short usage examples. Follow [Explain API and architecture changes](#explain-api-and-architecture-changes).
 - **Design decisions / Trade-offs** — explicit choices and what was rejected.
@@ -160,6 +162,23 @@ change without opening the diff.
   focused on the design rather than copying full implementations.
 - Scale this material to the change. A small API edit can use one bullet and a
   few lines of code. Omit API sections for changes with no relevant API impact.
+
+#### Explain visible changes
+
+For new screens or meaningful UI changes, include screenshots or snapshot images that explain the result.
+
+- Choose a small set of representative images, usually one to three. Show the main flow and relevant states without reproducing the full snapshot matrix.
+- Prefer existing snapshots that match the reviewed revision, or capture the running feature. Use synthetic or demo data.
+  Follow [building-ui](../building-ui/SKILL.md) and [running-tests](../running-tests/SKILL.md) for capture and review.
+- For a visual fix or redesign, label comparable images **Before** and **After**.
+  Keep their device, appearance, data, and framing consistent.
+- Caption each image with the behavior to inspect. Identify the snapshot fixture or live capture, revision, and relevant device or appearance settings.
+  Provide descriptive alt text. Keep images readable inline and link to the full-resolution images.
+- Use persistent GitHub attachments or revision-pinned repository image URLs that return image bytes, including Git LFS assets.
+  Avoid local paths, expiring artifact URLs, and extra image copies committed only for the PR body.
+- Open the published PR and check each image, caption, and link. When the relevant UI changes, replace stale images.
+- Keep visual explanation separate from testing claims. A snapshot fixture does not establish live interaction, motion, or VoiceOver behavior.
+- If useful images cannot be captured or published, state the reason and the remaining visual validation limit.
 
 #### Common PR shapes
 
