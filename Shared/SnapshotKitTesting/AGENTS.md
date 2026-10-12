@@ -20,6 +20,9 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 
 ## Invariants an agent can't re-derive
 
+- **Use `snapshotReferenceURL` for recording, comparison, and review paths.** Keep filenames stable when the directory changes.
+- **Nest standard captures with non-default Dynamic Type, increased contrast, RTL, or bold text under the suite's `other/` directory.**
+- **Keep all accessibility annotations at the suite root, even with those traits.** Device, frame, name, and light/dark appearance do not select `other/`. Guard: `SnapshotReferenceURLTests`.
 - **The rendering pipeline is one async function.** All captures (standard and accessibility) flow through `renderSnapshotImage(...)`.
 - **The hosted PNG API uses the same pipeline and capture lock.** It returns bytes and dimensions without comparing a reference.
 - **HTML snapshots wrap offline WebKit in the standard view pipeline.** Use its host, traits, capture lock, and pixel renderer. Await navigation, fonts, paint, and full-content height convergence from the pre-measure hook. Keep consumer HTML generation outside this module. Guards: `AssertHTMLSnapshotsTests`, `SnapshotWebPageTests`.

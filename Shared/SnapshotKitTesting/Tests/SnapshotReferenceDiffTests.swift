@@ -4,53 +4,8 @@ import Testing
 import UIKit
 
 /// Covers the reference comparison that describes *how* a capture differs.
-///
-/// The reference-path derivation mirrors swift-snapshot-testing's own layout,
-/// which nothing public exposes, so it is pinned against a reference that
-/// actually exists in this repo — if the library ever moves them, that test
-/// fails rather than every capture quietly reporting "reference missing".
 @MainActor
 struct SnapshotReferenceDiffTests {
-    @Test func referencePathMatchesTheLibraryLayout() {
-        let url = snapshotReferenceURL(
-            testFilePath: "/repo/Shared/Thing/SnapshotTests/ThingSnapshotTests.swift",
-            testName: "thing()",
-            identifier: "Loaded_iPhone_dark",
-        )
-        #expect(url.path == """
-        /repo/Shared/Thing/SnapshotTests/__Snapshots__/ThingSnapshotTests/thing.Loaded_iPhone_dark.png
-        """)
-    }
-
-    @Test func referencePathToleratesATestNameWithoutParentheses() {
-        // `#function` supplies `thing()`, but a caller passing a bare name must
-        // not produce a `thing().identifier.png` path.
-        let url = snapshotReferenceURL(
-            testFilePath: "/repo/T/Tests/TSnapshotTests.swift",
-            testName: "thing",
-            identifier: "iPhone",
-        )
-        #expect(url.lastPathComponent == "thing.iPhone.png")
-    }
-
-    /// The derivation above is only useful if it lands on a real file. This
-    /// repo's own Inspector reference is the fixture.
-    @Test func derivedPathFindsAnActualReferenceInThisRepo() {
-        let url = snapshotReferenceURL(
-            testFilePath: inspectorTestFilePath,
-            testName: "inspectorSurfaces()",
-            identifier: "SwiftData_iPhone",
-        )
-        #expect(
-            FileManager.default.fileExists(atPath: url.path),
-            """
-            Derived reference path does not exist: \(url.path). \
-            swift-snapshot-testing's reference layout has moved, so every capture \
-            would report `referenceMissing` instead of comparing.
-            """,
-        )
-    }
-
     @Test func identicalBytesShortCircuit() throws {
         let png = try #require(solidImage(.red, size: CGSize(width: 8, height: 8)).pngData())
         let url = try write(png, named: "identical.png")
@@ -121,7 +76,8 @@ struct SnapshotReferenceDiffTests {
     /// those out of the run logs, so this fixture's imaginary reference would be
     /// listed among the real captures. It sorted to the top, too, since the
     /// numbers below are borrowed from a genuine regression.
-    @Test func reportDescribesADifferenceAsJSON() throws {
+    @Test(arguments: ["/refs/thing.case_dark.png", "/refs/other/thing.case_ax5.png"])
+    func reportDescribesADifferenceAsJSON(referencePath: String) throws {
         let magnitude = SnapshotDiffMagnitude(
             differingPixels: 7430,
             totalPixels: 3_162_132,
@@ -132,7 +88,7 @@ struct SnapshotReferenceDiffTests {
             SnapshotDiffReporting.line(
                 describing: .differs(magnitude),
                 identifier: "case_dark",
-                reference: URL(fileURLWithPath: "/refs/thing.case_dark.png"),
+                reference: URL(fileURLWithPath: referencePath),
             ),
         )
         let decoded = try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]
@@ -144,7 +100,7 @@ struct SnapshotReferenceDiffTests {
         #expect(line["region"] as? [Int] == [85, 2394, 1037, 144])
         // The path is what makes a diff attributable — seven suites here have an
         // `Empty` case, so the identifier alone names none of them.
-        #expect(line["reference"] as? String == "/refs/thing.case_dark.png")
+        #expect(line["reference"] as? String == referencePath)
     }
 
     @Test(arguments: [
@@ -159,19 +115,6 @@ struct SnapshotReferenceDiffTests {
     }
 
     // MARK: - Support
-
-    /// This file's sibling path to the Inspector suite, derived from
-    /// `#filePath` so it survives the repo moving.
-    private var inspectorTestFilePath: String {
-        URL(fileURLWithPath: #filePath)
-            // .../Shared/SnapshotKitTesting/Tests/ -> .../Shared/
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appendingPathComponent("Inspector/SnapshotTests")
-            .appendingPathComponent("InspectorSnapshotTests.swift")
-            .path
-    }
 
     private func solidImage(_ color: UIColor, size: CGSize, patch: CGRect? = nil) -> UIImage {
         let format = UIGraphicsImageRendererFormat()
