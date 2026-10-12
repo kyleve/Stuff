@@ -214,6 +214,7 @@ The command prints one URL for each network address that it finds. The other
 device must be able to reach this computer. A macOS firewall prompt can appear.
 The server pins the validated directory for its lifetime. It does not follow a
 symbolic link that replaces an allowed file or directory after startup.
+It rejects replacement special files without waiting for a FIFO writer.
 
 WARNING: LAN preview has no authentication or TLS. Any device that can reach
 the computer can view the native screenshots. Stop and restart the preview

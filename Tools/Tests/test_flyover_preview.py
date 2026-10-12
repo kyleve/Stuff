@@ -1,6 +1,8 @@
 import importlib.util
 import io
+import os
 import signal
+import subprocess
 import sys
 import tempfile
 import threading
@@ -25,6 +27,34 @@ SPEC.loader.exec_module(flyover_preview)
 
 class FlyoverPreviewTests(unittest.TestCase):
     fixture = staticmethod(create_flyover_artifact)
+
+    def test_replacement_fifo_is_rejected_without_waiting_for_a_writer(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self.fixture(Path(temporary))
+            artifact = flyover_preview.validate_artifact(root)
+            relative = "images/screen-0001/variant-0001/phone-light.png"
+            image = root / relative
+            with flyover_preview._open_artifact_root(artifact) as descriptor:
+                image.unlink()
+                os.mkfifo(image)
+                # Isolate a blocking regression so the suite can terminate it.
+                result = subprocess.run(
+                    [sys.executable, "-c", """
+import sys
+from Tools.flyover_preview import _open_file_beneath
+try:
+    with _open_file_beneath(int(sys.argv[1]), sys.argv[2]):
+        raise AssertionError("preview accepted a FIFO")
+except OSError:
+    pass
+""", str(descriptor), relative],
+                    cwd=MODULE_PATH.parent.parent,
+                    pass_fds=(descriptor,),
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_opening_an_allowlisted_file_does_not_follow_a_replacement_symlink(self):
         with tempfile.TemporaryDirectory() as temporary:
