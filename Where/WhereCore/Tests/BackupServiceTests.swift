@@ -17,6 +17,8 @@ struct BackupServiceTests {
         let deviceRemovalsCount: Int
         let plannedStayRecordsCount: Int
         let sampleAttributionRevisionsCount: Int
+        let recordingRecoveryExclusionsCount: Int
+        let requiredCompatibilityVersion: Int
         let assetsCount: Int
     }
 
@@ -62,6 +64,10 @@ struct BackupServiceTests {
         #expect(result.archive.plannedStayRecords.count == configuration.plannedStayRecordsCount)
         #expect(result.archive.sampleAttributionRevisions.count == configuration
             .sampleAttributionRevisionsCount)
+        #expect(result.archive.recordingRecoveryExclusions.count == configuration
+            .recordingRecoveryExclusionsCount)
+        #expect(result.archive.requiredCompatibilityVersion.rawValue == configuration
+            .requiredCompatibilityVersion)
         #expect(result.archive.assets.count == configuration.assetsCount)
         #expect(result.blobs.count == configuration.assetsCount)
     }
@@ -145,6 +151,8 @@ struct BackupServiceTests {
 
     private static func archive() -> BackupArchive {
         BackupArchive(
+            requiredCompatibilityVersion: .initial,
+            recordingRecoveryExclusions: [],
             exportedAt: exportDate,
             samples: [],
             evidence: [],
@@ -237,6 +245,8 @@ struct BackupServiceTests {
         )
 
         let url = try service.makeArchiveFile(
+            requiredCompatibilityVersion: .initial,
+            recordingRecoveryExclusions: [],
             samples: samples,
             evidence: evidence,
             manualDays: manualDays,
@@ -323,6 +333,8 @@ struct BackupServiceTests {
 
     @Test func decoderRejectsANegativeMetadataRevisionFromABackup() throws {
         let archive = BackupArchive(
+            requiredCompatibilityVersion: .initial,
+            recordingRecoveryExclusions: [],
             exportedAt: Self.exportDate,
             samples: [],
             evidence: [],
@@ -359,6 +371,8 @@ struct BackupServiceTests {
     @Test func archiveNameIsDateAndTimeStamped() throws {
         let service = BackupService()
         let url = try service.makeArchiveFile(
+            requiredCompatibilityVersion: .initial,
+            recordingRecoveryExclusions: [],
             samples: [],
             evidence: [],
             manualDays: [],
@@ -392,6 +406,8 @@ struct BackupServiceTests {
             ),
         ]
         let url = try service.makeArchiveFile(
+            requiredCompatibilityVersion: .initial,
+            recordingRecoveryExclusions: [],
             samples: [],
             evidence: [],
             manualDays: manualDays,
@@ -414,6 +430,8 @@ struct BackupServiceTests {
         let service = BackupService()
         let texas = try #require(Region(rawValue: "us-TX"))
         let url = try service.makeArchiveFile(
+            requiredCompatibilityVersion: .initial,
+            recordingRecoveryExclusions: [],
             samples: [],
             evidence: [],
             manualDays: [],
@@ -448,6 +466,8 @@ struct BackupServiceTests {
             PrimaryRegion(region: texas, appearance: nil, order: 1),
         ]
         let url = try service.makeArchiveFile(
+            requiredCompatibilityVersion: .initial,
+            recordingRecoveryExclusions: [],
             samples: [],
             evidence: [],
             manualDays: [],
@@ -489,6 +509,8 @@ struct BackupServiceTests {
             ),
         ]
         let url = try service.makeArchiveFile(
+            requiredCompatibilityVersion: .initial,
+            recordingRecoveryExclusions: [],
             samples: [],
             evidence: [],
             manualDays: manualDays,
@@ -509,6 +531,8 @@ struct BackupServiceTests {
 
     @Test func manifestRoundTripsThroughJSON() throws {
         let archive = BackupArchive(
+            requiredCompatibilityVersion: .initial,
+            recordingRecoveryExclusions: [],
             exportedAt: Self.exportDate,
             samples: Self.sampleFixtures(),
             evidence: Self.evidenceFixtures(),

@@ -7,6 +7,67 @@ import Testing
 /// coordinator invokes once new data lands.
 struct BackupCoordinatorTests {
     @Test(arguments: [BackupCoordinator.ImportStrategy.merge, .replace])
+    func recoveryHistoryRoundTripsWithoutRestoringLiveOwnership(_ strategy: BackupCoordinator
+        .ImportStrategy) async throws
+    {
+        let source = try Self.makeHarness()
+        let fixture = RecordingAuthorityFixture()
+        let server = LocalRecordingAuthorityTransport(now: { Date(timeIntervalSince1970: 2000) })
+        let authority = RecordingAuthorityCoordinator(store: source.store, transport: server)
+        let claim = try fixture.proposal(.initial, .claim, device: fixture.phone)
+        _ = try await authority.submit(claim)
+        let sample = try LocationSample(
+            timestamp: Date(timeIntervalSince1970: 2001),
+            coordinate: .init(latitude: 40, longitude: -100),
+            horizontalAccuracy: 5,
+            source: .gpsVisit,
+        ).recorded(under: #require(claim.result.owner))
+        try await source.store.perform { try await source.store.add(sample: sample) }
+        _ = try await authority.submit(fixture.proposal(
+            claim.result,
+            .recover(.excludeAfterReplacement),
+            device: fixture.tablet,
+        ))
+        let url = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let destination = try Self.makeHarness()
+        _ = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: strategy,
+        )
+        #expect(try await destination.store.allSamples() == [sample])
+        #expect(try await destination.store.recordingRecoveryExclusions().count == 1)
+        #expect(try await destination.store.recordingAuthority().owner == nil)
+        #expect(try await destination.store.requiredDataCompatibilityVersion() == .initial)
+        #expect(try await LocationHistoryReader(store: destination.store).samples(in: .init(
+            start: Date(timeIntervalSince1970: 2000),
+            end: Date(timeIntervalSince1970: 2002),
+        )).isEmpty)
+    }
+
+    @Test func unsupportedArchiveDoesNotMutateDestinationAuthority() async throws {
+        let source = try Self.makeHarness()
+        try await source.store.perform {
+            try await source.store.addDataCompatibilityRequirement(.init(
+                id: UUID(),
+                version: .init(rawValue: 2),
+            ))
+        }
+        let url = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let destination = try Self.makeHarness()
+        await #expect(throws: RecordingAuthorityError.unsupportedVersion) {
+            _ = try await destination.coordinator.importAndAcknowledgeBackup(
+                from: url,
+                strategy: .replace,
+            )
+        }
+        #expect(try await destination.store.dataGeneration().id == .initial)
+        #expect(try await destination.store.requiredDataCompatibilityVersion() == .initial)
+        #expect(try await destination.store.dataCompatibilityRequirements().isEmpty)
+    }
+
+    @Test(arguments: [BackupCoordinator.ImportStrategy.merge, .replace])
     func importingPreservesMotionAndCorrectionHistoryWithStrategyAppropriateResetAuthority(
         _ strategy: BackupCoordinator.ImportStrategy,
     ) async throws {
@@ -578,6 +639,8 @@ struct BackupCoordinatorTests {
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         let secondSample = Self.sample(at: "2026-08-03T10:00:00-07:00")
         let secondURL = try BackupService().makeArchiveFile(
+            requiredCompatibilityVersion: .initial,
+            recordingRecoveryExclusions: [],
             samples: [secondSample],
             evidence: [],
             manualDays: [],

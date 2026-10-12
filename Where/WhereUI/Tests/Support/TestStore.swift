@@ -31,6 +31,26 @@ struct RecordingDeviceSaveFailure: Error, Equatable {}
 actor TestStore: WhereStore {
     private let backing: SwiftDataStore
 
+    func dataCompatibilityRequirements() async throws
+        -> [DataCompatibilityRequirement]
+    {
+        try await backing.dataCompatibilityRequirements()
+    }
+
+    func addDataCompatibilityRequirement(_ requirement: DataCompatibilityRequirement) async throws {
+        try await backing.addDataCompatibilityRequirement(requirement)
+    }
+
+    func importedRecordingRecoveryExclusions() async throws
+        -> [RecordingRecoveryExclusion]
+    {
+        try await backing.importedRecordingRecoveryExclusions()
+    }
+
+    func addRecordingRecoveryExclusion(_ exclusion: RecordingRecoveryExclusion) async throws {
+        try await backing.addRecordingRecoveryExclusion(exclusion)
+    }
+
     func recordingAuthorityCommits() async throws -> [RecordingAuthorityCommit] {
         try await backing.recordingAuthorityCommits()
     }
