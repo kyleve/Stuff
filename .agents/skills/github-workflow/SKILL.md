@@ -180,6 +180,22 @@ For new screens or meaningful UI changes, include screenshots or snapshot images
 - Keep visual explanation separate from testing claims. A snapshot fixture does not establish live interaction, motion, or VoiceOver behavior.
 - If useful images cannot be captured or published, state the reason and the remaining visual validation limit.
 
+#### Explain complex flows with diagrams
+
+When prose hides important relationships, add a compact diagram beside the architecture explanation.
+Backend-heavy features often qualify: multi-owner work, persistence, synchronization, cancellation, retries, and recovery.
+Skip diagrams for simple changes or facts that a short paragraph or table explains clearly.
+
+- Prefer fenced `mermaid` in the PR body so the diagram stays editable and renders on GitHub.
+- Use a flowchart for decisions and data flow, a sequence diagram for ownership and ordering, or a state diagram for lifecycle.
+- Give each diagram one question to answer. Split unrelated flows instead of drawing the entire system.
+- Name the real components and label important transitions. Distinguish durable writes from in-memory state and asynchronous handoffs from atomic operations.
+- Include the failure, cancellation, fallback, or retry paths that affect the changed contract. Do not show only the happy path.
+- State omitted details and assumptions beside the diagram. Never imply cross-device atomicity or guarantees that the implementation does not provide.
+- Link the source that owns the flow. Keep API examples and validation evidence alongside the diagram, not replaced by it.
+- Trace the diagram against the current implementation before posting. Refresh it when review changes the flow.
+- Verify Mermaid syntax and inspect rendering when a renderer is available. Otherwise state the rendering limitation in validation.
+
 #### Common PR shapes
 
 Use the tier table above. **Do not open merged PRs for examples** unless a
