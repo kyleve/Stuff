@@ -242,6 +242,61 @@ if bad_directories or bad_files:
     raise SystemExit(f'unsafe published modes: directories={bad_directories}, files={bad_files}')
 PY
 
+INTERRUPT_RUNNER="$TEMP/interrupt-runner"
+cat >"$INTERRUPT_RUNNER" <<'RUNNER'
+#!/bin/bash
+set -euo pipefail
+"$FLYOVER_SUCCESS_RUNNER" "$@"
+kill -"$FLYOVER_TEST_SIGNAL" "$PPID"
+RUNNER
+chmod +x "$INTERRUPT_RUNNER"
+
+INTERRUPT_BIN="$TEMP/interrupt-bin"
+mkdir -p "$INTERRUPT_BIN"
+cat >"$INTERRUPT_BIN/mv" <<'MOVE'
+#!/bin/bash
+set -euo pipefail
+/bin/mv "$@"
+if [ "$1" = "$FLYOVER_SIGNAL_DESTINATION" ]; then
+    kill -"$FLYOVER_TEST_SIGNAL" "$PPID"
+fi
+MOVE
+chmod +x "$INTERRUPT_BIN/mv"
+
+for signal_name in INT TERM; do
+    expected_status=130
+    [ "$signal_name" != TERM ] || expected_status=143
+    for phase in capture replacement; do
+        interrupted_parent="$TEMP/interrupted-$signal_name-$phase"
+        mkdir -p "$interrupted_parent"
+        interrupted_output="$interrupted_parent/atlas"
+        cp -R "$OUTPUT" "$interrupted_output"
+        signal_destination="$(cd "$interrupted_output" && pwd -P)"
+        signal_runner="$SUCCESS_RUNNER"
+        signal_path="$PATH"
+        if [ "$phase" = capture ]; then
+            signal_runner="$INTERRUPT_RUNNER"
+        else
+            signal_path="$INTERRUPT_BIN:$PATH"
+        fi
+        if env PATH="$signal_path" FLYOVER_CAPTURE_RUNNER="$signal_runner" \
+            FLYOVER_SUCCESS_RUNNER="$SUCCESS_RUNNER" FLYOVER_XCODE_VERSION_OVERRIDE=Tests \
+            FLYOVER_TEST_SIGNAL="$signal_name" FLYOVER_SIGNAL_DESTINATION="$signal_destination" \
+            "$ROOT/flyover" export --output "$interrupted_output" --profile phone-light \
+            >"$TEMP/stdout" 2>"$TEMP/stderr"; then
+            fail "$signal_name during $phase returned success"
+        else
+            actual_status=$?
+        fi
+        [ "$actual_status" -eq "$expected_status" ] \
+            || fail "$signal_name during $phase returned $actual_status instead of $expected_status"
+        diff -r "$OUTPUT" "$interrupted_output" \
+            || fail "$signal_name during $phase changed the previous artifact"
+        [ "$(find "$interrupted_parent" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')" = 1 ] \
+            || fail "$signal_name during $phase left staging or replacement output"
+    done
+done
+
 STANDARD_CACHE_PYTHON_BIN="$TEMP/standard-cache-python-bin"
 mkdir -p "$STANDARD_CACHE_PYTHON_BIN"
 cat >"$STANDARD_CACHE_PYTHON_BIN/python3" <<'PYTHON'

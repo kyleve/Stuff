@@ -189,6 +189,8 @@ successful atlas unchanged. Before replacement, the command validates all
 schema fields, references, image mappings, and generated PNG files. A repeated
 in-repository export excludes its prior generated directory from dirty-build
 metadata. A Git status error stops the export.
+SIGINT and SIGTERM stop publication and run cleanup. If replacement has not
+committed, cleanup restores the previous atlas. The exit status is 130 or 143.
 
 For a static host, upload the contents of the generated directory. Put
 `index.html` at the selected host root or subpath. The site needs no build step.
