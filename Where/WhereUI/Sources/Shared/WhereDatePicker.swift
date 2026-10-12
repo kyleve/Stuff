@@ -88,7 +88,7 @@ struct WhereDatePicker: View {
 /// renders differently depending on the day the test runs, and no settle
 /// window can stabilize it. Captures substitute this row instead: the same
 /// title + trailing-capsule layout, with the selection rendered in a fixed
-/// format and locale so the image is a pure function of the selected value.
+/// format and locale, using the same calendar and timezone as the live picker.
 /// Only the system-drawn value capsule is substituted — the row title and
 /// surrounding Form chrome stay real — per the `\.isCapturingSnapshot`
 /// carve-out (see SnapshotKit's `SnapshotCaptureFlag`).
@@ -102,6 +102,8 @@ private struct SnapshotDatePickerStandIn: View {
 
     let title: String
     let selection: Selection
+    @Environment(\.calendar) private var calendar
+    @Environment(\.timeZone) private var timeZone
 
     var body: some View {
         LabeledContent(title) {
@@ -118,26 +120,34 @@ private struct SnapshotDatePickerStandIn: View {
     private var formattedSelection: String {
         switch selection {
             case let .date(date):
-                date.formatted(Self.dateStyle)
+                date.formatted(dateStyle)
             case let .timeOfDay(date):
-                date.formatted(Self.timeStyle)
+                date.formatted(timeStyle)
         }
     }
 
     /// The medium date the live picker prefers ("Jul 15, 2026"), now with a
     /// fixed locale and no dependence on today's capsule-width reservation.
-    private static let dateStyle = Date.FormatStyle(
-        date: .abbreviated,
-        time: .omitted,
-        locale: Locale(identifier: "en_US"),
-    )
+    private var dateStyle: Date.FormatStyle {
+        Date.FormatStyle(
+            date: .abbreviated,
+            time: .omitted,
+            locale: Locale(identifier: "en_US"),
+            calendar: calendar,
+            timeZone: timeZone,
+        )
+    }
 
     /// Shortened time ("8:00 PM") in the same fixed locale.
-    private static let timeStyle = Date.FormatStyle(
-        date: .omitted,
-        time: .shortened,
-        locale: Locale(identifier: "en_US"),
-    )
+    private var timeStyle: Date.FormatStyle {
+        Date.FormatStyle(
+            date: .omitted,
+            time: .shortened,
+            locale: Locale(identifier: "en_US"),
+            calendar: calendar,
+            timeZone: timeZone,
+        )
+    }
 }
 
 #if DEBUG
