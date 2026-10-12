@@ -66,7 +66,7 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) first. That file owns the build 
 - **Keep Periscope storage local-only.** Every on-disk `ModelConfiguration` explicitly sets `cloudKitDatabase: .none`.
 - **A host app's iCloud entitlement must never opt the logging schema into CloudKit implicitly.**
 - **Persist payloads as versioned JSON** (`eventName` + `eventVersion`). An event shape change must not require a SwiftData migration.
-- **While the app is pre-release, shape changes need no decode tolerance either.** The store is deleted rather than migrated.
+- **Do not add an event-payload migration or typed legacy decode fallback.** Historical rows remain readable as raw records. Reset the pre-release development store manually before validating new span pairing; startup never deletes it automatically. See the README's classified-event compatibility contract.
 - **Keep `Codable` conformances synthesized instead of hand-writing defaults for older rows.**
 - **A session names its build only as far as the app told it.** `LogSession.attributes` is filled by the host app at bootstrap.
 - **PeriscopeCore sits below the app modules and cannot read a build stamp.**

@@ -5,8 +5,7 @@ import PeriscopeCore
 /// The reader has no events to emit — every failure it meets is thrown to the
 /// caller, which decides how to surface it — so this type exists purely to give
 /// the read path its own log scope and a compiler-checked set of span names.
-/// A span-only facade, like ``PresenceCalendarLog``: `private init()` leaves no
-/// way to construct one, so it can never be emitted as an event.
+/// A span-only scope, like ``PresenceCalendarLog``, with no event declarations.
 @LogScope("ReportReader")
 enum ReportReaderLog {
     /// Names the read spans (`log.measure(.yearReport) { … }`). Each is one store

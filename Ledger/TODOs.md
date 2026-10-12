@@ -1,9 +1,10 @@
 # Ledger todos
 
 The backlog for the Ledger menu bar app and `LedgerCore`. Ledger is native
-macOS and sits outside the Where module graph, so the Bumper Bowling
-architecture lint does not cover it (`BumperBowling.swift` includes only Where
-paths) — the conventions below are enforced by review rather than by lint.
+macOS. `BumperBowling.swift:26-27` now includes LedgerCore source and tests,
+and `:59-63` declares its dependency on Periscope. The new logging-authoring
+rules apply there; Where's Gregorian rule remains scoped to Where production
+sources, so the calendar item below is still enforced by review.
 
 The item format and the placement rule live in the root
 [`TODOs.md`](../TODOs.md); raw notes go in [`INBOX.md`](../INBOX.md), not here.
