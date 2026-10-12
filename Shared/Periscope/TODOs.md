@@ -1,8 +1,8 @@
 # Periscope todos
 
 The backlog for the Periscope module group — PeriscopeCore, PeriscopeUI, and
-PeriscopeTools. JournalKit is a separate module and keeps its own file, even
-though Periscope is its only consumer.
+PeriscopeTools. JournalKit is a separate module with its own
+[`TODOs.md`](../JournalKit/TODOs.md). Periscope and WhereCore both consume it.
 
 The item format and the placement rule live in the root
 [`TODOs.md`](../../TODOs.md); raw notes go in [`INBOX.md`](../../INBOX.md), not
