@@ -66,6 +66,7 @@ authorizes replies on the threads you fix, decline, or defer — see
   it.
 - Start from [`.github/PULL_REQUEST_TEMPLATE.md`](../../../.github/PULL_REQUEST_TEMPLATE.md)
   and follow [Writing the PR body](#writing-the-pr-body) below.
+- For new or changed screens, add [screen snapshot comments](#screen-snapshot-comments) before handing over the PR.
 - **Flag lines that warrant extra scrutiny.** Leave a PR review comment on
   anything worth a closer read (subtle behavior changes, incomplete migrations,
   assumptions about `main`).
@@ -294,6 +295,28 @@ shape below is genuinely unclear.
   Link the relevant commits or comparison.
   Identify changed decisions, assumptions that need another review, and repeated or pending validation.
   Keep the main body current with the final design and its rationale.
+
+## Screen snapshot comments
+
+For each new or changed screen, post a file-level PR review comment with a representative snapshot of the resulting screen.
+These comments and their image updates are part of the screen-change handoff.
+
+- Attach the comment to the screen's owning source file in the PR diff.
+  If that file is unchanged, use the changed file responsible for the screen change.
+  Name the screen in the comment.
+- Before posting, look for an existing agent-authored snapshot comment for that screen.
+  Maintain one snapshot comment per screen.
+- Apply the capture, caption, revision, image-link, and publication checks from [Explain visible changes](#explain-visible-changes).
+  Include the [AI attribution](#posting-under-the-users-identity) in the comment.
+- With `gh api`, use the [review-comment API](https://docs.github.com/en/rest/pulls/comments) with `subject_type=file`, the source `path`, and the current head `commit_id`.
+- After further screen-code changes, capture the updated screen.
+  Edit the existing snapshot comment in place.
+  Use its comment ID to update the body through the review-comment API.
+  Replace the current image, caption, and capture revision.
+  Preserve the discussion.
+  Open the updated comment and check the image.
+- If an image refresh is blocked, label the previous image as stale.
+  Report the blocker.
 
 ## Creating and maintaining stacked PRs
 
