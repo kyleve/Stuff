@@ -83,11 +83,14 @@
         /// `UNUserNotificationCenter` permission prompt in previews/tests.
         @MainActor
         public static func previewServices() -> WhereServices {
-            previewServices(locationSource: ScriptedLocationSource())
+            previewServices(locationSource: ScriptedLocationSource(), now: { referenceNow })
         }
 
         @MainActor
-        private static func previewServices(locationSource: any LocationSource) -> WhereServices {
+        private static func previewServices(
+            locationSource: any LocationSource,
+            now: @escaping @Sendable () -> Date,
+        ) -> WhereServices {
             WhereServices(
                 store: try! SwiftDataStore.inMemory(),
                 locationSource: locationSource,
@@ -104,7 +107,7 @@
                 // reference happened to be recorded on July 25, and it had been
                 // silently wrong on every day since — passing only because two
                 // digit glyphs fall under the pixel threshold.
-                now: { referenceNow },
+                now: now,
             )
         }
 
@@ -117,10 +120,16 @@
         /// `*YearReportModel()` fixture instead.
         @MainActor
         public static func loadedSession() -> WhereSession {
+            loadedSession(now: { referenceNow })
+        }
+
+        /// A fixture whose services and session share the same injected clock.
+        @MainActor
+        public static func loadedSession(now: @escaping @Sendable () -> Date) -> WhereSession {
             WhereSession(
-                services: previewServices(),
+                services: previewServices(locationSource: ScriptedLocationSource(), now: now),
                 preferences: previewPreferences(),
-                now: { referenceNow },
+                now: now,
             )
         }
 
@@ -130,6 +139,7 @@
             WhereSession(
                 services: previewServices(
                     locationSource: ScriptedLocationSource(authorizationStatus: .whenInUse),
+                    now: { referenceNow },
                 ),
                 preferences: previewPreferences(),
                 now: { referenceNow },
@@ -331,7 +341,7 @@
             let source = ScriptedLocationSource()
             source.setNextRequestedLocation(currentLocation)
             let model = YearReportModel(
-                services: previewServices(locationSource: source),
+                services: previewServices(locationSource: source, now: { referenceNow }),
                 details: sampleYearReportDetails(),
                 selectedYear: year,
                 preferences: previewPreferences(),

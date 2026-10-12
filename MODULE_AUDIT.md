@@ -8,6 +8,12 @@ This report is derived from all 12 `TODOs.md` files and carries no actionable
 items. The root [`TODOs.md`](TODOs.md) owns their format and placement. It is
 true as of the header date and reviewed source, not as of later HEADs.
 
+**Merge reconciliation:** the branch also includes later October 12 main commits
+`d799a96a` (#365) and `ba3d8fb3` (#366). The live Where backlog preserves their
+calendar-positioning requirement and completed calendar/year accessibility fixes.
+Those closures and rendered-image evidence come from #366; this report retains
+its original source cutoff and does not claim a new visual audit of those changes.
+
 ## Method and changes since the previous audit
 
 The pass read every open area backlog, inspected cited source/test mechanisms,
