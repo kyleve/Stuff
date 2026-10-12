@@ -31,6 +31,10 @@ struct WhereStylesheetTests {
 
     private let style = WhereStylesheet.default
 
+    @Test func yearModePickerDefaultsToInline() {
+        #expect(style.yearModePicker.layout == .inline)
+    }
+
     @MainActor
     @Test(arguments: DynamicTypeSize.allCases)
     func resolvesComponentLayouts(size: DynamicTypeSize) throws {
@@ -45,6 +49,7 @@ struct WhereStylesheetTests {
         #expect(sheet.privacyPassportCard.headerLayout == layout)
         #expect(sheet.privacyPassportCard.disclosure.layout == layout)
         #expect(sheet.themePicker.layout == layout)
+        #expect(sheet.yearModePicker.layout == layout)
         #expect(sheet.openSourceStamp.layout == layout)
         #expect(sheet.plannedStayWarningStamp.layout == layout)
         #expect(sheet.featureDiscovery.appIcon.layout == layout)
@@ -416,6 +421,7 @@ struct WhereStylesheetTests {
         let day = calendar.day
         #expect(day.minHeight == 44)
         #expect(day.numberSize == 26)
+        #expect(day.numberFontSize == 17)
         #expect(day.numberDotSpacing == 0)
         #expect(day.dotSize == 8)
         #expect(day.dotOverlap == 2)
@@ -434,6 +440,8 @@ struct WhereStylesheetTests {
         let month = calendar.month
         #expect(month.sectionSpacing == 8)
         #expect(month.gridSpacing == 6)
+        #expect(month.weekdayFontSize == 11)
+        #expect(month.stacksFooter == false)
         #expect(month.padding == 16)
         #expect(month.cornerRadius == 28)
         #expect(month.plain.fill == Color.primary.opacity(0.03))
@@ -976,6 +984,10 @@ struct WhereStylesheetTests {
         context.traitOverrides.contentSizeCategory = .accessibilityLarge
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.calendar.day.minHeight == 56)
+        #expect(resolved.calendar.day.numberSize == 36)
+        #expect(resolved.calendar.day.numberFontSize == 24)
+        #expect(resolved.calendar.month.weekdayFontSize == 14)
+        #expect(resolved.calendar.month.stacksFooter)
         #expect(resolved.timeline.overview.pinsToViewport == false)
         #expect(resolved.timeline.row.stacksDayCount)
         #expect(resolved.featureDiscovery.siri.bubble.indent == 0)

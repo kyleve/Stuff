@@ -17,6 +17,8 @@ struct WhereDatePicker: View {
     /// range overloads. `nil` means unbounded on that end.
     var earliest: Date?
     var latest: Date?
+    /// Qualifies repeated date fields without replacing their selected value.
+    let accessibilityTitle: String?
     let displayedComponents: DatePickerComponents
 
     @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
@@ -26,18 +28,26 @@ struct WhereDatePicker: View {
         selection: Binding<Date>,
         earliest: Date? = nil,
         latest: Date? = nil,
+        accessibilityTitle: String? = nil,
         displayedComponents: DatePickerComponents,
     ) {
         self.title = title
         _selection = selection
         self.earliest = earliest
         self.latest = latest
+        self.accessibilityTitle = accessibilityTitle
         self.displayedComponents = displayedComponents
     }
 
     var body: some View {
         if isCapturingSnapshot {
-            SnapshotDatePickerStandIn(title: title, selection: standInSelection)
+            SnapshotDatePickerStandIn(
+                title: title,
+                selection: standInSelection,
+                accessibilityTitle: accessibilityTitle,
+            )
+        } else if let accessibilityTitle {
+            livePicker.accessibilityLabel(accessibilityTitle)
         } else {
             livePicker
         }
@@ -102,10 +112,23 @@ private struct SnapshotDatePickerStandIn: View {
 
     let title: String
     let selection: Selection
+    let accessibilityTitle: String?
     @Environment(\.calendar) private var calendar
     @Environment(\.timeZone) private var timeZone
 
     var body: some View {
+        if let accessibilityTitle {
+            row
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(accessibilityTitle)
+                .accessibilityValue(formattedSelection)
+                .accessibilityAddTraits(.isButton)
+        } else {
+            row
+        }
+    }
+
+    private var row: some View {
         LabeledContent(title) {
             Text(formattedSelection)
                 .foregroundStyle(.primary)

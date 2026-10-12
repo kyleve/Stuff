@@ -74,7 +74,11 @@ private struct YearModePicker: View {
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        HStack(spacing: stylesheet.spacing.xxSmall) {
+        let layout = stylesheet.yearModePicker.layout == .stacked
+            ? AnyLayout(VStackLayout(spacing: stylesheet.spacing.xxSmall))
+            : AnyLayout(HStackLayout(spacing: stylesheet.spacing.xxSmall))
+
+        layout {
             ForEach(YearMode.allCases, id: \.self) { candidate in
                 segment(candidate)
             }

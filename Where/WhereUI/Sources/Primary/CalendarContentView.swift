@@ -317,7 +317,8 @@ private struct MonthGridView: View {
             ) {
                 ForEach(month.weekdaySymbols, id: \.self) { symbol in
                     Text(symbol)
-                        .font(.caption2)
+                        .font(.system(size: calendar.month.weekdayFontSize))
+                        .lineLimit(1)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
                 }
@@ -454,22 +455,31 @@ private struct MonthFooter: View {
 
     private func row(for tally: RegionDayTally) -> some View {
         let isFocused = tally.region == focusedRegion
-        return HStack(spacing: calendar.month.footerRowSpacing) {
-            Circle()
-                .fill(regionStyles.style(for: tally.region).tint)
-                .frame(
-                    width: calendar.dotSize,
-                    height: calendar.dotSize,
-                )
-            Text(tally.region.localizedName)
-                .font(.subheadline)
-                .fontWeight(isFocused ? .semibold : .regular)
-            Spacer(minLength: 0)
+        let layout = calendar.month.stacksFooter
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: calendar.month.footerRowSpacing))
+            : AnyLayout(HStackLayout(spacing: calendar.month.footerRowSpacing))
+        return layout {
+            HStack(spacing: calendar.month.footerRowSpacing) {
+                Circle()
+                    .fill(regionStyles.style(for: tally.region).tint)
+                    .frame(
+                        width: calendar.dotSize,
+                        height: calendar.dotSize,
+                    )
+                Text(tally.region.localizedName)
+                    .font(.subheadline)
+                    .fontWeight(isFocused ? .semibold : .regular)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if !calendar.month.stacksFooter {
+                Spacer(minLength: 0)
+            }
             Text(WhereFormat.dayCount(tally.days))
                 .font(.subheadline)
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .opacity(focusedRegion == nil || isFocused ? 1 : calendar.month.unfocusedRowOpacity)
     }
 }
@@ -492,8 +502,9 @@ private struct DayCell: View {
     var body: some View {
         VStack(spacing: calendar.day.numberDotSpacing) {
             Text("\(day.dayOfMonth)")
-                .font(.callout)
+                .font(.system(size: calendar.day.numberFontSize))
                 .monospacedDigit()
+                .lineLimit(1)
                 .foregroundStyle(dayNumberColor)
                 .frame(width: calendar.day.numberSize, height: calendar.day.numberSize)
                 .background {
