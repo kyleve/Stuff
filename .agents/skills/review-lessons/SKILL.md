@@ -28,6 +28,10 @@ The weekly [todo-triage](../todo-triage/SKILL.md) pass owns backlog maintenance 
 - Find PRs updated during the review window, including older, closed, and still-open PRs.
   Read inline threads, submitted reviews, conversation comments, and follow-up fixes.
   Include resolved threads and later corrections to the original feedback.
+- Collect clarification questions about scope, affected callers, validation, and design rationale.
+  Compare them with the description and context available at the time of review.
+  If the earlier description is unavailable, record that limit.
+  Do not infer an earlier omission from the current body.
 - Paginate the PR list and every comment, review, and thread collection.
   Split searches that reach an API result cap.
   Filter individual events by the recorded window, allowing overlap at the start boundary.
@@ -56,6 +60,7 @@ Use the current owner of each rule before adding a new instruction.
 | Existing guidance missed | Repair its discovery, placement, or relevant workflow step. Consolidate duplicate instructions. |
 | Missing or ineffective guard | Prefer compiler constraints, lint, or regression tests for deterministic requirements. Verify that the guard rejects the observed failure. |
 | Obsolete or conflicting guidance | Remove or correct it against current source and the final decision. |
+| Recurring clarification caused by missing PR context | Add a conditional prompt to the relevant [PR body guidance](../github-workflow/SKILL.md#writing-the-pr-body). |
 | No supported gap | Leave the guidance unchanged. Record why the evidence does not justify a change. |
 
 Read the owning module instructions before changing guidance or a guard.
@@ -74,7 +79,7 @@ Remove redundant guidance as part of the same correction.
 Review whether earlier corrections prevented recurrence in later comparable changes.
 Count a recurrence only after the relevant guidance or guard landed.
 Separate new violations from defects already present at that time.
-Report the number of relevant changes examined and any repeated failures.
+Report the number of relevant changes examined and any repeated defects or clarification gaps.
 A quiet period without comparable changes does not establish effectiveness.
 
 Validate the changed files through the root rules and applicable skills.
