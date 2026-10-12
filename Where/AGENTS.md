@@ -109,10 +109,10 @@ a screen felt slow.
   (`WhereSession.appBecameActive`, `YearReportModel.refreshAll`, an intent's
   `perform`). A SwiftUI computed property re-evaluated per `body` pass is not.
   It would emit continuously and bury the real signal.
-- **If a type needs spans but has no events,** give it a span-only facade. Use
-  a `struct` conforming to `LogEvent` with a `private init` and an empty
-  `message` (`ReportReaderLog`, `DataIssueScannerLog`, `PresenceCalendarLog`).
-  It names spans without inventing an event nobody emits.
+- **If a type needs spans but has no events,** declare an `@LogScope` enum
+  with its nested `SpanName` and no `@LogEvent` members. See `ReportReaderLog`,
+  `DataIssueScannerLog`, and `PresenceCalendarLog`. Derive its logger through
+  the owning `WhereLog` group.
 - **Spans emitted before a scope's durable store attaches are
   half-persisted.** A `SpanBegan` from the pre-sink window is only in OSLog.
   The `SpanEnded` lands in the store. Durations survive but the pair does not.

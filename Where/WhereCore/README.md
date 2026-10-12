@@ -291,6 +291,8 @@ one it belongs to rather than to a god-object:
   collaborator's expensive work is also timed against a declared budget through
   its `*Log`'s `SpanName` cases, so slow reads, commits, and reconciles show up
   in Periscope's span history rather than only as a slow screen.
+  Span-only collaborators such as `ReportReaderLog` declare an `@LogScope`
+  enum with a nested `SpanName`; they need no event declaration or empty payload.
 
 Where's structured failure events use restricted `LogError` payloads.
 Callers pass the original error through `.restricted(.errorDetails, error)`.
