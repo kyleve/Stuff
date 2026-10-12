@@ -2345,6 +2345,149 @@
         }
       }
     },
+    "compatibility.appStore" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open App Store"
+          }
+        }
+      }
+    },
+    "compatibility.buildVersion %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This build supports data version %lld."
+          }
+        }
+      }
+    },
+    "compatibility.checking" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking shared data…"
+          }
+        }
+      }
+    },
+    "compatibility.chooseRecording" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose whether this device should record your location. A restored or replacement phone needs a new confirmation."
+          }
+        }
+      }
+    },
+    "compatibility.diagnostics" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diagnostics"
+          }
+        }
+      }
+    },
+    "compatibility.manageRecording" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage recording device"
+          }
+        }
+      }
+    },
+    "compatibility.noBuilds" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No update has been published yet. Install a compatible development build when it is available."
+          }
+        }
+      }
+    },
+    "compatibility.requiredVersion %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shared data requires version %lld."
+          }
+        }
+      }
+    },
+    "compatibility.testFlight" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open TestFlight"
+          }
+        }
+      }
+    },
+    "compatibility.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App compatibility"
+          }
+        }
+      }
+    },
+    "compatibility.updateRecorder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update and open the app on your recording device first. This device will wait before changing the shared data version. If you are replacing that device, manage recording below."
+          }
+        }
+      }
+    },
+    "compatibility.updateThisDevice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shared data requires a newer app build. Update this device to continue. Your recording choice and queued samples are preserved."
+          }
+        }
+      }
+    },
+    "compatibility.verificationFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The app could not verify shared data compatibility. Check your connection and iCloud account, then retry."
+          }
+        }
+      }
+    },
     "demo.building.subtitle" : {
       "comment" : "Interstitial subtitle shown while demo mode's sample year is generated.",
       "extractionState" : "manual",
