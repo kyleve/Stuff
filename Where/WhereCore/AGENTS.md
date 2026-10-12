@@ -220,3 +220,8 @@ reload the user's widget timelines as a side effect of saving a day. Only
 `WhereBootstrap` names the real ones. `forIntents(sharingStoreOf:)` inherits
 them from its base for the same reason it inherits the attributor. A stack
 derived from the demo world must stay made of no-ops.
+
+- Require the current server-confirmed owner and local consent for automatic GPS. Recheck tenure before persisting a callback; preserve accepted outbox entries on ownership loss.
+- Persist an approval fence before stopping GPS and committing a handoff. Keep uncertain approvals and their cancellations fenced across restart until a server-confirmed outcome. Reconcile terminal commands after refresh and preserve the event ID for retries (`RecordingDeviceCoordinationTests`, `RecordingAuthority` model).
+
+- Reject handoff targets with observed removal tombstones before approval and again before submission. Cancel a pending handoff before removing its target (`RecordingDeviceCoordinationTests`).
