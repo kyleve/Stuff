@@ -967,6 +967,15 @@ private actor OneShotGate {
 /// other API forwards to a real in-memory `SwiftDataStore`.
 private actor ToggleFailingStore: WhereStore {
     private let backing: SwiftDataStore
+
+    func recordingAuthorityCommits() async throws -> [RecordingAuthorityCommit] {
+        try await backing.recordingAuthorityCommits()
+    }
+
+    func addRecordingAuthorityCommit(_ commit: RecordingAuthorityCommit) async throws {
+        try await backing.addRecordingAuthorityCommit(commit)
+    }
+
     private var shouldFail = false
     private var nextExpectedGenerationGate: OneShotGate?
 

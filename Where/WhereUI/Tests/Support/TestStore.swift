@@ -31,6 +31,14 @@ struct RecordingDeviceSaveFailure: Error, Equatable {}
 actor TestStore: WhereStore {
     private let backing: SwiftDataStore
 
+    func recordingAuthorityCommits() async throws -> [RecordingAuthorityCommit] {
+        try await backing.recordingAuthorityCommits()
+    }
+
+    func addRecordingAuthorityCommit(_ commit: RecordingAuthorityCommit) async throws {
+        try await backing.addRecordingAuthorityCommit(commit)
+    }
+
     private var gateFirstSamplesCall = false
     private var firstSamplesSeen = false
     private var gate: CheckedContinuation<Void, Never>?
