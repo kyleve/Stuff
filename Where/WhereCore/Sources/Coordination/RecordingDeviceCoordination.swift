@@ -33,6 +33,16 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
         }
     }
 
+    public func subscribeToChanges() async {
+        do { try await authority.subscribe() }
+        catch {
+            WhereLog.root(DataCompatibilityLog.self).subscriptionFailed(error: .restricted(
+                .errorDetails,
+                error,
+            ))
+        }
+    }
+
     public nonisolated func updates() -> AsyncStream<Void> {
         authority.updates()
     }
@@ -51,7 +61,7 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
         // An in-flight command owns its sidecar until it completes or reports uncertainty.
         guard !isOperating else { return state }
         isOperating = true
-        defer { isOperating = false }
+        defer { finishOperation() }
         try await reconcilePendingTransition(verified: state)
         return state
     }

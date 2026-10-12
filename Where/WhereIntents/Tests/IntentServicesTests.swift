@@ -16,6 +16,24 @@ struct IntentServicesTests {
         try IntentTestSupport.services(store: SwiftDataStore.inMemory())
     }
 
+    @Test func blockedLaunchRejectsParkedAndFutureIntentsUntilReinstalled() async throws {
+        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        let pending = Task { try await handoff.current() }
+        try await waitUntil { await handoff.waiterCount == 1 }
+        await handoff.setCompatibility(.updateRequired(.init(rawValue: 2)))
+        await #expect(throws: DataCompatibilityError.updateRequired(.init(rawValue: 2))) {
+            _ = try await pending.value
+        }
+        await handoff.clear()
+        await #expect(throws: DataCompatibilityError.updateRequired(.init(rawValue: 2))) {
+            _ = try await handoff.current()
+        }
+        let replacement = try makeStack()
+        await handoff.setCompatibility(.compatible(.current))
+        await handoff.install(replacement, theme: .standard)
+        #expect(try await handoff.current().journal === replacement.journal)
+    }
+
     @Test func currentReturnsTheInstalledStack() async throws {
         let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
         let stack = try makeStack()

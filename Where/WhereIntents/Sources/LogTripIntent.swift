@@ -46,6 +46,7 @@ public struct LogTripIntent: AppIntent {
         guard dayCount > 0 else {
             return .result(dialog: IntentDialog("\(IntentStrings.emptyTripRange())"))
         }
+        try await services.validateDataAccess()
         return .result(
             dialog: IntentDialog(
                 "\(IntentStrings.loggedTrip(dayCount: dayCount, regions: orderedRegions(regionSet)))",

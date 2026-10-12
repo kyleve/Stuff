@@ -194,3 +194,7 @@ and explicit initializer spellings. Mutation guard: `onboardingWorkBelongsToTheG
 Aliases and contextually inferred `.init` calls are outside this syntax check.
 Cancellation checkpoints and draining are behavior guards in `LifecycleGateHandleTests`,
 `LifecycleRunnerResetTests`, and `WhereCompatibilityLifecycleTests`.
+
+### `where.compatibility_output_composition`
+
+Construct each production `DataCompatibilityOutputs` lifetime in `WhereServices` over that scope's store. Isolated test fixtures may construct their own. Mutation coverage: `outputLifetimesBelongToTheServiceScope`.
