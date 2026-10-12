@@ -156,7 +156,11 @@ def _open_file_beneath(root_descriptor: int, relative: str) -> BinaryIO:
             )
             os.close(current_descriptor)
             current_descriptor = next_descriptor
-        file_descriptor = os.open(parts[-1], flags, dir_fd=current_descriptor)
+        # A file can become a FIFO after startup validation. Do not wait for a
+        # writer before fstat can reject it. O_NONBLOCK does not affect regular files.
+        file_descriptor = os.open(
+            parts[-1], flags | os.O_NONBLOCK, dir_fd=current_descriptor
+        )
         if not stat.S_ISREG(os.fstat(file_descriptor).st_mode):
             raise OSError("the request target is not a regular file")
         file = os.fdopen(file_descriptor, "rb")

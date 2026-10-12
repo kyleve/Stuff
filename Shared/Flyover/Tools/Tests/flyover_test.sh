@@ -448,6 +448,18 @@ try:
         if error.code != 404:
             raise
 
+    image_path.unlink()
+    os.mkfifo(image_path)
+    try:
+        urllib.request.urlopen(
+            base_url + 'images/screen-0001/variant-0001/phone-dark.png',
+            timeout=5,
+        )
+        raise SystemExit('preview accepted a replacement image FIFO')
+    except urllib.error.HTTPError as error:
+        if error.code != 404:
+            raise
+
     original_root = pathlib.Path(directory)
     moved_root = original_root.with_name(original_root.name + '-moved')
     replacement_root = original_root.with_name(original_root.name + '-replacement')
