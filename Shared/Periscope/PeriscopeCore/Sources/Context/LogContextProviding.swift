@@ -16,7 +16,6 @@ import os
 ///
 ///     func refresh() {
 ///         log.info("refreshing")           // scoped to this instance
-///         log { PhotoLogs.refreshed }
 ///     }
 /// }
 /// ```
