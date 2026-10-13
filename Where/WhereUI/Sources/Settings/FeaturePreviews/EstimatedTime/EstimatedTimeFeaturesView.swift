@@ -24,6 +24,7 @@ struct EstimatedTimeFeaturesView: View {
 /// focus scope does not copy the form's full value onto the stack while a
 /// navigation push is preparing its destination.
 private struct EstimatedTimeFeaturesContent: View {
+    @State private var showingPlanner = false
     let report: YearReportModel
 
     @Environment(\.stylesheet) private var stylesheet
@@ -102,14 +103,28 @@ private struct EstimatedTimeFeaturesContent: View {
                 }
                 .featureMarketingRow(order: 6)
                 .settingsRow(EstimatedTimeFeaturesView.Item.surfaces, restingBackground: .clear)
-                FeatureSettingsLink(destination: .appearance).featureMarketingRow(order: 7)
+                FeatureMarketingPanel {
+                    Button { showingPlanner = true } label: {
+                        Label {
+                            Text(String(localized: .settingsExploreEstimatedTimeManage))
+                                .foregroundStyle(.primary)
+                        } icon: {
+                            Image(systemSymbol: .paintbrushFill)
+                                .foregroundStyle(SettingsDestination.estimatedTime.iconColor)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .featureMarketingRow(order: 7)
+                FeatureSettingsLink(destination: .appearance).featureMarketingRow(order: 8)
             } footer: {
                 FeatureDiscoveryDataFooter()
-                    .staggeredReveal(order: 8)
+                    .staggeredReveal(order: 9)
             }
         }
         .scrollContentBackground(.hidden)
         .background(FeatureDiscoveryBackground())
+        .sheet(isPresented: $showingPlanner) { PlannedStaysView(report: report) }
     }
 
     @ViewBuilder
@@ -120,7 +135,7 @@ private struct EstimatedTimeFeaturesContent: View {
             LocationForecastPanel(
                 forecasts: forecasts,
                 microprintRegions: report.ranking.primary.map(\.region),
-                plannedStay: report.forecasts.activePlannedStay,
+                homeRegion: report.forecasts.planning.homeRegion,
             )
             .saturation(report.showsEstimatedTimeAndPlanning ? 1 : 0)
         }
@@ -223,7 +238,10 @@ extension EstimatedTimeFeaturesView: SettingsSection {
         static let flyoverData = WhereFlyoverData.snapshots(
             EstimatedTimeFeaturesView.self,
             title: "Estimated Time & Planning",
-            routes: [.push(to: AppearanceSettingsView.flyoverID)],
+            routes: [
+                .push(to: AppearanceSettingsView.flyoverID),
+                .modal(to: PlannedStaysView.flyoverID),
+            ],
         )
     }
 #endif

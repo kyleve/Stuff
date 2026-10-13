@@ -1,10 +1,12 @@
 import SwiftUI
+import WhereCore
 
 /// Lays out a planned stay as a full row or a compact joined continuation.
 struct PlannedPresenceJourneyCardContent: View {
     let regionName: String
     let dateRange: String
-    let dayCount: Int
+    let dayCount: DayBounds
+    let detailLabel: String
     let daysInYear: Int
     let position: PresenceJourneyCardPosition
     let tint: Color
@@ -22,7 +24,7 @@ struct PlannedPresenceJourneyCardContent: View {
             ? planned.joinedBaseHeight
             : row.baseHeight
         let proportionalHeight = baseHeight
-            + row.yearScaleHeight * CGFloat(dayCount) / CGFloat(daysInYear)
+            + row.yearScaleHeight * CGFloat(dayCount.upper) / CGFloat(daysInYear)
 
         countLayout {
             if position.isJoinedContinuation {
@@ -64,7 +66,7 @@ struct PlannedPresenceJourneyCardContent: View {
                     Text(dateRange)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    Text(String(localized: .timelinePlannedStay))
+                    Text(detailLabel)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .opacity(planned.labelOpacity)
@@ -99,7 +101,8 @@ struct PlannedPresenceJourneyCardContent: View {
             PlannedPresenceJourneyCardContent(
                 regionName: "New York",
                 dateRange: "Jul 16 – Aug 15",
-                dayCount: 31,
+                dayCount: DayBounds(exact: 31),
+                detailLabel: String(localized: .planningCalendarPlanned),
                 daysInYear: 365,
                 position: .bottom,
                 tint: .blue,
@@ -107,7 +110,8 @@ struct PlannedPresenceJourneyCardContent: View {
             PlannedPresenceJourneyCardContent(
                 regionName: "New York",
                 dateRange: "Jul 16 – Aug 15",
-                dayCount: 31,
+                dayCount: DayBounds(exact: 31),
+                detailLabel: String(localized: .planningCalendarPlanned),
                 daysInYear: 365,
                 position: .standalone,
                 tint: .blue,

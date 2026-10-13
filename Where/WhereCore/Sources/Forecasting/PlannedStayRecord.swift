@@ -1,17 +1,30 @@
 import Foundation
 
-/// One revision of the single synced planned-stay register. A `nil` value is a
-/// tombstone, retained so a delayed CloudKit import cannot resurrect an older
-/// active stay after it was cleared or expired.
+/// One revision of one stay. A retained nil value prevents delayed sync from
+/// resurrecting that stay without replacing independently edited plans.
 public struct PlannedStayRecord: Hashable, Sendable, Codable, Identifiable {
+    public enum ValidationError: Error, Equatable {
+        case mismatchedStayID
+    }
+
     public let id: UUID
+    public let stayID: PlannedStay.ID
     public let value: PlannedStay?
     public let updatedAt: Date
 
-    public init(id: UUID, value: PlannedStay?, updatedAt: Date) {
+    public init(id: UUID, stayID: PlannedStay.ID, value: PlannedStay?, updatedAt: Date) throws {
         self.id = id
+        self.stayID = stayID
         self.value = value
         self.updatedAt = updatedAt
+        try validate()
+    }
+
+    /// Validate current-format identity and date invariants after synthesized decoding.
+    public func validate() throws {
+        guard let value else { return }
+        guard value.id == stayID else { throw ValidationError.mismatchedStayID }
+        try value.validate()
     }
 
     /// Deterministic last-writer ordering for duplicate rows produced by
