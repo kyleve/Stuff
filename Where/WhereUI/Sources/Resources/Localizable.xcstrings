@@ -5513,7 +5513,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Assume you are at Home on future days without a planned stay. This estimate is available all year and does not change automatic tracking."
+            "value" : "Home is selected instead of your past travel pattern. Future days without a planned stay are assigned to Home. This estimate is available all year; automatic tracking is unchanged."
           }
         }
       }
@@ -5568,7 +5568,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Estimate unplanned future days from your recorded travel this year. These estimates start April 1."
+            "value" : "Choose one method: use your past travel pattern, or select a Home region. Past travel estimates start April 1. Neither option changes recorded time."
           }
         }
       }
@@ -5601,7 +5601,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Estimate unplanned days"
+            "value" : "How to estimate unplanned days"
           }
         }
       }

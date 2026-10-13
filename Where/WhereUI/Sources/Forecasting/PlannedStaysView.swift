@@ -126,8 +126,13 @@ struct PlannedStaysView: View {
                 }
             } label: {
                 LabeledContent {
-                    Text(model.report.forecasts.planning.homeRegion?.localizedName
-                        ?? String(localized: .plannedStayEditorChooseRegion))
+                    HStack {
+                        Text(model.report.forecasts.planning.homeRegion?.localizedName
+                            ?? String(localized: .plannedStayEditorChooseRegion))
+                        if model.report.forecasts.planning.homeRegion != nil {
+                            Image(systemSymbol: .checkmark).foregroundStyle(.tint)
+                        }
+                    }
                 } label: {
                     Label(String(localized: .plannedStaysHomeRegion), systemSymbol: .house)
                 }
