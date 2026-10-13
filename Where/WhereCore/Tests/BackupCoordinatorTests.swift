@@ -30,8 +30,16 @@ struct BackupCoordinatorTests {
                 replacementRegions: regions,
             )
         }
+        let stay = try Self.plannedStay()
+        let home = try HomeRegionRecord(
+            id: UUID(),
+            region: .california,
+            updatedAt: Date(timeIntervalSince1970: 1000),
+        )
         try await source.store.perform {
             try await source.store.add(sample: sample)
+            try await source.store.restorePlannedStayRecord(stay)
+            try await source.store.restoreHomeRegionRecord(home)
             for revision in revisions {
                 try await source.store.addSampleAttributionRevision(revision)
             }
@@ -41,6 +49,8 @@ struct BackupCoordinatorTests {
         let exported = try BackupService().readArchive(at: url).archive
         #expect(exported.samples == [sample])
         #expect(exported.sampleAttributionRevisions == revisions)
+        #expect(exported.plannedStayRecords == [stay])
+        #expect(exported.homeRegionRecords == [home])
 
         let destination = try Self.makeHarness()
         let reset = SampleAttributionRevision(
@@ -57,6 +67,8 @@ struct BackupCoordinatorTests {
             strategy: strategy,
         )
         #expect(try await destination.store.allSamples() == [sample])
+        #expect(try await destination.store.plannedStayRecords() == [stay])
+        #expect(try await destination.store.homeRegionRecords() == [home])
         let restored = try await destination.store.allSampleAttributionRevisions()
         switch strategy {
             case .merge:
@@ -154,14 +166,15 @@ struct BackupCoordinatorTests {
     private static let recordingDeviceID = RecordingDeviceID(
         rawValue: UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE")!,
     )
-    private static let plannedStay = PlannedStayRecord(
-        id: UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!,
-        value: PlannedStay(
-            region: .newYork,
-            through: CalendarDay(year: 2026, month: 9, day: 1),
-        ),
-        updatedAt: Date(timeIntervalSince1970: 1_700_000_000),
-    )
+    private static func plannedStay() throws -> PlannedStayRecord {
+        let stayID = try PlannedStay.ID(rawValue: #require(UUID(
+            uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB",
+        )))
+        return try PlannedStayTestSupport.record(
+            stay: PlannedStayTestSupport.stay(id: stayID),
+            revisionID: #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")),
+        )
+    }
 
     /// Seed every persisted domain directly into a store so backup tests don't
     /// depend on the journal or recording controller.
@@ -175,7 +188,7 @@ struct BackupCoordinatorTests {
                 regions: [.newYork],
             ))
             try await store.restoreDismissedIssue(dismissal)
-            try await store.restorePlannedStayRecord(plannedStay)
+            try await store.restorePlannedStayRecord(plannedStay())
             try await store.addRecordingDeviceProfile(RecordingDeviceProfile(
                 id: recordingDeviceID,
                 systemName: "iPad",
@@ -237,7 +250,7 @@ struct BackupCoordinatorTests {
         #expect(try await destination.store.allDismissedIssues() == source.store
             .allDismissedIssues())
         #expect(try await destination.store.allDismissedIssues() == [Self.dismissal])
-        #expect(try await destination.store.plannedStayRecords() == [Self.plannedStay])
+        #expect(try await destination.store.plannedStayRecords() == [Self.plannedStay()])
         #expect(try await destination.store.recordingDeviceProfiles() == source.store
             .recordingDeviceProfiles())
         #expect(try await destination.store.recordingDeviceMetadataChanges() == source.store
@@ -270,6 +283,66 @@ struct BackupCoordinatorTests {
         let ids = try await destination.store.allSamples().map(\.id)
         #expect(ids.contains(preexisting.id))
         #expect(ids.count == 2)
+    }
+
+    @Test(arguments: [BackupCoordinator.ImportStrategy.merge, .replace])
+    func planningBackupPreservesIndependentRevisionsAndHomeTombstones(
+        strategy: BackupCoordinator.ImportStrategy,
+    ) async throws {
+        let source = try Self.makeHarness()
+        let active = try PlannedStayTestSupport.record(stay: PlannedStayTestSupport.stay())
+        let deleted = try PlannedStayTestSupport.record(stay: PlannedStayTestSupport.stay())
+        let deletion = try PlannedStayRecord(
+            id: UUID(),
+            stayID: deleted.stayID,
+            value: nil,
+            updatedAt: deleted.updatedAt.addingTimeInterval(1),
+        )
+        let home = try HomeRegionRecord(
+            id: UUID(),
+            region: .california,
+            updatedAt: deleted.updatedAt,
+        )
+        let historical = try HomeRegionRecord(
+            id: UUID(),
+            region: nil,
+            updatedAt: home.updatedAt.addingTimeInterval(1),
+        )
+        try await source.store.perform {
+            for record in [active, deleted, deletion] {
+                try await source.store.restorePlannedStayRecord(record)
+            }
+            try await source.store.restoreHomeRegionRecord(home)
+            try await source.store.restoreHomeRegionRecord(historical)
+        }
+        let url = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let destination = try Self.makeHarness()
+        let unrelated = try PlannedStayTestSupport.record(
+            stay: PlannedStayTestSupport.stay(region: .canada),
+        )
+        try await destination.store.perform {
+            try await destination.store.restorePlannedStayRecord(unrelated)
+            try await destination.store.restoreHomeRegionRecord(home)
+        }
+        _ = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: strategy,
+        )
+
+        let expectedRecords = switch strategy {
+            case .merge: [active, deleted, deletion, unrelated]
+            case .replace: [active, deleted, deletion]
+        }
+        #expect(try await Set(destination.store.plannedStayRecords()) == Set(expectedRecords))
+        #expect(try await Set(destination.store.homeRegionRecords()) == Set([home, historical]))
+        let planning = PlannedStayCoordinator(store: destination.store, now: { Date() })
+        let snapshot = try await planning.snapshot()
+        #expect(snapshot.homeRegion == nil)
+        #expect(snapshot.stays.contains { $0.id == deleted.stayID } == false)
+        #expect(snapshot.stays.contains { $0.id == active.stayID })
+        #expect(snapshot.stays.contains { $0.id == unrelated.stayID } == (strategy == .merge))
     }
 
     @Test func replaceImportWipesPreexistingRows() async throws {
@@ -585,6 +658,7 @@ struct BackupCoordinatorTests {
             recordingDeviceMetadataChanges: [],
             recordingDeviceRemovals: [],
             plannedStayRecords: [],
+            homeRegionRecords: [],
             sampleAttributionRevisions: [],
             blobs: [:],
         )

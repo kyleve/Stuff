@@ -13,10 +13,9 @@ struct LocationsView: View {
     let report: YearReportModel
 
     @State private var showingResolution = false
-    @State private var plannedStayEditorTarget: PlannedStayEditorTarget?
+    @State private var planningDestination: PlannedStaysDestination?
     @State private var isCardSurfaceVisible = false
     @State private var cardPresentation: LocationCardsPresentationModel
-    @State private var planning = LocationsPlanningModel()
 
     /// Drives the region cards' tilt-reactive light sheen. Started/stopped
     /// with the view's lifecycle; a no-op on hardware without device motion.
@@ -33,8 +32,7 @@ struct LocationsView: View {
     private var isCardSurfaceUncovered: Bool {
         isCardSurfaceVisible
             && !showingResolution
-            && plannedStayEditorTarget == nil
-            && !planning.isShowingError
+            && planningDestination == nil
     }
 
     init(report: YearReportModel) {
@@ -46,8 +44,6 @@ struct LocationsView: View {
     }
 
     var body: some View {
-        @Bindable var planning = planning
-
         NavigationStack {
             screen
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -70,13 +66,13 @@ struct LocationsView: View {
                         }
 
                         if showsPlanningMenu {
-                            LocationsPlanningMenu(
-                                primaryRegions: primaryRegions,
-                                plannedStay: report.forecasts.activePlannedStay,
-                                isClearing: planning.isClearing,
-                                editAction: editPlannedStay,
-                                clearAction: clearPlannedStay,
-                            )
+                            Button(
+                                String(localized: .plannedStaysTitle),
+                                systemSymbol: .calendarBadgeClock,
+                            ) {
+                                planningDestination = .list
+                            }
+                            .accessibilityIdentifier("where_planning_menu")
                         }
                     }
                 }
@@ -86,21 +82,8 @@ struct LocationsView: View {
         .sheet(isPresented: $showingResolution) {
             ResolutionView(report: report)
         }
-        .sheet(item: $plannedStayEditorTarget) { target in
-            PlannedStayEditor(
-                region: target.region,
-                model: report.forecasts,
-                driftThreshold: report.driftThreshold,
-            )
-        }
-        .alert(
-            String(localized: .locationsPlanningRemoveErrorTitle),
-            isPresented: $planning.isShowingError,
-            presenting: planning.presentedFailure,
-        ) { _ in
-            Button(String(localized: .commonOk), role: .cancel) {}
-        } message: { message in
-            Text(message)
+        .sheet(item: $planningDestination) { destination in
+            PlannedStaysDestinationView(destination: destination, report: report)
         }
         // Log View Mode: reveal an inspect badge for the year-report events
         // backing this screen. A no-op in release.
@@ -246,6 +229,8 @@ struct LocationsView: View {
                     }
                 }
 
+                estimatePanel
+
                 // Fold Elsewhere in at the bottom — only when there's
                 // something in it — as an entry card into the full list.
                 if !report.ranking.secondary.isEmpty {
@@ -294,30 +279,11 @@ struct LocationsView: View {
 
     private var showsPlanningMenu: Bool {
         report.showsEstimatedTimeAndPlanning
-            && (!primaryRegions.isEmpty || report.forecasts.activePlannedStay != nil)
     }
 
-    private func estimatedDays(for region: Region) -> Int? {
+    private func estimatedDays(for region: Region) -> DayBounds? {
         guard report.showsEstimatedTimeAndPlanning else { return nil }
         return report.forecasts.forecast(for: region, report: report.report)?.estimatedTotalDays
-    }
-
-    private func editPlannedStay(_ region: Region) {
-        plannedStayEditorTarget = PlannedStayEditorTarget(region: region)
-    }
-
-    private func clearPlannedStay() {
-        Task {
-            await planning.clear(using: report.forecasts.clear)
-        }
-    }
-
-    private struct PlannedStayEditorTarget: Identifiable {
-        let region: Region
-
-        var id: Region {
-            region
-        }
     }
 
     /// The region's calendar, pushed as a nested view. It's the zoom
@@ -332,28 +298,58 @@ struct LocationsView: View {
             .navigationTransition(.zoom(sourceID: region, in: calendarTransition))
     }
 
+    @ViewBuilder
+    private var estimatePanel: some View {
+        let forecasts = report.forecasts.leadingForecasts(report: report.report)
+        if report.showsEstimatedTimeAndPlanning, !forecasts.isEmpty {
+            LocationForecastPanel(
+                forecasts: forecasts,
+                microprintRegions: primaryRegions,
+                homeRegion: report.forecasts.planning.homeRegion,
+                planningAction: { planningDestination = .list },
+                isCollapsible: true,
+            )
+        }
+    }
+
     private var emptyState: some View {
-        ContentUnavailableView {
-            Label(WhereFormat.primaryEmptyTitle(year: report.selectedYear), systemSymbol: .map)
-        } description: {
-            Text(String(localized: .primaryEmptyDescription))
+        ScrollView {
+            VStack(spacing: stylesheet.spacing.large) {
+                ContentUnavailableView {
+                    Label(
+                        WhereFormat.primaryEmptyTitle(year: report.selectedYear),
+                        systemSymbol: .map,
+                    )
+                } description: {
+                    Text(String(localized: .primaryEmptyDescription))
+                }
+                estimatePanel
+            }
+            .padding()
         }
     }
 
     private var elsewhereOnlyState: some View {
-        ContentUnavailableView {
-            Label(String(localized: .primaryElsewhereOnlyTitle), systemSymbol: .globeAmericas)
-        } description: {
-            Text(WhereFormat.primaryElsewhereOnlyDescription(count: report.trackedDayCount))
-        } actions: {
-            // Everything tracked is Elsewhere, so surface the list directly —
-            // there's no Elsewhere tab to send them to anymore.
-            if !report.ranking.secondary.isEmpty {
-                NavigationLink(String(localized: .primaryElsewhereOnlyOpen)) {
-                    ElsewhereView(report: report)
+        ScrollView {
+            VStack(spacing: stylesheet.spacing.large) {
+                ContentUnavailableView {
+                    Label(
+                        String(localized: .primaryElsewhereOnlyTitle),
+                        systemSymbol: .globeAmericas,
+                    )
+                } description: {
+                    Text(WhereFormat.primaryElsewhereOnlyDescription(count: report.trackedDayCount))
+                } actions: {
+                    if !report.ranking.secondary.isEmpty {
+                        NavigationLink(String(localized: .primaryElsewhereOnlyOpen)) {
+                            ElsewhereView(report: report)
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
                 }
-                .buttonStyle(.borderedProminent)
+                estimatePanel
             }
+            .padding()
         }
     }
 }
@@ -388,6 +384,11 @@ private struct ResolveToolbarLabel: View {
     extension LocationsView: SnapshotProviding {
         /// Allow native glass adaptation and the background artwork to settle before capture.
         static var snapshots: [SnapshotCase] {
+            artworkSnapshot(
+                name: "Itinerary",
+                report: PreviewSupport.itineraryYearReportModel(),
+                configurations: .fullContentScreenDefaults,
+            )
             artworkSnapshot(
                 name: "Loaded",
                 report: PreviewSupport.loadedYearReportModel(),
@@ -440,6 +441,15 @@ private struct ResolveToolbarLabel: View {
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: PreviewSupport.elsewhereOnlyYearReportModel())
+            }
+            whereSnapshot(
+                name: "ElsewhereWithHome",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                let report = PreviewSupport.elsewhereOnlyYearReportModel()
+                report.forecasts.setPlanning(PlanningSnapshot(stays: [], homeRegion: .california))
+                return LocationsView(report: report)
             }
             whereSnapshot(
                 name: "DotsHidden",
@@ -498,6 +508,8 @@ private struct ResolveToolbarLabel: View {
                 .push(to: CalendarContentView.flyoverID),
                 .push(to: ElsewhereView.flyoverID),
                 .modal(to: ResolutionView.flyoverID),
+                .modal(to: PlannedStaysView.flyoverID),
+                .modal(to: PlannedStayEditor.flyoverID),
             ],
         ) { id, world in
             let state = WhereFlyoverLocationsState(report: world.report)

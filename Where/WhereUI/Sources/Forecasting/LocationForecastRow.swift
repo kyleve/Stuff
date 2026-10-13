@@ -1,10 +1,11 @@
+import RegionKit
 import SwiftUI
 import WhereCore
 
 /// One region's annual projection rendered as a tinted visa endorsement.
 struct LocationForecastRow: View {
     let forecast: LocationForecast
-    var plannedStay: PlannedStay?
+    var homeRegion: Region?
 
     @Environment(\.regionStyles) private var regionStyles
     @Environment(\.stylesheet) private var stylesheet
@@ -18,6 +19,9 @@ struct LocationForecastRow: View {
         VStack(alignment: .leading, spacing: row.contentSpacing) {
             LocationForecastEstimateLabel(forecast: forecast, tint: tint)
 
+            Text(WhereFormat.forecastPercentage(forecast.estimatedTotalDays, year: forecast.year))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
             LocationForecastProgress(forecast: forecast, tint: tint)
 
             VStack(alignment: .leading, spacing: row.estimateSpacing) {
@@ -27,8 +31,14 @@ struct LocationForecastRow: View {
                 .font(row.detailFont)
                 .foregroundStyle(.secondary)
 
-                if let plannedStay, plannedStay.region == forecast.region {
-                    Text(WhereFormat.locationForecastPlan(through: plannedStay.through))
+                if forecast.plannedDays.upper > 0 {
+                    Text(String(localized: .forecastPlannedContribution(WhereFormat
+                            .dayCount(forecast.plannedDays))))
+                        .font(row.detailFont)
+                        .foregroundStyle(.secondary)
+                }
+                if forecast.projectedRemainingDays.upper > 0 {
+                    Text(gapDescription)
                         .font(row.detailFont)
                         .foregroundStyle(.secondary)
                 }
@@ -49,6 +59,15 @@ struct LocationForecastRow: View {
         .accessibilityLabel(accessibilitySummary)
     }
 
+    private var gapDescription: String {
+        if homeRegion == forecast.region {
+            return String(localized: .forecastHomeContribution(WhereFormat
+                    .dayCount(forecast.projectedRemainingDays)))
+        }
+        return String(localized: .forecastPatternContribution(WhereFormat
+                .dayCount(forecast.projectedRemainingDays)))
+    }
+
     private var accessibilitySummary: String {
         var parts = [
             String(WhereFormat.locationForecastEstimate(
@@ -57,9 +76,16 @@ struct LocationForecastRow: View {
             ).characters),
             WhereFormat.locationForecastBasis(yearToDateDays: forecast.yearToDateDays),
         ]
-        if let plannedStay, plannedStay.region == forecast.region {
-            parts.append(WhereFormat.locationForecastPlan(through: plannedStay.through))
+        parts.append(WhereFormat.forecastPercentage(
+            forecast.estimatedTotalDays,
+            year: forecast.year,
+        ))
+        if forecast.plannedDays.upper > 0 {
+            parts
+                .append(String(localized: .forecastPlannedContribution(WhereFormat
+                        .dayCount(forecast.plannedDays))))
         }
+        if forecast.projectedRemainingDays.upper > 0 { parts.append(gapDescription) }
         return parts.joined(separator: " ")
     }
 }
@@ -70,7 +96,7 @@ struct LocationForecastRow: View {
         if let forecast = report.forecasts.leadingForecasts(report: report.report).first {
             LocationForecastRow(
                 forecast: forecast,
-                plannedStay: report.forecasts.activePlannedStay,
+                homeRegion: report.forecasts.planning.homeRegion,
             )
             .padding()
             .whereBroadwayRoot()

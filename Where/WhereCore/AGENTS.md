@@ -76,12 +76,19 @@ internal shape.
   bumps `BackupArchive.currentFormatVersion` and extends
   [`../Tools/upgrade-backup.rb`](../Tools/upgrade-backup.rb). Never add an
   in-code legacy decode fallback.
-- **The planned stay is a generation-scoped last-writer register with tombstones.** Resolve
-  duplicate CloudKit revisions by `updatedAt` then UUID, and clear or expire by writing a newer
-  `nil` value; deleting the winner can resurrect stale intent (`PlannedStayCoordinatorTests`).
+- **Resolve planned stays independently by their stable stay identity.** Order revisions by
+  `updatedAt` then revision UUID. Delete with a newer nil tombstone. Retain completed plans
+  (`PlannedStayCoordinatorTests`).
+- **Keep forecast home intent separate from tracked regions and display preferences.** A nil
+  home-register revision selects historical estimates. Read both planning registers in one
+  `readSnapshot`. Never write plans into recorded presence (`PlannedStayCoordinatorTests`).
+- **Validate planning windows at store and backup boundaries.** Use inclusive `CalendarDay`
+  endpoints with latest arrival no later than earliest departure. Preserve all revision identities
+  and tombstones during backup restore (`BackupServiceTests`, `BackupCoordinatorTests`).
 - **Keep planned-stay location checks advisory.** `PlannedStayLocationVerifier` accepts a fix
   inside the region or within the configured drift threshold outside its boundary. Do not add
   horizontal accuracy to the threshold.
+- Persist textual day keys through `CalendarDay.iso8601`, never its diagnostic `description`.
 - **A logical day is a `CalendarDay`, not a `Date`.** `CalendarDay` (Y-M-D)
   is the timezone-independent identity every stored user record and day
   comparison keys on. Persisting a `Date` makes a day drift across time-zone

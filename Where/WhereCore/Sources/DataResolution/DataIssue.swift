@@ -41,25 +41,25 @@ public enum DataIssueID: Hashable, Sendable, WhereStoreURLCodable {
                 StoreURL.url(
                     collection: Self.collection,
                     type: "missingDays",
-                    items: ["start": start.description],
+                    items: ["start": start.iso8601],
                 )
             case let .borderDrift(day):
                 StoreURL.url(
                     collection: Self.collection,
                     type: "borderDrift",
-                    items: ["day": day.description],
+                    items: ["day": day.iso8601],
                 )
             case let .abruptChange(earlier, later):
                 StoreURL.url(
                     collection: Self.collection,
                     type: "abruptChange",
-                    items: ["earlier": earlier.description, "later": later.description],
+                    items: ["earlier": earlier.iso8601, "later": later.iso8601],
                 )
             case let .flightDay(day):
                 StoreURL.url(
                     collection: Self.collection,
                     type: "flightDay",
-                    items: ["day": day.description],
+                    items: ["day": day.iso8601],
                 )
         }
     }

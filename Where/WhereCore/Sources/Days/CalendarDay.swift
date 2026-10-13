@@ -39,7 +39,7 @@ public struct CalendarDay: Hashable, Sendable, Codable, Comparable, CustomString
         self.init(year: year, month: month, day: day)
     }
 
-    /// Parse the `YYYY-MM-DD` form produced by `description`. Returns `nil` for
+    /// Parse the `YYYY-MM-DD` form produced by `iso8601`. Returns `nil` for
     /// anything that isn't three correctly-padded fields *and* a real Gregorian
     /// date, so a corrupt persisted key (`2026-13-01`, `2026-02-31`) can't decode
     /// as a bogus day.
@@ -98,8 +98,13 @@ public struct CalendarDay: Hashable, Sendable, Codable, Comparable, CustomString
         return result
     }
 
-    public var description: String {
+    /// Stable, locale-independent YYYY-MM-DD representation for persistence keys.
+    public var iso8601: String {
         String(format: "%04d-%02d-%02d", year, month, day)
+    }
+
+    public var description: String {
+        iso8601
     }
 
     public static func < (lhs: CalendarDay, rhs: CalendarDay) -> Bool {
