@@ -1,3 +1,4 @@
+import Foundation
 import RegionKit
 import WhereCore
 
@@ -50,6 +51,17 @@ enum PlanningTimelineItem: Hashable, Identifiable {
         switch self {
             case let .stay(interval): .planned(interval.dayCount.isExact ? .certain : .possible)
             case let .home(interval): .homeAssumed(interval.certainty)
+        }
+    }
+
+    /// Join only certain, immediately adjacent presence in the same region.
+    func continues(_ stint: RegionStint, calendar: Calendar) -> Bool {
+        guard region == stint.region,
+              start == CalendarDay(from: stint.end, in: calendar).adding(days: 1)
+        else { return false }
+        switch membership {
+            case .planned(.certain), .homeAssumed(.certain): return true
+            case .planned(.possible), .homeAssumed(.possible): return false
         }
     }
 

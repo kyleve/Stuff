@@ -65,12 +65,12 @@ struct PlannedPresenceJourneyRow: View {
             )
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel([
-            item.region.localizedName,
-            dateRange,
-            WhereFormat.dayCount(item.dayCount),
-            WhereFormat.planningMembership(item.membership),
-        ].joined(separator: ", "))
+        .accessibilityLabel(WhereFormat.planningRowAccessibility(
+            region: item.region.localizedName,
+            range: dateRange,
+            days: item.dayCount,
+            membership: item.membership,
+        ))
     }
 }
 

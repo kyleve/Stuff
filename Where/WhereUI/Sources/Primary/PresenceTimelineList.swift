@@ -139,6 +139,9 @@ struct PresenceTimelineList: View {
         stints: [RegionStint],
         plannedItems: [PlanningTimelineItem],
     ) -> some View {
+        let joinsRecorded = stints.last.map { last in
+            plannedItems.first?.continues(last, calendar: report.calendar) == true
+        } ?? false
         ForEach(stints) { stint in
             PresenceJourneyRow(
                 stint: stint,
@@ -146,7 +149,7 @@ struct PresenceTimelineList: View {
                 daysInYear: report.daysInSelectedYear,
                 isFirst: stint.id == stints.first?.id,
                 isLast: plannedItems.isEmpty && stint.id == stints.last?.id,
-                cardPosition: .standalone,
+                cardPosition: joinsRecorded && stint.id == stints.last?.id ? .top : .standalone,
             )
             .fixedSize(horizontal: false, vertical: presentation == .excerpt)
         }
@@ -157,7 +160,8 @@ struct PresenceTimelineList: View {
                 daysInYear: report.daysInSelectedYear,
                 isFirst: stints.isEmpty && item.id == plannedItems.first?.id,
                 isLast: item.id == plannedItems.last?.id,
-                cardPosition: .standalone,
+                cardPosition: joinsRecorded && item.id == plannedItems.first?
+                    .id ? .bottom : .standalone,
             )
             .fixedSize(horizontal: false, vertical: presentation == .excerpt)
 

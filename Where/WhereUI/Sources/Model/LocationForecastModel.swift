@@ -24,6 +24,8 @@ final class LocationForecastModel {
     }
 
     private var loadState: LoadState = .idle
+    // Awaited reads can finish out of order. Only the newest request may publish
+    // success or failure; cancellation before a read does not supersede it.
     private var refreshSequence: UInt64 = 0
     private let services: WhereServices
     private let calendar: Calendar
@@ -100,7 +102,7 @@ final class LocationForecastModel {
         regions.remove(.other)
         return Region.inCanonicalOrder(regions).compactMap {
             forecast(for: $0, report: report)
-        }.sorted {
+        }.filter { $0.estimatedTotalDays.upper > 0 }.sorted {
             if $0.estimatedTotalDays.upper != $1.estimatedTotalDays.upper {
                 return $0.estimatedTotalDays.upper > $1.estimatedTotalDays.upper
             }

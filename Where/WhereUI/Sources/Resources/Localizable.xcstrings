@@ -11281,6 +11281,18 @@
         }
       }
     },
+    "timeline.planningRow.accessibility" : {
+      "comment" : "Timeline projection: region, date range, localized day count, and planned/Home certainty. Reorder placeholders as needed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, %2$@, %3$@, %4$@"
+          }
+        }
+      }
+    },
     "timeline.row.accessibility" : {
       "extractionState" : "manual",
       "localizations" : {

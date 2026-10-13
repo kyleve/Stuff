@@ -6,6 +6,22 @@ import Testing
 
 @MainActor
 struct LocationForecastModelTests {
+    @Test func omitsHomeWhenExplicitStaysLeaveNoEstimatedHomeDays() async throws {
+        let store = try TestStore()
+        let model = PlanningModelTestSupport.model(store: store)
+        let stay = try PlannedStay(
+            id: .init(rawValue: UUID()),
+            region: .newYork,
+            arrival: .init(exact: PlanningModelTestSupport.today),
+            departure: .init(exact: .lastDay(ofYear: 2026)),
+        )
+        try await model.create(stay: stay)
+        try await model.setHomeRegion(.california)
+        await model.refresh()
+        let report = YearReport(year: 2026, days: [], totals: [:])
+        #expect(model.leadingForecasts(report: report).map(\.region) == [.newYork])
+    }
+
     @Test func loadsExplicitDestinationsAndHomeWithoutChangingRecordedRanking() async throws {
         let store = try TestStore()
         let model = PlanningModelTestSupport.model(store: store)

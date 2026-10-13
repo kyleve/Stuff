@@ -449,6 +449,20 @@ enum WhereFormat {
         String(localized: .timelineRowAccessibility(region, range, dayCount(days)))
     }
 
+    static func planningRowAccessibility(
+        region: String,
+        range: String,
+        days: DayBounds,
+        membership: PlanningDayPresence.Membership,
+    ) -> String {
+        String(localized: .timelinePlanningRowAccessibility(
+            region,
+            range,
+            dayCount(days),
+            planningMembership(membership),
+        ))
+    }
+
     static func timelinePlannedRowAccessibility(
         region: String,
         range: String,
