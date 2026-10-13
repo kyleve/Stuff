@@ -43,8 +43,8 @@ public struct PlannedStay: Hashable, Sendable, Codable, Identifiable {
         }
 
         public func validate() throws {
-            guard CalendarDay(iso: earliest.description) == earliest,
-                  CalendarDay(iso: latest.description) == latest
+            guard CalendarDay(iso: earliest.iso8601) == earliest,
+                  CalendarDay(iso: latest.iso8601) == latest
             else { throw ValidationError.invalidDay }
             guard earliest <= latest else { throw ValidationError.reversedWindow }
         }

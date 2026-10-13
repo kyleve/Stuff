@@ -7,6 +7,12 @@ struct CalendarDayTests {
     private let eastern = WhereCoreTestSupport
         .calendar(timeZone: TimeZone(identifier: "America/New_York")!)
 
+    @Test func persistenceKeyUsesPaddedGregorianComponents() {
+        let day = CalendarDay(year: 2028, month: 2, day: 9)
+        #expect(day.iso8601 == "2028-02-09")
+        #expect(CalendarDay(iso: day.iso8601) == day)
+    }
+
     // MARK: - Construction from a Date
 
     @Test func readsComponentsInTheGivenCalendarsTimeZone() {

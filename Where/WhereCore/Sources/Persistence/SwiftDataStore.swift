@@ -155,7 +155,7 @@ private enum GenerationScopedFetch {
         let membership = GenerationMembership(generationID)
         let storedGenerationID = membership.storedID
         let includesLegacy = membership.includesLegacy
-        let dayKey = day.description
+        let dayKey = day.iso8601
         return descriptor(predicate: #Predicate {
             ($0.generationID == storedGenerationID ||
                 (includesLegacy && $0.generationID == nil)) &&
@@ -171,8 +171,8 @@ private enum GenerationScopedFetch {
         let membership = GenerationMembership(generationID)
         let storedGenerationID = membership.storedID
         let includesLegacy = membership.includesLegacy
-        let low = range.lowerBound.description
-        let high = range.upperBound.description
+        let low = range.lowerBound.iso8601
+        let high = range.upperBound.iso8601
         return descriptor(predicate: #Predicate {
             if $0.generationID == storedGenerationID ||
                 (includesLegacy && $0.generationID == nil)
@@ -2514,7 +2514,7 @@ final class SDManualDay {
 
     func update(from value: DayPresence, generationID: WhereDataGenerationID) {
         self.generationID = generationID.rawValue
-        dayKey = value.day.description
+        dayKey = value.day.iso8601
         regionRaws = value.regions.map(\.rawValue).sorted()
         isAuthoritative = value.isAuthoritative
         applyAudit(value.audit)
@@ -2662,10 +2662,10 @@ final class SDPlannedStay {
         id = value.id
         stayID = value.stayID.rawValue
         regionID = value.value?.region.rawValue
-        arrivalEarliestDayKey = value.value?.arrival.earliest.description
-        arrivalLatestDayKey = value.value?.arrival.latest.description
-        departureEarliestDayKey = value.value?.departure.earliest.description
-        departureLatestDayKey = value.value?.departure.latest.description
+        arrivalEarliestDayKey = value.value?.arrival.earliest.iso8601
+        arrivalLatestDayKey = value.value?.arrival.latest.iso8601
+        departureEarliestDayKey = value.value?.departure.earliest.iso8601
+        departureLatestDayKey = value.value?.departure.latest.iso8601
         updatedAt = value.updatedAt
     }
 

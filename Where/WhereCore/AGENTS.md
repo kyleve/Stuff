@@ -88,6 +88,7 @@ internal shape.
 - **Keep planned-stay location checks advisory.** `PlannedStayLocationVerifier` accepts a fix
   inside the region or within the configured drift threshold outside its boundary. Do not add
   horizontal accuracy to the threshold.
+- Persist textual day keys through `CalendarDay.iso8601`, never its diagnostic `description`.
 - **A logical day is a `CalendarDay`, not a `Date`.** `CalendarDay` (Y-M-D)
   is the timezone-independent identity every stored user record and day
   comparison keys on. Persisting a `Date` makes a day drift across time-zone

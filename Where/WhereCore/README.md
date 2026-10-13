@@ -420,3 +420,5 @@ notification and widget seams to, so a test or preview that names nothing
 posts nothing and reloads nothing. The public `WhereServices.make(...)`
 requires those seams instead: naming the real world is the composition root's
 job, not something a caller falls into by omission.
+
+Calendar-day persistence keys use `CalendarDay.iso8601` (`YYYY-MM-DD`); diagnostic `description` is not a storage API.
