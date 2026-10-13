@@ -53,11 +53,11 @@ final class PlannedStaysModel {
     }
 
     func add() {
-        editor = PlannedStayEditorModel(report: report, stay: nil, initialRegion: initialRegion)
+        editor = PlannedStayEditorModel(report: report, mode: .new(initialRegion: initialRegion))
     }
 
     func edit(_ stay: PlannedStay) {
-        editor = PlannedStayEditorModel(report: report, stay: stay, initialRegion: nil)
+        editor = PlannedStayEditorModel(report: report, mode: .edit(stay))
     }
 
     func usesDefiniteOverlap(_ stay: PlannedStay) -> Bool {

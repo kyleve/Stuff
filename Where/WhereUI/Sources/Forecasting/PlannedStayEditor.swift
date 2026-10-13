@@ -17,8 +17,7 @@ struct PlannedStayEditor: View {
     ) {
         _model = State(initialValue: PlannedStayEditorModel(
             report: report,
-            stay: stay,
-            initialRegion: initialRegion,
+            mode: stay.map(PlannedStayEditorModel.Mode.edit) ?? .new(initialRegion: initialRegion),
         ))
     }
 
@@ -242,7 +241,7 @@ struct PlannedStayEditor: View {
             }) else {
                 preconditionFailure("The itinerary fixture requires a flexible stay")
             }
-            return PlannedStayEditorModel(report: report, stay: stay, initialRegion: nil)
+            return PlannedStayEditorModel(report: report, mode: .edit(stay))
         }
     }
 

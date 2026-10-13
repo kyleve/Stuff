@@ -8,9 +8,12 @@ import Testing
 struct PlannedStayEditorModelTests {
     @Test func newDraftRequiresDestinationAndStartsWithExactDates() throws {
         let report = try PlanningTestSupport.report(store: SwiftDataStore.inMemory())
-        let model = PlannedStayEditorModel(report: report, stay: nil, initialRegion: nil)
+        let model = PlannedStayEditorModel(report: report, mode: .new(initialRegion: nil))
 
         #expect(!model.canSave)
+        if case .failure(.missingRegion) = model.draft {} else {
+            Issue.record("Missing destination must have a typed validation failure")
+        }
         #expect(model.validationMessage != nil)
         #expect(!model.arrival.isFlexible)
         #expect(!model.departure.isFlexible)
@@ -21,12 +24,15 @@ struct PlannedStayEditorModelTests {
 
     @Test func flexibleArrivalMustFinishBeforeTheEarliestLastDay() throws {
         let report = try PlanningTestSupport.report(store: SwiftDataStore.inMemory())
-        let model = PlannedStayEditorModel(report: report, stay: nil, initialRegion: .newYork)
+        let model = PlannedStayEditorModel(report: report, mode: .new(initialRegion: .newYork))
         model.arrival.isFlexible = true
         model.arrival.latest = PlanningTestSupport.today.adding(days: 3)
             .startOfDay(in: report.calendar)
 
         #expect(!model.canSave)
+        if case let .failure(.invalidStay(error)) = model.draft {
+            #expect(error as? PlannedStay.ValidationError == .arrivalAfterDeparture)
+        } else { Issue.record("Invalid date ordering must retain its domain error") }
         #expect(model.validationMessage != nil)
         model.departure.earliest = model.arrival.latest
         #expect(model.canSave)
@@ -50,7 +56,7 @@ struct PlannedStayEditorModelTests {
         )
         try await report.forecasts.create(stay: first)
         try await report.forecasts.create(stay: second)
-        let model = PlannedStayEditorModel(report: report, stay: first, initialRegion: nil)
+        let model = PlannedStayEditorModel(report: report, mode: .edit(first))
         model.departure.earliest = PlanningTestSupport.today.adding(days: 10)
             .startOfDay(in: report.calendar)
 
@@ -67,7 +73,7 @@ struct PlannedStayEditorModelTests {
         let report = try PlanningTestSupport.report(store: SwiftDataStore.inMemory())
         let primary = [PrimaryRegion(region: .california, appearance: nil, order: 0)]
         try await report.services.setPrimaryRegions(primary)
-        let model = PlannedStayEditorModel(report: report, stay: nil, initialRegion: .newYork)
+        let model = PlannedStayEditorModel(report: report, mode: .new(initialRegion: .newYork))
         model.arrival.earliest = PlanningTestSupport.today.adding(days: 40)
             .startOfDay(in: report.calendar)
         model.departure.earliest = PlanningTestSupport.today.adding(days: 55)
@@ -95,7 +101,7 @@ struct PlannedStayEditorModelTests {
         try await report.forecasts.create(stay: first)
         try await report.forecasts.create(stay: second)
         try await report.forecasts.setHomeRegion(.california)
-        let model = PlannedStayEditorModel(report: report, stay: first, initialRegion: nil)
+        let model = PlannedStayEditorModel(report: report, mode: .edit(first))
 
         #expect(await model.delete())
         let snapshot = try await report.services.plannedStays.snapshot()
@@ -107,7 +113,7 @@ struct PlannedStayEditorModelTests {
         let store = try TestStore()
         await store.failPlannedStays()
         let report = PlanningTestSupport.report(store: store)
-        let model = PlannedStayEditorModel(report: report, stay: nil, initialRegion: .newYork)
+        let model = PlannedStayEditorModel(report: report, mode: .new(initialRegion: .newYork))
         let draft = try model.draft.get()
 
         #expect(await model.save() == false)
@@ -130,7 +136,7 @@ struct PlannedStayEditorModelTests {
         )
         try await report.forecasts.create(stay: stay)
         await report.forecasts.refresh()
-        let model = PlannedStayEditorModel(report: report, stay: stay, initialRegion: nil)
+        let model = PlannedStayEditorModel(report: report, mode: .edit(stay))
         #expect(model.overlaps.isEmpty)
         let other = try PlannedStay(
             id: PlannedStay.ID(rawValue: UUID()),

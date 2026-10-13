@@ -8,6 +8,16 @@ import WhereCore
 @MainActor
 @Observable
 final class PlannedStayEditorModel: Identifiable {
+    enum Mode {
+        case new(initialRegion: Region?)
+        case edit(PlannedStay)
+    }
+
+    enum DraftError: Error {
+        case missingRegion
+        case invalidStay(Error)
+    }
+
     enum SaveState {
         case idle
         case saving
@@ -98,25 +108,28 @@ final class PlannedStayEditorModel: Identifiable {
     let report: YearReportModel
     nonisolated let stayID: PlannedStay.ID
     let regionSelection: PlanningRegionSelectionModel
-    let isEditing: Bool
+    let mode: Mode
     var region: Region?
     var arrival: Boundary
     var departure: Boundary
     private(set) var saveState: SaveState = .idle
 
-    init(report: YearReportModel, stay: PlannedStay?, initialRegion: Region?) {
+    init(report: YearReportModel, mode: Mode) {
         self.report = report
         regionSelection = PlanningRegionSelectionModel(report: report)
-        stayID = stay?.id ?? PlannedStay.ID(rawValue: UUID())
-        isEditing = stay != nil
-        region = stay?.region ?? initialRegion
-        if let stay {
-            arrival = Boundary(window: stay.arrival, calendar: report.calendar)
-            departure = Boundary(window: stay.departure, calendar: report.calendar)
-        } else {
-            let today = report.calendar.startOfDay(for: report.referenceDate)
-            arrival = Boundary(date: today)
-            departure = Boundary(date: today)
+        self.mode = mode
+        switch mode {
+            case let .edit(stay):
+                stayID = stay.id
+                region = stay.region
+                arrival = Boundary(window: stay.arrival, calendar: report.calendar)
+                departure = Boundary(window: stay.departure, calendar: report.calendar)
+            case let .new(initialRegion):
+                stayID = PlannedStay.ID(rawValue: UUID())
+                region = initialRegion
+                let today = report.calendar.startOfDay(for: report.referenceDate)
+                arrival = Boundary(date: today)
+                departure = Boundary(date: today)
         }
     }
 
@@ -129,29 +142,38 @@ final class PlannedStayEditorModel: Identifiable {
         stayID
     }
 
-    var validationMessage: String? {
-        guard region != nil else {
-            return String(localized: .plannedStayEditorDestinationRequired)
+    var isEditing: Bool {
+        switch mode {
+            case .new: false
+            case .edit: true
         }
+    }
+
+    var validationMessage: String? {
         switch draft {
-            case .success: return nil
-            case .failure: return String(localized: .plannedStayEditorInvalidDates)
+            case .success: nil
+            case .failure(.missingRegion): String(localized: .plannedStayEditorDestinationRequired)
+            case .failure(.invalidStay): String(localized: .plannedStayEditorInvalidDates)
         }
     }
 
     var canSave: Bool {
-        !isSaving && validationMessage == nil
+        guard !isSaving, case .success = draft else { return false }
+        return true
     }
 
-    var draft: Result<PlannedStay, Error> {
-        Result {
-            guard let region else { throw DraftError.missingRegion }
-            return try PlannedStay(
+    /// Core validates the domain value; UI maps the typed failure to display copy.
+    var draft: Result<PlannedStay, DraftError> {
+        guard let region else { return .failure(.missingRegion) }
+        do {
+            return try .success(PlannedStay(
                 id: stayID,
                 region: region,
                 arrival: arrival.window(in: report.calendar),
                 departure: departure.window(in: report.calendar),
-            )
+            ))
+        } catch {
+            return .failure(.invalidStay(error))
         }
     }
 
@@ -185,10 +207,9 @@ final class PlannedStayEditorModel: Identifiable {
         saveState = .saving
         do {
             let stay = try draft.get()
-            if isEditing {
-                try await report.forecasts.update(stay: stay)
-            } else {
-                try await report.forecasts.create(stay: stay)
+            switch mode {
+                case .edit: try await report.forecasts.update(stay: stay)
+                case .new: try await report.forecasts.create(stay: stay)
             }
             saveState = .idle
             return true
@@ -209,9 +230,5 @@ final class PlannedStayEditorModel: Identifiable {
             saveState = .failed(error)
             return false
         }
-    }
-
-    private enum DraftError: Error {
-        case missingRegion
     }
 }
