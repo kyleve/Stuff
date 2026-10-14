@@ -26,6 +26,9 @@ let opacity = BModeVarying(light: 0.14, dark: 0.3)
 let resolvedOpacity = opacity[context.traits.mode]
 ```
 
+`BHorizontalSizeClass` and `BVerticalSizeClass` preserve compact, regular, and unspecified values.
+`BTraits.system` registers both for live UIKit observation. Scoped overrides use the matching properties on `BTraits.Overrides`.
+
 ## How it works
 
 `BContext` holds a `BStylesheets` cache that is rebuilt whenever `baseTraits`, `traitOverrides`, or `themes` change (via `didSet`).

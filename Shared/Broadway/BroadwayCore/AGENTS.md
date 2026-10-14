@@ -21,6 +21,8 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) and the group [`../AGENTS.md`](.
 
 - Select `BModeVarying` values with the slice's explicit mode. Keep product theme definitions in consumer modules.
 
+- **Keep both size classes registered in `BTraits.system`.** Preserve unspecified values; do not infer them from device identity.
+
 ## Testing
 
 Run `BroadwayCoreTests` in `StuffTestHost` (`./test BroadwayCoreTests`).
