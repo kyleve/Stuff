@@ -41,3 +41,27 @@ extension BContentSizeCategory {
         }
     }
 }
+
+extension BHorizontalSizeClass {
+    /// Maps SwiftUI's optional size class without assuming a device or orientation.
+    public init(_ sizeClass: UserInterfaceSizeClass?) {
+        self = switch sizeClass {
+            case .compact: .compact
+            case .regular: .regular
+            case nil: .unspecified
+            @unknown default: .unspecified
+        }
+    }
+}
+
+extension BVerticalSizeClass {
+    /// Maps SwiftUI's optional size class without assuming a device or orientation.
+    public init(_ sizeClass: UserInterfaceSizeClass?) {
+        self = switch sizeClass {
+            case .compact: .compact
+            case .regular: .regular
+            case nil: .unspecified
+            @unknown default: .unspecified
+        }
+    }
+}
