@@ -1,0 +1,162 @@
+#!/bin/bash
+set -euo pipefail
+
+# install — build the Daylight app and install it on a connected iPhone, no Xcode UI.
+#
+# Shell owns project/build/process orchestration. Tools/device_selection.rb owns
+# exact physical-device decoding so the policy is directly tested without Xcode.
+
+cd "$(dirname "$0")/.."
+
+WORKSPACE="Stuff.xcworkspace"
+SCHEME="Daylight"
+BUNDLE_ID="com.stuff.daylight"
+
+CONFIGURATION="Debug"
+OPTIMIZE=true
+DEVICE=""
+LAUNCH=true
+ASSUME_YES=false
+DRY_RUN=false
+
+usage() {
+    cat <<'USAGE'
+Usage: ./Daylight/install [options]
+
+Builds the Daylight app and installs it on a connected iPhone via xcodebuild and
+xcrun devicectl (no Xcode UI). By default it builds the Debug configuration
+with compiler optimizations forced on — keeping the DEBUG-only developer tools
+while running at roughly Release speed — and launches the app.
+
+Options:
+  --device NAME            Target a specific device by name (exact match),
+                           UDID, or identifier (default: the sole paired iPhone)
+  --configuration NAME     Build configuration (default: Debug)
+  --optimize               Force compiler optimizations on (default)
+  --no-optimize            Build without forcing optimizations (use the
+                           configuration's own optimization level)
+  --no-launch              Install only; don't launch the app afterwards
+  --dry-run                Resolve the exact device and report the build,
+                           install, and launch without performing them
+  -y, --yes                Skip the "unlock your device" confirmation prompt
+  -h, --help               Show this help
+
+Examples:
+  ./Daylight/install
+  ./Daylight/install --device "Kai's iPhone"
+  ./Daylight/install --configuration Release
+  ./Daylight/install --no-optimize --no-launch
+  ./Daylight/install --device "Kai's iPhone" --dry-run
+USAGE
+}
+
+require_value() {
+    if [ -z "${2:-}" ]; then
+        echo "error: $1 requires a value (see ./Daylight/install --help)" >&2
+        exit 1
+    fi
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --device) shift; require_value --device "${1:-}"; DEVICE="$1" ;;
+        --configuration) shift; require_value --configuration "${1:-}"; CONFIGURATION="$1" ;;
+        --optimize) OPTIMIZE=true ;;
+        --no-optimize) OPTIMIZE=false ;;
+        --no-launch) LAUNCH=false ;;
+        --dry-run) DRY_RUN=true ;;
+        -y|--yes) ASSUME_YES=true ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "error: unknown option '$1' (see ./Daylight/install --help)" >&2; exit 1 ;;
+    esac
+    shift
+done
+
+# A device build must be signed by a real team. Preserve mise failures so a
+# malformed configuration remains distinguishable from an unset variable.
+# shellcheck disable=SC2016
+TEAM_ID="$(mise exec -- sh -c 'printf "%s" "${TUIST_DEVELOPMENT_TEAM:-}"')"
+if [ -z "$TEAM_ID" ]; then
+    cat >&2 <<'EOF'
+error: no Apple Developer team configured — a device build can't be signed.
+
+Set it once (writes the gitignored .mise.local.toml), then re-run:
+  ./ide --team-id <ABCDE12345>
+EOF
+    exit 1
+fi
+
+# Persistent DerivedData avoids package-checkout damage from macOS cleaning
+# TMPDIR. A dry run creates no build directory and uses only a disposable JSON
+# file for devicectl's read-only device inventory.
+WORKDIR="$HOME/Library/Developer/Xcode/DerivedData/daylight-install-$(basename "$PWD")"
+DERIVED="$WORKDIR/DerivedData"
+if [ "$DRY_RUN" = true ]; then
+    DEVICES_JSON="$(mktemp "${TMPDIR:-/tmp}/daylight-install-devices.XXXXXX")"
+    trap 'rm -f "$DEVICES_JSON"' EXIT
+else
+    DEVICES_JSON="$WORKDIR/devices.json"
+    mkdir -p "$WORKDIR"
+fi
+
+OPTIMIZATION_OVERRIDES=()
+if [ "$OPTIMIZE" = true ]; then
+    OPTIMIZATION_OVERRIDES=(SWIFT_OPTIMIZATION_LEVEL=-O GCC_OPTIMIZATION_LEVEL=s)
+fi
+
+if [ "$DRY_RUN" = true ]; then
+    echo "==> Would run ./ide --no-open"
+    echo "==> Would build $SCHEME ($CONFIGURATION$([ "$OPTIMIZE" = true ] && echo ', optimized')) for device"
+else
+    echo "==> ./ide --no-open"
+    ./ide --no-open >/dev/null
+
+    echo "==> xcodebuild ($CONFIGURATION$([ "$OPTIMIZE" = true ] && echo ', optimized')) for device"
+    mise exec -- xcodebuild build \
+        -workspace "$WORKSPACE" \
+        -scheme "$SCHEME" \
+        -configuration "$CONFIGURATION" \
+        -destination 'generic/platform=iOS' \
+        -derivedDataPath "$DERIVED" \
+        -allowProvisioningUpdates \
+        ${OPTIMIZATION_OVERRIDES[@]+"${OPTIMIZATION_OVERRIDES[@]}"}
+fi
+
+APP="$DERIVED/Build/Products/$CONFIGURATION-iphoneos/Daylight.app"
+if [ "$DRY_RUN" != true ] && [ ! -d "$APP" ]; then
+    echo "error: built app not found at $APP" >&2
+    exit 1
+fi
+
+echo "==> resolving device"
+xcrun devicectl list devices --json-output "$DEVICES_JSON" >/dev/null
+DEVICE_SELECTION="$(mise exec -- ruby Tools/device_selection.rb --filter "$DEVICE" <"$DEVICES_JSON")"
+DEVICE_UDID="${DEVICE_SELECTION%%$'\t'*}"
+DEVICE_NAME="${DEVICE_SELECTION#*$'\t'}"
+
+if [ "$DRY_RUN" = true ]; then
+    echo "==> Would install $APP to $DEVICE_NAME ($DEVICE_UDID)"
+    if [ "$LAUNCH" = true ]; then
+        echo "==> Would launch $BUNDLE_ID"
+    fi
+    echo "Dry run — no project, build, app install, or process launch was performed."
+    exit 0
+fi
+
+if [ "$ASSUME_YES" = false ] && [ -t 0 ]; then
+    printf 'Make sure "%s" is unlocked and trusts this Mac.\n' "$DEVICE_NAME"
+    read -r -p "Press Enter to install, or Ctrl-C to cancel... " _
+fi
+
+echo "==> installing to device"
+xcrun devicectl device install app --device "$DEVICE_UDID" "$APP"
+
+if [ "$LAUNCH" = true ]; then
+    echo "==> launching $BUNDLE_ID"
+    xcrun devicectl device process launch \
+        --device "$DEVICE_UDID" \
+        --terminate-existing \
+        "$BUNDLE_ID"
+fi
+
+echo "Done. (Build products: $DERIVED)"
