@@ -21,6 +21,36 @@
             return report
         }
 
+        @MainActor
+        static func flightHistoryYearReportModel() -> YearReportModel {
+            let report = loadedYearReportModel()
+            let original = flightReview(state: .completed).flights[0]
+            let earlierDate = report.calendar.startOfDay(for: original.startedAt)
+                .addingTimeInterval(-10 * 24 * 3600 + 23 * 3600)
+            let earlier = FlightAssessment(
+                id: .init(
+                    recordingSource: original.id.recordingSource,
+                    departureSampleID: UUID(uuidString: "00000000-0000-0000-0000-000000000801")!,
+                ),
+                startedAt: earlierDate,
+                lastObservationAt: earlierDate.addingTimeInterval(12 * 3600),
+                lastFlightAt: earlierDate.addingTimeInterval(11 * 3600),
+                airborneSampleIDs: [],
+                groundSampleIDs: [],
+                peakSpeedKMH: 900,
+                progress: .completed(arrivedAt: earlierDate.addingTimeInterval(12 * 3600)),
+                inferredEndpoints: [],
+            )
+            report.setDataIssueScan(DataIssueScanResult(
+                revision: UUID(),
+                issues: [],
+                reviews: [],
+                completedFlights: [earlier, original],
+                nextReassessmentAt: nil,
+            ))
+            return report
+        }
+
         static func flightScan(state: FlightReviewPreviewState) -> DataIssueScanResult {
             let review = flightReview(state: state)
             var issues: [any DataIssue] = []
@@ -31,6 +61,7 @@
                 revision: UUID(uuidString: "00000000-0000-0000-0000-000000000303")!,
                 issues: issues,
                 reviews: [review],
+                completedFlights: review.flights.filter { !$0.isPending },
                 nextReassessmentAt: review.flight?.reassessment.scheduledDate,
             )
         }

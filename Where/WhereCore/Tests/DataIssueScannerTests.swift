@@ -110,6 +110,8 @@ struct DataIssueScannerTests {
             force: true,
         )
         #expect(dismissed.issues.isEmpty)
+        #expect(dismissed.completedFlights == initial.completedFlights)
+        #expect(dismissed.completedFlights.isEmpty == !isFlight)
         #expect(dismissed.reviews.isEmpty)
         #expect(dismissed.nextReassessmentAt == nil)
     }
@@ -226,6 +228,35 @@ struct DataIssueScannerTests {
         #expect(cached.revision == repeated.revision)
         #expect(cached.reviews == repeated.reviews)
         #expect(cached.issues.map(\.id) == repeated.issues.map(\.id))
+    }
+
+    @Test func appliedCorrectionsPreserveHistoricalFlightIndicators() async throws {
+        let harness = try await SampleCorrectionTestSupport.completedFlight()
+        let scanner = makeReviewScanner(
+            store: harness.store,
+            now: { FlightTrajectoryFixtures.date(minutes: 150) },
+        )
+        let before = try await scanner.scan(
+            year: 2026,
+            primaryRegions: SampleCorrectionTestSupport.attribution
+                .loadedRegions,
+            driftThresholdMeters: 1000,
+            force: true,
+        )
+        let proposal = try #require(before.reviews.first?.proposal)
+        guard case .applied = try await harness.coordinator.apply(proposal) else {
+            Issue.record("The unchanged flight correction must apply")
+            return
+        }
+        let after = try await scanner.scan(
+            year: 2026,
+            primaryRegions: SampleCorrectionTestSupport.attribution
+                .loadedRegions,
+            driftThresholdMeters: 1000,
+            force: true,
+        )
+        #expect(before.completedFlights.count == 1)
+        #expect(after.completedFlights == before.completedFlights)
     }
 
     @Test(arguments: [false, true])

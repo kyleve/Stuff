@@ -31,6 +31,7 @@ struct CalendarContentView: View {
         let report: YearReport
         let missingDayKeys: Set<CalendarDay>
         let evidenceDayKeys: Set<CalendarDay>
+        let flightDayKeys: Set<CalendarDay>
         let referenceDay: Date
         let focusedRegion: Region?
     }
@@ -108,6 +109,7 @@ struct CalendarContentView: View {
             report: yearReport,
             missingDayKeys: report.missingDayKeys,
             evidenceDayKeys: report.evidenceDayKeys,
+            flightDayKeys: report.flightDayKeys,
             referenceDay: report.calendar.startOfDay(for: report.referenceDate),
             focusedRegion: focusedRegion,
         )
@@ -120,6 +122,7 @@ struct CalendarContentView: View {
                 referenceDate: report.referenceDate,
                 missingDates: report.missingDayKeys,
                 evidenceDays: report.evidenceDayKeys,
+                flightDays: report.flightDayKeys,
                 focusedRegion: focusedRegion,
             )
         }
@@ -556,6 +559,19 @@ private struct DayCell: View {
                             .fill(calendar.day.unresolvedMarker)
                     }
                 }
+                .overlay(alignment: .topLeading) {
+                    if day.hasFlight {
+                        Image(systemSymbol: .airplane)
+                            .font(.system(size: calendar.day.flightBadge.iconSize, weight: .bold))
+                            .foregroundStyle(Color.accentColor)
+                            .padding(calendar.day.flightBadge.padding)
+                            .background(Circle().fill(Color(.systemBackground)))
+                            .offset(
+                                x: calendar.day.flightBadge.offset.width,
+                                y: calendar.day.flightBadge.offset.height,
+                            )
+                    }
+                }
                 // A day carrying an attachment gets a small paperclip badge in
                 // the top-trailing corner, on a filled disc so it stays legible
                 // over the accent "today" fill and the region dots below.
@@ -590,13 +606,19 @@ private struct DayCell: View {
             calendar: dateCalendar,
             timeZone: dateCalendar.timeZone,
         )))
-        .accessibilityValue(band.regions.map { region in
+        .accessibilityValue(accessibilitySummary)
+    }
+
+    private var accessibilitySummary: String {
+        var values = band.regions.map { region in
             guard let membership = band.memberships[region] else { return region.localizedName }
             return String(localized: .planningCalendarMonthSummary(
                 region.localizedName,
                 WhereFormat.planningMembership(membership),
             ))
-        }.joined(separator: "; "))
+        }
+        if day.hasFlight { values.append(String(localized: .historyFlight)) }
+        return values.joined(separator: "; ")
     }
 
     /// Region-presence dots beneath the day number (one per region the day
@@ -707,6 +729,39 @@ private struct DayCell: View {
 #if DEBUG
     extension CalendarContentView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "FlightAndEvidenceBadges",
+                configurations: .componentDefaults,
+                measurementReadiness: .immediate,
+            ) {
+                HStack {
+                    ForEach([false, true], id: \.self) { isToday in
+                        DayCell(
+                            day: CalendarDayCell(
+                                date: PreviewSupport.referenceNow,
+                                dayOfMonth: 15,
+                                regions: [],
+                                isToday: isToday,
+                                needsAttention: !isToday,
+                                hasEvidence: true,
+                                hasFlight: true,
+                            ),
+                            band: .none,
+                            dateCalendar: Calendar(identifier: .gregorian),
+                        )
+                        .frame(width: 44)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color(.systemBackground))
+            }
+            whereSnapshot(name: "Flights", configurations: .fullContentScreenDefaults) {
+                NavigationStack {
+                    CalendarContentView(report: PreviewSupport
+                        .flightHistoryYearReportModel())
+                }
+            }
             whereSnapshot(name: "Itinerary", configurations: .fullContentScreenDefaults) {
                 NavigationStack {
                     CalendarContentView(report: PreviewSupport.itineraryYearReportModel())

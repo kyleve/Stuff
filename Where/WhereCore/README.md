@@ -177,6 +177,9 @@ one it belongs to rather than to a god-object:
   One daily review can offer completed-flight edits and retain pending flight information.
   Applying or dismissing those edits leaves the pending flight review available without an actionable count.
   Dismissing a ready suggestion with no pending flights hides its review and live notice.
+  `DataIssueScanResult.completedFlights` retains historical flights independently of review dismissal.
+  `FlightAssessment.completedDays(in:)` includes every local day from departure through confirmed arrival.
+  Calendar builders accept these days through their explicit `flightDays` argument.
   Pending and completed informational reviews remain accessible.
 - **`FlightTrajectoryAnalyzer`** — a pure, per-device GPS analysis before day
   bucketing, with 24 hours of report-boundary context. It uses independent fixes

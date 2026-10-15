@@ -3945,6 +3945,18 @@
         }
       }
     },
+    "history.flight" : {
+      "comment" : "Label for a completed flight in the calendar and timeline.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flight"
+          }
+        }
+      }
+    },
     "launch.accessibilityLabel" : {
       "comment" : "Spoken by VoiceOver while the launch splash is on screen (the icon and radar animation are decorative and hidden from accessibility).",
       "extractionState" : "manual",

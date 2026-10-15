@@ -641,6 +641,7 @@
                     borderDriftReview(date: driftDay),
                     flightReview(state: .ready, date: flightDay),
                 ] : [],
+                completedFlights: [],
                 nextReassessmentAt: nil,
             )
             return ResolveModel(

@@ -1390,6 +1390,11 @@ extension WhereStylesheet {
             var unresolvedNumberColor: Color
             /// The small badge marking a day that carries evidence.
             var evidenceBadge: EvidenceBadge
+            var flightBadge = EvidenceBadge(
+                iconSize: 8,
+                padding: 2,
+                offset: CGSize(width: -3, height: -2),
+            )
         }
 
         /// The subtle region-tinted pill drawn behind a run of contiguous days
@@ -1705,6 +1710,15 @@ extension WhereStylesheet {
     /// Style for the presence timeline's calendar-proportional overview ribbon
     /// and the connected journey rows below it.
     struct TimelineStyle: Equatable {
+        var flight = Flight()
+
+        struct Flight: Equatable {
+            var iconFont: Font = .system(size: 16, weight: .semibold)
+            var verticalPadding: CGFloat = 12
+            var labelSpacing: CGFloat = 2
+            var tint: Color = .accentColor
+        }
+
         var overview: Overview
         var ribbon: Ribbon
         var rail: Rail

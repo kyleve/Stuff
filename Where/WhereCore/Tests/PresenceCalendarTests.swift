@@ -22,11 +22,29 @@ struct PresenceCalendarTests {
         day(year, month, dayOfMonth)
     }
 
+    @Test func flightAndEvidenceBadgesCoexistWithoutPresenceAndSurviveFocus() throws {
+        let flightDay = CalendarDay(year: 2026, month: 1, day: 3)
+        let months = try PresenceCalendar.months(
+            from: report([]),
+            calendar: calendar,
+            referenceDate: day(2026, 1, 3),
+            evidenceDays: [flightDay],
+            flightDays: [flightDay],
+            focusedRegion: .california,
+        )
+        let cell = months[0].days[2]
+        #expect(cell.hasFlight && cell.hasEvidence && cell.isToday)
+        #expect(cell.regions.isEmpty)
+        #expect(!months[0].days[1].hasFlight)
+        #expect(months[0].regionTotals.isEmpty)
+    }
+
     @Test func monthsFromReportReturnsTwelveMonthsInOrder() throws {
         let months = try PresenceCalendar.months(
             from: report([]),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
+            flightDays: [],
         )
         #expect(months.count == 12)
         #expect(months.map(\.month) == Array(1 ... 12))
@@ -45,6 +63,7 @@ struct PresenceCalendarTests {
             from: report([]),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
+            flightDays: [],
         )
         #expect(months.count == expected)
     }
@@ -55,6 +74,7 @@ struct PresenceCalendarTests {
             from: report([]),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
+            flightDays: [],
         )
         let january = months[0]
         #expect(january.month == 1)
@@ -66,6 +86,7 @@ struct PresenceCalendarTests {
             from: report([]),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
+            flightDays: [],
         )
         guard let expected = calendar.maximumRange(of: .weekday)?.count else {
             Issue.record("Could not resolve weekday range")
@@ -83,6 +104,7 @@ struct PresenceCalendarTests {
             from: report(days),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
+            flightDays: [],
         )
         let marchDay = months[2].days.first { $0.dayOfMonth == 15 }
         #expect(marchDay?.regions == [.california, .newYork])
@@ -93,6 +115,7 @@ struct PresenceCalendarTests {
             from: report([]),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
+            flightDays: [],
         )
         let february = months[1]
         #expect(february.days.count == 28)
@@ -103,6 +126,7 @@ struct PresenceCalendarTests {
             from: report([]),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
+            flightDays: [],
         )
         let januaryFirst = months[0].days[0]
         #expect(januaryFirst.dayOfMonth == 1)
@@ -117,6 +141,7 @@ struct PresenceCalendarTests {
             from: report(days),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
+            flightDays: [],
         )
         let juneDay = months[5].days.first { $0.dayOfMonth == 10 }
         #expect(juneDay?.regions == [.canada, .europeanUnion])
@@ -128,6 +153,7 @@ struct PresenceCalendarTests {
             from: report([]),
             calendar: calendar,
             referenceDate: reference,
+            flightDays: [],
         )
         let marchDay = months[2].days.first { $0.dayOfMonth == 4 }
         #expect(marchDay?.isToday == true)
@@ -141,6 +167,7 @@ struct PresenceCalendarTests {
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
             missingDates: [missing],
+            flightDays: [],
         )
         let februaryDay = months[1].days.first { $0.dayOfMonth == 5 }
         #expect(februaryDay?.needsAttention == true)
@@ -151,11 +178,16 @@ struct PresenceCalendarTests {
             DayPresence(date: day(2026, 1, 1), in: calendar, regions: [.california]),
         ])
         let reference = referenceDate(2026, 1, 1)
-        let fromReport = try report.calendarMonths(calendar: calendar, referenceDate: reference)
+        let fromReport = try report.calendarMonths(
+            calendar: calendar,
+            referenceDate: reference,
+            flightDays: [],
+        )
         let fromPresence = try PresenceCalendar.months(
             from: report,
             calendar: calendar,
             referenceDate: reference,
+            flightDays: [],
         )
         #expect(fromReport == fromPresence)
     }
@@ -169,6 +201,7 @@ struct PresenceCalendarTests {
             from: report(days),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
+            flightDays: [],
             focusedRegion: .california,
         )
         let june = months[5]
@@ -187,6 +220,7 @@ struct PresenceCalendarTests {
             from: report(days),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
+            flightDays: [],
         )
         let mixedDay = months[5].days.first { $0.dayOfMonth == 1 }
         #expect(mixedDay?.regions == [.california, .newYork])
@@ -202,6 +236,7 @@ struct PresenceCalendarTests {
             from: report(days),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
+            flightDays: [],
         )
         let totals = months[5].regionTotals
         #expect(totals == [
@@ -239,6 +274,7 @@ struct PresenceCalendarTests {
             from: report(days),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
+            flightDays: [],
         )
 
         #expect(months[5].regionCombinationTotals == [
@@ -264,6 +300,7 @@ struct PresenceCalendarTests {
             from: report(days),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
+            flightDays: [],
             focusedRegion: .california,
         )
 
@@ -282,6 +319,7 @@ struct PresenceCalendarTests {
             from: report(days),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
+            flightDays: [],
             focusedRegion: .newYork,
         )
         let june = months[5]
@@ -302,6 +340,7 @@ struct PresenceCalendarTests {
             from: report([]),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
+            flightDays: [],
         )
         let allEmpty = months.allSatisfy(\.regionTotals.isEmpty)
         #expect(allEmpty)
@@ -313,6 +352,7 @@ struct PresenceCalendarTests {
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
             evidenceDays: [CalendarDay(year: 2026, month: 6, day: 10)],
+            flightDays: [],
         )
         let june = months[5]
         let markedDay = june.days.first { $0.dayOfMonth == 10 }
@@ -331,6 +371,7 @@ struct PresenceCalendarTests {
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
             evidenceDays: [CalendarDay(from: midday, in: calendar)],
+            flightDays: [],
         )
         let markedDay = months[5].days.first { $0.dayOfMonth == 10 }
         #expect(markedDay?.hasEvidence == true)

@@ -15,6 +15,25 @@ struct SampleCorrectionAssessment {
         driftThresholdMeters: Double,
         now: Date,
     ) -> [GPSCorrectionReview] {
+        assess(
+            reads: reads,
+            primaryRegions: primaryRegions,
+            driftThresholdMeters: driftThresholdMeters,
+            now: now,
+        ).reviews
+    }
+
+    struct Assessment {
+        let flights: [FlightAssessment]
+        let reviews: [GPSCorrectionReview]
+    }
+
+    func assess(
+        reads: DataIssueReads,
+        primaryRegions: [Region],
+        driftThresholdMeters: Double,
+        now: Date,
+    ) -> Assessment {
         // Infer flights from raw observations across midnight. Existing corrections
         // must not erase the evidence that explains why those samples were edited.
         let flights = FlightTrajectoryAnalyzer().analyze(
@@ -36,37 +55,39 @@ struct SampleCorrectionAssessment {
         let allAirborne = flights.reduce(into: Set<UUID>()) { $0.formUnion($1.airborneSampleIDs) }
         // Produce one review per report day. Adjacent-day observations provide
         // corroborating neighbors without adding edits outside that reviewed day.
-        return byDay.keys.filter { $0.year == reads.report.year }.sorted().compactMap { day in
-            let start = day.startOfDay(in: calendar)
-            guard let end = calendar.date(byAdding: .day, value: 1, to: start) else {
-                assertionFailure("Cannot derive a calendar day's successor")
-                return nil
+        let reviews: [GPSCorrectionReview] = byDay.keys.filter { $0.year == reads.report.year }
+            .sorted().compactMap { day in
+                let start = day.startOfDay(in: calendar)
+                guard let end = calendar.date(byAdding: .day, value: 1, to: start) else {
+                    assertionFailure("Cannot derive a calendar day's successor")
+                    return nil
+                }
+                let contextStart = start
+                    .addingTimeInterval(-GPSCorrectionPolicy.Review.contextPaddingInterval)
+                let contextEnd = end
+                    .addingTimeInterval(GPSCorrectionPolicy.Review.contextPaddingInterval)
+                let contextDays = CalendarDay(from: contextStart, in: calendar)
+                    .days(through: CalendarDay(from: contextEnd, in: calendar))
+                let context = contextDays.flatMap { byDay[$0] ?? [] }.filter {
+                    $0.sample.timestamp >= contextStart && $0.sample.timestamp < contextEnd
+                }.sorted { $0.sample.timestamp < $1.sample.timestamp }
+                return review(
+                    day: day,
+                    entries: byDay[day] ?? [],
+                    conflictingSampleIDs: conflictingSampleIDs,
+                    allAirborne: allAirborne,
+                    flights: flights,
+                    reads: reads,
+                    primaryRegions: primaryRegions,
+                    driftThresholdMeters: driftThresholdMeters,
+                    context: LocationHistoryProjection(
+                        samples: context,
+                        revisions: context.flatMap { revisionsBySample[$0.sample.id] ?? [] }
+                            .sorted { $0.id < $1.id },
+                    ),
+                )
             }
-            let contextStart = start
-                .addingTimeInterval(-GPSCorrectionPolicy.Review.contextPaddingInterval)
-            let contextEnd = end
-                .addingTimeInterval(GPSCorrectionPolicy.Review.contextPaddingInterval)
-            let contextDays = CalendarDay(from: contextStart, in: calendar)
-                .days(through: CalendarDay(from: contextEnd, in: calendar))
-            let context = contextDays.flatMap { byDay[$0] ?? [] }.filter {
-                $0.sample.timestamp >= contextStart && $0.sample.timestamp < contextEnd
-            }.sorted { $0.sample.timestamp < $1.sample.timestamp }
-            return review(
-                day: day,
-                entries: byDay[day] ?? [],
-                conflictingSampleIDs: conflictingSampleIDs,
-                allAirborne: allAirborne,
-                flights: flights,
-                reads: reads,
-                primaryRegions: primaryRegions,
-                driftThresholdMeters: driftThresholdMeters,
-                context: LocationHistoryProjection(
-                    samples: context,
-                    revisions: context.flatMap { revisionsBySample[$0.sample.id] ?? [] }
-                        .sorted { $0.id < $1.id },
-                ),
-            )
-        }
+        return Assessment(flights: flights, reviews: reviews)
     }
 
     private func review(
