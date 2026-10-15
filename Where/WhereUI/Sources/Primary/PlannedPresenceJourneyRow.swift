@@ -59,7 +59,7 @@ struct PlannedPresenceJourneyRow: View {
         .background(alignment: .leading) {
             PresenceJourneyRail(
                 tint: style.tint.opacity(planned.labelOpacity),
-                emoji: style.emoji,
+                marker: .region(style.emoji),
                 isFirst: isFirst,
                 isLast: isLast,
             )

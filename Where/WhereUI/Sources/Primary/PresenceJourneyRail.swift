@@ -1,10 +1,16 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// The continuous route beside a timeline row: a region-tinted line passing
 /// through an emoji marker, trimmed at the first and last stops.
 struct PresenceJourneyRail: View {
     let tint: Color
-    let emoji: String
+    enum Marker {
+        case region(String)
+        case flight
+    }
+
+    let marker: Marker
     let isFirst: Bool
     let isLast: Bool
 
@@ -47,8 +53,12 @@ struct PresenceJourneyRail: View {
                     .fill(tint.opacity(rail.nodeFillOpacity))
                 Circle()
                     .stroke(tint, lineWidth: rail.nodeStrokeWidth)
-                Text(emoji)
-                    .font(rail.nodeEmojiFont)
+                switch marker {
+                    case let .region(emoji): Text(emoji).font(rail.nodeEmojiFont)
+                    case .flight:
+                        Image(systemSymbol: .airplane).font(timeline.flight.iconFont)
+                            .foregroundStyle(tint)
+                }
             }
             .frame(width: rail.nodeSize, height: rail.nodeSize)
         }
@@ -59,7 +69,7 @@ struct PresenceJourneyRail: View {
 
 #if DEBUG
     #Preview {
-        PresenceJourneyRail(tint: .orange, emoji: "🌴", isFirst: false, isLast: false)
+        PresenceJourneyRail(tint: .orange, marker: .region("🌴"), isFirst: false, isLast: false)
             .frame(height: 120)
             .padding()
             .whereBroadwayRoot()

@@ -73,7 +73,7 @@ struct PresenceJourneyRow: View {
         .background(alignment: .leading) {
             PresenceJourneyRail(
                 tint: style.tint,
-                emoji: style.emoji,
+                marker: .region(style.emoji),
                 isFirst: isFirst,
                 isLast: isLast,
             )

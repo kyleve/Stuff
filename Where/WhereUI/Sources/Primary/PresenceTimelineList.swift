@@ -28,6 +28,12 @@ struct PresenceTimelineList: View {
         let yearReport = report.report
         let stints = yearReport
             .map { PresenceTimeline.stints(from: $0, calendar: report.calendar) } ?? []
+        let recordedItems = PresenceJourneyItem.items(
+            stints: stints,
+            flights: report.completedFlights,
+            year: report.selectedYear,
+            calendar: report.calendar,
+        )
         let plannedItems = report.showsEstimatedTimeAndPlanning
             ? PlanningTimelineItem.items(
                 planning: report.forecasts.planning,
@@ -40,12 +46,12 @@ struct PresenceTimelineList: View {
             if presentation == .excerpt {
                 if yearReport == nil {
                     Text(.settingsExploreHistoryUnavailable).font(.subheadline)
-                } else if stints.isEmpty, plannedItems.isEmpty {
+                } else if recordedItems.isEmpty, plannedItems.isEmpty {
                     Text(.settingsExploreHistoryEmpty).font(.subheadline)
                 } else {
                     VStack(spacing: 0) {
                         journeyRows(
-                            stints: Array(stints.suffix(2)),
+                            recordedItems: Array(recordedItems.suffix(2)),
                             plannedItems: Array(plannedItems.prefix(2)),
                         )
                     }
@@ -58,7 +64,7 @@ struct PresenceTimelineList: View {
                     systemSymbol: .exclamationmarkIcloud,
                     description: Text(error.message),
                 )
-            } else if stints.isEmpty, plannedItems.isEmpty {
+            } else if recordedItems.isEmpty, plannedItems.isEmpty {
                 ContentUnavailableView {
                     Label(
                         String(localized: .timelineEmptyTitle),
@@ -81,7 +87,7 @@ struct PresenceTimelineList: View {
                         }
 
                         LazyVStack(spacing: 0) {
-                            journeyRows(stints: stints, plannedItems: plannedItems)
+                            journeyRows(recordedItems: recordedItems, plannedItems: plannedItems)
                         }
 
                         if showsForecast {
@@ -136,21 +142,37 @@ struct PresenceTimelineList: View {
     /// Both presentations share recorded and planned row rendering.
     @ViewBuilder
     private func journeyRows(
-        stints: [RegionStint],
+        recordedItems: [PresenceJourneyItem],
         plannedItems: [PlanningTimelineItem],
     ) -> some View {
-        let joinsRecorded = stints.last.map { last in
+        let lastStint: RegionStint? = if case let .stay(stint) = recordedItems.last { stint }
+        else { nil }
+        let joinsRecorded = lastStint.map { last in
             plannedItems.first?.continues(last, calendar: report.calendar) == true
         } ?? false
-        ForEach(stints) { stint in
-            PresenceJourneyRow(
-                stint: stint,
-                calendar: report.calendar,
-                daysInYear: report.daysInSelectedYear,
-                isFirst: stint.id == stints.first?.id,
-                isLast: plannedItems.isEmpty && stint.id == stints.last?.id,
-                cardPosition: joinsRecorded && stint.id == stints.last?.id ? .top : .standalone,
-            )
+        ForEach(recordedItems) { item in
+            Group {
+                switch item {
+                    case let .stay(stint):
+                        PresenceJourneyRow(
+                            stint: stint,
+                            calendar: report.calendar,
+                            daysInYear: report.daysInSelectedYear,
+                            isFirst: item.id == recordedItems.first?.id,
+                            isLast: plannedItems.isEmpty && item.id == recordedItems.last?.id,
+                            cardPosition: joinsRecorded && item.id == recordedItems.last?
+                                .id ? .top : .standalone,
+                        )
+                    case let .flight(flight):
+                        FlightJourneyRow(
+                            flight: flight,
+                            calendar: report.calendar,
+                            isFirst: item.id == recordedItems.first?.id,
+                            isLast: plannedItems.isEmpty && item.id == recordedItems
+                                .last?.id,
+                        )
+                }
+            }
             .fixedSize(horizontal: false, vertical: presentation == .excerpt)
         }
         ForEach(plannedItems) { item in
@@ -158,7 +180,7 @@ struct PresenceTimelineList: View {
                 item: item,
                 calendar: report.calendar,
                 daysInYear: report.daysInSelectedYear,
-                isFirst: stints.isEmpty && item.id == plannedItems.first?.id,
+                isFirst: recordedItems.isEmpty && item.id == plannedItems.first?.id,
                 isLast: item.id == plannedItems.last?.id,
                 cardPosition: joinsRecorded && item.id == plannedItems.first?
                     .id ? .bottom : .standalone,
@@ -198,6 +220,12 @@ struct PresenceTimelineList: View {
     extension PresenceTimelineList: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             [
+                whereSnapshot(name: "Flights", configurations: .fullContentScreenDefaults) {
+                    NavigationStack {
+                        PresenceTimelineList(report: PreviewSupport
+                            .flightHistoryYearReportModel())
+                    }
+                },
                 whereSnapshot(name: "Itinerary", configurations: .fullContentScreenDefaults) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport.itineraryYearReportModel())
