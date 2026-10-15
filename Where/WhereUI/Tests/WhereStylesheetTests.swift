@@ -419,11 +419,6 @@ struct WhereStylesheetTests {
         ))
 
         let day = calendar.day
-        #expect(day.flightBadge == .init(
-            iconSize: 8,
-            padding: 2,
-            offset: CGSize(width: -3, height: -2),
-        ))
         #expect(style.timeline.flight.iconFont == .system(size: 16, weight: .semibold))
         #expect(style.timeline.flight.verticalPadding == 12)
         #expect(style.timeline.flight.labelSpacing == 2)
@@ -440,8 +435,9 @@ struct WhereStylesheetTests {
         #expect(day.todayNumberColor == .white)
         #expect(day.unresolvedMarker == Color.red.opacity(0.15))
         #expect(day.unresolvedNumberColor == .red)
-        #expect(day.evidenceBadge == .init(
+        #expect(day.badge == .init(
             iconSize: 8,
+            iconSpacing: 2,
             padding: 2,
             offset: CGSize(width: 3, height: -2),
         ))

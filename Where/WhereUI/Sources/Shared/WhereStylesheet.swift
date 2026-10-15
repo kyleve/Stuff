@@ -1307,7 +1307,7 @@ extension WhereStylesheet {
         /// The subtle "stay" pill drawn behind contiguous same-region days.
         var regionBand: RegionBand
         /// Geometry and colors of a single day cell (the number chip, its region
-        /// dots, the today/unresolved markers, and the evidence badge).
+        /// dots, the today/unresolved markers, and the attachment/flight badge).
         var day: DayStyle
 
         /// Style for one month section: the header/grid/footer stack, its
@@ -1357,7 +1357,7 @@ extension WhereStylesheet {
 
         /// Geometry and colors of a single day cell: the number chip, its region
         /// dots beneath the number, the today/unresolved markers behind the
-        /// number, and the evidence badge in the corner.
+        /// number, and the attachment/flight badge in the corner.
         struct DayStyle: Equatable {
             /// Min height (tap target) of a day cell — grows at accessibility
             /// Dynamic Type sizes.
@@ -1388,13 +1388,8 @@ extension WhereStylesheet {
             /// number.
             var unresolvedMarker: Color
             var unresolvedNumberColor: Color
-            /// The small badge marking a day that carries evidence.
-            var evidenceBadge: EvidenceBadge
-            var flightBadge = EvidenceBadge(
-                iconSize: 8,
-                padding: 2,
-                offset: CGSize(width: -3, height: -2),
-            )
+            /// The shared badge marking attachments and flights on a day.
+            var badge: DayBadge
         }
 
         /// The subtle region-tinted pill drawn behind a run of contiguous days
@@ -1424,13 +1419,15 @@ extension WhereStylesheet {
             }
         }
 
-        /// The paperclip badge in a day cell's top-trailing corner marking a day
-        /// that carries evidence. Its tint (accent) and backing disc (system
-        /// background) follow the app/system roles, so only geometry lives here.
-        struct EvidenceBadge: Equatable {
-            /// Point size of the paperclip glyph.
+        /// The attachment and flight badge in a day cell's top-trailing corner.
+        /// Its tint and backing capsule follow the accent and system background
+        /// roles, so only geometry lives here.
+        struct DayBadge: Equatable {
+            /// Point size and square frame of each glyph.
             var iconSize: CGFloat
-            /// Padding around the glyph inside its backing disc.
+            /// Space between glyphs when both indicators are present.
+            var iconSpacing: CGFloat
+            /// Padding around the glyphs inside the backing capsule.
             var padding: CGFloat
             /// Offset nudging the badge past the day-number chip's corner.
             var offset: CGSize
@@ -1494,8 +1491,9 @@ extension WhereStylesheet {
                 todayNumberColor: .white,
                 unresolvedMarker: Color.red.opacity(0.15),
                 unresolvedNumberColor: .red,
-                evidenceBadge: EvidenceBadge(
+                badge: DayBadge(
                     iconSize: 8,
+                    iconSpacing: 2,
                     padding: 2,
                     offset: CGSize(width: 3, height: -2),
                 ),

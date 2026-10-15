@@ -559,33 +559,22 @@ private struct DayCell: View {
                             .fill(calendar.day.unresolvedMarker)
                     }
                 }
-                .overlay(alignment: .topLeading) {
-                    if day.hasFlight {
-                        Image(systemSymbol: .airplane)
-                            .font(.system(size: calendar.day.flightBadge.iconSize, weight: .bold))
-                            .foregroundStyle(Color.accentColor)
-                            .padding(calendar.day.flightBadge.padding)
-                            .background(Circle().fill(Color(.systemBackground)))
-                            .offset(
-                                x: calendar.day.flightBadge.offset.width,
-                                y: calendar.day.flightBadge.offset.height,
-                            )
-                    }
-                }
-                // A day carrying an attachment gets a small paperclip badge in
-                // the top-trailing corner, on a filled disc so it stays legible
-                // over the accent "today" fill and the region dots below.
                 .overlay(alignment: .topTrailing) {
-                    if day.hasEvidence {
-                        Image(systemSymbol: .paperclip)
-                            .font(.system(size: calendar.day.evidenceBadge.iconSize, weight: .bold))
-                            .foregroundStyle(Color.accentColor)
-                            .padding(calendar.day.evidenceBadge.padding)
-                            .background(Circle().fill(Color(.systemBackground)))
-                            .offset(
-                                x: calendar.day.evidenceBadge.offset.width,
-                                y: calendar.day.evidenceBadge.offset.height,
-                            )
+                    if day.hasEvidence || day.hasFlight {
+                        HStack(spacing: calendar.day.badge.iconSpacing) {
+                            if day.hasEvidence {
+                                badgeIcon(.paperclip)
+                            }
+                            if day.hasFlight {
+                                badgeIcon(.airplane)
+                            }
+                        }
+                        .foregroundStyle(Color.accentColor)
+                        .padding(calendar.day.badge.padding)
+                        .background(Capsule().fill(Color(.systemBackground)))
+                        // Keep the first icon at the corner; additional icons
+                        // extend to the right without covering the day number.
+                        .offset(badgeOffset)
                     }
                 }
 
@@ -607,6 +596,22 @@ private struct DayCell: View {
             timeZone: dateCalendar.timeZone,
         )))
         .accessibilityValue(accessibilitySummary)
+    }
+
+    private var badgeOffset: CGSize {
+        let extraWidth = day.hasEvidence && day.hasFlight
+            ? calendar.day.badge.iconSize + calendar.day.badge.iconSpacing
+            : 0
+        return CGSize(
+            width: calendar.day.badge.offset.width + extraWidth,
+            height: calendar.day.badge.offset.height,
+        )
+    }
+
+    private func badgeIcon(_ symbol: SFSymbol) -> some View {
+        Image(systemSymbol: symbol)
+            .font(.system(size: calendar.day.badge.iconSize, weight: .bold))
+            .frame(width: calendar.day.badge.iconSize, height: calendar.day.badge.iconSize)
     }
 
     private var accessibilitySummary: String {
