@@ -30,9 +30,12 @@ These rules also apply when changing a root command or installer that calls this
   Guard: [simulator_registry_test.rb](Tests/simulator_registry_test.rb).
 - Keep dry runs free of the mutations they preview. Test the public command
   with fake processes and temporary destinations, not developer devices or installed apps.
+- Propagate simulator creation failures before recording ownership, including failures that write diagnostics to stdout.
+  Guard: `SimulatorCommandTest#test_interrupted_creation_never_records_an_owner`.
 
 ## Snapshot shard plans
 
+- Discover each snapshot source root from its owning target's literal source array, including multiline arrays with shared support files. Reject unsupported declarations without borrowing the next target's sources. Guard: `test_snapshot_shards.py`.
 - Keep measured timings in balance reports, not the persisted execution plan.
 - Preserve assignments unless intake, the improvement threshold, or an explicit shard-count change requires an update.
   Guard: [test_snapshot_shards.py](Tests/test_snapshot_shards.py).

@@ -16,6 +16,8 @@ permissions:
   contents: read
 
 env:
+  # The runner label carries several Xcodes. Select the pinned minor explicitly.
+  DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
   # CI installs tools only. Agent skills are local-development inputs, and mise
   # otherwise runs the postinstall hook even when every tool is already cached.
   MISE_NO_HOOKS: "1"

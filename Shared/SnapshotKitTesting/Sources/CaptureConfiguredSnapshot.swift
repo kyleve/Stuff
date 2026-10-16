@@ -22,35 +22,38 @@ func captureConfiguredSnapshot(
     timeoutPolicy: SnapshotSettleTimeoutPolicy,
     backgroundColor: UIColor = .clear,
 ) async throws -> ConfiguredSnapshotCapture {
-    let sizing: SnapshotSizing = switch configuration.device.size {
-        case .fixed: .fixed
-        case let .intrinsic(width): .intrinsic(
-                width: width ?? UIScreen.main.bounds.width,
-                minimumHeight: 0,
+    var retainedTiming: SnapshotCaptureTiming?
+    return try await SnapshotCaptureRetry.capture(named: name, operation: {
+        try await SnapshotCaptureLock.withHost { window in
+            let sizing: SnapshotSizing = switch configuration.device.size {
+                case .fixed: .fixed
+                case let .intrinsic(width): .intrinsic(
+                        width: width ?? window.bounds.width,
+                        minimumHeight: 0,
+                    )
+                case let .fullContent(width, minimumHeight): .intrinsic(
+                        width: width,
+                        minimumHeight: minimumHeight ?? 0,
+                    )
+                case let .fullContent2D(minimumSize): .fullContent2D(minimumSize: minimumSize)
+            }
+            let timing = retainedTiming ?? SnapshotCaptureTiming(
+                identifier: name,
+                isEnabled: SnapshotCaptureTiming.isEnabledByEnvironment,
+                sizing: sizing,
+                measurementReadiness: measurementReadiness,
+                captureSettle: settle,
             )
-        case let .fullContent(width, minimumHeight): .intrinsic(
-                width: width,
-                minimumHeight: minimumHeight ?? 0,
+            retainedTiming = timing
+            let controller = makeHostingController(
+                for: view,
+                configuration: configuration,
+                hostWidth: window.bounds.width,
             )
-        case let .fullContent2D(minimumSize): .fullContent2D(minimumSize: minimumSize)
-    }
-    let timing = SnapshotCaptureTiming(
-        identifier: name,
-        isEnabled: SnapshotCaptureTiming.isEnabledByEnvironment,
-        sizing: sizing,
-        measurementReadiness: measurementReadiness,
-        captureSettle: settle,
-    )
-    let capture = try await SnapshotCaptureRetry.capture(
-        named: name,
-        makeViewController: {
-            let controller = makeHostingController(for: view, configuration: configuration)
             controller.view.backgroundColor = backgroundColor
-            return controller
-        },
-        capture: { controller in
-            try await renderSnapshotCapture(
+            let capture = try await renderSnapshotCaptureLocked(
                 of: controller,
+                hostWindow: window,
                 named: name,
                 sizing: sizing,
                 safeAreaInsets: configuration.device.safeAreaInsets.uiEdgeInsets,
@@ -63,8 +66,7 @@ func captureConfiguredSnapshot(
                 settleTimeoutPolicy: timeoutPolicy,
                 timing: timing,
             )
-        },
-        report: { print($0) },
-    )
-    return ConfiguredSnapshotCapture(capture: capture, timing: timing)
+            return ConfiguredSnapshotCapture(capture: capture, timing: timing)
+        }
+    }, report: { print($0) })
 }

@@ -7,13 +7,7 @@ import UIKit
 struct SnapshotTraitsTests {
     @Test func removesDeviceOverridesWhenAReusedHostReturnsToInheritedTraits() {
         let host = UIHostingController(rootView: EmptyView())
-        applySnapshotTraitOverrides(
-            SnapshotConfiguration(
-                contrast: .increased,
-                layoutTraits: .tabletPortrait,
-            ),
-            to: host,
-        )
+        SnapshotConfiguration(contrast: .increased, device: .iPad).applyTraits(to: host)
 
         #expect(host.traitCollection.accessibilityContrast == .high)
         #expect(host.traitCollection.userInterfaceIdiom == .pad)
@@ -23,10 +17,7 @@ struct SnapshotTraitsTests {
         #expect(host.traitOverrides.contains(UITraitHorizontalSizeClass.self))
         #expect(host.traitOverrides.contains(UITraitVerticalSizeClass.self))
 
-        applySnapshotTraitOverrides(
-            SnapshotConfiguration(contrast: .increased),
-            to: host,
-        )
+        SnapshotConfiguration(contrast: .increased).applyTraits(to: host)
 
         #expect(host.traitCollection.accessibilityContrast == .high)
         #expect(host.traitOverrides.contains(UITraitUserInterfaceIdiom.self) == false)

@@ -172,6 +172,25 @@ private func waitForHostRootViewController(timeout: TimeInterval) throws -> UIVi
 
 // MARK: - Run Loop Helpers
 
+/// Waits for a predicate while allowing main-actor tasks to make progress.
+/// Use this in async hosted tests whose content updates through SwiftUI tasks or geometry
+/// callbacks.
+@MainActor
+public func waitForAsync(
+    timeout: Duration = .seconds(10),
+    predicate: () -> Bool,
+) async throws {
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: timeout)
+    try Task.checkCancellation()
+    while !predicate() {
+        guard clock.now < deadline else {
+            throw TestHostError("waitForAsync timed out waiting for a check to pass.")
+        }
+        try await clock.sleep(for: .milliseconds(10))
+    }
+}
+
 /// Drives the run loop until `predicate` holds, or throws once `timeout` elapses.
 @MainActor
 public func waitFor(timeout: TimeInterval = 10.0, predicate: () -> Bool) throws {

@@ -35,6 +35,7 @@ struct WhereStylesheet: BStylesheet {
     var typography = Typography.standard
     var themePicker = ThemePickerStyle()
     var yearModePicker = YearModePickerStyle()
+    var loggedDay = LoggedDayStyle()
     var settings = SettingsStyle.standard
     var featureDiscovery = FeatureDiscoveryStyle.standard
     var passportSeal = PassportSealStyle.standard
@@ -68,6 +69,7 @@ struct WhereStylesheet: BStylesheet {
             privacyPassportCard.disclosure.layout = .stacked
             themePicker.layout = .stacked
             yearModePicker.layout = .stacked
+            loggedDay.layout = .stacked
             openSourceStamp.layout = .stacked
             plannedStayWarningStamp.layout = .stacked
             featureDiscovery.appIcon.layout = .stacked
@@ -2831,8 +2833,14 @@ extension WhereStylesheet {
         var layout = ContentLayout.inline
     }
 
+    struct LoggedDayStyle: Equatable {
+        var layout = ContentLayout.inline
+    }
+
     struct ThemePickerStyle: Equatable {
         var layout = ContentLayout.inline
         var spacing: CGFloat = 12
+        /// Two 176-point specimens plus their gap keep counts readable in a narrow pane.
+        var minimumInlineWidth: CGFloat = 364
     }
 }

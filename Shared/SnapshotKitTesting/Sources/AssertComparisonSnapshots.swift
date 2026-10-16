@@ -51,7 +51,6 @@ func captureSnapshotPanels(
     _ snapshotCase: SnapshotCase,
     configuration: SnapshotConfiguration,
 ) async throws -> [SnapshotPanelCapture] {
-    try waitFor { hostKeyWindow()?.rootViewController != nil }
     let identifier = fullSnapshotIdentifier(
         caseName: snapshotCase.name,
         configuration: configuration,
