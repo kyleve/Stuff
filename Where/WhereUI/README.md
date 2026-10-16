@@ -699,3 +699,18 @@ also avoids blank trailing space from lazy estimates in its bottom-anchored scro
 Developer Overlay snapshots retain their scene for native glass rendering. Detached
 windows produce material bands and clipping in the menu. The retained-scene
 cases keep their device traits, content clearance, and full-content sizing.
+
+## Adaptive history foundations
+
+`SceneNavigationModel` groups navigation by destination. `HistoryNavigationModel`
+connects explicit month and stay selections. Calendar and timeline models retain
+typed scroll anchors without coupling their scroll offsets. A consumed month reveal
+keeps its request identity, so repeated selections remain observable.
+
+`AdaptiveHistoryGeometry` maps safe areas and reserved regions into physical
+container coordinates. `AdaptiveHistoryArrangement` applies the stylesheet's pane
+limits. `AdaptiveHistoryContainer` hosts compact, columns, and tabletop arrangements.
+The DEBUG Testing SPI supplies synthetic reserved regions to the same adapter.
+
+This foundation does not replace the current destination containers. The dependent
+app integration installs scene ownership and presents these arrangements.
