@@ -37,6 +37,7 @@ struct WhereStylesheet: BStylesheet {
     var themePicker = ThemePickerStyle()
     var yearModePicker = YearModePickerStyle()
     var loggedDay = LoggedDayStyle()
+    var adaptiveHistory = AdaptiveHistoryStyle()
     var settings = SettingsStyle.standard
     var featureDiscovery = FeatureDiscoveryStyle.standard
     var passportSeal = PassportSealStyle.standard
@@ -53,6 +54,13 @@ struct WhereStylesheet: BStylesheet {
         // stays constant, so a default/system context reproduces `default`.
         let traits = context.traits
         theme = context.themes[WhereTheme.self]
+
+        if traits.horizontalSizeClass == .regular,
+           traits.verticalSizeClass == .regular,
+           !traits.contentSizeCategory.isAccessibilitySize
+        {
+            adaptiveHistory.panes = .multiple
+        }
 
         developerOverlay.launcher.diameter = BScaledDimension.value(
             developerOverlay.launcher.diameter,
@@ -710,18 +718,15 @@ extension WhereStylesheet {
 // MARK: - Card
 
 extension WhereStylesheet {
-    /// The complete visual spec for a `RegionSummaryCard`. Bundling every value
-    /// the card's appearance depends on into one type — with a `.regular` variant
-    /// (the big Locations cards) and a `.compact` variant (the Elsewhere list) —
-    /// lets the view read a single resolved `CardStyle` instead of branching on a
-    /// `compact` flag across ~30 tokens. Non-varying generic spacing (the inner
-    /// header/number stacks) still comes from ``Spacing``.
+    /// The complete appearance for a `RegionSummaryCard`. Each presentation resolves
+    /// one style. The column variant keeps the regular artwork with compact typography.
+    /// Shared spacing inside the header and number stacks comes from ``Spacing``.
     struct CardStyle: Equatable {
-        /// Which card the stylesheet vends: the Locations cards use `.regular`,
-        /// the Elsewhere list `.compact`.
+        /// Locations uses regular or column cards. Elsewhere uses compact cards.
         enum Variant {
             case regular
             case compact
+            case column
         }
 
         var cornerRadius: CGFloat
@@ -989,7 +994,7 @@ extension WhereStylesheet {
         }
     }
 
-    /// The `.regular` / `.compact` card specs the stylesheet vends; a view picks
+    /// The card specs the stylesheet vends; a view picks
     /// one with `stylesheet.card[variant]`.
     struct CardStyles: Equatable {
         var regular: CardStyle
@@ -1169,7 +1174,23 @@ extension WhereStylesheet {
             switch variant {
                 case .regular: regular
                 case .compact: compact
+                case .column:
+                    column
             }
+        }
+
+        /// Retains the Locations artwork while fitting a browse column.
+        private var column: CardStyle {
+            var style = regular
+            style.padding = compact.padding
+            style.contentSpacing = compact.contentSpacing
+            style.progressBarHeight = compact.progressBarHeight
+            style.entryStamp = compact.entryStamp
+            style.regionNameTypography = compact.regionNameTypography
+            style.regionNameTracking = compact.regionNameTracking
+            style.heroNumberTypography = compact.heroNumberTypography
+            style.dayUnitTypography = compact.dayUnitTypography
+            return style
         }
 
         /// The fixed card geometry, migrated from the former split
@@ -1315,6 +1336,12 @@ extension WhereStylesheet {
         /// Style for one month section: the header/grid/footer stack, its
         /// current-month highlight, and the tally footer.
         struct MonthStyle: Equatable {
+            /// A tabletop month puts its totals beside the grid when both fit.
+            var minimumGridWidth: CGFloat = 320
+            var summaryWidth: CGFloat = 180
+            var summarySpacing: CGFloat = 16
+            /// Leaves six weeks readable above a horizontal division without shrinking dates.
+            var tabletopGridSpacing: CGFloat = 4
             /// Spacing between the month header, day grid, and footer.
             var sectionSpacing: CGFloat
             /// Spacing between day cells in the grid (both axes).
