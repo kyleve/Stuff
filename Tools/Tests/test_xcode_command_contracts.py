@@ -325,9 +325,26 @@ class XcodeCommandContractTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertNotIn("xcodebuild -version", fixture.command_log())
 
+    def test_unit_run_does_not_require_the_flyover_command_fixture(self):
+        fixture = self.fixture()
+
+        result = fixture.run(
+            "test",
+            "--skip-architecture",
+            "--no-generate",
+            "--no-build",
+            "CoreTests",
+        )
+
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertNotIn("Testing flyover command", result.stdout)
+
     def test_artifact_consumer_skips_host_checks_owned_by_builder(self):
         fixture = self.fixture()
         artifacts = fixture.test_artifacts("Stuff-iOS-Tests")
+        flyover_fixture = fixture.root / "Shared/Flyover/Tools/Tests/flyover_test.sh"
+        flyover_fixture.parent.mkdir(parents=True)
+        fixture._write_executable(flyover_fixture, "#!/bin/bash\nexit 99\n")
 
         result = fixture.run(
             "test",
@@ -341,6 +358,7 @@ class XcodeCommandContractTests(unittest.TestCase):
 
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertNotIn("mise ", fixture.command_log())
+        self.assertNotIn("Testing flyover command", result.stdout)
         self.assertIn("test-without-building -xctestrun", fixture.command_log())
 
     def test_test_preserves_xcode_failure_through_the_progress_pipeline(self):
