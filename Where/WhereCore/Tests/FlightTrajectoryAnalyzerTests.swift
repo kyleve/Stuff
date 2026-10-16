@@ -35,6 +35,30 @@ struct FlightTrajectoryAnalyzerTests {
         #expect(flights[0].inferredEndpoints.isEmpty)
     }
 
+    @Test func consistentMidpointPreservesSparseFlightRecognition() throws {
+        let samples = Fixtures.sparseFlight()
+        let midpoint = Fixtures.sample(100, minutes: 140, east: 2000)
+        let flights = analyzer.analyze(samples: samples + [midpoint], now: samples[4].timestamp)
+        let flight = try #require(flights.first)
+        #expect(flights.count == 1)
+        #expect(flight.progress == .completed(arrivedAt: samples[2].timestamp))
+        #expect(flight.airborneSampleIDs.isEmpty)
+    }
+
+    @Test func coarseDisplacementDoesNotAuthorizePointExclusions() throws {
+        let samples = [
+            Fixtures.sample(1, minutes: 0, east: 0, accuracy: 1000),
+            Fixtures.sample(2, minutes: 5, east: 0, accuracy: 1000),
+            Fixtures.sample(3, minutes: 275, east: 4000, accuracy: 1000),
+            Fixtures.sample(4, minutes: 280, east: 4000, accuracy: 1000),
+        ]
+        let flight = try #require(analyzer.analyze(samples: samples, now: samples[3].timestamp)
+            .first)
+        #expect(flight.airborneSampleIDs.isEmpty)
+        #expect(flight.groundSampleIDs.isEmpty)
+        #expect(flight.progress == .awaitingArrival)
+    }
+
     @Test func sparseTravelConfirmsArrivalWithoutProposingAirborneEdits() throws {
         let samples = Fixtures.sparseFlight()
         let flights = analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 285))

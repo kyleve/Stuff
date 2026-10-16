@@ -10,6 +10,8 @@ and [repository rules](../../../../../AGENTS.md) also apply.
 - Keep later flight observations out of older pending assessments.
 - Keep recording gaps out of observed legs and automatic point exclusions.
   Corroborated displacement can establish a trip. Require independent nearby observations at both endpoints.
+  Search bounded windows across consistent intervening fixes. Stop at confirmed ground episodes.
+  Keep recognition accuracy separate from correction eligibility.
   Preserve ground endpoints. Guard: `FlightDisplacementInferenceTests` and `FlightTrajectoryAnalyzerTests`.
 - Corroborate resumed cruise points separately and expose each inference reason.
   Guard: `FlightEndpointInferenceTests`.

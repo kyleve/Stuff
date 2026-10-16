@@ -11,6 +11,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         let distance: Double
         let lowerSpeed: Double
         let upperSpeed: Double
+        let supportsCorrection: Bool
 
         var isCore: Bool {
             // Every cruise leg must clear the minimum after subtracting positional
@@ -23,7 +24,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         }
 
         private func qualifies(minimumSpeed: Double) -> Bool {
-            seconds >= Policy.minimumAnchorInterval
+            supportsCorrection && seconds >= Policy.minimumAnchorInterval
                 && seconds <= Policy.maximumLegInterval
                 && lowerSpeed >= minimumSpeed
                 && upperSpeed <= Policy.maximumPlausibleSpeedKMH
@@ -44,19 +45,19 @@ public struct FlightTrajectoryAnalyzer: Sendable {
 
     private enum Segment {
         case cruise(Range<Int>)
-        case displacement(Int)
+        case displacement(FlightDisplacementInference.Window)
 
         var start: Int {
             switch self {
                 case let .cruise(legs): legs.lowerBound
-                case let .displacement(leg): leg
+                case let .displacement(window): window.legs.lowerBound
             }
         }
 
         var end: Int {
             switch self {
                 case let .cruise(legs): legs.upperBound
-                case let .displacement(leg): leg + 1
+                case let .displacement(window): window.legs.upperBound
             }
         }
 
@@ -116,25 +117,23 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         let cruise = Self.cruiseSegments(anchors: anchors, legs: legs)
         // Sparse displacement can establish a trip without supplying observed cruise
         // legs. Merge both evidence kinds before arrival and trip ownership are resolved.
-        let displacement = (1 ..< anchors.count - 2).compactMap { start -> Segment? in
-            guard !cruise.contains(where: { $0.start <= start && $0.end > start }),
-                  FlightDisplacementInference.supportsFlight(
-                      from: anchors[start],
-                      to: anchors[start + 1],
-                      previous: anchors[start - 1],
-                      next: anchors[start + 2],
-                      observations: usable,
-                  ) else { return nil }
-            return .displacement(start)
-        }
-        let segments = (cruise + displacement).sorted { $0.start < $1.start }
-        guard !segments.isEmpty else { return [] }
         let grounds = Self.grounds(anchors: anchors, legs: legs, observations: usable)
+        let displacement = FlightDisplacementInference.windows(
+            anchors: anchors,
+            observations: usable,
+            grounds: grounds.map { $0.start ... $0.confirmation },
+            cruise: cruise.map { $0.start ..< $0.end },
+        ).map(Segment.displacement)
+        let segments = (cruise + displacement).sorted {
+            if $0.start != $1.start { return $0.start < $1.start }
+            return $0.end > $1.end
+        }
+        guard !segments.isEmpty else { return [] }
         // Nearby cruise segments share a review until observed ground dwell separates
         // them. Unsupported gaps inside a review still do not become airborne evidence.
         var groups: [[Segment]] = []
         for segment in segments {
-            if let previous = groups.last?.last,
+            if let previous = groups.last?.max(by: { $0.end < $1.end }),
                anchors[segment.start].timestamp.timeIntervalSince(anchors[previous.end].timestamp)
                <= Policy.maximumLegInterval,
                !grounds.contains(where: {
@@ -192,14 +191,13 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         // the next group's transition starts after this group's last segment. Check
         // that correspondence here before any private array index is used.
         guard let first = segments.first,
-              let last = segments.last,
+              let last = segments.max(by: { $0.end < $1.end }),
               anchors.count >= 3,
               legs.count == anchors.count - 1,
               segments.allSatisfy({
                   anchors.indices.contains($0.start) && anchors.indices.contains($0.end)
                       && $0.end - $0.start >= ($0.isCruise ? 2 : 1)
               }),
-              zip(segments, segments.dropFirst()).allSatisfy({ $0.end <= $1.start }),
               next.observationStart.offset >= last.end,
               next.arrivalConfirmationLimit.offset >= next.observationStart.offset,
               next.arrivalConfirmationLimit.offset <= anchors.count,
@@ -247,13 +245,16 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         // enters supportedLegs or the automatic airborne-point correction set.
         let startIndex = min(first.start, supportedLegs.min() ?? first.start)
         let endIndex = max(last.end, supportedLegs.max().map { $0 + 1 } ?? last.end)
-        let travelLegs = supportedLegs
-            .union(segments.filter { !$0.isCruise }.map(\.start))
-        guard let peakSpeedKMH = travelLegs.map({
+        let observedSpeeds = supportedLegs.map {
             GPSCorrectionPolicy.kilometersPerHour(
                 fromMetersPerSecond: legs[$0].distance / legs[$0].seconds,
             )
-        }).max() else {
+        }
+        let displacementSpeeds = segments.filter { !$0.isCruise }.map { segment in
+            let leg = Self.leg(from: anchors[segment.start], to: anchors[segment.end])
+            return leg.distance / leg.seconds * 3.6
+        }
+        guard let peakSpeedKMH = (observedSpeeds + displacementSpeeds).max() else {
             assertionFailure("A flight requires observed motion or corroborated displacement")
             return nil
         }
@@ -368,7 +369,9 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         var start = segment.start
         // A sparse trip owns its preceding corroborating fix too. That observation
         // must not extend an earlier pending flight across a long recording break.
-        guard segment.isCruise else { return AnchorIndex(offset: start - 1) }
+        if case let .displacement(window) = segment {
+            return AnchorIndex(offset: window.previous)
+        }
         while start > 0,
               legs[start - 1].isTransition,
               anchors[segment.start].timestamp.timeIntervalSince(anchors[start - 1].timestamp)
@@ -466,6 +469,9 @@ public struct FlightTrajectoryAnalyzer: Sendable {
     }
 
     private static func fitsGround(_ sample: LocationSample, origin: LocationSample) -> Bool {
+        guard sample.horizontalAccuracy <= GPSCorrectionPolicy.maximumHorizontalAccuracyMeters,
+              origin.horizontalAccuracy <= GPSCorrectionPolicy.maximumHorizontalAccuracyMeters
+        else { return false }
         if let speed = sample.motion?.speed,
            GPSCorrectionPolicy.kilometersPerHour(
                fromMetersPerSecond: speed.metersPerSecond + speed.accuracyMetersPerSecond,
@@ -481,7 +487,8 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         from before: LocationSample,
         to after: LocationSample,
     ) -> Bool {
-        isPlausible(sample, relativeTo: before) && isPlausible(sample, relativeTo: after)
+        sample.horizontalAccuracy <= GPSCorrectionPolicy.maximumHorizontalAccuracyMeters
+            && isPlausible(sample, relativeTo: before) && isPlausible(sample, relativeTo: after)
     }
 
     private static func isPlausible(
@@ -512,6 +519,9 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             upperSpeed: GPSCorrectionPolicy.kilometersPerHour(
                 fromMetersPerSecond: (distance + uncertainty) / seconds,
             ),
+            supportsCorrection: before.horizontalAccuracy <= GPSCorrectionPolicy
+                .maximumHorizontalAccuracyMeters
+                && after.horizontalAccuracy <= GPSCorrectionPolicy.maximumHorizontalAccuracyMeters,
         )
     }
 
@@ -521,7 +531,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             && (-90 ... 90).contains(sample.coordinate.latitude)
             && (-180 ... 180).contains(sample.coordinate.longitude)
             && sample.horizontalAccuracy.isFinite
-            && (0 ... GPSCorrectionPolicy.maximumHorizontalAccuracyMeters)
+            && (0 ... GPSCorrectionPolicy.Displacement.maximumHorizontalAccuracyMeters)
             .contains(sample.horizontalAccuracy)
     }
 }

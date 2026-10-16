@@ -201,6 +201,8 @@ one it belongs to rather than to a god-object:
 
   `FlightDisplacementInference` also recognizes sparse journeys from distance and elapsed time.
   Both endpoints need independent nearby observations from the same recording device.
+  The search spans intervening fixes and stops at confirmed ground episodes.
+  Recognition accepts up to 1 km horizontal uncertainty; observed cruise and point corrections retain the 250 m limit.
   The uncertainty-adjusted distance must reach 300 km, with an average speed of 450–1,500 km/h.
   The gap must not exceed 18 hours. Each supporting observation must be within 30 minutes and 100 km of its endpoint.
 
