@@ -88,6 +88,7 @@ struct ResolveModelTests {
                 revision: UUID(),
                 issues: [issue],
                 reviews: [review],
+                completedFlights: [],
                 nextReassessmentAt: nil,
             )),
         )

@@ -21,6 +21,12 @@ Its count, separate background silhouettes, and microprint border share the orde
 The catch-all Other region uses a background globe because it has no geographic outline.
 The card opens the existing Elsewhere list.
 
+Completed flights appear in both history views. The calendar shows an airplane on each local flight day. Attachments and flights share one badge at the top-right of the day. The badge widens when both icons are present.
+Each calendar month is one accessibility element. Its label gives regional totals; its value reads chronological stay spans with dated attachment and flight cues.
+The timeline inserts a plane in a circle at departure, with the flight's date range beside the rail.
+A flight can split a displayed regional stay into segments without changing residency totals.
+These indicators have no separate action and remain visible after correction dismissal.
+
 ### App shell & view models
 
 - **`RootView`** — the app root: the typed launch plan (via
@@ -46,7 +52,7 @@ The card opens the existing Elsewhere list.
   grayscale while live planning remains disabled. It also explains why
   overlapping travel days do not sum neatly to one year.
   Both Timeline galleries use `PresenceTimelineList` with its `.excerpt` presentation.
-  This presentation shows the last two stays without scrolling or editing controls.
+  This presentation shows the last two recorded journey items without scrolling or editing controls.
   The full Timeline and excerpts share row rendering, rail continuity, and planned-stay joins.
   These galleries use a shared marketing header, quiet patterned backdrop, and
   staged entrance that resolves immediately for Reduce Motion and snapshot

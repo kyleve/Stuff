@@ -133,6 +133,16 @@ public final class YearReportModel {
     private var recordingDeviceNames: [RecordingDeviceID: String] = [:]
     public private(set) var dataIssueCount = 0
 
+    var completedFlights: [FlightAssessment] {
+        dataIssueScan?.completedFlights ?? []
+    }
+
+    var flightDayKeys: Set<CalendarDay> {
+        completedFlights.reduce(into: []) { days, flight in
+            days.formUnion(flight.completedDays(in: calendar).filter { $0.year == selectedYear })
+        }
+    }
+
     var correctionReviews: [GPSCorrectionReview] {
         dataIssueScan?.reviews ?? []
     }

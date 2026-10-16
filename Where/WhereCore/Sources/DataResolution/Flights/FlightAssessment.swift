@@ -80,6 +80,13 @@ public struct FlightAssessment: Identifiable, Hashable, Sendable {
         self.inferredEndpoints = inferredEndpoints
     }
 
+    /// Inclusive local days touched by a confirmed flight, including days without fixes.
+    public func completedDays(in calendar: Calendar) -> Set<CalendarDay> {
+        guard case let .completed(arrivedAt) = progress else { return [] }
+        return Set(CalendarDay(from: startedAt, in: calendar)
+            .days(through: CalendarDay(from: arrivedAt, in: calendar)))
+    }
+
     /// The live-flight presentation expires after the latest cruise evidence becomes
     /// stale. This deadline is not an arrival delay: observed ground dwell completes
     /// a flight as soon as its evidence qualifies, including before this deadline.

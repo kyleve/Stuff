@@ -216,6 +216,7 @@ struct FlightReviewModelTests {
             revision: UUID(),
             issues: [],
             reviews: [informational],
+            completedFlights: [],
             nextReassessmentAt: nil,
         ))
 
@@ -319,6 +320,7 @@ struct FlightReviewModelTests {
             revision: UUID(),
             issues: [],
             reviews: [ready],
+            completedFlights: [],
             nextReassessmentAt: nil,
         ))
         #expect(model.canApply)
@@ -328,6 +330,7 @@ struct FlightReviewModelTests {
             revision: UUID(),
             issues: [],
             reviews: [],
+            completedFlights: [],
             nextReassessmentAt: nil,
         ))
         #expect(!model.canApply)

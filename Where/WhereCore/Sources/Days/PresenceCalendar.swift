@@ -24,6 +24,7 @@ public struct CalendarDayCell: Hashable, Sendable, Identifiable {
     /// `capturedAt` falls on this calendar day). Drives the calendar's evidence
     /// badge. Independent of `regions`/residency — evidence is metadata only.
     public let hasEvidence: Bool
+    public let hasFlight: Bool
 
     public var id: Date {
         date
@@ -36,6 +37,7 @@ public struct CalendarDayCell: Hashable, Sendable, Identifiable {
         isToday: Bool,
         needsAttention: Bool,
         hasEvidence: Bool,
+        hasFlight: Bool,
     ) {
         self.date = date
         self.dayOfMonth = dayOfMonth
@@ -43,6 +45,7 @@ public struct CalendarDayCell: Hashable, Sendable, Identifiable {
         self.isToday = isToday
         self.needsAttention = needsAttention
         self.hasEvidence = hasEvidence
+        self.hasFlight = hasFlight
     }
 }
 
@@ -149,6 +152,7 @@ public enum PresenceCalendar {
         referenceDate: Date,
         missingDates: Set<CalendarDay> = [],
         evidenceDays: Set<CalendarDay> = [],
+        flightDays: Set<CalendarDay>,
         focusedRegion: Region? = nil,
     ) throws -> [CalendarMonth] {
         try logger.measure(.layoutYear, budget: .milliseconds(500)) {
@@ -181,6 +185,7 @@ public enum PresenceCalendar {
                     referenceDate: referenceStartOfDay,
                     missingDates: missingDates,
                     evidenceDays: evidenceDays,
+                    flightDays: flightDays,
                     focusedRegion: focusedRegion,
                 )
             }
@@ -195,6 +200,7 @@ public enum PresenceCalendar {
         referenceDate: Date,
         missingDates: Set<CalendarDay> = [],
         evidenceDays: Set<CalendarDay> = [],
+        flightDays: Set<CalendarDay>,
         focusedRegion: Region? = nil,
     ) throws -> CalendarMonth {
         guard
@@ -255,6 +261,7 @@ public enum PresenceCalendar {
                 isToday: calendar.isDate(date, inSameDayAs: referenceDate),
                 needsAttention: missingDates.contains(calendarDay),
                 hasEvidence: evidenceDays.contains(calendarDay),
+                hasFlight: flightDays.contains(calendarDay),
             ))
         }
 
@@ -311,6 +318,7 @@ extension YearReport {
         referenceDate: Date,
         missingDates: Set<CalendarDay> = [],
         evidenceDays: Set<CalendarDay> = [],
+        flightDays: Set<CalendarDay>,
         focusedRegion: Region? = nil,
     ) throws -> [CalendarMonth] {
         try PresenceCalendar.months(
@@ -319,6 +327,7 @@ extension YearReport {
             referenceDate: referenceDate,
             missingDates: missingDates,
             evidenceDays: evidenceDays,
+            flightDays: flightDays,
             focusedRegion: focusedRegion,
         )
     }

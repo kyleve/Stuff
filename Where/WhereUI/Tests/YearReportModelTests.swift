@@ -41,6 +41,33 @@ struct YearReportModelTests {
         )
     }
 
+    @Test func historicalFlightsRefreshWithoutChangingTheReportOrRestoringReviews() throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        let original = report.report
+        let flight = try #require(PreviewSupport.flightReview(state: .completed).flight)
+        report.setDataIssueScan(DataIssueScanResult(
+            revision: UUID(),
+            issues: [],
+            reviews: [],
+            completedFlights: [flight],
+            nextReassessmentAt: nil,
+        ))
+        #expect(report.completedFlights == [flight])
+        #expect(report.flightDayKeys == flight.completedDays(in: report.calendar))
+        #expect(report.correctionReviews.isEmpty)
+        #expect(report.dataIssueCount == 0)
+        #expect(report.report == original)
+        report.setDataIssueScan(DataIssueScanResult(
+            revision: UUID(),
+            issues: [],
+            reviews: [],
+            completedFlights: [],
+            nextReassessmentAt: nil,
+        ))
+        #expect(report.flightDayKeys.isEmpty)
+        #expect(report.report == original)
+    }
+
     @Test func recordedLocationDotsDefaultOnAndPersistAcrossModels() throws {
         let preferences = makePreferences()
         let services = try makeServices()
@@ -538,6 +565,7 @@ struct YearReportModelTests {
             revision: UUID(),
             issues: [],
             reviews: [remote],
+            completedFlights: [],
             nextReassessmentAt: nil,
         ))
         #expect(report.liveFlightReview == nil)
@@ -555,6 +583,7 @@ struct YearReportModelTests {
             revision: UUID(),
             issues: [],
             reviews: [shared],
+            completedFlights: [],
             nextReassessmentAt: nil,
         ))
         #expect(report.liveFlightReview == shared)
@@ -564,6 +593,7 @@ struct YearReportModelTests {
             revision: UUID(),
             issues: [],
             reviews: [current],
+            completedFlights: [],
             nextReassessmentAt: nil,
         ))
         #expect(report.liveFlightReview == current)
@@ -589,6 +619,7 @@ struct YearReportModelTests {
             revision: UUID(),
             issues: [],
             reviews: [expired],
+            completedFlights: [],
             nextReassessmentAt: nil,
         ))
         #expect(report.liveFlightReview == nil)

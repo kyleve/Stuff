@@ -187,6 +187,18 @@
         }
       }
     },
+    "calendar.attachment.accessibility" : {
+      "comment" : "Spoken name of the calendar paperclip badge.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attachment"
+          }
+        }
+      }
+    },
     "calendar.day.accessibility" : {
       "comment" : "Accessibility label for a calendar day, including the day of the week and the names of the regions that day.",
       "extractionState" : "manual",
@@ -297,6 +309,18 @@
         }
       }
     },
+    "calendar.month.label.accessibility" : {
+      "comment" : "Month and year, followed by recorded and planned region totals.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@. %2$@"
+          }
+        }
+      }
+    },
     "calendar.month.needsAttention.accessibility" : {
       "comment" : "Accessibility value component for the number of calendar days that still need a location.",
       "extractionState" : "manual",
@@ -342,6 +366,54 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "calendar.span.accessibility" : {
+      "comment" : "Date range followed by regions, planning status, and dated badges for one stay span.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@: %2$@"
+          }
+        }
+      }
+    },
+    "calendar.span.badge.accessibility" : {
+      "comment" : "Calendar badge name followed by the dates carrying that badge.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ on %2$@"
+          }
+        }
+      }
+    },
+    "calendar.span.dates.accessibility" : {
+      "comment" : "Inclusive date range read as part of a calendar stay span.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ through %2$@"
+          }
+        }
+      }
+    },
+    "calendar.span.needsLocation.accessibility" : {
+      "comment" : "Spoken status for consecutive calendar days without a recorded location.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Needs a location"
           }
         }
       }
@@ -3941,6 +4013,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@–%2$@ of the year"
+          }
+        }
+      }
+    },
+    "history.flight" : {
+      "comment" : "Label for a completed flight in the calendar and timeline.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flight"
           }
         }
       }

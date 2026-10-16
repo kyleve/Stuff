@@ -31,6 +31,7 @@ struct CalendarContentView: View {
         let report: YearReport
         let missingDayKeys: Set<CalendarDay>
         let evidenceDayKeys: Set<CalendarDay>
+        let flightDayKeys: Set<CalendarDay>
         let referenceDay: Date
         let focusedRegion: Region?
     }
@@ -108,6 +109,7 @@ struct CalendarContentView: View {
             report: yearReport,
             missingDayKeys: report.missingDayKeys,
             evidenceDayKeys: report.evidenceDayKeys,
+            flightDayKeys: report.flightDayKeys,
             referenceDay: report.calendar.startOfDay(for: report.referenceDate),
             focusedRegion: focusedRegion,
         )
@@ -120,6 +122,7 @@ struct CalendarContentView: View {
                 referenceDate: report.referenceDate,
                 missingDates: report.missingDayKeys,
                 evidenceDays: report.evidenceDayKeys,
+                flightDays: report.flightDayKeys,
                 focusedRegion: focusedRegion,
             )
         }
@@ -265,17 +268,19 @@ private struct MonthGridView: View {
         month.startOfMonth.formatted(.dateTime.month(.wide))
     }
 
-    private var accessibilityValue: String {
-        WhereFormat.calendarMonthAccessibility(
-            regionTotals: month.regionTotals,
-            regionCombinationTotals: month.regionCombinationTotals,
-            needsAttentionDays: month.days.count(where: \.needsAttention),
-            evidenceDays: month.days.count(where: \.hasEvidence),
-            plannedRegionTotals: [],
+    private var accessibility: CalendarMonthAccessibility {
+        CalendarMonthAccessibility(
+            month: month,
+            calendar: dateCalendar,
+            memberships: memberships(for:),
+            planningSummary: planningSummary
+                .filter { focusedRegion == nil || $0.region == focusedRegion },
         )
     }
 
     var body: some View {
+        let monthAccessibility = accessibility
+
         VStack(alignment: .leading, spacing: calendar.month.sectionSpacing) {
             Text(monthName)
                 .font(.title.weight(.semibold))
@@ -347,9 +352,9 @@ private struct MonthGridView: View {
                     cardShape.strokeBorder(card.border, lineWidth: card.borderWidth)
                 }
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(monthName)
-        .accessibilityValue(accessibilityValue)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(monthAccessibility.label)
+        .accessibilityValue(monthAccessibility.value)
     }
 
     @ViewBuilder
@@ -556,20 +561,22 @@ private struct DayCell: View {
                             .fill(calendar.day.unresolvedMarker)
                     }
                 }
-                // A day carrying an attachment gets a small paperclip badge in
-                // the top-trailing corner, on a filled disc so it stays legible
-                // over the accent "today" fill and the region dots below.
                 .overlay(alignment: .topTrailing) {
-                    if day.hasEvidence {
-                        Image(systemSymbol: .paperclip)
-                            .font(.system(size: calendar.day.evidenceBadge.iconSize, weight: .bold))
-                            .foregroundStyle(Color.accentColor)
-                            .padding(calendar.day.evidenceBadge.padding)
-                            .background(Circle().fill(Color(.systemBackground)))
-                            .offset(
-                                x: calendar.day.evidenceBadge.offset.width,
-                                y: calendar.day.evidenceBadge.offset.height,
-                            )
+                    if day.hasEvidence || day.hasFlight {
+                        HStack(spacing: calendar.day.badge.iconSpacing) {
+                            if day.hasEvidence {
+                                badgeIcon(.paperclip)
+                            }
+                            if day.hasFlight {
+                                badgeIcon(.airplane)
+                            }
+                        }
+                        .foregroundStyle(Color.accentColor)
+                        .padding(calendar.day.badge.padding)
+                        .background(Capsule().fill(Color(.systemBackground)))
+                        // Keep the first icon at the corner; additional icons
+                        // extend to the right without covering the day number.
+                        .offset(badgeOffset)
                     }
                 }
 
@@ -590,13 +597,36 @@ private struct DayCell: View {
             calendar: dateCalendar,
             timeZone: dateCalendar.timeZone,
         )))
-        .accessibilityValue(band.regions.map { region in
+        .accessibilityValue(accessibilitySummary)
+    }
+
+    private var badgeOffset: CGSize {
+        let extraWidth = day.hasEvidence && day.hasFlight
+            ? calendar.day.badge.iconSize + calendar.day.badge.iconSpacing
+            : 0
+        return CGSize(
+            width: calendar.day.badge.offset.width + extraWidth,
+            height: calendar.day.badge.offset.height,
+        )
+    }
+
+    private func badgeIcon(_ symbol: SFSymbol) -> some View {
+        Image(systemSymbol: symbol)
+            .font(.system(size: calendar.day.badge.iconSize, weight: .bold))
+            .frame(width: calendar.day.badge.iconSize, height: calendar.day.badge.iconSize)
+    }
+
+    private var accessibilitySummary: String {
+        var values = band.regions.map { region in
             guard let membership = band.memberships[region] else { return region.localizedName }
             return String(localized: .planningCalendarMonthSummary(
                 region.localizedName,
                 WhereFormat.planningMembership(membership),
             ))
-        }.joined(separator: "; "))
+        }
+        if day.hasEvidence { values.append(String(localized: .calendarAttachmentAccessibility)) }
+        if day.hasFlight { values.append(String(localized: .historyFlight)) }
+        return values.joined(separator: "; ")
     }
 
     /// Region-presence dots beneath the day number (one per region the day
@@ -707,6 +737,50 @@ private struct DayCell: View {
 #if DEBUG
     extension CalendarContentView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "FlightAndEvidenceBadges",
+                configurations: .componentDefaults,
+                measurementReadiness: .immediate,
+            ) {
+                HStack {
+                    ForEach([false, true], id: \.self) { isToday in
+                        DayCell(
+                            day: CalendarDayCell(
+                                date: PreviewSupport.referenceNow,
+                                dayOfMonth: 15,
+                                regions: [],
+                                isToday: isToday,
+                                needsAttention: !isToday,
+                                hasEvidence: true,
+                                hasFlight: true,
+                            ),
+                            band: .none,
+                            dateCalendar: Calendar(identifier: .gregorian),
+                        )
+                        .frame(width: 44)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color(.systemBackground))
+            }
+            whereSnapshot(name: "MonthAccessibility", configurations: .componentDefaults) {
+                let calendar = Calendar(identifier: .gregorian)
+                MonthGridView(
+                    month: PreviewSupport.calendarAccessibilityMonth(calendar: calendar),
+                    dateCalendar: calendar,
+                    plannedPresence: { _ in nil },
+                    planningSummary: [],
+                )
+                .padding()
+                .background(Color(.systemBackground))
+            }
+            whereSnapshot(name: "Flights", configurations: .fullContentScreenDefaults) {
+                NavigationStack {
+                    CalendarContentView(report: PreviewSupport
+                        .flightHistoryYearReportModel())
+                }
+            }
             whereSnapshot(name: "Itinerary", configurations: .fullContentScreenDefaults) {
                 NavigationStack {
                     CalendarContentView(report: PreviewSupport.itineraryYearReportModel())

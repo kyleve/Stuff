@@ -68,6 +68,29 @@
             return YearReport(year: year, days: days, totals: totals)
         }
 
+        /// A month with a shared travel day, a recording gap, and dated badges.
+        static func calendarAccessibilityMonth(calendar: Calendar) -> CalendarMonth {
+            func day(_ number: Int) -> CalendarDay {
+                CalendarDay(year: year, month: 7, day: number)
+            }
+            var regions: [CalendarDay: Set<Region>] = [:]
+            for number in 1 ... 15 {
+                regions[day(number)] = number < 6 ? [.california] : [.newYork]
+            }
+            regions[day(6)] = [.california, .newYork]
+            regions[day(10)] = nil
+            return try! PresenceCalendar.month(
+                year: year,
+                month: 7,
+                regionsByDay: regions,
+                calendar: calendar,
+                referenceDate: referenceNow,
+                missingDates: [day(10)],
+                evidenceDays: [day(5), day(12)],
+                flightDays: [day(5), day(6)],
+            )
+        }
+
         /// Memory-backed preferences shared by every preview fixture, honoring
         /// the no-disk contract: a preview must never read or write the host's
         /// real defaults, or a fixture's state outlives the preview and leaks
@@ -641,6 +664,7 @@
                     borderDriftReview(date: driftDay),
                     flightReview(state: .ready, date: flightDay),
                 ] : [],
+                completedFlights: [],
                 nextReassessmentAt: nil,
             )
             return ResolveModel(
