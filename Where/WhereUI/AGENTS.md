@@ -160,6 +160,11 @@ Layering, localization, preview, and testing conventions live in the feature
   reveal stays covered when headless promotion coalesces or the first hold is
   interrupted, while warm resumes never replay it.
 - Measure calendar month sections and day rows eagerly so full-content measurement and scroll restoration use their actual heights. Guard: `CalendarContentViewSnapshotTests`.
+- Construct `SceneNavigationModel` only at `MainTabs` or the DEBUG adaptive lab root. Destination views receive focused child state. Guard: `where.scene_navigation_ownership`.
+- Read system reserved regions only in `AdaptiveHistoryGeometry`. Keep authored pane limits in the stylesheet and measured geometry in the adapter. Guard: `where.reserved_region_layout_ownership`.
+- Link explicit month and stay selections through `HistoryNavigationModel`. Keep domain identities typed. Scroll observations retain local anchors without moving a companion pane.
+- Give each explicit month reveal a typed request identity and retain it when consumed. Resolve anchors against displayed stay segments and flight IDs. Guard: `TimelineNavigationModelTests`.
+- Keep synthetic-region injection under `#if DEBUG` and expose it through the Testing SPI. Transition tests retain one mounted container.
 - Keep itinerary persistence, forecast bounds, overlaps, and Home projections in WhereCore.
   `LocationForecastModel` mirrors one planning snapshot through store-change refreshes.
   Complete the latest started read when its requesting sheet disappears; keep older results from replacing it.

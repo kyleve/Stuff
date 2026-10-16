@@ -92,6 +92,20 @@ This rule follows the typed-query pattern proven by TheButtonHeist's
 audited and retained: Where needs the same check plus explicit exceptions for
 its documented observation-task lifecycle.
 
+## Scene navigation ownership
+
+`where.scene_navigation_ownership` permits direct `SceneNavigationModel` construction in `MainTabs` and the DEBUG-only `AdaptiveHistoryLabModel`.
+The root retains this model across layout changes and replaces it when the session changes.
+Destination views receive focused child models. Isolated previews may construct child models.
+Repair a violation by injecting the existing scene model or its child.
+The syntax rule does not resolve type aliases, factories, or contextually inferred `.init()` calls.
+`WhereProjectRulesTests` covers direct constructor mutations. The lab exception is path-scoped; release compilation must continue excluding that file's implementation.
+
+`where.reserved_region_layout_ownership` permits `reservedRegions` calls only in `AdaptiveHistoryGeometry` within WhereUI.
+Views use that adapter or `AdaptiveHistoryContainer`. Keep the system margins and physical coordinate mapping there.
+The syntax guard checks member-call spelling; it does not resolve aliases or function references.
+`WhereProjectRulesTests` covers direct member-call mutations.
+
 ## Composition ownership
 
 `where.services_composition_ownership` keeps direct `WhereServices`

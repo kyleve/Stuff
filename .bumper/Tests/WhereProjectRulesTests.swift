@@ -4,6 +4,49 @@ import Testing
 
 struct WhereProjectRulesTests {
     @Test
+    func `only the stable tab root constructs scene navigation`() throws {
+        let allowed = try evaluate(
+            path: "Where/WhereUI/Sources/MainTabs.swift",
+            component: .whereUI,
+            source: "let navigation = SceneNavigationModel()",
+        )
+        let rejected = try evaluate(
+            path: "Where/WhereUI/Sources/Primary/LocationsView.swift",
+            component: .whereUI,
+            source: "let navigation = SceneNavigationModel()",
+        )
+        #expect(allowed.violations.isEmpty)
+        #expect(rejected.violations.map(\.rule.id) == ["where.scene_navigation_ownership"])
+    }
+
+    @Test
+    func `the DEBUG layout lab owns an independent demo scene`() throws {
+        let allowed = try evaluate(
+            path: "Where/WhereUI/Sources/Developer/AdaptiveHistory/AdaptiveHistoryLabModel.swift",
+            component: .whereUI,
+            source: "#if DEBUG\nlet navigation = SceneNavigationModel()\n#endif",
+        )
+        #expect(allowed.violations.isEmpty)
+    }
+
+    @Test
+    func `system reserved regions use one geometry adapter`() throws {
+        let source = "let regions = proxy.reservedRegions(kind: .division, options: .includeInactive, layoutDirectionBehavior: .fixed)"
+        let allowed = try evaluate(
+            path: "Where/WhereUI/Sources/Shared/AdaptiveHistoryGeometry.swift",
+            component: .whereUI,
+            source: source,
+        )
+        let rejected = try evaluate(
+            path: "Where/WhereUI/Sources/Primary/LocationsView.swift",
+            component: .whereUI,
+            source: source,
+        )
+        #expect(allowed.violations.isEmpty)
+        #expect(rejected.violations.map(\.rule.id) == ["where.reserved_region_layout_ownership"])
+    }
+
+    @Test
     func `production store opens at process composition roots`() throws {
         let allowed = try evaluate(
             path: "Where/WhereUI/Sources/Launch/WhereLaunch.swift",
