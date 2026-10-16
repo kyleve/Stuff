@@ -33,6 +33,14 @@ enum GPSCorrectionPolicy {
         static let sameObservationInterval: TimeInterval = 1
     }
 
+    enum Displacement {
+        /// Require a substantial journey before two positions can establish flight.
+        static let minimumDistanceMeters = 300_000.0
+        /// Independent nearby fixes must corroborate both ends of the journey.
+        static let maximumSupportInterval: TimeInterval = 30 * 60
+        static let maximumSupportDistanceMeters = 100_000.0
+    }
+
     enum Boundary {
         /// Near-simultaneous callbacks do not independently bracket a drift sample.
         static let neighborExclusionInterval: TimeInterval = 1

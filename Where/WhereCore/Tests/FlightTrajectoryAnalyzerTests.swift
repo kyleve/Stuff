@@ -7,12 +7,129 @@ private typealias Fixtures = FlightTrajectoryFixtures
 struct FlightTrajectoryAnalyzerTests {
     private let analyzer = FlightTrajectoryAnalyzer()
 
+    @Test(.disabled(
+        if: ProcessInfo.processInfo.environment["WHERE_SPARSE_FLIGHT_VERIFICATION_CONFIG"] == nil,
+        "Supply a local sparse-flight verification configuration to replay an external backup.",
+    ))
+    func sparseProductionArchiveReplayOnRequest() throws {
+        let path = try #require(ProcessInfo.processInfo
+            .environment["WHERE_SPARSE_FLIGHT_VERIFICATION_CONFIG"])
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        let configuration = try decoder.decode(
+            SparseFlightArchiveVerificationConfiguration.self,
+            from: Data(contentsOf: URL(fileURLWithPath: path)),
+        )
+        let archive = try BackupService()
+            .readArchive(at: URL(fileURLWithPath: configuration.backupPath)).archive
+        let samples = RecordingDeviceRemovalFilter.visibleSamples(
+            archive.samples,
+            removals: archive.recordingDeviceRemovals,
+        ).filter { $0.timestamp >= configuration.from && $0.timestamp < configuration.until }
+        #expect(samples.count == configuration.expectedInputSampleCount)
+        let flights = analyzer.analyze(samples: samples, now: configuration.now)
+        try #require(flights.count == 1)
+        #expect(flights[0].progress == .completed(arrivedAt: configuration.expectedArrivalAt))
+        #expect(flights[0].lastObservationAt == configuration.expectedArrivalConfirmedAt)
+        #expect(flights[0].airborneSampleIDs.isEmpty)
+        #expect(flights[0].inferredEndpoints.isEmpty)
+    }
+
+    @Test func sparseTravelConfirmsArrivalWithoutProposingAirborneEdits() throws {
+        let samples = Fixtures.sparseFlight()
+        let flights = analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 285))
+        let flight = try #require(flights.first)
+        #expect(flights.count == 1)
+        #expect(flight.startedAt == samples[1].timestamp)
+        #expect(flight.progress == .completed(arrivedAt: samples[2].timestamp))
+        #expect(flight.lastObservationAt == samples[4].timestamp)
+        #expect(flight.airborneSampleIDs.isEmpty)
+        #expect(flight.inferredEndpoints.isEmpty)
+        #expect(flight.groundSampleIDs == Set(samples[2 ... 4].map(\.id)))
+        #expect(flight.peakSpeedKMH > 880)
+        #expect(analyzer
+            .analyze(samples: Array(samples.reversed()), now: samples[4].timestamp) == flights)
+        #expect(analyzer.analyze(samples: samples + samples, now: samples[4].timestamp) == flights)
+    }
+
+    @Test func sparseTravelWaitsForCorroborationThenObservedArrival() throws {
+        let samples = Fixtures.sparseFlight()
+        #expect(analyzer.analyze(samples: samples, now: samples[2].timestamp).isEmpty)
+        let pending = try #require(analyzer.analyze(samples: samples, now: samples[3].timestamp)
+            .first)
+        #expect(pending.progress == .awaitingArrival)
+        let silent = try #require(analyzer.analyze(
+            samples: Array(samples.prefix(4)),
+            now: Fixtures.date(minutes: 3 * 24 * 60),
+        ).first)
+        #expect(silent.progress == .awaitingArrival)
+        #expect(silent.airborneSampleIDs.isEmpty)
+    }
+
+    @Test func sparseTravelCannotCombineDifferentRecordingDevices() {
+        let samples = Fixtures.sparseFlight().enumerated().map { index, sample in
+            Fixtures.sample(
+                index + 1,
+                minutes: sample.timestamp.timeIntervalSince(Fixtures.start) / 60,
+                east: index < 2 ? 0 : 4000,
+                deviceID: index < 2 ? Fixtures.device : nil,
+            )
+        }
+        #expect(analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 300)).isEmpty)
+    }
+
+    @Test func sparseFlightsSeparatedByGroundDwellRemainDistinct() throws {
+        let samples = Fixtures.sparseFlight() + [
+            Fixtures.sample(6, minutes: 290, east: 4000),
+            Fixtures.sample(7, minutes: 560, east: 0),
+            Fixtures.sample(8, minutes: 565, east: 0),
+            Fixtures.sample(9, minutes: 570, east: 0),
+        ]
+        let flights = analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 570))
+        try #require(flights.count == 2)
+        #expect(flights[0].progress == .completed(arrivedAt: Fixtures.date(minutes: 275)))
+        #expect(flights[1].startedAt == Fixtures.date(minutes: 290))
+        #expect(flights[1].progress == .completed(arrivedAt: Fixtures.date(minutes: 560)))
+        #expect(flights.allSatisfy { $0.airborneSampleIDs == [] })
+    }
+
+    @Test func aLaterSparseTripCannotExtendAnEarlierPendingFlightsObservations() throws {
+        let earlier = Array(Fixtures.sparseFlight().prefix(4))
+        let laterStart = 3.0 * 24 * 60
+        let later = [
+            Fixtures.sample(101, minutes: laterStart, east: 0),
+            Fixtures.sample(102, minutes: laterStart + 5, east: 0),
+            Fixtures.sample(103, minutes: laterStart + 275, east: 4000),
+            Fixtures.sample(104, minutes: laterStart + 280, east: 4000),
+            Fixtures.sample(105, minutes: laterStart + 285, east: 4000),
+        ]
+        let flights = analyzer.analyze(samples: earlier + later, now: later[4].timestamp)
+        try #require(flights.count == 2)
+        #expect(flights[0].progress == .awaitingArrival)
+        #expect(flights[0].lastObservationAt == earlier[3].timestamp)
+        #expect(flights[1].progress == .completed(arrivedAt: later[2].timestamp))
+    }
+
+    @Test func sparseOvernightFlightsIncludeBothCalendarDays() throws {
+        let samples = Fixtures.sparseFlight().map {
+            Fixtures.replacing($0, timestamp: $0.timestamp.addingTimeInterval(23 * 60 * 60))
+        }
+        let flight = try #require(analyzer.analyze(samples: samples, now: samples[4].timestamp)
+            .first)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        #expect(flight.completedDays(in: calendar) == [
+            CalendarDay(from: samples[1].timestamp, in: calendar),
+            CalendarDay(from: samples[2].timestamp, in: calendar),
+        ])
+    }
+
     @Test func resumedCruiseIncludesItsFirstPointButPreservesBothGroundEndpoints() throws {
         let samples = Fixtures.resumedFlight()
         let flights = analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 300))
         let flight = try #require(flights.first)
         #expect(flights.count == 1)
-        #expect(flight.startedAt == samples[3].timestamp)
+        #expect(flight.startedAt == samples[2].timestamp)
         #expect(flight.airborneSampleIDs == Set(samples[3 ... 5].map(\.id)))
         #expect(flight.inferredEndpoints.map(\.sampleID) == [samples[3].id])
         #expect(flight.groundSampleIDs.isSuperset(of: Set(samples[0 ... 2].map(\.id))))
