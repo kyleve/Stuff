@@ -135,6 +135,51 @@ Then keep their central catalog limited to grouping and assembly.
 Swift macros cannot discover all conformers or navigation destinations across a module.
 A generated source scan would add build ordering and cache invalidation complexity.
 
+## Static web export
+
+`FlyoverWebExporter` converts a DEBUG catalog into a static QA atlas. It writes
+native PNG captures and card-size thumbnails. It also writes `manifest.json`
+and `manifest.js`. The exporter derives each thumbnail from its hosted native
+capture. It does not render the SwiftUI content again. A static viewer can read
+`manifest.js` without an HTTP server.
+
+A thumbnail uses at most 1,024 pixels on its longest axis. A full-content
+thumbnail shows the top device viewport. The complete capture remains available
+beside its thumbnail.
+
+The exporter validates the complete plan before its first capture. The host
+provides one stable string for each typed screen ID and one capture closure.
+Stable IDs must be nonempty and unique. Variant IDs must also be nonempty and
+unique within a screen. Image paths use generated ordinals, never these IDs.
+Fixed viewports must have finite, positive dimensions. Invalid dimensions fail
+before the exporter resets a screen, builds content, or captures an image.
+
+Hosted variants have a `FlyoverExportPolicy` with a fixed viewport by default.
+Snapshot-backed variants inherit their settle, readiness, and hook behavior.
+Their frame matrix must resolve to one capture extent: fixed, intrinsic,
+full-content, or two-axis full-content. A mixed matrix has no resolved policy.
+The app must supply an explicit policy before export.
+
+Profiles are additive and keep request order. No profile matrix is generated.
+The built-in IDs are:
+
+- `phone-light`, `phone-dark`, `tablet-light`, and `phone-landscape`
+- `phone-small`, `phone-xxxl`, and `phone-ax3`
+- `phone-contrast`, `phone-rtl`, `phone-bold`, and `phone-voiceover`
+
+The first profile is the initial web selection. An empty profile list becomes
+`phone-light` followed by `phone-dark`. Fixed Flyover viewports keep their size
+while profile traits still apply. Tablet and landscape profiles also apply an
+explicit interface idiom and size classes to adaptive content.
+
+The manifest compatibility boundary is `schemaVersion: 1`. It contains the
+application and build identity, profiles, precomputed canvas geometry, groups,
+screens, routes, and image metadata. It contains no local source or account
+paths. New image records include the optional thumbnail path and pixel size.
+Full-content sizing uses the hosted capture pipeline's limits and convergence
+rules. A sizing error stops the export. The exporter
+never substitutes a viewport image.
+
 ## Testing
 
 Run unit coverage with:
