@@ -15,16 +15,30 @@ import WhereCore
 struct PresenceTimelineList: View {
     enum Presentation {
         case full
+        case linked
         case excerpt
     }
 
     let report: YearReportModel
-    var presentation: Presentation = .full
+    let presentation: Presentation
+    private let ownsPlanningPresentation: Bool
 
     @Environment(\.stylesheet) private var stylesheet
-    @State private var planningDestination: PlannedStaysDestination?
+    @State private var history: HistoryNavigationModel
+
+    init(
+        report: YearReportModel,
+        presentation: Presentation = .full,
+        history: HistoryNavigationModel? = nil,
+    ) {
+        self.report = report
+        self.presentation = presentation
+        ownsPlanningPresentation = history == nil
+        _history = State(initialValue: history ?? HistoryNavigationModel())
+    }
 
     var body: some View {
+        @Bindable var navigation = history.timeline
         let yearReport = report.report
         let stints = yearReport
             .map { PresenceTimeline.stints(from: $0, calendar: report.calendar) } ?? []
@@ -41,6 +55,8 @@ struct PresenceTimelineList: View {
                 today: report.forecasts.today,
             )
             : []
+        let rowIDs = recordedItems.map(TimelineNavigationModel.Item.init)
+            + plannedItems.map { .planned($0.id) }
 
         Group {
             if presentation == .excerpt {
@@ -74,39 +90,10 @@ struct PresenceTimelineList: View {
                     Text(String(localized: .timelineEmptyDescription))
                 }
             } else {
-                let pinsOverview = stylesheet.timeline.overview.pinsToViewport
+                let pinsOverview = presentation == .full && stylesheet.timeline.overview
+                    .pinsToViewport
 
-                ScrollView {
-                    LazyVStack(spacing: stylesheet.spacing.large) {
-                        if !pinsOverview {
-                            YearRibbon(
-                                days: yearReport?.days ?? [],
-                                year: report.selectedYear,
-                                calendar: report.calendar,
-                            )
-                        }
-
-                        LazyVStack(spacing: 0) {
-                            journeyRows(recordedItems: recordedItems, plannedItems: plannedItems)
-                        }
-
-                        if showsForecast {
-                            LocationForecastPanel(
-                                forecasts: timelineForecasts,
-                                microprintRegions: report.ranking.primary.map(\.region),
-                                homeRegion: report.forecasts.planning.homeRegion,
-                                planningAction: { planningDestination = .list },
-                            )
-                        }
-                    }
-                    .padding(.horizontal, stylesheet.spacing.xxLarge)
-                    .padding(.top, pinsOverview ? 0 : stylesheet.spacing.large)
-                    .padding(.bottom, stylesheet.spacing.large)
-                }
-                .safeAreaInset(
-                    edge: .top,
-                    spacing: 0,
-                ) {
+                VStack(spacing: 0) {
                     if pinsOverview {
                         YearRibbon(
                             days: yearReport?.days ?? [],
@@ -114,25 +101,107 @@ struct PresenceTimelineList: View {
                             calendar: report.calendar,
                         )
                         .padding(.horizontal, stylesheet.spacing.xxLarge)
-                        .padding(.top, stylesheet.spacing.large)
+                        .padding(.vertical, stylesheet.spacing.large)
+                    }
+                    ScrollView {
+                        // Measure this year's overview, stays, and forecast together.
+                        // Lazy row estimates can move the overview above the content
+                        // origin when a bottom-anchored viewport expands.
+                        VStack(spacing: stylesheet.spacing.large) {
+                            if presentation == .full, !pinsOverview {
+                                YearRibbon(
+                                    days: yearReport?.days ?? [],
+                                    year: report.selectedYear,
+                                    calendar: report.calendar,
+                                )
+                            }
+
+                            VStack(spacing: 0) {
+                                journeyRows(
+                                    recordedItems: recordedItems,
+                                    plannedItems: plannedItems,
+                                )
+                            }
+                            .scrollTargetLayout()
+
+                            if presentation == .full, showsForecast {
+                                LocationForecastPanel(
+                                    forecasts: timelineForecasts,
+                                    microprintRegions: report.ranking.primary.map(\.region),
+                                    homeRegion: report.forecasts.planning.homeRegion,
+                                    planningAction: { history.planning.destination = .list },
+                                )
+                            }
+                        }
+                        .padding(.horizontal, stylesheet.spacing.xxLarge)
+                        .padding(.top, pinsOverview ? 0 : stylesheet.spacing.large)
                         .padding(.bottom, stylesheet.spacing.large)
                     }
+                    .scrollPosition($navigation.scrollPosition)
+                    .onScrollTargetVisibilityChange(
+                        idType: TimelineNavigationModel.Item.self,
+                        threshold: 0.01,
+                    ) { visible in
+                        guard navigation.scrollPosition.isPositionedByUser else { return }
+                        navigation.recordVisibleItems(
+                            rowIDs.filter { visible.contains($0) },
+                            in: report.selectedYear,
+                        )
+                    }
+                    .task(id: report.selectedYear) {
+                        navigation.restorePosition(
+                            in: report.selectedYear,
+                            initialItem: presentation == .linked
+                                ? recordedItems.last.map(TimelineNavigationModel.Item.init) : nil,
+                        )
+                        navigation.reconcile(
+                            recordedItems: recordedItems,
+                            plannedItems: plannedItems,
+                            calendar: report.calendar,
+                        )
+                    }
+                    .onChange(of: recordedItems) {
+                        navigation.reconcile(
+                            recordedItems: recordedItems,
+                            plannedItems: plannedItems,
+                            calendar: report.calendar,
+                        )
+                    }
+                    .onChange(of: plannedItems) {
+                        navigation.reconcile(
+                            recordedItems: recordedItems,
+                            plannedItems: plannedItems,
+                            calendar: report.calendar,
+                        )
+                    }
+                    .onChange(of: navigation.monthRevealID) {
+                        navigation.reconcile(
+                            recordedItems: recordedItems,
+                            plannedItems: plannedItems,
+                            calendar: report.calendar,
+                        )
+                    }
+                    .defaultScrollAnchor(
+                        presentation == .linked ? .top : .bottom,
+                        for: .initialOffset,
+                    )
+                    .id(report.selectedYear)
                 }
-                .defaultScrollAnchor(.bottom, for: .initialOffset)
-                .id(report.selectedYear)
             }
         }
-        .sheet(item: $planningDestination) { destination in
-            PlannedStaysDestinationView(destination: destination, report: report)
-        }
+        .modifier(PlanningPresentation(
+            report: report,
+            navigation: history.planning,
+            isEnabled: ownsPlanningPresentation,
+        ))
         .toolbar {
-            if presentation == .full, report.showsEstimatedTimeAndPlanning {
+            if presentation != .excerpt, report.showsEstimatedTimeAndPlanning {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(
                         String(localized: .plannedStaysTitle),
                         systemSymbol: .calendarBadgeClock,
                     ) {
-                        planningDestination = .list
+                        history.planning.destination = .list
                     }
                 }
             }
@@ -154,26 +223,40 @@ struct PresenceTimelineList: View {
             Group {
                 switch item {
                     case let .stay(stint):
-                        PresenceJourneyRow(
+                        let row = PresenceJourneyRow(
                             stint: stint,
                             calendar: report.calendar,
                             daysInYear: report.daysInSelectedYear,
                             isFirst: item.id == recordedItems.first?.id,
                             isLast: plannedItems.isEmpty && item.id == recordedItems.last?.id,
-                            cardPosition: joinsRecorded && item.id == recordedItems.last?
-                                .id ? .top : .standalone,
+                            cardPosition: joinsRecorded && item.id == recordedItems.last?.id
+                                ? .top : .standalone,
                         )
+                        if presentation == .excerpt {
+                            row
+                        } else {
+                            Button {
+                                history.select(stint: stint, dateCalendar: report.calendar)
+                            } label: {
+                                row.historySelection(isSelected(
+                                    start: CalendarDay(from: stint.start, in: report.calendar),
+                                    end: CalendarDay(from: stint.end, in: report.calendar),
+                                    region: stint.region,
+                                ))
+                            }
+                            .buttonStyle(.plain)
+                        }
                     case let .flight(flight):
                         FlightJourneyRow(
                             flight: flight,
                             calendar: report.calendar,
                             isFirst: item.id == recordedItems.first?.id,
-                            isLast: plannedItems.isEmpty && item.id == recordedItems
-                                .last?.id,
+                            isLast: plannedItems.isEmpty && item.id == recordedItems.last?.id,
                         )
                 }
             }
             .fixedSize(horizontal: false, vertical: presentation == .excerpt)
+            .id(TimelineNavigationModel.Item(item))
         }
         ForEach(plannedItems) { item in
             let row = PlannedPresenceJourneyRow(
@@ -187,24 +270,48 @@ struct PresenceTimelineList: View {
             )
             .fixedSize(horizontal: false, vertical: presentation == .excerpt)
 
-            if presentation == .full {
+            if presentation != .excerpt {
                 Button {
-                    if case let .stay(interval) = item,
-                       let stay = report.forecasts.planning.stays
-                       .first(where: { $0.id == interval.stayID })
-                    {
-                        planningDestination = .edit(stay)
-                    } else {
-                        planningDestination = .list
-                    }
+                    history.select(plannedItem: item)
+                    if presentation == .full { edit(item) }
                 } label: {
-                    row
+                    row.historySelection(isSelected(
+                        start: item.start,
+                        end: item.end,
+                        region: item.region,
+                    ))
                 }
                 .buttonStyle(.plain)
+                .contextMenu {
+                    Button(
+                        String(localized: .plannedStaysTitle),
+                        systemSymbol: .calendarBadgeClock,
+                    ) {
+                        edit(item)
+                    }
+                }
+                .id(TimelineNavigationModel.Item.planned(item.id))
             } else {
                 row
             }
         }
+    }
+
+    private func edit(_ item: PlanningTimelineItem) {
+        if case let .stay(interval) = item,
+           let stay = report.forecasts.planning.stays.first(where: { $0.id == interval.stayID })
+        {
+            history.planning.destination = .edit(stay)
+        } else {
+            history.planning.destination = .list
+        }
+    }
+
+    private func isSelected(start: CalendarDay, end: CalendarDay, region: Region) -> Bool {
+        guard let selection = history.selection,
+              selection.region == nil || selection.region == region
+        else { return false }
+        return selection.interval.overlaps(start ... end)
     }
 
     private var showsForecast: Bool {
@@ -220,6 +327,18 @@ struct PresenceTimelineList: View {
     extension PresenceTimelineList: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             [
+                whereSnapshot(
+                    name: "BrowseColumn",
+                    configurations: [SnapshotConfiguration(device: AdaptiveHistorySnapshotFixture
+                            .browseColumn)],
+                ) {
+                    NavigationStack {
+                        PresenceTimelineList(
+                            report: PreviewSupport.loadedYearReportModel(),
+                            presentation: .linked,
+                        )
+                    }
+                },
                 whereSnapshot(name: "Flights", configurations: .fullContentScreenDefaults) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport

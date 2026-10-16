@@ -119,12 +119,25 @@ Layering, localization, preview, and testing conventions live in the feature
   minimum and active-scene visibility: the first foreground-visible `MainTabs`
   reveal stays covered when headless promotion coalesces or the first hold is
   interrupted, while warm resumes never replay it.
-- Measure calendar month sections and day rows eagerly so full-content measurement and scroll restoration use their actual heights. Guard: `CalendarContentViewSnapshotTests`.
-- Construct `SceneNavigationModel` only at `MainTabs` or the DEBUG adaptive lab root. Destination views receive focused child state. Guard: `where.scene_navigation_ownership`.
-- Read system reserved regions only in `AdaptiveHistoryGeometry`. Keep authored pane limits in the stylesheet and measured geometry in the adapter. Guard: `where.reserved_region_layout_ownership`.
-- Link explicit month and stay selections through `HistoryNavigationModel`. Keep domain identities typed. Scroll observations retain local anchors without moving a companion pane.
-- Give each explicit month reveal a typed request identity and retain it when consumed. Resolve anchors against displayed stay segments and flight IDs. Guard: `TimelineNavigationModelTests`.
-- Keep synthetic-region injection under `#if DEBUG` and expose it through the Testing SPI. Transition tests retain one mounted container.
+- Keep one `SceneNavigationModel` beside the report in `MainTabs`. Inject its focused child state into destination views.
+  Replace these scene owners only with the `RootView` session identity. Guard: `where.scene_navigation_ownership`.
+  The DEBUG Duo lab may retain its own navigation owner beside one unactivated demo world.
+- Read system reserved regions only in `AdaptiveHistoryGeometry`. Keep authored pane limits in the stylesheet and measured geometry in the adapter.
+  Guard: `where.reserved_region_layout_ownership`.
+- Keep Locations, calendar, timeline, and Settings content reusable outside their navigation containers.
+  Keep planning presentation above changing layout branches. Folding must not recreate report, session, store, or recording owners.
+- Link explicit month and stay selections through `HistoryNavigationModel`. Keep domain identities typed.
+  Resolve timeline anchors against displayed stay segments and flight IDs, including flights that cross a month boundary. Guard: `TimelineNavigationModelTests`.
+  Scroll observations retain local anchors; they must not select or scroll the companion pane.
+  Give each explicit month reveal a typed request identity, and retain it when consumed. Observe that identity to support repeated selection without feedback. Guard: `PresenceTimelineListTests`.
+  Measure timeline stays eagerly with the overview and forecast so resizing cannot shift the content origin. Guard: `PresenceTimelineListSnapshotTests`.
+- Keep the Duo lab and synthetic-region injection under `#if DEBUG`. Expose injected geometry through the Testing SPI.
+  Each new snapshot configuration owns its fixture and readiness state. Transition tests retain one mounted scene.
+  Adaptive shell captures apply their declared initial browse position after asynchronous fixture readiness.
+- Set `demoExitPresentation` to `.embedded` for isolated demo tools. Their Settings list must not call the containing app's lifecycle.
+- Keep calendar anchors typed as `CalendarDay`. Restore the visible month when a pane remounts.
+  Ignore visibility callbacks from a superseded year. Scrolling must not issue companion-pane selection commands.
+  Measure month sections and day rows eagerly so offscreen estimates cannot move a restored anchor.
 - Keep itinerary persistence, forecast bounds, overlaps, and Home projections in WhereCore.
   `LocationForecastModel` mirrors one planning snapshot through store-change refreshes.
   Complete the latest started read when its requesting sheet disappears; keep older results from replacing it.
@@ -224,6 +237,9 @@ Use process-effective diagnostics for privacy claims. Hide gallery links whose d
 Use the [`update-explore-features`](../../.agents/skills/update-explore-features/SKILL.md) skill for periodic coverage updates.
 
 ## Testing
+
+`Tests/Support/TestStore.swift` and `AdaptiveHistoryLoadFixture.swift` are shared by the unit and image bundles through `Project.swift`.
+Keep support fixtures outside `SnapshotTests/`, whose Swift files each declare one matching suite. Use the store's read gates and failures for adaptive loading snapshots. Keep fixture setup and completion independent for each configuration.
 
 `WhereStylesheetTests` pins every token default and trait-aware derivation.
 `WhereStylesheetEnvironmentTests` covers the `@Environment(\.stylesheet)`

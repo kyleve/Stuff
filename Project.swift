@@ -768,7 +768,11 @@ let project = Project(
             name: "WhereUISnapshotTests",
             bundleIdSuffix: "whereui.snapshot",
             productDependency: "WhereUI",
-            sources: ["Where/WhereUI/SnapshotTests/**"],
+            sources: [
+                "Where/WhereUI/SnapshotTests/**",
+                "Where/WhereUI/Tests/Support/AdaptiveHistoryLoadFixture.swift",
+                "Where/WhereUI/Tests/Support/TestStore.swift",
+            ],
             extraPackageProducts: ["SnapshotKitTesting"],
             environmentVariables: snapshotEnvironment,
         ),
