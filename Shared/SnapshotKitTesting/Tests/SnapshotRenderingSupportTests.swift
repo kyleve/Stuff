@@ -12,6 +12,20 @@ import UIKit
 /// can never be sampled ends `.starved` at the hard cap instead of hanging.
 @MainActor
 struct SnapshotRenderingSupportTests {
+    @Test func sampleNoiseDoesNotPermitAccumulatedDriftOrIgnoreLaterPixels() {
+        let anchor = Data(repeating: 100, count: 4096)
+        var sample = anchor
+        sample[4095] = 101
+        #expect(snapshotSamplesMatch(sample, anchor: anchor))
+        sample[4095] = 102
+        #expect(!snapshotSamplesMatch(sample, anchor: anchor))
+        sample[4095] = 99
+        #expect(snapshotSamplesMatch(sample, anchor: anchor))
+        sample[4095] = 98
+        #expect(!snapshotSamplesMatch(sample, anchor: anchor))
+        #expect(!snapshotSamplesMatch(sample.dropLast(), anchor: anchor))
+    }
+
     /// A budget shorter than the quiet window means no run can prove stability
     /// inside it — the pre-fix loop always returned `.timedOut` here despite
     /// the content never once changing.

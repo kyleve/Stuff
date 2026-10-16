@@ -119,6 +119,7 @@ Layering, localization, preview, and testing conventions live in the feature
   minimum and active-scene visibility: the first foreground-visible `MainTabs`
   reveal stays covered when headless promotion coalesces or the first hold is
   interrupted, while warm resumes never replay it.
+- Measure calendar month sections and day rows eagerly so full-content measurement and scroll restoration use their actual heights. Guard: `CalendarContentViewSnapshotTests`.
 - Keep itinerary persistence, forecast bounds, overlaps, and Home projections in WhereCore.
   `LocationForecastModel` mirrors one planning snapshot through store-change refreshes.
   Complete the latest started read when its requesting sheet disappears; keep older results from replacing it.

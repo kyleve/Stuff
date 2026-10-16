@@ -50,9 +50,17 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **A test that pins the wire shape calls `line(...)`.**
 - **When they were one function, this module's own tests put a fabricated reference at the top of `./test --review`.** Its numbers were borrowed from a real regression.
 - **Five invented captures also landed in `--timings`.** Then a run that captured nothing reported "5 captures, 0.024s per image".
+- **Read display bounds and scale from the marked test-host window.** Never select a process-global main screen.
+- **Isolate synthetic captures from the physical scene.** Detach the marked window during an inset-overridden capture, resize it with the content, then restore its scene, frames, visibility, and key state.
+- **Keep native geometry when the inset override is nil.** Synthetic captures do not validate Duo system bars or reserved-region delivery.
+- **Inset overrides describe content clearance.** Propagate them through the host controller. Native floating bars can retain system positioning; validate their reserved-region clearance on the native runtime.
+- **Guards:** `SnapshotImageRenderingTests` checks restoration after success and failure. `LargeViewCaptureTests` checks full searchable content and search placement.
+- **Viewport shell captures require companion full-content pane captures.** They do not prove content completeness.
+- **Full-content captures reset the primary scroll view to the top after readiness.** Viewport captures preserve restored scroll positions. Guard: `LargeViewCaptureTests.restoredScrollOffsetsApplyOnlyToViewportCaptures`.
 - **The runner fails fast, once, on setup problems.** Examples: a simulator that does not match the `SNAPSHOT_EXPECTED_*` pins, two variants sharing one reference name.
 - **Report one clear issue, never hundreds of pixel diffs.**
 - **An unsettled capture is a failure, not a silent fallback.**
+- **The settle digest permits one 8-bit color step against its unchanged quiet-window anchor.** No area allowance; any two-step change restarts stability. iOS 27.1 traces showed static samples alternating one step in one or two pixels. Guard: `SnapshotRenderingSupportTests`.
 - **Freeze endless motion behind `\.isCapturingSnapshot`.** Use deterministic readiness or `.settledAtLeast` for finite work.
 - **The explicit CI multiplier may scale only maximum settle/hook ceilings.** Never scale the floor, quiet proof, cadence, or image tolerance.
 - **Guards: `SnapshotSettleTimeoutPolicyTests` and `SnapshotRenderingSupportTests`.**
@@ -77,7 +85,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **A change-free settle loop keeps running until it can prove stability.** A starved machine can fit fewer passes than stability needs.
 - **Only a hard cap gives up as `.starved`.** That is an environment failure, not view motion.
 - **Guard: `SnapshotRenderingSupportTests`.**
-- **Captures are single-tenant per process.** `renderSnapshotImage` serializes through a FIFO `@MainActor` mutex.
+- **Captures are single-tenant per process.** All entry points acquire the FIFO `@MainActor` mutex before window discovery, environment validation, and content preparation.
 - **The safe-area swizzle is depth-counted.** Nested captures trap.
 - **Keep the suite serial anyway.** Concurrent scheduling degrades to queued-serial, gaining nothing.
 - **Guard: `SnapshotKitTestingTests.ConcurrentCaptureTests`.** The rejected experiments below record the interleaving failure. CircleCI shards across isolated VMs and keeps each worker serial; see [the snapshot job](../../.circleci/config.yml).

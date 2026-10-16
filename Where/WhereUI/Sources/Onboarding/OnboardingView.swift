@@ -456,9 +456,13 @@ struct OnboardingPage: Identifiable {
                 },
                 whereSnapshot(
                     name: "PhoneRecordingChoice",
-                    configurations: SnapshotConfiguration.combinations(devices: [.iPhone]) + [
-                        SnapshotConfiguration(dynamicType: .accessibility5, device: .iPhone),
-                    ],
+                    configurations: SnapshotConfiguration
+                        .combinations(devices: [.iPhoneFullContent]) + [
+                            SnapshotConfiguration(
+                                dynamicType: .accessibility5,
+                                device: .iPhoneFullContent,
+                            ),
+                        ],
                 ) {
                     OnboardingView(
                         gate: LifecycleGateHandle(
@@ -472,7 +476,7 @@ struct OnboardingPage: Identifiable {
                 },
                 whereSnapshot(
                     name: "TabletRecordingChoice",
-                    configurations: SnapshotConfiguration.combinations(devices: [.iPad]),
+                    configurations: SnapshotConfiguration.combinations(devices: [.iPadFullContent]),
                 ) {
                     OnboardingView(
                         gate: LifecycleGateHandle(

@@ -16,11 +16,15 @@ DEFAULT_PLAN = ROOT / ".circleci" / "snapshot-shards.json"
 FORMAT_VERSION = 1
 # Minimum reduction in the slowest worker required to move existing suites.
 MINIMUM_IMPROVEMENT = 0.05
-SNAPSHOT_TARGET_PATTERN = re.compile(
+SNAPSHOT_TARGET_HEADER = (
     r"unitTests\(\s*"
     r'name:\s*"(?P<bundle>[^"]+SnapshotTests)",'
-    r".*?"
-    r'sources:\s*\["(?P<sources>[^"]+/SnapshotTests)/\*\*"\]',
+)
+SNAPSHOT_TARGET_PATTERN = re.compile(
+    SNAPSHOT_TARGET_HEADER
+    # Never borrow another target's sources when this declaration is unsupported.
+    + r"(?:(?!\bunitTests\s*\(|\n[ \t]*\),).)*?"
+    + r"sources:\s*\[(?P<sources>[^\]]*)\]",
     re.DOTALL,
 )
 
@@ -45,12 +49,23 @@ def load_plan(path):
 def snapshot_source_roots(repo):
     project = (repo / "Project.swift").read_text()
     roots = {}
+    declared = {
+        match.group("bundle")
+        for match in re.finditer(SNAPSHOT_TARGET_HEADER, project)
+    }
+    parsed = set()
     for match in SNAPSHOT_TARGET_PATTERN.finditer(project):
         bundle = match.group("bundle")
-        source = match.group("sources")
-        if source in roots:
-            raise ValueError(f"duplicate snapshot source path in Project.swift: {source}")
-        roots[source] = bundle
+        sources = re.findall(r'"([^"\n]+/SnapshotTests)/\*\*"', match.group("sources"))
+        if not sources:
+            raise ValueError(f"{bundle} has no literal SnapshotTests/** source path")
+        parsed.add(bundle)
+        for source in sources:
+            if source in roots:
+                raise ValueError(f"duplicate snapshot source path in Project.swift: {source}")
+            roots[source] = bundle
+    if missing := sorted(declared - parsed):
+        raise ValueError(f"snapshot targets need literal source arrays: {missing}")
     if not roots:
         raise ValueError("Project.swift has no snapshot test targets")
     return roots

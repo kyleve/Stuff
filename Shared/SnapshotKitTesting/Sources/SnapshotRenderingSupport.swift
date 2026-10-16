@@ -98,7 +98,7 @@ func settleForCapture(
 }
 
 /// Suspends between render passes until the view's rendered content is stable —
-/// two consecutive low-resolution renders are pixel-identical — giving SwiftUI
+/// consecutive low-resolution renders differ by at most one color step — giving SwiftUI
 /// `.task`/async loads time to resolve, and finite animations (typewriter
 /// reveals, `.transition` crossfades, launch transitions) time to run to
 /// completion, before the capture. So content-loading screens snapshot their
@@ -153,7 +153,7 @@ func settleForCapture(
     timing: SnapshotCaptureTiming? = nil,
     mechanism: SnapshotSettleMechanism = .fromEnvironment,
 ) async -> SettleOutcome {
-    // How long the rendered pixels must stay byte-identical to the quiet
+    // How long the rendered pixels must stay within one color step of the quiet
     // window's anchor sample before the content counts as settled — matches the
     // old 2-passes-at-60ms quiet window, now sampled densely.
     let stableQuietDuration: Duration = .milliseconds(120)
@@ -242,15 +242,10 @@ func settleForCapture(
 
         var pixelSaysStable = false
         if mechanism != .quiescence {
-            // Byte-exact on purpose — not the tolerance the final image compare
-            // uses. The final compare answers "does this match the reference?",
-            // where sub-pixel/gamut noise warrants a perceptual threshold. This
-            // loop answers a different question — "has rendering *stopped
-            // changing*?" — and the quarter-resolution sample already absorbs
-            // sub-pixel jitter, so exact equality is the right settled signal. A
-            // tolerance here would let a slow, still-drifting animation read as
-            // settled between adjacent samples.
-            if sample != nil, sample == anchorSample {
+            // iOS 27.1 can alternate one color step in otherwise static samples.
+            // Compare against the unchanged quiet-window anchor so incremental
+            // movement cannot accumulate through adjacent-sample comparisons.
+            if let sample, let anchorSample, snapshotSamplesMatch(sample, anchor: anchorSample) {
                 stablePasses += 1
             } else {
                 // The first non-nil sample merely establishes the anchor; only a
@@ -314,10 +309,27 @@ func settleForCapture(
     }
 }
 
+/// Ignores one 8-bit quantization step per channel, with no changed-area allowance.
+/// A two-step change anywhere, or a different buffer size, restarts the quiet window.
+@_spi(Testing) public func snapshotSamplesMatch(_ sample: Data, anchor: Data) -> Bool {
+    guard sample.count == anchor.count else { return false }
+    if sample == anchor { return true }
+    return sample.withUnsafeBytes { sampleBytes in
+        anchor.withUnsafeBytes { anchorBytes in
+            let actual = sampleBytes.bindMemory(to: UInt8.self)
+            let expected = anchorBytes.bindMemory(to: UInt8.self)
+            for index in actual.indices where abs(Int(actual[index]) - Int(expected[index])) > 1 {
+                return false
+            }
+            return true
+        }
+    }
+}
+
 extension UIView {
     /// A cheap content fingerprint: the view's pixels rendered at quarter
-    /// resolution. Two byte-identical samples across passes mean the visible
-    /// content stopped changing. Compared as full buffers, **never** by
+    /// resolution. Samples stay within one color step of the quiet-window anchor.
+    /// Compare complete buffers, **never** by
     /// `hashValue` — a bridged `NSData` hash considers only a prefix of the
     /// bytes, so a text reveal below static top chrome would read "stable"
     /// mid-animation. `afterScreenUpdates: true` so each pass renders the

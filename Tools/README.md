@@ -27,7 +27,14 @@ device-selection, and app-install policies are likewise tested with temporary
 catalogs and captured command output rather than tracked assets, devices, or
 `/Applications`.
 
+The simulator commands default to Duo because the pinned runtime supports only that device.
+Failed creation preserves the process exit status and never records an ownership claim.
+
 ## Snapshot shard policy
+
+Suite discovery reads each target's literal source array in `Project.swift`.
+Arrays can span lines and include shared support files. Only `SnapshotTests/**`
+paths define suite roots. Unsupported declarations fail before shard selection.
 
 `snapshot_shards.py` keeps weekly assignments stable. Its bounded greedy search
 places intake first, then stops existing-suite moves at a 5% reduction in the

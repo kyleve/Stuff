@@ -1,7 +1,7 @@
 import ProjectDescription
 
 let destinations: Destinations = [.iPhone, .iPad]
-let deployment: DeploymentTargets = .iOS("27.0")
+let deployment: DeploymentTargets = .iOS("27.1")
 
 /// The Ledger menu bar app is the only native-macOS target; everything else
 /// stays on the shared iOS destinations above.
@@ -233,7 +233,7 @@ let packageResourceEnvironment: [String: EnvironmentVariable] = [
 
 let snapshotEnvironment: [String: EnvironmentVariable] =
     packageResourceEnvironment.merging([
-        "SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION": "27.0",
+        "SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION": "27.1",
         "SNAPSHOT_EXPECTED_SCREEN_SCALE": "3",
         "SNAPSHOT_EXPECTED_TIMEZONE": "America/Los_Angeles",
         "TZ": "America/Los_Angeles",

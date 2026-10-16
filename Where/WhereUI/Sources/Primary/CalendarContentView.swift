@@ -147,7 +147,9 @@ struct CalendarContentView: View {
             ?? visibleMonths.last?.id
 
         return ScrollView {
-            LazyVStack(spacing: stylesheet.calendar.monthSpacing) {
+            // A year has at most twelve sections. Measure their actual heights so
+            // restoring an anchor does not depend on estimates from offscreen months.
+            VStack(spacing: stylesheet.calendar.monthSpacing) {
                 ForEach(visibleMonths) { month in
                     VStack(spacing: stylesheet.calendar.monthSpacing) {
                         MonthGridView(
@@ -286,30 +288,7 @@ private struct MonthGridView: View {
                 .font(.title.weight(.semibold))
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            LazyVGrid(
-                columns: Array(
-                    repeating: GridItem(.flexible(), spacing: calendar.month.gridSpacing),
-                    count: month.weekdayCount,
-                ),
-                spacing: calendar.month.gridSpacing,
-            ) {
-                ForEach(month.weekdaySymbols, id: \.self) { symbol in
-                    Text(symbol)
-                        .font(.system(size: calendar.month.weekdayFontSize))
-                        .lineLimit(1)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                }
-
-                ForEach(0 ..< month.leadingBlankCount, id: \.self) { _ in
-                    Color.clear
-                        .frame(minHeight: calendar.day.minHeight)
-                }
-
-                ForEach(Array(month.days.enumerated()), id: \.element.id) { index, day in
-                    DayCell(day: day, band: bandGeometry(at: index), dateCalendar: dateCalendar)
-                }
-            }
+            dayGrid
 
             if !month.regionTotals.isEmpty {
                 MonthFooter(totals: month.regionTotals, focusedRegion: focusedRegion)
@@ -355,6 +334,46 @@ private struct MonthGridView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(monthAccessibility.label)
         .accessibilityValue(monthAccessibility.value)
+    }
+
+    private var dayGrid: some View {
+        // At most six rows per month. Eager rows give every month its final
+        // height before a scroll anchor is applied, including offscreen months.
+        VStack(spacing: calendar.month.gridSpacing) {
+            HStack(spacing: calendar.month.gridSpacing) {
+                ForEach(month.weekdaySymbols, id: \.self) { symbol in
+                    Text(symbol)
+                        .font(.system(size: calendar.month.weekdayFontSize))
+                        .lineLimit(1)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            ForEach(0 ..< weekCount, id: \.self) { week in
+                HStack(spacing: calendar.month.gridSpacing) {
+                    ForEach(0 ..< month.weekdayCount, id: \.self) { weekday in
+                        let index = week * month.weekdayCount + weekday - month.leadingBlankCount
+                        Group {
+                            if month.days.indices.contains(index) {
+                                let day = month.days[index]
+                                DayCell(
+                                    day: day,
+                                    band: bandGeometry(at: index),
+                                    dateCalendar: dateCalendar,
+                                )
+                            } else {
+                                Color.clear.frame(minHeight: calendar.day.minHeight)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+        }
+    }
+
+    private var weekCount: Int {
+        (month.leadingBlankCount + month.days.count + month.weekdayCount - 1) / month.weekdayCount
     }
 
     @ViewBuilder

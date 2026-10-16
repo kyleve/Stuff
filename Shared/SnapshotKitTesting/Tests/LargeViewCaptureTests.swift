@@ -108,6 +108,46 @@ struct LargeViewCaptureTests {
         #expect(sample.bottom.blue > 0.5)
     }
 
+    @Test(arguments: [false, true])
+    func restoredScrollOffsetsApplyOnlyToViewportCaptures(fullContent: Bool) async throws {
+        try waitFor { hostKeyWindow() != nil }
+        let host = UIHostingController(rootView: ScrollView {
+            VStack(spacing: 0) {
+                Color.red.frame(height: 100)
+                Color.blue.frame(height: 2900)
+            }
+        })
+        host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+        let image = try await renderSnapshotImage(
+            of: host,
+            named: "restored-scroll-offset",
+            sizing: fullContent ? .intrinsic(width: 402, minimumHeight: 874) : .fixed,
+            safeAreaInsets: .zero,
+            onReadyToSnapshot: {
+                @MainActor func scrollViews(in view: UIView) -> [UIScrollView] {
+                    if let scrollView = view as? UIScrollView { return [scrollView] }
+                    return view.subviews.flatMap { scrollViews(in: $0) }
+                }
+                guard let scrollView = scrollViews(in: host.view).first else {
+                    Issue.record("The hosted fixture must contain its production scroll view")
+                    return
+                }
+                scrollView.setContentOffset(CGPoint(x: 0, y: 180), animated: false)
+            },
+        )
+        let firstRow = image.probePixel(atUnitPoint: CGPoint(x: 0.5, y: 0.01))
+        if fullContent {
+            #expect(image.size.height == 3000)
+            #expect(firstRow.red > 0.5)
+            #expect(firstRow.blue < 0.5)
+            #expect(image.probePixel(atUnitPoint: CGPoint(x: 0.5, y: 0.99)).blue > 0.5)
+        } else {
+            #expect(image.size.height == 874)
+            #expect(firstRow.blue > 0.5)
+            #expect(firstRow.red < 0.5)
+        }
+    }
+
     @Test func capturesAHorizontalScrollViewsFullContentInMultipleTiles() async throws {
         try waitFor { hostKeyWindow() != nil }
         let scroll = ScrollView(.horizontal) {
@@ -233,8 +273,23 @@ struct LargeViewCaptureTests {
             safeAreaInsets: .zero,
             measurementReadiness: .immediate,
         )
-        #expect(image.size.height >= 3255)
-        #expect(image.size.height < 3265)
+        // Native bar heights vary by runtime and arrangement. Prove that all
+        // 3,000 points of content survive, independently of that chrome height.
+        var redRows = 0
+        var blueRows = 0
+        var greenRows = 0
+        for row in 0 ..< Int(image.size.height) {
+            let pixel = image.probePixel(atUnitPoint: CGPoint(
+                x: 0.5,
+                y: (CGFloat(row) + 0.5) / image.size.height,
+            ))
+            if pixel.red > 0.5, pixel.green < 0.5, pixel.blue < 0.5 { redRows += 1 }
+            if pixel.blue > 0.5, pixel.red < 0.5 { blueRows += 1 }
+            if pixel.green > 0.5, pixel.red < 0.5, pixel.blue < 0.5 { greenRows += 1 }
+        }
+        #expect(abs(redRows - 1500) <= 1)
+        #expect(abs(blueRows - 1500) <= 1)
+        #expect(abs(greenRows - 50) <= 1)
 
         let topToolbar = image.probePixel(atUnitPoint: CGPoint(
             x: 0.1,
@@ -297,6 +352,58 @@ struct LargeViewCaptureTests {
         } catch {
             Issue.record("Expected SnapshotRenderingError, got \(error).")
         }
+    }
+
+    @Test func searchableFullContentUsesTheCaptureWindowAndRetainsEveryRow() async throws {
+        try waitFor { hostKeyWindow() != nil }
+        let screen = NavigationStack {
+            List {
+                ForEach(0 ..< 20, id: \.self) { _ in
+                    Color.red.frame(height: 100).listRowInsets(EdgeInsets())
+                }
+                Color.blue.frame(height: 500).listRowInsets(EdgeInsets())
+            }
+            .searchable(text: .constant(""))
+            .navigationTitle("Searchable history")
+        }
+        let host = UIHostingController(rootView: screen)
+        host.traitOverrides.horizontalSizeClass = .compact
+        host.traitOverrides.verticalSizeClass = .regular
+        host.traitOverrides.userInterfaceIdiom = .phone
+        host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 1)
+        let image = try await renderSnapshotImage(
+            of: host,
+            named: "searchable-full-content-probe",
+            sizing: .intrinsic(width: 402, minimumHeight: 874),
+            safeAreaInsets: .zero,
+            onReadyToSnapshot: {
+                #expect(host.view.window?.bounds.size == host.view.bounds.size)
+                @MainActor func searchBars(in view: UIView) -> [UITextField] {
+                    if let field = view as? UITextField { return [field] }
+                    return view.subviews.flatMap { searchBars(in: $0) }
+                }
+                let bars = searchBars(in: host.view)
+                #expect(!bars.isEmpty)
+                for bar in bars {
+                    let frame = bar.convert(bar.bounds, to: host.view)
+                    #expect(frame.maxY <= host.view.bounds.maxY)
+                    #expect(frame.maxY >= host.view.bounds.maxY - 120)
+                }
+            },
+        )
+        var redRows = 0
+        var blueRows = 0
+        for row in 0 ..< Int(image.size.height) {
+            let pixel = image.probePixel(atUnitPoint: CGPoint(
+                x: 0.5,
+                y: (CGFloat(row) + 0.5) / image.size.height,
+            ))
+            if pixel.red > 0.5, pixel.green < 0.5, pixel.blue < 0.5 { redRows += 1 }
+            if pixel.blue > 0.5, pixel.red < 0.5 { blueRows += 1 }
+        }
+        #expect(image.size.height >= 2500)
+        #expect(redRows >= 1980)
+        #expect(blueRows >= 490)
     }
 
     @Test func annotatesTallFullContentAccessibilitySnapshots() async throws {

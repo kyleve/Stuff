@@ -551,3 +551,6 @@ for the mode values):
 ```
 
 Then review and commit the images.
+
+Calendar month sections and day rows measure eagerly. This gives full-content
+snapshots their complete height before capture on the pinned Duo runtime.

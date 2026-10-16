@@ -14,6 +14,8 @@ permissions:
   contents: read
 
 env:
+  # The runner label carries several Xcodes. Select the pinned minor explicitly.
+  DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
   # CI installs tools only. Agent skills are local-development inputs, and mise
   # otherwise runs the postinstall hook even when every tool is already cached.
   MISE_NO_HOOKS: "1"
@@ -96,7 +98,10 @@ jobs:
       # runs here rather than alongside the iOS bundles. The iOS `test-ios` and
       # `snapshot` jobs live in .circleci/config.yml (PR #237).
       - name: Build & Test (macOS)
-        run: mise exec -- tuist test Ledger-macOS-Tests --no-selective-testing -- -destination 'platform=macOS'
+        run: |
+          xcodebuild -version
+          test "$(xcodebuild -version | awk '/Build version/{print $3}')" = "$(cat .xcode-build-version)"
+          mise exec -- tuist test Ledger-macOS-Tests --no-selective-testing -- -destination 'platform=macOS'
       # Tests can crash the host process on CI without leaving any error in
       # Tuist's summarized log. On failure, capture crash reports + the .xcresult
       # bundle (which holds the per-test crash backtraces) and upload them.
