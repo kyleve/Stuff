@@ -1,5 +1,6 @@
 import RegionKit
 import SFSafeSymbols
+import SnapshotKit
 import SwiftUI
 
 /// A passport-inspired acknowledgement of the user's current tracked region.
@@ -204,13 +205,43 @@ struct RegionWelcomeCard: View {
 }
 
 #if DEBUG
+    extension RegionWelcomeCard: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            let configurations = SnapshotConfiguration.combinations(
+                devices: [.iPhoneFullContent],
+                colorSchemes: [.light, .dark],
+            ) + [
+                SnapshotConfiguration(dynamicType: .accessibility5, device: .iPhoneFullContent),
+                SnapshotConfiguration(device: .iPhoneFullContent, snapshotType: .accessibility),
+            ]
+            return configurations.map { configuration in
+                let cache = RegionOutlinePathCache()
+                return whereSnapshot(
+                    name: "ReturnVisit",
+                    configurations: [configuration],
+                    onReadyToSnapshot: {
+                        _ = await cache.path(for: .newYork, resolution: .medium)
+                        _ = await cache.path(for: .newYork, resolution: .micro)
+                    },
+                ) {
+                    ScrollView {
+                        RegionWelcomeCard(
+                            presentation: .init(region: .newYork, greeting: .returnVisit),
+                            dismissAction: {},
+                            planStayAction: { _ in },
+                        )
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(WhereStylesheet.default.spacing.xxxLarge)
+                        .frame(maxWidth: .infinity)
+                    }
+                    .background(.background)
+                    .environment(\.regionOutlinePathCache, cache)
+                }
+            }
+        }
+    }
+
     #Preview {
-        RegionWelcomeCard(
-            presentation: .init(region: .california, greeting: .returnVisit),
-            dismissAction: {},
-            planStayAction: { _ in },
-        )
-        .padding(32)
-        .whereBroadwayRoot()
+        RegionWelcomeCard.snapshotPreviews
     }
 #endif

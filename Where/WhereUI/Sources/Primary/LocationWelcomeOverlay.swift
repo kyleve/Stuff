@@ -22,7 +22,11 @@ struct LocationWelcomeOverlay: View {
                     .transition(.opacity)
                     .zIndex(0)
 
-                GeometryReader { proxy in
+                AdaptiveHistoryGeometryReader { geometry in
+                    let area = geometry.unobstructedBounds(near: CGPoint(
+                        x: geometry.contentBounds.midX,
+                        y: geometry.contentBounds.maxY,
+                    ))
                     ScrollView {
                         RegionWelcomeCard(
                             presentation: presentation,
@@ -32,10 +36,12 @@ struct LocationWelcomeOverlay: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, stylesheet.spacing.xxxLarge)
                         .padding(.vertical, stylesheet.spacing.xxxLarge)
-                        .frame(maxWidth: .infinity, minHeight: proxy.size.height)
+                        .frame(maxWidth: .infinity, minHeight: area.height)
                         .accessibilityFocused($isCardFocused)
                     }
                     .scrollBounceBehavior(.basedOnSize)
+                    .frame(width: area.width, height: area.height)
+                    .position(x: area.midX, y: area.midY)
                 }
                 .contentShape(Rectangle())
                 .accessibilityAddTraits(.isModal)

@@ -17,12 +17,7 @@ import WhereCore
 /// checked wiring); the always-on `WhereSession` coordinator stays in the
 /// environment.
 struct MainTabs: View {
-    /// Identity for the tab-bar selection.
-    private enum TabID: Hashable {
-        case locations
-        case year
-        case settings
-    }
+    private typealias TabID = SceneNavigationModel.Tab
 
     private struct WelcomeTaskID: Hashable {
         let isActive: Bool
@@ -33,7 +28,7 @@ struct MainTabs: View {
     @State private var recordingWarning: RecordingConfigurationWarningModel
     @State private var welcome: LocationWelcomeModel
     @State private var planningDestination: PlannedStaysDestination?
-    @State private var selection: TabID = .locations
+    @State private var navigation = SceneNavigationModel()
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.stylesheet) private var stylesheet
     private let recordingWarningSource: RecordingConfigurationWarningModel.Source
@@ -64,24 +59,29 @@ struct MainTabs: View {
     }
 
     var body: some View {
-        TabView(selection: $selection) {
+        @Bindable var navigation = navigation
+        TabView(selection: $navigation.selectedTab) {
             Tab(
                 String(localized: .tabLocations),
                 systemSymbol: .locationFill,
                 value: TabID.locations,
             ) {
-                LocationsView(report: report)
+                LocationsView(report: report, navigation: navigation.locations)
                     .reportingDeveloperTabBarInset()
             }
 
             Tab(String(localized: .tabYear), systemSymbol: .calendar, value: TabID.year) {
-                YearView(report: report)
+                YearView(report: report, navigation: navigation.year)
                     .reportingDeveloperTabBarInset()
             }
 
             Tab(value: TabID.settings) {
-                SettingsView(report: report, recordingWarning: recordingWarning)
-                    .reportingDeveloperTabBarInset()
+                SettingsView(
+                    report: report,
+                    recordingWarning: recordingWarning,
+                    navigation: navigation.settings,
+                )
+                .reportingDeveloperTabBarInset()
             } label: {
                 RecordingConfigurationWarningTabLabel(
                     model: recordingWarning,
@@ -180,7 +180,22 @@ struct MainTabs: View {
                 preferences: recordingWarningSource.preferences,
             ))
             _welcome = State(initialValue: welcome)
-            _selection = State(initialValue: selection)
+            _navigation = State(initialValue: SceneNavigationModel(selectedTab: selection))
+        }
+
+        /// Retains the production shell around a separately built in-memory lab world.
+        init(world: WhereFlyoverWorld, navigation: SceneNavigationModel) {
+            self.init(
+                session: world.session,
+                report: world.report,
+                welcome: LocationWelcomeModel(
+                    services: world.scope.services,
+                    preferences: world.scope.preferences,
+                    now: world.session.now,
+                ),
+                selection: navigation.selectedTab,
+            )
+            _navigation = State(initialValue: navigation)
         }
     #endif
 }
@@ -201,6 +216,104 @@ struct MainTabs: View {
                     configurations: [configuration],
                     settle: .settledAtLeast(minDuration: 1.0),
                 )
+            } + adaptiveSnapshots
+        }
+
+        /// Viewport composition supplements the full-content Locations, calendar, timeline,
+        /// and Settings matrices. Synthetic regions exercise the production layout policy.
+        private static var adaptiveSnapshots: [SnapshotCase] {
+            let tabs: [SceneNavigationModel.Tab] = [.locations, .year, .settings]
+            var cases = tabs.flatMap { tab in
+                AdaptiveHistoryPose.allCases.map { pose in
+                    adaptiveSnapshot(
+                        tab: tab,
+                        pose: pose,
+                        configuration: SnapshotConfiguration(device: pose.frame),
+                        selection: .none,
+                    )
+                }
+            }
+            for tab in tabs {
+                let pose = AdaptiveHistoryPose.innerPortrait
+                let configurations = [
+                    SnapshotConfiguration(colorScheme: .dark, device: pose.frame),
+                    SnapshotConfiguration(dynamicType: .accessibility5, device: pose.frame),
+                    SnapshotConfiguration(layoutDirection: .rightToLeft, device: pose.frame),
+                    SnapshotConfiguration(contrast: .increased, device: pose.frame),
+                    SnapshotConfiguration(device: pose.frame, snapshotType: .accessibility),
+                ]
+                cases += configurations.map { configuration in
+                    adaptiveSnapshot(
+                        tab: tab,
+                        pose: pose,
+                        configuration: configuration,
+                        selection: .none,
+                    )
+                }
+            }
+            for pose in [AdaptiveHistoryPose.innerPortrait, .tabletop, .book] {
+                cases.append(adaptiveSnapshot(
+                    tab: .locations,
+                    pose: pose,
+                    configuration: SnapshotConfiguration(device: pose.frame),
+                    selection: .region,
+                ))
+                cases.append(adaptiveSnapshot(
+                    tab: .year,
+                    pose: pose,
+                    configuration: SnapshotConfiguration(device: pose.frame),
+                    selection: .stay,
+                ))
+            }
+            cases.append(adaptiveSnapshot(
+                tab: .settings,
+                pose: .innerPortrait,
+                configuration: SnapshotConfiguration(device: .duoInnerPortrait),
+                selection: .settings,
+            ))
+            // May 2026 occupies six rows in the demo's Sunday-first calendar.
+            cases.append(adaptiveSnapshot(
+                tab: .year,
+                pose: .tabletop,
+                configuration: SnapshotConfiguration(device: .duoInnerPortrait),
+                selection: .month(CalendarDay(year: PreviewSupport.year, month: 5, day: 1)),
+            ))
+            return cases
+        }
+
+        private static func adaptiveSnapshot(
+            tab: SceneNavigationModel.Tab,
+            pose: AdaptiveHistoryPose,
+            configuration: SnapshotConfiguration,
+            selection: AdaptiveHistorySnapshotFixture.Selection,
+        ) -> SnapshotCase {
+            let tabName = switch tab {
+                case .locations: "Locations"
+                case .year: "Year"
+                case .settings: "Settings"
+            }
+            let fixture = AdaptiveHistorySnapshotFixture(tab: tab, selection: selection)
+            let selectionName = switch selection {
+                case .none: ""
+                case .region, .stay, .settings: "-Selected"
+                case .month: "-Month"
+            }
+            return whereSnapshot(
+                name: "Adaptive-" + tabName + "-" + pose.rawValue + selectionName,
+                configurations: [configuration],
+                // Native glass can retain its light material after the async
+                // shell appears; match the measured Appearance/About floor.
+                settle: .settledAtLeast(minDuration: 1.5),
+                onReadyToSnapshot: {
+                    await fixture.prepare()
+                    // Request the fixture's starting position after demo preparation;
+                    // native navigation insets can change while the shell appears.
+                    if tab == .locations {
+                        fixture.model.navigation.locations.scrollPosition.scrollTo(edge: .top)
+                    }
+                },
+            ) {
+                AdaptiveHistorySnapshotScene(fixture: fixture, pose: pose)
             }
         }
 

@@ -11,18 +11,25 @@ import WhereCore
 /// navigation: the Your Year tab embeds it inline, and the Locations tab pushes
 /// it — region-focused, with a title — as the zoom destination of a tapped card.
 struct CalendarContentView: View {
+    enum Presentation {
+        case year
+        case month
+    }
+
     /// When set, the day grid only shows dots for this region (so it reads as
-    /// "just the days I spent here"); the per-month footer still lists every
-    /// region. `nil` shows every region's dots.
+    /// "just the days I spent here"). The year footer lists every region;
+    /// the tabletop summary shows this region's total, including zero.
+    /// `nil` shows every region's dots.
     var focusedRegion: Region?
 
     let report: YearReportModel
+    let history: HistoryNavigationModel?
+    let presentation: Presentation
+    private let ownsPlanningPresentation: Bool
 
     @Environment(\.stylesheet) private var stylesheet
     @State private var monthsLoad: Result<[CalendarMonth], Error>?
-    @State private var planningDestination: PlannedStaysDestination?
-    @State private var initiallyPositionedYear: Int?
-    @State private var scrollPosition = ScrollPosition(idType: String.self)
+    @State private var navigation: CalendarNavigationModel
 
     private static let logger = WhereLog.session(CalendarViewLog.self)
 
@@ -36,7 +43,31 @@ struct CalendarContentView: View {
         let focusedRegion: Region?
     }
 
+    /// Retry positioning when cached months catch up with a requested year.
+    /// Changes within the same year must not interrupt browsing.
+    private struct CalendarPositionID: Hashable {
+        let requestedYear: Int
+        let availableYear: Int?
+    }
+
+    init(
+        focusedRegion: Region? = nil,
+        report: YearReportModel,
+        navigation: CalendarNavigationModel? = nil,
+        history: HistoryNavigationModel? = nil,
+        presentation: Presentation = .year,
+    ) {
+        self.focusedRegion = focusedRegion
+        self.report = report
+        self.history = history
+        self.presentation = presentation
+        ownsPlanningPresentation = navigation == nil && history == nil
+        _navigation = State(initialValue: history?
+            .calendar ?? navigation ?? CalendarNavigationModel())
+    }
+
     var body: some View {
+        @Bindable var navigation = navigation
         Group {
             if let yearReport = report.report {
                 Group {
@@ -87,9 +118,12 @@ struct CalendarContentView: View {
         // Log View Mode: reveal an inspect badge for this calendar's events. A
         // no-op in release.
         .debugLogInspectable(WhereLog.session(CalendarViewLog.self))
-        .sheet(item: $planningDestination) { destination in
-            PlannedStaysDestinationView(destination: destination, report: report)
-        }
+        .modifier(PlanningPresentation(
+            report: report,
+            navigation: navigation.planning,
+            isEnabled: ownsPlanningPresentation,
+        ))
+        .toolbar(presentation == .month ? .hidden : .automatic, for: .navigationBar)
         .toolbar {
             if report.showsEstimatedTimeAndPlanning {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -97,7 +131,7 @@ struct CalendarContentView: View {
                         String(localized: .plannedStaysTitle),
                         systemSymbol: .calendarBadgeClock,
                     ) {
-                        planningDestination = .list
+                        navigation.planningDestination = .list
                     }
                 }
             }
@@ -142,9 +176,17 @@ struct CalendarContentView: View {
     }
 
     private func calendarContent(months: [CalendarMonth]) -> some View {
-        let visibleMonths = shownMonths(months)
-        let initialMonthID = visibleMonths.first(where: \.isCurrentMonth)?.id
-            ?? visibleMonths.last?.id
+        @Bindable var navigation = navigation
+        let availableMonths = shownMonths(months)
+        let initialMonth = availableMonths.first(where: \.isCurrentMonth) ?? availableMonths.last
+        let displayedMonth = navigation.displayedMonth
+        let visibleMonths = presentation == .year ? availableMonths : months.filter {
+            if let displayedMonth, displayedMonth.year == report.selectedYear {
+                $0.year == displayedMonth.year && $0.month == displayedMonth.month
+            } else {
+                $0.id == initialMonth?.id
+            }
+        }
 
         return ScrollView {
             // A year has at most twelve sections. Measure their actual heights so
@@ -154,36 +196,58 @@ struct CalendarContentView: View {
                     VStack(spacing: stylesheet.calendar.monthSpacing) {
                         MonthGridView(
                             month: month,
+                            presentation: presentation,
                             focusedRegion: focusedRegion,
                             dateCalendar: report.calendar,
                             plannedPresence: displayedPlannedPresence(on:),
                             planningSummary: report.showsEstimatedTimeAndPlanning
                                 ? report.forecasts.plannedRegionSummaries(in: month) : [],
+                            selectedInterval: history?.selectedInterval(in: report.selectedYear),
+                            selectMonth: history.map { history in
+                                {
+                                    history.select(
+                                        month: CalendarDay(
+                                            year: month.year,
+                                            month: month.month,
+                                            day: 1,
+                                        ),
+                                        dateCalendar: report.calendar,
+                                    )
+                                }
+                            },
                         )
 
                         // In chronological flow, the estimate belongs immediately
                         // after the month whose recorded pace it is projecting from.
-                        if showsForecast(after: month) {
+                        if presentation == .year, showsForecast(after: month) {
                             LocationForecastPanel(
                                 forecasts: calendarForecasts,
                                 microprintRegions: report.ranking.primary.map(\.region),
                                 homeRegion: report.forecasts.planning.homeRegion,
-                                planningAction: { planningDestination = .list },
+                                planningAction: { navigation.planningDestination = .list },
                             )
                         }
                     }
-                    .id(month.id)
+                    .id(CalendarDay(year: month.year, month: month.month, day: 1))
                 }
             }
             .scrollTargetLayout()
             .padding()
         }
-        .scrollPosition($scrollPosition)
-        .task(id: report.selectedYear) {
-            guard initiallyPositionedYear != report.selectedYear else { return }
-            guard let initialMonthID else { return }
-            scrollPosition.scrollTo(id: initialMonthID, anchor: .bottom)
-            initiallyPositionedYear = report.selectedYear
+        .scrollPosition($navigation.scrollPosition)
+        .onScrollTargetVisibilityChange(idType: CalendarDay.self, threshold: 0.01) { months in
+            guard navigation.scrollPosition.isPositionedByUser else { return }
+            navigation.recordVisibleMonths(months)
+        }
+        .task(id: CalendarPositionID(
+            requestedYear: report.selectedYear,
+            availableYear: initialMonth?.year,
+        )) {
+            navigation.restorePosition(
+                in: report.selectedYear,
+                initialMonth: initialMonth
+                    .map { CalendarDay(year: $0.year, month: $0.month, day: 1) },
+            )
         }
     }
 
@@ -242,11 +306,14 @@ struct CalendarContentView: View {
 /// days spent in each region that month.
 private struct MonthGridView: View {
     let month: CalendarMonth
+    var presentation: CalendarContentView.Presentation = .year
     /// The region the calendar is focused on, if any — emphasized in the footer.
     var focusedRegion: Region?
     let dateCalendar: Calendar
     let plannedPresence: (CalendarDay) -> PlanningDayPresence?
     let planningSummary: [PlanningRegionSummary]
+    var selectedInterval: ClosedRange<CalendarDay>?
+    var selectMonth: (() -> Void)?
 
     @Environment(\.stylesheet) private var stylesheet
 
@@ -282,15 +349,121 @@ private struct MonthGridView: View {
 
     var body: some View {
         let monthAccessibility = accessibility
+        Group {
+            if presentation == .month {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: calendar.month.summarySpacing) {
+                        VStack(alignment: .leading, spacing: calendar.month.sectionSpacing) {
+                            monthHeading
+                            monthSummary
+                        }
+                        .frame(width: calendar.month.summaryWidth)
+                        dayGrid.frame(minWidth: calendar.month.minimumGridWidth)
+                    }
+                    VStack(alignment: .leading, spacing: calendar.month.sectionSpacing) {
+                        monthHeading
+                        dayGrid
+                        monthSummary
+                    }
+                }
+            } else {
+                VStack(alignment: .leading, spacing: calendar.month.sectionSpacing) {
+                    monthHeading
+                    dayGrid
+                    monthSummary
+                }
+            }
+        }
+        .padding(calendar.month.padding)
+        .foregroundStyle(card.foreground)
+        .background {
+            // Past months use the plain card; the current one gets the accent
+            // card (bluer wash, text, and heavier border).
+            cardShape
+                .fill(card.fill)
+                .overlay {
+                    cardShape.strokeBorder(card.border, lineWidth: card.borderWidth)
+                }
+        }
+        .accessibilityRepresentation {
+            if let selectMonth {
+                Button(monthAccessibility.label, action: selectMonth)
+                    .accessibilityValue(monthAccessibility.value)
+            } else {
+                Text(monthAccessibility.label)
+                    .accessibilityValue(monthAccessibility.value)
+            }
+        }
+    }
 
+    private var monthHeading: some View {
+        Group {
+            if let selectMonth {
+                Button(action: selectMonth) { Text(monthName) }
+                    .buttonStyle(.plain)
+            } else {
+                Text(monthName)
+            }
+        }
+        .font(.title.weight(.semibold))
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var dayGrid: some View {
+        // At most six rows per month. Eager rows give every month its final
+        // height before a scroll anchor is applied, including offscreen months.
+        VStack(spacing: presentation == .month
+            ? calendar.month.tabletopGridSpacing : calendar.month.gridSpacing)
+        {
+            HStack(spacing: calendar.month.gridSpacing) {
+                ForEach(month.weekdaySymbols, id: \.self) { symbol in
+                    Text(symbol)
+                        .font(.system(size: calendar.month.weekdayFontSize))
+                        .lineLimit(1)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            ForEach(0 ..< weekCount, id: \.self) { week in
+                HStack(spacing: calendar.month.gridSpacing) {
+                    ForEach(0 ..< month.weekdayCount, id: \.self) { weekday in
+                        let index = week * month.weekdayCount + weekday - month.leadingBlankCount
+                        Group {
+                            if month.days.indices.contains(index) {
+                                let day = month.days[index]
+                                DayCell(
+                                    day: day,
+                                    band: bandGeometry(at: index),
+                                    dateCalendar: dateCalendar,
+                                )
+                                .historySelection(selectedInterval?.contains(CalendarDay(
+                                    from: day.date,
+                                    in: dateCalendar,
+                                )) == true)
+                            } else {
+                                Color.clear.frame(minHeight: calendar.day.minHeight)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+        }
+    }
+
+    private var weekCount: Int {
+        (month.leadingBlankCount + month.days.count + month.weekdayCount - 1) / month.weekdayCount
+    }
+
+    private var monthSummary: some View {
         VStack(alignment: .leading, spacing: calendar.month.sectionSpacing) {
-            Text(monthName)
-                .font(.title.weight(.semibold))
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            dayGrid
-
-            if !month.regionTotals.isEmpty {
+            if presentation == .month, let focusedRegion {
+                MonthFooter(
+                    totals: [month.regionTotals.first { $0.region == focusedRegion }
+                        ?? RegionDayTally(region: focusedRegion, days: 0)],
+                    focusedRegion: focusedRegion,
+                )
+            } else if !month.regionTotals.isEmpty {
                 MonthFooter(totals: month.regionTotals, focusedRegion: focusedRegion)
             }
             ForEach(
@@ -320,60 +493,6 @@ private struct MonthGridView: View {
                 .foregroundStyle(.secondary)
             }
         }
-        .padding(calendar.month.padding)
-        .foregroundStyle(card.foreground)
-        .background {
-            // Past months use the plain card; the current one gets the accent
-            // card (bluer wash, text, and heavier border).
-            cardShape
-                .fill(card.fill)
-                .overlay {
-                    cardShape.strokeBorder(card.border, lineWidth: card.borderWidth)
-                }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(monthAccessibility.label)
-        .accessibilityValue(monthAccessibility.value)
-    }
-
-    private var dayGrid: some View {
-        // At most six rows per month. Eager rows give every month its final
-        // height before a scroll anchor is applied, including offscreen months.
-        VStack(spacing: calendar.month.gridSpacing) {
-            HStack(spacing: calendar.month.gridSpacing) {
-                ForEach(month.weekdaySymbols, id: \.self) { symbol in
-                    Text(symbol)
-                        .font(.system(size: calendar.month.weekdayFontSize))
-                        .lineLimit(1)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            ForEach(0 ..< weekCount, id: \.self) { week in
-                HStack(spacing: calendar.month.gridSpacing) {
-                    ForEach(0 ..< month.weekdayCount, id: \.self) { weekday in
-                        let index = week * month.weekdayCount + weekday - month.leadingBlankCount
-                        Group {
-                            if month.days.indices.contains(index) {
-                                let day = month.days[index]
-                                DayCell(
-                                    day: day,
-                                    band: bandGeometry(at: index),
-                                    dateCalendar: dateCalendar,
-                                )
-                            } else {
-                                Color.clear.frame(minHeight: calendar.day.minHeight)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                }
-            }
-        }
-    }
-
-    private var weekCount: Int {
-        (month.leadingBlankCount + month.days.count + month.weekdayCount - 1) / month.weekdayCount
     }
 
     @ViewBuilder
@@ -757,6 +876,15 @@ private struct DayCell: View {
     extension CalendarContentView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
+                name: "HistoryColumn",
+                configurations: [SnapshotConfiguration(device: AdaptiveHistorySnapshotFixture
+                        .historyColumn)],
+            ) {
+                NavigationStack {
+                    CalendarContentView(report: PreviewSupport.loadedYearReportModel())
+                }
+            }
+            whereSnapshot(
                 name: "FlightAndEvidenceBadges",
                 configurations: .componentDefaults,
                 measurementReadiness: .immediate,
@@ -810,7 +938,7 @@ private struct DayCell: View {
                     CalendarContentView(report: PreviewSupport.loadedYearReportModel())
                 }
             }
-            whereSnapshot(name: "InitialPosition", configurations: .phoneLightDark) {
+            whereSnapshot(name: "InitialPosition", configurations: initialPositionConfigurations) {
                 NavigationStack {
                     CalendarContentView(report: PreviewSupport.loadedYearReportModel())
                 }
@@ -877,6 +1005,23 @@ private struct DayCell: View {
                     ))
                 }
             }
+        }
+
+        /// This bounded shell proves the initial scroll anchor; WithData covers every row.
+        private static var initialPositionConfigurations: [SnapshotConfiguration] {
+            guard case let .fixed(size) = SnapshotConfiguration.Frame.iPhone.size else {
+                preconditionFailure("The phone viewport must have fixed bounds.")
+            }
+            let frame = SnapshotConfiguration.Frame.viewport(
+                name: SnapshotConfiguration.Frame.iPhone.name,
+                size: size,
+                safeAreaInsets: SnapshotConfiguration.Frame.iPhone.safeAreaInsets,
+                layoutTraits: .phonePortrait,
+            )
+            return [
+                SnapshotConfiguration(device: frame),
+                SnapshotConfiguration(colorScheme: .dark, device: frame),
+            ]
         }
     }
 

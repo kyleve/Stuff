@@ -28,7 +28,7 @@ public struct RootView: View {
         /// The logged-in tab bar's measured height, reported up from `MainTabs` and
         /// handed to the sibling `DeveloperOverlay` so its button rests clear of the
         /// tab bar. Zero when logged out (no tab bar in the tree).
-        @State private var developerTabBarInset: CGFloat = 0
+        @State private var developerTabBarInset = EdgeInsets()
         /// The footprint the non-modal floating developer HUD occupies, reported up
         /// from the sibling `DeveloperOverlay` and applied as extra safe area to the
         /// app content so screens behind the HUD can scroll clear of it.

@@ -9,28 +9,100 @@ import WhereCore
 struct YearView: View {
     let report: YearReportModel
 
-    @State private var mode: YearMode
+    @State private var navigation: SceneNavigationModel.Year
 
     @Environment(\.stylesheet) private var stylesheet
 
-    init(report: YearReportModel, initialMode: YearMode = .calendar) {
+    init(report: YearReportModel, navigation: SceneNavigationModel.Year) {
         self.report = report
-        _mode = State(initialValue: initialMode)
+        _navigation = State(initialValue: navigation)
+    }
+
+    init(report: YearReportModel, initialMode: YearMode = .calendar) {
+        self.init(report: report, navigation: SceneNavigationModel.Year(mode: initialMode))
     }
 
     var body: some View {
+        AdaptiveHistoryContainer { arrangement in
+            switch arrangement {
+                case .compact:
+                    YearCompactView(report: report, navigation: navigation)
+                case .columns:
+                    NavigationSplitView(columnVisibility: .constant(.all)) {
+                        timeline(presentation: .linked)
+                            .navigationSplitViewColumnWidth(
+                                min: stylesheet.adaptiveHistory.minimumControlsWidth,
+                                ideal: stylesheet.adaptiveHistory.minimumControlsWidth,
+                            )
+                    } detail: {
+                        calendar(presentation: .year)
+                            .navigationSplitViewColumnWidth(
+                                min: stylesheet.adaptiveHistory.minimumHistoryWidth,
+                                ideal: stylesheet.adaptiveHistory.minimumHistoryWidth,
+                            )
+                    }
+                    .navigationSplitViewStyle(.balanced)
+                case let .tabletop(panes):
+                    TabletopHistoryLayout(panes: panes) {
+                        NavigationStack { calendar(presentation: .month) }
+                    } controls: {
+                        NavigationStack {
+                            timeline(presentation: .linked)
+                                .safeAreaInset(edge: .top, spacing: 0) {
+                                    HistoryMonthControls(
+                                        report: report,
+                                        history: navigation.history,
+                                    )
+                                }
+                        }
+                    }
+            }
+        }
+        .modifier(PlanningPresentation(report: report, navigation: navigation.history.planning))
+    }
+
+    private func calendar(presentation: CalendarContentView.Presentation) -> some View {
+        CalendarContentView(report: report, history: navigation.history, presentation: presentation)
+            .navigationTitle(String(localized: .primaryCalendar))
+            .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func timeline(presentation: PresenceTimelineList.Presentation) -> some View {
+        PresenceTimelineList(
+            report: report,
+            presentation: presentation,
+            history: navigation.history,
+        )
+        .navigationTitle(String(localized: .primaryTimeline))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// The single-pane production presentation, also captured in full for content completeness.
+struct YearCompactView: View {
+    let report: YearReportModel
+    @State private var navigation: SceneNavigationModel.Year
+    @Environment(\.stylesheet) private var stylesheet
+
+    init(report: YearReportModel, navigation: SceneNavigationModel.Year? = nil) {
+        self.report = report
+        _navigation = State(initialValue: navigation ?? SceneNavigationModel.Year())
+    }
+
+    var body: some View {
+        @Bindable var navigation = navigation
         NavigationStack {
             Group {
-                switch mode {
+                switch navigation.mode {
                     case .calendar:
-                        CalendarContentView(report: report)
+                        CalendarContentView(report: report, history: navigation.history)
                     case .timeline:
-                        PresenceTimelineList(report: report)
+                        PresenceTimelineList(report: report, history: navigation.history)
                 }
             }
             // Crossfade between the two views rather than hard-cutting.
-            .animation(.default, value: mode)
-            .navigationTitle(mode.title)
+            .animation(.default, value: navigation.mode)
+            .navigationTitle(navigation.mode.title)
             .navigationBarTitleDisplayMode(.inline)
             // Keep the bar background on at all times. The calendar auto-scrolls
             // under the bar (so its scroll-edge material is showing) while the
@@ -38,7 +110,7 @@ struct YearView: View {
             // them animates that material in/out — reading as a toolbar fade.
             .toolbarBackground(.visible, for: .navigationBar)
             .safeAreaInset(edge: .bottom, alignment: .center) {
-                YearModePicker(mode: $mode)
+                YearModePicker(mode: $navigation.mode)
                     .padding(.bottom, stylesheet.spacing.xLarge)
             }
         }
@@ -135,14 +207,14 @@ private struct YearModePicker: View {
                 measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
-                YearView(report: PreviewSupport.loadedYearReportModel())
+                YearCompactView(report: PreviewSupport.loadedYearReportModel())
             }
             whereSnapshot(
                 name: "Empty",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
-                YearView(report: PreviewSupport.emptyYearReportModel())
+                YearCompactView(report: PreviewSupport.emptyYearReportModel())
             }
         }
     }

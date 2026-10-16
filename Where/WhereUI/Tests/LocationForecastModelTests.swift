@@ -106,8 +106,8 @@ struct LocationForecastModelTests {
         let firstStay = try PlanningModelTestSupport.stay(region: .newYork)
         let secondStay = try PlanningModelTestSupport.stay(region: .california)
         try await model.create(stay: firstStay)
-        let firstGate = TestStore.PlanningReadGate()
-        let secondGate = TestStore.PlanningReadGate()
+        let firstGate = TestStore.PlanningOperationGate()
+        let secondGate = TestStore.PlanningOperationGate()
 
         await store.gateNextPlanningRead(with: firstGate)
         let firstRefresh = Task { await model.refresh() }
@@ -150,8 +150,8 @@ struct LocationForecastModelTests {
         await model.refresh()
         let lastGoodSnapshot = model.planning
         try await model.create(stay: secondStay)
-        let firstGate = TestStore.PlanningReadGate()
-        let secondGate = TestStore.PlanningReadGate()
+        let firstGate = TestStore.PlanningOperationGate()
+        let secondGate = TestStore.PlanningOperationGate()
 
         await store.gateNextPlanningRead(with: firstGate)
         let firstRefresh = Task { await model.refresh() }
@@ -184,7 +184,7 @@ struct LocationForecastModelTests {
         let stay = try PlanningModelTestSupport.stay(region: .newYork)
         try await model.create(stay: stay)
         await store.failPlanningReads()
-        let gate = TestStore.PlanningReadGate()
+        let gate = TestStore.PlanningOperationGate()
         await store.gateNextPlanningRead(with: gate)
         let failingRefresh = Task { await model.refresh() }
         await gate.waitUntilReached()
@@ -208,7 +208,7 @@ struct LocationForecastModelTests {
         let model = PlanningModelTestSupport.model(store: store)
         let stay = try PlanningModelTestSupport.stay(region: .newYork)
         try await model.create(stay: stay)
-        let gate = TestStore.PlanningReadGate()
+        let gate = TestStore.PlanningOperationGate()
         await store.gateNextPlanningRead(with: gate)
         let activeRefresh = Task { await model.refresh() }
         await gate.waitUntilReached()
