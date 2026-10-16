@@ -27,4 +27,14 @@ extension View {
     public func bContentSizeCategory(_ category: BContentSizeCategory) -> some View {
         bTraitOverrides { _, overrides in overrides.contentSizeCategory = category }
     }
+
+    /// Overrides the horizontal layout trait for this subtree's stylesheets.
+    public func bHorizontalSizeClass(_ sizeClass: BHorizontalSizeClass) -> some View {
+        bTraitOverrides { _, overrides in overrides.horizontalSizeClass = sizeClass }
+    }
+
+    /// Overrides the vertical layout trait for this subtree's stylesheets.
+    public func bVerticalSizeClass(_ sizeClass: BVerticalSizeClass) -> some View {
+        bTraitOverrides { _, overrides in overrides.verticalSizeClass = sizeClass }
+    }
 }

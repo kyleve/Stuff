@@ -17,6 +17,9 @@ system font metrics and an explicit Broadway content-size category. Use it durin
 stylesheet slicing. `BContentSizeCategory.uiContentSizeCategory` provides the
 reverse of `BContentSizeCategory.from(_:)` for UIKit consumers.
 
+`BHorizontalSizeClass` and `BVerticalSizeClass` preserve compact, regular, and unspecified values.
+`BTraits.system` registers both for live UIKit observation. Scoped overrides use the matching properties on `BTraits.Overrides`.
+
 ## How it works
 
 `BContext` holds a `BStylesheets` cache that is rebuilt whenever `baseTraits`, `traitOverrides`, or `themes` change (via `didSet`).
