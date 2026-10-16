@@ -22,10 +22,9 @@
     ///
     /// Attached once at ``RootView`` and compiled out of release (`#if DEBUG`).
     struct DeveloperOverlay: View {
-        /// The logged-in tab bar's height, measured by `MainTabs` and threaded in
-        /// via `RootView`, so the resting button clears the floating tab bar
-        /// without hardcoding its height. Zero when logged out.
-        private let tabBarInset: CGFloat
+        /// Native bar clearance measured on each edge by the active tab.
+        /// RootView passes it to this sibling overlay. Zero when logged out.
+        private let tabBarInset: EdgeInsets
 
         @State private var model: DeveloperOverlayModel
         @State private var dragOffset: CGSize = .zero
@@ -43,24 +42,35 @@
         @State private var windowResize: CGSize = .zero
 
         @Environment(\.stylesheet) private var stylesheet
+        // Gesture points and reserved-region frames use physical container coordinates.
+        @Environment(\.layoutDirection) private var layoutDirection
         @Environment(WhereDeveloperLaunchController.self) private var launchController:
             WhereDeveloperLaunchController?
 
-        init(tabBarInset: CGFloat = 0) {
+        init(tabBarInset: EdgeInsets = EdgeInsets()) {
             self.tabBarInset = tabBarInset
             _model = State(initialValue: DeveloperOverlayModel())
         }
 
-        init(tabBarInset: CGFloat = 0, model: DeveloperOverlayModel) {
+        init(tabBarInset: EdgeInsets = EdgeInsets(), model: DeveloperOverlayModel) {
             self.tabBarInset = tabBarInset
             _model = State(initialValue: model)
         }
 
         var body: some View {
-            GeometryReader { proxy in
+            AdaptiveHistoryGeometryReader { geometry in
+                let leadingIsLeft = layoutDirection == .leftToRight
+                let preferred = CGPoint(
+                    x: model.corner.isLeading == leadingIsLeft ? geometry.contentBounds
+                        .minX : geometry.contentBounds.maxX,
+                    y: model.corner.isTop ? geometry.contentBounds.minY : geometry.contentBounds
+                        .maxY,
+                )
+                let area = geometry.unobstructedBounds(near: preferred)
+                let container = area.size
                 let style = stylesheet.developerOverlay
-                let anchor = anchorPoint(for: model.corner, in: proxy.size)
-                let menuFrame = menuFrame(anchor: anchor, in: proxy.size)
+                let anchor = anchorPoint(for: model.corner, in: container)
+                let menuFrame = menuFrame(anchor: anchor, in: container)
 
                 ZStack {
                     if model.presentation.isFullScreen {
@@ -94,7 +104,7 @@
                         panel(
                             tool: tool,
                             isFullScreen: model.presentation.isFullScreen,
-                            in: proxy,
+                            in: container,
                         )
                     }
 
@@ -109,12 +119,14 @@
                             y: anchor.y + dragOffset.height,
                         )
                         .simultaneousGesture(
-                            dragGesture(in: proxy),
+                            dragGesture(in: container),
                             isEnabled: model.presentation == .collapsed,
                         )
                         .transition(.scale.combined(with: .opacity))
                     }
                 }
+                .frame(width: area.width, height: area.height)
+                .position(x: area.midX, y: area.midY)
                 .animation(style.presentationAnimation, value: model.presentation)
                 .accessibilityElement(children: .contain)
                 .accessibilityAddTraits(
@@ -124,9 +136,10 @@
                 // can inset the app content behind it.
                 .preference(
                     key: DeveloperOverlayInsetKey.self,
-                    value: appContentInsets(in: proxy.size),
+                    value: appContentInsets(in: geometry.contentBounds.size, area: area),
                 )
             }
+            .padding(tabBarInset)
             .fullScreenCover(isPresented: $isPresentingFlyover) {
                 WhereFlyoverPresentationView()
             }
@@ -185,21 +198,25 @@
             }
         }
 
-        private func dragGesture(in proxy: GeometryProxy) -> some Gesture {
+        private func dragGesture(in container: CGSize) -> some Gesture {
             DragGesture(minimumDistance: 8)
                 .onChanged { value in
                     isDraggingButton = true
                     dragOffset = value.translation
                 }
                 .onEnded { value in
-                    let anchor = anchorPoint(for: model.corner, in: proxy.size)
+                    let anchor = anchorPoint(for: model.corner, in: container)
                     let dropPoint = CGPoint(
                         x: anchor.x + value.translation.width,
                         y: anchor.y + value.translation.height,
                     )
                     let newCorner = DeveloperOverlayModel.nearestCorner(
-                        to: dropPoint,
-                        in: proxy.size,
+                        to: CGPoint(
+                            x: layoutDirection == .leftToRight ? dropPoint.x : container
+                                .width - dropPoint.x,
+                            y: dropPoint.y,
+                        ),
+                        in: container,
                     )
                     withAnimation(stylesheet.developerOverlay.presentationAnimation) {
                         model.setCorner(newCorner)
@@ -214,10 +231,7 @@
                 }
         }
 
-        /// Resting center for the button in a given corner. `size` is already the
-        /// safe-area region (the `GeometryReader` respects the safe area), so the
-        /// only extra offset is the measured tab-bar height on the bottom corners
-        /// so the button clears the floating tab bar when logged in.
+        /// The container already excludes the window and tab bar's independent edges.
         private func anchorPoint(
             for corner: DeveloperOverlayModel.Corner,
             in size: CGSize,
@@ -225,10 +239,12 @@
             let halfWidth = buttonSize.width / 2
             let halfHeight = buttonSize.height / 2
             let edgeInset = stylesheet.developerOverlay.edgeInset
-            let leadingX = edgeInset + halfWidth
-            let trailingX = size.width - edgeInset - halfWidth
+            let leftX = edgeInset + halfWidth
+            let rightX = size.width - edgeInset - halfWidth
+            let leadingX = layoutDirection == .leftToRight ? leftX : rightX
+            let trailingX = layoutDirection == .leftToRight ? rightX : leftX
             let topY = edgeInset + halfHeight
-            let bottomY = size.height - tabBarInset - edgeInset - halfHeight
+            let bottomY = size.height - edgeInset - halfHeight
             switch corner {
                 case .topLeading: return CGPoint(x: leadingX, y: topY)
                 case .topTrailing: return CGPoint(x: trailingX, y: topY)
@@ -254,7 +270,7 @@
                 endY = anchor.y - buttonHalfHeight - style.menu.launcherSpacing
             }
             let height = max(endY - startY, 0)
-            let minX = model.corner.isLeading
+            let minX = model.corner.isLeading == (layoutDirection == .leftToRight)
                 ? style.edgeInset
                 : container.width - style.edgeInset - menuWidth
             return CGRect(x: minX, y: startY, width: menuWidth, height: height)
@@ -263,13 +279,13 @@
         private func panel(
             tool: DeveloperTool,
             isFullScreen: Bool,
-            in proxy: GeometryProxy,
+            in container: CGSize,
         ) -> some View {
             let style = stylesheet.developerOverlay
-            let layout = displayedLayout(in: proxy.size)
-            let size = isFullScreen ? fullScreenSize(in: proxy.size) : layout.size
+            let layout = displayedLayout(in: container)
+            let size = isFullScreen ? fullScreenSize(in: container) : layout.size
             let center = isFullScreen
-                ? CGPoint(x: proxy.size.width / 2, y: proxy.size.height / 2)
+                ? CGPoint(x: container.width / 2, y: container.height / 2)
                 : layout.center
             let shape = RoundedRectangle(cornerRadius: style.panel.cornerRadius)
             return DeveloperSurface(
@@ -282,10 +298,10 @@
                     withAnimation(style.presentationAnimation) { model.closeTool() }
                 },
                 onMove: { translation, ended in
-                    moveWindow(by: translation, ended: ended, in: proxy.size)
+                    moveWindow(by: translation, ended: ended, in: container)
                 },
                 onResize: { translation, ended in
-                    resizeWindow(by: translation, ended: ended, in: proxy.size)
+                    resizeWindow(by: translation, ended: ended, in: container)
                 },
             )
             .frame(width: size.width, height: size.height)
@@ -387,11 +403,14 @@
         /// app content clear of it. Zero unless floating; the docking math + cap
         /// live in ``DeveloperOverlayModel/contentInsets(for:in:edgeTolerance:)``,
         /// fed the on-screen (clamped) `displayedLayout`.
-        private func appContentInsets(in container: CGSize) -> EdgeInsets {
+        private func appContentInsets(in container: CGSize, area: CGRect) -> EdgeInsets {
             guard case .floating = model.presentation else { return EdgeInsets() }
             let style = stylesheet.developerOverlay
+            var layout = displayedLayout(in: area.size)
+            layout.center.x += area.minX
+            layout.center.y += area.minY
             return DeveloperOverlayModel.contentInsets(
-                for: displayedLayout(in: container),
+                for: layout,
                 in: container,
                 edgeTolerance: style.edgeInset,
                 style: style.floatingWindow,

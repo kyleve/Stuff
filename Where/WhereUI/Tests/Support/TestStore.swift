@@ -9,7 +9,11 @@ struct PlannedStaySaveFailure: Error, Equatable {}
 
 /// Thrown by `TestStore.samples(in:)` when failure injection is enabled, so a
 /// year-report load can be forced to fail.
-struct SampleReadFailure: Error, Equatable {}
+struct SampleReadFailure: LocalizedError, Equatable {
+    var errorDescription: String? {
+        "The history store is unavailable."
+    }
+}
 
 /// Thrown by the Devices settings save-failure hooks below.
 struct RecordingDeviceSaveFailure: Error, Equatable {}
@@ -29,8 +33,8 @@ struct RecordingDeviceSaveFailure: Error, Equatable {}
 ///
 /// Everything else forwards to the backing store so reads stay deterministic.
 actor TestStore: WhereStore {
-    /// Holds one captured planning result until the test chooses its completion order.
-    actor PlanningReadGate {
+    /// Holds one planning read or write at its suspension boundary until the test releases it.
+    actor PlanningOperationGate {
         private enum State {
             case waiting
             case suspended(CheckedContinuation<Void, Never>)
@@ -47,7 +51,7 @@ actor TestStore: WhereStore {
         }
 
         func suspend() async {
-            precondition(!hasArrived, "A planning read gate must only suspend one read")
+            precondition(!hasArrived, "A planning operation gate must only suspend one operation")
             hasArrived = true
             arrival?.resume()
             arrival = nil
@@ -65,6 +69,7 @@ actor TestStore: WhereStore {
 
     private var gateFirstSamplesCall = false
     private var firstSamplesSeen = false
+    private(set) var sampleReadCount = 0
     private var gate: CheckedContinuation<Void, Never>?
     private var arrival: CheckedContinuation<Void, Never>?
 
@@ -73,7 +78,9 @@ actor TestStore: WhereStore {
     private var recordingDevicesGate: CheckedContinuation<Void, Never>?
     private var recordingDevicesArrival: CheckedContinuation<Void, Never>?
 
-    private var nextPlanningReadGate: PlanningReadGate?
+    private var nextPlanningOperationGate: PlanningOperationGate?
+    private var nextPlannedStayWriteGate: PlanningOperationGate?
+    private(set) var plannedStayWriteCount = 0
 
     private var shouldFailManualDay = false
     private var shouldFailPlannedStay = false
@@ -135,13 +142,18 @@ actor TestStore: WhereStore {
         shouldFailPlanningRead = false
     }
 
-    func gateNextPlanningRead(with gate: PlanningReadGate) {
-        precondition(nextPlanningReadGate == nil, "The next planning read already has a gate")
-        nextPlanningReadGate = gate
+    func gateNextPlanningRead(with gate: PlanningOperationGate) {
+        precondition(nextPlanningOperationGate == nil, "The next planning read already has a gate")
+        nextPlanningOperationGate = gate
     }
 
     func failPlannedStays() {
         shouldFailPlannedStay = true
+    }
+
+    func gateNextPlannedStayWrite(with gate: PlanningOperationGate) {
+        precondition(nextPlannedStayWriteGate == nil, "The next planning write already has a gate")
+        nextPlannedStayWriteGate = gate
     }
 
     /// Makes `samples(in:)` throw, so a `refresh()`'s year-report load fails and
@@ -204,6 +216,7 @@ actor TestStore: WhereStore {
     }
 
     func samples(in interval: DateInterval) async throws -> [LocationSample] {
+        sampleReadCount += 1
         if shouldFailSamples { throw SampleReadFailure() }
         if gateFirstSamplesCall, !firstSamplesSeen {
             firstSamplesSeen = true
@@ -345,8 +358,8 @@ actor TestStore: WhereStore {
     }
 
     func plannedStayRecords() async throws -> [PlannedStayRecord] {
-        let gate = nextPlanningReadGate
-        nextPlanningReadGate = nil
+        let gate = nextPlanningOperationGate
+        nextPlanningOperationGate = nil
         let result: Result<[PlannedStayRecord], Error>
         do {
             if shouldFailPlanningRead { throw PlannedStaySaveFailure() }
@@ -372,6 +385,10 @@ actor TestStore: WhereStore {
     }
 
     func replacePlannedStayRecord(with record: PlannedStayRecord) async throws {
+        plannedStayWriteCount += 1
+        let gate = nextPlannedStayWriteGate
+        nextPlannedStayWriteGate = nil
+        if let gate { await gate.suspend() }
         if shouldFailPlannedStay { throw PlannedStaySaveFailure() }
         try await backing.replacePlannedStayRecord(with: record)
     }

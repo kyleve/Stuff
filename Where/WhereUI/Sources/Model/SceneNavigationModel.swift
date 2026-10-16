@@ -7,18 +7,22 @@ import WhereCore
 /// children.
 @MainActor @Observable
 final class SceneNavigationModel {
-    enum Tab: Hashable {
-        case locations
-        case year
-        case settings
+    typealias TabID = MainTabSelection.TabID
+    private var tabSelection = MainTabSelection()
+    var selectedTab: TabID {
+        get { tabSelection.selected }
+        set { tabSelection.selected = newValue }
     }
 
-    var selectedTab: Tab
+    func reconcile(hasElsewhere: Bool) {
+        tabSelection.reconcile(hasElsewhere: hasElsewhere)
+    }
+
     let locations = Locations()
     let year = Year()
     let settings = Settings()
 
-    init(selectedTab: Tab = .locations) {
+    init(selectedTab: TabID = .locations) {
         self.selectedTab = selectedTab
     }
 
