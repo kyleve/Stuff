@@ -12,6 +12,28 @@ import UIKit
 /// can never be sampled ends `.starved` at the hard cap instead of hanging.
 @MainActor
 struct SnapshotRenderingSupportTests {
+    @Test func oneUnitRenderNoiseSettles() async throws {
+        let window = try hostWindow()
+        let view = SnapshotSampleSequenceView(samples: [100, 101])
+        window.addSubview(view)
+        defer { view.removeFromSuperview() }
+
+        let outcome = await settleContent(view, named: #function, minDuration: 0, maxDuration: 0.3)
+        #expect(outcome == .settled)
+        #expect(view.renderCount >= 3)
+    }
+
+    @Test func oneUnitStepsStillTimeOutWhenTheyAccumulate() async throws {
+        let window = try hostWindow()
+        let view = SnapshotSampleSequenceView(samples: Array(100 ... 200))
+        window.addSubview(view)
+        defer { view.removeFromSuperview() }
+
+        let outcome = await settleContent(view, named: #function, minDuration: 0, maxDuration: 0.3)
+        #expect(outcome == .timedOut(budget: 0.3))
+        #expect(view.renderCount >= 3)
+    }
+
     /// A budget shorter than the quiet window means no run can prove stability
     /// inside it — the pre-fix loop always returned `.timedOut` here despite
     /// the content never once changing.
