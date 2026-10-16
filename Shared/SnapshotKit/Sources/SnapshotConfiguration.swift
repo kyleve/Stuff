@@ -7,9 +7,10 @@ import SwiftUI
 ///
 /// `Hashable` so it can key a matrix, and it vends an ``identifier`` (from
 /// ``identifierParts``) that names the reference image. The identifier **omits
-/// default axes**. A named device, explicit layout traits, or a non-default
-/// appearance axis adds a token. Thus, the common baseline stays terse. Treat
-/// the omission rules as a wire format. A change renames reference images.
+/// default axes** — only a non-default color scheme, Dynamic Type size, contrast,
+/// snapshot type, or a named device shows up — so the common (light / large /
+/// standard) baseline stays terse. Treat the omission rules as a wire format:
+/// changing them renames every reference image on disk.
 public struct SnapshotConfiguration: Hashable, Sendable {
     /// The color scheme (light/dark) to render in.
     public var colorScheme: ColorScheme
@@ -21,10 +22,8 @@ public struct SnapshotConfiguration: Hashable, Sendable {
     public var layoutDirection: LayoutDirection
     /// The legibility weight (regular / bold text) to render with.
     public var legibilityWeight: LegibilityWeight
-    /// Optional device-adaptive traits. `nil` inherits the host simulator's
-    /// idiom and size classes.
-    public var layoutTraits: LayoutTraits?
     /// The frame (size + name) to render into.
+    public var layoutTraits: LayoutTraits?
     public var device: Frame
     /// Whether this is a plain image or a VoiceOver-annotated accessibility image.
     public var snapshotType: SnapshotType
@@ -153,19 +152,26 @@ extension SnapshotConfiguration {
         /// a preset like ``iPhoneNotched`` opts a case into rendering under
         /// notch/home-indicator insets.
         public var safeAreaInsets: Insets
+        /// Optional traits for this container. Nil inherits the host traits. Names remain
+        /// unchanged.
+        public var layoutTraits: LayoutTraits?
 
         public init(
             name: String,
             size: SizeStrategy,
             safeAreaInsets: Insets = .zero,
+            layoutTraits: LayoutTraits? = nil,
         ) {
             self.name = name
             self.size = size
             self.safeAreaInsets = safeAreaInsets
+            self.layoutTraits = layoutTraits
         }
 
         /// Safe-area insets in points. A minimal `Hashable` value type so
         /// ``Frame`` stays hashable (UIKit's `UIEdgeInsets` is not).
+        /// `leading` and `trailing` map to physical left and right capture edges.
+        /// Text direction does not mirror a device's reserved edge.
         public struct Insets: Hashable, Sendable {
             public var top: CGFloat
             public var leading: CGFloat
@@ -181,6 +187,33 @@ extension SnapshotConfiguration {
 
             public static let zero = Insets(top: 0, leading: 0, bottom: 0, trailing: 0)
         }
+
+        /// Captures the visible composition of a bounded adaptive shell.
+        /// Pair this with full-content captures of its scrolling panes.
+        public static func viewport(
+            name: String,
+            size: CGSize,
+            safeAreaInsets: Insets = .zero,
+            layoutTraits: LayoutTraits,
+        ) -> Frame {
+            Frame(
+                name: name,
+                size: .fixed(size),
+                safeAreaInsets: safeAreaInsets,
+                layoutTraits: layoutTraits,
+            )
+        }
+
+        /// A synthetic narrow multitasking window, independent of hardware profiles.
+        public static let narrowWindow = viewport(
+            name: "narrowWindow",
+            size: CGSize(width: 320, height: 640),
+            layoutTraits: LayoutTraits(
+                horizontalSizeClass: .compact,
+                verticalSizeClass: .regular,
+                interfaceIdiom: .pad,
+            ),
+        )
 
         /// A component frame: sized to fit its content, capped to a phone-width
         /// maximum so a component without an intrinsic width still measures.
@@ -200,10 +233,12 @@ extension SnapshotConfiguration {
             name: String,
             width: CGFloat,
             minimumHeight: CGFloat? = nil,
+            layoutTraits: LayoutTraits? = nil,
         ) -> Frame {
             Frame(
                 name: name,
                 size: .fullContent(width: width, minimumHeight: minimumHeight),
+                layoutTraits: layoutTraits,
             )
         }
 
@@ -214,10 +249,12 @@ extension SnapshotConfiguration {
         public static func fullContent2D(
             name: String,
             minimumSize: CGSize,
+            layoutTraits: LayoutTraits? = nil,
         ) -> Frame {
             Frame(
                 name: name,
                 size: .fullContent2D(minimumSize: minimumSize),
+                layoutTraits: layoutTraits,
             )
         }
 
@@ -226,6 +263,7 @@ extension SnapshotConfiguration {
             name: "iPhone",
             width: iPhoneWidth,
             minimumHeight: iPhoneHeight,
+            layoutTraits: .phonePortrait,
         )
 
         /// An iPad viewport that grows to fit settled scrolling content.
@@ -233,29 +271,34 @@ extension SnapshotConfiguration {
             name: "iPad",
             width: iPadWidth,
             minimumHeight: iPadHeight,
+            layoutTraits: .tablet,
         )
 
         /// An iPhone viewport that expands along both scrolling axes.
         public static let iPhoneFullContent2D = fullContent2D(
             name: "iPhone",
             minimumSize: CGSize(width: iPhoneWidth, height: iPhoneHeight),
+            layoutTraits: .phonePortrait,
         )
 
         /// An iPad viewport that expands along both scrolling axes.
         public static let iPadFullContent2D = fullContent2D(
             name: "iPad",
             minimumSize: CGSize(width: iPadWidth, height: iPadHeight),
+            layoutTraits: .tablet,
         )
 
         /// A phone screen frame (iPhone 17 point size).
         public static let iPhone = Frame(
             name: "iPhone",
             size: .fixed(CGSize(width: iPhoneWidth, height: iPhoneHeight)),
+            layoutTraits: .phonePortrait,
         )
         /// A tablet screen frame (iPad Pro 11" portrait point size).
         public static let iPad = Frame(
             name: "iPad",
             size: .fixed(CGSize(width: iPadWidth, height: iPadHeight)),
+            layoutTraits: .tablet,
         )
         /// The iPhone frame with simulated device insets (Dynamic Island top,
         /// home-indicator bottom), for cases that must prove layout under real
@@ -264,6 +307,7 @@ extension SnapshotConfiguration {
             name: "iPhoneNotched",
             size: .fixed(CGSize(width: iPhoneWidth, height: iPhoneHeight)),
             safeAreaInsets: Insets(top: 47, leading: 0, bottom: 34, trailing: 0),
+            layoutTraits: .phonePortrait,
         )
     }
 
@@ -279,24 +323,6 @@ extension SnapshotConfiguration {
         /// A minimum viewport that expands to reveal a viewport-filling scroll
         /// view in both dimensions (see ``Frame/fullContent2D(name:minimumSize:)``).
         case fullContent2D(minimumSize: CGSize)
-    }
-}
-
-extension SnapshotConfiguration.LayoutTraits.InterfaceIdiom {
-    fileprivate var snapshotToken: String {
-        switch self {
-            case .phone: "phone"
-            case .tablet: "tablet"
-        }
-    }
-}
-
-extension SnapshotConfiguration.LayoutTraits.SizeClass {
-    fileprivate var snapshotToken: String {
-        switch self {
-            case .compact: "compact"
-            case .regular: "regular"
-        }
     }
 }
 
@@ -318,6 +344,24 @@ extension DynamicTypeSize {
             case .accessibility4: "ax4"
             case .accessibility5: "ax5"
             @unknown default: "unknown"
+        }
+    }
+}
+
+extension SnapshotConfiguration.LayoutTraits.InterfaceIdiom {
+    fileprivate var snapshotToken: String {
+        switch self {
+            case .phone: "phone"
+            case .tablet: "tablet"
+        }
+    }
+}
+
+extension SnapshotConfiguration.LayoutTraits.SizeClass {
+    fileprivate var snapshotToken: String {
+        switch self {
+            case .compact: "compact"
+            case .regular: "regular"
         }
     }
 }

@@ -1,0 +1,506 @@
+{
+  "xcodeBuild": "27A9275",
+  "simulatorRuntimeBuild": "24A94232",
+  "measuredOn": "2026-10-15",
+  "device": "iPhone Duo",
+  "source": "UIWindowScene.screen, UIWindow.safeAreaInsets, UIView.traitCollection, and UIView.reservedRegions(kind:options:), read by a native UIKit simulator app. Device Hub selected each pose.",
+  "hardwareVerified": false,
+  "profiles": {
+    "outer-portrait": {
+      "divisions": [],
+      "horizontalSizeClass": 1,
+      "interfaceIdiom": 0,
+      "interfaceOrientation": 1,
+      "occlusions": [
+        {
+          "active": true,
+          "frame": [
+            399.6666666666667,
+            29.333333333333332,
+            37,
+            37
+          ],
+          "margins": {
+            "bottom": 0,
+            "left": 0,
+            "right": 0,
+            "top": 0
+          }
+        },
+        {
+          "active": true,
+          "frame": [
+            382,
+            0,
+            84,
+            170
+          ],
+          "margins": {
+            "bottom": 0,
+            "left": 0,
+            "right": 0,
+            "top": 0
+          }
+        }
+      ],
+      "runtime": "27.1",
+      "scale": 3,
+      "screenBounds": [
+        0,
+        0,
+        466,
+        678
+      ],
+      "verticalBarEdge": 2,
+      "verticalSizeClass": 2,
+      "viewBounds": [
+        0,
+        0,
+        466,
+        678
+      ],
+      "viewInsets": {
+        "bottom": 34,
+        "left": 0,
+        "right": 84,
+        "top": 0
+      },
+      "windowBounds": [
+        0,
+        0,
+        466,
+        678
+      ],
+      "windowInsets": {
+        "bottom": 34,
+        "left": 0,
+        "right": 84,
+        "top": 0
+      }
+    },
+    "outer-landscape": {
+      "divisions": [],
+      "horizontalSizeClass": 1,
+      "interfaceIdiom": 0,
+      "interfaceOrientation": 4,
+      "occlusions": [
+        {
+          "active": true,
+          "frame": [
+            611.6666666666666,
+            399.6666666666667,
+            37,
+            37
+          ],
+          "margins": {
+            "bottom": 0,
+            "left": 0,
+            "right": 0,
+            "top": 0
+          }
+        },
+        {
+          "active": true,
+          "frame": [
+            594,
+            384,
+            84,
+            82
+          ],
+          "margins": {
+            "bottom": 0,
+            "left": 0,
+            "right": 0,
+            "top": 0
+          }
+        }
+      ],
+      "runtime": "27.1",
+      "scale": 3,
+      "screenBounds": [
+        0,
+        0,
+        678,
+        466
+      ],
+      "verticalBarEdge": 2,
+      "verticalSizeClass": 1,
+      "viewBounds": [
+        0,
+        0,
+        678,
+        466
+      ],
+      "viewInsets": {
+        "bottom": 34,
+        "left": 0,
+        "right": 84,
+        "top": 0
+      },
+      "windowBounds": [
+        0,
+        0,
+        678,
+        466
+      ],
+      "windowInsets": {
+        "bottom": 34,
+        "left": 0,
+        "right": 84,
+        "top": 0
+      }
+    },
+    "inner-portrait": {
+      "divisions": [
+        {
+          "active": false,
+          "frame": [
+            0,
+            455.5,
+            669,
+            40
+          ],
+          "margins": {
+            "bottom": 20,
+            "left": 0,
+            "right": 0,
+            "top": 20
+          }
+        }
+      ],
+      "horizontalSizeClass": 2,
+      "interfaceIdiom": 0,
+      "interfaceOrientation": 1,
+      "occlusions": [
+        {
+          "active": false,
+          "frame": [
+            21,
+            215.66666666666666,
+            37,
+            57.99999999999997
+          ],
+          "margins": {
+            "bottom": 0,
+            "left": 0,
+            "right": 0,
+            "top": 0
+          }
+        },
+        {
+          "active": true,
+          "frame": [
+            535,
+            0,
+            134,
+            82
+          ],
+          "margins": {
+            "bottom": 0,
+            "left": 0,
+            "right": 0,
+            "top": 0
+          }
+        }
+      ],
+      "runtime": "27.1",
+      "scale": 3,
+      "screenBounds": [
+        0,
+        0,
+        669,
+        951
+      ],
+      "verticalBarEdge": 0,
+      "verticalSizeClass": 2,
+      "viewBounds": [
+        0,
+        0,
+        669,
+        951
+      ],
+      "viewInsets": {
+        "bottom": 34,
+        "left": 0,
+        "right": 0,
+        "top": 82
+      },
+      "windowBounds": [
+        0,
+        0,
+        669,
+        951
+      ],
+      "windowInsets": {
+        "bottom": 34,
+        "left": 0,
+        "right": 0,
+        "top": 82
+      }
+    },
+    "inner-landscape": {
+      "divisions": [
+        {
+          "active": false,
+          "frame": [
+            455.5,
+            0,
+            40,
+            669
+          ],
+          "margins": {
+            "bottom": 0,
+            "left": 20,
+            "right": 20,
+            "top": 0
+          }
+        }
+      ],
+      "horizontalSizeClass": 2,
+      "interfaceIdiom": 0,
+      "interfaceOrientation": 4,
+      "occlusions": [
+        {
+          "active": false,
+          "frame": [
+            677.3333333333334,
+            21,
+            58,
+            37
+          ],
+          "margins": {
+            "bottom": 0,
+            "left": 0,
+            "right": 0,
+            "top": 0
+          }
+        },
+        {
+          "active": true,
+          "frame": [
+            867,
+            0,
+            84,
+            120
+          ],
+          "margins": {
+            "bottom": 0,
+            "left": 0,
+            "right": 0,
+            "top": 0
+          }
+        }
+      ],
+      "runtime": "27.1",
+      "scale": 3,
+      "screenBounds": [
+        0,
+        0,
+        951,
+        669
+      ],
+      "verticalBarEdge": 2,
+      "verticalSizeClass": 2,
+      "viewBounds": [
+        0,
+        0,
+        951,
+        669
+      ],
+      "viewInsets": {
+        "bottom": 34,
+        "left": 0,
+        "right": 84,
+        "top": 0
+      },
+      "windowBounds": [
+        0,
+        0,
+        951,
+        669
+      ],
+      "windowInsets": {
+        "bottom": 34,
+        "left": 0,
+        "right": 84,
+        "top": 0
+      }
+    },
+    "tabletop-portrait": {
+      "divisions": [
+        {
+          "active": true,
+          "frame": [
+            0,
+            455.5,
+            669,
+            40
+          ],
+          "margins": {
+            "bottom": 20,
+            "left": 0,
+            "right": 0,
+            "top": 20
+          }
+        }
+      ],
+      "horizontalSizeClass": 2,
+      "interfaceIdiom": 0,
+      "interfaceOrientation": 1,
+      "occlusions": [
+        {
+          "active": false,
+          "frame": [
+            21,
+            215.66666666666666,
+            37,
+            57.99999999999997
+          ],
+          "margins": {
+            "bottom": 0,
+            "left": 0,
+            "right": 0,
+            "top": 0
+          }
+        },
+        {
+          "active": true,
+          "frame": [
+            535,
+            0,
+            134,
+            82
+          ],
+          "margins": {
+            "bottom": 0,
+            "left": 0,
+            "right": 0,
+            "top": 0
+          }
+        }
+      ],
+      "runtime": "27.1",
+      "scale": 3,
+      "screenBounds": [
+        0,
+        0,
+        669,
+        951
+      ],
+      "verticalBarEdge": 0,
+      "verticalSizeClass": 2,
+      "viewBounds": [
+        0,
+        0,
+        669,
+        951
+      ],
+      "viewInsets": {
+        "bottom": 34,
+        "left": 0,
+        "right": 0,
+        "top": 82
+      },
+      "windowBounds": [
+        0,
+        0,
+        669,
+        951
+      ],
+      "windowInsets": {
+        "bottom": 34,
+        "left": 0,
+        "right": 0,
+        "top": 82
+      }
+    },
+    "tabletop-landscape": {
+      "divisions": [
+        {
+          "active": true,
+          "frame": [
+            455.5,
+            0,
+            40,
+            669
+          ],
+          "margins": {
+            "bottom": 0,
+            "left": 20,
+            "right": 20,
+            "top": 0
+          }
+        }
+      ],
+      "horizontalSizeClass": 2,
+      "interfaceIdiom": 0,
+      "interfaceOrientation": 4,
+      "occlusions": [
+        {
+          "active": false,
+          "frame": [
+            677.3333333333334,
+            21,
+            58,
+            37
+          ],
+          "margins": {
+            "bottom": 0,
+            "left": 0,
+            "right": 0,
+            "top": 0
+          }
+        },
+        {
+          "active": true,
+          "frame": [
+            867,
+            0,
+            84,
+            120
+          ],
+          "margins": {
+            "bottom": 0,
+            "left": 0,
+            "right": 0,
+            "top": 0
+          }
+        }
+      ],
+      "runtime": "27.1",
+      "scale": 3,
+      "screenBounds": [
+        0,
+        0,
+        951,
+        669
+      ],
+      "verticalBarEdge": 2,
+      "verticalSizeClass": 2,
+      "viewBounds": [
+        0,
+        0,
+        951,
+        669
+      ],
+      "viewInsets": {
+        "bottom": 34,
+        "left": 0,
+        "right": 84,
+        "top": 0
+      },
+      "windowBounds": [
+        0,
+        0,
+        951,
+        669
+      ],
+      "windowInsets": {
+        "bottom": 34,
+        "left": 0,
+        "right": 84,
+        "top": 0
+      }
+    }
+  }
+}

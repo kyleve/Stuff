@@ -691,3 +691,6 @@ for changes confined to a child component. Standard references keep existing pat
 Flat screen references use `flat/`, and comparison sheets use `themes/`. Special
 traits nest under the group's `other/` directory. Review sheet PNGs before recording. Their embedded panel maps are part of the
 reference; preserve PNG metadata when copying them.
+
+Calendar month sections and day rows measure eagerly. This gives full-content
+snapshots their complete height before capture on the pinned Duo runtime.

@@ -34,7 +34,7 @@ struct SnapshotPNGTests {
 
     @Test func appliesTabletLayoutTraitsToUIKitAndSwiftUI() async throws {
         try await expectAdaptiveLayoutTraits(
-            .tabletPortrait,
+            .tablet,
             expected: AdaptiveTraitExpectation(
                 interfaceIdiom: .pad,
                 horizontalSizeClass: .regular,
@@ -262,15 +262,15 @@ struct SnapshotPNGTests {
 
 @MainActor
 private func expectAdaptiveLayoutTraits(
-    _ layoutTraits: SnapshotConfiguration.LayoutTraits,
+    _ layoutTraits: SnapshotConfiguration.Frame.LayoutTraits,
     expected: AdaptiveTraitExpectation,
     captureName: String,
 ) async throws {
     let configuration = SnapshotConfiguration(
-        layoutTraits: layoutTraits,
         device: SnapshotConfiguration.Frame(
             name: captureName,
             size: .fixed(CGSize(width: 100, height: 60)),
+            layoutTraits: layoutTraits,
         ),
     )
     let png = try await captureSnapshotPNG(

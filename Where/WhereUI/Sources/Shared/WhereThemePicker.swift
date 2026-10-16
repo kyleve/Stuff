@@ -12,29 +12,43 @@ struct WhereThemePicker: View {
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        let layout = stylesheet.themePicker.layout == .stacked
-            ? AnyLayout(VStackLayout(spacing: stylesheet.themePicker.spacing))
-            : AnyLayout(HStackLayout(alignment: .top, spacing: stylesheet.themePicker.spacing))
-
-        layout {
-            ForEach(WhereTheme.allCases, id: \.self) { theme in
-                Button {
-                    onSelect(theme)
-                } label: {
-                    WhereThemeOption(theme: theme, isSelected: theme == selection)
+        Group {
+            if stylesheet.themePicker.layout == .stacked {
+                stackedOptions
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: stylesheet.themePicker.spacing) {
+                        options
+                    }
+                    .frame(minWidth: stylesheet.themePicker.minimumInlineWidth)
+                    stackedOptions
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(theme.title)
-                .accessibilityValue(
-                    theme == selection
-                        ? String(localized: .themeSelectedValue)
-                        : String(localized: .themeNotSelectedValue),
-                )
-                .accessibilityHint(theme.detail)
-                .accessibilityAddTraits(theme == selection ? .isSelected : [])
             }
         }
         .sensoryFeedback(.selection, trigger: selection)
+    }
+
+    private var stackedOptions: some View {
+        VStack(spacing: stylesheet.themePicker.spacing) { options }
+    }
+
+    private var options: some View {
+        ForEach(WhereTheme.allCases, id: \.self) { theme in
+            Button {
+                onSelect(theme)
+            } label: {
+                WhereThemeOption(theme: theme, isSelected: theme == selection)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(theme.title)
+            .accessibilityValue(
+                theme == selection
+                    ? String(localized: .themeSelectedValue)
+                    : String(localized: .themeNotSelectedValue),
+            )
+            .accessibilityHint(theme.detail)
+            .accessibilityAddTraits(theme == selection ? .isSelected : [])
+        }
     }
 }
 
