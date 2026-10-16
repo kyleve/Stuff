@@ -577,6 +577,12 @@ RUN_ENV=()
 [ "$REVIEW" = true ] && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_DIFF=1")
 [ -n "${SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER:-}" ] \
     && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER=$SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER")
+for flyover_name in DIRECTORY PROFILES COMMIT DIRTY BRANCH GENERATED_AT XCODE_VERSION SIMULATOR_DEVICE SIMULATOR_OS; do
+    flyover_variable="FLYOVER_EXPORT_$flyover_name"
+    if [ -n "${!flyover_variable:-}" ]; then
+        RUN_ENV+=("TEST_RUNNER_$flyover_variable=${!flyover_variable}")
+    fi
+done
 
 # SwiftPM's generated `Bundle.module` accessors honor
 # PACKAGE_RESOURCE_BUNDLE_PATH as their first lookup candidate (DEBUG-only,
