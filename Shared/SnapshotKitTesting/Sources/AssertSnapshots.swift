@@ -1,7 +1,6 @@
 import SnapshotKit
 import SnapshotTesting
 import SwiftUI
-import TestHostSupport
 import Testing
 import UIKit
 
@@ -25,7 +24,7 @@ public func assertSnapshots(
     line: UInt = #line,
     column: UInt = #column,
 ) async {
-    guard simulatorMatchesSnapshotExpectations() else { return }
+    guard await validateSnapshotEnvironment() else { return }
     do {
         _ = try SnapshotSettleTimeoutPolicy.fromEnvironment()
     } catch {
@@ -47,22 +46,24 @@ public func assertSnapshots(
         return
     }
     for snapshotCase in snapshots {
-        guard Task.isCancelled == false else { return }
-        await assertSnapshots(
-            of: snapshotCase.content,
-            named: snapshotCase.name,
-            configurations: snapshotCase.configurations,
-            measurementReadiness: snapshotCase.measurementReadiness,
-            onReadyToMeasure: snapshotCase.onReadyToMeasure,
-            settle: snapshotCase.settle,
-            onReadyToSnapshot: snapshotCase.onReadyToSnapshot,
-            record: record,
-            fileID: fileID,
-            file: filePath,
-            testName: testName,
-            line: line,
-            column: column,
-        )
+        for configuration in snapshotCase.configurations {
+            guard !Task.isCancelled else { return }
+            await assertSnapshots(
+                of: snapshotCase.content,
+                named: snapshotCase.name,
+                configurations: [configuration],
+                measurementReadiness: snapshotCase.measurementReadiness,
+                onReadyToMeasure: snapshotCase.onReadyToMeasure,
+                settle: snapshotCase.settle,
+                onReadyToSnapshot: snapshotCase.onReadyToSnapshot,
+                record: record,
+                fileID: fileID,
+                file: filePath,
+                testName: testName,
+                line: line,
+                column: column,
+            )
+        }
     }
 }
 
@@ -84,14 +85,7 @@ public func assertSnapshots(
     line: UInt = #line,
     column: UInt = #column,
 ) async {
-    guard simulatorMatchesSnapshotExpectations() else { return }
-    do {
-        try waitFor { hostKeyWindow() != nil }
-    } catch {
-        Issue.record("Snapshot host window never appeared: \(error)")
-        return
-    }
-
+    guard await validateSnapshotEnvironment() else { return }
     // Record-mode precedence, resolved here so callers need no per-suite trait:
     // an explicit `record:` argument wins, then the environment override
     // (`SNAPSHOT_RECORD`, forwarded as TEST_RUNNER_SNAPSHOT_RECORD on the command
@@ -120,90 +114,116 @@ public func assertSnapshots(
     let isDiffReportingEnabled = SnapshotDiffReporting.isEnabledByEnvironment
 
     for configuration in configurations {
-        guard Task.isCancelled == false else { return }
-        let hostingController = makeHostingController(for: view, configuration: configuration)
-        let sizing: SnapshotSizing = switch configuration.device.size {
-            case .fixed:
-                .fixed
-            case let .intrinsic(maxWidth):
-                .intrinsic(
-                    width: maxWidth ?? UIScreen.main.bounds.width,
-                    minimumHeight: 0,
-                )
-            case let .fullContent(width, minimumHeight):
-                // Same measured-height pipeline as `.intrinsic`: a `ScrollView`
-                // measured under the unbounded proposal reports its content
-                // height (guarded by `LargeViewCaptureTests`), so the capture
-                // renders the whole scrollable content.
-                .intrinsic(
-                    width: width,
-                    minimumHeight: minimumHeight ?? 0,
-                )
-            case let .fullContent2D(minimumSize):
-                .fullContent2D(minimumSize: minimumSize)
-        }
-        let identifier = fullSnapshotIdentifier(caseName: name, configuration: configuration)
-        let timing = SnapshotCaptureTiming(
-            identifier: identifier,
-            isEnabled: SnapshotCaptureTiming.isEnabledByEnvironment,
-            sizing: sizing,
-            measurementReadiness: measurementReadiness,
-            captureSettle: settle,
-        )
-        let capture: SnapshotCapture
+        guard !Task.isCancelled else { return }
         do {
-            capture = try await renderSnapshotCapture(
-                of: hostingController,
-                named: identifier,
-                sizing: sizing,
-                safeAreaInsets: configuration.device.safeAreaInsets.uiEdgeInsets,
-                isAccessibility: configuration.snapshotType == .accessibility,
-                measurementReadiness: measurementReadiness,
-                onReadyToMeasure: onReadyToMeasure,
-                settle: settle,
-                onReadyToSnapshot: onReadyToSnapshot,
-                settleTimeoutPolicy: settleTimeoutPolicy,
-                timing: timing,
-            )
+            try await SnapshotCaptureLock.withHost { hostWindow in
+                let hostingController = makeHostingController(
+                    for: view,
+                    configuration: configuration,
+                    hostWidth: hostWindow.bounds.width,
+                )
+                let sizing: SnapshotSizing = switch configuration.device.size {
+                    case .fixed:
+                        .fixed
+                    case let .intrinsic(maxWidth):
+                        .intrinsic(
+                            width: maxWidth ?? hostWindow.bounds.width,
+                            minimumHeight: 0,
+                        )
+                    case let .fullContent(width, minimumHeight):
+                        // Same measured-height pipeline as `.intrinsic`: a `ScrollView`
+                        // measured under the unbounded proposal reports its content
+                        // height (guarded by `LargeViewCaptureTests`), so the capture
+                        // renders the whole scrollable content.
+                        .intrinsic(
+                            width: width,
+                            minimumHeight: minimumHeight ?? 0,
+                        )
+                    case let .fullContent2D(minimumSize):
+                        .fullContent2D(minimumSize: minimumSize)
+                }
+                let identifier = fullSnapshotIdentifier(
+                    caseName: name,
+                    configuration: configuration,
+                )
+                let timing = SnapshotCaptureTiming(
+                    identifier: identifier,
+                    isEnabled: SnapshotCaptureTiming.isEnabledByEnvironment,
+                    sizing: sizing,
+                    measurementReadiness: measurementReadiness,
+                    captureSettle: settle,
+                )
+                let capture = try await renderSnapshotCaptureLocked(
+                    of: hostingController,
+                    hostWindow: hostWindow,
+                    named: identifier,
+                    sizing: sizing,
+                    safeAreaInsets: configuration.device.safeAreaInsets.uiEdgeInsets,
+                    isAccessibility: configuration.snapshotType == .accessibility,
+                    measurementReadiness: measurementReadiness,
+                    onReadyToMeasure: onReadyToMeasure,
+                    settle: settle,
+                    onReadyToSnapshot: onReadyToSnapshot,
+                    settleTimeoutPolicy: settleTimeoutPolicy,
+                    timing: timing,
+                )
+                // Before the verdict, so a reviewer gets the shape of the delta on the
+                // same run that reports the failure. Reads the reference from disk; the
+                // byte-equality check short-circuits when the capture is deterministic.
+                if isDiffReportingEnabled {
+                    let reference = snapshotReferenceURL(
+                        testFilePath: "\(filePath)",
+                        testName: testName,
+                        identifier: identifier,
+                    )
+                    SnapshotDiffReporting.report(
+                        compareAgainstReference(
+                            capturedPNG: capture.pngData,
+                            referenceURL: reference,
+                        ),
+                        identifier: identifier,
+                        reference: reference,
+                    )
+                }
+                timing.measure(.compare) {
+                    withSnapshotTesting(record: resolvedRecord, diffTool: resolvedDiffTool) {
+                        assertSnapshot(
+                            of: capture.image,
+                            as: .image(
+                                precision: defaultSnapshotPrecision,
+                                perceptualPrecision: defaultSnapshotPerceptualPrecision,
+                            ),
+                            named: identifier,
+                            fileID: fileID,
+                            file: filePath,
+                            testName: testName,
+                            line: line,
+                            column: column,
+                        )
+                    }
+                }
+                timing.emit()
+            }
         } catch is CancellationError {
             return
         } catch {
             Issue.record(error)
-            continue
         }
-        // Before the verdict, so a reviewer gets the shape of the delta on the
-        // same run that reports the failure. Reads the reference from disk; the
-        // byte-equality check short-circuits when the capture is deterministic.
-        if isDiffReportingEnabled {
-            let reference = snapshotReferenceURL(
-                testFilePath: "\(filePath)",
-                testName: testName,
-                identifier: identifier,
-            )
-            SnapshotDiffReporting.report(
-                compareAgainstReference(capturedPNG: capture.pngData, referenceURL: reference),
-                identifier: identifier,
-                reference: reference,
-            )
+    }
+}
+
+/// Environment checks need the native host before a synthetic capture detaches it.
+@MainActor
+private func validateSnapshotEnvironment() async -> Bool {
+    do {
+        return try await SnapshotCaptureLock.withHost { window in
+            simulatorMatchesSnapshotExpectations(in: window)
         }
-        timing.measure(.compare) {
-            withSnapshotTesting(record: resolvedRecord, diffTool: resolvedDiffTool) {
-                assertSnapshot(
-                    of: capture.image,
-                    as: .image(
-                        precision: defaultSnapshotPrecision,
-                        perceptualPrecision: defaultSnapshotPerceptualPrecision,
-                    ),
-                    named: identifier,
-                    fileID: fileID,
-                    file: filePath,
-                    testName: testName,
-                    line: line,
-                    column: column,
-                )
-            }
-        }
-        timing.emit()
+    } catch is CancellationError {
+        return false
+    } catch {
+        Issue.record(error)
+        return false
     }
 }
 
@@ -256,7 +276,7 @@ private func environmentRecordMode() -> SnapshotTestingConfiguration.Record? {
 /// When the expectation variables are absent (direct `renderSnapshotImage`
 /// callers, non-scheme invocations), the guard is inert.
 @MainActor
-private func simulatorMatchesSnapshotExpectations() -> Bool {
+private func simulatorMatchesSnapshotExpectations(in hostWindow: UIWindow) -> Bool {
     let environment = ProcessInfo.processInfo.environment
     var mismatches: [String] = []
 
@@ -270,7 +290,7 @@ private func simulatorMatchesSnapshotExpectations() -> Bool {
     }
 
     if let expectedScale = environment["SNAPSHOT_EXPECTED_SCREEN_SCALE"] {
-        let actualScale = Double(UIScreen.main.scale)
+        let actualScale = Double(hostWindow.traitCollection.displayScale)
         if Double(expectedScale) != actualScale {
             mismatches.append(
                 """

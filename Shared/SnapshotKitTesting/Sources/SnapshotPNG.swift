@@ -1,6 +1,5 @@
 import SnapshotKit
 import SwiftUI
-import TestHostSupport
 import UIKit
 
 /// PNG bytes and dimensions from a hosted capture without a reference compare.
@@ -31,22 +30,28 @@ public func captureSnapshotPNG(
     settle: SnapshotSettle,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
 ) async throws -> SnapshotPNG {
-    try waitFor { hostKeyWindow()?.rootViewController != nil }
-    let controller = makeHostingController(for: view, configuration: configuration)
     let timeoutPolicy = try SnapshotSettleTimeoutPolicy.fromEnvironment()
-    let capture = try await renderSnapshotCapture(
-        of: controller,
-        named: name,
-        sizing: sizing,
-        safeAreaInsets: safeAreaInsets,
-        isAccessibility: configuration.snapshotType == .accessibility,
-        measurementReadiness: measurementReadiness,
-        onReadyToMeasure: onReadyToMeasure,
-        settle: settle,
-        onReadyToSnapshot: onReadyToSnapshot,
-        settleTimeoutPolicy: timeoutPolicy,
-        timing: SnapshotCaptureTiming(identifier: name, isEnabled: false),
-    )
+    let capture = try await SnapshotCaptureLock.withHost { window in
+        let controller = makeHostingController(
+            for: view,
+            configuration: configuration,
+            hostWidth: window.bounds.width,
+        )
+        return try await renderSnapshotCaptureLocked(
+            of: controller,
+            hostWindow: window,
+            named: name,
+            sizing: sizing,
+            safeAreaInsets: safeAreaInsets,
+            isAccessibility: configuration.snapshotType == .accessibility,
+            measurementReadiness: measurementReadiness,
+            onReadyToMeasure: onReadyToMeasure,
+            settle: settle,
+            onReadyToSnapshot: onReadyToSnapshot,
+            settleTimeoutPolicy: timeoutPolicy,
+            timing: SnapshotCaptureTiming(identifier: name, isEnabled: false),
+        )
+    }
     guard let image = capture.image.cgImage else {
         throw SnapshotRenderingError.missingCGImage(name: name)
     }

@@ -34,8 +34,8 @@ set -euo pipefail
 # formatter-independent source of per-test timings. We still let Tuist own
 # project generation so a run always reflects the current manifests.
 
-DEVICE="iPhone 17"
-OS="27.0"
+DEVICE="iPhone Duo"
+OS="27.1"
 TOP=15
 TEST_THRESHOLD="0.1"   # seconds — tests at/over this are flagged as hot spots
 TC_THRESHOLD=100       # milliseconds — slow type-check warn threshold
@@ -58,8 +58,8 @@ Options:
   --no-snapshots            Skip the StuffSnapshotTests leg (saves ~10-15 min)
   --ci-shape                Use separate cold DerivedData for unit and snapshot
                             jobs, matching CI topology (default shares products)
-  --device NAME             Simulator device name (default: "iPhone 17")
-  --os VERSION              Simulator iOS version (default: "27.0")
+  --device NAME             Simulator device name (default: "iPhone Duo")
+  --os VERSION              Simulator iOS version (default: "27.1")
   --top N                   How many slowest tests to list (default: 15)
   --test-threshold SECS     Flag tests at/over this many seconds (default: 0.1)
   --typecheck-threshold MS  Warn on type-check work over this many ms (default: 100)
@@ -69,7 +69,7 @@ Examples:
   ./profile
   ./profile --tests-only --no-snapshots --top 25 --test-threshold 0.2
   ./profile --ci-shape
-  ./profile --device 'iPhone 17 Pro' --os 27.0
+  ./profile --device 'iPhone Duo' --os 27.1
 USAGE
 }
 

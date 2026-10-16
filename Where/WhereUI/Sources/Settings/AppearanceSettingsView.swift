@@ -229,6 +229,9 @@ extension AppearanceSettingsView: SettingsSection {
                 name: "Default",
                 configurations: .fullContentScreenDefaults,
                 measurementReadiness: .immediate,
+                // Native navigation adapts when the Form reaches its full height.
+                // Reparse accessibility after that preparation pass, as About does.
+                settle: .settledAtLeast(minDuration: 1.5),
             ) {
                 NavigationStack {
                     AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())

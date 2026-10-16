@@ -67,6 +67,74 @@ class ShardTests(unittest.TestCase):
             self.assertEqual(len(inventory), 3)
             self.assertEqual(len(partition), 2)
 
+    def test_multiline_sources_keep_shared_support_out_of_suite_discovery(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            other = repo / "Other" / "SnapshotTests"
+            other.mkdir(parents=True)
+            (other / "OtherTests.swift").write_text(
+                "import Testing\nstruct OtherTests { @Test func example() {} }\n"
+            )
+            (repo / "Project.swift").write_text('''
+            unitTests(
+                name: "ModuleSnapshotTests",
+                sources: [
+                    "Module/Tests/Support/TestStore.swift",
+                    "Module/SnapshotTests/**",
+                ],
+            ),
+            unitTests(
+                name: "OtherSnapshotTests",
+                sources: ["Other/SnapshotTests/**"],
+            ),
+            ''')
+            plan = self.make_plan()
+            plan["shards"][0]["suites"].append("OtherSnapshotTests/OtherTests")
+            path = repo / "plan.json"
+            path.write_text(json.dumps(plan))
+
+            self.assertEqual(MODULE.source_inventory(repo), {
+                "ModuleSnapshotTests/FirstSnapshotTests",
+                "ModuleSnapshotTests/SecondSnapshotTests",
+                "ModuleSnapshotTests/ThirdSnapshotTests",
+                "OtherSnapshotTests/OtherTests",
+            })
+            result = subprocess.run(
+                [str(SCRIPT.parents[1] / "snapshot-shards"), "--plan", str(path),
+                 "check", "--repo", str(repo)],
+                cwd=repo, capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("4 suites", result.stdout)
+
+    def test_source_array_without_a_snapshot_glob_cannot_borrow_the_next_target(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            project = repo / "Project.swift"
+            project.write_text('''
+            unitTests(
+                name: "BrokenSnapshotTests",
+                sources: ["Module/Tests/Support/TestStore.swift"],
+            ),
+            ''' + project.read_text())
+
+            with self.assertRaisesRegex(ValueError, "BrokenSnapshotTests has no literal"):
+                MODULE.source_inventory(repo)
+
+    def test_nonliteral_sources_fail_without_borrowing_the_next_target(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            project = repo / "Project.swift"
+            project.write_text('''
+            unitTests(
+                name: "BrokenSnapshotTests",
+                sources: sharedSources,
+            ),
+            ''' + project.read_text())
+
+            with self.assertRaisesRegex(ValueError, "literal source arrays.*BrokenSnapshotTests"):
+                MODULE.source_inventory(repo)
+
     def test_rejects_a_suite_that_is_missing_from_the_plan(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = self.make_repo(directory)

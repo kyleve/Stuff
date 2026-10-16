@@ -11,7 +11,11 @@ Test bundles link those libraries plus `TestHostSupport` and run inside this app
 ## What it provides
 
 - `@main` [`AppDelegate`](Sources/AppDelegate.swift) — installs the scene delegate on the plist-derived default window-scene configuration.
-- [`SceneDelegate`](Sources/SceneDelegate.swift) — creates a key window with an empty `UIViewController` as root and marks it `isMainTestHostWindow` (from `TestHostSupport`) so `hostKeyWindow()` can find it.
+- [`SceneDelegate`](Sources/SceneDelegate.swift) creates the key window and marks it `isMainTestHostWindow` so `hostKeyWindow()` can find it.
+
+The empty root controller uses horizontal native bars. This keeps virtual phone and tablet frames free of the Duo simulator's side bar.
+Synthetic Duo viewports cover bounds, content, and layout policy. They do not reproduce the simulator's physical pose or native vertical bars.
+Native bar and folding validation uses the production app in Device Hub and on hardware.
 
 ## Bundle.module and resources
 

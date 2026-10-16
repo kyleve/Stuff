@@ -67,7 +67,8 @@ public struct SnapshotCase: Identifiable {
     ///
     /// The builder stays lazy so describing a snapshot matrix does not also
     /// instantiate every view and its model. Each access invokes the builder;
-    /// the current test runner accesses it once per case, sharing captured models.
+    /// the test runner accesses it once per configuration. Models captured outside
+    /// the builder and shared readiness hooks still require separate cases.
     @MainActor public var content: AnyView {
         contentFactory()
     }

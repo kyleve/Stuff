@@ -10,6 +10,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build system,
 - **Provide a key window with a root VC.** Hosted tests assume `TestHostSupport.hostKeyWindow()` returns a window whose `rootViewController` is non-nil. Do not defer window creation. Do not leave root unset.
 - **Stamp the window in `SceneDelegate`.** Set `isMainTestHostWindow` in `scene(_:willConnectTo:)`. `TestHostSupport.hostKeyWindow()` finds the host window only by that marker, not by "the first key window".
 - **Keep the scene name aligned with the plist.** `AppDelegate` must modify and return the session's plist-derived configuration. Do not construct a separately named configuration that can drift from `Project.swift`.
+- **Keep the test root's native bars horizontal.** Virtual phone and tablet snapshots must not inherit Duo's side bar. Validate native Duo bars in the production app.
 
 ## Don't add products here for `Bundle.module`
 

@@ -13,12 +13,11 @@ capture + comparison pipeline lives in the sibling
 
 ## What's in the box
 
-- **`SnapshotConfiguration`** — one rendering variant. It specifies appearance
-  traits, device layout traits, a device `Frame`, and a `snapshotType`.
-  Appearance traits include color scheme, Dynamic Type size, contrast, layout
-  direction, and legibility weight. This `Hashable` value has an `identifier`
-  that **omits default axes**, so common cases stay terse. The `snapshotType`
-  is `.standard` or `.accessibility`.
+- **`SnapshotConfiguration`** — one rendering variant: color scheme, Dynamic
+  Type size, contrast, layout direction (`rtl` token), legibility weight (bold
+  text, `bold` token), a device `Frame`, and a `snapshotType` (`.standard` or
+  `.accessibility`). `Hashable`, with an `identifier` (built from
+  `identifierParts`) that **omits default axes** so common cases stay terse.
   Frames come in four sizing strategies: fixed device viewports (`.iPhone`,
   `.iPad`), the intrinsic `.component` frame, `.fullContent(name:width:)`, and
   `.fullContent2D(name:minimumSize:)`. The ordinary full-content frame has a
@@ -30,16 +29,11 @@ capture + comparison pipeline lives in the sibling
   snapshot its shared scrolling child directly, without snapshot-only layout
   behavior. The iPhone/iPad
   full-content presets retain their normal viewport height as a minimum and
-  grow when content is taller. Custom full-content frames shrink-wrap unless
+  grow when content is taller. custom full-content frames shrink-wrap unless
   given a minimum. A frame also carries `safeAreaInsets` (default zero, keeping
-  images device-independent). The `.iPhoneNotched` preset simulates real device
+  images device-independent). the `.iPhoneNotched` preset simulates real device
   chrome (Dynamic Island top 47pt, home-indicator bottom 34pt) for cases that
   must prove layout under it.
-- **`SnapshotConfiguration.LayoutTraits`** — an explicit interface idiom and
-  size-class set for adaptive content. The standard presets cover phone
-  portrait, phone landscape, and tablet portrait. Each set adds a stable
-  identifier token. If this value is `nil`, the capture inherits the host
-  simulator traits.
 - **`combinations(...)` + presets** (`.componentDefaults`, `.screenDefaults`,
   `.fullContentScreenDefaults`) — expand a terse declaration into the full
   matrix.
@@ -48,8 +42,9 @@ capture + comparison pipeline lives in the sibling
   scrolling content, including UIKit-backed SwiftUI `List` and `Form`
   containers, including when they are nested under production screen chrome.
   Device presets render at least one normal viewport tall, then expand to show
-  content that would otherwise scroll. fixed-height device frames are for
-  non-scrolling subjects.
+  content that would otherwise scroll. Fixed-height device frames are for
+  non-scrolling subjects. Explicit `Frame.viewport` captures also cover bounded adaptive shells
+  when paired with full-content captures of their scrolling panes.
 - **Two-axis full-content frames** (`.iPhoneFullContent2D`,
   `.iPadFullContent2D`, and `.fullContent2D(name:minimumSize:)`) — start at a
   normal viewport and expand to one viewport-filling scroll view's complete
@@ -59,8 +54,8 @@ capture + comparison pipeline lives in the sibling
   `static var snapshots: [SnapshotCase]`.
 - **`SnapshotCase`** — a named group of configurations plus a lazy content
   builder. Declaring a matrix does not instantiate its views or models. The
-  current test runner evaluates the builder once per case and re-hosts that
-  value across configurations, so captured reference models are shared (see
+  test runner evaluates the builder once per configuration. Models captured outside
+  that builder and shared readiness hooks still need independent cases (see
   [`TODOs.md`](TODOs.md)). It is
   also a `View`, so `snapshotPreviews` can render the whole matrix as a
   scrollable cutsheet inside a `#Preview`. Its `settle` axis
@@ -86,9 +81,10 @@ capture + comparison pipeline lives in the sibling
   again before capture. The preview cutsheet ignores the hook (only the test
   pipeline can re-settle around it).
 - **`snapshotTraits(_:)`** — applies a configuration's traits to a view for the
-  preview cutsheet. This includes explicit device layout traits. Thus, previews
-  and test captures stay in lockstep. Simulated frame insets are capture-only.
-  A preview cannot simulate safe areas.
+  preview cutsheet (color scheme, Dynamic Type, layout direction, legibility
+  weight, and an increased-contrast trait override), so previews and test
+  captures stay in lockstep. Simulated frame insets are capture-only — a
+  preview can't fake safe areas.
 - **`\.isCapturingSnapshot`** — an environment flag that is `true` while
   `SnapshotKitTesting` captures the view (and in the preview cutsheet, which
   mirrors the tests). A view may read it **only** to render a deterministic
@@ -149,3 +145,26 @@ assertSnapshots(of: MyBadge.self)
 - The Where app wraps content in its Broadway design-system root via a
   `whereSnapshot(...)` adapter in `WhereUI`. SnapshotKit itself stays
   design-system-agnostic.
+
+## Adaptive containers
+
+Frame presets include explicit size classes and interface idiom. Component frames inherit these traits from their host.
+Preview and capture hosts apply the same traits. Existing frame names and reference filenames stay unchanged.
+Use `Frame.viewport` to capture bounded adaptive shells. Pair these images with full-content captures of each scrolling pane.
+Create independent models and readiness hooks for each configuration. Keep one mounted model only in deliberate resize tests.
+Device-specific profiles require measured runtime bounds, scale, insets, and reserved regions.
+Synthetic windows test layout policy; they do not validate native folding or system bars.
+
+The Duo presets use [native simulator measurements](Documentation/DuoMeasurements.json) from Xcode build `27A9275`, runtime `24A94232`.
+All four profiles use 3× scale and the phone idiom.
+
+| Frame | Bounds (points) | Horizontal / vertical size class | Insets (top, left, bottom, right) |
+| --- | --- | --- | --- |
+| `duoOuterPortrait` | 466 × 678 | compact / regular | 0, 0, 34, 84 |
+| `duoOuterLandscape` | 678 × 466 | compact / compact | 0, 0, 34, 84 |
+| `duoInnerPortrait` | 669 × 951 | regular / regular | 82, 0, 34, 0 |
+| `duoInnerLandscape` | 951 × 669 | regular / regular | 0, 0, 34, 84 |
+
+The inner display reports a 40-point division with 20-point margins on each adjoining side. Its frame already includes these margins.
+The division is active when partially folded. Flat layouts must ignore inactive divisions.
+The measurement record also contains camera and status-bar occlusions. Use current region geometry in production; these records describe specific simulator poses.
