@@ -130,7 +130,12 @@ public final class LocationWelcomeModel {
 
         switch resolution {
             case let .resolved(region):
-                let previous = preferences.lastWelcomedRegion
+                guard let history = preferences.locationWelcomeHistory else {
+                    preferences.locationWelcomeHistory = .init(lastRegion: region)
+                    state = .idle
+                    return
+                }
+                let previous = history.lastRegion
                 guard region != previous else {
                     state = .idle
                     return
@@ -146,7 +151,7 @@ public final class LocationWelcomeModel {
 
     func dismiss() {
         guard let presentation else { return }
-        preferences.lastWelcomedRegion = presentation.region
+        preferences.locationWelcomeHistory = .init(lastRegion: presentation.region)
         state = .idle
     }
 

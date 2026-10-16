@@ -200,6 +200,8 @@ journal intent.
   The scrim fades independently. Reduce Motion uses a short fade for both layers.
   Debug builds include **Reset Welcome Card** in Settings > Appearance beside the welcome-card toggle.
   The reset clears the saved region so the next foreground activation can show the card again.
+  Without saved welcome history, the first successful lookup saves the current region quietly.
+  This applies to fresh installs and backup imports. Later region changes can show the card.
   `MainTabs` requests one bounded fix on each active-scene entry. It shows a
   native tab-bar accessory after one second; denied or restricted access and
   disabled Precise Location remain actionable there, while transient or

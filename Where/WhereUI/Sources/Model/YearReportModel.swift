@@ -262,7 +262,7 @@ public final class YearReportModel {
     #if DEBUG
         /// Clears the acknowledgement so the next foreground lookup can welcome again.
         func resetLocationWelcome() {
-            preferences.lastWelcomedRegion = nil
+            preferences.locationWelcomeHistory = .init(lastRegion: nil)
         }
     #endif
 
