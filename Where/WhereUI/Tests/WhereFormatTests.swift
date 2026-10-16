@@ -266,6 +266,25 @@ struct WhereFormatTests {
         #expect(label.contains(Region.newYork.localizedName))
     }
 
+    @Test func calendarSpanDatesUseTheInjectedCalendarAndInclusiveEndpoints() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 14 * 3600))
+        let first = CalendarDay(year: 2026, month: 7, day: 1)
+        #expect(WhereFormat.calendarDateRange(first ... first, calendar: calendar) == "July 1")
+        #expect(WhereFormat.calendarDateRange(
+            first ... first.adding(days: 2),
+            calendar: calendar,
+        ) == "July 1 through July 3")
+        #expect(WhereFormat.calendarSpanAccessibility(
+            dates: first ... first,
+            details: ["California", WhereFormat.calendarBadgeAccessibility(
+                badge: String(localized: .calendarAttachmentAccessibility),
+                dates: "July 1",
+            )],
+            calendar: calendar,
+        ) == "July 1: California and Attachment on July 1")
+    }
+
     @Test func calendarMonthAccessibilitySummarizesTotalsOverlapsAndStatuses() {
         let value = WhereFormat.calendarMonthAccessibility(
             regionTotals: [

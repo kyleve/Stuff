@@ -386,6 +386,85 @@ enum WhereFormat {
         return accessibilityList(components)
     }
 
+    static func calendarMonthLabel(
+        month: CalendarMonth,
+        planningSummary: [PlanningRegionSummary],
+        calendar: Calendar,
+    ) -> String {
+        var totals = [calendarMonthAccessibility(
+            regionTotals: month.regionTotals,
+            regionCombinationTotals: month.regionCombinationTotals,
+            needsAttentionDays: 0,
+            evidenceDays: 0,
+            plannedRegionTotals: [],
+        )]
+        for summary in planningSummary {
+            if summary.plannedDays.upper > 0 {
+                let kind: LocalizedStringResource = summary.plannedDays.isExact
+                    ? .planningCalendarPlanned : .planningCalendarPossible
+                totals.append(String(localized: .commonRegionDaysAccessibility(
+                    String(localized: .planningCalendarMonthSummary(
+                        summary.region.localizedName,
+                        String(localized: kind),
+                    )),
+                    dayCount(summary.plannedDays),
+                )))
+            }
+            if summary.homeDays.upper > 0 {
+                totals.append(String(localized: .commonRegionDaysAccessibility(
+                    String(localized: .planningCalendarMonthSummary(
+                        summary.region.localizedName,
+                        String(localized: .planningCalendarHome),
+                    )),
+                    dayCount(summary.homeDays),
+                )))
+            }
+        }
+        let format = Date.FormatStyle(
+            date: .omitted,
+            time: .omitted,
+            calendar: calendar,
+            timeZone: calendar.timeZone,
+        ).month(.wide).year()
+        return String(localized: .calendarMonthLabelAccessibility(
+            month.startOfMonth.formatted(format),
+            totals.joined(separator: "; "),
+        ))
+    }
+
+    static func calendarDateRange(
+        _ dates: ClosedRange<CalendarDay>,
+        calendar: Calendar,
+    ) -> String {
+        let format = Date.FormatStyle(
+            date: .omitted,
+            time: .omitted,
+            calendar: calendar,
+            timeZone: calendar.timeZone,
+        ).month(.wide).day()
+        let start = dates.lowerBound.startOfDay(in: calendar).formatted(format)
+        guard dates.lowerBound != dates.upperBound else { return start }
+        return String(localized: .calendarSpanDatesAccessibility(
+            start,
+            dates.upperBound.startOfDay(in: calendar).formatted(format),
+        ))
+    }
+
+    static func calendarSpanAccessibility(
+        dates: ClosedRange<CalendarDay>,
+        details: [String],
+        calendar: Calendar,
+    ) -> String {
+        String(localized: .calendarSpanAccessibility(
+            calendarDateRange(dates, calendar: calendar),
+            details.formatted(.list(type: .and)),
+        ))
+    }
+
+    static func calendarBadgeAccessibility(badge: String, dates: String) -> String {
+        String(localized: .calendarSpanBadgeAccessibility(badge, dates))
+    }
+
     static func widgetTodayAccessibilityLabel(date: Date) -> String {
         String(localized: .widgetTodayAccessibilityLabel(
             date.formatted(.dateTime.month(.wide).day()),

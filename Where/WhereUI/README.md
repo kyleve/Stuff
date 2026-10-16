@@ -22,6 +22,7 @@ The catch-all Other region uses a background globe because it has no geographic 
 The card opens the existing Elsewhere list.
 
 Completed flights appear in both history views. The calendar shows an airplane on each local flight day. Attachments and flights share one badge at the top-right of the day. The badge widens when both icons are present.
+Each calendar month is one accessibility element. Its label gives regional totals; its value reads chronological stay spans with dated attachment and flight cues.
 The timeline inserts a plane in a circle at departure, with the flight's date range beside the rail.
 A flight can split a displayed regional stay into segments without changing residency totals.
 These indicators have no separate action and remain visible after correction dismissal.

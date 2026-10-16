@@ -268,17 +268,19 @@ private struct MonthGridView: View {
         month.startOfMonth.formatted(.dateTime.month(.wide))
     }
 
-    private var accessibilityValue: String {
-        WhereFormat.calendarMonthAccessibility(
-            regionTotals: month.regionTotals,
-            regionCombinationTotals: month.regionCombinationTotals,
-            needsAttentionDays: month.days.count(where: \.needsAttention),
-            evidenceDays: month.days.count(where: \.hasEvidence),
-            plannedRegionTotals: [],
+    private var accessibility: CalendarMonthAccessibility {
+        CalendarMonthAccessibility(
+            month: month,
+            calendar: dateCalendar,
+            memberships: memberships(for:),
+            planningSummary: planningSummary
+                .filter { focusedRegion == nil || $0.region == focusedRegion },
         )
     }
 
     var body: some View {
+        let monthAccessibility = accessibility
+
         VStack(alignment: .leading, spacing: calendar.month.sectionSpacing) {
             Text(monthName)
                 .font(.title.weight(.semibold))
@@ -350,9 +352,9 @@ private struct MonthGridView: View {
                     cardShape.strokeBorder(card.border, lineWidth: card.borderWidth)
                 }
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(monthName)
-        .accessibilityValue(accessibilityValue)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(monthAccessibility.label)
+        .accessibilityValue(monthAccessibility.value)
     }
 
     @ViewBuilder
@@ -622,6 +624,7 @@ private struct DayCell: View {
                 WhereFormat.planningMembership(membership),
             ))
         }
+        if day.hasEvidence { values.append(String(localized: .calendarAttachmentAccessibility)) }
         if day.hasFlight { values.append(String(localized: .historyFlight)) }
         return values.joined(separator: "; ")
     }
@@ -758,6 +761,17 @@ private struct DayCell: View {
                     }
                 }
                 .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color(.systemBackground))
+            }
+            whereSnapshot(name: "MonthAccessibility", configurations: .componentDefaults) {
+                let calendar = Calendar(identifier: .gregorian)
+                MonthGridView(
+                    month: PreviewSupport.calendarAccessibilityMonth(calendar: calendar),
+                    dateCalendar: calendar,
+                    plannedPresence: { _ in nil },
+                    planningSummary: [],
+                )
                 .padding()
                 .background(Color(.systemBackground))
             }
