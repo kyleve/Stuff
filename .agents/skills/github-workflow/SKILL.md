@@ -66,6 +66,7 @@ authorizes replies on the threads you fix, decline, or defer — see
   it.
 - Start from [`.github/PULL_REQUEST_TEMPLATE.md`](../../../.github/PULL_REQUEST_TEMPLATE.md)
   and follow [Writing the PR body](#writing-the-pr-body) below.
+- For new or changed screens, add [screen snapshot comments](#screen-snapshot-comments) before handing over the PR.
 - **Flag lines that warrant extra scrutiny.** Leave a PR review comment on
   anything worth a closer read (subtle behavior changes, incomplete migrations,
   assumptions about `main`).
@@ -90,6 +91,12 @@ A statement that instructions were read is not evidence that the implementation 
 4. Update the owning guidance only when the change exposes a missing invariant or obsolete instruction.
    Keep an existing rule in one place. Do not copy a review thread into an agent file.
 
+For behavior or contract changes, compare the description with the completed diff before publication and after material revisions.
+First inventory the material changes from the diff without relying on the description.
+Then check that the description covers each material change.
+For each behavior or compatibility claim, locate evidence in the code and relevant validation.
+Qualify claims that depend on source inspection or incomplete validation.
+
 ### Writing the PR body
 
 Squash merges on `main` use **PR title → commit subject** and **PR body → commit
@@ -110,6 +117,10 @@ branch.
 
 #### Pick a tier
 
+Choose only the explanations that resolve a real review question.
+Add them within the existing sections.
+Omit inapplicable material without `N/A` placeholders.
+
 | Tier | When | Keep | Add when warranted |
 |------|------|------|--------------------|
 | Small | Obvious fix, 1–2 modules, no design choices | Summary, Testing | — |
@@ -123,6 +134,8 @@ branch.
   with **User-facing:** or **Internal:** so `git log` readers can scan quickly.
 - **Why / Problem** — what was wrong or missing before. Link prior PRs when
   building on them.
+  For bug fixes, include the failure trigger and the visible symptom or relevant error text.
+  Use terms that future readers can search for.
 - **Changes / Architecture / Product behavior** — high-level structure and
   behavior. Group by subsystem and explain ownership and data flow.
 - **Screenshots** — selected images that explain visible behavior. Follow
@@ -130,6 +143,7 @@ branch.
 - **Primary APIs** — important additions, changed contracts, and removals, with
   short usage examples. Follow [Explain API and architecture changes](#explain-api-and-architecture-changes).
 - **Design decisions / Trade-offs** — explicit choices and what was rejected.
+  When a choice depends on a temporary assumption, state what evidence or condition warrants reconsideration.
 - **⚠️ Breaking changes** — wire-format, persistence, backup, CloudKit schema,
   or API breaks. What existing data/installs lose or must do. Delete the section
   when there are none.
@@ -141,6 +155,21 @@ branch.
   Link source locations for conclusions based only on inspection.
   For skipped checks, state
   **what** and **why**.
+
+#### Guide the review
+
+- For changes across several files or layers, add a short reading route to **Review focus**.
+  Link the central contract, implementation, integration, and relevant test in a useful order.
+  Choose only the useful starting points.
+  State what each starting point establishes.
+- For behavior changes with meaningful branches, add a compact **Situation → Before → After** table to **Product behavior** or **Summary**.
+  Include the ordinary case and relevant failure, cancellation, or recovery cases.
+  Use scenarios from the implemented behavior.
+- For stacked PRs or changes with several consumers, explain this PR's effect after merge.
+  Put this explanation in **Summary** or **Stack**.
+  State whether the slice adds groundwork or activates reachable behavior.
+  Identify affected audiences, entry points, extensions, or existing data where relevant.
+  Name any prerequisite PR or activation condition.
 
 #### Explain API and architecture changes
 
@@ -262,6 +291,32 @@ shape below is genuinely unclear.
 ## Keeping a PR current
 
 - Push each commit as it lands.
+- After material revisions, include a brief update in [authorized review replies](#review-comments) or a requested status comment.
+  Link the relevant commits or comparison.
+  Identify changed decisions, assumptions that need another review, and repeated or pending validation.
+  Keep the main body current with the final design and its rationale.
+
+## Screen snapshot comments
+
+For each new or changed screen, post a file-level PR review comment with a representative snapshot of the resulting screen.
+These comments and their image updates are part of the screen-change handoff.
+
+- Attach the comment to the screen's owning source file in the PR diff.
+  If that file is unchanged, use the changed file responsible for the screen change.
+  Name the screen in the comment.
+- Before posting, look for an existing agent-authored snapshot comment for that screen.
+  Maintain one snapshot comment per screen.
+- Apply the capture, caption, revision, image-link, and publication checks from [Explain visible changes](#explain-visible-changes).
+  Include the [AI attribution](#posting-under-the-users-identity) in the comment.
+- With `gh api`, use the [review-comment API](https://docs.github.com/en/rest/pulls/comments) with `subject_type=file`, the source `path`, and the current head `commit_id`.
+- After further screen-code changes, capture the updated screen.
+  Edit the existing snapshot comment in place.
+  Use its comment ID to update the body through the review-comment API.
+  Replace the current image, caption, and capture revision.
+  Preserve the discussion.
+  Open the updated comment and check the image.
+- If an image refresh is blocked, label the previous image as stale.
+  Report the blocker.
 
 ## Creating and maintaining stacked PRs
 
