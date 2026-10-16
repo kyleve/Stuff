@@ -8,17 +8,73 @@ import Testing
 struct LocationWelcomeModelTests {
     private static let now = Date(timeIntervalSinceReferenceDate: 10000)
 
-    @Test func firstResolvedRegionPresentsAFirstGreeting() async throws {
-        let fixture = try await fixture(region: .california)
+    @Test func freshInstallEstablishesAQuietBaselineThatSurvivesRelaunch() async throws {
+        let store = InMemoryKeyValueStore()
+        let fixture = try await fixture(
+            region: .newYork,
+            preferences: WherePreferences(store: store),
+        )
 
         await fixture.model.resolve()
 
-        #expect(fixture.model.presentation == .init(region: .california, greeting: .first))
+        #expect(fixture.model.state == .idle)
+        #expect(fixture.preferences.locationWelcomeHistory == .init(lastRegion: .newYork))
+
+        let relaunched = LocationWelcomeModel(
+            services: fixture.services,
+            preferences: WherePreferences(store: store),
+            now: { Self.now },
+        )
+        await relaunched.resolve()
+
+        #expect(relaunched.state == .idle)
+    }
+
+    @Test(arguments: [BackupCoordinator.ImportStrategy.merge, .replace])
+    func restoredHistoryEstablishesAQuietLiveBaseline(
+        strategy: BackupCoordinator.ImportStrategy,
+    ) async throws {
+        let original = try fixtureWithoutRecording(region: .california)
+        try await original.services.journal.addManualDay(
+            date: Date(timeIntervalSinceReferenceDate: 0),
+            regions: [.california],
+            audit: nil,
+        )
+        let url = try await original.services.backup.exportBackup()
+        defer {
+            do {
+                try FileManager.default.removeItem(at: url.deletingLastPathComponent())
+            } catch {
+                Issue.record(error)
+            }
+        }
+        let restored = try fixtureWithoutRecording(region: .newYork)
+        let summary = try await restored.services.backup.importBackup(
+            from: url,
+            strategy: strategy,
+        ) { _ in }
+        try await restored.services.backup.acknowledgeOnboardingImport()
+        try await restored.services.ingestor.authorizeRecording()
+        #expect(summary.manualDayCount == 1)
+
+        await restored.model.resolve()
+
+        #expect(restored.model.state == .idle)
+        #expect(restored.preferences.locationWelcomeHistory == .init(lastRegion: .newYork))
+
+        let arrival = try await fixture(region: .california, preferences: restored.preferences)
+        await arrival.model.resolve()
+
+        #expect(arrival.model.presentation == .init(region: .california, greeting: .returnVisit))
     }
 
     @Test func dismissalPersistsAndSuppressesTheSameRegion() async throws {
-        let fixture = try await fixture(region: .california)
+        let baseline = try await fixture(region: .newYork)
+        await baseline.model.resolve()
+        let fixture = try await fixture(region: .california, preferences: baseline.preferences)
         await fixture.model.resolve()
+        #expect(fixture.model.presentation == .init(region: .california, greeting: .returnVisit))
+        #expect(fixture.preferences.locationWelcomeHistory == .init(lastRegion: .newYork))
         fixture.model.dismiss()
 
         let relaunched = LocationWelcomeModel(
@@ -28,13 +84,13 @@ struct LocationWelcomeModelTests {
         )
         await relaunched.resolve()
 
-        #expect(fixture.preferences.lastWelcomedRegion == .california)
+        #expect(fixture.preferences.locationWelcomeHistory == .init(lastRegion: .california))
         #expect(relaunched.presentation == nil)
     }
 
     @Test func differentRegionPresentsAReturnGreeting() async throws {
         let preferences = WherePreferences(store: InMemoryKeyValueStore())
-        preferences.lastWelcomedRegion = .california
+        preferences.locationWelcomeHistory = .init(lastRegion: .california)
         let fixture = try await fixture(region: .newYork, preferences: preferences)
 
         await fixture.model.resolve()
@@ -45,6 +101,7 @@ struct LocationWelcomeModelTests {
     @Test func undismissedWelcomeIsRevalidatedOnEachActivation() async throws {
         let source = GatedCurrentLocationSource()
         let preferences = WherePreferences(store: InMemoryKeyValueStore())
+        preferences.locationWelcomeHistory = .init(lastRegion: .newYork)
         let services = try Self.services(locationSource: source)
         try await services.ingestor.authorizeRecording()
         let model = LocationWelcomeModel(
@@ -57,15 +114,15 @@ struct LocationWelcomeModelTests {
         await source.waitUntilRequestCount(1)
         try await source.resolveRequest(at: 0, with: Self.sample(region: .california))
         await first.value
-        #expect(model.presentation == .init(region: .california, greeting: .first))
+        #expect(model.presentation == .init(region: .california, greeting: .returnVisit))
 
         let second = Task { await model.resolve() }
         await source.waitUntilRequestCount(1)
         #expect(model.presentation == nil)
-        try await source.resolveRequest(at: 0, with: Self.sample(region: .newYork))
+        try await source.resolveRequest(at: 0, with: Self.sample(region: .california))
         await second.value
-        #expect(model.presentation == .init(region: .newYork, greeting: .first))
-        #expect(preferences.lastWelcomedRegion == nil)
+        #expect(model.presentation == .init(region: .california, greeting: .returnVisit))
+        #expect(preferences.locationWelcomeHistory == .init(lastRegion: .newYork))
 
         let third = Task { await model.resolve() }
         await source.waitUntilRequestCount(1)
@@ -90,7 +147,7 @@ struct LocationWelcomeModelTests {
         report.showsLocationWelcome = isEnabled
         report.resetLocationWelcome()
 
-        #expect(fixture.preferences.lastWelcomedRegion == nil)
+        #expect(fixture.preferences.locationWelcomeHistory == .init(lastRegion: nil))
         #expect(fixture.preferences.showsLocationWelcome == isEnabled)
         #expect(fixture.model.presentation == nil)
 
@@ -107,6 +164,7 @@ struct LocationWelcomeModelTests {
 
         await fixture.model.resolve()
         #expect(fixture.model.presentation == nil)
+        #expect(fixture.preferences.locationWelcomeHistory == nil)
     }
 
     @Test func disabledPreferenceDoesNotPresent() async throws {
@@ -117,6 +175,7 @@ struct LocationWelcomeModelTests {
         await fixture.model.resolve()
 
         #expect(fixture.model.presentation == nil)
+        #expect(fixture.preferences.locationWelcomeHistory == nil)
     }
 
     @Test func disabledDuringResolutionDoesNotPublishALateWelcome() async throws {
@@ -140,6 +199,7 @@ struct LocationWelcomeModelTests {
         await task.value
 
         #expect(model.presentation == nil)
+        #expect(preferences.locationWelcomeHistory == nil)
     }
 
     @Test func cancelledResolutionDoesNotPublishALateRegion() async throws {
@@ -163,6 +223,7 @@ struct LocationWelcomeModelTests {
         await task.value
 
         #expect(model.presentation == nil)
+        #expect(preferences.locationWelcomeHistory == nil)
     }
 
     @Test func delayedAcquisitionShowsLocatingAccessory() async throws {
@@ -223,11 +284,22 @@ struct LocationWelcomeModelTests {
         await fixture.model.resolve()
 
         #expect(fixture.model.state == .idle)
+        #expect(fixture.preferences.locationWelcomeHistory == nil)
+
+        let recovered = try await self.fixture(region: .newYork, preferences: fixture.preferences)
+        await recovered.model.resolve()
+
+        #expect(recovered.model.state == .idle)
+        #expect(recovered.preferences.locationWelcomeHistory == .init(lastRegion: .newYork))
     }
 
-    @Test func newerResolutionWinsWhenRequestsFinishOutOfOrder() async throws {
+    @Test(arguments: [false, true])
+    func newerResolutionWinsWhenRequestsFinishOutOfOrder(hasBaseline: Bool) async throws {
         let source = GatedCurrentLocationSource()
         let preferences = WherePreferences(store: InMemoryKeyValueStore())
+        if hasBaseline {
+            preferences.locationWelcomeHistory = .init(lastRegion: .california)
+        }
         let services = try Self.services(locationSource: source)
         try await services.ingestor.authorizeRecording()
         let model = LocationWelcomeModel(
@@ -245,7 +317,13 @@ struct LocationWelcomeModelTests {
         try await source.resolveRequest(at: 0, with: Self.sample(region: .california))
         await first.value
 
-        #expect(model.presentation == .init(region: .newYork, greeting: .first))
+        if hasBaseline {
+            #expect(model.presentation == .init(region: .newYork, greeting: .returnVisit))
+            #expect(preferences.locationWelcomeHistory == .init(lastRegion: .california))
+        } else {
+            #expect(model.state == .idle)
+            #expect(preferences.locationWelcomeHistory == .init(lastRegion: .newYork))
+        }
     }
 
     private func fixture(

@@ -18,6 +18,16 @@ import RegionKit
 /// read/written eagerly; callers that need observation (SwiftUI) mirror them in
 /// their own observable state.
 public final class WherePreferences {
+    /// A saved welcome baseline. A nil region requests a greeting after an
+    /// explicit developer reset; an absent history requires a quiet first fix.
+    public struct LocationWelcomeHistory: Codable, Equatable {
+        public let lastRegion: Region?
+
+        public init(lastRegion: Region?) {
+            self.lastRegion = lastRegion
+        }
+    }
+
     private let store: any KeyValueStore
     private let invalidValue: (String) -> Void
 
@@ -229,18 +239,22 @@ public final class WherePreferences {
         store.set(snapshots, forKey: Keys.lastSeenLocationDayCounts.rawValue)
     }
 
-    /// The last live region whose Locations welcome the user dismissed.
-    public var lastWelcomedRegion: Region? {
+    /// The initial live region or the last dismissed welcome. Missing history
+    /// establishes a baseline without presenting a card, including after restore.
+    public var locationWelcomeHistory: LocationWelcomeHistory? {
         get {
-            guard let rawValue = store.object(forKey: Keys.lastWelcomedRegion.rawValue) as? String
-            else { return nil }
-            return Region(rawValue: rawValue)
+            switch decodedPreference(LocationWelcomeHistory.self, forKey: .locationWelcomeHistory) {
+                case .missing, .invalid:
+                    nil
+                case let .value(history):
+                    history
+            }
         }
         set {
             if let newValue {
-                store.set(newValue.rawValue, forKey: Keys.lastWelcomedRegion.rawValue)
+                setEncodedPreference(newValue, forKey: .locationWelcomeHistory)
             } else {
-                store.removeObject(forKey: Keys.lastWelcomedRegion.rawValue)
+                store.removeObject(forKey: Keys.locationWelcomeHistory.rawValue)
             }
         }
     }
@@ -277,6 +291,8 @@ public final class WherePreferences {
             "where.recordingConfigurationWarningRegistration"
         case driftThresholdMeters = "where.driftThresholdMeters"
         case lastSeenLocationDayCounts = "where.lastSeenLocationDayCounts"
+        case locationWelcomeHistory = "where.locationWelcomeHistory"
+        /// Retained only so a full reset also removes the former acknowledgement.
         case lastWelcomedRegion = "where.lastWelcomedRegion"
     }
 

@@ -208,6 +208,8 @@ worked examples.
   `MainTabs`. Resolve once per active-scene entry regardless of tab. Only denied
   or restricted access and disabled Precise Location stay visible as recovery
   actions; transient and confidence failures return to idle.
+- Establish the first successful live-region baseline without a welcome, including after backup import.
+  Preserve explicit DEBUG reset requests and commit no history from cancelled or superseded lookups. Guard: `LocationWelcomeModelTests`.
 
 ## Feature discovery
 
