@@ -174,6 +174,28 @@ The first profile is the initial web selection. An empty profile list becomes
 while profile traits still apply. Tablet and landscape profiles also apply an
 explicit interface idiom and size classes to adaptive content.
 
+Run Where's exporter from the repository root:
+
+```sh
+./flyover export
+./flyover export --profile phone-light --profile phone-dark
+./flyover export --output /tmp/where-flyover --profile tablet-light
+```
+
+The default output is `.build/flyover/where`, resolved from the caller's
+directory. The command stages the complete site and replaces only an existing
+directory marked with `.flyover-generated`. A failed capture leaves the last
+successful atlas unchanged. Before replacement, the command validates all
+schema fields, references, image mappings, and generated PNG files. A repeated
+in-repository export excludes its prior generated directory from dirty-build
+metadata. A Git status error stops the export.
+SIGINT and SIGTERM stop publication and run cleanup. If replacement has not
+committed, cleanup restores the previous atlas. The exit status is 130 or 143.
+
+For a static host, upload the contents of the generated directory. Put
+`index.html` at the selected host root or subpath. The site needs no build step.
+All site URLs are relative.
+
 The manifest compatibility boundary is `schemaVersion: 1`. It contains the
 application and build identity, profiles, precomputed canvas geometry, groups,
 screens, routes, and image metadata. It contains no local source or account
