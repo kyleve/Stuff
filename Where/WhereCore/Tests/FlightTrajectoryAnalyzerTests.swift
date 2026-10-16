@@ -110,6 +110,35 @@ struct FlightTrajectoryAnalyzerTests {
         #expect(flights[1].progress == .completed(arrivedAt: later[2].timestamp))
     }
 
+    @Test(arguments: [false, true])
+    func sparseDeparturePreservesArrivalConfirmedByExactlyThreeLayoverObservations(
+        incomingHasCruise: Bool,
+    ) throws {
+        let earlier = incomingHasCruise ? [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 5, east: 75),
+            Fixtures.sample(3, minutes: 10, east: 150),
+            Fixtures.sample(4, minutes: 15, east: 150),
+            Fixtures.sample(5, minutes: 20, east: 150),
+        ] : Fixtures.sparseFlight()
+        let initial = try #require(analyzer.analyze(samples: earlier, now: earlier[4].timestamp)
+            .first)
+        try #require(initial.isPending == false)
+        let departureMinutes = earlier[4].timestamp.timeIntervalSince(Fixtures.start) / 60
+        let destinationEast = incomingHasCruise ? -3850.0 : 0
+        let later = [
+            Fixtures.sample(6, minutes: departureMinutes + 270, east: destinationEast),
+            Fixtures.sample(7, minutes: departureMinutes + 275, east: destinationEast),
+            Fixtures.sample(8, minutes: departureMinutes + 280, east: destinationEast),
+        ]
+        let flights = analyzer.analyze(samples: earlier + later, now: later[2].timestamp)
+        try #require(flights.count == 2)
+        #expect(flights[0] == initial)
+        #expect(flights[1].startedAt == earlier[4].timestamp)
+        #expect(flights[1].progress == .completed(arrivedAt: later[0].timestamp))
+        #expect(flights[1].airborneSampleIDs.isEmpty)
+    }
+
     @Test func sparseOvernightFlightsIncludeBothCalendarDays() throws {
         let samples = Fixtures.sparseFlight().map {
             Fixtures.replacing($0, timestamp: $0.timestamp.addingTimeInterval(23 * 60 * 60))

@@ -35,6 +35,13 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         let offset: Int
     }
 
+    /// Confirmed ground dwell can share the next departure anchor. Pending
+    /// observations stop earlier when that trip owns a corroborating fix.
+    private struct NextFlightBoundary {
+        let arrivalConfirmationLimit: AnchorIndex
+        let observationStart: AnchorIndex
+    }
+
     private enum Segment {
         case cruise(Range<Int>)
         case displacement(Int)
@@ -140,17 +147,30 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             }
         }
         return groups.indices.compactMap { index in
-            assessment(
+            let next: NextFlightBoundary
+            if index + 1 < groups.count {
+                let segment = groups[index + 1][0]
+                let observationStart = Self.observationStart(
+                    for: segment,
+                    anchors: anchors,
+                    legs: legs,
+                )
+                next = NextFlightBoundary(
+                    arrivalConfirmationLimit: segment.isCruise
+                        ? observationStart : AnchorIndex(offset: segment.start),
+                    observationStart: observationStart,
+                )
+            } else {
+                let end = AnchorIndex(offset: anchors.endIndex)
+                next = NextFlightBoundary(arrivalConfirmationLimit: end, observationStart: end)
+            }
+            return assessment(
                 segments: groups[index],
                 anchors: anchors,
                 legs: legs,
                 usable: usable,
                 grounds: grounds,
-                nextStart: index + 1 < groups.count ? Self.observationStart(
-                    for: groups[index + 1][0],
-                    anchors: anchors,
-                    legs: legs,
-                ) : AnchorIndex(offset: anchors.endIndex),
+                next: next,
                 deviceID: deviceID,
                 now: now,
             )
@@ -163,7 +183,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         legs: [Leg],
         usable: [LocationSample],
         grounds: [Ground],
-        nextStart: AnchorIndex,
+        next: NextFlightBoundary,
         deviceID: RecordingDeviceID?,
         now: Date,
     ) -> FlightAssessment? {
@@ -180,7 +200,9 @@ public struct FlightTrajectoryAnalyzer: Sendable {
                       && $0.end - $0.start >= ($0.isCruise ? 2 : 1)
               }),
               zip(segments, segments.dropFirst()).allSatisfy({ $0.end <= $1.start }),
-              nextStart.offset >= last.end, nextStart.offset <= anchors.count,
+              next.observationStart.offset >= last.end,
+              next.arrivalConfirmationLimit.offset >= next.observationStart.offset,
+              next.arrivalConfirmationLimit.offset <= anchors.count,
               grounds.allSatisfy({
                   anchors.indices.contains($0.start) && anchors.indices.contains($0.confirmation)
                       && $0.confirmation - $0.start >= 2
@@ -191,7 +213,9 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             )
             return nil
         }
-        let arrival = grounds.first { $0.start >= last.end && $0.confirmation <= nextStart.offset }
+        let arrival = grounds.first {
+            $0.start >= last.end && $0.confirmation <= next.arrivalConfirmationLimit.offset
+        }
         let departure = grounds.last { $0.confirmation <= first.start }
         // Extend each cruise segment only through bounded, plausible takeoff/approach
         // legs. Arrival and the next departure bound ownership of these observations.
@@ -200,7 +224,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             let before = Self.observationStart(for: segment, anchors: anchors, legs: legs)
             supportedLegs.formUnion(before.offset ..< segment.end)
             var after = segment.end
-            let limit = arrival?.start ?? nextStart.offset - 1
+            let limit = arrival?.start ?? next.observationStart.offset - 1
             while after < limit,
                   legs[after].isTransition,
                   anchors[after + 1].timestamp.timeIntervalSince(anchors[segment.end].timestamp)
@@ -286,8 +310,8 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         }
         let observationLimit = if let arrival {
             anchors[arrival.confirmation].timestamp
-        } else if nextStart.offset < anchors.count {
-            anchors[nextStart.offset].timestamp
+        } else if next.observationStart.offset < anchors.count {
+            anchors[next.observationStart.offset].timestamp
         } else {
             now
         }
@@ -295,8 +319,8 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         // takeoff transition. It cannot extend an older unresolved review.
         let lastObservation = usable.last {
             $0.timestamp <= observationLimit
-                && (arrival != nil || nextStart.offset == anchors.count
-                    || $0.timestamp < anchors[nextStart.offset].timestamp)
+                && (arrival != nil || next.observationStart.offset == anchors.count
+                    || $0.timestamp < anchors[next.observationStart.offset].timestamp)
         } ?? latest
         let trailingMotionIsPlausible = anchors.last(where: {
             $0.timestamp <= lastObservation.timestamp
