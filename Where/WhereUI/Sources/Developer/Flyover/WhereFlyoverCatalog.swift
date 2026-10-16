@@ -120,6 +120,7 @@
                 WhereFlyoverLogView.flyoverData,
                 OpenSpansView.flyoverData,
                 RegionMapView.flyoverData,
+                AdaptiveHistoryLabView.flyoverData,
             ]
         }
 

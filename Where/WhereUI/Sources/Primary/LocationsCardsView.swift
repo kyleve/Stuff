@@ -12,6 +12,8 @@ struct LocationsCardsView: View {
     let isCardSurfaceUncovered: Bool
     @Binding var isCardSurfaceVisible: Bool
     let planningAction: () -> Void
+    @Bindable var navigation: SceneNavigationModel.Locations
+    let cardVariant: WhereStylesheet.CardStyle.Variant
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
@@ -23,7 +25,7 @@ struct LocationsCardsView: View {
         // a short card list retains its centered presentation.
         return ScrollView {
             VStack(spacing: stylesheet.spacing.xxLarge) {
-                LocationsFlightNotice(report: report)
+                LocationsFlightNotice(report: report, openReview: { navigation.open(.flight($0)) })
 
                 LocationCardRankingStack(
                     spacing: stylesheet.spacing.xxLarge,
@@ -31,11 +33,12 @@ struct LocationsCardsView: View {
                     motion: stylesheet.locationCardStack.overtake,
                 ) {
                     ForEach(presentedCards) { item in
-                        NavigationLink {
-                            calendarDestination(item.region)
+                        Button {
+                            navigation.select(region: item.region)
                         } label: {
                             RegionSummaryCard(
                                 regionDays: item,
+                                variant: cardVariant,
                                 interactive: true,
                                 yearLength: report.daysInSelectedYear,
                                 estimatedDays: estimatedDays(for: item.region),
@@ -47,7 +50,7 @@ struct LocationsCardsView: View {
                                 recordedPointsID: report.primaryRegionLocations?.id,
                             )
                         }
-                        .buttonStyle(stylesheet.card.regular.buttonStyle(
+                        .buttonStyle(stylesheet.card[cardVariant].buttonStyle(
                             tint: regionStyles.style(for: item.region).tint,
                         ))
                         // The card is the zoom source: tapping it expands the
@@ -60,7 +63,7 @@ struct LocationsCardsView: View {
                             id: item.region,
                             in: calendarTransition,
                         ) { source in
-                            let card = stylesheet.card.regular
+                            let card = stylesheet.card[cardVariant]
                             let tint = regionStyles.style(for: item.region).tint
                             let elevation = card.transitionElevation(tint: tint)
                             return source
@@ -87,21 +90,34 @@ struct LocationsCardsView: View {
                             motion: stylesheet.locationCardStack.overtake,
                         )
                         .locationCardRankingRegion(item.region)
+                        .id(item.region)
+                        .historySelection(
+                            navigation.selectedRegion == item.region,
+                            cornerRadius: stylesheet.card[cardVariant].cornerRadius,
+                        )
                     }
                 }
+
+                .scrollTargetLayout()
 
                 LocationsEstimatePanel(report: report, planningAction: planningAction)
             }
             .padding()
             .frame(maxWidth: .infinity)
         }
-        .defaultScrollAnchor(report.liveFlightReview == nil ? .center : .top)
+        .defaultScrollAnchor(.top, for: .initialOffset)
+        .defaultScrollAnchor(report.liveFlightReview == nil ? .center : .top, for: .alignment)
+        .scrollPosition($navigation.scrollPosition)
+        .onScrollTargetVisibilityChange(idType: Region.self, threshold: 0.01) { regions in
+            guard navigation.scrollPosition.isPositionedByUser else { return }
+            navigation.visibleRegion = presentedCards.first { regions.contains($0.region) }?.region
+        }
         .scrollBounceBehavior(.basedOnSize)
         // The card normally stays clipped to the scrolling viewport. Reveal
         // overflow only while the authored arc, scale, and rotation need it.
         .scrollClipDisabled(cardPresentation.isSpatialOvertakeActive)
         .accessibilityIdentifier("where_root_title")
-        .onAppear { isCardSurfaceVisible = true }
+        .onAppear { isCardSurfaceVisible = true; navigation.restoreBrowsePosition() }
         .onDisappear { isCardSurfaceVisible = false }
         // Count, order, flourish, persistence, and haptic all share this one
         // visibility-aware delayed reconciliation.
@@ -117,18 +133,6 @@ struct LocationsCardsView: View {
     private func estimatedDays(for region: Region) -> DayBounds? {
         guard report.showsEstimatedTimeAndPlanning else { return nil }
         return report.forecasts.forecast(for: region, report: report.report)?.estimatedTotalDays
-    }
-
-    /// The region's calendar, pushed as a nested view. It's the zoom
-    /// destination: the tapped card expands into it via matched geometry, and the
-    /// stack's back gesture collapses it again.
-    private func calendarDestination(_ region: Region) -> some View {
-        CalendarContentView(focusedRegion: region, report: report, persistenceKey: .region(region))
-            .navigationTitle(
-                WhereFormat.calendarRegionTitle(region: region, year: report.selectedYear),
-            )
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationTransition(.zoom(sourceID: region, in: calendarTransition))
     }
 }
 

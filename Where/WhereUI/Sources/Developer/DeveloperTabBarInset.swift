@@ -1,7 +1,7 @@
 import SwiftUI
 
 extension View {
-    /// Report the logged-in tab bar's height up the tree so the DEBUG developer
+    /// Report the logged-in tab bar's edge insets up the tree so the DEBUG developer
     /// overlay can rest its collapsed button clear of the floating tab bar,
     /// measured from the live UI instead of a hardcoded guess. Applied to each
     /// tab's content in `MainTabs`. A no-op in release, where the overlay (and the
@@ -18,19 +18,20 @@ extension View {
 #if DEBUG
     import UIKit
 
-    /// Carries the floating tab bar's height from `MainTabs` up to ``RootView``,
+    /// Carries the floating tab bar's edge insets from `MainTabs` up to ``RootView``,
     /// which hands it to the sibling ``DeveloperOverlay``.
     ///
-    /// A tab's content receives a bottom safe-area inset that spans the home
-    /// indicator *and* the floating tab bar; subtracting the window's own bottom
-    /// inset (the home indicator alone) leaves just the bar's height. Reduced with
-    /// `max` so whichever tab is on screen wins. When logged out there's no tab
-    /// bar in the tree, so the value stays at its `0` default.
+    /// Subtract the attached window's system insets independently on every edge.
+    /// Reduce each edge with `max` so the visible tab wins. Logged-out scenes report zero.
     struct DeveloperTabBarInsetKey: PreferenceKey {
-        static let defaultValue: CGFloat = 0
+        static let defaultValue = EdgeInsets()
 
-        static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-            value = max(value, nextValue())
+        static func reduce(value: inout EdgeInsets, nextValue: () -> EdgeInsets) {
+            let next = nextValue()
+            value.top = max(value.top, next.top)
+            value.leading = max(value.leading, next.leading)
+            value.bottom = max(value.bottom, next.bottom)
+            value.trailing = max(value.trailing, next.trailing)
         }
     }
 
@@ -53,27 +54,99 @@ extension View {
     }
 
     private struct DeveloperTabBarInsetReporter: ViewModifier {
+        @State private var windowInsets = UIEdgeInsets.zero
+        /// The attached window supplies physical insets; convert them using the live direction.
+        @Environment(\.layoutDirection) private var layoutDirection
+
         func body(content: Content) -> some View {
             content.background {
                 GeometryReader { proxy in
-                    Color.clear.preference(
-                        key: DeveloperTabBarInsetKey.self,
-                        value: max(0, proxy.safeAreaInsets.bottom - Self.windowBottomInset),
-                    )
+                    Color.clear
+                        .background {
+                            DeveloperWindowInsetsReader { windowInsets = $0 }
+                        }
+                        .preference(
+                            key: DeveloperTabBarInsetKey.self,
+                            value: DeveloperBarInsets.additional(
+                                content: proxy.safeAreaInsets,
+                                window: windowInsets,
+                                direction: layoutDirection,
+                            ),
+                        )
                 }
             }
         }
+    }
 
-        /// The window's own bottom safe-area inset (the home indicator), which the
-        /// tab content's inset sits on top of. Read from the key window because the
-        /// reporter lives inside the tab bar's inset and can't see the bare window
-        /// inset itself.
-        @MainActor private static var windowBottomInset: CGFloat {
-            UIApplication.shared.connectedScenes
-                .compactMap { $0 as? UIWindowScene }
-                .flatMap(\.windows)
-                .first { $0.isKeyWindow }?
-                .safeAreaInsets.bottom ?? 0
+    /// Subtract only this host window's system edges, including a side-mounted status bar.
+    enum DeveloperBarInsets {
+        static func additional(
+            content: EdgeInsets,
+            window: UIEdgeInsets,
+            direction: LayoutDirection,
+        ) -> EdgeInsets {
+            EdgeInsets(
+                top: max(0, content.top - window.top),
+                leading: max(
+                    0,
+                    content.leading - (direction == .leftToRight ? window.left : window.right),
+                ),
+                bottom: max(0, content.bottom - window.bottom),
+                trailing: max(
+                    0,
+                    content.trailing - (direction == .leftToRight ? window.right : window.left),
+                ),
+            )
+        }
+    }
+
+    /// Reads the window containing this reporter. It never searches other scenes or screens.
+    private struct DeveloperWindowInsetsReader: UIViewRepresentable {
+        let changed: (UIEdgeInsets) -> Void
+
+        func makeUIView(context _: Context) -> InsetView {
+            InsetView()
+        }
+
+        func updateUIView(_ view: InsetView, context _: Context) {
+            view.changed = changed
+            view.scheduleUpdate()
+        }
+
+        static func dismantleUIView(_ view: InsetView, coordinator _: Void) {
+            view.pending?.cancel()
+            view.changed = nil
+        }
+
+        final class InsetView: UIView {
+            var changed: ((UIEdgeInsets) -> Void)?
+            var pending: Task<Void, Never>?
+            private var reported: UIEdgeInsets?
+
+            override func didMoveToWindow() {
+                super.didMoveToWindow()
+                scheduleUpdate()
+            }
+
+            override func safeAreaInsetsDidChange() {
+                super.safeAreaInsetsDidChange()
+                scheduleUpdate()
+            }
+
+            override func layoutSubviews() {
+                super.layoutSubviews()
+                scheduleUpdate()
+            }
+
+            func scheduleUpdate() {
+                guard let insets = window?.safeAreaInsets, reported != insets else { return }
+                pending?.cancel()
+                pending = Task { @MainActor [weak self] in
+                    guard !Task.isCancelled, let self, window != nil else { return }
+                    reported = insets
+                    changed?(insets)
+                }
+            }
         }
     }
 #endif
