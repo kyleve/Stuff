@@ -7,6 +7,39 @@
     "%lld" : {
 
     },
+    "adaptive.month.next" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next month"
+          }
+        }
+      }
+    },
+    "adaptive.month.picker" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Month"
+          }
+        }
+      }
+    },
+    "adaptive.month.previous" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Previous month"
+          }
+        }
+      }
+    },
     "appIcon.appearance.dark" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2761,6 +2794,127 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Move developer window"
+          }
+        }
+      }
+    },
+    "developer.duo.book" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Book"
+          }
+        }
+      }
+    },
+    "developer.duo.innerLandscape" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open · Landscape"
+          }
+        }
+      }
+    },
+    "developer.duo.innerPortrait" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open · Portrait"
+          }
+        }
+      }
+    },
+    "developer.duo.narrow" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Narrow window"
+          }
+        }
+      }
+    },
+    "developer.duo.note" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synthetic layouts using measured simulator bounds. System bars and physical folding still require native validation."
+          }
+        }
+      }
+    },
+    "developer.duo.outerLandscape" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Closed · Landscape"
+          }
+        }
+      }
+    },
+    "developer.duo.outerPortrait" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Closed · Portrait"
+          }
+        }
+      }
+    },
+    "developer.duo.pose" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Display configuration"
+          }
+        }
+      }
+    },
+    "developer.duo.retry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try Again"
+          }
+        }
+      }
+    },
+    "developer.duo.tabletop" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tabletop"
+          }
+        }
+      }
+    },
+    "developer.duo.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duo Layout Lab"
           }
         }
       }
