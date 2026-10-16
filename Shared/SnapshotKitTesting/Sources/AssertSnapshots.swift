@@ -174,12 +174,13 @@ public func assertSnapshots(
         // Before the verdict, so a reviewer gets the shape of the delta on the
         // same run that reports the failure. Reads the reference from disk; the
         // byte-equality check short-circuits when the capture is deterministic.
+        let reference = snapshotReferenceURL(
+            testFilePath: "\(filePath)",
+            testName: testName,
+            identifier: identifier,
+            configuration: configuration,
+        )
         if isDiffReportingEnabled {
-            let reference = snapshotReferenceURL(
-                testFilePath: "\(filePath)",
-                testName: testName,
-                identifier: identifier,
-            )
             SnapshotDiffReporting.report(
                 compareAgainstReference(capturedPNG: capture.pngData, referenceURL: reference),
                 identifier: identifier,
@@ -188,19 +189,31 @@ public func assertSnapshots(
         }
         timing.measure(.compare) {
             withSnapshotTesting(record: resolvedRecord, diffTool: resolvedDiffTool) {
-                assertSnapshot(
+                let failure = verifySnapshot(
                     of: capture.image,
                     as: .image(
                         precision: defaultSnapshotPrecision,
                         perceptualPrecision: defaultSnapshotPerceptualPrecision,
                     ),
                     named: identifier,
+                    snapshotDirectory: reference.deletingLastPathComponent().path,
                     fileID: fileID,
                     file: filePath,
                     testName: testName,
                     line: line,
                     column: column,
                 )
+                if let failure {
+                    Issue.record(
+                        Comment(rawValue: failure),
+                        sourceLocation: SourceLocation(
+                            fileID: fileID.description,
+                            filePath: filePath.description,
+                            line: Int(line),
+                            column: Int(column),
+                        ),
+                    )
+                }
             }
         }
         timing.emit()

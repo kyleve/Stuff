@@ -42,27 +42,29 @@ class SnapshotReportsTests(unittest.TestCase):
         self.assertIn("0.50s  ready (2 captures)", detailed)
 
     def test_difference_report_orders_real_differences_and_hides_recording_misses(self):
-        rows = [
-            {
-                "outcome": "referenceMissing",
-                "reference": "missing.png",
-            },
-            {
-                "outcome": "differs",
-                "maxChannelDelta": 40,
-                "differingPixels": 2,
-                "differingFraction": 0.25,
-                "region": [1, 2, 3, 4],
-                "reference": "/tmp/__Snapshots__/Suite/image.png",
-            },
-        ]
+        for reference in ("Suite/image.png", "Suite/other/image.png"):
+            with self.subTest(reference=reference):
+                rows = [
+                    {
+                        "outcome": "referenceMissing",
+                        "reference": "missing.png",
+                    },
+                    {
+                        "outcome": "differs",
+                        "maxChannelDelta": 40,
+                        "differingPixels": 2,
+                        "differingFraction": 0.25,
+                        "region": [1, 2, 3, 4],
+                        "reference": f"/tmp/__Snapshots__/{reference}",
+                    },
+                ]
 
-        report = difference_report(rows, is_recording=True)
+                report = difference_report(rows, is_recording=True)
 
-        self.assertIn("1 capture(s)", report)
-        self.assertIn("40", report)
-        self.assertIn("Suite/image.png", report)
-        self.assertNotIn("referenceMissing", report)
+                self.assertIn("1 capture(s)", report)
+                self.assertIn("40", report)
+                self.assertIn(reference, report)
+                self.assertNotIn("referenceMissing", report)
 
     def test_empty_reports_preserve_public_messages(self):
         self.assertEqual(
