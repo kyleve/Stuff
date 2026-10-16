@@ -120,3 +120,111 @@ struct CalendarContentViewTests {
         return visit(root)
     }
 }
+
+@MainActor
+struct CalendarContentViewTestsDuo {
+    @Test func repeatedLinkedSelectionExpandsOverviewAndKeepsMonthTarget() async throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        let history = HistoryNavigationModel()
+        let presentation = history.calendar.presentation(
+            report: report,
+            initialMode: .overview,
+            persistenceKey: .year,
+        )
+        let month = CalendarDay(year: report.selectedYear, month: 2, day: 1)
+        let host = UIHostingController(rootView: CalendarContentView(
+            report: report,
+            history: history,
+            persistenceKey: .year,
+        ).whereBroadwayRoot())
+        try await show(host) { _ in
+            try await waitForAsync { presentation.year == report.selectedYear }
+            for _ in 0 ..< 2 {
+                history.select(month: month, dateCalendar: report.calendar)
+                try await waitForAsync {
+                    history.calendar.pendingReveal == nil && presentation.mode == .detail
+                        && history.calendar.calendarScrollPosition
+                        .viewID(type: CalendarPresentationModel.Target.self) == .month(month)
+                }
+                presentation.toggle()
+                #expect(presentation.mode == .overview)
+            }
+        }
+    }
+
+    @Test func regionZoomPreferencesRemainIndependentInRetainedNavigation() {
+        let report = PreviewSupport.loadedYearReportModel()
+        let navigation = CalendarNavigationModel()
+        let california = navigation.presentation(
+            report: report,
+            initialMode: .detail,
+            persistenceKey: .region(.california),
+        )
+        let newYork = navigation.presentation(
+            report: report,
+            initialMode: .detail,
+            persistenceKey: .region(.newYork),
+        )
+        california.toggle()
+        #expect(california.mode == .overview)
+        #expect(newYork.mode == .detail)
+        #expect(navigation.presentation(
+            report: report,
+            initialMode: .detail,
+            persistenceKey: .region(.california),
+        ) === california)
+    }
+
+    @Test func mountedCalendarPositionsAfterTheNewYearsMonthsArrive() async throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        let navigation = CalendarNavigationModel()
+        let host = UIHostingController(rootView: CalendarContentView(
+            report: report,
+            navigation: navigation,
+        )
+        .whereBroadwayRoot())
+        try await show(host) { _ in
+            try await waitForAsync { navigation.initiallyPositionedYear == report.selectedYear }
+            let previousYear = report.selectedYear - 1
+            await report.select(year: previousYear)
+            try await waitForAsync { navigation.initiallyPositionedYear == previousYear }
+            #expect(navigation.scrollPosition.viewID(type: CalendarDay.self) == CalendarDay(
+                year: previousYear,
+                month: 12,
+                day: 1,
+            ))
+        }
+    }
+
+    @Test func aRemountedCalendarUsesTheSceneAnchor() async throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        let scene = SceneNavigationModel()
+        let navigation = scene.year.calendar
+        let browsed = CalendarDay(year: report.selectedYear, month: 2, day: 1)
+        let first = UIHostingController(rootView: CalendarContentView(
+            report: report,
+            navigation: navigation,
+        )
+        .whereBroadwayRoot())
+        try await show(first) { _ in
+            try await waitForAsync {
+                navigation.initiallyPositionedYear == report.selectedYear
+            }
+        }
+        navigation.recordVisibleMonths([browsed])
+        navigation.presentation(report: report, initialMode: .detail, persistenceKey: nil)
+            .remember(.month(browsed))
+        let second = UIHostingController(rootView: CalendarContentView(
+            report: report,
+            navigation: navigation,
+        )
+        .whereBroadwayRoot())
+        try await show(second) { _ in
+            try await waitForAsync {
+                navigation.calendarScrollPosition
+                    .viewID(type: CalendarPresentationModel.Target.self) == .month(browsed)
+            }
+            #expect(scene.locations.calendar.initiallyPositionedYear == nil)
+        }
+    }
+}

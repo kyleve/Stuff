@@ -20,49 +20,59 @@ import SFSafeSymbols
         @Environment(WhereModel.self) private var model: WhereModel?
 
         var body: some View {
-            NavigationStack {
-                switch tool {
-                    case .crashTesting:
-                        DeveloperCrashTestingView()
+            if tool == .adaptiveHistory {
+                toolContent
+            } else {
+                NavigationStack { toolContent }
+            }
+        }
 
-                    case .logs:
-                        switch model?.logStoreState {
-                            case let .ready(store):
-                                PeriscopeViewer(
-                                    store: store,
-                                    title: String(localized: .developerLogsTitle),
-                                )
+        @ViewBuilder
+        private var toolContent: some View {
+            switch tool {
+                case .crashTesting:
+                    DeveloperCrashTestingView()
 
-                            case .opening:
-                                ContentUnavailableView(
-                                    String(localized: .developerLoggingOpeningTitle),
-                                    systemSymbol: tool.systemSymbol,
-                                    description: Text(String(
-                                        localized: .developerLoggingOpeningDescription,
-                                    )),
-                                )
-                                .navigationTitle(tool.title)
-                                .navigationBarTitleDisplayMode(.inline)
+                case .logs:
+                    switch model?.logStoreState {
+                        case let .ready(store):
+                            PeriscopeViewer(
+                                store: store,
+                                title: String(localized: .developerLogsTitle),
+                            )
 
-                            case let .failed(description):
-                                ContentUnavailableView(
-                                    String(localized: .developerLoggingFailedTitle),
-                                    systemSymbol: .exclamationmarkTriangle,
-                                    description: Text(description),
-                                )
-                                .navigationTitle(tool.title)
-                                .navigationBarTitleDisplayMode(.inline)
+                        case .opening:
+                            ContentUnavailableView(
+                                String(localized: .developerLoggingOpeningTitle),
+                                systemSymbol: tool.systemSymbol,
+                                description: Text(String(
+                                    localized: .developerLoggingOpeningDescription,
+                                )),
+                            )
+                            .navigationTitle(tool.title)
+                            .navigationBarTitleDisplayMode(.inline)
 
-                            case .unavailable, nil:
-                                DeveloperToolUnavailableView(tool: tool)
-                        }
+                        case let .failed(description):
+                            ContentUnavailableView(
+                                String(localized: .developerLoggingFailedTitle),
+                                systemSymbol: .exclamationmarkTriangle,
+                                description: Text(description),
+                            )
+                            .navigationTitle(tool.title)
+                            .navigationBarTitleDisplayMode(.inline)
 
-                    case .openSpans:
-                        OpenSpansView(system: .shared)
+                        case .unavailable, nil:
+                            DeveloperToolUnavailableView(tool: tool)
+                    }
 
-                    case .regionMap:
-                        RegionMapView()
-                }
+                case .openSpans:
+                    OpenSpansView(system: .shared)
+
+                case .regionMap:
+                    RegionMapView()
+
+                case .adaptiveHistory:
+                    AdaptiveHistoryLabView()
             }
         }
     }
