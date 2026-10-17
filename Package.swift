@@ -14,6 +14,8 @@ let package = Package(
         .library(name: "LedgerCore", targets: ["LedgerCore"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
         .library(name: "LifecycleKitUI", targets: ["LifecycleKitUI"]),
+        .library(name: "Flagger", targets: ["Flagger"]),
+        .library(name: "FlaggerUI", targets: ["FlaggerUI"]),
         .library(name: "JournalKit", targets: ["JournalKit"]),
         .library(name: "PeriscopeCore", targets: ["PeriscopeCore"]),
         .library(name: "PeriscopeUI", targets: ["PeriscopeUI"]),
@@ -88,6 +90,17 @@ let package = Package(
         .target(
             name: "JournalKit",
             path: "Shared/JournalKit/Sources",
+        ),
+        .target(
+            name: "Flagger",
+            path: "Shared/Flagger/Sources",
+        ),
+        .target(
+            name: "FlaggerUI",
+            dependencies: [
+                .target(name: "Flagger"),
+            ],
+            path: "Shared/FlaggerUI/Sources",
         ),
         .target(
             name: "PeriscopeCore",
