@@ -16,7 +16,7 @@ class WhereArchiveTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name) / 'checkout with spaces ü'
         for name in ('signing', 'Where/archive', 'Tools/InstallerKit/signing_command.rb',
-                     'Tools/InstallerKit/signing_apps.json', 'Tools/repository.rb'):
+                     '.github/installer-signing-apps.json', 'Tools/repository.rb'):
             destination = self.root / name
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / name, destination)

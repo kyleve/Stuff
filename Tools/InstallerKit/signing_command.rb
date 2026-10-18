@@ -28,7 +28,7 @@ module InstallerSigning
       parser.parse!(argv)
       raise ArgumentError, 'Unexpected positional arguments' unless argv.empty?
       raise ArgumentError, 'Expected refresh, register-device, or archive' unless %w[refresh register-device archive].include?(command)
-      apps = JSON.parse(File.read(File.join(__dir__, 'signing_apps.json')))
+      apps = JSON.parse(File.read(File.join(ROOT_DIRECTORY, '.github/installer-signing-apps.json')))
       raise ArgumentError, 'Select a registered app with --app' unless apps.key?(options['app'])
       raise ArgumentError, 'Source directory does not contain ide' unless File.file?(File.join(options['source'], 'ide'))
       if command == 'archive'

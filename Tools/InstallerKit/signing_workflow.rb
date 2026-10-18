@@ -11,7 +11,7 @@ module InstallerSigning
   # Trusted orchestration. The selected source supplies project/build scripts only.
   class Workflow
     ROOT = Repository.root(__FILE__)
-    DESCRIPTORS = File.join(__dir__, 'signing_apps.json')
+    DESCRIPTORS = File.join(ROOT, '.github/installer-signing-apps.json')
     STORE = 'git@github.com:kyleve/Stuff-Signing.git'
 
     def initialize(actions, options)

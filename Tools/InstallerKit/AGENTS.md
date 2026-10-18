@@ -8,7 +8,7 @@ Keep these modules private to the repository.
 Use qualified imports under `Tools.InstallerKit` and run commands with `python3 -m` from the repository root.
 Use `Tools.repository.repository_root` for checkout resources.
 Shared signing policy lives in `signing_profiles.py`; `signing_workflow.rb` orchestrates Match and Gym.
-`signing_apps.json` selects schemes and targets. Derive bundle IDs from generated build settings.
+`.github/installer-signing-apps.json` in the trusted checkout selects schemes and targets. Derive bundle IDs from generated build settings.
 Keep maintenance local and archives read-only. Never load a selected PR's Fastfile or Gemfile.
 Enable expired-certificate renewal for local maintenance only; disable it explicitly for archives.
 CI signing uses an isolated runner with an empty profile directory and a dedicated read-only deploy key.
