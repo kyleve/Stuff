@@ -97,6 +97,9 @@ The script writes the commit into `WhereGitSHA` / `WhereGitStatus`. It writes ho
 was invoked into `WhereConfiguration` / `WhereSwiftOptimizationLevel` /
 `WhereSwiftCompilationMode`. All of it is read back by `WhereCore.BuildInfo`.
 Settings > About uses it. Every Periscope logging session uses it for attributes.
+Where builds call [`Tools/stamp-installer-info.sh`](Tools/stamp-installer-info.sh) before signing for shared InstallerKit identity.
+The Development audience descriptor provides app, repository, feed URL, and the local channel.
+CI archives override the channel, run, and attempt. Local builds keep honest Git status and no publication identity.
 The optimization level tells you if a recorded span duration means
 anything. Only the app is stamped. Tripwires: it must stay a **post** script
 (before signing seals the bundle). Keep `basedOnDependencyAnalysis: false`. If you do not, an unchanged tree ships the previous commit's SHA. Set
@@ -245,6 +248,8 @@ configured once via `./ide --team-id` (see
 [`Where/AGENTS.md`](Where/AGENTS.md#installing-to-a-device)). Its `--dry-run`
 resolves the exact physical device without generating, building, installing,
 or launching.
+For remote installs, [`./Where/archive`](Where/archive) exports a signed Where
+Development IPA. Read [`Where/DISTRIBUTION.md`](Where/DISTRIBUTION.md) for signing setup.
 [`./Ledger/install`](Ledger/install) is the equivalent for Ledger. It builds a
 Release and transactionally installs it to `/Applications` (ad-hoc signed, no
 team needed). Its `--dry-run` validates and reports the replacement without

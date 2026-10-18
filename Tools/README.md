@@ -27,6 +27,8 @@ device-selection, and app-install policies are likewise tested with temporary
 catalogs and captured command output rather than tracked assets, devices, or
 `/Applications`.
 
+`where_signing.py` validates Where's ad hoc profiles and generates export settings.
+`Where/archive` owns the Xcode processes.
 ## Snapshot shard policy
 
 `snapshot_shards.py` keeps weekly assignments stable. Its bounded greedy search

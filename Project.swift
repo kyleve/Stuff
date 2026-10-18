@@ -24,6 +24,12 @@ private let sfSafeSymbolsPackage = Package.remote(
 private let developmentTeam = Environment.developmentTeam.getString(default: "")
 
 private struct WhereAudience {
+    struct Installer {
+        let appID: String
+        let repositoryURL: String
+        let feedURL: String
+    }
+
     enum Variant {
         case debug
         case release
@@ -40,6 +46,7 @@ private struct WhereAudience {
     let shareBundleID: String
     let appGroupIdentifier: String
     let primaryAppIconName: String
+    let installer: Installer?
 
     func configuration(settings: SettingsDictionary = [:]) -> Configuration {
         switch variant {
@@ -62,6 +69,11 @@ private let whereAudiences: [WhereAudience] = [
         shareBundleID: "com.stuff.where.development.share",
         appGroupIdentifier: "group.com.stuff.where.development",
         primaryAppIconName: "AppIcon",
+        installer: .init(
+            appID: "where",
+            repositoryURL: "https://github.com/kyleve/Stuff",
+            feedURL: "https://kyleve.github.io/Stuff/updates.json",
+        ),
     ),
     WhereAudience(
         schemeName: "Where Beta",
@@ -75,6 +87,7 @@ private let whereAudiences: [WhereAudience] = [
         shareBundleID: "com.stuff.where.share",
         appGroupIdentifier: "group.com.stuff.where",
         primaryAppIconName: "AppIcon",
+        installer: nil,
     ),
     WhereAudience(
         schemeName: "Where App Store",
@@ -88,6 +101,7 @@ private let whereAudiences: [WhereAudience] = [
         shareBundleID: "com.stuff.where.share",
         appGroupIdentifier: "group.com.stuff.where",
         primaryAppIconName: "AppIcon",
+        installer: nil,
     ),
 ]
 
@@ -95,6 +109,16 @@ private enum WhereHostTarget {
     case app
     case widget
     case share
+
+    /// CI supplies the UUID of each installed ad hoc profile. Empty values
+    /// retain Xcode's normal signing behavior for local development.
+    var adhocProfile: String {
+        switch self {
+            case .app: Environment.whereAdhocAppProfile.getString(default: "")
+            case .widget: Environment.whereAdhocWidgetProfile.getString(default: "")
+            case .share: Environment.whereAdhocShareProfile.getString(default: "")
+        }
+    }
 
     func bundleID(for audience: WhereAudience) -> String {
         switch self {
@@ -125,6 +149,19 @@ private func whereHostSettings(
             if case .app = target {
                 settings["ASSETCATALOG_COMPILER_APPICON_NAME"] = .string(audience
                     .primaryAppIconName)
+                if let installer = audience.installer {
+                    settings["INSTALLER_APP_ID"] = .string(installer.appID)
+                    settings["INSTALLER_REPOSITORY_URL"] = .string(installer.repositoryURL)
+                    settings["INSTALLER_FEED_URL"] = .string(installer.feedURL)
+                    // CI's archive command overrides this with its published channel and run.
+                    settings["INSTALLER_CHANNEL"] = "local"
+                }
+            }
+            if case .debug = audience.variant, !target.adhocProfile.isEmpty {
+                settings["CODE_SIGN_STYLE[sdk=iphoneos*]"] = "Manual"
+                settings["CODE_SIGN_IDENTITY[sdk=iphoneos*]"] = "Apple Distribution"
+                settings["PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]"] = .string(target
+                    .adhocProfile)
             }
             return audience.configuration(settings: settings)
         },
