@@ -40,7 +40,7 @@ jobs:
         with:
           install_args: node
       - name: Install site dependencies
-        run: mise exec node -- npm ci --prefix Tools/InstallerSite
+        run: mise exec node -- npm ci --prefix Tools/InstallerKit/Site
       - name: Prepare install pages, manifests, and catalog
         run: >-
           python3 -m Tools.InstallerKit.installer_update_site

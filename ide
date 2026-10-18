@@ -216,7 +216,7 @@ fi
 
 if [ "$BOOTSTRAP" = true ] || [ "$INSTALL" = true ]; then
     echo "==> install site dependencies"
-    "$MISE" exec -- npm ci --prefix Tools/InstallerSite
+    "$MISE" exec -- npm ci --prefix Tools/InstallerKit/Site
 fi
 
 echo "==> sync-agents --install"

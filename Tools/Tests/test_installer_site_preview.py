@@ -9,22 +9,22 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from installer_site_preview import main
+from Tools.InstallerKit.installer_site_preview import main
+from Tools.repository import repository_root
 
 
 class InstallerSitePreviewTests(unittest.TestCase):
     def test_help_and_invalid_fixture_do_not_require_node_or_mise(self):
-        command = Path(__file__).resolve().parents[1] / "installer_site_preview.py"
+        command = [sys.executable, "-m", "Tools.InstallerKit.installer_site_preview"]
         for arguments, expected in ((["--help"], 0), (["dev", "--fixture", "unknown"], 2)):
             with tempfile.TemporaryDirectory() as temporary:
-                result = subprocess.run([sys.executable, str(command), *arguments], cwd=temporary,
-                                        env={"PATH": "/usr/bin:/bin"}, capture_output=True, text=True)
+                result = subprocess.run([*command, *arguments], cwd=temporary,
+                                        env={"PATH": "/usr/bin:/bin", "PYTHONPATH": str(repository_root(__file__))}, capture_output=True, text=True)
             self.assertEqual(result.returncode, expected)
             self.assertNotIn("Traceback", result.stderr)
 
     def test_public_preview_command_finds_mise_with_minimal_path_and_propagates_server_exit(self):
-        command = Path(__file__).resolve().parents[1] / "installer_site_preview.py"
+        command = [sys.executable, "-m", "Tools.InstallerKit.installer_site_preview"]
         with tempfile.TemporaryDirectory(prefix="preview ü ") as temporary:
             root = Path(temporary)
             fake = root / "mise data/bin/mise"
@@ -41,9 +41,9 @@ sys.exit(17)
 ''')
             fake.chmod(0o755)
             log = root / "preview.json"
-            result = subprocess.run([sys.executable, str(command), "dev", "--fixture", "empty", "--port", "4444"],
+            result = subprocess.run([*command, "dev", "--fixture", "empty", "--port", "4444"],
                                     cwd=root, env={**os.environ, "PATH": "/usr/bin:/bin", "MISE_DATA_DIR": str(fake.parent.parent),
-                                                   "PREVIEW_TEST_LOG": str(log)}, capture_output=True, text=True)
+                                                   "PREVIEW_TEST_LOG": str(log), "PYTHONPATH": str(repository_root(__file__))}, capture_output=True, text=True)
             self.assertEqual(result.returncode, 17, result.stderr)
             value = json.loads(log.read_text())
             self.assertEqual(value["arguments"][:4], ["exec", "node", "--", "node"])
@@ -56,8 +56,8 @@ sys.exit(17)
             self.assertFalse(Path(value["workspace"]).exists())
 
     def test_production_preview_builds_before_serving_and_stops_on_build_failure(self):
-        with patch("installer_site_preview.build_astro", side_effect=ValueError("template failed")) as build, \
-                patch("installer_site_preview.subprocess.run") as serve, \
+        with patch("Tools.InstallerKit.installer_site_preview.build_astro", side_effect=ValueError("template failed")) as build, \
+                patch("Tools.InstallerKit.installer_site_preview.subprocess.run") as serve, \
                 redirect_stderr(io.StringIO()) as stderr:
             self.assertEqual(main(["preview"]), 1)
         build.assert_called_once()
@@ -69,7 +69,7 @@ sys.exit(17)
         def interrupt(*args, **kwargs):
             workspaces.append(Path(kwargs["env"]["INSTALLER_SITE_WORKSPACE"]))
             raise KeyboardInterrupt
-        with patch("installer_site_preview.subprocess.run", side_effect=interrupt), redirect_stdout(io.StringIO()):
+        with patch("Tools.InstallerKit.installer_site_preview.subprocess.run", side_effect=interrupt), redirect_stdout(io.StringIO()):
             self.assertEqual(main(["dev"]), 130)
         self.assertEqual(len(workspaces), 1)
         self.assertFalse(workspaces[0].exists())

@@ -4,16 +4,16 @@ from dataclasses import dataclass
 from datetime import datetime
 import hashlib
 import json
-from pathlib import Path
 import re
 from urllib.parse import urlsplit
 
-from installer_apps import AppPresentation, load_apps
-from installer_installation import install_url, manifest, manifest_path, site_url, validate_release
-from installer_update_feed import read_catalog
+from Tools.repository import repository_root
+from Tools.InstallerKit.installer_apps import AppPresentation, load_apps
+from Tools.InstallerKit.installer_installation import install_url, manifest, manifest_path, site_url, validate_release
+from Tools.InstallerKit.installer_update_feed import read_catalog
 
 
-SOURCE_ROOT = Path(__file__).resolve().parents[1]
+SOURCE_ROOT = repository_root(__file__)
 
 
 @dataclass(frozen=True)

@@ -9,12 +9,12 @@ import subprocess
 import sys
 import tempfile
 
-from Tools.installer_site_data import prepare_site
+from Tools.InstallerKit.installer_site_data import prepare_site
 from Tools.repository import repository_root
 
 
 SOURCE_ROOT = repository_root(__file__)
-ASTRO_ROOT = SOURCE_ROOT / "Tools/InstallerSite"
+ASTRO_ROOT = SOURCE_ROOT / "Tools/InstallerKit/Site"
 BUILD_ROOT = ASTRO_ROOT / ".build"
 SYSTEM_MISE_PATHS = (Path("/opt/homebrew/bin/mise"), Path("/usr/local/bin/mise"))
 
@@ -40,7 +40,7 @@ def astro_command(workspace, *arguments):
     mise = resolve_mise()
     entry = ASTRO_ROOT / "node_modules/.bin/astro"
     if not entry.is_file():
-        raise ValueError("Install the site dependencies: mise exec -- npm ci --prefix Tools/InstallerSite")
+        raise ValueError("Install the site dependencies: mise exec -- npm ci --prefix Tools/InstallerKit/Site")
     return [mise, "exec", "node", "--", "node", str(entry), *arguments, "--root", str(workspace),
             "--config", os.path.relpath(ASTRO_ROOT / "astro.config.mjs", workspace)]
 

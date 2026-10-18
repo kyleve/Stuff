@@ -4,9 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "python3 ../installer_site_preview.py dev",
-    "build": "python3 ../installer_update_site.py",
-    "preview": "python3 ../installer_site_preview.py preview",
+    "dev": "cd ../../.. && python3 -m Tools.InstallerKit.installer_site_preview dev",
+    "build": "cd ../../.. && python3 -m Tools.InstallerKit.installer_update_site",
+    "preview": "cd ../../.. && python3 -m Tools.InstallerKit.installer_site_preview preview",
     "check": "ASTRO_TELEMETRY_DISABLED=1 astro check"
   },
   "devDependencies": {

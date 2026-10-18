@@ -1,7 +1,8 @@
 # Install-site presentation
 
 This Astro project renders the shared installer website. Read [README.md](README.md),
-the [tooling rules](../AGENTS.md), and the [repository rules](../../AGENTS.md).
+the [installer rules](../AGENTS.md), the [tooling rules](../../AGENTS.md),
+and the [repository rules](../../../AGENTS.md).
 
 - Keep components presentational. Python owns catalog validation, trusted artwork,
   installation URLs, manifests, and publication policy in `../installer_site_data.py`.
@@ -12,7 +13,7 @@ the [tooling rules](../AGENTS.md), and the [repository rules](../../AGENTS.md).
 - Render app names and commit subjects as escaped text. Never pass catalog text to `set:html`.
 - Build through `../installer_update_site.py`. Publish its complete output as one Pages artifact.
   Keep generated files isolated so previews and snapshot builds can run concurrently.
-- Share fixture catalogs with `../Tests/Fixtures/installer_update_fixtures.py`.
+- Share fixture catalogs with `../../Tests/Fixtures/installer_update_fixtures.py`.
   Snapshots must consume the production build, including its emitted CSS and artwork.
 - Pin dependencies in `package.json` and commit the lockfile. Run the type check,
   retained installer tests, and `./test ToolsSnapshotTests --review` after presentation changes.

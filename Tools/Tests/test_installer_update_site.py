@@ -17,7 +17,7 @@ from Tools.InstallerKit.installer_installation import manifest_url
 from Tools.InstallerKit.installer_apps import AppPresentation, load_app
 from Tools.InstallerKit.installer_update_site import BUILD_ROOT, build_astro, main, render_site, resolve_mise, stage_input, write_site
 from Tools.repository import repository_root
-from Fixtures.installer_update_fixtures import catalog, multiple_apps, FEED_URL, REPO
+from Tools.Tests.Fixtures.installer_update_fixtures import catalog, multiple_apps, FEED_URL, REPO
 
 
 class InstallerMiseResolutionTests(unittest.TestCase):
@@ -29,8 +29,8 @@ class InstallerMiseResolutionTests(unittest.TestCase):
         self.system_paths = (self.root / "opt/homebrew/bin/mise", self.root / "usr/local/bin/mise")
         for replacement in (
             patch.dict(os.environ, {"PATH": "/usr/bin:/bin"}, clear=True),
-            patch("installer_update_site.Path.home", return_value=self.home),
-            patch("installer_update_site.SYSTEM_MISE_PATHS", self.system_paths),
+            patch("Tools.InstallerKit.installer_update_site.Path.home", return_value=self.home),
+            patch("Tools.InstallerKit.installer_update_site.SYSTEM_MISE_PATHS", self.system_paths),
         ):
             replacement.start()
             self.addCleanup(replacement.stop)
@@ -212,7 +212,7 @@ class InstallerUpdateSiteTests(unittest.TestCase):
             root = Path(temporary)
             source = root / "updates.json"
             source.write_text(json.dumps(catalog()))
-            with patch("Tools.installer_site_data.load_apps", return_value={"where": broken}), \
+            with patch("Tools.InstallerKit.installer_site_data.load_apps", return_value={"where": broken}), \
                     redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
                 self.assertEqual(main(["--catalog", str(source), "--repository", REPO,
                                        "--feed-url", FEED_URL, "--output", str(root / "site")]), 1)
@@ -264,7 +264,7 @@ class InstallerUpdateSiteTests(unittest.TestCase):
             source.write_text(json.dumps(catalog()))
             output = Path(temporary) / "site"
             failure = subprocess.CompletedProcess([], 23, stdout="build log", stderr="template failed")
-            with patch("installer_update_site.subprocess.run", return_value=failure), \
+            with patch("Tools.InstallerKit.installer_update_site.subprocess.run", return_value=failure), \
                     redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
                 status = main(["--catalog", str(source), "--repository", REPO,
                                "--feed-url", FEED_URL, "--output", str(output)])
@@ -275,7 +275,7 @@ class InstallerUpdateSiteTests(unittest.TestCase):
             self.assertEqual(list(Path(temporary).iterdir()), [source])
 
     def test_astro_preserves_exact_publication_files_and_does_not_ship_client_scripts(self):
-        from installer_site_data import prepare_site
+        from Tools.InstallerKit.installer_site_data import prepare_site
         value = catalog()
         expected = prepare_site(value, REPO, FEED_URL).files
         files = render_site(value, REPO, FEED_URL)
@@ -298,7 +298,7 @@ class InstallerUpdateSiteTests(unittest.TestCase):
         self.assertNotIn("apps/first/index.html", results[1])
 
     def test_dependency_optimizer_cache_is_written_inside_the_build_workspace(self):
-        from installer_site_data import prepare_site
+        from Tools.InstallerKit.installer_site_data import prepare_site
         BUILD_ROOT.mkdir(exist_ok=True)
         with tempfile.TemporaryDirectory(prefix="cache-", dir=BUILD_ROOT) as temporary:
             workspace = Path(temporary)

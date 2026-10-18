@@ -10,13 +10,13 @@ From the repository root, install the pinned tools and site dependencies:
 
 ```bash
 mise install
-mise exec -- npm ci --prefix Tools/InstallerSite
+mise exec -- npm ci --prefix Tools/InstallerKit/Site
 ```
 
 Start the development server:
 
 ```bash
-mise exec -- npm run dev --prefix Tools/InstallerSite
+mise exec -- npm run dev --prefix Tools/InstallerKit/Site
 ```
 
 Open `http://localhost:4321/Stuff/`. Astro refreshes the page after a template or stylesheet change.
@@ -26,7 +26,7 @@ Install links refer to synthetic fixture releases.
 Select another fixture or port:
 
 ```bash
-mise exec -- npm run dev --prefix Tools/InstallerSite -- --fixture retired --port 4322
+mise exec -- npm run dev --prefix Tools/InstallerKit/Site -- --fixture retired --port 4322
 ```
 
 Available fixtures are `full`, `retired`, `empty`, `unavailable-history`, and `missing-details`.
@@ -35,7 +35,7 @@ These catalogs also supply the WebKit snapshots.
 Build and serve the production output locally:
 
 ```bash
-mise exec -- npm run preview --prefix Tools/InstallerSite -- --fixture full
+mise exec -- npm run preview --prefix Tools/InstallerKit/Site -- --fixture full
 ```
 
 The preview command builds into a temporary directory and removes it after the server stops.
@@ -47,7 +47,7 @@ Dependency installation needs network access. Rendering and fixture previews wor
 The existing Python command remains the publication entry point:
 
 ```bash
-python3 Tools/installer_update_site.py \
+python3 -m Tools.InstallerKit.installer_update_site \
   --catalog /path/to/updates.json \
   --repository kyleve/Stuff \
   --feed-url https://kyleve.github.io/Stuff/updates.json \
@@ -79,7 +79,7 @@ This also supports Xcode and snapshot commands with a minimal `PATH`.
 From the repository root:
 
 ```bash
-mise exec -- npm run check --prefix Tools/InstallerSite
+mise exec -- npm run check --prefix Tools/InstallerKit/Site
 python3 -m unittest discover -s Tools/Tests -p 'test_installer*.py'
 ./test ToolsSnapshotTests --review
 ```

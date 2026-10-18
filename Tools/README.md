@@ -35,7 +35,7 @@ Use it for checkout-relative resources instead of fixed parent-directory counts.
 Its private Python modules use qualified imports under `Tools.InstallerKit`.
 Run their commands from the repository root with `python3 -m Tools.InstallerKit.<module>`.
 Tests use the same module imports without changing Python's search path.
-The [Astro project](InstallerSite/README.md) owns routes, components, and styles.
+The [Astro project](InstallerKit/Site/README.md) owns routes, components, and styles.
 [Where's distribution guide](../Where/DISTRIBUTION.md) owns its signing setup and device validation.
 
 ## Snapshot shard policy
@@ -56,7 +56,7 @@ owns sample selection and publication.
 Install the site dependencies before the retained installer tests or snapshot builds:
 
 ```bash
-mise exec -- npm ci --prefix Tools/InstallerSite
+mise exec -- npm ci --prefix Tools/InstallerKit/Site
 ```
 
 ```bash

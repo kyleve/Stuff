@@ -1,11 +1,8 @@
 from copy import deepcopy
-from pathlib import Path
 import unittest
-import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from installer_site_data import prepare_site
-from Fixtures.installer_update_fixtures import catalog, multiple_apps, FEED_URL, REPO
+from Tools.InstallerKit.installer_site_data import prepare_site
+from Tools.Tests.Fixtures.installer_update_fixtures import catalog, multiple_apps, FEED_URL, REPO
 
 
 class InstallerSiteDataTests(unittest.TestCase):

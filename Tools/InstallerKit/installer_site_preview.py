@@ -6,11 +6,10 @@ import subprocess
 import sys
 import tempfile
 
-from installer_site_data import prepare_site
-from installer_update_site import ASTRO_ROOT, BUILD_ROOT, astro_command, build_astro, stage_input
+from Tools.InstallerKit.installer_site_data import prepare_site
+from Tools.InstallerKit.installer_update_site import ASTRO_ROOT, BUILD_ROOT, astro_command, build_astro, stage_input
 
-sys.path.insert(0, str(Path(__file__).resolve().parent / "Tests"))
-from Fixtures.installer_update_fixtures import site_scenarios, FEED_URL, REPO
+from Tools.Tests.Fixtures.installer_update_fixtures import site_scenarios, FEED_URL, REPO
 
 
 def main(argv=None):

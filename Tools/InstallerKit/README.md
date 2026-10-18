@@ -66,7 +66,7 @@ New apps reuse publication and update logic. They do not need another site or a 
 
 ## Website development
 
-[InstallerSite](InstallerSite/README.md) contains the Astro templates and local preview commands.
+[The Astro project](Site/README.md) contains the Astro templates and local preview commands.
 Python owns catalog validation and install manifests. Astro renders the pages from validated input.
 Local previews and WebKit snapshots share deterministic catalogs and the production templates.
 
