@@ -21,6 +21,10 @@ internal shape.
 
 ## Shape & invariants
 
+- Use InstallerKit for local and published build identity, feed validation, and cache policy.
+  Keep `WherePreferences.installerUpdates` device-local. `BuildInfo` exposes an
+  installer identity only for the Development audience.
+
 - **`WhereServices` is the composition root, not a god-object.** It wires
   focused single-responsibility collaborators (the live list is its
   initializer. `README.md` describes them). It owns the one

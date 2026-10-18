@@ -288,6 +288,12 @@ one it belongs to rather than to a god-object:
   `InMemoryKeyValueStore()`, so no test or preview can reach the host's real
   defaults by saying nothing. Recording confirmation is deliberately absent:
   it lives beside the non-backed-up installation identity instead.
+- **Installer updates** — `BuildInfo.distribution` exposes InstallerKit's signed
+  `InstalledBuild` only for the Development audience, including explicitly configured local builds.
+  `WherePreferences` implements
+  `UpdatePreferencesStoring` with a device-local `installerUpdates` value.
+  [InstallerKit](../../Shared/InstallerKit/README.md) owns catalog validation,
+  update selection, request throttling, and cache policy.
 - **`BuildInfo`** + **`AppAttribution`** — what Settings > About says about the
   bundle it is running in. `BuildInfo.current(bundle:)` reads the marketing
   version, build number, the commit the app was built from, and how the Swift

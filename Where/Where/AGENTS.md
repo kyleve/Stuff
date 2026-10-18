@@ -36,6 +36,11 @@ layering, and the domain rules this target merely starts up.
 
 ## Invariants
 
+- Construct InstallerKit’s update service and model once in the regular runtime.
+  Require the Development audience, valid local or published InstallerKit metadata, and a non-test
+  process. Inject through `RootView`; foreground UI owns checking.
+  Beta, App Store, and headless launches must not start update requests.
+
 - **Select exactly one runtime in `AppDelegate.init`.** The delegate and
   `WhereApp` forward through `WhereApplicationRuntime`. Never add mode switches
   to lifecycle callbacks, `RootView`, or feature code. In DEBUG, finish

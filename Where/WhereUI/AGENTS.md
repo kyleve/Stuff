@@ -13,6 +13,18 @@ Layering, localization, preview, and testing conventions live in the feature
 
 ## Scope & dependencies
 
+- Keep InstallerKit’s `UpdateModel` process-owned and inject it at `RootView`.
+  Poll only from a foreground, non-demo app surface. Keep the last successful
+  result visible on failure. Keep App Updates first in Settings for eligible builds,
+  including local and current builds. Show the update badge only when an update needs attention.
+  Guard: `SettingsSearchTests.updatesRequireAnEligibleBuildAndStayOutOfDemo`.
+  Install actions use InstallerKit's validated
+  system-installer URL for the displayed build.
+  Render the detail with InstallerKitUI's shared `AppUpdatesView`. Supply Where branding
+  and Settings search modifiers through its section-decoration seam.
+  Keep refresh and supersession policy in InstallerKit.
+  Guard: `InstallerKitTests/UpdateModelTests`.
+
 - Presentation layer only. No domain rules, persistence, or store I/O here
   ([Layering](../AGENTS.md#layering)). Dependencies live in the root
   [`Package.swift`](../../Package.swift).

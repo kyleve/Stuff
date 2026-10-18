@@ -29,6 +29,21 @@ These indicators have no separate action and remain visible after correction dis
 
 ### App shell & view models
 
+Configured Development builds keep **App Updates** first in Settings, including local and current builds.
+Local builds can browse remote builds without an automatic update badge.
+**Other Builds** opens the shared Main/PR browser and retained build history.
+The screen shows the
+installed channel, last check, incoming commits, and a direct iOS install action for the displayed build.
+InstallerKit’s `UpdateModel` mirrors its shared update service.
+InstallerKitUI's `AppUpdatesView` renders the shared native page, including signed build metadata and explicit missing-history states.
+WhereUI supplies the app name, selected icon, subtitle, and Settings search anchors.
+`MainTabs` checks on foreground
+entry and badges the Settings tab when an update needs attention.
+Manual checks retry immediately; errors retain the last successful result.
+An automatic check that can reuse Core's cache preserves an active manual check and its loading state.
+Demo mode hides this surface and performs no update checks.
+
+
 - **`RootView`** — the app root: the typed launch plan (via
   [`LifecycleKit`](../../Shared/LifecycleKit), rendered by
   [`LifecycleKitUI`](../../Shared/LifecycleKitUI)'s container) gated in front of

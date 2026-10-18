@@ -68,6 +68,12 @@ A container that cannot open remains listed with its error and a confirmed actio
 Its exit control selects the regular runtime for the next manual relaunch.
 Neither runtime swaps live.
 
+The regular runtime creates one InstallerKit `UpdateService` and `UpdateModel` for configured Development builds, including local Xcode and `Where/install` builds.
+It injects the presentation model through `RootView`.
+`MainTabs` starts checks only in the foreground, outside demo mode.
+Local builds can install published builds through Other Builds. Reinstall from Xcode or `Where/install` to return to Local.
+Test processes, Beta, and App Store builds have no update model.
+
 ## Build & run
 
 The target is declared once in [`Project.swift`](../../Project.swift), with

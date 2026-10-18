@@ -1,9 +1,28 @@
 import Foundation
+import InstallerKit
 import RegionKit
 import Testing
 @testable import WhereCore
 
 struct WherePreferencesTests {
+    @Test func persistsAndResetsInstallerCache() throws {
+        let store = InMemoryKeyValueStore()
+        let preferences = WherePreferences(store: store)
+        let catalog = try JSONDecoder().decode(
+            UpdateCatalog.self,
+            from: Data(#"{"schemaVersion":3,"apps":[]}"#.utf8),
+        )
+        let value = try UpdatePreferences(cached: .init(
+            feedURL: #require(URL(string: "https://example.org/updates.json")),
+            checkedAt: Date(timeIntervalSince1970: 1_800_000_000),
+            catalog: catalog,
+        ))
+        preferences.installerUpdates = value
+        #expect(WherePreferences(store: store).installerUpdates == value)
+        preferences.reset()
+        #expect(preferences.installerUpdates == UpdatePreferences(cached: nil))
+    }
+
     private func preferences() -> WherePreferences {
         WherePreferences(store: InMemoryKeyValueStore())
     }

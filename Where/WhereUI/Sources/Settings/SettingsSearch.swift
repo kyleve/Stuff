@@ -24,6 +24,7 @@ enum SettingsDestination: Hashable, CaseIterable {
     case personalization
     case data
     case privacyDiagnostics
+    case updates
     case about
 
     /// The localized title shown on the top-level drill-in row and as the parent
@@ -48,6 +49,7 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .personalization: String(localized: .settingsExplorePersonalizationRow)
             case .data: String(localized: .settingsDataHeader)
             case .privacyDiagnostics: String(localized: .settingsDiagnosticsTitle)
+            case .updates: String(localized: .updatesTitle)
             case .about: String(localized: .settingsAboutHeader)
         }
     }
@@ -73,6 +75,7 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .personalization: .paintpaletteFill
             case .data: .externaldriveFill
             case .privacyDiagnostics: .lockShieldFill
+            case .updates: .arrowDownCircle
             case .about: .info
         }
     }
@@ -100,6 +103,7 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .personalization: .purple
             case .data: .teal
             case .privacyDiagnostics: .indigo
+            case .updates: .blue
             case .about: .brown
         }
     }
@@ -112,12 +116,16 @@ enum SettingsDestination: Hashable, CaseIterable {
     /// demo leaves no trace, so it doesn't offer the ways to leave one.
     var isAvailableInDemoMode: Bool {
         switch self {
-            case .data, .appearance, .privacyDiagnostics: false
+            case .data, .appearance, .privacyDiagnostics, .updates: false
             case .placesYear, .recording, .privacyBackups, .attachments, .loggedDays, .devices,
                  .regions, .alerts, .year, .siri, .widgets,
                  .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization, .about:
                 true
         }
+    }
+
+    func isAvailable(isInDemoMode: Bool, updatesEnabled: Bool) -> Bool {
+        (!isInDemoMode || isAvailableInDemoMode) && (self != .updates || updatesEnabled)
     }
 
     /// Whether the group opens as a modal **sheet** (an editor/commit flow with
@@ -129,7 +137,7 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .placesYear, .recording, .privacyBackups, .attachments, .loggedDays, .devices,
                  .alerts, .appearance, .year, .siri, .widgets,
                  .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization, .data,
-                 .privacyDiagnostics, .about:
+                 .privacyDiagnostics, .updates, .about:
                 false
         }
     }
@@ -140,6 +148,7 @@ enum SettingsDestination: Hashable, CaseIterable {
 /// belongs to exactly one block — `SettingsSearchTests` guards full, unique
 /// coverage — and the block order is the on-screen order.
 enum SettingsListSection: CaseIterable {
+    case updates
     case userData
     case tracking
     case notifications
@@ -169,6 +178,7 @@ enum SettingsListSection: CaseIterable {
                     .privacyBackups,
                 ]
             case .storage: [.data, .privacyDiagnostics]
+            case .updates: [.updates]
             case .about: [.about]
         }
     }
@@ -176,7 +186,7 @@ enum SettingsListSection: CaseIterable {
     var headerTitle: String? {
         switch self {
             case .exploreFeatures: String(localized: .settingsExploreHeader)
-            case .userData, .tracking, .notifications, .display, .storage, .about: nil
+            case .userData, .tracking, .notifications, .display, .storage, .updates, .about: nil
         }
     }
 }
@@ -292,6 +302,7 @@ enum SettingsCatalog {
             + PersonalizationFeaturesView.searchResults
             + DataSettingsView.searchResults
             + PrivacyDiagnosticsSettingsView.searchResults
+            + DevelopmentUpdatesView.searchResults
             + AboutSettingsView.searchResults
 
     /// The results matching a (trimmed, non-empty) query.
