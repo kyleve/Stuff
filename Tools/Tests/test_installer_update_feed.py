@@ -6,21 +6,19 @@ import json
 from pathlib import Path
 import plistlib
 import subprocess
-import sys
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from installer_apps import load_app
-from installer_update_feed import GitHubUpdateFeed, apply_change, changes_since, main, publish_receipt
+from Tools.InstallerKit.installer_apps import load_app
+from Tools.InstallerKit.installer_update_feed import GitHubUpdateFeed, apply_change, changes_since, main, publish_receipt
 from Fixtures.where_distribution_fixtures import SHA
 from Fixtures.installer_update_fixtures import catalog as app_catalog
-from installer_installation import manifest_url
-from github_releases import asset_url
-from installer_update_site import render_site
+from Tools.InstallerKit.installer_installation import manifest_url
+from Tools.InstallerKit.github_releases import asset_url
+from Tools.InstallerKit.installer_update_site import render_site
 
 APP = load_app("where")
 REPO = "fixture/Stuff"
@@ -157,8 +155,8 @@ class InstallerUpdateFeedTests(unittest.TestCase):
             path = Path(temporary) / "receipt.json"
             path.write_text(json.dumps(receipt))
             feed = GitHubUpdateFeed(REPO, "fixture-token", transport)
-            with patch("installer_update_feed.GitHubUpdateFeed", return_value=feed), \
-                    patch("installer_distribution.github_fetch", return_value={"object": {"sha": SHA}}), \
+            with patch("Tools.InstallerKit.installer_update_feed.GitHubUpdateFeed", return_value=feed), \
+                    patch("Tools.InstallerKit.installer_distribution.github_fetch", return_value={"object": {"sha": SHA}}), \
                     redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
                 self.assertEqual(main(["--receipt", str(path), "--repository", REPO, "--feed-url", FEED_URL]), 0)
             self.assertEqual(stdout.getvalue(), "")
@@ -203,12 +201,12 @@ class InstallerUpdateFeedTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "receipt.json"
             args = ["--receipt", str(path), "--repository", "fixture/Stuff", "--feed-url", FEED_URL]
-            with redirect_stdout(io.StringIO()) as stdout, patch("installer_update_feed.GitHubUpdateFeed") as feed:
+            with redirect_stdout(io.StringIO()) as stdout, patch("Tools.InstallerKit.installer_update_feed.GitHubUpdateFeed") as feed:
                 self.assertEqual(main(args), 0)
                 feed.assert_not_called()
                 self.assertIn("unchanged", stdout.getvalue())
             path.write_text(json.dumps({"action": "retire", "appID": "where", "channel": "pr-42"}))
-            with patch("installer_update_feed.GitHubUpdateFeed") as feed, redirect_stderr(io.StringIO()) as stderr:
+            with patch("Tools.InstallerKit.installer_update_feed.GitHubUpdateFeed") as feed, redirect_stderr(io.StringIO()) as stderr:
                 feed.return_value.save.side_effect = ValueError("write rejected")
                 self.assertEqual(main(args), 1)
                 self.assertIn("write rejected", stderr.getvalue())

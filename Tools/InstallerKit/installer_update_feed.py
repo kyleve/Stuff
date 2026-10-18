@@ -13,9 +13,9 @@ import sys
 from urllib.error import HTTPError
 from urllib.request import Request
 
-from github_api import request_json
-from installer_installation import validate_release
-from installer_apps import load_app, validate_metadata
+from Tools.InstallerKit.github_api import request_json
+from Tools.InstallerKit.installer_installation import validate_release
+from Tools.InstallerKit.installer_apps import load_app, validate_metadata
 
 
 BRANCH = "installer-update-feed"
@@ -178,7 +178,7 @@ class GitHubUpdateFeed:
 
 
 def publish_receipt(receipt, feed, fetch, feed_url, run=subprocess.run):
-    from installer_distribution import Publication, Retirement, is_current
+    from Tools.InstallerKit.installer_distribution import Publication, Retirement, is_current
 
     app = load_app(receipt["appID"])
     channel = receipt["channel"]
@@ -215,7 +215,7 @@ def main(argv=None):
     parser.add_argument("--feed-url", required=True)
     args = parser.parse_args(argv)
     try:
-        from installer_distribution import github_fetch
+        from Tools.InstallerKit.installer_distribution import github_fetch
         if not args.receipt.exists():
             print("No publication receipt; update catalog unchanged.")
             return 0

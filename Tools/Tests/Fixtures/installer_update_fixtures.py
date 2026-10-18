@@ -1,7 +1,7 @@
 """Public catalog fixtures shared by site validation and local visual previews."""
 
-from github_releases import asset_url
-from installer_installation import manifest_url
+from Tools.InstallerKit.github_releases import asset_url
+from Tools.InstallerKit.installer_installation import manifest_url
 
 
 REPO = "fixture/Stuff"

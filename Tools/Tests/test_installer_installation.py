@@ -1,13 +1,10 @@
 import plistlib
-from pathlib import Path
-import sys
 import unittest
 from urllib.parse import parse_qs, urlsplit
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from github_releases import asset_url
-from installer_apps import load_app
-from installer_installation import install_url, manifest, manifest_url, site_url, validate_release
+from Tools.InstallerKit.github_releases import asset_url
+from Tools.InstallerKit.installer_apps import load_app
+from Tools.InstallerKit.installer_installation import install_url, manifest, manifest_url, site_url, validate_release
 
 
 class InstallerInstallationTests(unittest.TestCase):

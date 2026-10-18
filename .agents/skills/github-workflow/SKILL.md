@@ -70,7 +70,7 @@ Only same-repository PRs qualify. Conflicts fail the installable build before si
 Closing the PR or removing the label retires its app channels after Pages deploys.
 Historical release assets remain available.
 
-Read [the installer guide](../../../Tools/INSTALLER.md) for app registration and shared hosting.
+Read [the installer guide](../../../Tools/InstallerKit/README.md) for app registration and shared hosting.
 Read the app's distribution guide for its enable variable and signing setup.
 The trusted controller and app registration must already exist on `main`.
 After labeling, inspect the app's distribution run and follow its summary link.

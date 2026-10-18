@@ -12,11 +12,10 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from github_releases import asset_url
-from installer_installation import manifest_url
-from installer_apps import AppPresentation, load_app
-from installer_update_site import main, render_site, write_site
+from Tools.InstallerKit.github_releases import asset_url
+from Tools.InstallerKit.installer_installation import manifest_url
+from Tools.InstallerKit.installer_apps import AppPresentation, load_app
+from Tools.InstallerKit.installer_update_site import main, render_site, write_site
 from Tools.repository import repository_root
 from Fixtures.installer_update_fixtures import catalog, multiple_apps, FEED_URL, REPO
 
@@ -80,18 +79,20 @@ class InstallerUpdateSiteTests(unittest.TestCase):
             self.assertEqual((output / "index.html").read_text(), "existing")
 
     def test_public_command_handles_paths_with_spaces_and_help_outside_the_repository(self):
-        command = Path(__file__).resolve().parents[1] / "installer_update_site.py"
+        command = [sys.executable, "-m", "Tools.InstallerKit.installer_update_site"]
+        environment = {"PATH": "/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE": "1",
+                       "PYTHONPATH": str(repository_root(__file__))}
         with tempfile.TemporaryDirectory(prefix="site fixture ü ") as temporary:
             root = Path(temporary)
-            help_result = subprocess.run([sys.executable, str(command), "--help"], cwd=root,
-                                         env={"PATH": "/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE": "1"}, capture_output=True, text=True)
+            help_result = subprocess.run([*command, "--help"], cwd=root,
+                                         env=environment, capture_output=True, text=True)
             self.assertEqual(help_result.returncode, 0, help_result.stderr)
             self.assertIn("--catalog", help_result.stdout)
             source = root / "updates.json"
             source.write_text(json.dumps(catalog()))
-            result = subprocess.run([sys.executable, str(command), "--catalog", str(source),
+            result = subprocess.run([*command, "--catalog", str(source),
                                      "--repository", REPO, "--feed-url", FEED_URL, "--output", str(root / "site")],
-                                    cwd=root, capture_output=True, text=True)
+                                    cwd=root, env=environment, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stderr, "")
             self.assertIn("Prepared", result.stdout)
@@ -139,7 +140,7 @@ class InstallerUpdateSiteTests(unittest.TestCase):
             root = Path(temporary)
             source = root / "updates.json"
             source.write_text(json.dumps(catalog()))
-            with patch("installer_update_site.load_apps", return_value={"where": broken}), \
+            with patch("Tools.InstallerKit.installer_update_site.load_apps", return_value={"where": broken}), \
                     redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
                 self.assertEqual(main(["--catalog", str(source), "--repository", REPO,
                                        "--feed-url", FEED_URL, "--output", str(root / "site")]), 1)

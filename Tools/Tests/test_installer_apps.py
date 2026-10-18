@@ -2,14 +2,12 @@ from copy import deepcopy
 import json
 from pathlib import Path
 import plistlib
-import sys
 import tempfile
 import unittest
 import zipfile
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from installer_apps import load_app, REGISTRY, validate_app_id
-from installer_distribution import Publication, validate_ipa
+from Tools.InstallerKit.installer_apps import load_app, REGISTRY, validate_app_id
+from Tools.InstallerKit.installer_distribution import Publication, validate_ipa
 
 
 class InstallerAppsTests(unittest.TestCase):

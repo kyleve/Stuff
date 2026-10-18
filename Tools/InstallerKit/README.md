@@ -13,7 +13,7 @@ Build pages add the minimum iOS version, source commit, workflow run, bundle ID,
 
 ## Add an app
 
-1. Add the app to [`.github/installer-apps.json`](../.github/installer-apps.json).
+1. Add the app to [`.github/installer-apps.json`](../../.github/installer-apps.json).
    Use a stable lowercase app ID and a unique Development bundle identifier.
    Declare its IPA app path, signed app and extension paths, and required Info.plist values.
    The trusted controller uses this registration to validate the exported IPA.
@@ -21,7 +21,7 @@ Build pages add the minimum iOS version, source commit, workflow run, bundle ID,
    Use a repository-relative PNG path. Optionally add `site.darkIcon` for dark appearance.
    The Pages job copies these assets from trusted `main`; it does not read artwork from the PR.
    Apps without artwork use their first letter. A registered file that is missing fails the site build.
-2. Call `bash "$SRCROOT/Tools/stamp-installer-info.sh"` in a post-build phase before signing.
+2. Call `bash "$SRCROOT/Tools/InstallerKit/stamp-installer-info.sh"` in a post-build phase before signing.
    Disable dependency analysis and user-script sandboxing for that phase.
    Pass these build settings through the archive command:
 
@@ -39,23 +39,23 @@ Build pages add the minimum iOS version, source commit, workflow run, bundle ID,
    Local builds need no run or attempt.
    Keep local binaries out of the public catalog. Users return to Local through Xcode or the app's Mac installer.
    The script reads the commit and clean status from Git. Missing values become `unknown`.
-3. Add an app-specific distribution workflow using [Where's wrapper](../.github/workflows/where-distribution.yml) as the template.
+3. Add an app-specific distribution workflow using [Where's wrapper](../../.github/workflows/where-distribution.yml) as the template.
    Change its app ID, archive command, signing setup and secrets, artifact path, enable variable, and concurrency prefix.
    Retain the trusted-main plan and publisher jobs, read-only archive permissions, and cleanup step.
-   Use the shared `installer_distribution.py plan --app <id>` and `finish --app <id>` commands.
+   From the repository root, use `python3 -m Tools.InstallerKit.installer_distribution plan --app <id>` and the matching `finish` command.
    Pass the successful receipt to `installer_update_feed.py`.
    Keep the archive attempt output when retrying only the publisher.
 4. Merge the registration, workflow, and archive integration into `main` before enabling the app's workflow.
    Configure signing and registered devices for that app. Publish a main build and verify installation on a physical device.
    Then add `installable` to a same-repository PR and verify its build and update flow.
 
-[Where's setup guide](../Where/DISTRIBUTION.md) lists its signing secrets and device checks.
+[Where's setup guide](../../Where/DISTRIBUTION.md) lists its signing secrets and device checks.
 New apps reuse publication logic and the shared install site.
 
 ## Shared hosting
 
 Select **GitHub Actions** as the Pages source. Allow `workflow_dispatch` for
-[installer-pages.yml](../.github/workflows/installer-pages.yml) in the repository's Actions event policy.
+[installer-pages.yml](../../.github/workflows/installer-pages.yml) in the repository's Actions event policy.
 The repository must be public for credential-free IPA downloads.
 
 The default feed is `https://<owner>.github.io/<repository>/updates.json`.

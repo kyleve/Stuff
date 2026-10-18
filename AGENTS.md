@@ -97,7 +97,7 @@ The script writes the commit into `WhereGitSHA` / `WhereGitStatus`. It writes ho
 was invoked into `WhereConfiguration` / `WhereSwiftOptimizationLevel` /
 `WhereSwiftCompilationMode`. All of it is read back by `WhereCore.BuildInfo`.
 Settings > About uses it. Every Periscope logging session uses it for attributes.
-Where builds call [`Tools/stamp-installer-info.sh`](Tools/stamp-installer-info.sh) before signing for shared InstallerKit identity.
+Where builds call [`Tools/InstallerKit/stamp-installer-info.sh`](Tools/InstallerKit/stamp-installer-info.sh) before signing for shared InstallerKit identity.
 The Development audience descriptor provides app, repository, feed URL, and the local channel.
 CI archives override the channel, run, and attempt. Local builds keep honest Git status and no publication identity.
 The optimization level tells you if a recorded span duration means
@@ -253,7 +253,7 @@ Development IPA. Read [`Where/DISTRIBUTION.md`](Where/DISTRIBUTION.md) for signi
 The opt-in [GitHub distribution workflow](.github/workflows/where-distribution.yml)
 publishes `main` and PRs labeled `installable` through a controller from `main`.
 All registered apps share one install site. Main builds appear on the homepage,
-and each app has its own PR pages. See [the installer guide](Tools/INSTALLER.md).
+and each app has its own PR pages. See [the installer guide](Tools/InstallerKit/README.md).
 [`./Ledger/install`](Ledger/install) is the equivalent for Ledger. It builds a
 Release and transactionally installs it to `/Applications` (ad-hoc signed, no
 team needed). Its `--dry-run` validates and reports the replacement without

@@ -5,8 +5,8 @@ import json
 import re
 from urllib.request import Request
 
-from github_api import request_json
-from installer_apps import validate_app_id
+from Tools.InstallerKit.github_api import request_json
+from Tools.InstallerKit.installer_apps import validate_app_id
 
 
 def release_tag(app_id, channel, identifier):

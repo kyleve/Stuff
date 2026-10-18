@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 from typing import Optional
 
-from repository import repository_root
+from Tools.repository import repository_root
 
 
 REGISTRY = repository_root(__file__) / ".github/installer-apps.json"

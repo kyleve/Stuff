@@ -37,7 +37,7 @@ jobs:
           path: .installer-update-feed
       - name: Prepare install pages, manifests, and catalog
         run: >-
-          python3 Tools/installer_update_site.py
+          python3 -m Tools.InstallerKit.installer_update_site
           --catalog .installer-update-feed/updates.json
           --repository "$GITHUB_REPOSITORY"
           --feed-url "$INSTALLER_FEED_URL"

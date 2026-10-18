@@ -7,8 +7,10 @@ import sys
 import tempfile
 import unittest
 
+from Tools.repository import repository_root
 
-SCRIPT = Path(__file__).resolve().parents[1] / "stamp-installer-info.sh"
+
+SCRIPT = repository_root(__file__) / "Tools/InstallerKit/stamp-installer-info.sh"
 
 
 @unittest.skipUnless(sys.platform == "darwin", "Requires the Xcode host's PlistBuddy")

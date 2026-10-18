@@ -2,14 +2,12 @@ from contextlib import redirect_stderr, redirect_stdout
 import io
 import json
 from pathlib import Path
-import sys
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from installer_apps import load_app
-from installer_distribution import Publication, Retirement, finish as finish_distribution, is_current, main, select_plan, validate_ipa
+from Tools.InstallerKit.installer_apps import load_app
+from Tools.InstallerKit.installer_distribution import Publication, Retirement, finish as finish_distribution, is_current, main, select_plan, validate_ipa
 from Fixtures.where_distribution_fixtures import SHA, write_ipa
 
 
@@ -78,7 +76,7 @@ class InstallerDistributionTests(unittest.TestCase):
         pending = pr_event(mergeable=None)["pull_request"]
         ready = {**pr_event()["pull_request"], "mergeable_state": "blocked"}
         fetch = Mock(side_effect=[pending, ready])
-        with patch("installer_distribution.time.sleep") as sleep:
+        with patch("Tools.InstallerKit.installer_distribution.time.sleep") as sleep:
             self.assertTrue(is_current(Publication(SHA, 42), REPO, fetch))
         self.assertEqual(fetch.call_count, 2)
         sleep.assert_called_once()
@@ -89,7 +87,7 @@ class InstallerDistributionTests(unittest.TestCase):
         for live in (pr_event(labeled=False)["pull_request"], pr_event(state="closed")["pull_request"],
                      pr_event(fork=True)["pull_request"],
                      {**current, "head": {**current["head"], "sha": "c" * 40}}):
-            with self.subTest(live=live), patch("installer_distribution.time.sleep"):
+            with self.subTest(live=live), patch("Tools.InstallerKit.installer_distribution.time.sleep"):
                 fetch = Mock(side_effect=[pending, live])
                 self.assertFalse(is_current(Publication(SHA, 42), REPO, fetch))
                 self.assertEqual(fetch.call_count, 2)
@@ -97,14 +95,14 @@ class InstallerDistributionTests(unittest.TestCase):
     def test_pending_mergeability_can_resolve_to_a_conflict(self):
         fetch = Mock(side_effect=[pr_event(mergeable=None)["pull_request"],
                                   pr_event(mergeable=False)["pull_request"]])
-        with patch("installer_distribution.time.sleep"), self.assertRaisesRegex(ValueError, "has merge conflicts"):
+        with patch("Tools.InstallerKit.installer_distribution.time.sleep"), self.assertRaisesRegex(ValueError, "has merge conflicts"):
             is_current(Publication(SHA, 42), REPO, fetch)
 
     def test_retirement_ignores_conflicts_and_pending_mergeability(self):
         for mergeable in (False, None):
             for event in (pr_event("unlabeled", labeled=False, mergeable=mergeable),
                           pr_event("closed", state="closed", mergeable=mergeable)):
-                with self.subTest(event=event), patch("installer_distribution.time.sleep") as sleep:
+                with self.subTest(event=event), patch("Tools.InstallerKit.installer_distribution.time.sleep") as sleep:
                     service = Mock()
                     self.assertIn("retirement", finish(plan(event), REPO, None,
                                                     lambda _: event["pull_request"], service).summary)
@@ -170,11 +168,11 @@ class InstallerDistributionTests(unittest.TestCase):
             arguments = ["plan", "--app", "where", "--event", str(event_path), "--event-name", "pull_request_target",
                          "--repository", REPO, "--ref", "refs/heads/main", "--sha", "b" * 40,
                          "--output", str(output)]
-            with patch("installer_distribution.github_fetch", return_value=pr_event()["pull_request"]), redirect_stdout(io.StringIO()):
+            with patch("Tools.InstallerKit.installer_distribution.github_fetch", return_value=pr_event()["pull_request"]), redirect_stdout(io.StringIO()):
                 self.assertEqual(main(arguments), 0)
             self.assertEqual(output.read_text(), f"action=publish\nsha={SHA}\nchannel=pr-42\n")
             output.unlink()
-            with patch("installer_distribution.github_fetch", side_effect=ValueError("HTTP 403")), redirect_stderr(io.StringIO()) as stderr:
+            with patch("Tools.InstallerKit.installer_distribution.github_fetch", side_effect=ValueError("HTTP 403")), redirect_stderr(io.StringIO()) as stderr:
                 self.assertEqual(main(arguments), 1)
             self.assertIn("HTTP 403", stderr.getvalue())
             self.assertFalse(output.exists())
@@ -192,8 +190,8 @@ class InstallerDistributionTests(unittest.TestCase):
                                        (None, "Rerun this workflow"),
                                        ("true", "invalid mergeability status")):
                 with self.subTest(mergeable=mergeable), \
-                        patch("installer_distribution.github_fetch", return_value=pr_event(mergeable=mergeable)["pull_request"]) as fetch, \
-                        patch("installer_distribution.time.sleep") as sleep, \
+                        patch("Tools.InstallerKit.installer_distribution.github_fetch", return_value=pr_event(mergeable=mergeable)["pull_request"]) as fetch, \
+                        patch("Tools.InstallerKit.installer_distribution.time.sleep") as sleep, \
                         redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
                     self.assertEqual(main(arguments), 1)
                     self.assertEqual(stdout.getvalue(), "")
@@ -214,8 +212,8 @@ class InstallerDistributionTests(unittest.TestCase):
                           pr_event("closed", state="closed", mergeable=None)):
                 event_path.write_text(json.dumps(event))
                 with self.subTest(event=event), \
-                        patch("installer_distribution.github_fetch", return_value=event["pull_request"]), \
-                        patch("installer_distribution.GitHubReleases") as service, \
+                        patch("Tools.InstallerKit.installer_distribution.github_fetch", return_value=event["pull_request"]), \
+                        patch("Tools.InstallerKit.installer_distribution.GitHubReleases") as service, \
                         redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
                     self.assertEqual(main(["plan"] + arguments), 0)
                     self.assertEqual(output.read_text(), "action=retire\nsha=\nchannel=pr-42\n")
@@ -242,9 +240,9 @@ class InstallerDistributionTests(unittest.TestCase):
                     "--repository", REPO, "--ref", "refs/heads/main", "--sha", "b" * 40,
                     "--ipa", str(ipa), "--receipt", str(receipt), "--run", "2", "--attempt", "1",
                     "--feed-url", feed_url]
-            with patch("installer_distribution.GitHubReleases") as service, \
-                    patch("installer_distribution.github_fetch", return_value=pr_event()["pull_request"]), \
-                    patch("installer_update_feed.GitHubUpdateFeed") as feed, \
+            with patch("Tools.InstallerKit.installer_distribution.GitHubReleases") as service, \
+                    patch("Tools.InstallerKit.installer_distribution.github_fetch", return_value=pr_event()["pull_request"]), \
+                    patch("Tools.InstallerKit.installer_update_feed.GitHubUpdateFeed") as feed, \
                     redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
                 feed.return_value.load.return_value = ({"schemaVersion": 3, "apps": []}, None)
                 write_ipa(ipa, {**metadata, "InstallerChannel": "main"})

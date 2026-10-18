@@ -31,19 +31,10 @@ catalogs and captured command output rather than tracked assets, devices, or
 `repository.repository_root` finds a tool's checkout through its nearest `.git` directory or worktree file.
 Use it for checkout-relative resources instead of fixed parent-directory counts.
 `Where/archive` owns the Xcode processes.
-`installer_distribution.py` selects `main` and labeled PR channels, then checks the live GitHub state before publication or retirement.
-Its trusted controller fails PR builds with merge conflicts and permits page retirement regardless of conflicts.
-`github_releases.py` uploads an IPA to a draft, verifies its digest and size, and publishes it without replacing existing assets.
-`github_api.py` rejects credential-bearing redirects.
-`installer_update_feed.py` publishes the Pages catalog from successful distribution receipts.
-It preserves concurrent apps and channels, bounds retained build history, and identifies rewritten commit history.
-`installer_installation.py` owns exact-build URLs and OTA manifests.
-`installer_update_site.py` validates the catalog and stages install pages, artwork, manifests, and JSON as one Pages artifact.
-`installer_apps.py` loads trusted app registrations, including optional site artwork and subtitles.
-`installer_site.css` owns the responsive catalog and build-page styles, with light and dark appearances.
-Build pages show signed version metadata, download size, publication time, source links, and incoming commits.
-Their tests use temporary profiles, fake processes, and captured API responses.
-See [the installer guide](INSTALLER.md) for app registration and shared publication.
+[`InstallerKit/`](InstallerKit/README.md) owns shared app registration, publication, build stamping, and install-site generation.
+Its private Python modules use qualified imports under `Tools.InstallerKit`.
+Run their commands from the repository root with `python3 -m Tools.InstallerKit.<module>`.
+Tests use the same module imports without changing Python's search path.
 [Where's distribution guide](../Where/DISTRIBUTION.md) owns its signing setup and device validation.
 
 ## Snapshot shard policy

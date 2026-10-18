@@ -1,6 +1,6 @@
 # Install Where Dev through GitHub
 
-The [installer guide](../Tools/INSTALLER.md) covers adding apps to the common site.
+The [installer guide](../Tools/InstallerKit/README.md) covers adding apps to the common site.
 GitHub Releases hosts signed IPAs. GitHub Pages hosts the install site, OTA manifests, and update catalog.
 The [distribution workflow](../.github/workflows/where-distribution.yml) publishes these channels:
 

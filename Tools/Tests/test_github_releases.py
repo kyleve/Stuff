@@ -1,12 +1,10 @@
 from copy import deepcopy
 import json
 from pathlib import Path
-import sys
 import tempfile
 import unittest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from github_releases import GitHubReleases, asset_url
+from Tools.InstallerKit.github_releases import GitHubReleases, asset_url
 from Fixtures.github_releases_fixtures import ReleaseServer
 
 

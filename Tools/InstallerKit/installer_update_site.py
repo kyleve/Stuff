@@ -11,10 +11,10 @@ import re
 import sys
 import tempfile
 
-from installer_apps import AppPresentation, load_apps
-from installer_installation import install_url, manifest, manifest_path, site_url, validate_release
-from installer_update_feed import read_catalog
-from repository import repository_root
+from Tools.InstallerKit.installer_apps import AppPresentation, load_apps
+from Tools.InstallerKit.installer_installation import install_url, manifest, manifest_path, site_url, validate_release
+from Tools.InstallerKit.installer_update_feed import read_catalog
+from Tools.repository import repository_root
 
 
 SOURCE_ROOT = repository_root(__file__)

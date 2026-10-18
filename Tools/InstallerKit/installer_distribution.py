@@ -14,10 +14,10 @@ from urllib.error import URLError
 from urllib.request import Request
 import zipfile
 
-from github_api import request_json
-from github_releases import GitHubReleases
-from installer_apps import load_app
-from installer_installation import manifest_url, site_url, validate_build_details, validate_bundle_version
+from Tools.InstallerKit.github_api import request_json
+from Tools.InstallerKit.github_releases import GitHubReleases
+from Tools.InstallerKit.installer_apps import load_app
+from Tools.InstallerKit.installer_installation import manifest_url, site_url, validate_build_details, validate_bundle_version
 
 
 LABEL = "installable"
@@ -208,7 +208,7 @@ def main(argv=None):
             if args.receipt and isinstance(plan, Publication):
                 if args.ipa is None:
                     raise ValueError("An IPA is required for publication")
-                from installer_update_feed import GitHubUpdateFeed, build_id, build_order, channel_in
+                from Tools.InstallerKit.installer_update_feed import GitHubUpdateFeed, build_id, build_order, channel_in
                 identifier = build_id(args.run, args.attempt)
                 with zipfile.ZipFile(args.ipa) as archive:
                     info = plistlib.loads(archive.read(f"{app.bundle_path}/Info.plist"))

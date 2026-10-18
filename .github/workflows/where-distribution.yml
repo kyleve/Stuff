@@ -49,7 +49,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          python3 Tools/installer_distribution.py plan --app where
+          python3 -m Tools.InstallerKit.installer_distribution plan --app where
           --event "$GITHUB_EVENT_PATH" --event-name "$GITHUB_EVENT_NAME"
           --repository "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" --sha "$GITHUB_SHA"
           --output "$GITHUB_OUTPUT"
@@ -101,11 +101,11 @@ jobs:
         env:
           EXPECTED_SHA: ${{ needs.plan.outputs.sha }}
         run: |
-          PYTHONPATH=Tools python3 - <<'PY'
+          python3 - <<'PY'
           import os
           from pathlib import Path
-          from installer_distribution import Publication, validate_ipa
-          from installer_apps import load_app
+          from Tools.InstallerKit.installer_distribution import Publication, validate_ipa
+          from Tools.InstallerKit.installer_apps import load_app
           validate_ipa(Path(os.environ['RUNNER_TEMP']) / 'where-archive/export/Where.ipa',
                        Publication(os.environ['EXPECTED_SHA'], None), load_app('where'))
           PY
@@ -148,7 +148,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ARCHIVE_ATTEMPT: ${{ needs.archive.outputs.attempt }}
         run: >-
-          python3 Tools/installer_distribution.py finish --app where
+          python3 -m Tools.InstallerKit.installer_distribution finish --app where
           --event "$GITHUB_EVENT_PATH" --event-name "$GITHUB_EVENT_NAME"
           --repository "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" --sha "$GITHUB_SHA"
           --ipa build/Where.ipa --output "$GITHUB_STEP_SUMMARY"
@@ -159,7 +159,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          python3 Tools/installer_update_feed.py
+          python3 -m Tools.InstallerKit.installer_update_feed
           --receipt "$RUNNER_TEMP/where-publication.json"
           --repository "$GITHUB_REPOSITORY"
           --feed-url "$INSTALLER_FEED_URL"

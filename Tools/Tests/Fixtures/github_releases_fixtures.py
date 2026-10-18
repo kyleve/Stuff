@@ -3,7 +3,7 @@
 import hashlib
 import json
 
-from github_releases import asset_url
+from Tools.InstallerKit.github_releases import asset_url
 
 
 class ReleaseServer:

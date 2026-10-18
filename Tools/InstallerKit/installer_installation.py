@@ -4,8 +4,8 @@ import plistlib
 import re
 from urllib.parse import urlsplit, urlencode
 
-from github_releases import asset_url, release_tag
-from installer_apps import validate_metadata
+from Tools.InstallerKit.github_releases import asset_url, release_tag
+from Tools.InstallerKit.installer_apps import validate_metadata
 
 
 def site_url(feed_url):
