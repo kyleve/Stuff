@@ -18,5 +18,8 @@ if [ "$1" = cleanup ] && [ -n "${WHERE_SIGNING_DIR:-}" ] &&
     exit 0
 fi
 cd "$root"
-# The lifecycle helper uses only the standard library, so Bundler is unnecessary.
-exec mise exec -- ruby "$root/Tools/InstallerKit/signing_state.rb" "$@"
+# Use the same locked bundle as the trusted archive workflow.
+export BUNDLE_GEMFILE="$root/Gemfile"
+export BUNDLE_PATH="$root/vendor/bundle"
+export BUNDLE_FROZEN=true
+exec mise exec -- bundle exec ruby "$root/Tools/InstallerKit/signing_state.rb" "$@"

@@ -1,4 +1,4 @@
-"""The CI lifecycle wrapper selects pinned Ruby after dependency-free guards."""
+"""The CI lifecycle wrapper selects the locked bundle and pinned Ruby after dependency-free guards."""
 from pathlib import Path
 import subprocess
 import tempfile
@@ -15,20 +15,22 @@ class WhereSigningCommandTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn(message, result.stderr)
 
-    def test_pinned_ruby_runs_from_control_checkout_and_preserves_status(self):
+    def test_locked_bundle_runs_from_control_checkout_and_preserves_status(self):
         root = repository_root(Path(__file__))
         with tempfile.TemporaryDirectory(prefix='signing wrapper ü ') as temporary:
             directory = Path(temporary)
             mise = directory / 'mise'
-            mise.write_text('#!/bin/bash\nprintf "%s\\n" "$PWD" "$@" > "$LOG"\nexit 47\n')
+            mise.write_text('#!/bin/bash\nprintf "%s\\n" "$PWD" "$BUNDLE_GEMFILE" "$BUNDLE_PATH" "$BUNDLE_FROZEN" "$@" > "$LOG"\nexit 47\n')
             mise.chmod(0o755)
             log = directory / 'log'
             result = subprocess.run(['/bin/bash', str(root / '.github/where-signing.sh'), 'prepare'], cwd='/tmp',
                                     env={'PATH': f'{directory}:/usr/bin:/bin', 'CIRCLECI': 'true',
-                                         'LOG': str(log)}, capture_output=True, text=True)
+                                         'LOG': str(log), 'BUNDLE_GEMFILE': '/wrong/Gemfile',
+                                         'BUNDLE_PATH': '/wrong/bundle', 'BUNDLE_FROZEN': 'false'}, capture_output=True, text=True)
             self.assertEqual(result.returncode, 47)
             self.assertEqual(log.read_text().splitlines(),
-                             [str(root), 'exec', '--', 'ruby', str(root / 'Tools/InstallerKit/signing_state.rb'), 'prepare'])
+                             [str(root), str(root / 'Gemfile'), str(root / 'vendor/bundle'), 'true',
+                              'exec', '--', 'bundle', 'exec', 'ruby', str(root / 'Tools/InstallerKit/signing_state.rb'), 'prepare'])
 
     def test_cleanup_before_prepare_needs_no_runtime(self):
         root = repository_root(Path(__file__))

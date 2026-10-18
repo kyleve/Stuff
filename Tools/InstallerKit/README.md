@@ -21,7 +21,7 @@ Build pages add the minimum iOS version, source commit, workflow run, bundle ID,
 
 Cleanup attempts search-list restoration, temporary keychain deletion, and owned-profile removal independently. A failure makes the job fail and retains the ownership and recovery files for a retry. It does not delete unexpected profiles or a directory whose ownership changed.
 
-A failed deletion can leave signing credentials on that job's isolated runner until the runner is destroyed. Recovery files must not be uploaded as artifacts. Do not reuse a runner after failed cleanup. The lifecycle wrapper uses the pinned Ruby through `mise`; it needs no Bundler gems. Cleanup before any signing state exists succeeds without loading Ruby.
+A failed deletion can leave signing credentials on that job's isolated runner until the runner is destroyed. Recovery files must not be uploaded as artifacts. Do not reuse a runner after failed cleanup. The lifecycle wrapper uses the pinned Ruby and the trusted checkout’s frozen bundle through `mise exec -- bundle exec ruby`. CI installs this bundle before preparing signing material. Cleanup before any signing state exists succeeds without loading Ruby.
 
 ## Add an app
 
