@@ -55,6 +55,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **The runner fails fast, once, on setup problems.** Examples: a simulator that does not match the `SNAPSHOT_EXPECTED_*` pins, two variants sharing one reference name.
 - **Report one clear issue, never hundreds of pixel diffs.**
 - **An unsettled capture is a failure, not a silent fallback.**
+- **Allow only one 8-bit channel unit of render noise in settle samples.** Keep the quiet-window anchor fixed after a match.
+- **Do not add a changed-area allowance or reuse final-image tolerances for settling.** Guards: `SnapshotSampleStabilityTests` and `SnapshotRenderingSupportTests`.
 - **Freeze endless motion behind `\.isCapturingSnapshot`.** Use deterministic readiness or `.settledAtLeast` for finite work.
 - **The explicit CI multiplier may scale only maximum settle/hook ceilings.** Never scale the floor, quiet proof, cadence, or image tolerance.
 - **Guards: `SnapshotSettleTimeoutPolicyTests` and `SnapshotRenderingSupportTests`.**
