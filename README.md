@@ -165,6 +165,13 @@ You can also edit `.mise.local.toml` by hand:
 TUIST_DEVELOPMENT_TEAM = "ABCDE12345"
 ```
 
+## Remote installs through GitHub
+
+The [Where Dev distribution workflow](Where/DISTRIBUTION.md) maintains hosted install pages for `main` and PRs labeled `installable`.
+It archives optimized Where Development with ad hoc signing. GitHub Releases hosts the IPAs; Pages hosts installation and update metadata.
+Register the phones, configure signing secrets and GitHub Pages, then enable the workflow as described in the guide.
+For a local archive, use `./Where/archive --help`.
+
 ## Project structure
 
 ```

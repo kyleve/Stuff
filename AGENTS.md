@@ -250,6 +250,10 @@ resolves the exact physical device without generating, building, installing,
 or launching.
 For remote installs, [`./Where/archive`](Where/archive) exports a signed Where
 Development IPA. Read [`Where/DISTRIBUTION.md`](Where/DISTRIBUTION.md) for signing setup.
+The opt-in [GitHub distribution workflow](.github/workflows/where-distribution.yml)
+publishes `main` and PRs labeled `installable` through a controller from `main`.
+All registered apps share one install site. Main builds appear on the homepage,
+and each app has its own PR pages. See [the installer guide](Tools/INSTALLER.md).
 [`./Ledger/install`](Ledger/install) is the equivalent for Ledger. It builds a
 Release and transactionally installs it to `/Applications` (ad-hoc signed, no
 team needed). Its `--dry-run` validates and reports the replacement without
@@ -738,3 +742,7 @@ Use this marker only for prototypes and exploratory work. The marker does not
 skip pushes to `main` or manual CircleCI full-gate runs. See the
 [`running-tests`](.agents/skills/running-tests/SKILL.md) skill for simulator
 setup and the full validation recipe.
+
+The separate [Where Dev distribution workflow](.github/workflows/where-distribution.yml)
+archives signed device builds and publishes them through GitHub Releases and Pages when enabled.
+Its `installable` label is independent of the test workflows' `NO-CI` title marker.

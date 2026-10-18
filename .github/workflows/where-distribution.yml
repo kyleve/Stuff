@@ -1,0 +1,165 @@
+name: Where Dev Distribution
+
+on:
+  push:
+    branches: [main]
+  # This controller must run even when GitHub cannot create a PR merge commit.
+  pull_request_target:
+    types: [opened, reopened, synchronize, labeled, unlabeled, closed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+# An upload or retirement must finish before the next mutation of its channel.
+# Old queued events also check the live SHA and label before building/publishing.
+concurrency:
+  group: where-distribution-${{ github.event.pull_request.number || 'main' }}
+  cancel-in-progress: false
+
+env:
+  MISE_NO_HOOKS: '1'
+  PYTHONDONTWRITEBYTECODE: '1'
+  INSTALLER_REPOSITORY_URL: https://github.com/${{ github.repository }}
+  INSTALLER_FEED_URL: ${{ vars.INSTALLER_FEED_URL || format('https://{0}.github.io/{1}/updates.json', github.repository_owner, github.event.repository.name) }}
+
+jobs:
+  plan:
+    name: Check installable build
+    if: >-
+      vars.WHERE_DISTRIBUTION_ENABLED == 'true' &&
+      (github.event_name != 'pull_request_target' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      action: ${{ steps.plan.outputs.action }}
+      sha: ${{ steps.plan.outputs.sha }}
+      channel: ${{ steps.plan.outputs.channel }}
+    steps:
+      # The published workflow uses main's control scripts. PR code is only
+      # checked out on the archive runner after the installable-label gate.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Select current distribution channel
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python3 Tools/installer_distribution.py plan --app where
+          --event "$GITHUB_EVENT_PATH" --event-name "$GITHUB_EVENT_NAME"
+          --repository "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" --sha "$GITHUB_SHA"
+          --output "$GITHUB_OUTPUT"
+
+  archive:
+    needs: plan
+    if: needs.plan.outputs.action == 'publish'
+    runs-on: xcode-27
+    timeout-minutes: 60
+    outputs:
+      attempt: ${{ steps.archive-metadata.outputs.attempt }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+          persist-credentials: false
+      - name: Select temporary signing directory
+        id: signing-path
+        run: echo "WHERE_SIGNING_DIR=$RUNNER_TEMP/where-signing-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >>"$GITHUB_ENV"
+      - uses: jdx/mise-action@v3
+      - name: Verify Xcode build
+        run: |
+          actual="$(xcodebuild -version | awk '/Build version/{print $3}')"
+          expected="$(cat .xcode-build-version)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "Expected Xcode build $expected, found $actual" >&2
+            exit 1
+          fi
+      - name: Install temporary signing material
+        env:
+          WHERE_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.WHERE_DISTRIBUTION_CERTIFICATE_BASE64 }}
+          WHERE_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.WHERE_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+          WHERE_APP_PROFILE_BASE64: ${{ secrets.WHERE_APP_PROFILE_BASE64 }}
+          WHERE_WIDGET_PROFILE_BASE64: ${{ secrets.WHERE_WIDGET_PROFILE_BASE64 }}
+          WHERE_SHARE_PROFILE_BASE64: ${{ secrets.WHERE_SHARE_PROFILE_BASE64 }}
+        run: bash .github/where-signing.sh prepare
+      - name: Archive and export Where Dev
+        env:
+          INSTALLER_CHANNEL: ${{ needs.plan.outputs.channel }}
+          INSTALLER_RUN: ${{ github.run_id }}
+          INSTALLER_ATTEMPT: ${{ github.run_attempt }}
+        run: >-
+          ./Where/archive --profiles "$WHERE_SIGNING_DIR/profiles"
+          --output "$RUNNER_TEMP/where-archive"
+      - name: Record archive attempt
+        id: archive-metadata
+        run: echo "attempt=$GITHUB_RUN_ATTEMPT" >>"$GITHUB_OUTPUT"
+      - name: Validate exported identity and commit
+        env:
+          EXPECTED_SHA: ${{ needs.plan.outputs.sha }}
+        run: |
+          PYTHONPATH=Tools python3 - <<'PY'
+          import os
+          from pathlib import Path
+          from installer_distribution import Publication, validate_ipa
+          from installer_apps import load_app
+          validate_ipa(Path(os.environ['RUNNER_TEMP']) / 'where-archive/export/Where.ipa',
+                       Publication(os.environ['EXPECTED_SHA'], None), load_app('where'))
+          PY
+      - name: Upload signed build for publication
+        uses: actions/upload-artifact@v4
+        with:
+          name: where-dev-ipa
+          path: ${{ runner.temp }}/where-archive/export/Where.ipa
+          if-no-files-found: error
+          retention-days: 1
+      - name: Remove temporary signing material
+        if: always() && steps.signing-path.outcome == 'success'
+        run: bash .github/where-signing.sh cleanup
+
+  publish:
+    permissions:
+      contents: write
+      pull-requests: read
+      actions: write
+    needs: [plan, archive]
+    if: >-
+      always() && needs.plan.result == 'success' &&
+      (needs.plan.outputs.action == 'retire' ||
+       (needs.plan.outputs.action == 'publish' && needs.archive.result == 'success'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        if: needs.plan.outputs.action == 'publish'
+        with:
+          name: where-dev-ipa
+          path: build
+      - name: Publish or retire the current channel
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARCHIVE_ATTEMPT: ${{ needs.archive.outputs.attempt }}
+        run: >-
+          python3 Tools/installer_distribution.py finish --app where
+          --event "$GITHUB_EVENT_PATH" --event-name "$GITHUB_EVENT_NAME"
+          --repository "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" --sha "$GITHUB_SHA"
+          --ipa build/Where.ipa --output "$GITHUB_STEP_SUMMARY"
+          --receipt "$RUNNER_TEMP/where-publication.json"
+          --run "$GITHUB_RUN_ID" --attempt "$ARCHIVE_ATTEMPT"
+          --feed-url "$INSTALLER_FEED_URL"
+      - name: Publish update catalog and request Pages deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python3 Tools/installer_update_feed.py
+          --receipt "$RUNNER_TEMP/where-publication.json"
+          --repository "$GITHUB_REPOSITORY"
+          --feed-url "$INSTALLER_FEED_URL"
