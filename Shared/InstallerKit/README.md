@@ -38,7 +38,7 @@ Selected build notes describe that release's own predecessor delta, not a compar
 
 ## Identity and catalog
 
-`Tools/stamp-installer-info.sh` writes the generic `Installer*` Info.plist keys before signing.
+`Tools/InstallerKit/stamp-installer-info.sh` writes the generic `Installer*` Info.plist keys before signing.
 `InstalledBuild` requires an app ID, bundle identifier, repository URL, and HTTPS feed URL.
 Its `source` distinguishes `.local(LocalRevision)` from `.published(Publication)`.
 Published identity requires a clean commit, channel, run, and attempt. `publication` exposes those coupled values when present.
