@@ -50,5 +50,9 @@ Manual build notes describe that release's changes since its own predecessor. Th
 
 ## Tests
 
+The shared previews construct typed InstallerKit fixtures through its DEBUG Testing SPI.
+`InstallerPreview.catalog(_:)` returns a catalog synchronously. `localBuild(revision:)` accepts a typed clean, dirty, or unavailable revision.
+Previews inject these fixtures into the production service and model, which retain catalog validation.
+
 `./test InstallerKitUITests` checks stylesheet traits, root resolution, and hosted navigation.
 `./test InstallerKitUISnapshotTests --review` covers shared screen states without Where.

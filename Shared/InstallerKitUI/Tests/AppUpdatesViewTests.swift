@@ -9,7 +9,7 @@ import UIKit
 struct AppUpdatesViewTests {
     @Test func navigationReentryChecksThroughTheSameModelAndHonorsItsCache() throws {
         let preferences = UpdatePagePreferences()
-        let client = try UpdatePageClient(catalog: InstallerPreview.catalog(.available))
+        let client = UpdatePageClient(catalog: InstallerPreview.catalog(.available))
         let clock = UpdatePageClock()
         let model = UpdateModel(service: UpdateService(
             installed: InstallerPreview.distribution(),

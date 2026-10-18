@@ -1,5 +1,5 @@
 #if DEBUG
-    import InstallerKit
+    @_spi(Testing) import InstallerKit
     import SwiftUI
 
     /// Browser fixtures include an older PR build and retained history below the installed build.
@@ -21,13 +21,25 @@
             case rewritten = "RewrittenHistory"
             case missingDetails = "MissingDetails"
 
-            var selection: UpdateBuildBrowser.Selection {
+            @MainActor var selection: UpdateBuildBrowser.Selection {
                 switch self {
-                    case .otherChannel: InstallerBrowserPreview.selection(channel: "pr-417", run: 9)
-                    case .older: InstallerBrowserPreview.selection(channel: "pr-380", run: 11)
-                    case .installed: InstallerBrowserPreview.selection(channel: "pr-380", run: 12)
+                    case .otherChannel: InstallerBrowserPreview.selection(
+                            channel: InstallerBrowserPreview.otherChannel,
+                            run: 9,
+                        )
+                    case .older: InstallerBrowserPreview.selection(
+                            channel: InstallerPreview.channel,
+                            run: 11,
+                        )
+                    case .installed: InstallerBrowserPreview.selection(
+                            channel: InstallerPreview.channel,
+                            run: 12,
+                        )
                     case .unavailable, .rewritten, .missingDetails:
-                        InstallerBrowserPreview.selection(channel: "pr-380", run: 14)
+                        InstallerBrowserPreview.selection(
+                            channel: InstallerPreview.channel,
+                            run: 14,
+                        )
                 }
             }
 
@@ -42,67 +54,81 @@
             }
         }
 
-        nonisolated static func selection(channel: String, run: UInt64) -> UpdateBuildBrowser
-            .Selection
-        {
-            .init(
-                channel: InstalledBuild.Channel(rawValue: channel)!,
-                build: .init(run: run, attempt: 1),
-            )
+        static let otherChannel = InstalledBuild.Channel(rawValue: "pr-417")!
+
+        nonisolated static func selection(
+            channel: InstalledBuild.Channel,
+            run: UInt64,
+        ) -> UpdateBuildBrowser.Selection {
+            .init(channel: channel, build: .init(run: run, attempt: 1))
         }
 
         static func model(_ scenario: Scenario) -> UpdateModel {
-            do {
-                return try InstallerPreview.model(
-                    catalog: catalog(scenario),
-                    installed: scenario == .local ? InstallerPreview
-                        .localBuild(status: "dirty") : InstallerPreview.distribution(),
-                    isOffline: scenario == .offline,
-                )
-            } catch {
-                preconditionFailure("Invalid build browser fixture: \(error)")
-            }
+            InstallerPreview.model(
+                catalog: catalog(scenario),
+                installed: scenario == .local ? InstallerPreview.localBuild(
+                    revision: .dirty(InstallerPreview.installedRevision),
+                ) : InstallerPreview.distribution(),
+                isOffline: scenario == .offline,
+            )
         }
 
-        static func catalog(_ scenario: Scenario) throws -> UpdateCatalog {
-            let source = try InstallerPreview
-                .catalog(scenario == .empty ? .unpublished : .available)
-            let encoder = JSONEncoder()
-            encoder.dateEncodingStrategy = .iso8601
-            var root = try JSONSerialization
-                .jsonObject(with: encoder.encode(source)) as! [String: Any]
-            var apps = root["apps"] as! [[String: Any]]
-            var channels = apps[0]["channels"] as! [[String: Any]]
-            if scenario != .empty {
-                var releases = channels[0]["releases"] as! [[String: Any]]
-                let olderSHA = String(repeating: "4", count: 40)
-                releases[2]["baseSHA"] = olderSHA
-                var older = releases[2]
-                older["id"] = ["run": 11, "attempt": 1]
-                older["sha"] = olderSHA
-                older.removeValue(forKey: "baseSHA")
-                older["manifestURL"] = "https://updates.example.com/manifests/example/pr-380/11-1.plist"
-                older["commits"] = []
-                releases.append(older)
-                channels[0]["releases"] = releases
-                channels[0]["active"] = scenario != .retired
-
-                var other = releases[0]
-                let otherSHA = String(repeating: "5", count: 40)
-                other["id"] = ["run": 9, "attempt": 1]
-                other["sha"] = otherSHA
-                other["manifestURL"] = "https://updates.example.com/manifests/example/pr-417/9-1.plist"
-                other["commits"] = [["sha": otherSHA, "subject": "Explore a new timeline layout"]]
-                channels.append(["name": "pr-417", "active": true, "releases": [other]])
+        static func catalog(_ scenario: Scenario) -> UpdateCatalog {
+            guard scenario != .empty else { return InstallerPreview.catalog(.unpublished) }
+            let source = InstallerPreview.catalog(.available)
+            let olderRevision = InstalledBuild.Revision(rawValue: String(
+                repeating: "4",
+                count: 40,
+            ))!
+            let otherRevision = InstalledBuild.Revision(rawValue: String(
+                repeating: "5",
+                count: 40,
+            ))!
+            let channels = source.apps[0].channels.map { channel in
+                guard channel.name == InstallerPreview.channel else { return channel }
+                let releases = channel.releases.map { release in
+                    guard release.id == InstalledBuild.BuildID(run: 12, attempt: 1)
+                    else { return release }
+                    return UpdateCatalog.Release(
+                        id: release.id,
+                        sha: release.sha,
+                        publishedAt: release.publishedAt,
+                        manifestURL: release.manifestURL,
+                        baseSHA: olderRevision,
+                        historyChanged: release.historyChanged,
+                        commits: release.commits,
+                        buildDetails: release.buildDetails,
+                    )
+                }
+                let older = InstallerPreview.release(
+                    run: 11,
+                    channel: channel.name,
+                    revision: olderRevision,
+                    baseRevision: nil,
+                    historyChanged: false,
+                    commits: [],
+                    buildDetails: releases[2].buildDetails,
+                )
+                return UpdateCatalog.Channel(
+                    name: channel.name,
+                    active: scenario != .retired,
+                    releases: releases + [older],
+                )
             }
-            apps[0]["channels"] = channels
-            root["apps"] = apps
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            return try decoder.decode(
-                UpdateCatalog.self,
-                from: JSONSerialization.data(withJSONObject: root),
+            let other = InstallerPreview.release(
+                run: 9,
+                channel: otherChannel,
+                revision: otherRevision,
+                baseRevision: InstallerPreview.previousRevision,
+                historyChanged: false,
+                commits: [.init(sha: otherRevision, subject: "Explore a new timeline layout")],
+                buildDetails: source.apps[0].channels[0].releases[0].buildDetails,
             )
+            return InstallerPreview.catalog(channels: channels + [.init(
+                name: otherChannel,
+                active: true,
+                releases: [other],
+            )])
         }
 
         static func navigation(to route: UpdateBrowserView.Route, model: UpdateModel) -> some View {

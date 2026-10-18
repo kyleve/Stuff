@@ -10,6 +10,7 @@ See [README.md](README.md) and the [repository rules](../../AGENTS.md).
 - Show local revision status honestly and explain the Mac reinstall path. Never offer an in-app install action for a local binary that has not been published.
 - Keep shared copy in this module's string catalog and appearance in `InstallerStylesheet`. Resolve styles below the screen's Broadway root.
 - Use the section-decoration seam for host search anchors. Keep host-specific navigation and search types outside this module.
+- Construct preview identities and catalogs with InstallerKit's typed Testing SPI. Inject them through the production service and model.
 
 Run `./test InstallerKitUITests` and `./test InstallerKitUISnapshotTests --review`.
 The update page and browser destinations own their shared image matrices; hosts cover branding and navigation wrappers.

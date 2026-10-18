@@ -9,9 +9,10 @@ import UIKit
 struct UpdateBrowserViewTests {
     @Test(arguments: [false, true])
     func channelHistoryAndOlderBuildRoutesReturnAndReenterWithTheSameModel(isLocal: Bool) throws {
-        let client = try UpdatePageClient(catalog: InstallerBrowserPreview.catalog(.available))
+        let client = UpdatePageClient(catalog: InstallerBrowserPreview.catalog(.available))
         let clock = UpdatePageClock()
-        let installed = isLocal ? InstallerPreview.localBuild(status: "dirty") : InstallerPreview
+        let installed = isLocal ? InstallerPreview
+            .localBuild(revision: .dirty(InstallerPreview.installedRevision)) : InstallerPreview
             .distribution()
         let model = UpdateModel(service: UpdateService(
             installed: installed,
@@ -50,7 +51,7 @@ struct UpdateBrowserViewTests {
                 transaction.disablesAnimations = true
                 withTransaction(transaction) { navigation.path = path }
             }
-            let main = InstallerBrowserPreview.selection(channel: "main", run: 14)
+            let main = InstallerBrowserPreview.selection(channel: .main, run: 14)
             try waitForPage(.channels, depth: 1)
             navigate(to: [.build(main)])
             try waitForPage(.destination(.build(main)), depth: 2)
@@ -59,7 +60,10 @@ struct UpdateBrowserViewTests {
             navigate(to: [])
             try waitForPage(.channels, depth: 1)
 
-            let older = InstallerBrowserPreview.selection(channel: "pr-380", run: 11)
+            let older = InstallerBrowserPreview.selection(
+                channel: InstallerPreview.channel,
+                run: 11,
+            )
             navigate(to: [.history(older.channel)])
             try waitForPage(.destination(.history(older.channel)), depth: 2)
             navigate(to: [.history(older.channel), .build(older)])
@@ -71,7 +75,10 @@ struct UpdateBrowserViewTests {
             navigate(to: [])
             try waitForPage(.channels, depth: 1)
             clock.date += 3601
-            navigate(to: [.build(InstallerBrowserPreview.selection(channel: "pr-417", run: 9))])
+            navigate(to: [.build(InstallerBrowserPreview.selection(
+                channel: InstallerBrowserPreview.otherChannel,
+                run: 9,
+            ))])
             try waitFor { client.requests >= 2 && !model.isChecking }
             #expect(model.state.snapshot?.checkedAt == clock.date)
             #expect(model.installed == installed)
