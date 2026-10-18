@@ -1,0 +1,76 @@
+import InstallerKit
+import SFSafeSymbols
+import SwiftUI
+
+struct UpdateChanges: View {
+    enum Scope { case installedBuild, previousBuild }
+    let changes: UpdateCatalog.Changes
+    let installed: InstalledBuild
+    var scope = Scope.installedBuild
+    @Environment(\.installerStylesheet) private var stylesheet
+
+    var body: some View {
+        UpdateCard(title: scope == .installedBuild ? .installerChanges : .installerBuildChanges) {
+            if scope == .previousBuild {
+                Text(.installerBuildChangesSubtitle)
+                    .font(stylesheet.card.bodyFont)
+                    .foregroundStyle(.secondary)
+            }
+            switch changes {
+                case let .commits(commits):
+                    if scope == .installedBuild {
+                        Text(.installerChangesSubtitle)
+                            .font(stylesheet.card.bodyFont)
+                            .foregroundStyle(.secondary)
+                    }
+                    if commits.isEmpty {
+                        Text(.installerNoCommits)
+                    } else {
+                        ForEach(commits) { commit in
+                            Divider()
+                            Link(destination: installed.commitURL(for: commit.sha)) {
+                                HStack(
+                                    alignment: .firstTextBaseline,
+                                    spacing: stylesheet.changes.spacing,
+                                ) {
+                                    VStack(
+                                        alignment: .leading,
+                                        spacing: stylesheet.changes.spacing,
+                                    ) {
+                                        Text(verbatim: commit.subject)
+                                            .font(stylesheet.changes.titleFont)
+                                            .foregroundStyle(.primary)
+                                        Text(verbatim: String(commit.sha.rawValue
+                                                .prefix(stylesheet.changes.revisionLength)))
+                                            .font(stylesheet.changes.revisionFont)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    Image(systemSymbol: .arrowUpRight)
+                                        .font(stylesheet.changes.arrowFont)
+                                        .accessibilityHidden(true)
+                                }
+                                .frame(minHeight: stylesheet.changes.minimumHeight)
+                                .contentShape(.rect)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityHint(String(localized: .installerOpenCommit))
+                        }
+                    }
+                case .rewritten:
+                    Text(scope == .installedBuild ? LocalizedStringResource
+                        .installerRewrittenHistory : .installerBuildHistoryRewritten)
+                        .font(stylesheet.card.bodyFont)
+                case .unavailable:
+                    Text(scope == .installedBuild ? LocalizedStringResource
+                        .installerHistoryUnavailable : .installerBuildHistoryUnavailable)
+                        .font(stylesheet.card.bodyFont)
+            }
+        }
+    }
+}
+
+#if DEBUG
+    #Preview { AppUpdatesView<EmptyModifier>.snapshotPreviews }
+#endif

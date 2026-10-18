@@ -1,7 +1,8 @@
 # Shared iOS installer
 
 All registered iOS apps use one GitHub Pages site and one `updates.json` catalog.
-GitHub Releases stores the signed IPAs.
+GitHub Releases stores the signed IPAs. InstallerKit supplies the in-app update engine.
+InstallerKitUI supplies the reusable native update page.
 Each app owns its signing configuration, archive command, audience gate, branding, and Settings navigation.
 
 The homepage shows only the latest successful `main` build for each app.
@@ -21,7 +22,14 @@ Build pages add the minimum iOS version, source commit, workflow run, bundle ID,
    Use a repository-relative PNG path. Optionally add `site.darkIcon` for dark appearance.
    The Pages job copies these assets from trusted `main`; it does not read artwork from the PR.
    Apps without artwork use their first letter. A registered file that is missing fails the site build.
-2. Call `bash "$SRCROOT/Tools/InstallerKit/stamp-installer-info.sh"` in a post-build phase before signing.
+2. Link [InstallerKit](../../Shared/InstallerKit/README.md) and implement `UpdatePreferencesStoring` with device-local storage.
+   Construct one `UpdateService` and `UpdateModel` at the composition root.
+   Gate permitted audiences, tests, demo mode, and foreground requests in the host.
+   Bind the Settings badge to `needsAttention`.
+   Link [InstallerKitUI](../../Shared/InstallerKitUI/README.md) and present `AppUpdatesView(model:branding:)` in the app's navigation stack.
+   Supply an `AppUpdateBranding` with the localized name, subtitle, and an optional icon from the app's asset bundle.
+   Custom presentations can render `state` and use the validated `installURL` directly.
+3. Call `bash "$SRCROOT/Tools/InstallerKit/stamp-installer-info.sh"` in a post-build phase before signing.
    Disable dependency analysis and user-script sandboxing for that phase.
    Pass these build settings through the archive command:
 
@@ -36,10 +44,11 @@ Build pages add the minimum iOS version, source commit, workflow run, bundle ID,
 
    Set the Development target's defaults for app ID, repository URL, and feed URL, with `INSTALLER_CHANNEL = local`.
    The CI archive command overrides those defaults with the publication metadata above.
-   Local builds need no run or attempt.
+   Local builds need no run or attempt; they can browse remote builds without automatic update badges.
    Keep local binaries out of the public catalog. Users return to Local through Xcode or the app's Mac installer.
    The script reads the commit and clean status from Git. Missing values become `unknown`.
-3. Add an app-specific distribution workflow using [Where's wrapper](../../.github/workflows/where-distribution.yml) as the template.
+   `InstalledBuild` also reads the actual `CFBundleIdentifier` from the signed bundle.
+4. Add an app-specific distribution workflow using [Where's wrapper](../../.github/workflows/where-distribution.yml) as the template.
    Change its app ID, archive command, signing context, artifact path, enable variable, and concurrency prefix.
    Retain the trusted-main plan and publisher jobs, archive credential restrictions, and cleanup step.
    The current CircleCI archive job supports Where. Add an explicit registered job before enabling another app.
@@ -48,12 +57,12 @@ Build pages add the minimum iOS version, source commit, workflow run, bundle ID,
    From the repository root, use `python3 -m Tools.InstallerKit.installer_distribution plan --app <id>` and the matching `finish` command.
    Pass the successful receipt to `installer_update_feed.py`.
    Keep the archive attempt output when retrying only the publisher.
-4. Merge the registration, workflow, and archive integration into `main` before enabling the app's workflow.
+5. Merge the registration, workflow, and app integration into `main` before enabling the app's workflow.
    Configure signing and registered devices for that app. Publish a main build and verify installation on a physical device.
    Then add `installable` to a same-repository PR and verify its build and update flow.
 
 [Where's setup guide](../../Where/DISTRIBUTION.md) lists its signing secrets and device checks.
-New apps reuse publication logic and the shared install site.
+New apps reuse publication and update logic. They do not need another site or a copy of the Swift engine.
 
 ## Shared hosting
 
@@ -109,7 +118,8 @@ Enable distribution only after the matching app and controller changes are on `m
 
 Run `python3 -m unittest discover -s Tools/Tests -p 'test_installer*.py'` for publication and site policy.
 Run `python3 -m unittest discover -s Tools/Tests -p 'test_github_*.py'` for transport and verified releases.
-Run `./test ToolsSnapshotTests --review` for site images.
+Run `./test InstallerKitTests InstallerKitUITests` for the Swift engine and native styling.
+Run `./test InstallerKitUISnapshotTests ToolsSnapshotTests --review` for native and site images.
 The site fixtures include two apps, matching PR numbers, main-only browsing, retirement, and empty states.
 They also cover long names, missing artwork, and older builds without display metadata.
 The second app is synthetic. Real signing, installation, and update confirmation require a registered device.

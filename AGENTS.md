@@ -257,6 +257,8 @@ All registered apps share one install site. Main builds appear on the homepage,
 and each app has its own PR pages. See [the installer guide](Tools/InstallerKit/README.md).
 [`InstallerKit`](Shared/InstallerKit/README.md) owns the reusable update engine.
 `InstallerKitTests` runs in `Stuff-iOS-Tests`.
+[`InstallerKitUI`](Shared/InstallerKitUI/README.md) owns the reusable native update page.
+`InstallerKitUITests` runs in `Stuff-iOS-Tests`; `InstallerKitUISnapshotTests` runs in `StuffSnapshotTests`.
 [`./Ledger/install`](Ledger/install) is the equivalent for Ledger. It builds a
 Release and transactionally installs it to `/Applications` (ad-hoc signed, no
 team needed). Its `--dry-run` validates and reports the replacement without
