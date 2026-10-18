@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Pair with CircleCI manual_full_gate for a stacked branch tip.
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -35,6 +37,11 @@ jobs:
         run: |
           python3 -m unittest discover -s Tools/Tests -p 'test_*.py'
           mise exec -- ruby -I Tools/Tests -e 'Dir["Tools/Tests/**/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
+      - name: CircleCI helper tests and snapshot plan
+        run: |
+          python3 .circleci/Tests/test_xcresult_to_junit.py
+          python3 .circleci/Tests/test_test_artifacts.py
+          ./snapshot-shards check
       - run: ./swiftformat --lint
       - name: SF Symbol lint
         run: ./sf-symbols --lint
@@ -91,6 +98,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v3
+      # This invocation includes the attribution and backup-upgrader regressions.
+      # Keep all host checks in this required job, alongside the iOS builder.
+      - name: Host-side regression tests
+        env:
+          TEST_WORKDIR: ${{ github.workspace }}/test-output-host
+        run: ./test --skip-architecture PeriscopeMacrosTests
       # The workspace mixes iOS targets and the native-macOS Ledger targets, and
       # no single xcodebuild destination can build both — so the macOS scheme
       # runs here rather than alongside the iOS bundles. The iOS `test-ios` and
@@ -108,6 +121,7 @@ jobs:
           find "$HOME/Library/Developer/Xcode/DerivedData" -maxdepth 6 -name '*.xcresult' \
             -exec cp -R {} diagnostics/xcresult/ \; 2>/dev/null || true
           cp -R "$HOME/.local/state/tuist/sessions" diagnostics/tuist-sessions 2>/dev/null || true
+          cp -R test-output-host diagnostics/host-tests 2>/dev/null || true
           echo '--- collected diagnostics ---'
           find diagnostics -maxdepth 3 | head -200
       - name: Upload test diagnostics
