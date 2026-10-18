@@ -31,7 +31,8 @@ Where Beta and the App Store app keep their separate identity and store.
 
 The workflow stays disabled until the repository variable `WHERE_DISTRIBUTION_ENABLED` is `true`.
 Complete these steps before enabling it.
-The repository must be public. Publication uses its built-in `GITHUB_TOKEN`; no additional hosting account or token is required.
+The repository must be public. Publication uses GitHub's built-in `GITHUB_TOKEN`.
+CircleCI builds the signed IPA. GitHub Actions uses a separate CircleCI API token to request and retrieve that build.
 The IPA, manifest, commit notes, and build metadata are public.
 Apple's ad hoc profile still restricts installation to registered devices.
 The provisioning profile inside the IPA includes those device identifiers.
@@ -51,7 +52,8 @@ The provisioning profile inside the IPA includes those device identifiers.
    The Development App Group is `group.com.stuff.where.development`.
    The app's declared CloudKit container is `iCloud.com.stuff.where`.
    Include the manifest's capabilities even though these builds select the local store.
-3. Add these repository secrets in GitHub Settings → Secrets and variables → Actions.
+3. Create the CircleCI context `where-distribution-signing`, restricted to this project.
+   Add the signing secrets below to that context, not to project-wide environment variables.
    Keep the original signing files outside the repository.
 
    | Secret | Value |
@@ -62,22 +64,44 @@ The provisioning profile inside the IPA includes those device identifiers.
    | `WHERE_WIDGET_PROFILE_BASE64` | Base64-encoded `WhereWidgets.mobileprovision` |
    | `WHERE_SHARE_PROFILE_BASE64` | Base64-encoded `WhereShareExtension.mobileprovision` |
 
-   For example, on macOS:
+   Use CircleCI's context secret form to enter the values. Do not commit or print them.
+   Add this context expression restriction before enabling distribution:
 
-   ```bash
-   base64 -i /path/to/Where.mobileprovision | gh secret set WHERE_APP_PROFILE_BASE64
+   ```text
+   pipeline.config.repository.name == "kyleve/Stuff"
+   and pipeline.config.ref == "refs/heads/main"
+   and pipeline.config.file_path == ".circleci/config.yml"
+   and pipeline.git.branch == "main"
+   and not job.ssh.enabled
+   and not (pipeline.config_source starts-with "api")
    ```
 
-   Set passwords through GitHub's secret form or `gh secret set`'s interactive prompt.
-4. In GitHub Settings → Actions → Policies, allow this workflow's `push`, `workflow_dispatch`, and `pull_request_target` events.
+   This restriction is enforced outside the PR's editable workflow configuration.
+   It permits an API-triggered pipeline whose configuration comes from GitHub `main`.
+   It rejects unversioned configuration submitted through the API.
+   See [CircleCI context restrictions](https://circleci.com/docs/guides/security/contexts/#expression-restrictions).
+4. In CircleCI, select the GitHub App pipeline definition for this repository's `.circleci/config.yml`.
+   The controller requests `main` for both configuration and checkout.
+   Add these values in GitHub Settings → Secrets and variables → Actions:
+
+   | Name | Type | Value |
+   | --- | --- | --- |
+   | `INSTALLER_CIRCLECI_PROJECT` | Variable | The project slug from CircleCI Project Settings → Overview |
+   | `INSTALLER_CIRCLECI_PIPELINE` | Variable | The definition ID from CircleCI Project Settings → Pipelines |
+   | `INSTALLER_CIRCLECI_TOKEN` | Secret | A CircleCI API token authorized to trigger that pipeline and read its artifacts |
+
+   Keep this API token out of CircleCI's signing context and project environment.
+   GitHub's Linux controller uses it without checking out or running PR code.
+   See [CircleCI's trigger API](https://circleci.com/docs/api/v2/index.html#operation/triggerPipelineRun).
+5. In GitHub Settings → Actions → Policies, allow this workflow's `push`, `workflow_dispatch`, and `pull_request_target` events.
    Scope the event policy to `.github/workflows/where-distribution.yml`.
    GitHub's default policy can block `pull_request_target` in public repositories.
    See [workflow execution policies](https://docs.github.com/en/actions/how-tos/administer/control-workflow-execution).
-5. In GitHub Settings → Pages, select **GitHub Actions** as the publishing source.
+6. In GitHub Settings → Pages, select **GitHub Actions** as the publishing source.
    Allow `workflow_dispatch` for `.github/workflows/installer-pages.yml` in the Actions event policy.
    The default feed URL is `https://kyleve.github.io/Stuff/updates.json`.
    If Pages uses a custom domain, set `INSTALLER_FEED_URL` to its HTTPS catalog URL before building.
-6. Create the repository label `installable` if it does not exist.
+7. Create the repository label `installable` if it does not exist.
    Merge the integration into `main`, then set `WHERE_DISTRIBUTION_ENABLED` to `true`.
    Run **Where Dev Distribution** manually on `main` to publish the first build.
    Open its install link on a registered phone and verify launch, widgets, and sharing.
@@ -100,13 +124,24 @@ If the result stays unknown, the job fails and requests a rerun.
 The workflow builds the PR's head commit, including PRs stacked on other branches.
 Fork PRs do not receive signing secrets or distribution pages.
 The `installable` label authorizes a signed build of that PR's code and later commits.
-Use an isolated macOS runner for each archive job.
+The archive uses CircleCI's `m4-pro-medium` executor, shared with the other macOS jobs.
+It checks the pinned Xcode build before running branch code.
+
+The label is a signing trust decision, not a sandbox boundary.
+Build scripts and dependencies from that branch can access the signing identity while the archive runs.
+Only label code whose authors and subsequent commits are trusted with that access.
+The temporary keychain and cleanup limit persistence. They do not prevent a malicious build from copying signing material.
 
 The archive job uses a temporary keychain and removes its signing files after the job.
 It validates each profile's expiry, device list, team, and generated target settings before archiving.
 It signs the app and both extensions during the archive, then exports with Xcode's `release-testing` method.
 This is Xcode's current name for ad hoc export.
-The archive job has no repository write token.
+The archive job has no GitHub write token or CircleCI API token.
+Its configuration, eligibility checks, signing setup, cleanup, and IPA validation come from `main`.
+It rechecks the live PR before checking out the requested commit into a separate source directory.
+Only the final IPA is stored as a CircleCI artifact. Signing state is never uploaded.
+GitHub accepts the artifact only after that pipeline and archive job succeed.
+It validates the signed commit, app, channel, run, attempt, and feed URL before passing the IPA to publication.
 
 The publication job uses control scripts from `main` and a repository write token.
 It validates the IPA's Development identity, build configuration, commit stamp, bundle version, and signing resources.
@@ -153,7 +188,10 @@ The catalog marks rewritten or unavailable ancestry explicitly.
 Retirement preserves catalog history.
 
 A failed catalog write fails the publication job. Its uploaded release remains on GitHub.
-Rerun the failed publication job to retry the catalog write with the existing archive.
+Rerun the failed publication job to retry the catalog write with the existing GitHub archive artifact.
+To rebuild, rerun the GitHub archive job or the full controller. Do not rerun only the CircleCI workflow.
+The controller retains GitHub run and attempt numbers as the build identity.
+A controller timeout does not stop the CircleCI job. Inspect that pipeline before retrying.
 If the catalog write succeeds but deployment fails, rerun **App Install Site** on `main`.
 The app sees the previous complete Pages deployment until the replacement succeeds.
 

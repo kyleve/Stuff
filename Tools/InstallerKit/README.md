@@ -40,8 +40,11 @@ Build pages add the minimum iOS version, source commit, workflow run, bundle ID,
    Keep local binaries out of the public catalog. Users return to Local through Xcode or the app's Mac installer.
    The script reads the commit and clean status from Git. Missing values become `unknown`.
 3. Add an app-specific distribution workflow using [Where's wrapper](../../.github/workflows/where-distribution.yml) as the template.
-   Change its app ID, archive command, signing setup and secrets, artifact path, enable variable, and concurrency prefix.
-   Retain the trusted-main plan and publisher jobs, read-only archive permissions, and cleanup step.
+   Change its app ID, archive command, signing context, artifact path, enable variable, and concurrency prefix.
+   Retain the trusted-main plan and publisher jobs, archive credential restrictions, and cleanup step.
+   The current CircleCI archive job supports Where. Add an explicit registered job before enabling another app.
+   Keep CircleCI configuration and control scripts on `main`. Use the existing pinned macOS executor.
+   Keep the CircleCI API token on the GitHub controller. Store signing secrets only in the restricted CircleCI context.
    From the repository root, use `python3 -m Tools.InstallerKit.installer_distribution plan --app <id>` and the matching `finish` command.
    Pass the successful receipt to `installer_update_feed.py`.
    Keep the archive attempt output when retrying only the publisher.
@@ -75,6 +78,9 @@ It has one deployment concurrency group for all apps.
 The `installable` label opts a same-repository PR into every enabled app distribution workflow.
 It authorizes signing that branch's code, including later commits. Fork PRs are excluded.
 The controller runs from `main` through `pull_request_target`, including when a PR has merge conflicts.
+CircleCI archives the selected commit, while GitHub publishes the returned IPA.
+The handoff verifies the successful pipeline, job, artifact path, and signed build identity.
+The label trusts branch build code with the signing identity. A temporary keychain does not isolate secrets from that code.
 Conflicts fail the installable build before signing. Removing the label or closing the PR still retires its channels.
 
 Serialize each app's channel mutations. Recheck the live head, label, state, and mergeability before publication.

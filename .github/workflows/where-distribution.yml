@@ -39,7 +39,7 @@ jobs:
       channel: ${{ steps.plan.outputs.channel }}
     steps:
       # The published workflow uses main's control scripts. PR code is only
-      # checked out on the archive runner after the installable-label gate.
+      # checked out on CircleCI after the installable-label gate.
       - uses: actions/checkout@v4
         with:
           ref: main
@@ -57,58 +57,34 @@ jobs:
   archive:
     needs: plan
     if: needs.plan.outputs.action == 'publish'
-    runs-on: xcode-27
-    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
     outputs:
       attempt: ${{ steps.archive-metadata.outputs.attempt }}
     steps:
+      # This runner holds the CircleCI token but never runs PR code.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.plan.outputs.sha }}
+          ref: main
           persist-credentials: false
-      - name: Select temporary signing directory
-        id: signing-path
-        run: echo "WHERE_SIGNING_DIR=$RUNNER_TEMP/where-signing-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >>"$GITHUB_ENV"
-      - uses: jdx/mise-action@v3
-      - name: Verify Xcode build
-        run: |
-          actual="$(xcodebuild -version | awk '/Build version/{print $3}')"
-          expected="$(cat .xcode-build-version)"
-          if [[ "$actual" != "$expected" ]]; then
-            echo "Expected Xcode build $expected, found $actual" >&2
-            exit 1
-          fi
-      - name: Install temporary signing material
+      - name: Archive on CircleCI and validate the returned IPA
         env:
-          WHERE_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.WHERE_DISTRIBUTION_CERTIFICATE_BASE64 }}
-          WHERE_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.WHERE_DISTRIBUTION_CERTIFICATE_PASSWORD }}
-          WHERE_APP_PROFILE_BASE64: ${{ secrets.WHERE_APP_PROFILE_BASE64 }}
-          WHERE_WIDGET_PROFILE_BASE64: ${{ secrets.WHERE_WIDGET_PROFILE_BASE64 }}
-          WHERE_SHARE_PROFILE_BASE64: ${{ secrets.WHERE_SHARE_PROFILE_BASE64 }}
-        run: bash .github/where-signing.sh prepare
-      - name: Archive and export Where Dev
-        env:
+          CIRCLECI_TOKEN: ${{ secrets.INSTALLER_CIRCLECI_TOKEN }}
+          CIRCLECI_PROJECT: ${{ vars.INSTALLER_CIRCLECI_PROJECT }}
+          CIRCLECI_PIPELINE: ${{ vars.INSTALLER_CIRCLECI_PIPELINE }}
+          SOURCE_SHA: ${{ needs.plan.outputs.sha }}
           INSTALLER_CHANNEL: ${{ needs.plan.outputs.channel }}
-          INSTALLER_RUN: ${{ github.run_id }}
-          INSTALLER_ATTEMPT: ${{ github.run_attempt }}
         run: >-
-          ./Where/archive --profiles "$WHERE_SIGNING_DIR/profiles"
-          --output "$RUNNER_TEMP/where-archive"
+          python3 -m Tools.InstallerKit.circleci_distribution
+          --project "$CIRCLECI_PROJECT" --definition "$CIRCLECI_PIPELINE"
+          --repository "$GITHUB_REPOSITORY" --app where
+          --sha "$SOURCE_SHA" --channel "$INSTALLER_CHANNEL"
+          --run "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT"
+          --feed-url "$INSTALLER_FEED_URL"
+          --output "$RUNNER_TEMP/where-archive/export/Where.ipa"
       - name: Record archive attempt
         id: archive-metadata
         run: echo "attempt=$GITHUB_RUN_ATTEMPT" >>"$GITHUB_OUTPUT"
-      - name: Validate exported identity and commit
-        env:
-          EXPECTED_SHA: ${{ needs.plan.outputs.sha }}
-        run: |
-          python3 - <<'PY'
-          import os
-          from pathlib import Path
-          from Tools.InstallerKit.installer_distribution import Publication, validate_ipa
-          from Tools.InstallerKit.installer_apps import load_app
-          validate_ipa(Path(os.environ['RUNNER_TEMP']) / 'where-archive/export/Where.ipa',
-                       Publication(os.environ['EXPECTED_SHA'], None), load_app('where'))
-          PY
       - name: Upload signed build for publication
         uses: actions/upload-artifact@v4
         with:
@@ -116,9 +92,6 @@ jobs:
           path: ${{ runner.temp }}/where-archive/export/Where.ipa
           if-no-files-found: error
           retention-days: 1
-      - name: Remove temporary signing material
-        if: always() && steps.signing-path.outcome == 'success'
-        run: bash .github/where-signing.sh cleanup
 
   publish:
     permissions:

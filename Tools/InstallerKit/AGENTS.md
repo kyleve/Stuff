@@ -14,6 +14,9 @@ Where-specific profile policy and the archive command remain in `Tools/where_sig
 - Load app identities from the trusted controller's `.github/installer-apps.json`.
   Namespace release tags, manifest paths, catalog mutations, and channel pages by app ID.
   An app ID cannot change its bundle identifier. Preserve other apps and channels on writes.
+- Run signed archives on the shared CircleCI macOS executor. Keep its config and control checkout on `main`.
+  Require the signing context's project and config-source restrictions. Keep the CircleCI API token on the GitHub controller.
+  Validate a successful pipeline, job, artifact path, and signed run identity before publication.
 - Keep repository write credentials out of archive jobs. Only same-repository PRs
   labeled `installable` may receive signed branch builds. Use a controller from `main`.
 - Use `pull_request_target` so conflicts cannot suppress retirement. Require confirmed

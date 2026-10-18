@@ -6,6 +6,26 @@ parameters:
     enum: ["false", "true"]
     default: "false"
 
+  installer_archive:
+    type: enum
+    enum: ["false", "true"]
+    default: "false"
+  installer_sha:
+    type: string
+    default: ""
+  installer_channel:
+    type: string
+    default: ""
+  installer_run:
+    type: string
+    default: ""
+  installer_attempt:
+    type: string
+    default: ""
+  installer_feed_url:
+    type: string
+    default: ""
+
 executors:
   m4-pro-medium:
     macos:
@@ -287,6 +307,61 @@ commands:
           destination: << parameters.artifact_name >>/diagnostics
 
 jobs:
+  archive-where:
+    executor: m4-pro-medium
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      RUNNER_TEMP: /tmp/installer-archive
+      WHERE_SIGNING_DIR: /tmp/installer-archive/where-signing-material
+      INSTALLER_APP_ID: where
+      INSTALLER_REPOSITORY: << pipeline.config.repository.name >>
+      INSTALLER_REPOSITORY_URL: https://github.com/<< pipeline.config.repository.name >>
+      INSTALLER_BUILD_SHA: << pipeline.parameters.installer_sha >>
+      INSTALLER_CHANNEL: << pipeline.parameters.installer_channel >>
+      INSTALLER_RUN: << pipeline.parameters.installer_run >>
+      INSTALLER_ATTEMPT: << pipeline.parameters.installer_attempt >>
+      INSTALLER_FEED_URL: << pipeline.parameters.installer_feed_url >>
+    steps:
+      # Both the pipeline config and this control checkout come from main.
+      # The context restriction must enforce this outside branch-editable YAML.
+      - checkout_without_lfs
+      - validate_build_environment
+      - run:
+          name: Recheck eligibility and checkout the exact source commit
+          command: |
+            umask 077
+            mkdir -p "$RUNNER_TEMP"
+            python3 -m Tools.InstallerKit.circleci_archive prepare "$RUNNER_TEMP/source"
+            cmp .xcode-build-version "$RUNNER_TEMP/source/.xcode-build-version"
+      - run:
+          name: Install archive tools
+          command: |
+            if ! command -v mise >/dev/null 2>&1; then
+              brew install mise
+            fi
+            cd "$RUNNER_TEMP/source"
+            mise trust .mise.toml
+            mise install
+      - run:
+          name: Install temporary signing material
+          command: bash .github/where-signing.sh prepare
+      - run:
+          name: Archive and export Where Dev
+          no_output_timeout: 45m
+          command: |
+            cd "$RUNNER_TEMP/source"
+            ./Where/archive --profiles "$WHERE_SIGNING_DIR/profiles" --output "$RUNNER_TEMP/output"
+      - run:
+          name: Validate the signed archive against the request
+          command: python3 -m Tools.InstallerKit.circleci_archive validate "$RUNNER_TEMP/output/export/Where.ipa"
+      - run:
+          name: Remove temporary signing material
+          when: always
+          command: bash .github/where-signing.sh cleanup
+      - store_artifacts:
+          path: /tmp/installer-archive/output/export/Where.ipa
+          destination: installer/Where.ipa
+
   build-ios-tests:
     executor: m4-pro-large
     steps:
@@ -466,3 +541,14 @@ workflows:
           name: Snapshot Tests (iOS)
           requires:
             - Build iOS Tests
+
+  "Installer Archive":
+    when: >-
+      pipeline.parameters.installer_archive == "true" and
+      pipeline.event.name == "api" and
+      pipeline.git.branch == "main" and
+      pipeline.config.ref == "refs/heads/main"
+    jobs:
+      - archive-where:
+          name: Archive Where Dev
+          context: where-distribution-signing

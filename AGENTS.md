@@ -744,5 +744,5 @@ skip pushes to `main` or manual CircleCI full-gate runs. See the
 setup and the full validation recipe.
 
 The separate [Where Dev distribution workflow](.github/workflows/where-distribution.yml)
-archives signed device builds and publishes them through GitHub Releases and Pages when enabled.
+requests signed device archives on CircleCI and publishes them through GitHub Releases and Pages when enabled.
 Its `installable` label is independent of the test workflows' `NO-CI` title marker.
