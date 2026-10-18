@@ -16,16 +16,28 @@ from Tools.repository import repository_root
 SOURCE_ROOT = repository_root(__file__)
 ASTRO_ROOT = SOURCE_ROOT / "Tools/InstallerSite"
 BUILD_ROOT = ASTRO_ROOT / ".build"
+SYSTEM_MISE_PATHS = (Path("/opt/homebrew/bin/mise"), Path("/usr/local/bin/mise"))
+
+
+def resolve_mise():
+    """Find executable mise installations without requiring an interactive shell."""
+    mise = shutil.which("mise")
+    if mise is not None:
+        return mise
+    home = Path.home()
+    data_home = Path(os.environ.get("XDG_DATA_HOME") or home / ".local/share")
+    data_directory = Path(os.environ.get("MISE_DATA_DIR") or data_home / "mise")
+    # mise-action installs its executable alongside the managed tools.
+    candidates = (data_directory / "bin/mise", home / ".local/bin/mise", *SYSTEM_MISE_PATHS)
+    for candidate in candidates:
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return str(candidate)
+    raise ValueError("mise is required to build the install site. Run ./ide --bootstrap --no-open.")
 
 
 def astro_command(workspace, *arguments):
     """Use the pinned Node runtime, including from Xcode's minimal PATH."""
-    mise = shutil.which("mise")
-    if mise is None:
-        mise = next((str(path) for path in (Path.home() / ".local/bin/mise", Path("/opt/homebrew/bin/mise"),
-                                            Path("/usr/local/bin/mise")) if path.is_file()), None)
-    if mise is None:
-        raise ValueError("mise is required to build the install site. Run ./ide --bootstrap --no-open.")
+    mise = resolve_mise()
     entry = ASTRO_ROOT / "node_modules/.bin/astro"
     if not entry.is_file():
         raise ValueError("Install the site dependencies: mise exec -- npm ci --prefix Tools/InstallerSite")

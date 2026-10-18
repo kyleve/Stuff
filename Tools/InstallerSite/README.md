@@ -39,7 +39,7 @@ mise exec -- npm run preview --prefix Tools/InstallerSite -- --fixture full
 ```
 
 The preview command builds into a temporary directory and removes it after the server stops.
-Each invocation has separate generated files. A preview can run alongside tests.
+Each invocation has separate generated files, including Astro and Vite caches. A preview can run alongside tests.
 Dependency installation needs network access. Rendering and fixture previews work offline.
 
 ## Production build
@@ -70,6 +70,9 @@ The public update schema remains in the Python publication tools and InstallerKi
 `../installer_update_site.py` runs Astro with that input and stages the complete deployment.
 `../installer_site_preview.py` supplies fixture data to the same templates.
 The build uses the Node version in `.mise.toml` and dependencies in `package-lock.json`.
+The launcher first finds mise through `PATH`, then checks its data directory, the standalone installer location, and Homebrew locations.
+Data directory discovery honors `MISE_DATA_DIR`, then `XDG_DATA_HOME`, with `~/.local/share/mise` as the default.
+This also supports Xcode and snapshot commands with a minimal `PATH`.
 
 ## Validation
 

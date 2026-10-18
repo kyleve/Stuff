@@ -23,11 +23,12 @@ class InstallerSitePreviewTests(unittest.TestCase):
             self.assertEqual(result.returncode, expected)
             self.assertNotIn("Traceback", result.stderr)
 
-    def test_public_preview_command_prepares_selected_fixture_and_propagates_server_exit(self):
+    def test_public_preview_command_finds_mise_with_minimal_path_and_propagates_server_exit(self):
         command = Path(__file__).resolve().parents[1] / "installer_site_preview.py"
         with tempfile.TemporaryDirectory(prefix="preview ü ") as temporary:
             root = Path(temporary)
-            fake = root / "mise"
+            fake = root / "mise data/bin/mise"
+            fake.parent.mkdir(parents=True)
             fake.write_text(f'#!{sys.executable}\n' + '''import json, os, sys
 from pathlib import Path
 source = Path(os.environ["INSTALLER_SITE_DATA"])
@@ -41,7 +42,7 @@ sys.exit(17)
             fake.chmod(0o755)
             log = root / "preview.json"
             result = subprocess.run([sys.executable, str(command), "dev", "--fixture", "empty", "--port", "4444"],
-                                    cwd=root, env={**os.environ, "PATH": str(root) + ":/usr/bin:/bin",
+                                    cwd=root, env={**os.environ, "PATH": "/usr/bin:/bin", "MISE_DATA_DIR": str(fake.parent.parent),
                                                    "PREVIEW_TEST_LOG": str(log)}, capture_output=True, text=True)
             self.assertEqual(result.returncode, 17, result.stderr)
             value = json.loads(log.read_text())
