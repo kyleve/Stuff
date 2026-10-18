@@ -30,3 +30,38 @@ def multiple_apps():
     result = catalog()
     result["apps"] += catalog("example", "Example Dev", "com.example.development")["apps"]
     return result
+
+
+def site_scenarios():
+    """The same deterministic catalogs drive local previews and WebKit snapshots."""
+    from copy import deepcopy
+    import hashlib
+
+    # Long release notes exercise wrapping and scrolling. Hashes give these
+    # synthetic commits stable identities; they do not name repository commits.
+    full = multiple_apps()
+    for channel in full["apps"][0]["channels"]:
+        channel["releases"][0]["commits"] = [
+            {"sha": hashlib.sha1(subject.encode()).hexdigest(), "subject": subject}
+            for subject in [
+                "Install development updates directly from Settings",
+                "Keep the update badge visible until the newer build is installed",
+                "Show every incoming commit, including changes from skipped builds",
+                "Improve long region names on narrow screens and large displays",
+                "Preserve the last successful update check while offline",
+                "Keep main and pull request builds available from the install site",
+                "Clarify installation confirmation and preserve existing Where Dev data",
+                "Retain complete release notes when several builds arrive between checks",
+            ]
+        ]
+    # Copy each state so one preview cannot change another fixture.
+    unavailable = deepcopy(full)
+    unavailable["apps"][0]["channels"][1]["releases"][0]["historyChanged"] = True
+    retired = deepcopy(unavailable)
+    retired["apps"][0]["channels"][1]["active"] = False
+    legacy = catalog("example", "Example Development With a Longer Name", "com.example.development")
+    legacy["apps"][0]["channels"] = legacy["apps"][0]["channels"][1:]
+    for release in legacy["apps"][0]["channels"][0]["releases"]:
+        del release["buildDetails"]
+    return {"full": full, "unavailable-history": unavailable, "retired": retired,
+            "empty": {"schemaVersion": 3, "apps": []}, "missing-details": legacy}

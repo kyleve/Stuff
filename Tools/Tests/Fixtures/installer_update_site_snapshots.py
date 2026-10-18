@@ -3,9 +3,9 @@
 Project.swift runs this module before it builds the snapshot bundle:
     python3 -m Tools.Tests.Fixtures.installer_update_site_snapshots --output <file>
 
-The input is synthetic catalog data from installer_update_fixtures. The production
-renderer turns each catalog into the same HTML and artwork that Pages publishes.
-This module embeds that artwork in the HTML so WebKit needs no server or network.
+The input is synthetic catalogs from installer_update_fixtures.site_scenarios(). The production
+Astro renderer turns each catalog into the HTML, CSS, and artwork that Pages publishes.
+This module embeds CSS and artwork so WebKit needs no server or network.
 
 The output is a JSON array of {"name": ..., "html": ...} objects.
 InstallerSiteSnapshotTests.swift uses each name as a snapshot reference identifier.
@@ -15,80 +15,80 @@ Keep these names stable unless the matching reference images also change.
 
 import argparse
 import base64
-import hashlib
+from html.parser import HTMLParser
 import json
 import os
 from pathlib import Path
 import sys
 import tempfile
+from urllib.parse import urlsplit
 
 from Tools.InstallerKit.installer_update_site import render_site
-from Tools.Tests.Fixtures.installer_update_fixtures import catalog, multiple_apps, FEED_URL, REPO
+from Tools.Tests.Fixtures.installer_update_fixtures import site_scenarios, FEED_URL, REPO
+
+
+class OfflineAssets(HTMLParser):
+    """Inline built CSS and artwork without changing the production DOM or layout."""
+
+    def __init__(self, files):
+        super().__init__()
+        self.files = files
+        self.replacements = {}
+
+    def asset(self, url):
+        """Resolve a published URL to bytes in render_site's output-path mapping."""
+        base = urlsplit(FEED_URL).path.removesuffix("updates.json")
+        if not url.startswith(base):
+            raise ValueError(f"Snapshot asset is outside the site: {url}")
+        return self.files[url[len(base):]]
+
+    def handle_starttag(self, tag, attributes):
+        attrs = dict(attributes)
+        original = self.get_starttag_text()
+        # Replace asset tags only. Navigation and install links keep their URLs.
+        if tag == "link" and attrs.get("rel") == "stylesheet":
+            css = self.asset(attrs["href"]).decode()
+            # Fail if CSS gains an external image/font that is not embedded.
+            if "url(" in css:
+                raise ValueError("Snapshot CSS assets must be inlined before capture")
+            self.replacements[original] = "<style>" + css + "</style>"
+        elif tag in ("img", "source"):
+            key = "src" if tag == "img" else "srcset"
+            url = attrs[key]
+            # Base64 embeds the exact artwork bytes without changing pixels.
+            data = "data:image/png;base64," + base64.b64encode(self.asset(url)).decode()
+            self.replacements[original] = original.replace(url, data)
 
 
 def offline_html(files, path):
-    """Replace published artwork URLs with data URLs that contain the same bytes.
-
-    The renderer already embeds CSS. Only its assets/ URLs need replacement here.
-    Base64 represents each PNG as text inside the HTML without changing its pixels.
-    """
+    """Make one production page self-contained while preserving its DOM and CSS."""
     html = files[path].decode()
-    root = FEED_URL[:-len("updates.json")]
-    for relative, contents in files.items():
-        if relative.startswith("assets/"):
-            html = html.replace(root + relative, "data:image/png;base64," + base64.b64encode(contents).decode())
+    assets = OfflineAssets(files)
+    assets.feed(html)
+    for original, replacement in assets.replacements.items():
+        html = html.replace(original, replacement)
     return html
 
 
 def pages():
-    """Return the named pages for the website snapshot matrix.
+    """Select seven named pages from the five shared synthetic catalog states.
 
-    Each call creates a fresh catalog. The sequential changes below derive failure
-    and retirement states from the full catalog without changing shared fixtures.
+    The full state covers all three navigation levels and long release notes.
+    Other states cover rewritten history, retirement, an empty catalog, and
+    missing build metadata. The case names also name the LFS reference images.
     """
-    # Two apps and both main/PR channels exercise app grouping and navigation.
-    value = multiple_apps()
-    # Long release notes exercise scrolling and wrapping. These hashes give the
-    # synthetic commits stable, valid identities. They are not repository commits.
-    for channel in value["apps"][0]["channels"]:
-        channel["releases"][0]["commits"] = [
-            {"sha": hashlib.sha1(subject.encode()).hexdigest(), "subject": subject}
-            for subject in [
-                "Install development updates directly from Settings",
-                "Keep the update badge visible until the newer build is installed",
-                "Show every incoming commit, including changes from skipped builds",
-                "Improve long region names on narrow screens and large displays",
-                "Preserve the last successful update check while offline",
-                "Keep main and pull request builds available from the install site",
-                "Clarify installation confirmation and preserve existing Where Dev data",
-                "Retain complete release notes when several builds arrive between checks",
-            ]
-        ]
-    # Render the complete catalog once and select its three navigation levels.
-    # render_site returns a mapping from output paths to file bytes.
-    rendered = render_site(value, REPO, FEED_URL)
-    result = [{"name": "Index", "html": offline_html(rendered, "index.html")},
-              {"name": "App", "html": offline_html(rendered, "apps/where/index.html")},
-              {"name": "Channel", "html": offline_html(rendered, "apps/where/pr-42/index.html")}]
-    # A rewritten branch cannot provide complete incoming commit history.
-    value["apps"][0]["channels"][1]["releases"][0]["historyChanged"] = True
-    result.append({"name": "UnavailableHistory", "html": offline_html(render_site(value, REPO, FEED_URL),
-        "apps/where/pr-42/index.html")})
-    # Retirement keeps the channel page but removes its install action.
-    value["apps"][0]["channels"][1]["active"] = False
-    result.append({"name": "Retired", "html": offline_html(render_site(value, REPO, FEED_URL),
-        "apps/where/pr-42/index.html")})
-    # A catalog without apps has no artwork URLs to inline.
-    result.append({"name": "Empty", "html": render_site(
-        {"schemaVersion": 3, "apps": []}, REPO, FEED_URL)["index.html"].decode()})
-    # An unregistered app supplies the placeholder icon. Its long name and older
-    # release metadata exercise wrapping and explicit "Not recorded" values.
-    legacy = catalog("example", "Example Development With a Longer Name", "com.example.development")
-    legacy["apps"][0]["channels"] = legacy["apps"][0]["channels"][1:]
-    for release in legacy["apps"][0]["channels"][0]["releases"]:
-        del release["buildDetails"]
-    result.append({"name": "MissingDetails", "html": offline_html(render_site(legacy, REPO, FEED_URL),
-        "apps/example/pr-42/index.html")})
+    cases = {
+        "full": [("Index", "index.html"), ("App", "apps/where/index.html"), ("Channel", "apps/where/pr-42/index.html")],
+        "unavailable-history": [("UnavailableHistory", "apps/where/pr-42/index.html")],
+        "retired": [("Retired", "apps/where/pr-42/index.html")],
+        "empty": [("Empty", "index.html")],
+        "missing-details": [("MissingDetails", "apps/example/pr-42/index.html")],
+    }
+    result = []
+    for name, catalog in site_scenarios().items():
+        # Build once per catalog, then select its relevant output paths.
+        files = render_site(catalog, REPO, FEED_URL)
+        result.extend({"name": title, "html": offline_html(files, path)} for title, path in cases[name])
     return result
 
 

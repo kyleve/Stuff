@@ -9,7 +9,7 @@ Set up repository tooling and generate the Xcode project.
 
 Options:
   --bootstrap, --setup  Install mise and the repository's pinned tools.
-  -i, --install        Resolve Tuist and Swift package dependencies first.
+  -i, --install        Resolve project and install-site dependencies first.
   --no-open            Generate without opening Xcode.
   --team-id ID         Persist the Apple Developer Team ID for this checkout.
   -h, --help           Show this help without performing setup.
@@ -178,7 +178,7 @@ EOF
     echo "==> mise trust"
     "$MISE" trust
 
-    # Install the pinned tools (Tuist, SwiftFormat, Ruby) from .mise.toml.
+    # Install the pinned tools from .mise.toml.
     echo "==> mise install"
     "$MISE" install
 
@@ -212,6 +212,11 @@ fi
 if [ "$INSTALL" = true ]; then
     echo "==> tuist install"
     "$MISE" exec -- tuist install
+fi
+
+if [ "$BOOTSTRAP" = true ] || [ "$INSTALL" = true ]; then
+    echo "==> install site dependencies"
+    "$MISE" exec -- npm ci --prefix Tools/InstallerSite
 fi
 
 echo "==> sync-agents --install"

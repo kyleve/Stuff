@@ -1,0 +1,14 @@
+---
+import type { App } from '../data';
+interface Props { app: App }
+const { app } = Astro.props;
+const { icon, darkIcon } = app.presentation;
+---
+{icon ? (
+  <picture class="app-icon">
+    {darkIcon && <source media="(prefers-color-scheme: dark)" srcset={darkIcon}/>}
+    <img src={icon} width="148" height="148" alt=""/>
+  </picture>
+) : (
+  <span class="app-icon placeholder" aria-hidden="true">{app.name.trim()[0].toUpperCase()}</span>
+)}

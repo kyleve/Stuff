@@ -1,0 +1,17 @@
+---
+import { channelURL, channelLabel, type App, type ActiveChannel } from '../data';
+import InstallButton from './InstallButton.astro';
+import PublishedDate from './PublishedDate.astro';
+import Symbol from './Symbol.astro';
+interface Props { app: App; channel: ActiveChannel }
+const { app, channel } = Astro.props;
+const release = channel.release;
+const version = release.buildDetails ? 'Version ' + release.buildDetails.version : 'Build ' + release.bundleVersion;
+---
+<article class="channel-row">
+  <div>
+    <h3><a href={channelURL(app, channel)}>{channelLabel(channel)} <Symbol name="arrow" size={14}/></a></h3>
+    <p>{version} · <PublishedDate date={release.publishedAt} includeYear={true}/></p>
+  </div>
+  <InstallButton app={app} channel={channel}/>
+</article>

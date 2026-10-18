@@ -29,6 +29,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v3
+      - name: Install site dependencies and check Astro
+        run: |
+          mise exec -- npm ci --prefix Tools/InstallerSite
+          mise exec -- npm run check --prefix Tools/InstallerSite
       - name: ShellCheck
         run: ./shellcheck
       - name: Retained tool tests

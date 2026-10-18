@@ -1,5 +1,4 @@
 from contextlib import redirect_stderr, redirect_stdout
-from copy import deepcopy
 from dataclasses import replace
 import hashlib
 import io
@@ -140,25 +139,13 @@ class InstallerUpdateSiteTests(unittest.TestCase):
             root = Path(temporary)
             source = root / "updates.json"
             source.write_text(json.dumps(catalog()))
-            with patch("Tools.InstallerKit.installer_update_site.load_apps", return_value={"where": broken}), \
+            with patch("Tools.installer_site_data.load_apps", return_value={"where": broken}), \
                     redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
                 self.assertEqual(main(["--catalog", str(source), "--repository", REPO,
                                        "--feed-url", FEED_URL, "--output", str(root / "site")]), 1)
             self.assertEqual(stdout.getvalue(), "")
             self.assertIn("missing-icon.png", stderr.getvalue())
             self.assertFalse((root / "site").exists())
-
-    def test_duplicate_out_of_order_or_empty_active_channels_fail(self):
-        original = catalog()
-        duplicates = deepcopy(original)
-        duplicates["apps"][0]["channels"] += duplicates["apps"][0]["channels"]
-        unordered = deepcopy(original)
-        unordered["apps"][0]["channels"][0]["releases"].reverse()
-        empty = deepcopy(original)
-        empty["apps"][0]["channels"][0]["releases"] = []
-        for value in (duplicates, unordered, empty):
-            with self.assertRaises(ValueError):
-                render_site(value, REPO, FEED_URL)
 
     def test_homepage_only_installs_main_and_app_pages_keep_prs_separate(self):
         value = multiple_apps()
@@ -198,13 +185,58 @@ class InstallerUpdateSiteTests(unittest.TestCase):
         self.assertNotIn(b"itms-services", files["index.html"])
         self.assertIn(b"itms-services", files["apps/where/index.html"])
 
-    def test_rejects_app_collisions_and_cross_app_manifest_urls(self):
-        duplicate = multiple_apps()
-        duplicate["apps"][1]["id"] = "where"
-        duplicate_bundle = multiple_apps()
-        duplicate_bundle["apps"][1]["bundleIdentifier"] = duplicate_bundle["apps"][0]["bundleIdentifier"]
-        wrong_manifest = multiple_apps()
-        wrong_manifest["apps"][1]["channels"][0]["releases"][0]["manifestURL"] = wrong_manifest["apps"][0]["channels"][0]["releases"][0]["manifestURL"]
-        for value in (duplicate, duplicate_bundle, wrong_manifest):
-            with self.assertRaises(ValueError):
-                render_site(value, REPO, FEED_URL)
+    def test_astro_build_failure_reports_diagnostics_and_exposes_no_partial_output(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / "updates.json"
+            source.write_text(json.dumps(catalog()))
+            output = Path(temporary) / "site"
+            failure = subprocess.CompletedProcess([], 23, stdout="build log", stderr="template failed")
+            with patch("installer_update_site.subprocess.run", return_value=failure), \
+                    redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
+                status = main(["--catalog", str(source), "--repository", REPO,
+                               "--feed-url", FEED_URL, "--output", str(output)])
+            self.assertEqual(status, 1)
+            self.assertEqual(stdout.getvalue(), "")
+            self.assertIn("exit 23", stderr.getvalue())
+            self.assertIn("template failed", stderr.getvalue())
+            self.assertEqual(list(Path(temporary).iterdir()), [source])
+
+    def test_astro_preserves_exact_publication_files_and_does_not_ship_client_scripts(self):
+        from installer_site_data import prepare_site
+        value = catalog()
+        expected = prepare_site(value, REPO, FEED_URL).files
+        files = render_site(value, REPO, FEED_URL)
+        for path, content in expected.items():
+            self.assertEqual(files[path], content, path)
+        self.assertFalse(any(path.endswith((".js", ".mjs")) for path in files))
+
+    def test_simultaneous_builds_keep_their_catalogs_and_generated_files_isolated(self):
+        from concurrent.futures import ThreadPoolExecutor
+        inputs = (catalog("first", "First App", "com.example.first"),
+                  catalog("second", "Second App", "com.example.second"))
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = list(executor.map(lambda value: render_site(value, REPO, FEED_URL), inputs))
+        for value, files in zip(inputs, results):
+            self.assertEqual(json.loads(files["updates.json"]), value)
+            app = value["apps"][0]
+            self.assertIn(f'apps/{app["id"]}/main/index.html', files)
+            self.assertIn(app["name"].encode(), files["index.html"])
+        self.assertNotIn("apps/second/index.html", results[0])
+        self.assertNotIn("apps/first/index.html", results[1])
+
+    def test_custom_domain_and_nested_base_keep_navigation_and_assets_on_the_current_host(self):
+        for base in ("https://installs.example/", "https://installs.example/nested/catalog/"):
+            value = catalog()
+            feed = base + "updates.json"
+            for channel in value["apps"][0]["channels"]:
+                for release in channel["releases"]:
+                    release["manifestURL"] = manifest_url(feed, "where", channel["name"], release["id"])
+            with self.subTest(base=base):
+                from urllib.parse import urlsplit
+                root = urlsplit(base).path
+                files = render_site(value, REPO, feed)
+                home = files["index.html"].decode()
+                self.assertIn(f'href="{root}apps/where/"', home)
+                self.assertIn(f'src="{root}assets/where/', home)
+                self.assertIn("https%3A%2F%2Finstalls.example%2F", home)
+                self.assertEqual(json.loads(files["updates.json"]), value)

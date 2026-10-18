@@ -1,0 +1,15 @@
+---
+import { site, channelURL, type App, type ActiveChannel } from '../data';
+import QuickFacts from './QuickFacts.astro';
+import Symbol from './Symbol.astro';
+interface Props { app: App; channel: ActiveChannel }
+const { app, channel } = Astro.props;
+const release = channel.release;
+---
+<section class="detail-panel" aria-label="Build summary">
+  <QuickFacts release={release} expanded={true}/>
+  <div class="build-footnote">
+    <span>Build {release.bundleVersion} · <a href={'https://github.com/' + site.repository + '/commit/' + release.sha}><code>{release.sha.slice(0, 7)}</code></a></span>
+    <a href={channelURL(app, channel)}>Build details <Symbol name="arrow" size={14}/></a>
+  </div>
+</section>

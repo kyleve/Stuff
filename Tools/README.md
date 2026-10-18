@@ -35,6 +35,7 @@ Use it for checkout-relative resources instead of fixed parent-directory counts.
 Its private Python modules use qualified imports under `Tools.InstallerKit`.
 Run their commands from the repository root with `python3 -m Tools.InstallerKit.<module>`.
 Tests use the same module imports without changing Python's search path.
+The [Astro project](InstallerSite/README.md) owns routes, components, and styles.
 [Where's distribution guide](../Where/DISTRIBUTION.md) owns its signing setup and device validation.
 
 ## Snapshot shard policy
@@ -52,6 +53,12 @@ owns sample selection and publication.
 
 ## Testing
 
+Install the site dependencies before the retained installer tests or snapshot builds:
+
+```bash
+mise exec -- npm ci --prefix Tools/InstallerSite
+```
+
 ```bash
 python3 -m unittest discover -s Tools/Tests -p 'test_*.py'
 mise exec -- ruby -I Tools/Tests -e 'Dir["Tools/Tests/**/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
@@ -68,9 +75,9 @@ The install site's image tests run on the pinned iOS simulator:
 ```
 
 Each build runs [the fixture generator](Tests/Fixtures/installer_update_site_snapshots.py)
-against the production renderer. The bundle loads those pages in offline
+against the production Astro build. The bundle loads those pages in offline
 `WKWebView` instances through `SnapshotKitTesting.assertHTMLSnapshots`.
-The generator inlines the exact published artwork bytes for offline capture.
+The generator inlines the emitted CSS and artwork for offline capture.
 References cover the main-build homepage, app PR pages, release details, unavailable commit history,
 retired channels, an empty catalog, and missing artwork and metadata on iPhone and iPad in both appearances.
 They use the existing LFS references, snapshot scheme, and CI shard discovery.
