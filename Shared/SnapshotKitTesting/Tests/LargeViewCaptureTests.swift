@@ -108,6 +108,28 @@ struct LargeViewCaptureTests {
         #expect(sample.bottom.blue > 0.5)
     }
 
+    @Test func keepsAShortBoundedScrollViewAtItsIntrinsicHeight() async throws {
+        try waitFor { hostKeyWindow() != nil }
+        let scroll = ScrollView {
+            VStack(spacing: 0) {
+                Color.red.frame(height: 100)
+                Color.blue.frame(height: 140)
+            }
+        }
+        .frame(height: 240)
+        let host = UIHostingController(rootView: scroll)
+        let image = try await renderSnapshotImage(
+            of: host,
+            named: "short-bounded-scroll-probe",
+            sizing: .intrinsic(width: 402, minimumHeight: 80),
+            safeAreaInsets: .zero,
+        )
+
+        #expect(image.size.height == 240)
+        #expect(image.probePixel(atUnitPoint: CGPoint(x: 0.5, y: 0.1)).red > 0.5)
+        #expect(image.probePixel(atUnitPoint: CGPoint(x: 0.5, y: 0.9)).blue > 0.5)
+    }
+
     @Test func capturesAHorizontalScrollViewsFullContentInMultipleTiles() async throws {
         try waitFor { hostKeyWindow() != nil }
         let scroll = ScrollView(.horizontal) {

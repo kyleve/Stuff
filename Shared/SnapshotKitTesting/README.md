@@ -29,8 +29,10 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   simulates device chrome), animation quiescing, text-cursor hiding, and a
   size-stabilization pass for SwiftUI hosting controllers. Full-content captures
   use a full-width scroll descendant's content size plus surrounding chrome when
-  UIKit-backed SwiftUI containers such as `Form` report only their viewport
-  through `sizeThatFits`. device presets retain their normal viewport height as
+  UIKit-backed SwiftUI containers such as `Form` do not report their complete height
+  through `sizeThatFits`. This fallback applies only when scroll content exceeds
+  the reported intrinsic height. A fully visible short document keeps its intrinsic height.
+  Device presets retain their normal viewport height as
   the minimum. Height measurement iterates to a stable fixed point for lazy
   content. if it cannot converge within the bounded pass budget, capture throws,
   the assertion records a test issue, and no arbitrary image is compared or

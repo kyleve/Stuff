@@ -90,6 +90,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Do not remove the tiling without re-running the probe.** Guard: `SnapshotKitTestingTests.LargeViewCaptureTests`.
 - **Include UIKit-backed SwiftUI containers in full-content sizing.**
 - **When a full-width scroll view such as `Form` reports its viewport through `sizeThatFits`, add surrounding chrome to the size.**
+- **When scroll content exceeds the root's reported intrinsic height, apply that fallback.** Do not add unused host space to an intrinsic height that already covers the content. Guard: `LargeViewCaptureTests.keepsAShortBoundedScrollViewAtItsIntrinsicHeight`.
 - **Device presets retain their normal viewport height as the minimum.** Guard: `SnapshotKitTestingTests.LargeViewCaptureTests`.
 - **Use one authoritative scroller for two-axis full-content sizing.** Resolve both dimensions from the largest viewport-filling scroll descendant. Converge the size as one value. Reset it to the leading/top edge.
 - **Reject unsafe two-axis captures before allocation.** Limit them to 32,000 pixels per dimension and 100 million pixels total. Guard: `SnapshotKitTestingTests.LargeViewCaptureTests`.

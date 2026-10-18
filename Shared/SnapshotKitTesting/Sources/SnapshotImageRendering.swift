@@ -478,8 +478,8 @@ private func removeChildAfterCapture(_ child: UIViewController) {
 /// time-based reveals run), lets it settle, then measures `sizeThatFits` and
 /// pins the frame — so a content-loading component is sized to its loaded
 /// content rather than an empty placeholder. The result never falls below the
-/// requested minimum height. A positive minimum also sets the starting viewport;
-/// otherwise the host window supplies that proposal. UIKit-backed SwiftUI containers such as `Form`
+/// requested minimum height. The host window supplies the starting height.
+/// UIKit-backed SwiftUI containers such as `Form`
 /// report their viewport rather than their ideal height, so a full-width scroll
 /// descendant's content size is used when it is taller. `.fixed` sizing leaves
 /// the frame untouched.
@@ -519,14 +519,8 @@ private func resolveContentSize(
                 throw SnapshotRenderingError.measurementHookRequiresIntrinsicSizing(name: name)
             }
             return
-        case let .intrinsic(width, minimumHeight):
-            // An explicit viewport must also be the starting proposal. Using
-            // the host window here makes short scroll documents acquire its
-            // height as empty surrounding chrome during measurement.
-            probeSize = CGSize(
-                width: width,
-                height: minimumHeight > 0 ? minimumHeight : max(window.bounds.height, 1),
-            )
+        case let .intrinsic(width, _):
+            probeSize = CGSize(width: width, height: max(window.bounds.height, 1))
         case let .fullContent2D(minimumSize):
             probeSize = CGSize(
                 width: max(minimumSize.width, 1),
@@ -588,8 +582,8 @@ private func resolveContentSize(
         if !measured.height.isFinite || measured.height <= 0 {
             measured.height = 1
         }
-        if let scrollContentHeight = viewController.view.fullScrollContentHeight,
-           scrollContentHeight > measured.height
+        if let scrollContentHeight = viewController.view
+            .fullScrollContentHeight(exceeding: measured.height)
         {
             measured.height = scrollContentHeight
         }
@@ -761,14 +755,14 @@ extension CGSize {
 }
 
 extension UIView {
-    /// The root height required to show a full-width scrolling descendant's
-    /// complete content while preserving the chrome around its viewport.
+    /// The root height required when a full-width scrolling descendant's
+    /// content exceeds the root's reported intrinsic height.
     ///
     /// `Form` and `List` are backed by UIKit scroll views whose hosting view
-    /// answers `sizeThatFits` with only the current viewport. Restricting the
+    /// does not reliably report its full height through `sizeThatFits`. Restricting the
     /// fallback to full-width scrolling content avoids expanding an intentionally
     /// narrow nested scroller inside an otherwise intrinsic component.
-    fileprivate var fullScrollContentHeight: CGFloat? {
+    fileprivate func fullScrollContentHeight(exceeding intrinsicHeight: CGFloat) -> CGFloat? {
         descendants
             .compactMap { view -> CGFloat? in
                 guard let scrollView = view as? UIScrollView else { return nil }
@@ -781,7 +775,12 @@ extension UIView {
                 let chromeHeight = max(bounds.height - visibleFrame.height, 0)
                 let insetHeight = scrollView.adjustedContentInset.top
                     + scrollView.adjustedContentInset.bottom
-                return scrollView.contentSize.height + insetHeight + chromeHeight
+                let contentHeight = scrollView.contentSize.height + insetHeight
+                // A valid intrinsic height that already covers the content
+                // needs no fallback. Form and navigation hosts can report zero
+                // even after expansion, so viewport fit alone is insufficient.
+                guard contentHeight > intrinsicHeight else { return nil }
+                return contentHeight + chromeHeight
             }
             .max()
     }
