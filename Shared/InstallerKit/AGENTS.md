@@ -6,6 +6,7 @@ The [repository rules](../../AGENTS.md) apply.
 
 - Depend only on Foundation, Observation, and PeriscopeCore. Never import app
   modules, InstallerKitUI, SwiftUI, or UIKit. Hosts own audience gates, storage, and lifecycle.
+  InstallerKitUI owns reusable native presentation and its copy.
 - Construct one service and model in the host composition root. Inject device-local
   `UpdatePreferencesStoring` and `UpdateFetching` dependencies.
 - Keep direct fixture initializers behind the DEBUG Testing SPI. Production callers use signed metadata and decoded catalogs.
@@ -21,4 +22,4 @@ The [repository rules](../../AGENTS.md) apply.
   must not replace the last successful catalog or model state.
 
 Guards: `UpdateCatalogTests`, `UpdateServiceTests`, and `UpdateModelTests`.
-Run `./test InstallerKitTests`.
+Run `./test InstallerKitTests`. InstallerKitUI owns the shared image matrix; hosts cover their integration.

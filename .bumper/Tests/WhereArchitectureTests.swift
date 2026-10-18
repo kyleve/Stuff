@@ -95,6 +95,7 @@ func `InstallerKit rejects app and UI dependencies`() throws {
     for source in [
         "import WhereCore",
         "import WhereUI",
+        "import InstallerKitUI",
         "import UIKit",
         "import SwiftUI",
     ] {
@@ -107,6 +108,21 @@ func `InstallerKit rejects app and UI dependencies`() throws {
             )],
         ))
         #expect(!report.violations.isEmpty)
+    }
+}
+
+@Test
+func `InstallerKitUI can use the engine but rejects host dependencies`() throws {
+    for source in ["import InstallerKit\nimport SwiftUI", "import WhereCore", "import WhereUI"] {
+        let report = try bumper.evaluate(RepositoryInput(
+            architecture: bumper.architecture,
+            files: [SourceInput(
+                path: "Shared/InstallerKitUI/Sources/AppUpdatesView.swift",
+                component: ComponentID(WhereComponent.installerKitUI.rawValue),
+                source: source,
+            )],
+        ))
+        #expect(report.violations.isEmpty == source.hasPrefix("import InstallerKit\n"))
     }
 }
 

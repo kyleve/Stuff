@@ -11,6 +11,7 @@ let package = Package(
     ],
     products: [
         .library(name: "InstallerKit", targets: ["InstallerKit"]),
+        .library(name: "InstallerKitUI", targets: ["InstallerKitUI"]),
         .library(name: "CreditKit", targets: ["CreditKit"]),
         .library(name: "LedgerCore", targets: ["LedgerCore"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
@@ -64,6 +65,18 @@ let package = Package(
             name: "InstallerKit",
             dependencies: [.target(name: "PeriscopeCore")],
             path: "Shared/InstallerKit/Sources",
+        ),
+        .target(
+            name: "InstallerKitUI",
+            dependencies: [
+                .target(name: "InstallerKit"),
+                .target(name: "BroadwayCore"),
+                .target(name: "BroadwayUI"),
+                .target(name: "SnapshotKit"),
+                .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
+            ],
+            path: "Shared/InstallerKitUI/Sources",
+            resources: [.process("Resources")],
         ),
         .target(
             name: "CreditKit",

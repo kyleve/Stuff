@@ -2,7 +2,7 @@
 
 InstallerKit checks for ad hoc iOS updates from the repository's shared install site.
 It has no dependency on Where, SwiftUI, or UIKit.
-Each app supplies its presentation, navigation, and badge.
+[InstallerKitUI](../InstallerKitUI/README.md) supplies the reusable native update page. Each app supplies branding, navigation, and its badge.
 
 ## Integration
 
@@ -69,4 +69,5 @@ Previews can construct installed identities and catalogs directly, then inject t
 Production callers still read signed metadata and decode catalogs. Services validate catalogs before use.
 
 Run `./test InstallerKitTests` for identity, catalog, request, cache, and cancellation coverage.
+InstallerKitUI owns the shared screen snapshots. WhereUI covers its Settings integration.
 `ToolsSnapshotTests` captures the shared download site.
