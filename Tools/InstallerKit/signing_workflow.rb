@@ -114,7 +114,8 @@ module InstallerSigning
 
     def match_options(identifiers, readonly:)
       options = { type: 'adhoc', platform: 'ios', app_identifier: identifiers, team_id: team,
-                  git_url: STORE, git_branch: 'main', readonly: readonly, clone_branch_directly: true }
+                  git_url: STORE, git_branch: 'main', readonly: readonly,
+                  renew_expired_certs: !readonly, clone_branch_directly: true }
       options[:api_key_path] = ENV.fetch('INSTALLER_API_KEY_PATH') unless readonly
       if ENV['CIRCLECI']
         state = ENV.fetch('WHERE_SIGNING_DIR')

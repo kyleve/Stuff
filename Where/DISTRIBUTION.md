@@ -130,7 +130,8 @@ To add a device, run this command locally, then publish a new build:
 ```
 
 Registration refreshes every app and extension profile.
-Run `./signing refresh --app where` before the certificate or profiles expire.
+Both maintenance commands replace expired certificates and regenerate all profiles. They retain certificates that are still valid.
+If a certificate expires, run `./signing refresh --app where` locally, then publish a new build.
 Ordinary archives use Match in read-only mode and cannot repair missing or expired assets.
 The Apple Distribution certificate signs the app. GitHub provides the HTTPS certificate for downloads.
 See Apple's [ad hoc profile guide](https://developer.apple.com/help/account/provisioning-profiles/create-an-ad-hoc-provisioning-profile/).

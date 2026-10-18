@@ -96,6 +96,7 @@ class SigningWorkflowTest < Minitest::Test
     @workflow.archive
     match = @actions.calls.first.last
     assert_equal true, match.fetch(:readonly)
+    assert_equal false, match.fetch(:renew_expired_certs)
     refute match.key?(:api_key_path)
     assert_equal @profiles.map { |p| p.fetch('bundle_id') }, match.fetch(:app_identifier)
     assert File.file?(File.join(@output, 'export/Where.ipa'))
@@ -107,12 +108,35 @@ class SigningWorkflowTest < Minitest::Test
     @targets.each { |target| assert_nil ENV[target.fetch('environment_key')] }
   end
 
+  def test_refresh_renews_expired_certificates_and_all_profiles
+    @workflow.refresh
+    assert_equal [:match], @actions.calls.map(&:first)
+    match = @actions.calls.first.last
+    assert_equal false, match.fetch(:readonly)
+    assert_equal true, match.fetch(:renew_expired_certs)
+    assert_equal true, match.fetch(:force)
+    assert_equal @key, match.fetch(:api_key_path)
+  end
+
+  def test_ci_archive_keeps_certificate_renewal_disabled
+    ENV['CIRCLECI'] = 'true'
+    ENV['WHERE_SIGNING_DIR'] = @root
+    File.write(File.join(@root, 'owned-by-installer-signing'), '')
+    File.write(File.join(@root, 'keychain-password'), 'test-only-password')
+    @workflow.archive
+    match = @actions.calls.first.last
+    assert_equal true, match.fetch(:readonly)
+    assert_equal false, match.fetch(:renew_expired_certs)
+    refute match.key?(:api_key_path)
+  end
+
   def test_device_registration_precedes_forced_refresh_of_all_profiles
     @workflow.register_device
     assert_equal [:register_devices, :match], @actions.calls.map(&:first)
     match = @actions.calls.last.last
     assert_equal false, match.fetch(:readonly)
     assert_equal true, match.fetch(:force)
+    assert_equal true, match.fetch(:renew_expired_certs)
     assert_equal @key, match.fetch(:api_key_path)
     assert_equal 3, match.fetch(:app_identifier).length
   end

@@ -5,6 +5,7 @@ GitHub Releases stores the signed IPAs. InstallerKit supplies the in-app update 
 InstallerKitUI supplies the reusable native update page.
 Each app selects its signing configuration, audience gate, branding, and Settings navigation.
 The shared `./signing` command owns Match maintenance and Fastlane archives.
+Local maintenance renews expired certificates and regenerates profiles. Archives only download existing assets.
 Register the scheme, configuration, targets, and profile override keys in `signing_apps.json`.
 Bundle identifiers come from generated Xcode settings, not the descriptor.
 See [Where setup](../../Where/DISTRIBUTION.md#one-time-setup) for the shared signing repository and Apple account checklist.
