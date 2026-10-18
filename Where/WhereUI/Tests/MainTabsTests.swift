@@ -12,7 +12,7 @@ struct MainTabsTests {
         let session = PreviewSupport.loadedSession()
         session.preferences.showsLocationWelcome = false
         let fixture = UpdateSceneFixture()
-        let client = try UpdateSceneClient(InstallerPreview.catalog(.available))
+        let client = UpdateSceneClient(InstallerPreview.catalog(.available))
         let updates = UpdateModel(service: UpdateService(
             installed: InstallerPreview.distribution(),
             preferences: WherePreferences(store: InMemoryKeyValueStore()),
