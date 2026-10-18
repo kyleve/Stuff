@@ -235,6 +235,13 @@ one it belongs to rather than to a god-object:
   becomes an observed motion leg. Each inferred endpoint carries its reason
   into the correction review.
 
+  `FlightTrajectoryGenerator` builds synthetic journeys and then simulates GPS observations.
+  The analyzer tests run 1,000 fixed seeds per profile by default: 10,000 journeys across ten profiles.
+  Replay a failure with
+  `TEST_RUNNER_WHERE_FLIGHT_FUZZ_PROFILE` and `TEST_RUNNER_WHERE_FLIGHT_FUZZ_SEED`.
+  Run the suite with `./test --only WhereCoreTests/FlightTrajectoryAnalyzerTests`.
+  Use `TEST_RUNNER_WHERE_FLIGHT_FUZZ_COUNT` to override the count for a focused run.
+  Failures report the seed, sampling parameters, and synthetic trace. No personal archive enters this corpus.
 - **`SampleCorrectionAssessment`** — shares the raw-evidence assessment for flights
   and border drift. Its named policy includes 24-hour report context and local
   boundary brackets within ten minutes on each side. These conservative limits
