@@ -35,6 +35,8 @@ jobs:
           mise exec -- npm run check --prefix Tools/InstallerKit/Site
       - name: ShellCheck
         run: ./shellcheck
+      - name: Install locked Ruby dependencies
+        run: BUNDLE_PATH=vendor/bundle BUNDLE_FROZEN=true mise exec -- bundle install
       - name: Retained tool tests
         run: |
           python3 -m unittest discover -s Tools/Tests -p 'test_*.py'

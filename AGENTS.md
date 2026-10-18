@@ -27,6 +27,7 @@ Roughly, this file covers:
 | SwiftFormat | `.mise.toml` |
 | ShellCheck  | `.mise.toml` |
 | Ruby        | `.mise.toml` |
+| Fastlane and Ruby dependencies | `Gemfile.lock` |
 | Node.js     | `.mise.toml` |
 | Astro and TypeScript | `Tools/InstallerKit/Site/package-lock.json` |
 | Swift PM    | `Package.swift` (`swift-tools-version`) |
@@ -46,12 +47,12 @@ two manifests are the authoritative target catalog. This file does not duplicate
 Xcode project](#generating-the-xcode-project)). On a fresh machine, run `./ide
 --bootstrap` first. That command installs `mise` and the pinned tools before
 generating. Plain `./ide` fails fast and points at bootstrap.
-`./ide --bootstrap` and `./ide --install` also install the locked site dependencies.
+`./ide --bootstrap` and `./ide --install` also install the locked site and Fastlane dependencies.
 After a site lockfile change, run `mise exec -- npm ci --prefix Tools/InstallerKit/Site`.
 
 The executables in the repo root are the dev scripts. They are `ide`, `test`,
 `swiftformat`, `sf-symbols`, `sync-agents`, `profile`, `icons`, `flaky`, `simulator`,
-`worktree`, `xcstrings`, `attribution`, `shellcheck`, `codex-watchdog`, `tla-check`,
+`worktree`, `signing`, `xcstrings`, `attribution`, `shellcheck`, `codex-watchdog`, `tla-check`,
 `circleci-artifacts`, `snapshot-shards`, `loc`. Each takes `--help`. Use one of these scripts instead of
 hand-rolling its job. `./test` owns iOS tests; the native-macOS Ledger scheme is the exception
 (see [Running tests](#running-tests)). `./icons`, `./attribution`, and `./simulator` own state that is

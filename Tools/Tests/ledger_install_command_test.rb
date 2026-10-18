@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require_relative '../repository'
 
 require "fileutils"
 require "minitest/autorun"
@@ -94,7 +95,7 @@ class LedgerInstallCommandTest < Minitest::Test
   class Fixture
     def initialize(root, statuses:, process_mode:)
       @root = root
-      @repository = File.expand_path("../..", __dir__)
+      @repository = Repository.root(__FILE__)
       @binary = root / "bin"
       @log = root / "commands.log"
       @marker = root / "process-alive"

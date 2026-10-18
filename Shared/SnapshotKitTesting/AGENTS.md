@@ -23,7 +23,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **The rendering pipeline is one async function.** All captures (standard and accessibility) flow through `renderSnapshotImage(...)`.
 - **The hosted PNG API uses the same pipeline and capture lock.** It returns bytes and dimensions without comparing a reference.
 - **HTML snapshots wrap offline WebKit in the standard view pipeline.** Use its host, traits, capture lock, and pixel renderer. Await navigation, fonts, paint, and full-content height convergence from the pre-measure hook. Keep consumer HTML generation outside this module. Guards: `AssertHTMLSnapshotsTests`, `SnapshotWebPageTests`.
-- **Measure HTML height in WebKit after paint, not through the asynchronous UIKit scroll-size mirror.** Guard: `SnapshotWebPageTests`.
+- **Measure HTML height in WebKit after paint, not through the asynchronous UIKit scroll-size mirror.** Exclude its internal scroll views from generic scroll-size fallback through `SnapshotContentSizeProviding`. Guard: `SnapshotWebPageTests`.
 - **Hide native scroll-edge effects for HTML document captures.** Guard: `SnapshotWebPageTests.capturesSharpContentAtDocumentEdges`.
 - **Keep PNG export hosted.** `captureSnapshotPNG` requires `StuffTestHost`'s key window and must not gain a headless renderer.
 - **Its `async` is load-bearing.** A synchronous `Snapshotting` pullback could never settle `.task`-driven content.

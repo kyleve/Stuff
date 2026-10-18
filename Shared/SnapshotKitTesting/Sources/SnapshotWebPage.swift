@@ -23,6 +23,9 @@ final class SnapshotWebPage: NSObject, WKNavigationDelegate {
         case failed(any Error)
     }
 
+    /// The DOM measurement owns sizing; UIKit's scroll mirror can lag behind it.
+    final class DocumentView: WKWebView, SnapshotContentSizeProviding {}
+
     let webView: WKWebView
     private(set) var size: CGSize
     private let html: String
@@ -32,7 +35,10 @@ final class SnapshotWebPage: NSObject, WKNavigationDelegate {
     private init(html: String, size: CGSize, configuration: WKWebViewConfiguration) {
         self.html = html
         self.size = size
-        webView = WKWebView(frame: CGRect(origin: .zero, size: size), configuration: configuration)
+        webView = DocumentView(
+            frame: CGRect(origin: .zero, size: size),
+            configuration: configuration,
+        )
         super.init()
         webView.navigationDelegate = self
         webView.scrollView.contentInsetAdjustmentBehavior = .never

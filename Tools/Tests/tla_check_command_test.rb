@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require_relative '../repository'
 
 require "fileutils"
 require "json"
@@ -8,7 +9,7 @@ require "pathname"
 require "tmpdir"
 
 class TlaCheckCommandTest < Minitest::Test
-  REPOSITORY = File.expand_path("../..", __dir__)
+  REPOSITORY = Repository.root(__FILE__)
   EXPECTED_SHA256 = "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88"
 
   def test_interrupted_download_preserves_curl_status_and_removes_partial_file

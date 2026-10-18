@@ -84,6 +84,9 @@ commands:
   test_ci_helpers:
     steps:
       - run:
+          name: Install locked Ruby dependencies
+          command: BUNDLE_PATH=vendor/bundle BUNDLE_FROZEN=true mise exec -- bundle install
+      - run:
           name: Test CI helpers
           command: |
             ./shellcheck
@@ -342,9 +345,10 @@ jobs:
             if ! command -v mise >/dev/null 2>&1; then
               brew install mise
             fi
-            cd "$RUNNER_TEMP/source"
             mise trust .mise.toml
             mise install
+            BUNDLE_PATH=vendor/bundle BUNDLE_FROZEN=true mise exec -- bundle install
+            (cd "$RUNNER_TEMP/source" && mise trust .mise.toml && mise install)
       - run:
           name: Install temporary signing material
           command: bash .github/where-signing.sh prepare
@@ -352,8 +356,7 @@ jobs:
           name: Archive and export Where Dev
           no_output_timeout: 45m
           command: |
-            cd "$RUNNER_TEMP/source"
-            ./Where/archive --profiles "$WHERE_SIGNING_DIR/profiles" --output "$RUNNER_TEMP/output"
+            ./signing archive --app where --source "$RUNNER_TEMP/source" --output "$RUNNER_TEMP/output"
       - run:
           name: Validate the signed archive against the request
           command: python3 -m Tools.InstallerKit.circleci_archive validate "$RUNNER_TEMP/output/export/Where.ipa"

@@ -6,6 +6,8 @@ These rules also apply when changing a root command or installer that calls this
 
 ## Ownership
 
+- Use `Tools.repository.repository_root` (Python) or `Repository.root` from `Tools/repository.rb` (Ruby) for checkout resources. Resolve from the source file, not the current directory or a fixed parent count.
+
 - Keep public arguments, bootstrap, and process orchestration in the command wrapper.
   Keep parsing and policy in importable modules with direct tests.
   Preserve each command's failure policy when sharing parsers.
