@@ -11,6 +11,11 @@
             case empty = "Empty"
             case retired = "Retired"
             case local = "Local"
+            case missingFeed = "MissingFeed"
+
+            var requiresRefresh: Bool {
+                self == .offline || self == .missingFeed
+            }
         }
 
         enum BuildScenario: String, CaseIterable {
@@ -69,7 +74,9 @@
                 installed: scenario == .local ? InstallerPreview.localBuild(
                     revision: .dirty(InstallerPreview.installedRevision),
                 ) : InstallerPreview.distribution(),
-                isOffline: scenario == .offline,
+                failure: scenario == .missingFeed ? UpdateClient.FetchError.httpStatus(404) :
+                    scenario == .offline ? URLError(.notConnectedToInternet) : nil,
+                cacheCatalog: scenario != .missingFeed,
             )
         }
 

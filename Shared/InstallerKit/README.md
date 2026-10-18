@@ -28,6 +28,9 @@ Where's adapter is `WherePreferences.installerUpdates`.
 Call `await updates.refresh(force: false)` when an eligible foreground surface becomes active.
 Use `force: true` for a manual check. Bind badges to `needsAttention` and render `state`.
 Failure state retains both the original error and the last successful snapshot.
+`UpdateClient.FetchError.httpStatus` carries the server's HTTP status code.
+Other response failures distinguish unexpected server locations, non-HTTP responses, and oversized feeds.
+Transport, decoding, and catalog validation errors keep their original types. The UI owns localized failure text.
 Use a release's `installURL` for installation and `installed.commitURL(for:)` for commit links.
 
 Each service snapshot also exposes `browser`, an `UpdateBuildBrowser` for the installed app.

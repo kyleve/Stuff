@@ -10,12 +10,50 @@ struct UpdateClientTests {
         #expect(catalog == UpdateFixtures.catalog([2, 1], feedURL: url("valid")))
     }
 
-    @Test(arguments: ["missing", "other-host", "oversized", "malformed", "bad-schema"])
-    func rejectsUnusableResponses(_ path: String) async {
+    @Test(arguments: [401, 403, 404, 410, 418, 429, 500, 503])
+    func preservesHTTPStatusBeforeTryingToDecodeTheFeed(_ status: Int) async {
         let session = session()
         defer { session.invalidateAndCancel() }
-        await #expect(throws: (any Error).self) {
+        await #expect(throws: UpdateClient.FetchError.httpStatus(status)) {
+            try await UpdateClient(session: session).fetch(from: url("status-\(status)"))
+        }
+    }
+
+    @Test(arguments: ["other-host", "insecure"])
+    func distinguishesAnUnexpectedServerLocation(_ path: String) async {
+        let session = session()
+        defer { session.invalidateAndCancel() }
+        await #expect(throws: UpdateClient.FetchError.unexpectedLocation) {
             try await UpdateClient(session: session).fetch(from: url(path))
+        }
+    }
+
+    @Test func distinguishesNonHTTPAndOversizedResponses() async {
+        let session = session()
+        defer { session.invalidateAndCancel() }
+        let client = UpdateClient(session: session)
+        await #expect(throws: UpdateClient.FetchError.invalidResponse) {
+            try await client.fetch(from: url("non-http"))
+        }
+        await #expect(throws: UpdateClient.FetchError.responseTooLarge) {
+            try await client.fetch(from: url("oversized"))
+        }
+    }
+
+    @Test func preservesTransportAndFeedErrors() async {
+        let session = session()
+        defer { session.invalidateAndCancel() }
+        let client = UpdateClient(session: session)
+        await #expect {
+            try await client.fetch(from: url("offline"))
+        } throws: { error in
+            (error as? URLError)?.code == .notConnectedToInternet
+        }
+        await #expect(throws: DecodingError.self) {
+            try await client.fetch(from: url("malformed"))
+        }
+        await #expect(throws: UpdateCatalog.ValidationError.self) {
+            try await client.fetch(from: url("bad-schema"))
         }
     }
 

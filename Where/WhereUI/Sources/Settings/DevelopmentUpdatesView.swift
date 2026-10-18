@@ -72,9 +72,9 @@ extension DevelopmentUpdatesView: SettingsSection {
                     name: scenario.rawValue,
                     configurations: scenario == .available ? .fullContentScreenDefaults :
                         .fullContentPhoneLightDark,
-                    measurementReadiness: scenario.isOffline ? .sameAsCapture : .immediate,
+                    measurementReadiness: scenario.requiresRefresh ? .sameAsCapture : .immediate,
                     onReadyToMeasure: {
-                        if scenario.isOffline { await model.refresh(force: true) }
+                        if scenario.requiresRefresh { await model.refresh(force: true) }
                     },
                 ) {
                     NavigationStack { DevelopmentUpdatesView(model: model, focus: nil) }

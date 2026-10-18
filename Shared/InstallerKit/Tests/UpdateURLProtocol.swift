@@ -18,19 +18,30 @@ final class UpdateURLProtocol: URLProtocol, @unchecked Sendable {
         do {
             precondition(request.value(forHTTPHeaderField: "Authorization") == nil)
             let scenario = url.deletingLastPathComponent().lastPathComponent
+            if scenario == "offline" { throw URLError(.notConnectedToInternet) }
             let encoder = JSONEncoder()
             encoder.dateEncodingStrategy = .iso8601
             let data: Data = switch scenario {
                 case "oversized": Data(repeating: 32, count: 1_000_001)
                 case "malformed": Data("not JSON".utf8)
-                case "bad-schema": Data(#"{"schemaVersion":99,"channels":[]}"#.utf8)
+                case "bad-schema": Data(#"{"schemaVersion":99,"apps":[]}"#.utf8)
+                case let value where value.hasPrefix("status-"): Data("<html>Error</html>".utf8)
                 default: try encoder.encode(UpdateFixtures.catalog([2, 1], feedURL: url))
             }
-            let responseURL = scenario == "other-host" ? URL(string: "https://other.example.com")! :
-                url
-            let response = HTTPURLResponse(
+            let responseURL = switch scenario {
+                case "other-host": URL(string: "https://other.example.com")!
+                case "insecure": URL(string: "http://updates.example.com/updates.json")!
+                default: url
+            }
+            let status = scenario.hasPrefix("status-") ? Int(scenario.dropFirst(7))! : 200
+            let response: URLResponse = scenario == "non-http" ? URLResponse(
+                url: url,
+                mimeType: nil,
+                expectedContentLength: data.count,
+                textEncodingName: nil,
+            ) : HTTPURLResponse(
                 url: responseURL,
-                statusCode: scenario == "missing" ? 404 : 200,
+                statusCode: status,
                 httpVersion: nil,
                 headerFields: nil,
             )!
