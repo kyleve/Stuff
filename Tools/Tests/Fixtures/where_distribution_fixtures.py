@@ -10,11 +10,19 @@ import sys
 import zipfile
 
 
-REPOSITORY = Path(__file__).resolve().parents[3]
 SHA = "a" * 40
 TARGET_NAMES = ("Where", "WhereWidgets", "WhereShareExtension")
 BUNDLE_IDS = ("com.stuff.where.development", "com.stuff.where.development.widgets",
               "com.stuff.where.development.share")
+
+
+def repository_root(source_file):
+    """Find the containing checkout, including a linked worktree's .git file."""
+    for directory in source_file.resolve().parents:
+        marker = directory / ".git"
+        if marker.is_dir() or marker.is_file():
+            return directory
+    raise FileNotFoundError(f"Cannot find a Git checkout containing {source_file}")
 
 
 def profile(index):
@@ -55,6 +63,7 @@ def write_ipa(path, changes=None, omit=None):
 
 class ArchiveFixture:
     def __init__(self, temporary):
+        repository = repository_root(Path(__file__))
         self.root = Path(temporary) / "repository with spaces ü"
         self.bin = self.root / "fake bin"
         self.home = self.root / "fixture home"
@@ -67,7 +76,7 @@ class ArchiveFixture:
         for name in ("Where/archive", "Tools/where_signing.py", ".github/where-signing.sh"):
             destination = self.root / name
             destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(REPOSITORY / name, destination)
+            shutil.copy2(repository / name, destination)
         write_profiles(self.profiles, "mobileprovision")
         for name in ("security", "mise", "openssl"):
             self.executable(self.bin / name, FAKE_TOOL)
