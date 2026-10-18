@@ -28,6 +28,8 @@ catalogs and captured command output rather than tracked assets, devices, or
 `/Applications`.
 
 `where_signing.py` validates Where's ad hoc profiles and generates export settings.
+`repository.repository_root` finds a tool's checkout through its nearest `.git` directory or worktree file.
+Use it for checkout-relative resources instead of fixed parent-directory counts.
 `Where/archive` owns the Xcode processes.
 `installer_distribution.py` selects `main` and labeled PR channels, then checks the live GitHub state before publication or retirement.
 Its trusted controller fails PR builds with merge conflicts and permits page retirement regardless of conflicts.

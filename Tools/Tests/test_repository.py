@@ -2,10 +2,10 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from Fixtures.where_distribution_fixtures import repository_root
+from Tools.repository import repository_root
 
 
-class WhereDistributionFixturesTests(unittest.TestCase):
+class RepositoryTests(unittest.TestCase):
     def test_checkout_discovery_does_not_depend_on_fixture_depth(self):
         with tempfile.TemporaryDirectory(prefix="repository ü ") as temporary:
             root = Path(temporary).resolve()

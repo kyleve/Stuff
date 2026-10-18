@@ -14,9 +14,10 @@ import tempfile
 from installer_apps import AppPresentation, load_apps
 from installer_installation import install_url, manifest, manifest_path, site_url, validate_release
 from installer_update_feed import read_catalog
+from repository import repository_root
 
 
-SOURCE_ROOT = Path(__file__).resolve().parents[1]
+SOURCE_ROOT = repository_root(__file__)
 
 
 def symbol(name, size=24):

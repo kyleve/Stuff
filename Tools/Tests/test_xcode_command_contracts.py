@@ -11,7 +11,10 @@ import time
 import unittest
 
 
-REPOSITORY = Path(__file__).resolve().parents[2]
+from Tools.repository import repository_root
+
+
+REPOSITORY = repository_root(__file__)
 
 
 class XcodeCommandFixture:

@@ -17,6 +17,7 @@ from github_releases import asset_url
 from installer_installation import manifest_url
 from installer_apps import AppPresentation, load_app
 from installer_update_site import main, render_site, write_site
+from Tools.repository import repository_root
 from Fixtures.installer_update_fixtures import catalog, multiple_apps, FEED_URL, REPO
 
 
@@ -100,7 +101,7 @@ class InstallerUpdateSiteTests(unittest.TestCase):
     def test_trusted_artwork_is_packaged_once_with_content_addresses_and_dark_appearance(self):
         app = load_app("where")
         files = render_site(catalog(), REPO, FEED_URL)
-        source_root = Path(__file__).resolve().parents[2]
+        source_root = repository_root(__file__)
         assets = [path for path in files if path.startswith("assets/")]
         self.assertEqual(len(assets), 2)
         for path in (app.presentation.icon, app.presentation.dark_icon):

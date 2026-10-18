@@ -6,8 +6,10 @@ from pathlib import Path
 import re
 from typing import Optional
 
+from repository import repository_root
 
-REGISTRY = Path(__file__).resolve().parents[1] / ".github/installer-apps.json"
+
+REGISTRY = repository_root(__file__) / ".github/installer-apps.json"
 
 
 def validate_app_id(value):

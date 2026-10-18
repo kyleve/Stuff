@@ -10,8 +10,10 @@ import statistics
 import sys
 import xml.etree.ElementTree as ET
 
+from repository import repository_root
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+ROOT = repository_root(__file__)
 DEFAULT_PLAN = ROOT / ".circleci" / "snapshot-shards.json"
 FORMAT_VERSION = 1
 # Minimum reduction in the slowest worker required to move existing suites.
