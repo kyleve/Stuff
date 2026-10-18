@@ -4,6 +4,7 @@
     {
       "index": 0,
       "suites": [
+        "FlyoverSnapshotTests/FlyoverSnapshotTests",
         "WhereUISnapshotTests/AppIconViewSnapshotTests",
         "WhereUISnapshotTests/CardDesignerStudioViewSnapshotTests",
         "WhereUISnapshotTests/DayRelabelViewSnapshotTests",
@@ -15,10 +16,12 @@
         "WhereUISnapshotTests/OnboardingViewSnapshotTests",
         "WhereUISnapshotTests/PlacesYearFeaturesViewSnapshotTests",
         "WhereUISnapshotTests/PlannedStayEditorSnapshotTests",
+        "WhereUISnapshotTests/PlannedStaysViewSnapshotTests",
         "WhereUISnapshotTests/PrivacyBackupsFeaturesViewSnapshotTests",
         "WhereUISnapshotTests/RankingAnimationLabViewSnapshotTests",
         "WhereUISnapshotTests/RegionDaysViewSnapshotTests",
         "WhereUISnapshotTests/SettingsViewSnapshotTests",
+        "WhereUISnapshotTests/SnapshotCaptureFlagProbeTests",
         "WhereUISnapshotTests/YearTotalsRectangularAccessoryViewSnapshotTests"
       ]
     },
@@ -35,6 +38,7 @@
         "WhereUISnapshotTests/MainTabsSnapshotTests",
         "WhereUISnapshotTests/ManualDayViewSnapshotTests",
         "WhereUISnapshotTests/PersonalizationFeaturesViewSnapshotTests",
+        "WhereUISnapshotTests/PlanningRegionPickerViewSnapshotTests",
         "WhereUISnapshotTests/PresenceTimelineListSnapshotTests",
         "WhereUISnapshotTests/PrivacyDiagnosticsSettingsViewSnapshotTests",
         "WhereUISnapshotTests/RegionCustomizeViewSnapshotTests",
@@ -42,14 +46,13 @@
         "WhereUISnapshotTests/RegionsSettingsViewSnapshotTests",
         "WhereUISnapshotTests/RootViewSnapshotTests",
         "WhereUISnapshotTests/SiriFeaturesViewSnapshotTests",
-        "WhereUISnapshotTests/SnapshotCaptureFlagProbeTests",
+        "WhereUISnapshotTests/WhereLifecycleFailureViewSnapshotTests",
         "WhereUISnapshotTests/YearViewSnapshotTests"
       ]
     },
     {
       "index": 2,
       "suites": [
-        "FlyoverSnapshotTests/FlyoverSnapshotTests",
         "InspectorSnapshotTests/InspectorSnapshotTests",
         "PeriscopeToolsSnapshotTests/PeriscopeViewerSnapshotTests",
         "WhereUISnapshotTests/AppearanceSettingsViewSnapshotTests",
@@ -68,7 +71,6 @@
         "WhereUISnapshotTests/TodayInlineAccessoryViewSnapshotTests",
         "WhereUISnapshotTests/TodayWidgetViewSnapshotTests",
         "WhereUISnapshotTests/WhereFlyoverViewSnapshotTests",
-        "WhereUISnapshotTests/WhereLifecycleFailureViewSnapshotTests",
         "WhereUISnapshotTests/WidgetFeaturesViewSnapshotTests",
         "WhereUISnapshotTests/YearTotalsWidgetViewSnapshotTests"
       ]
