@@ -14,7 +14,7 @@ from urllib.error import URLError
 from urllib.request import Request
 import zipfile
 
-from Tools.InstallerKit.github_api import request_json
+from Tools.InstallerKit.github_api import API_VERSION, request_json
 from Tools.InstallerKit.github_releases import GitHubReleases
 from Tools.InstallerKit.installer_apps import load_app
 from Tools.InstallerKit.installer_installation import manifest_url, site_url, validate_build_details, validate_bundle_version
@@ -122,7 +122,7 @@ def github_fetch(path: str):
     return request_json(Request(f"https://api.github.com/{path}", headers={
         "Authorization": f"Bearer {token}",
         "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
+        "X-GitHub-Api-Version": API_VERSION,
     }))
 
 

@@ -13,7 +13,7 @@ import sys
 from urllib.error import HTTPError
 from urllib.request import Request
 
-from Tools.InstallerKit.github_api import request_json
+from Tools.InstallerKit.github_api import API_VERSION, request_json
 from Tools.InstallerKit.installer_installation import validate_release
 from Tools.InstallerKit.installer_apps import load_app, validate_metadata
 
@@ -123,7 +123,7 @@ class GitHubUpdateFeed:
                           headers={"Authorization": f"Bearer {self.token}",
                                    "Accept": "application/vnd.github+json",
                                    "Content-Type": "application/json",
-                                   "X-GitHub-Api-Version": "2022-11-28"})
+                                   "X-GitHub-Api-Version": API_VERSION})
         return self.transport(request, allow_missing=allow_missing)
 
     def load(self):

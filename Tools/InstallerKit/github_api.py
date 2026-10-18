@@ -5,6 +5,12 @@ from urllib.error import HTTPError
 from urllib.request import HTTPRedirectHandler, build_opener
 
 
+# This is GitHub's REST contract version, not the current date. Keep the pin
+# until we review the next version's breaking changes. Supported versions:
+# https://docs.github.com/en/rest/about-the-rest-api/api-versions
+API_VERSION = "2022-11-28"
+
+
 class NoRedirects(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
