@@ -22,7 +22,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 
 - **The rendering pipeline is one async function.** All captures (standard and accessibility) flow through `renderSnapshotImage(...)`.
 - **The hosted PNG API uses the same pipeline and capture lock.** It returns bytes and dimensions without comparing a reference.
-- **HTML snapshots use hosted, offline WebKit, then the standard image pipeline.** Await navigation, fonts, and painting before measuring. Require full-content height convergence before capture. Keep consumer HTML generation outside this module. Guards: `AssertHTMLSnapshotsTests`, `SnapshotWebPageTests`.
+- **HTML snapshots wrap offline WebKit in the standard view pipeline.** Use its host, traits, capture lock, and pixel renderer. Await navigation, fonts, paint, and full-content height convergence from the pre-measure hook. Keep consumer HTML generation outside this module. Guards: `AssertHTMLSnapshotsTests`, `SnapshotWebPageTests`.
 - **Hide native scroll-edge effects for HTML document captures.** Guard: `SnapshotWebPageTests.capturesSharpContentAtDocumentEdges`.
 - **Keep PNG export hosted.** `captureSnapshotPNG` requires `StuffTestHost`'s key window and must not gain a headless renderer.
 - **Its `async` is load-bearing.** A synchronous `Snapshotting` pullback could never settle `.task`-driven content.
@@ -73,7 +73,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Both incidents, and how each was found, are ledgered in [`Where/TODOs.md`](../../Where/TODOs.md).**
 - **Height-changing readiness runs before measurement.**
 - **Intrinsic/full-content cases await `onReadyToMeasure` only after the sizing probe is hosted and laid out.** Then they settle and resolve height.
-- **The hook is bounded by the effective settle ceiling.** It must cooperate with cancellation. Reject it for fixed sizing.
+- **The hook is bounded by the effective settle ceiling unless an explicit timeout overrides it.** Scale either ceiling with the CI multiplier. Preserve thrown errors, skip failed captures, and require cancellation cooperation. Reject hooks for fixed sizing.
 - **Guards: `PreMeasureHookTests` and `SnapshotMeasurementHookTests`.**
 - **`.timedOut` requires observed motion.** Starvation is `.starved`.
 - **A change-free settle loop keeps running until it can prove stability.** A starved machine can fit fewer passes than stability needs.

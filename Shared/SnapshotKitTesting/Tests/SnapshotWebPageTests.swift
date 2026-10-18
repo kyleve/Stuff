@@ -17,6 +17,7 @@ struct SnapshotWebPageTests {
                 minimumHeight: 80,
             )),
         )
+        #expect(image.size.height == 240)
         for y in [24.0, image.size.height - 24] {
             let black = image.probePixel(atUnitPoint: CGPoint(
                 x: 52 / 120.0,
@@ -45,23 +46,40 @@ struct SnapshotWebPageTests {
         )
         #expect(image.size.width == 120)
         #expect(image.size.height == 2530)
-        let png = try await captureSnapshotPNG(
-            of: Image(uiImage: image),
-            configuration: configuration,
-            named: "full-html-probe",
-            sizing: .intrinsic(width: 120, minimumHeight: 60),
-            safeAreaInsets: .zero,
-            measurementReadiness: .immediate,
-            onReadyToMeasure: nil,
-            settle: .settled,
-            onReadyToSnapshot: nil,
-        )
-        #expect(png.pointSize == image.size)
-        let normalizedImage = try #require(UIImage(data: png.data, scale: png.scale))
-        let first = normalizedImage.probePixel(atUnitPoint: CGPoint(x: 0.5, y: 0.01))
-        let last = normalizedImage.probePixel(atUnitPoint: CGPoint(x: 0.5, y: 0.99))
+        let first = image.probePixel(atUnitPoint: CGPoint(x: 0.5, y: 0.01))
+        let last = image.probePixel(atUnitPoint: CGPoint(x: 0.5, y: 0.99))
         #expect(first.red > 0.9 && first.blue < 0.1)
         #expect(last.blue > 0.9 && last.red < 0.1)
+    }
+
+    @Test func waitsForLayoutAfterViewportHeightChanges() async throws {
+        let image = try await loadHTMLSnapshotImage(
+            """
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>body {margin:0} header {height:80px} footer {height:30px;background:#0000ff}
+            @media (min-height:100px) {footer {height:200px}}</style><header></header><footer></footer>
+            """,
+            configuration: .init(device: .fullContent(
+                name: "web-reflow",
+                width: 120,
+                minimumHeight: 60,
+            )),
+        )
+        #expect(image.size.height == 280)
+        #expect(image.probePixel(atUnitPoint: CGPoint(x: 0.5, y: 0.99)).blue > 0.9)
+    }
+
+    @Test func rejectsPagesWhoseHeightNeverConverges() async {
+        await #expect(throws: (any Error).self) {
+            try await loadHTMLSnapshotImage(
+                "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><style>body{margin:0;height:calc(100vh + 10px)}</style>",
+                configuration: .init(device: .fullContent(
+                    name: "web-growing",
+                    width: 120,
+                    minimumHeight: 60,
+                )),
+            )
+        }
     }
 
     @Test(arguments: [ColorScheme.light, .dark])

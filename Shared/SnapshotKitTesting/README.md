@@ -56,8 +56,8 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   async load can change ideal height. Such a case may instead provide
   `onReadyToMeasure`, which runs while the intrinsic probe is hosted and laid
   out, before its settle and size resolution. The hook must cooperate with
-  cancellation, is bounded by the effective settle ceiling, and is rejected
-  for fixed sizing. A case's
+  cancellation and is rejected for fixed sizing. The settle ceiling bounds it
+  unless the capture API supplies an explicit `measurementHookTimeout`. A case's
   optional `onReadyToSnapshot` hook runs after that settle and before the
   accessibility parse / capture — the deterministic point to focus a field or
   trigger a presented state — and its effects are settled again before the
@@ -127,8 +127,21 @@ a hosted `WKWebView`. Each configuration uses a fresh, ephemeral web view.
 Page JavaScript and HTTP(S) resource loads are disabled. Navigation, fonts,
 and painting must finish before full-content height measurement.
 
-WebKit supplies the page image. The existing pipeline then handles PNG
-normalization, reference comparison, recording, timing reports, and diffs.
+The WebKit wrapper passes through `assertSnapshots` like a native view.
+The shared pipeline owns hosting, traits, the capture lock, tiled rendering,
+PNG normalization, comparison, recording, timing, and diffs.
+
+The throwing `onReadyToMeasure` hook waits for document readiness while hosted.
+WebKit must paint after each viewport resize before its height can be measured again.
+This browser-specific loop finishes before the shared intrinsic measurement starts.
+The hook has a 10-second timeout, scaled by the existing CI timeout multiplier.
+Failures and cancellation tear down the host without comparing or recording an image.
+
+Native callers can also throw from `onReadyToMeasure` and set
+`measurementHookTimeout` on `assertSnapshots`, `captureSnapshotPNG`, or
+`renderSnapshotImage`. With no override, the existing settle ceiling applies.
+Hooks must cooperate with cancellation. An override changes only the hook ceiling;
+it does not raise the settle floor or change image tolerances.
 Only standard, one-axis full-content configurations are supported.
 These images capture the document without Safari chrome or accessibility annotations.
 The capture host hides native scroll-edge effects so they cannot blur document content.
