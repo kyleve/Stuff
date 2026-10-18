@@ -1,0 +1,14 @@
+---
+import type { Release } from '../data';
+import { downloadSize } from '../format';
+import PublishedDate from './PublishedDate.astro';
+interface Props { release: Release; expanded: boolean }
+const { release, expanded } = Astro.props;
+const details = release.buildDetails;
+---
+<dl class="quick-facts">
+  <div><dt>{details ? 'Version' : 'Build'}</dt><dd>{details?.version ?? release.bundleVersion}</dd></div>
+  <div><dt>Download</dt><dd>{details ? downloadSize(details.sizeBytes) : 'Not recorded'}</dd></div>
+  {expanded && <div><dt>Requires iOS</dt><dd>{details ? details.minimumOSVersion + '+' : 'Not recorded'}</dd></div>}
+  <div><dt>Updated</dt><dd><PublishedDate date={release.publishedAt} includeYear={expanded}/></dd></div>
+</dl>

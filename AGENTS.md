@@ -27,6 +27,8 @@ Roughly, this file covers:
 | SwiftFormat | `.mise.toml` |
 | ShellCheck  | `.mise.toml` |
 | Ruby        | `.mise.toml` |
+| Node.js     | `.mise.toml` |
+| Astro and TypeScript | `Tools/InstallerKit/Site/package-lock.json` |
 | Swift PM    | `Package.swift` (`swift-tools-version`) |
 | Bumper Bowling | `Package.swift` / `Package.resolved` |
 | Xcode snapshot renderer | `.xcode-build-version` |
@@ -44,6 +46,8 @@ two manifests are the authoritative target catalog. This file does not duplicate
 Xcode project](#generating-the-xcode-project)). On a fresh machine, run `./ide
 --bootstrap` first. That command installs `mise` and the pinned tools before
 generating. Plain `./ide` fails fast and points at bootstrap.
+`./ide --bootstrap` and `./ide --install` also install the locked site dependencies.
+After a site lockfile change, run `mise exec -- npm ci --prefix Tools/InstallerKit/Site`.
 
 The executables in the repo root are the dev scripts. They are `ide`, `test`,
 `swiftformat`, `sf-symbols`, `sync-agents`, `profile`, `icons`, `flaky`, `simulator`,
@@ -209,7 +213,7 @@ Keep the review history in the PR and link the rule to its guard or source.
 - **CircleCI build handoff**: CircleCI builds both iOS test schemes sequentially on one `m4pro.large` builder. The unit worker and parallel snapshot workers attach its products and run without compilation. Each worker validates the build manifest before it starts a simulator. Two `m4pro.medium` build-only shards compile **Where Beta** and **Where App Store** after the shared builder completes. `./snapshot-shards` owns three planned suite assignments and one intake shard. A new suite runs on the intake shard until rebalancing adds it to the plan. Each active snapshot worker must execute exactly its assigned suites. The default-off `manual_full_gate` pipeline parameter runs this same clean-VM gate on an explicitly selected stacked branch tip; ordinary pushes and pull requests do not set it.
 - **Image snapshots are the exception: one bundle per module, one shared scheme.** Each module owning image references has its own `*SnapshotTests` target over its `SnapshotTests/` folder. All are listed in the single shared **StuffSnapshotTests** scheme and its dedicated CI `snapshot` job. Snapshots are slow and LFS-backed. They are **out of** `Stuff-iOS-Tests`. References under any `__Snapshots__/` directory are Git LFS (`.gitattributes`. The CI job hydrates them explicitly). Framework halves: `Shared/SnapshotKit` (shippable matrix + previews) and `Shared/SnapshotKitTesting` (test-only pipeline, whose own regression bundle **SnapshotKitTestingTests** pixel-probes without LFS and runs in `Stuff-iOS-Tests`).
 - **A new image suite gets a target, not a scheme.** Add the `*SnapshotTests` target. List only `SnapshotKitTesting` in `extraPackageProducts`. Add it to the `StuffSnapshotTests` scheme's build and test lists. Never add a scheme or CI job of its own. An image bundle links only what its module needs (the Periscope and Inspector suites don't build against WhereUI at all). References follow the sources automatically via `#filePath`.
-- **Generated websites use the same snapshot scheme.** `ToolsSnapshotTests` renders the install site's production HTML in hosted WebKit through `SnapshotKitTesting`. Its fixture generator runs during each bundle build; see [`Tools/AGENTS.md`](Tools/AGENTS.md#install-site-snapshots).
+- **Generated websites use the same snapshot scheme.** `ToolsSnapshotTests` renders the install site's production Astro HTML in hosted WebKit through `SnapshotKitTesting`. Its fixture generator runs during each bundle build and needs the installed site dependencies; see [`Tools/AGENTS.md`](Tools/AGENTS.md#install-site-snapshots).
 - **Separate snapshot bundles are safe because each `.xctest` gets its own `StuffTestHost` process** (measured on Xcode 27 — `ProcessInfo.processIdentifier` probes. Details in the snapshot-bundle comment in [`Project.swift`](Project.swift)). Each bundle statically embeds its own copy of `SnapshotKitTesting`'s capture state. Two copies in one process corrupt each other. Tripwire: if a toolchain ever shares one host process across bundles, re-measure before adding another image bundle.
 - **Snapshots containing scrolling content use full-content sizing.** Use SnapshotKit's full-content device presets for ordinary `ScrollView`, `List`, `Form`, or equivalent UIKit-backed content. Those presets keep the normal device width and minimum viewport height while growing vertically. Use an explicit two-axis preset for a spatial canvas that intentionally scrolls in both dimensions. Its bounded capture grows from the normal viewport along both axes. Fixed device frames are for subjects without scrolling content. Preserve production navigation, tab, sheet, search, and toolbar chrome when measurement converges. Snapshot an intentionally bounded or greedy container's shared scrolling child directly. Never add snapshot-only production layout (see `SnapshotConfiguration.Frame.fullContent` and `.fullContent2D`).
 
@@ -696,7 +700,8 @@ external agent skills. Those skills are gitignored and absent from a bare checko
 
 | Check | Command |
 |-------|---------|
-| Install the pinned tools | `mise install` (Ruby + SwiftFormat; skips Tuist) |
+| Install the pinned tools | `mise install` (skips Tuist) |
+| Install-site type check | `mise exec -- npm run check --prefix Tools/InstallerKit/Site` (install dependencies first) |
 | SwiftFormat lint | `./swiftformat --lint` |
 | Shell lint | `./shellcheck` |
 | Attribution drift | `./attribution --check` |
@@ -705,9 +710,7 @@ external agent skills. Those skills are gitignored and absent from a bare checko
 | Git LFS | `apt-get install git-lfs` — required by `.githooks/` |
 | Pre-commit hook | works — `mise exec --` no longer pulls in Tuist |
 
-Four of those rows — SwiftFormat, ShellCheck, attribution, and the Python tool
-tests — are four of the six checking steps in CI's `format` job, so a Linux agent
-can pre-flight most of it. Three portability carve-outs remain filed together in
+These commands cover much of CI's `format` job. Three portability carve-outs remain filed together in
 [`TODOs.md`](TODOs.md). They have distinct causes. One Python
 contract test pins macOS bash's `126` exit status for an unlaunchable command
 and reports `127` here. The Ruby retained-tool tests run each command under a
@@ -737,8 +740,8 @@ being written off as untestable from a cloud agent.
 
 **CI runs on two systems.** GitHub Actions
 ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs `format`,
-`architecture`, and `test-macos`. The `format` job is six checking steps, not
-one: ShellCheck, the retained Python and Ruby tool suites, SwiftFormat, the SF
+`architecture`, and `test-macos`. The `format` job checks Astro, ShellCheck,
+the retained Python and Ruby tool suites, SwiftFormat, the SF
 Symbol lint, the String Catalog lint, and the attribution check. CircleCI
 ([`.circleci/config.yml`](.circleci/config.yml)) builds `build-ios-tests` once
 and attaches its products to `test-ios` and a four-way-sharded `snapshot` job,

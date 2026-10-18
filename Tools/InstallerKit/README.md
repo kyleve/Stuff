@@ -64,6 +64,12 @@ Build pages add the minimum iOS version, source commit, workflow run, bundle ID,
 [Where's setup guide](../../Where/DISTRIBUTION.md) lists its signing secrets and device checks.
 New apps reuse publication and update logic. They do not need another site or a copy of the Swift engine.
 
+## Website development
+
+[The Astro project](Site/README.md) contains the Astro templates and local preview commands.
+Python owns catalog validation and install manifests. Astro renders the pages from validated input.
+Local previews and WebKit snapshots share deterministic catalogs and the production templates.
+
 ## Shared hosting
 
 Select **GitHub Actions** as the Pages source. Allow `workflow_dispatch` for

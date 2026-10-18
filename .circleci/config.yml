@@ -169,6 +169,9 @@ commands:
             fi
             mise trust .mise.toml
             mise install
+      - run:
+          name: Install site dependencies
+          command: mise exec -- npm ci --prefix Tools/InstallerKit/Site
       - save_cache:
           key: mise-installs-v2-{{ arch }}-{{ checksum ".mise.toml" }}
           paths:

@@ -1,0 +1,44 @@
+---
+import { site, appURL, channelLabel, type App, type Channel } from '../../../data';
+import SiteLayout from '../../../layouts/SiteLayout.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import AppHero from '../../../components/AppHero.astro';
+import QuickFacts from '../../../components/QuickFacts.astro';
+import ReleaseNotes from '../../../components/ReleaseNotes.astro';
+import BuildInformation from '../../../components/BuildInformation.astro';
+import InstallHelp from '../../../components/InstallHelp.astro';
+import EmptyState from '../../../components/EmptyState.astro';
+import Symbol from '../../../components/Symbol.astro';
+export function getStaticPaths() {
+  return site.apps.flatMap(app => app.channels.map(channel => ({ params: { app: app.id, channel: channel.name }, props: { app, channel } })));
+}
+interface Props { app: App; channel: Channel }
+const { app, channel } = Astro.props;
+---
+<SiteLayout title={app.name + ' · ' + channelLabel(channel)}>
+  <Breadcrumbs app={app}/>
+  <AppHero app={app} channel={channel.state === 'active' ? channel : undefined} label={channelLabel(channel)}/>
+  {channel.state === 'active' ? (
+    <>
+      <section class="detail-panel" aria-label="Build summary">
+        <QuickFacts release={channel.release} expanded={true}/>
+        <section class="section">
+          <div class="notes-heading"><h2>What’s New</h2></div>
+          <p class="notes-subtitle">Changes since the previous build</p>
+          <ReleaseNotes release={channel.release}/>
+        </section>
+      </section>
+      <BuildInformation app={app} channel={channel}/>
+      <InstallHelp/>
+    </>
+  ) : (
+    <EmptyState
+      title="Channel retired"
+      message={channel.name === 'main'
+        ? 'This build channel is no longer available.'
+        : 'This PR is closed or no longer labeled installable. Historical releases remain on GitHub.'}
+    >
+      <a class="text-link" href={appURL(app)}>Browse {app.name} builds <Symbol name="arrow" size={14}/></a>
+    </EmptyState>
+  )}
+</SiteLayout>

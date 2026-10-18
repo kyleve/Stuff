@@ -1,0 +1,6 @@
+---
+import { publishedDate } from '../format';
+interface Props { date: string; includeYear: boolean }
+const { date, includeYear } = Astro.props;
+---
+<time datetime={date}>{publishedDate(date, includeYear)}</time>

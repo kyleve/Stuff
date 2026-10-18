@@ -1,0 +1,26 @@
+---
+import { site } from '../data';
+import SiteLayout from '../layouts/SiteLayout.astro';
+import AppCard from '../components/AppCard.astro';
+import EmptyState from '../components/EmptyState.astro';
+import InstallHelp from '../components/InstallHelp.astro';
+---
+<SiteLayout title="App Library">
+  <header class="page-heading">
+    <p class="eyebrow">THE LATEST BUILDS</p>
+    <h1>App Library</h1>
+    <p class="lede">Your development apps, all in one place.<br/>Pick an app. Install the latest. See what’s new.</p>
+  </header>
+  <section aria-labelledby="latest">
+    <div class="section-heading">
+      <h2 id="latest">Fresh from main</h2>
+      <p>{site.apps.length} {site.apps.length === 1 ? 'app' : 'apps'}</p>
+    </div>
+    {site.apps.length ? (
+      <div class="catalog">{site.apps.map(app => <AppCard app={app}/>)}</div>
+    ) : (
+      <EmptyState title="No builds are available yet" message="Apps will appear here after their first build is published."/>
+    )}
+  </section>
+  <InstallHelp/>
+</SiteLayout>

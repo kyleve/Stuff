@@ -27,7 +27,7 @@ final class SnapshotWebPage: NSObject, WKNavigationDelegate {
     private(set) var size: CGSize
     private let html: String
     private var loadState: LoadState = .loading
-    private var paintContinuation: CheckedContinuation<Void, any Error>?
+    private var paintContinuation: CheckedContinuation<CGFloat, any Error>?
 
     private init(html: String, size: CGSize, configuration: WKWebViewConfiguration) {
         self.html = html
@@ -82,12 +82,13 @@ final class SnapshotWebPage: NSObject, WKNavigationDelegate {
             try await waitForLoad()
             // A viewport resize can change CSS layout. Await each paint before
             // remeasurement; never record the final arbitrary height on failure.
+            // Read height in WebKit: UIScrollView contentSize can lag the painted DOM.
             for _ in 0 ..< 5 {
                 try Task.checkCancellation()
-                try await waitForPaint()
+                let documentHeight = try await waitForPaint()
                 let measured = CGSize(
                     width: minimumSize.width,
-                    height: max(minimumSize.height, ceil(webView.scrollView.contentSize.height)),
+                    height: max(minimumSize.height, ceil(documentHeight)),
                 )
                 try Self.validateSize(measured, scale: scale)
                 if size == measured { return }
@@ -133,14 +134,15 @@ final class SnapshotWebPage: NSObject, WKNavigationDelegate {
         }
     }
 
-    private func waitForPaint() async throws {
+    private func waitForPaint() async throws -> CGFloat {
         try Task.checkCancellation()
-        try await withCheckedThrowingContinuation { continuation in
+        let height: CGFloat = try await withCheckedThrowingContinuation { continuation in
             paintContinuation = continuation
             webView.callAsyncJavaScript(
                 """
                 await document.fonts.ready;
                 await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                return Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight ?? 0);
                 """,
                 arguments: [:],
                 in: nil,
@@ -149,10 +151,16 @@ final class SnapshotWebPage: NSObject, WKNavigationDelegate {
                 guard let self else { return }
                 let pending = paintContinuation
                 paintContinuation = nil
-                pending?.resume(with: result.map { _ in () })
+                pending?.resume(with: result.flatMap { value in
+                    guard let height = value as? NSNumber else {
+                        return .failure(Failure.invalidContentSize)
+                    }
+                    return .success(CGFloat(height.doubleValue))
+                })
             }
         }
         try Task.checkCancellation()
+        return height
     }
 
     func webView(_: WKWebView, didFinish _: WKNavigation!) {
