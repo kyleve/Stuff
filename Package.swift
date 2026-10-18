@@ -10,6 +10,7 @@ let package = Package(
         .macOS(.v26),
     ],
     products: [
+        .library(name: "InstallerKit", targets: ["InstallerKit"]),
         .library(name: "CreditKit", targets: ["CreditKit"]),
         .library(name: "LedgerCore", targets: ["LedgerCore"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
@@ -58,6 +59,11 @@ let package = Package(
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
             ],
             path: "Shared/Periscope/PeriscopeMacros/Sources",
+        ),
+        .target(
+            name: "InstallerKit",
+            dependencies: [.target(name: "PeriscopeCore")],
+            path: "Shared/InstallerKit/Sources",
         ),
         .target(
             name: "CreditKit",

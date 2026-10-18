@@ -89,3 +89,36 @@ func `Where adapters cannot link Broadway directly`() throws {
     #expect(report.violations.count == 2)
     #expect(report.violations.allSatisfy { $0.rule.id == .forbiddenImport })
 }
+
+@Test
+func `InstallerKit rejects app and UI dependencies`() throws {
+    for source in [
+        "import WhereCore",
+        "import WhereUI",
+        "import UIKit",
+        "import SwiftUI",
+    ] {
+        let report = try bumper.evaluate(RepositoryInput(
+            architecture: bumper.architecture,
+            files: [SourceInput(
+                path: "Shared/InstallerKit/Sources/UpdateService.swift",
+                component: ComponentID(WhereComponent.installerKit.rawValue),
+                source: source,
+            )],
+        ))
+        #expect(!report.violations.isEmpty)
+    }
+}
+
+@Test
+func `Where consumers can use InstallerKit`() throws {
+    let report = try bumper.evaluate(RepositoryInput(
+        architecture: bumper.architecture,
+        files: [SourceInput(
+            path: "Where/WhereCore/Sources/About/BuildInfo.swift",
+            component: ComponentID(WhereComponent.whereCore.rawValue),
+            source: "import InstallerKit",
+        )],
+    ))
+    #expect(report.violations.isEmpty)
+}
