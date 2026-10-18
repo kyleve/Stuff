@@ -19,6 +19,8 @@ public struct SnapshotPNG: Sendable {
 }
 
 /// Captures a configured SwiftUI view through the hosted snapshot pipeline.
+/// Readiness failures throw. An explicit `measurementHookTimeout` replaces the
+/// default settle ceiling in seconds, before the CI multiplier is applied.
 @MainActor
 public func captureSnapshotPNG(
     of view: some View,
@@ -27,7 +29,8 @@ public func captureSnapshotPNG(
     sizing: SnapshotSizing,
     safeAreaInsets: UIEdgeInsets?,
     measurementReadiness: SnapshotMeasurementReadiness,
-    onReadyToMeasure: (@MainActor () async -> Void)?,
+    onReadyToMeasure: (@MainActor () async throws -> Void)?,
+    measurementHookTimeout: TimeInterval? = nil,
     settle: SnapshotSettle,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
 ) async throws -> SnapshotPNG {
@@ -42,6 +45,7 @@ public func captureSnapshotPNG(
         isAccessibility: configuration.snapshotType == .accessibility,
         measurementReadiness: measurementReadiness,
         onReadyToMeasure: onReadyToMeasure,
+        measurementHookTimeout: measurementHookTimeout,
         settle: settle,
         onReadyToSnapshot: onReadyToSnapshot,
         settleTimeoutPolicy: timeoutPolicy,

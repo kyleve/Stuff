@@ -44,6 +44,8 @@ public enum SnapshotRenderingError: Error, Equatable, Sendable {
     /// Deterministic content readiness did not arrive before the capture's
     /// effective settle ceiling.
     case measurementReadinessTimedOut(name: String, budget: TimeInterval)
+    /// A readiness timeout must be finite and positive.
+    case invalidMeasurementHookTimeout(name: String, budget: TimeInterval)
     /// Full-content measurement did not reach a stable height within the
     /// bounded fixed-point pass budget.
     case intrinsicHeightDidNotConverge(name: String, measuredHeights: [CGFloat])
@@ -81,6 +83,8 @@ extension SnapshotRenderingError: LocalizedError {
                 return "Invalid SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER \"\(value)\"; use a finite value from 1 through 4."
             case let .measurementHookRequiresIntrinsicSizing(name):
                 return "Snapshot \(name) declares onReadyToMeasure, but fixed sizing has no measured-content phase."
+            case let .invalidMeasurementHookTimeout(name, budget):
+                return "Snapshot \(name) has invalid measurement timeout \(budget); use a finite positive number of seconds."
             case let .measurementReadinessTimedOut(name, budget):
                 return "Snapshot \(name) measurement readiness did not complete within \(budget.formatted())s."
             case let .intrinsicHeightDidNotConverge(name, measuredHeights):
@@ -138,8 +142,10 @@ extension SnapshotRenderingError: LocalizedError {
 /// `onReadyToMeasure` runs earlier, after a measurement probe is hosted and laid
 /// out but before that settle and size resolution. It is for deterministic
 /// readiness signals whose completion can change ideal height. The hook is
-/// invalid for `.fixed` sizing, is bounded by the capture's effective settle
-/// ceiling, and must cooperate with task cancellation.
+/// invalid for `.fixed` sizing and must cooperate with cancellation. A thrown
+/// error aborts capture. `measurementHookTimeout` overrides its ceiling in
+/// seconds; nil uses the capture settle ceiling. The CI multiplier scales
+/// either ceiling, without changing settle floors or image tolerances.
 ///
 /// `async` is load-bearing, not a convenience: the settle phase must *suspend*
 /// (freeing the main actor) for SwiftUI `.task`-driven content to load — see
@@ -174,7 +180,8 @@ public func renderSnapshotImage(
     safeAreaInsets: UIEdgeInsets? = .zero,
     isAccessibility: Bool = false,
     measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
-    onReadyToMeasure: (@MainActor () async -> Void)? = nil,
+    onReadyToMeasure: (@MainActor () async throws -> Void)? = nil,
+    measurementHookTimeout: TimeInterval? = nil,
     settle: SnapshotSettle = .settled,
     onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
 ) async throws -> UIImage {
@@ -187,6 +194,7 @@ public func renderSnapshotImage(
         isAccessibility: isAccessibility,
         measurementReadiness: measurementReadiness,
         onReadyToMeasure: onReadyToMeasure,
+        measurementHookTimeout: measurementHookTimeout,
         settle: settle,
         onReadyToSnapshot: onReadyToSnapshot,
         settleTimeoutPolicy: settleTimeoutPolicy,
@@ -206,7 +214,7 @@ public func renderSnapshotImage(
     public let pngData: Data
 }
 
-/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:measurementReadiness:onReadyToMeasure:settle:onReadyToSnapshot:)``
+/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:measurementReadiness:onReadyToMeasure:measurementHookTimeout:settle:onReadyToSnapshot:)``
 /// with a caller-supplied phase recorder, so `assertSnapshots` can attribute the
 /// capture *and* the comparison that follows it to one line of output, and can
 /// compare the captured bytes against the reference without re-encoding.
@@ -218,7 +226,8 @@ public func renderSnapshotImage(
     safeAreaInsets: UIEdgeInsets?,
     isAccessibility: Bool,
     measurementReadiness: SnapshotMeasurementReadiness,
-    onReadyToMeasure: (@MainActor () async -> Void)?,
+    onReadyToMeasure: (@MainActor () async throws -> Void)?,
+    measurementHookTimeout: TimeInterval? = nil,
     settle: SnapshotSettle,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
     settleTimeoutPolicy: SnapshotSettleTimeoutPolicy,
@@ -234,6 +243,7 @@ public func renderSnapshotImage(
             isAccessibility: isAccessibility,
             measurementReadiness: measurementReadiness,
             onReadyToMeasure: onReadyToMeasure,
+            measurementHookTimeout: measurementHookTimeout,
             settle: settle,
             onReadyToSnapshot: onReadyToSnapshot,
             settleTimeoutPolicy: settleTimeoutPolicy,
@@ -243,7 +253,7 @@ public func renderSnapshotImage(
 }
 
 /// The capture body of
-/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:measurementReadiness:onReadyToMeasure:settle:onReadyToSnapshot:)``,
+/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:measurementReadiness:onReadyToMeasure:measurementHookTimeout:settle:onReadyToSnapshot:)``,
 /// run while holding ``SnapshotCaptureLock``.
 @MainActor
 private func renderSnapshotImageLocked(
@@ -253,7 +263,8 @@ private func renderSnapshotImageLocked(
     safeAreaInsets: UIEdgeInsets?,
     isAccessibility: Bool,
     measurementReadiness: SnapshotMeasurementReadiness,
-    onReadyToMeasure: (@MainActor () async -> Void)?,
+    onReadyToMeasure: (@MainActor () async throws -> Void)?,
+    measurementHookTimeout: TimeInterval?,
     settle: SnapshotSettle,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
     settleTimeoutPolicy: SnapshotSettleTimeoutPolicy,
@@ -291,7 +302,9 @@ private func renderSnapshotImageLocked(
             sizing: sizing,
             settle: measurementReadiness.resolvedSettle(captureSettle: settle),
             onReadyToMeasure: onReadyToMeasure,
-            measurementHookMaximumDuration: settleTimeoutPolicy.maximumDuration(for: settle),
+            measurementHookMaximumDuration: measurementHookTimeout
+                .map { $0 * settleTimeoutPolicy.multiplier }
+                ?? settleTimeoutPolicy.maximumDuration(for: settle),
             hostedIn: hostRoot,
             window: window,
             timing: timing,
@@ -465,7 +478,8 @@ private func removeChildAfterCapture(_ child: UIViewController) {
 /// time-based reveals run), lets it settle, then measures `sizeThatFits` and
 /// pins the frame — so a content-loading component is sized to its loaded
 /// content rather than an empty placeholder. The result never falls below the
-/// requested minimum height. UIKit-backed SwiftUI containers such as `Form`
+/// requested minimum height. The host window supplies the starting height.
+/// UIKit-backed SwiftUI containers such as `Form`
 /// report their viewport rather than their ideal height, so a full-width scroll
 /// descendant's content size is used when it is taller. `.fixed` sizing leaves
 /// the frame untouched.
@@ -491,7 +505,7 @@ private func resolveContentSize(
     named name: String,
     sizing: SnapshotSizing,
     settle: SnapshotSettle,
-    onReadyToMeasure: (@MainActor () async -> Void)?,
+    onReadyToMeasure: (@MainActor () async throws -> Void)?,
     measurementHookMaximumDuration: TimeInterval,
     hostedIn hostRoot: UIViewController,
     window: UIWindow,
@@ -568,8 +582,8 @@ private func resolveContentSize(
         if !measured.height.isFinite || measured.height <= 0 {
             measured.height = 1
         }
-        if let scrollContentHeight = viewController.view.fullScrollContentHeight,
-           scrollContentHeight > measured.height
+        if let scrollContentHeight = viewController.view
+            .fullScrollContentHeight(exceeding: measured.height)
         {
             measured.height = scrollContentHeight
         }
@@ -741,14 +755,14 @@ extension CGSize {
 }
 
 extension UIView {
-    /// The root height required to show a full-width scrolling descendant's
-    /// complete content while preserving the chrome around its viewport.
+    /// The root height required when a full-width scrolling descendant's
+    /// content exceeds the root's reported intrinsic height.
     ///
     /// `Form` and `List` are backed by UIKit scroll views whose hosting view
-    /// answers `sizeThatFits` with only the current viewport. Restricting the
+    /// does not reliably report its full height through `sizeThatFits`. Restricting the
     /// fallback to full-width scrolling content avoids expanding an intentionally
     /// narrow nested scroller inside an otherwise intrinsic component.
-    fileprivate var fullScrollContentHeight: CGFloat? {
+    fileprivate func fullScrollContentHeight(exceeding intrinsicHeight: CGFloat) -> CGFloat? {
         descendants
             .compactMap { view -> CGFloat? in
                 guard let scrollView = view as? UIScrollView else { return nil }
@@ -761,7 +775,12 @@ extension UIView {
                 let chromeHeight = max(bounds.height - visibleFrame.height, 0)
                 let insetHeight = scrollView.adjustedContentInset.top
                     + scrollView.adjustedContentInset.bottom
-                return scrollView.contentSize.height + insetHeight + chromeHeight
+                let contentHeight = scrollView.contentSize.height + insetHeight
+                // A valid intrinsic height that already covers the content
+                // needs no fallback. Form and navigation hosts can report zero
+                // even after expansion, so viewport fit alone is insufficient.
+                guard contentHeight > intrinsicHeight else { return nil }
+                return contentHeight + chromeHeight
             }
             .max()
     }

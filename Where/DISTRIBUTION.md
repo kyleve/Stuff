@@ -206,6 +206,10 @@ Pages stores only the small site and metadata. IPAs stay in Releases and out of 
 See [Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits) and
 [release limits](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases#storage-and-bandwidth-quotas).
 
+Run `./test ToolsSnapshotTests --review` to check the site's image references.
+The suite renders deterministic catalogs with the production site generator, then captures each page in an offline WebKit view.
+It covers iPhone and iPad layouts in light and dark mode through the existing snapshot CI job.
+
 ## Archive locally
 
 Install the distribution identity in your keychain and the three profiles in Xcode first.

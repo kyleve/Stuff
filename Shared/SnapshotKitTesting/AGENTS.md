@@ -8,7 +8,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 
 - **Depend on `SnapshotKit`, `TestHostSupport`, and `SnapshotTesting`.** Also depend on AccessibilitySnapshot's focused Core + Previews products (cashapp).
 - **Link the comparison engine, XCTest/Testing, and the SwiftUI accessibility renderer.**
-- **Consume this module only from test bundles through `extraPackageProducts`.** That includes per-module image bundles (`WhereUISnapshotTests`, `PeriscopeToolsSnapshotTests`, `InspectorSnapshotTests`, gathered into the `StuffSnapshotTests` *scheme*) and `SnapshotKitTestingTests`.
+- **Consume this module only from test bundles.** Use `extraPackageProducts`, or `productDependency` when this module is the bundle's primary dependency. Image bundles share the `StuffSnapshotTests` scheme; pipeline regressions use `SnapshotKitTestingTests`.
 - **Never link this module from a shipping app or `StuffTestHost`.**
 - **"Process-global" state here is module-global — one copy per consuming `.xctest`.** That is safe only because each bundle gets its own host process.
 - **If two copies co-load into one process, they flip the safe-area swizzle's parity.** They also hide captures from each other's lock.
@@ -22,6 +22,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 
 - **The rendering pipeline is one async function.** All captures (standard and accessibility) flow through `renderSnapshotImage(...)`.
 - **The hosted PNG API uses the same pipeline and capture lock.** It returns bytes and dimensions without comparing a reference.
+- **HTML snapshots wrap offline WebKit in the standard view pipeline.** Use its host, traits, capture lock, and pixel renderer. Await navigation, fonts, paint, and full-content height convergence from the pre-measure hook. Keep consumer HTML generation outside this module. Guards: `AssertHTMLSnapshotsTests`, `SnapshotWebPageTests`.
+- **Hide native scroll-edge effects for HTML document captures.** Guard: `SnapshotWebPageTests.capturesSharpContentAtDocumentEdges`.
 - **Keep PNG export hosted.** `captureSnapshotPNG` requires `StuffTestHost`'s key window and must not gain a headless renderer.
 - **Its `async` is load-bearing.** A synchronous `Snapshotting` pullback could never settle `.task`-driven content.
 - **Accessibility annotations use AccessibilitySnapshot's SwiftUI renderer.** Keep the focused `AccessibilitySnapshotCore` + `AccessibilitySnapshotPreviews` products.
@@ -71,7 +73,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Both incidents, and how each was found, are ledgered in [`Where/TODOs.md`](../../Where/TODOs.md).**
 - **Height-changing readiness runs before measurement.**
 - **Intrinsic/full-content cases await `onReadyToMeasure` only after the sizing probe is hosted and laid out.** Then they settle and resolve height.
-- **The hook is bounded by the effective settle ceiling.** It must cooperate with cancellation. Reject it for fixed sizing.
+- **The hook is bounded by the effective settle ceiling unless an explicit timeout overrides it.** Scale either ceiling with the CI multiplier. Preserve thrown errors, skip failed captures, and require cancellation cooperation. Reject hooks for fixed sizing.
 - **Guards: `PreMeasureHookTests` and `SnapshotMeasurementHookTests`.**
 - **`.timedOut` requires observed motion.** Starvation is `.starved`.
 - **A change-free settle loop keeps running until it can prove stability.** A starved machine can fit fewer passes than stability needs.
@@ -88,6 +90,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Do not remove the tiling without re-running the probe.** Guard: `SnapshotKitTestingTests.LargeViewCaptureTests`.
 - **Include UIKit-backed SwiftUI containers in full-content sizing.**
 - **When a full-width scroll view such as `Form` reports its viewport through `sizeThatFits`, add surrounding chrome to the size.**
+- **When scroll content exceeds the root's reported intrinsic height, apply that fallback.** Do not add unused host space to an intrinsic height that already covers the content. Guard: `LargeViewCaptureTests.keepsAShortBoundedScrollViewAtItsIntrinsicHeight`.
 - **Device presets retain their normal viewport height as the minimum.** Guard: `SnapshotKitTestingTests.LargeViewCaptureTests`.
 - **Use one authoritative scroller for two-axis full-content sizing.** Resolve both dimensions from the largest viewport-filling scroll descendant. Converge the size as one value. Reset it to the leading/top edge.
 - **Reject unsafe two-axis captures before allocation.** Limit them to 32,000 pixels per dimension and 100 million pixels total. Guard: `SnapshotKitTestingTests.LargeViewCaptureTests`.

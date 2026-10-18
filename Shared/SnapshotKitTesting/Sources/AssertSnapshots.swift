@@ -14,7 +14,7 @@ import UIKit
 ///
 /// `async` because the render pipeline must suspend for SwiftUI `.task`-driven
 /// content to load before capture — see
-/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:measurementReadiness:onReadyToMeasure:settle:onReadyToSnapshot:)``.
+/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:measurementReadiness:onReadyToMeasure:measurementHookTimeout:settle:onReadyToSnapshot:)``.
 @MainActor
 public func assertSnapshots(
     of provider: (some SnapshotProviding).Type,
@@ -67,14 +67,17 @@ public func assertSnapshots(
 }
 
 /// Asserts a single view across a set of configurations, for one-off views that
-/// don't warrant a ``SnapshotProviding`` conformance.
+/// don't warrant a ``SnapshotProviding`` conformance. A throwing pre-measure
+/// hook aborts that capture. Its optional timeout is in seconds; nil uses the
+/// settle ceiling. The CI multiplier applies to either ceiling.
 @MainActor
 public func assertSnapshots(
     of view: some View,
     named name: String,
     configurations: [SnapshotConfiguration],
     measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
-    onReadyToMeasure: (@MainActor () async -> Void)? = nil,
+    onReadyToMeasure: (@MainActor () async throws -> Void)? = nil,
+    measurementHookTimeout: TimeInterval? = nil,
     settle: SnapshotSettle = .settled,
     onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
     record: SnapshotTestingConfiguration.Record? = nil,
@@ -160,6 +163,7 @@ public func assertSnapshots(
                 isAccessibility: configuration.snapshotType == .accessibility,
                 measurementReadiness: measurementReadiness,
                 onReadyToMeasure: onReadyToMeasure,
+                measurementHookTimeout: measurementHookTimeout,
                 settle: settle,
                 onReadyToSnapshot: onReadyToSnapshot,
                 settleTimeoutPolicy: settleTimeoutPolicy,

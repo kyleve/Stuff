@@ -109,4 +109,7 @@ Enable distribution only after the matching app and controller changes are on `m
 
 Run `python3 -m unittest discover -s Tools/Tests -p 'test_installer*.py'` for publication and site policy.
 Run `python3 -m unittest discover -s Tools/Tests -p 'test_github_*.py'` for transport and verified releases.
+Run `./test ToolsSnapshotTests --review` for site images.
+The site fixtures include two apps, matching PR numbers, main-only browsing, retirement, and empty states.
+They also cover long names, missing artwork, and older builds without display metadata.
 The second app is synthetic. Real signing, installation, and update confirmation require a registered device.
