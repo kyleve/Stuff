@@ -4,6 +4,52 @@ import Testing
 struct FlightEndpointInferenceTests {
     private typealias F = FlightTrajectoryFixtures
 
+    @Test(arguments: [250.0, 250.01, 1000.0])
+    func gapCorroborationRequiresCorrectionQuality(accuracy: Double) {
+        let samples = F.resumedFlight()
+        let reason = FlightEndpointInference.reason(
+            cruise: Array(samples[3 ... 6]),
+            previous: F.sample(20, minutes: 10, east: 0, accuracy: accuracy),
+            endpointObservations: [samples[3]],
+        )
+        #expect((reason != nil) == (accuracy <= 250))
+    }
+
+    @Test(arguments: [250.0, 250.01, 1000.0])
+    func speedCorroborationRequiresCorrectionQuality(accuracy: Double) {
+        let samples = F.resumedFlight()
+        let measured = F.sample(20, minutes: 270, east: 3200, accuracy: accuracy, motion: .init(
+            speed: .init(metersPerSecond: 240, accuracyMetersPerSecond: 10),
+            altitude: nil,
+        ))
+        let reason = FlightEndpointInference.reason(
+            cruise: Array(samples[3 ... 6]),
+            previous: nil,
+            endpointObservations: [measured],
+        )
+        #expect((reason != nil) == (accuracy <= 250))
+    }
+
+    @Test func coarseSlowObservationStillVetoesAccurateFastEvidence() {
+        let samples = F.resumedFlight()
+        let fast = F.sample(20, minutes: 270, east: 3200, motion: .init(
+            speed: .init(metersPerSecond: 240, accuracyMetersPerSecond: 10),
+            altitude: nil,
+        ))
+        let slow = F.sample(21, minutes: 270, east: 3200, accuracy: 1000, motion: .init(
+            speed: .init(metersPerSecond: 1, accuracyMetersPerSecond: 1),
+            altitude: nil,
+        ))
+        #expect(FlightEndpointInference.reason(
+            cruise: Array(samples[3 ... 6]),
+            previous: samples[2],
+            endpointObservations: [
+                fast,
+                slow,
+            ],
+        ) == nil)
+    }
+
     @Test func longGapCorroboratesOnlyTheResumedEndpoint() {
         let samples = F.resumedFlight()
         let reason = FlightEndpointInference.reason(

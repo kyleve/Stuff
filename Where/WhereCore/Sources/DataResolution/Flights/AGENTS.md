@@ -8,8 +8,14 @@ and [repository rules](../../../../../AGENTS.md) also apply.
   Keep legacy samples in a separate track.
 - Preserve unknown observations. Never infer arrival from silence, midnight, or restart.
 - Keep later flight observations out of older pending assessments.
-- Keep long gaps out of observed legs. Use corroboration only for the resumed cruise endpoint.
-  Preserve ground endpoints and expose the inference reason. Guard: `FlightEndpointInferenceTests`.
+- Keep recording gaps out of observed legs and automatic point exclusions.
+  Corroborated displacement can establish a trip. Require independent nearby observations at both endpoints.
+  Search bounded windows across consistent intervening fixes. Stop at confirmed ground episodes.
+  Keep recognition accuracy separate from correction eligibility.
+  Preserve ground endpoints. Guard: `FlightDisplacementInferenceTests` and `FlightTrajectoryAnalyzerTests`.
+- Corroborate resumed cruise points separately and expose each inference reason.
+  Require correction-quality positions for positive gap and sensor corroboration; coarse observations may still veto.
+  Guard: `FlightEndpointInferenceTests`.
 - Put shared inference limits in `GPSCorrectionPolicy`.
   Document evidence decisions beside the algorithm that uses them.
 
