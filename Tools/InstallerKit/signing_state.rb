@@ -87,15 +87,18 @@ module InstallerSigning
     end
   end
 
+  # Even malformed arguments can make security echo credentials to stderr.
+  # Keep raw child output out of errors, including the command name from argv.
+  def self.run_security(*arguments)
+    output, status = Open3.capture2e('security', *arguments)
+    raise "security command failed (exit #{status.exitstatus || 'signal'})" unless status.success?
+    output
+  end
+
   def self.state_command(argv, environment)
     raise 'Usage: .github/where-signing.sh prepare|cleanup' unless argv.length == 1 && %w[prepare cleanup].include?(argv.first)
     raise 'Temporary signing is restricted to CircleCI isolated runners' unless environment['CIRCLECI'] == 'true'
-    security = lambda do |*arguments|
-      output, status = Open3.capture2e('security', *arguments)
-      # Do not log arguments: create/unlock contain the random keychain password.
-      raise "security #{arguments.first} failed (#{status.exitstatus}): #{output}" unless status.success?
-      output
-    end
+    security = method(:run_security)
     profiles = File.expand_path('~/Library/Developer/Xcode/UserData/Provisioning Profiles')
     state = State.new(environment.fetch('WHERE_SIGNING_DIR'), environment.fetch('RUNNER_TEMP'), profiles, security)
     if argv.first == 'prepare'

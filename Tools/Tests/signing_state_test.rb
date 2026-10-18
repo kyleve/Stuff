@@ -37,6 +37,16 @@ class SigningStateTest < Minitest::Test
     refute @calls.any? { |args| args.first == 'default-keychain' }
   end
 
+  def test_security_failure_never_reports_arguments_or_output
+    secret = 'test-only-credential'
+    failure = Struct.new(:exitstatus) { def success?; false; end }.new(47)
+    Open3.stub(:capture2e, ["invalid argument: #{secret}", failure]) do
+      error = assert_raises(RuntimeError) { InstallerSigning.run_security(secret, '-p', secret) }
+      assert_equal 'security command failed (exit 47)', error.message
+      refute_includes error.message, secret
+    end
+  end
+
   def test_existing_profiles_are_untouched_before_any_security_call
     Dir.mkdir(@profiles)
     path = File.join(@profiles, 'unrelated')
