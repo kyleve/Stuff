@@ -6,8 +6,12 @@ public protocol UpdateFetching: Sendable {
 
 /// Credential-free HTTPS reader. Invalid feeds never replace the last successful result.
 public struct UpdateClient: UpdateFetching {
-    public enum FetchError: Error {
+    /// Response failures retain the HTTP status separately from transport and feed errors.
+    public enum FetchError: Error, Equatable {
         case invalidResponse
+        case unexpectedLocation
+        case httpStatus(Int)
+        case responseTooLarge
     }
 
     private let session: URLSession
@@ -24,10 +28,12 @@ public struct UpdateClient: UpdateFetching {
         )
         let (data, response) = try await session.data(for: request)
         try Task.checkCancellation()
-        guard let response = response as? HTTPURLResponse,
-              response.statusCode == 200, response.url?.scheme == "https",
-              response.url?.host == url.host, data.count <= 1_000_000
-        else { throw FetchError.invalidResponse }
+        guard let response = response as? HTTPURLResponse else { throw FetchError.invalidResponse }
+        guard response.url?.scheme == "https", response.url?.host == url.host else {
+            throw FetchError.unexpectedLocation
+        }
+        guard response.statusCode == 200 else { throw FetchError.httpStatus(response.statusCode) }
+        guard data.count <= 1_000_000 else { throw FetchError.responseTooLarge }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let catalog = try decoder.decode(UpdateCatalog.self, from: data)

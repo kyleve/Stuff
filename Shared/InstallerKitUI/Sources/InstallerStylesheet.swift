@@ -12,6 +12,7 @@ struct InstallerStylesheet: BStylesheet {
     var changes = Changes()
     var check = Check()
     var browser = Browser()
+    var failure = Failure()
 
     init() {}
 
@@ -97,6 +98,10 @@ struct InstallerStylesheet: BStylesheet {
     struct Check: Equatable {
         var font = Font.headline
         var minimumHeight: CGFloat = 44
+    }
+
+    struct Failure: Equatable {
+        var codeFont = Font.caption.monospaced()
     }
 
     struct Browser: Equatable {

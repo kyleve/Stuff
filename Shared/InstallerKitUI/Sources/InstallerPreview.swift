@@ -21,9 +21,14 @@
             case localDirty = "LocalDirty"
             case localUnknown = "LocalUnknown"
             case localOffline = "LocalOffline"
+            case missingFeed = "MissingFeed"
 
-            public var isOffline: Bool {
+            var isOffline: Bool {
                 self == .offline || self == .localOffline
+            }
+
+            public var requiresRefresh: Bool {
+                isOffline || self == .missingFeed
             }
         }
 
@@ -54,7 +59,8 @@
 
         public static func model(_ scenario: Scenario) -> UpdateModel {
             let installed: InstalledBuild = switch scenario {
-                case .local, .localOffline: localBuild(revision: .clean(installedRevision))
+                case .local, .localOffline,
+                     .missingFeed: localBuild(revision: .clean(installedRevision))
                 case .localDirty: localBuild(revision: .dirty(installedRevision))
                 case .localUnknown: localBuild(revision: .unavailable)
                 case .available, .current, .retired, .rewritten, .unavailable, .offline,
@@ -63,25 +69,28 @@
             return model(
                 catalog: catalog(scenario),
                 installed: installed,
-                isOffline: scenario.isOffline,
+                failure: scenario == .missingFeed ? UpdateClient.FetchError.httpStatus(404) :
+                    scenario.isOffline ? URLError(.notConnectedToInternet) : nil,
+                cacheCatalog: scenario != .missingFeed,
             )
         }
 
         static func model(
             catalog: UpdateCatalog,
             installed: InstalledBuild,
-            isOffline: Bool,
+            failure: (any Error)?,
+            cacheCatalog: Bool,
         ) -> UpdateModel {
             let preferences = MemoryPreferences()
-            preferences.installerUpdates = UpdatePreferences(cached: .init(
+            preferences.installerUpdates = UpdatePreferences(cached: cacheCatalog ? .init(
                 feedURL: installed.feedURL,
                 checkedAt: date,
                 catalog: catalog,
-            ))
+            ) : nil)
             return UpdateModel(service: UpdateService(
                 installed: installed,
                 preferences: preferences,
-                client: Client(catalog: catalog, isOffline: isOffline),
+                client: Client(catalog: catalog, failure: failure),
                 now: { date },
             ))
         }
@@ -158,7 +167,7 @@
                 case .unavailable: [releases[0]]
                 case .available, .retired, .rewritten, .offline, .unpublished, .missingDetails,
                      .retiredWithoutMain, .local, .localDirty, .localUnknown,
-                     .localOffline: releases
+                     .localOffline, .missingFeed: releases
             }
             return catalog(channels: scenario == .unpublished ? [] : [
                 .init(
@@ -214,9 +223,9 @@
 
         struct Client: UpdateFetching {
             let catalog: UpdateCatalog
-            let isOffline: Bool
+            let failure: (any Error)?
             func fetch(from _: URL) async throws -> UpdateCatalog {
-                if isOffline { throw URLError(.notConnectedToInternet) }
+                if let failure { throw failure }
                 return catalog
             }
         }

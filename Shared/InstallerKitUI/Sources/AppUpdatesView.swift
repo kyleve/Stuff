@@ -66,12 +66,8 @@ private struct UpdatePage<SectionDecoration: ViewModifier>: View {
             if case .local = model.installed.source {
                 UpdateLocalBuildNotice(isInstalled: true)
             }
-            if case .failed = model.state {
-                UpdateCard(title: .installerCheckFailed) {
-                    Text(.installerCheckFailedMessage)
-                        .font(stylesheet.card.bodyFont)
-                        .foregroundStyle(.secondary)
-                }
+            if case let .failed(error, previous) = model.state {
+                UpdateFailureCard(error: error, hasCachedBuilds: previous != nil)
             }
             availability
             UpdateInstalledBuild(model: model, check: checkForUpdates)
@@ -150,9 +146,9 @@ private struct UpdatePage<SectionDecoration: ViewModifier>: View {
                             devices: [.iPhoneFullContent],
                             colorSchemes: [.light, .dark],
                         ),
-                    measurementReadiness: scenario.isOffline ? .sameAsCapture : .immediate,
+                    measurementReadiness: scenario.requiresRefresh ? .sameAsCapture : .immediate,
                     onReadyToMeasure: {
-                        if scenario.isOffline { await model.refresh(force: true) }
+                        if scenario.requiresRefresh { await model.refresh(force: true) }
                     },
                 ) {
                     NavigationStack { AppUpdatesView(
