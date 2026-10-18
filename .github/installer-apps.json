@@ -1,0 +1,23 @@
+[
+  {
+    "id": "where",
+    "name": "Where Dev",
+    "bundleIdentifier": "com.stuff.where.development",
+    "site": {
+      "subtitle": "Your travel history, day by day.",
+      "icon": "Where/Where/Resources/AppIcon.xcassets/AppIcon.appiconset/AppIcon.png",
+      "darkIcon": "Where/Where/Resources/AppIcon.xcassets/AppIcon.appiconset/AppIcon-Dark.png"
+    },
+    "bundlePath": "Payload/Where.app",
+    "signedBundles": [
+      "Payload/Where.app",
+      "Payload/Where.app/PlugIns/WhereWidgets.appex",
+      "Payload/Where.app/PlugIns/WhereShareExtension.appex"
+    ],
+    "requiredInfo": {
+      "WhereAudience": "development",
+      "WhereConfiguration": "Debug",
+      "WhereSwiftOptimizationLevel": "-O"
+    }
+  }
+]

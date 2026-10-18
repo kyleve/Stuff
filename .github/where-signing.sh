@@ -3,8 +3,8 @@
 # Run from the repository root. Account setup is in Where/DISTRIBUTION.md.
 #
 # Lifecycle: prepare, run Where/archive with "$WHERE_SIGNING_DIR/profiles", cleanup.
-# The caller must run cleanup even if prepare or the archive fails. In GitHub
-# Actions, use an `if: always()` cleanup step with the same WHERE_SIGNING_DIR.
+# The caller must run cleanup even if prepare or the archive fails. CircleCI
+# uses `when: always` with the same WHERE_SIGNING_DIR (GitHub Actions: `if: always()`).
 # Cleanup needs no signing secrets and can retry after a partial failure.
 #
 # Both commands require RUNNER_TEMP and WHERE_SIGNING_DIR. The state path must

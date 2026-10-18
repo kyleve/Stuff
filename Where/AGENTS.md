@@ -283,6 +283,7 @@ distribution. [DISTRIBUTION.md](DISTRIBUTION.md) owns account setup and operatio
 Keep CI profile overrides scoped to the Development device configuration in
 `Project.swift`; validate all three profiles against generated target settings
 before archiving. Sign the app and extensions during archive, not only export.
+Shared publication rules live in [Tools/InstallerKit/AGENTS.md](../Tools/InstallerKit/AGENTS.md#publication).
 Where's archive and signing guards are `Tools/Tests/test_where_signing.py`,
 `test_where_archive.py`, and `test_where_signing_command.py`.
 

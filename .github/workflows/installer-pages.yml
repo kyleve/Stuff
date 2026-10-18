@@ -1,0 +1,51 @@
+name: App Install Site
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A replaced pending deployment is safe: each run reads the entire latest feed.
+concurrency:
+  group: installer-pages
+  cancel-in-progress: false
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+  INSTALLER_FEED_URL: ${{ vars.INSTALLER_FEED_URL || format('https://{0}.github.io/{1}/updates.json', github.repository_owner, github.event.repository.name) }}
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: installer-update-feed
+          persist-credentials: false
+          path: .installer-update-feed
+      - name: Prepare install pages, manifests, and catalog
+        run: >-
+          python3 -m Tools.InstallerKit.installer_update_site
+          --catalog .installer-update-feed/updates.json
+          --repository "$GITHUB_REPOSITORY"
+          --feed-url "$INSTALLER_FEED_URL"
+          --output "$RUNNER_TEMP/installer-pages"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/installer-pages
+      - name: Deploy install site
+        id: deployment
+        uses: actions/deploy-pages@v4

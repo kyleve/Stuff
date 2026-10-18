@@ -28,7 +28,15 @@ catalogs and captured command output rather than tracked assets, devices, or
 `/Applications`.
 
 `where_signing.py` validates Where's ad hoc profiles and generates export settings.
+`repository.repository_root` finds a tool's checkout through its nearest `.git` directory or worktree file.
+Use it for checkout-relative resources instead of fixed parent-directory counts.
 `Where/archive` owns the Xcode processes.
+[`InstallerKit/`](InstallerKit/README.md) owns shared app registration, publication, build stamping, and install-site generation.
+Its private Python modules use qualified imports under `Tools.InstallerKit`.
+Run their commands from the repository root with `python3 -m Tools.InstallerKit.<module>`.
+Tests use the same module imports without changing Python's search path.
+[Where's distribution guide](../Where/DISTRIBUTION.md) owns its signing setup and device validation.
+
 ## Snapshot shard policy
 
 `snapshot_shards.py` keeps weekly assignments stable. Its bounded greedy search

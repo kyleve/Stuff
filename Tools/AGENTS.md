@@ -35,6 +35,10 @@ These rules also apply when changing a root command or installer that calls this
 - Preserve assignments unless intake, the improvement threshold, or an explicit shard-count change requires an update.
   Guard: [test_snapshot_shards.py](Tests/test_snapshot_shards.py).
 
+## Installer publication
+
+Shared installer tools have scoped rules in [`InstallerKit/AGENTS.md`](InstallerKit/AGENTS.md).
+
 ## Validation
 
 - For policy changes, exercise both the policy and its public command boundary.
