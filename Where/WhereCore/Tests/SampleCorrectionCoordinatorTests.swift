@@ -4,6 +4,156 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct SampleCorrectionCoordinatorTests {
+    @Test(arguments: [30.0, 1440.0])
+    func uncertainArrivalRetainsRestorationInUnsupportedGaps(excludedMinute: Double) async throws {
+        typealias F = FlightTrajectoryFixtures
+        let h = try SampleCorrectionTestSupport.makeHarness(now: F.date(minutes: 4330))
+        let excluded = F.sample(4, minutes: excludedMinute, east: 150)
+        let peer = F.sample(8, minutes: excludedMinute + 0.1, east: 150)
+        let samples = [
+            F.sample(1, minutes: 0, east: 0),
+            F.sample(2, minutes: 5, east: 75),
+            F.sample(3, minutes: 10, east: 150),
+            excluded,
+            peer,
+            F.sample(5, minutes: 4320, east: 4000),
+            F.sample(6, minutes: 4325, east: 4000),
+            F.sample(7, minutes: 4330, east: 4000),
+        ]
+        let originalRevision = SampleAttributionRevision(
+            id: .init(rawValue: UUID()),
+            sampleID: excluded.id,
+            updatedAt: F.date(minutes: 4330),
+            replacementRegions: [],
+        )
+        try await h.store.perform {
+            for sample in samples {
+                try await h.store.add(sample: sample)
+            }
+            try await h.store.addSampleAttributionRevision(originalRevision)
+        }
+        let day = CalendarDay(from: excluded.timestamp, in: SampleCorrectionTestSupport.calendar)
+        let reviewID = DataIssueID.flightDay(day: day)
+        let review = try #require(await h.coordinator.review(
+            id: reviewID,
+            year: day.year,
+            primaryRegions: SampleCorrectionTestSupport.attribution.loadedRegions,
+            driftThresholdMeters: 1000,
+        ))
+        let flight = try #require(review.flights.first)
+        #expect(flight.progress.arrival?.isTimingUncertain == true)
+        let restore = try #require(review.pointCorrections.first { $0.sampleID == excluded.id })
+        #expect(restore.action == .restoreGPS)
+        #expect(!review.pointCorrections.contains { $0.sampleID == peer.id })
+        #expect(review.proposal?.edits
+            .contains { $0.sampleID == excluded.id || $0.sampleID == peer.id } != true)
+        if excludedMinute >= 1440 {
+            #expect(!flight.completedDays(in: SampleCorrectionTestSupport.calendar).contains(day))
+        }
+        guard case .applied = try await h.coordinator.apply(restore) else {
+            Issue
+                .record(
+                    "The reviewed exclusion must remain reversible inside an uncertain arrival gap",
+                )
+            return
+        }
+        let revisions = try await h.store.allSampleAttributionRevisions()
+        #expect(revisions.contains(originalRevision))
+        let reset = try #require(revisions.max { $0.updatedAt < $1.updatedAt })
+        #expect(reset.replacementRegions == nil)
+        #expect(reset.updatedAt > originalRevision.updatedAt)
+        let refreshed = try await h.coordinator.review(
+            id: reviewID,
+            year: day.year,
+            primaryRegions: SampleCorrectionTestSupport.attribution.loadedRegions,
+            driftThresholdMeters: 1000,
+        )
+        #expect(refreshed?.pointCorrections.contains { $0.sampleID == excluded.id } != true)
+        if excludedMinute >= 1440 { #expect(refreshed == nil) }
+        #expect(try await Set(h.store.allSamples()) == Set(samples))
+        guard case .stale = try await h.coordinator.apply(restore) else {
+            Issue.record("An already applied restoration must be stale")
+            return
+        }
+        #expect(try await h.store.allSampleAttributionRevisions().count == 2)
+    }
+
+    @Test func uncertainArrivalStillAllowsRestoringAnExcludedEndpoint() async throws {
+        typealias F = FlightTrajectoryFixtures
+        let h = try SampleCorrectionTestSupport.makeHarness(now: F.date(minutes: 4330))
+        let samples = [
+            F.sample(1, minutes: 0, east: 0),
+            F.sample(2, minutes: 5, east: 75),
+            F.sample(3, minutes: 10, east: 150),
+            F.sample(4, minutes: 4320, east: 4000),
+            F.sample(5, minutes: 4325, east: 4000),
+            F.sample(
+                6,
+                minutes: 4330,
+                east: 4000,
+            ),
+        ]
+        try await h.store.perform {
+            for sample in samples {
+                try await h.store.add(sample: sample)
+            }
+            try await h.store.addSampleAttributionRevision(.init(
+                id: .init(rawValue: UUID()),
+                sampleID: samples[0].id,
+                updatedAt: F.date(minutes: 30),
+                replacementRegions: [],
+            ))
+        }
+        let review = try await h.review()
+        let restore = try #require(review.pointCorrections.first { $0.sampleID == samples[0].id })
+        #expect(restore.action == .restoreGPS)
+        guard case .applied = try await h.coordinator.apply(restore) else {
+            Issue
+                .record(
+                    "Uncertain timing must not prevent withdrawing an existing endpoint exclusion",
+                )
+            return
+        }
+        let refreshed = try await h.review()
+        #expect(refreshed.pointCorrections.contains { $0.sampleID == samples[0].id } == false)
+        #expect(try await h.store.allSamples().count == samples.count)
+    }
+
+    @Test func improvedArrivalEvidenceInvalidatesAnUncertainFlightProposal() async throws {
+        typealias F = FlightTrajectoryFixtures
+        let h = try SampleCorrectionTestSupport.makeHarness(now: F.date(minutes: 4330))
+        let samples = [
+            F.sample(1, minutes: 0, east: 0),
+            F.sample(2, minutes: 5, east: 75),
+            F.sample(3, minutes: 10, east: 150),
+            F.sample(4, minutes: 4320, east: 4000),
+            F.sample(5, minutes: 4325, east: 4000),
+            F.sample(
+                6,
+                minutes: 4330,
+                east: 4000,
+            ),
+        ]
+        try await h.store.perform {
+            for sample in samples {
+                try await h.store.add(sample: sample)
+            }
+        }
+        let review = try await h.review()
+        #expect(review.flight?.progress.arrival?.isTimingUncertain == true)
+        let proposal = try #require(review.proposal)
+        try await h.store.perform {
+            try await h.store.add(sample: F.sample(7, minutes: 15, east: 150))
+            try await h.store.add(sample: F.sample(8, minutes: 20, east: 150))
+        }
+        guard case let .stale(fresh) = try await h.coordinator.apply(proposal) else {
+            Issue.record("Changed arrival evidence must require a fresh review")
+            return
+        }
+        #expect(fresh?.flight?.progress.arrival?.isTimingUncertain == false)
+        #expect(try await h.store.allSampleAttributionRevisions().isEmpty)
+    }
+
     @Test func pointInclusionAndRestorePreserveRawHistoryAndOtherCorrections() async throws {
         let h = try await SampleCorrectionTestSupport.completedFlight()
         let existing = SampleAttributionRevision(

@@ -33,6 +33,17 @@ enum GPSCorrectionPolicy {
         static let sameObservationInterval: TimeInterval = 1
     }
 
+    enum Ground {
+        /// Sparse stationary evidence still needs three observations, not two ends of silence.
+        static let sparseMinimumDuration: TimeInterval = 20 * 60
+        static let sparseMaximumWindow: TimeInterval = 60 * 60
+        static let sparseMaximumGap: TimeInterval = 30 * 60
+        /// Moving ground requires measured slow speed throughout this observed duration.
+        static let movingMinimumDuration: TimeInterval = 20 * 60
+        /// Later ground confirms the trip ended, but cannot timestamp its landing.
+        static let maximumArrivalEvidenceGap: TimeInterval = 30 * 60
+    }
+
     enum Displacement {
         /// Coarse positions may establish a large journey, never point exclusions.
         static let maximumHorizontalAccuracyMeters = 1000.0

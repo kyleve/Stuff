@@ -11,17 +11,29 @@ struct FlightJourneyRow: View {
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        if case let .completed(arrivedAt) = flight.progress {
+        if case let .completed(arrival) = flight.progress {
             HStack(spacing: stylesheet.timeline.rail.toCardSpacing) {
                 Color.clear.frame(width: stylesheet.timeline.rail.nodeSize)
                 VStack(alignment: .leading, spacing: stylesheet.timeline.flight.labelSpacing) {
                     Text(.historyFlight).font(.subheadline.bold())
-                    Text(DateRangeFormatting.abbreviated(
-                        start: flight.startedAt,
-                        end: arrivedAt,
-                        calendar: calendar,
-                    ))
-                    .font(.caption).foregroundStyle(.secondary)
+                    ForEach(
+                        Array(flight.supportedPeriods.enumerated()),
+                        id: \.offset,
+                    ) { _, period in
+                        Text(DateRangeFormatting.abbreviated(
+                            start: period.start,
+                            end: period.end,
+                            calendar: calendar,
+                        ))
+                        .font(.caption).foregroundStyle(.secondary)
+                    }
+                    if arrival.isTimingUncertain {
+                        Text(.flightStatusUncertainTitle)
+                            .font(.caption).foregroundStyle(.secondary)
+                        Text(String(localized: .flightStatusGroundObserved(arrival.firstGroundAt
+                                .formatted(.dateTime.month(.abbreviated).day().hour().minute()))))
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }

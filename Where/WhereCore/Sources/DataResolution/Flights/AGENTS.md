@@ -8,6 +8,11 @@ and [repository rules](../../../../../AGENTS.md) also apply.
   Keep legacy samples in a separate track.
 - Preserve unknown observations. Never infer arrival from silence, midnight, or restart.
 - Keep later flight observations out of older pending assessments.
+- Keep ground confirmation separate from arrival timing. Derive flight days from supported intervals, never an unsupported arrival gap.
+  For uncertain arrival timing, exclusion eligibility requires independently supported airborne identities.
+  Guards: `FlightAssessmentTests`, `FlightTrajectoryAnalyzerTests`, and `FlightPointCorrectionAssessmentTests`.
+- Ground episodes require positive same-device observations. Sparse stationary and moving-ground evidence must satisfy their distinct policy and sensor gates.
+  Guard: `FlightGroundInferenceTests`.
 - Keep recording gaps out of observed legs and automatic point exclusions.
   Corroborated displacement can establish a trip. Require independent nearby observations at both endpoints.
   Derive travel speed from positional distance and elapsed time, accounting for both endpoints' uncertainty.

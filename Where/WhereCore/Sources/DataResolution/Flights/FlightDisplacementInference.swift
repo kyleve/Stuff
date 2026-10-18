@@ -45,19 +45,34 @@ enum FlightDisplacementInference {
             observations.flightPartitionIndex { $0.timestamp > anchor.timestamp }
         }
         var result: [Window] = []
+        var groundIndex = 0
+        var cruiseIndex = 0
         for start in anchors.indices where !previous[start].isEmpty {
             var end = start + 1
-            let stop = grounds.first { $0.lowerBound > start }?.upperBound
+            while groundIndex < grounds.count,
+                  grounds[groundIndex].lowerBound <= start
+            {
+                groundIndex += 1
+            }
+            while cruiseIndex < cruise.count,
+                  cruise[cruiseIndex].upperBound <= start
+            {
+                cruiseIndex += 1
+            }
+            let groundStop = groundIndex < grounds.count ? grounds[groundIndex].upperBound : anchors
+                .endIndex
+            let cruiseStop = cruiseIndex < cruise.count ? cruise[cruiseIndex].lowerBound : anchors
+                .endIndex
+            let stop = min(groundStop, cruiseStop)
             while end < anchors.count,
                   anchors[end].timestamp.timeIntervalSince(anchors[start].timestamp)
                   <= Trajectory.maximumCorroboratingGap
             {
-                if let stop, end > stop { break }
+                if end > stop { break }
                 defer { end += 1 }
                 // Existing observed cruise already explains this interval. Windows
                 // may meet a cruise endpoint, but must not absorb its ground lead-in.
-                guard !cruise.contains(where: { $0.overlaps(start ..< end) }),
-                      !next[end].isEmpty,
+                guard !next[end].isEmpty,
                       qualifies(from: anchors[start], to: anchors[end]) else { continue }
                 var support: Int?
                 for before in previous[start] {

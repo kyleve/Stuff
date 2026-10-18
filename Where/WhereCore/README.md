@@ -182,7 +182,8 @@ one it belongs to rather than to a god-object:
   Applying or dismissing those edits leaves the pending flight review available without an actionable count.
   Dismissing a ready suggestion with no pending flights hides its review and live notice.
   `DataIssueScanResult.completedFlights` retains historical flights independently of review dismissal.
-  `FlightAssessment.completedDays(in:)` includes every local day from departure through confirmed arrival.
+  `FlightAssessment.completedDays(in:)` includes only days covered by supported travel intervals.
+  Unsupported gaps and later ground observations do not add flight days.
   Calendar builders accept these days through their explicit `flightDays` argument.
   Pending and completed informational reviews remain accessible.
 - **`FlightTrajectoryAnalyzer`** — a pure, per-device GPS analysis before day
@@ -194,10 +195,19 @@ one it belongs to rather than to a god-object:
   the shared inference limits: three anchors spanning three minutes, with each
   leg's uncertainty-adjusted average speed at 450–1,500 km/h. Arrival requires
   three ground anchors spanning ten minutes within 2 km and at most 50 km/h.
+  `FlightGroundInference` also accepts bounded sparse stationary observations and measured slow ground travel.
+  The policy keeps their duration, gap, accuracy, and sensor requirements explicit.
   `FlightAssessment.RecordingSource` separates identified installations from legacy samples.
   `Reassessment` distinguishes a scheduled refresh from an evidence-driven refresh.
 
-  A qualifying dwell confirms arrival immediately. The 30-minute freshness limit
+  `FlightAssessment.Progress.completed` carries typed `Arrival` evidence, including its confirmation time.
+  Ground first observed over 30 minutes after supported travel produces `uncertainTiming`.
+  That flight remains in history. Only independently supported airborne points remain eligible for exclusion.
+  Existing exclusions in the arrival gap remain reversible through restoration-only reviews, without adding flight days.
+  `supportedIntervals` retains observed motion and corroborated displacement separately.
+  `supportedPeriods` coalesces touching intervals for display without filling gaps.
+
+  A qualifying ground episode confirms the trip ended. The 30-minute freshness limit
   only changes live-notice presentation. Cruise inference uses positional
   movement. Reported speed can veto ground dwell, and altitude is context only.
   Missing or stale updates never establish arrival. Slower aircraft and uncorroborated
@@ -224,6 +234,7 @@ one it belongs to rather than to a god-object:
   Slow sensor readings veto this inference. The gap remains unknown and never
   becomes an observed motion leg. Each inferred endpoint carries its reason
   into the correction review.
+
 - **`SampleCorrectionAssessment`** — shares the raw-evidence assessment for flights
   and border drift. Its named policy includes 24-hour report context and local
   boundary brackets within ten minutes on each side. These conservative limits

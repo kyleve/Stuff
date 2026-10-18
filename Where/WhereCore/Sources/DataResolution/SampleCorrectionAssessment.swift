@@ -106,14 +106,25 @@ struct SampleCorrectionAssessment {
             assertionFailure("Cannot derive the end of a Gregorian day")
             return nil
         }
-        // Keep every flight intersecting the local day, including an unfinished
-        // flight whose last observation extends beyond its last supported leg.
+        // Keep supported travel and pending observations on their own days.
+        // An existing exclusion in an arrival gap also needs a review so it can
+        // be withdrawn. This does not extend the flight's supported intervals.
+        let canRestore = !reads.manualDays.contains { $0.day == day && $0.isAuthoritative }
         let dayFlights = flights.filter { flight in
-            let last: Date = switch flight.progress {
-                case let .completed(arrivedAt): arrivedAt
-                case .flightLikely, .awaitingArrival: flight.lastObservationAt
+            switch flight.progress {
+                case .completed:
+                    flight.supportedIntervals.contains { $0.start < end && $0.end >= start }
+                        || (canRestore && entries.contains {
+                            $0.regions.isEmpty && !conflictingSampleIDs.contains($0.sample.id)
+                                && FlightPointCorrectionAssessment.contains(
+                                    $0.sample,
+                                    in: flight,
+                                    action: .restoreGPS,
+                                )
+                        })
+                case .flightLikely, .awaitingArrival:
+                    flight.startedAt < end && flight.lastObservationAt >= start
             }
-            return flight.startedAt < end && last >= start
         }
         let presence = reads.report.days.first { $0.day == day }
             ?? DayPresence(day: day, regions: [])

@@ -3841,6 +3841,17 @@
         }
       }
     },
+    "flight.status.groundObserved" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ground observed: %@"
+          }
+        }
+      }
+    },
     "flight.status.lastObservation" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3914,6 +3925,28 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Ready to review"
+          }
+        }
+      }
+    },
+    "flight.status.uncertain.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ground observations confirm this flight ended. The arrival time is unknown. Only points supported as airborne can be corrected."
+          }
+        }
+      }
+    },
+    "flight.status.uncertain.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrival time uncertain"
           }
         }
       }

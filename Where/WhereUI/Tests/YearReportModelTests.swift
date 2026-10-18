@@ -666,6 +666,11 @@ struct YearReportModelTests {
             peakSpeedKMH: flight.peakSpeedKMH,
             progress: flight.progress,
             inferredEndpoints: flight.inferredEndpoints,
+            supportedIntervals: [.init(
+                start: flight.startedAt,
+                end: flight.lastFlightAt,
+                kind: .observedMotion,
+            )],
         )
         let remote = GPSCorrectionReview(
             id: current.id,
@@ -720,6 +725,11 @@ struct YearReportModelTests {
             peakSpeedKMH: flight.peakSpeedKMH,
             progress: .awaitingArrival,
             inferredEndpoints: flight.inferredEndpoints,
+            supportedIntervals: [.init(
+                start: flight.startedAt.addingTimeInterval(-24 * 60 * 60),
+                end: flight.lastFlightAt.addingTimeInterval(-24 * 60 * 60),
+                kind: .observedMotion,
+            )],
         )
         let expired = GPSCorrectionReview(
             id: current.id,
