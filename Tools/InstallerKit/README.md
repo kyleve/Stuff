@@ -17,6 +17,12 @@ Apps appear after their first publication or retirement receipt.
 App cards show their icon, version, download size, and publication date.
 Build pages add the minimum iOS version, source commit, workflow run, bundle ID, and release notes.
 
+## CI cleanup failures
+
+Cleanup attempts search-list restoration, temporary keychain deletion, and owned-profile removal independently. A failure makes the job fail and retains the ownership and recovery files for a retry. It does not delete unexpected profiles or a directory whose ownership changed.
+
+A failed deletion can leave signing credentials on that job's isolated runner until the runner is destroyed. Recovery files must not be uploaded as artifacts. Do not reuse a runner after failed cleanup. The lifecycle wrapper uses the pinned Ruby through `mise`; it needs no Bundler gems. Cleanup before any signing state exists succeeds without loading Ruby.
+
 ## Add an app
 
 1. Add the app to [`.github/installer-apps.json`](../../.github/installer-apps.json).

@@ -47,6 +47,18 @@ class SigningStateTest < Minitest::Test
     end
   end
 
+  def test_failed_search_list_restore_still_cleans_other_material_and_can_retry
+    @state.prepare('key')
+    @fail = 'list-keychains'
+    assert_raises(RuntimeError) { @state.cleanup }
+    refute File.exist?(File.join(@path, 'signing.keychain-db'))
+    assert Dir.empty?(@profiles)
+    assert File.exist?(File.join(@path, 'original-keychains.json'))
+    @fail = nil
+    @state.cleanup
+    refute File.exist?(@path)
+  end
+
   def test_existing_profiles_are_untouched_before_any_security_call
     Dir.mkdir(@profiles)
     path = File.join(@profiles, 'unrelated')
