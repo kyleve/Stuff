@@ -8,7 +8,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 
 - **Depend on `SnapshotKit`, `TestHostSupport`, and `SnapshotTesting`.** Also depend on AccessibilitySnapshot's focused Core + Previews products (cashapp).
 - **Link the comparison engine, XCTest/Testing, and the SwiftUI accessibility renderer.**
-- **Consume this module only from test bundles through `extraPackageProducts`.** That includes per-module image bundles (`WhereUISnapshotTests`, `PeriscopeToolsSnapshotTests`, `InspectorSnapshotTests`, gathered into the `StuffSnapshotTests` *scheme*) and `SnapshotKitTestingTests`.
+- **Consume this module only from test bundles.** Use `extraPackageProducts`, or `productDependency` when this module is the bundle's primary dependency. Image bundles share the `StuffSnapshotTests` scheme; pipeline regressions use `SnapshotKitTestingTests`.
 - **Never link this module from a shipping app or `StuffTestHost`.**
 - **"Process-global" state here is module-global — one copy per consuming `.xctest`.** That is safe only because each bundle gets its own host process.
 - **If two copies co-load into one process, they flip the safe-area swizzle's parity.** They also hide captures from each other's lock.
@@ -22,6 +22,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 
 - **The rendering pipeline is one async function.** All captures (standard and accessibility) flow through `renderSnapshotImage(...)`.
 - **The hosted PNG API uses the same pipeline and capture lock.** It returns bytes and dimensions without comparing a reference.
+- **HTML snapshots use hosted, offline WebKit, then the standard image pipeline.** Await navigation, fonts, and painting before measuring. Require full-content height convergence before capture. Keep consumer HTML generation outside this module. Guards: `AssertHTMLSnapshotsTests`, `SnapshotWebPageTests`.
+- **Hide native scroll-edge effects for HTML document captures.** Guard: `SnapshotWebPageTests.capturesSharpContentAtDocumentEdges`.
 - **Keep PNG export hosted.** `captureSnapshotPNG` requires `StuffTestHost`'s key window and must not gain a headless renderer.
 - **Its `async` is load-bearing.** A synchronous `Snapshotting` pullback could never settle `.task`-driven content.
 - **Accessibility annotations use AccessibilitySnapshot's SwiftUI renderer.** Keep the focused `AccessibilitySnapshotCore` + `AccessibilitySnapshotPreviews` products.

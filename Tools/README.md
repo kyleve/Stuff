@@ -57,9 +57,23 @@ python3 -m unittest discover -s Tools/Tests -p 'test_*.py'
 mise exec -- ruby -I Tools/Tests -e 'Dir["Tools/Tests/**/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
 ```
 
-Tests must not require Xcode, Java/TLC, networking, or the developer's real
+These Python and Ruby tests must not require Xcode, Java/TLC, networking, or the developer's real
 repository state. Add shared fixtures under `Tools/Tests/Fixtures`; otherwise
 create the smallest useful input in the test's temporary directory.
+
+The install site's image tests run on the pinned iOS simulator:
+
+```bash
+./test ToolsSnapshotTests --review
+```
+
+Each build runs [the fixture generator](Tests/Fixtures/installer_update_site_snapshots.py)
+against the production renderer. The bundle loads those pages in offline
+`WKWebView` instances through `SnapshotKitTesting.assertHTMLSnapshots`.
+The generator inlines the exact published artwork bytes for offline capture.
+References cover the main-build homepage, app PR pages, release details, unavailable commit history,
+retired channels, an empty catalog, and missing artwork and metadata on iPhone and iPad in both appearances.
+They use the existing LFS references, snapshot scheme, and CI shard discovery.
 
 [`ADVERSARIAL_TEST_PLAN.md`](ADVERSARIAL_TEST_PLAN.md) records the public
 behavior contracts, portability matrix, destructive-operation boundaries, and

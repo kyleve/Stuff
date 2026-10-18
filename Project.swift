@@ -283,6 +283,7 @@ func unitTests(
     sources: ProjectDescription.SourceFilesList,
     extraPackageProducts: [String] = [],
     environmentVariables: [String: EnvironmentVariable] = [:],
+    scripts: [TargetScript] = [],
 ) -> Target {
     var dependencies: [TargetDependency] = [
         .package(product: productDependency),
@@ -299,6 +300,7 @@ func unitTests(
         bundleId: "com.stuff.\(bundleIdSuffix).tests",
         deploymentTargets: deployment,
         sources: sources,
+        scripts: scripts,
         dependencies: dependencies,
         environmentVariables: packageResourceEnvironment
             .merging(environmentVariables) { _, new in new },
@@ -810,6 +812,21 @@ let project = Project(
             environmentVariables: snapshotEnvironment,
         ),
         unitTests(
+            name: "ToolsSnapshotTests",
+            bundleIdSuffix: "tools.snapshot",
+            productDependency: "SnapshotKitTesting",
+            sources: ["Tools/SnapshotTests/**"],
+            environmentVariables: snapshotEnvironment,
+            scripts: [.post(
+                script: """
+                PYTHONDONTWRITEBYTECODE=1 python3 "$SRCROOT/Tools/Tests/Fixtures/installer_update_site_snapshots.py" \\
+                    --output "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/InstallerSiteSnapshots.json"
+                """,
+                name: "Generate install-site snapshot fixtures",
+                basedOnDependencyAnalysis: false,
+            )],
+        ),
+        unitTests(
             name: "FlyoverSnapshotTests",
             bundleIdSuffix: "flyover.snapshot",
             productDependency: "Flyover",
@@ -998,6 +1015,7 @@ let project = Project(
             shared: true,
             buildAction: .buildAction(targets: [
                 "WhereUISnapshotTests",
+                "ToolsSnapshotTests",
                 "FlyoverSnapshotTests",
                 "PeriscopeToolsSnapshotTests",
                 "InspectorSnapshotTests",
@@ -1005,6 +1023,7 @@ let project = Project(
             testAction: .targets(
                 [
                     "WhereUISnapshotTests",
+                    "ToolsSnapshotTests",
                     "FlyoverSnapshotTests",
                     "PeriscopeToolsSnapshotTests",
                     "InspectorSnapshotTests",
