@@ -271,8 +271,11 @@ one it belongs to rather than to a god-object:
 - **`WherePreferences`** — persisted user intent (onboarding,
   reminder / summary schedules, presentation theme, and Locations-card GPS-dot,
   live-region welcome, and estimated-time/planning visibility) plus the
-  year-keyed Location-card counts, last welcomed region, and recording-warning generation used for presentation
-  continuity, behind a `KeyValueStore`. It also owns the vendor-neutral
+  year-keyed Location-card counts, welcome history, and recording-warning generation used for presentation
+  continuity, behind a `KeyValueStore`. Missing welcome history requires a quiet initial baseline.
+  An explicit developer reset retains a history value with no region, which permits a greeting.
+  These preferences stay outside the backup archive. The former welcome-region key does not seed the new history.
+  It also owns the vendor-neutral
   `DiagnosticReportingConfiguration`: crash reports default On, replay Off,
   and remote logs Off in Release / Warning in Debug. `WherePreferences` encodes
   this configuration directly. Invalid data keeps the channel defaults. Invalid data

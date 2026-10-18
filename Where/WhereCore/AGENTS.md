@@ -167,6 +167,8 @@ internal shape.
 - **Location-card history is non-authoritative preference state.** Keep its
   snapshots year-keyed by stable `Region` id. Clear them through
   `WherePreferences.reset()`. Current report totals remain the source of truth.
+- Keep welcome history in one encoded preference. Distinguish missing history from an explicit reset with no saved region.
+  Keep it outside backup archives. Guard: `WherePreferencesTests`.
 - **Keep diagnostic reporting intent in one encoded composite preference.** Keep crash,
   replay, remote threshold, and export policy vendor-neutral. Invalid stored
   values assert in Debug and resolve remote logging Off. Reset removes every reporting key.

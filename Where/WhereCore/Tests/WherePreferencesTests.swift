@@ -27,7 +27,7 @@ struct WherePreferencesTests {
         )
         #expect(preferences.driftThresholdMeters == DriftThreshold.default.rawValue)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == nil)
-        #expect(preferences.lastWelcomedRegion == nil)
+        #expect(preferences.locationWelcomeHistory == nil)
     }
 
     @Test(arguments: [
@@ -132,14 +132,39 @@ struct WherePreferencesTests {
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == counts2026)
     }
 
-    @Test func lastWelcomedRegionRoundTripsAndClears() {
-        let preferences = preferences()
+    @Test(arguments: [Region.newYork, nil])
+    func locationWelcomeHistoryRoundTripsAndClears(region: Region?) {
+        let store = InMemoryKeyValueStore()
+        let preferences = WherePreferences(store: store)
 
-        preferences.lastWelcomedRegion = .newYork
-        #expect(preferences.lastWelcomedRegion == .newYork)
+        preferences.locationWelcomeHistory = .init(lastRegion: region)
+        #expect(
+            WherePreferences(store: store).locationWelcomeHistory == .init(lastRegion: region),
+        )
 
-        preferences.lastWelcomedRegion = nil
-        #expect(preferences.lastWelcomedRegion == nil)
+        preferences.locationWelcomeHistory = nil
+        #expect(WherePreferences(store: store).locationWelcomeHistory == nil)
+    }
+
+    @Test func formerWelcomeAcknowledgementDoesNotReplaceTheInitialLiveBaseline() {
+        let store = InMemoryKeyValueStore()
+        store.set(Region.california.rawValue, forKey: "where.lastWelcomedRegion")
+        let preferences = WherePreferences(store: store)
+
+        #expect(preferences.locationWelcomeHistory == nil)
+
+        preferences.reset()
+        #expect(store.object(forKey: "where.lastWelcomedRegion") == nil)
+    }
+
+    @Test func invalidWelcomeHistoryRequiresAQuietBaseline() {
+        let store = InMemoryKeyValueStore()
+        store.set(Data("not JSON".utf8), forKey: "where.locationWelcomeHistory")
+        var messages: [String] = []
+        let preferences = WherePreferences(store: store, invalidValue: { messages.append($0) })
+
+        #expect(preferences.locationWelcomeHistory == nil)
+        #expect(messages.count == 1)
     }
 
     @Test func locationWelcomeVisibilityRoundTrips() {
@@ -217,7 +242,7 @@ struct WherePreferencesTests {
         preferences.recordingConfigurationWarningRegistration = recordingWarning
         preferences.driftThresholdMeters = 25000
         preferences.setLastSeenLocationDayCounts([.california: 100], in: 2026)
-        preferences.lastWelcomedRegion = .california
+        preferences.locationWelcomeHistory = .init(lastRegion: .california)
         preferences.diagnosticReportingConfiguration = DiagnosticReportingConfiguration(
             sharesCrashReports: false,
             sharesSessionReplays: true,
@@ -248,7 +273,7 @@ struct WherePreferencesTests {
         )
         #expect(preferences.driftThresholdMeters == DriftThreshold.default.rawValue)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == nil)
-        #expect(preferences.lastWelcomedRegion == nil)
+        #expect(preferences.locationWelcomeHistory == nil)
         #expect(
             preferences.diagnosticReportingConfiguration
                 == DiagnosticReportingConfiguration.currentBuildDefaults,
