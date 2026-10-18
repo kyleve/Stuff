@@ -84,7 +84,7 @@ commands:
   test_ci_helpers:
     steps:
       - run:
-          name: Install locked Fastlane dependencies
+          name: Install locked Ruby dependencies
           command: BUNDLE_PATH=vendor/bundle BUNDLE_FROZEN=true mise exec -- bundle install
       - run:
           name: Test CI helpers
