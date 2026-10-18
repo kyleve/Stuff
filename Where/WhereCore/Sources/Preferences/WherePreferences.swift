@@ -1,4 +1,5 @@
 import Foundation
+import InstallerKit
 import RegionKit
 
 /// The app's persisted user intent — onboarding completion, presentation
@@ -17,7 +18,7 @@ import RegionKit
 /// state, so that teardown lives in Core rather than the UI layer. Values are
 /// read/written eagerly; callers that need observation (SwiftUI) mirror them in
 /// their own observable state.
-public final class WherePreferences {
+public final class WherePreferences: UpdatePreferencesStoring {
     /// A saved welcome baseline. A nil region requests a greeting after an
     /// explicit developer reset; an absent history requires a quiet first fix.
     public struct LocationWelcomeHistory: Codable, Equatable {
@@ -201,6 +202,21 @@ public final class WherePreferences {
         set { setEncodedPreference(newValue, forKey: .recordingConfigurationWarningRegistration) }
     }
 
+    /// Cached update metadata for this installation.
+    public var installerUpdates: UpdatePreferences {
+        get {
+            switch decodedPreference(
+                UpdatePreferences.self,
+                forKey: .installerUpdates,
+            ) {
+                case .missing, .invalid:
+                    UpdatePreferences(cached: nil)
+                case let .value(value): value
+            }
+        }
+        set { setEncodedPreference(newValue, forKey: .installerUpdates) }
+    }
+
     /// GPS border-drift detection threshold in meters. Defaults to 10 km.
     public var driftThresholdMeters: Int {
         get {
@@ -290,6 +306,7 @@ public final class WherePreferences {
         case recordingConfigurationWarningRegistration =
             "where.recordingConfigurationWarningRegistration"
         case driftThresholdMeters = "where.driftThresholdMeters"
+        case installerUpdates = "where.installerUpdates"
         case lastSeenLocationDayCounts = "where.lastSeenLocationDayCounts"
         case locationWelcomeHistory = "where.locationWelcomeHistory"
         /// Retained only so a full reset also removes the former acknowledgement.

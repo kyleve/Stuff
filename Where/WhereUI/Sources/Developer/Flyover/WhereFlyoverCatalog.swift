@@ -108,6 +108,7 @@
                 PersonalizationFeaturesView.flyoverData,
                 DataSettingsView.flyoverData,
                 PrivacyDiagnosticsSettingsView.flyoverData,
+                DevelopmentUpdatesView.flyoverData,
                 AboutSettingsView.flyoverData,
                 LicenseView.flyoverData,
             ]

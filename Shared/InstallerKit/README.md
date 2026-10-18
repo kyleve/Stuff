@@ -23,6 +23,7 @@ let updates = UpdateModel(service: service)
 
 `preferences` conforms to `UpdatePreferencesStoring` and stores one device-local
 `UpdatePreferences` value. Report corrupt storage before returning an empty cache.
+Where's adapter is `WherePreferences.installerUpdates`.
 
 Call `await updates.refresh(force: false)` when an eligible foreground surface becomes active.
 Use `force: true` for a manual check. Bind badges to `needsAttention` and render `state`.
@@ -61,6 +62,7 @@ Releases can carry optional `buildDetails` from the signed IPA: version, minimum
 The decoder accepts older releases without this block and validates present values before caching them.
 
 Publication and app registration are documented in [the installer guide](../../Tools/InstallerKit/README.md).
+The existing Where integration lives in `RegularApplicationRuntime` and `DevelopmentUpdatesView`.
 
 ## Tests
 

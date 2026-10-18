@@ -250,15 +250,18 @@ configured once via `./ide --team-id` (see
 resolves the exact physical device without generating, building, installing,
 or launching.
 For remote installs, [`./Where/archive`](Where/archive) exports a signed Where
-Development IPA. Read [`Where/DISTRIBUTION.md`](Where/DISTRIBUTION.md) for signing setup.
-The opt-in [GitHub distribution workflow](.github/workflows/where-distribution.yml)
+Development IPA. The opt-in [GitHub distribution workflow](.github/workflows/where-distribution.yml)
 publishes `main` and PRs labeled `installable` through a controller from `main`.
-All registered apps share one install site. Main builds appear on the homepage,
-and each app has its own PR pages. See [the installer guide](Tools/InstallerKit/README.md).
 [`InstallerKit`](Shared/InstallerKit/README.md) owns the reusable update engine.
-`InstallerKitTests` runs in `Stuff-iOS-Tests`.
-[`InstallerKitUI`](Shared/InstallerKitUI/README.md) owns the reusable native update page.
-`InstallerKitUITests` runs in `Stuff-iOS-Tests`; `InstallerKitUISnapshotTests` runs in `StuffSnapshotTests`.
+[`InstallerKitUI`](Shared/InstallerKitUI/README.md) owns its native update page.
+Apps inject their model, branding, and optional section modifiers for host search.
+Configured local Development builds can browse remote builds. Reinstall through Xcode or the app's local installer to return to Local.
+All registered iOS apps share one catalog and install site. Main builds appear on
+the homepage, and each app has its own PR pages. Read [the installer guide](Tools/InstallerKit/README.md)
+when adding an app. `InstallerKitTests` and `InstallerKitUITests` run in `Stuff-iOS-Tests`.
+`InstallerKitUISnapshotTests` runs in `StuffSnapshotTests`. Read
+[`Where/DISTRIBUTION.md`](Where/DISTRIBUTION.md) for signing and account setup;
+[`Where/AGENTS.md`](Where/AGENTS.md#installing-to-a-device) owns its invariants.
 [`./Ledger/install`](Ledger/install) is the equivalent for Ledger. It builds a
 Release and transactionally installs it to `/Applications` (ad-hoc signed, no
 team needed). Its `--dry-run` validates and reports the replacement without

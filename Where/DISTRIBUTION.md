@@ -1,5 +1,6 @@
 # Install Where Dev through GitHub
 
+[InstallerKit](../Shared/InstallerKit/README.md) supplies the shared update engine.
 The [installer guide](../Tools/InstallerKit/README.md) covers adding apps to the common site.
 GitHub Releases hosts signed IPAs. GitHub Pages hosts the install site, OTA manifests, and update catalog.
 The [distribution workflow](../.github/workflows/where-distribution.yml) publishes these channels:
@@ -165,6 +166,48 @@ See [GitHub's release API](https://docs.github.com/en/rest/releases/releases#cre
 
 An error during signing cleanup retains recovery files and fails the job.
 The cleanup log identifies their directory.
+
+## Checking for updates in the app
+
+A CI Development build checks its channel when the app enters the foreground.
+A successful result is reused for one hour. **Settings > App Updates > Check for Updates** checks immediately.
+A Settings tab badge indicates an available update. **App Updates** stays first in Settings, including when the installed build is current.
+The badge remains until the available build is installed.
+
+**App Updates** lists incoming commits since the installed build, including skipped builds.
+Each commit opens on GitHub. **Install Update** opens the iOS installer directly for that exact build.
+The user confirms installation in the system prompt.
+If a PR channel closes, the screen offers **Switch to Main** when main has a published build.
+This action requires an explicit selection.
+
+**Other Builds** lists Main and active PR channels. Open a channel to install its latest build.
+**Build History** also offers retained older builds. The exact installed build has a marker.
+Browsing does not change the update channel or badge. After installation, update checks follow the new build's channel.
+These build notes compare the selected release with its own predecessor, not with the installed build.
+
+A failed check preserves the last result and shows its check date with the error.
+Rewritten or unavailable commit history is labeled instead of shown as a complete list.
+Local Development builds from Xcode, `Where/install`, or a local archive also show App Updates and Other Builds.
+They display the Local channel and their recorded Git status. They have no automatic update badge or incoming-commit comparison.
+Use Other Builds to install Main or a PR. Install again from Xcode or `./Where/install` to return to Local.
+The bundle identity stays the same; Local has no hosted binary or in-app download action.
+Beta, App Store, and demo mode do not check this feed.
+This version checks only in the foreground.
+
+After setup, verify these paths on a registered phone:
+
+1. Install one CI build from the site. Verify launch, widgets, and sharing.
+2. Publish another build. Verify the Settings badge, commit links, and direct install action.
+3. Open and return from App Updates. Verify that the badge remains until installation.
+4. Retire the PR channel. Verify the explicit switch to main and the retired site page.
+5. Disconnect the phone from the network. Verify that the last update result remains visible with the check error.
+6. Use Other Builds to install Main, two different PR builds, and Main again. Verify that update checks follow each installed channel.
+7. Install an older retained build. Verify its installed marker and the badge for the newer build.
+8. Retire a channel while its build details are open. Refresh and verify that the install action disappears.
+9. Install a dirty local checkout with `./Where/install`. Verify the Local metadata, first Settings row, and absence of an update badge.
+10. Install a remote build through Other Builds, then reinstall through Xcode or `./Where/install`. Verify the return to Local with retained app data.
+
+Automated tests do not prove installation on a physical device.
 
 ## Update catalog and install site
 

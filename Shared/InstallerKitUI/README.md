@@ -56,3 +56,4 @@ Previews inject these fixtures into the production service and model, which reta
 
 `./test InstallerKitUITests` checks stylesheet traits, root resolution, and hosted navigation.
 `./test InstallerKitUISnapshotTests --review` covers shared screen states without Where.
+WhereUI's `DevelopmentUpdatesView` supplies its real icon and Settings search integration.

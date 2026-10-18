@@ -1,4 +1,5 @@
 import AppIntents
+import InstallerKit
 import LifecycleKit
 import PeriscopeCore
 import SwiftUI
@@ -16,6 +17,7 @@ import WhereUI
 final class RegularApplicationRuntime: WhereApplicationRuntime {
     let model: WhereModel
     let intentServices: IntentServices
+    private let updates: UpdateModel?
     private let buildEnvironment: WhereBuildEnvironment
     private let widgetPresentationPublisher: WidgetPresentationPublisher
     private(set) var launcher: LifecycleRunner<WhereSession>!
@@ -41,6 +43,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             developerLaunchController: WhereDeveloperLaunchController? = nil,
         ) {
             self.buildEnvironment = buildEnvironment
+            updates = Self.makeUpdates(buildEnvironment: buildEnvironment, preferences: preferences)
             self.developerLaunchController = developerLaunchController
             intentServices = IntentServices(
                 appGroupIdentifier: buildEnvironment.appGroupIdentifier,
@@ -70,6 +73,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging,
         ) {
             self.buildEnvironment = buildEnvironment
+            updates = Self.makeUpdates(buildEnvironment: buildEnvironment, preferences: preferences)
             intentServices = IntentServices(
                 appGroupIdentifier: buildEnvironment.appGroupIdentifier,
             )
@@ -85,6 +89,21 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             )
         }
     #endif
+
+    private static func makeUpdates(
+        buildEnvironment: WhereBuildEnvironment,
+        preferences: WherePreferences,
+    ) -> UpdateModel? {
+        guard buildEnvironment.audience == .development, !buildEnvironment.isRunningTests,
+              let installed = BuildInfo.current(bundle: .main).distribution else { return nil }
+        let client = UpdateClient(session: URLSession(configuration: .ephemeral))
+        return UpdateModel(service: UpdateService(
+            installed: installed,
+            preferences: preferences,
+            client: client,
+            now: Date.init,
+        ))
+    }
 
     private static func makeModel(
         buildEnvironment: WhereBuildEnvironment,
@@ -149,6 +168,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
                 model: model,
                 launcher: launcher,
                 primaryAppIconName: buildEnvironment.primaryAppIconName,
+                updates: updates,
                 developerLaunchController: developerLaunchController,
             ))
         #else
@@ -156,6 +176,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
                 model: model,
                 launcher: launcher,
                 primaryAppIconName: buildEnvironment.primaryAppIconName,
+                updates: updates,
             ))
         #endif
     }

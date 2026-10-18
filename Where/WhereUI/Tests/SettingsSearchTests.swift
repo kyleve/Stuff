@@ -22,7 +22,16 @@ struct SettingsSearchTests {
         // Data writes or restores an archive, erases, and resets; appearance
         // includes an app-icon setting that outlives the process. Everything else
         // is safe to explore, and the list would be a poor demo without it.
-        #expect(Set(hidden) == [.data, .appearance, .privacyDiagnostics])
+        #expect(Set(hidden) == [.data, .appearance, .privacyDiagnostics, .updates])
+    }
+
+    @Test func updatesRequireAnEligibleBuildAndStayOutOfDemo() {
+        #expect(SettingsDestination.updates.isAvailable(isInDemoMode: false, updatesEnabled: true))
+        #expect(!SettingsDestination.updates.isAvailable(
+            isInDemoMode: false,
+            updatesEnabled: false,
+        ))
+        #expect(!SettingsDestination.updates.isAvailable(isInDemoMode: true, updatesEnabled: true))
     }
 
     @Test func focusTokensAreUnique() {

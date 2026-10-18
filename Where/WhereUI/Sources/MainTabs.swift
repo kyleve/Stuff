@@ -1,3 +1,7 @@
+#if DEBUG
+    @_spi(Testing) import InstallerKitUI
+#endif
+import InstallerKit
 import RegionKit
 import SFSafeSymbols
 import SnapshotKit
@@ -34,6 +38,8 @@ struct MainTabs: View {
     @State private var welcome: LocationWelcomeModel
     @State private var planningDestination: PlannedStaysDestination?
     @State private var selection: TabID = .locations
+    @Environment(UpdateModel.self) private var updates: UpdateModel?
+    @Environment(\.isInDemoMode) private var isInDemoMode
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.stylesheet) private var stylesheet
     private let recordingWarningSource: RecordingConfigurationWarningModel.Source
@@ -86,9 +92,11 @@ struct MainTabs: View {
                 RecordingConfigurationWarningTabLabel(
                     model: recordingWarning,
                     source: recordingWarningSource,
+                    updateTitle: isInDemoMode ? nil : updates?.attentionTitle,
                 )
             }
-            .badge(recordingWarning.isPresented ? 1 : 0)
+            .badge((recordingWarning.isPresented ? 1 : 0) +
+                ((!isInDemoMode && updates?.needsAttention == true) ? 1 : 0))
         }
         .accessibilityHidden(welcomePresentation != nil)
         .tabViewBottomAccessory(isEnabled: welcomeAccessory != nil) {
@@ -109,6 +117,10 @@ struct MainTabs: View {
         // returns to the foreground; cancel the subscription on background so a
         // backgrounded scene drives no refreshes.
         .task { await report.activate() }
+        .task(id: isUpdateCheckActive) {
+            guard isUpdateCheckActive else { return }
+            await updates?.refresh(force: false)
+        }
         .task(id: welcomeTaskID) {
             guard allowsWelcomeLookup else { return }
             guard welcomeTaskID.isEnabled else {
@@ -133,6 +145,10 @@ struct MainTabs: View {
         .sheet(item: $planningDestination) { destination in
             PlannedStaysDestinationView(destination: destination, report: report)
         }
+    }
+
+    private var isUpdateCheckActive: Bool {
+        scenePhase == .active && !isInDemoMode
     }
 
     private var welcomeTaskID: WelcomeTaskID {
@@ -210,6 +226,14 @@ struct MainTabs: View {
         ) -> [SnapshotCase] {
             [
                 snapshot(
+                    name: "UpdateAvailable",
+                    configurations: configurations,
+                    settle: settle,
+                    selection: .year,
+                    updates: InstallerPreview.model(.available),
+                    configure: { _ in },
+                ),
+                snapshot(
                     name: "WelcomeLocations",
                     configurations: configurations,
                     settle: settle,
@@ -249,6 +273,7 @@ struct MainTabs: View {
             configurations: [SnapshotConfiguration],
             settle: SnapshotSettle,
             selection: TabID,
+            updates: UpdateModel? = nil,
             configure: (LocationWelcomeModel) -> Void,
         ) -> SnapshotCase {
             // Shell snapshots use January to avoid unrelated long-calendar scrolling.
@@ -293,6 +318,8 @@ struct MainTabs: View {
                     selection: selection,
                 )
                 .environment(session)
+                .environment(updates)
+                .environment(\.scenePhase, updates == nil ? .inactive : .active)
             }
         }
     }

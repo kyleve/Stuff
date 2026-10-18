@@ -1,3 +1,4 @@
+import InstallerKit
 import LifecycleKit
 import LifecycleKitUI
 import PeriscopeUI
@@ -50,6 +51,7 @@ public struct RootView: View {
             key: "where.debug.card-designer.configuration",
         )
     #endif
+    private let updates: UpdateModel?
     private let launcher: LifecycleRunner<WhereSession>
     private let primaryAppIconName: String
     #if DEBUG
@@ -66,11 +68,13 @@ public struct RootView: View {
             model: WhereModel,
             launcher: LifecycleRunner<WhereSession>,
             primaryAppIconName: String,
+            updates: UpdateModel? = nil,
             developerLaunchController: WhereDeveloperLaunchController? = nil,
         ) {
             _model = State(initialValue: model)
             self.launcher = launcher
             self.primaryAppIconName = primaryAppIconName
+            self.updates = updates
             self.developerLaunchController = developerLaunchController
             presentationVisibilityOverride = nil
         }
@@ -80,11 +84,13 @@ public struct RootView: View {
             model: WhereModel,
             launcher: LifecycleRunner<WhereSession>,
             primaryAppIconName: String,
+            updates: UpdateModel? = nil,
             presentationVisibilityOverride: Bool,
         ) {
             _model = State(initialValue: model)
             self.launcher = launcher
             self.primaryAppIconName = primaryAppIconName
+            self.updates = updates
             developerLaunchController = nil
             self.presentationVisibilityOverride = presentationVisibilityOverride
         }
@@ -93,10 +99,12 @@ public struct RootView: View {
             model: WhereModel,
             launcher: LifecycleRunner<WhereSession>,
             primaryAppIconName: String,
+            updates: UpdateModel? = nil,
         ) {
             _model = State(initialValue: model)
             self.launcher = launcher
             self.primaryAppIconName = primaryAppIconName
+            self.updates = updates
         }
     #endif
 
@@ -126,6 +134,7 @@ public struct RootView: View {
         _model = State(initialValue: model)
         launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         primaryAppIconName = "AppIcon"
+        updates = nil
         #if DEBUG
             developerLaunchController = nil
             presentationVisibilityOverride = nil
@@ -225,6 +234,7 @@ public struct RootView: View {
             // `\.logContext` emits under the "Where" scope rather than a bare root.
             .logContext(WhereLog.root)
             .environment(model)
+            .environment(updates)
             // The logged-in session appears once the launch's `start-session`
             // step builds it. Injected as an optional `Observable`, so the
             // `TabView`'s `@Environment(WhereSession.self)` views resolve it
