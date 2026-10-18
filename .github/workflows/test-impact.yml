@@ -1,0 +1,49 @@
+name: Test Selection Tools
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Tools/TestImpact/**'
+      - 'Tools/test_impact*.py'
+      - 'Tools/Tests/**'
+      - '.github/workflows/test-impact.yml'
+      - '.xcode-build-version'
+  pull_request:
+    paths:
+      - 'Tools/TestImpact/**'
+      - 'Tools/test_impact*.py'
+      - 'Tools/Tests/**'
+      - '.github/workflows/test-impact.yml'
+      - '.xcode-build-version'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-impact-tools-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tools:
+    name: Test selection policy and compiler index
+    runs-on: xcode-27
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate pinned compiler
+        run: |
+          expected="$(cat .xcode-build-version)"
+          actual="$(xcodebuild -version | awk '/Build version/{print $3}')"
+          test "$expected" = "$actual"
+      - uses: actions/cache@v4
+        with:
+          path: Tools/TestImpact/.build
+          key: ${{ runner.os }}-${{ runner.arch }}-test-impact-${{ hashFiles('.xcode-build-version', 'Tools/TestImpact/Package.swift', 'Tools/TestImpact/Package.resolved') }}-${{ hashFiles('Tools/TestImpact/Sources/**/*.swift', 'Tools/TestImpact/Tests/**/*.swift') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-test-impact-${{ hashFiles('.xcode-build-version', 'Tools/TestImpact/Package.swift', 'Tools/TestImpact/Package.resolved') }}-
+      - name: Selection, identity, and budget guards
+        run: python3 -m unittest discover -s Tools/Tests -p 'test_test_impact*.py'
+      - name: Compiler references and mutation oracle
+        run: swift test --package-path Tools/TestImpact --force-resolved-versions

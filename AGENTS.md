@@ -612,6 +612,11 @@ When another invocation owns the attribution, backup-upgrader, and macro tests, 
 CircleCI delegates these checks to the required GitHub macOS job.
 Artifact consumers also skip host checks. Normal local runs retain their default checks.
 
+`./test --impact` owns the opt-in snapshot selection experiment. Read
+[`Tools/TestImpact/README.md`](Tools/TestImpact/README.md) for collection, planning, and budget accounting.
+The separate CircleCI **Test Selection Experiment** workflow cannot replace the required full gate.
+WhereUI remains one target. Normal test scope does not use experiment plans.
+
 Load the [`running-tests`](.agents/skills/running-tests/SKILL.md) skill for
 test tiers, snapshot opt-in, why not `tuist test`, and per-checkout simulator
 management (`./simulator` resolves a UDID — never pass a device name to

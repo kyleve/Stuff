@@ -1,6 +1,14 @@
 version: 2.1
 
 parameters:
+  # These runs have separate check names and never replace the required gate.
+  test_impact_mode:
+    type: enum
+    enum: ["off", "full", "target", "snapshot", "shadow"]
+    default: "off"
+  test_impact_base:
+    type: string
+    default: "origin/main"
   manual_full_gate:
     type: enum
     enum: ["false", "true"]
@@ -46,6 +54,28 @@ executors:
       GIT_LFS_SKIP_SMUDGE: "1"
 
 commands:
+  impact_prepare:
+    steps:
+      - run:
+          name: Prepare experiment identity
+          environment:
+            IMPACT_MODE: << pipeline.parameters.test_impact_mode >>
+            IMPACT_BASE: << pipeline.parameters.test_impact_base >>
+          command: python3 Tools/test_impact_ci.py prepare --mode "$IMPACT_MODE" --base "$IMPACT_BASE" --bash-env "$BASH_ENV"
+
+  impact_worker_plan:
+    steps:
+      - when:
+          condition:
+            or:
+              - equal: ["target", << pipeline.parameters.test_impact_mode >>]
+              - equal: ["snapshot", << pipeline.parameters.test_impact_mode >>]
+          steps:
+            - impact_prepare
+            - restore_cache:
+                keys:
+                  - impact-plans-v1-{{ checksum ".build/test-impact/run-key" }}
+
   checkout_without_lfs:
     steps:
       - run:
@@ -351,6 +381,30 @@ jobs:
     steps:
       - prepare_builder:
           test_workdir: test-output-build
+      - when:
+          condition:
+            or:
+              - equal: ["target", << pipeline.parameters.test_impact_mode >>]
+              - equal: ["snapshot", << pipeline.parameters.test_impact_mode >>]
+              - equal: ["shadow", << pipeline.parameters.test_impact_mode >>]
+          steps:
+            - impact_prepare
+            - restore_cache:
+                keys:
+                  - impact-tools-v1-{{ checksum ".build/test-impact/tool-key" }}-{{ checksum ".build/test-impact/tool-variant-key" }}-{{ checksum ".xcode-build-version" }}
+            - run:
+                name: Prepare pinned selection tools
+                environment:
+                  IMPACT_MODE: << pipeline.parameters.test_impact_mode >>
+                command: |
+                  options=()
+                  if [[ "$IMPACT_MODE" == "target" ]]; then options=(--target-only); fi
+                  ./test --impact bootstrap "${options[@]}"
+            - save_cache:
+                key: impact-tools-v1-{{ checksum ".build/test-impact/tool-key" }}-{{ checksum ".build/test-impact/tool-variant-key" }}-{{ checksum ".xcode-build-version" }}
+                paths:
+                  - .build/test-impact/vendor
+                  - .build/test-impact/bin
       # GitHub's required format and macOS jobs own helper and host tests.
       # Start the shared simulator build without waiting for those checks.
       - run_with_timeout:
@@ -359,6 +413,47 @@ jobs:
             ./test --everything
             --build-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
             --no-generate --skip-architecture --skip-host-tests
+      - when:
+          condition:
+            or:
+              - equal: ["target", << pipeline.parameters.test_impact_mode >>]
+              - equal: ["snapshot", << pipeline.parameters.test_impact_mode >>]
+              - equal: ["shadow", << pipeline.parameters.test_impact_mode >>]
+          steps:
+            - run:
+                name: Collect revision-bound test dependencies
+                environment:
+                  IMPACT_MODE: << pipeline.parameters.test_impact_mode >>
+                command: python3 Tools/test_impact_ci.py collect --mode "$IMPACT_MODE"
+            - when:
+                condition:
+                  or:
+                    - equal: ["snapshot", << pipeline.parameters.test_impact_mode >>]
+                    - equal: ["shadow", << pipeline.parameters.test_impact_mode >>]
+                steps:
+                  - save_cache:
+                      key: impact-history-v1-{{ checksum ".build/test-impact/head-key" }}-{{ checksum ".build/test-impact/tool-key" }}-{{ checksum ".xcode-build-version" }}
+                      paths:
+                        - .build/test-impact/history
+            - restore_cache:
+                keys:
+                  - impact-history-v1-{{ checksum ".build/test-impact/base-key" }}-{{ checksum ".build/test-impact/tool-key" }}-{{ checksum ".xcode-build-version" }}
+            - run:
+                name: Plan all experiment selections before test results
+                environment:
+                  IMPACT_MODE: << pipeline.parameters.test_impact_mode >>
+                  IMPACT_BASE: << pipeline.parameters.test_impact_base >>
+                command: python3 Tools/test_impact_ci.py plan --mode "$IMPACT_MODE" --base "$IMPACT_BASE"
+            - save_cache:
+                key: impact-plans-v1-{{ checksum ".build/test-impact/run-key" }}
+                paths:
+                  - .build/test-impact/plans
+            - store_artifacts:
+                path: .build/test-impact/history
+                destination: test-impact/history
+            - store_artifacts:
+                path: .build/test-impact/plans
+                destination: test-impact/plans
       - run:
           name: Validate changed snapshot inventory with Xcode
           command: |
@@ -385,14 +480,39 @@ jobs:
   test-ios:
     executor: m4-pro-medium
     steps:
-      - prepare_worker:
+      - checkout_without_lfs
+      - configure_test_workdir:
           test_workdir: test-output-ios
+      - impact_worker_plan
+      - when:
+          condition:
+            or:
+              - equal: ["target", << pipeline.parameters.test_impact_mode >>]
+              - equal: ["snapshot", << pipeline.parameters.test_impact_mode >>]
+          steps:
+            - run:
+                name: Select experimental unit bundles
+                environment:
+                  IMPACT_MODE: << pipeline.parameters.test_impact_mode >>
+                command: |
+                  python3 Tools/test_impact_ci.py worker --mode "$IMPACT_MODE" --kind unit --output "$TEST_WORKDIR/units.txt"
+                  if [[ ! -s "$TEST_WORKDIR/units.txt" ]]; then
+                    echo "No unit bundles selected by this experiment."
+                    circleci-agent step halt
+                  fi
+      - attach_workspace:
+          at: ci-test-build
+      - validate_runner_environment
       - run_with_timeout:
           seconds: 2700
-          command: >-
-            ./test --all --shared --os 27.0
-            --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
-            --skip-architecture
+          command: |
+            filters=()
+            if [[ -f "$TEST_WORKDIR/units.txt" ]]; then
+              filters=(--only-file "$TEST_WORKDIR/units.txt")
+            fi
+            ./test --all --shared --os 27.0 \
+              --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build" \
+              --skip-architecture "${filters[@]}"
       - export_test_results:
           test_workdir: test-output-ios
           output_directory: test-results-ios
@@ -446,12 +566,19 @@ jobs:
       - checkout_without_lfs
       - configure_test_workdir:
           test_workdir: test-output-snapshots
+      - impact_worker_plan
       - run:
           name: Select deterministic snapshot shard
           command: |
             shard="$((CIRCLE_NODE_INDEX + 1))"
             ./snapshot-shards list "$shard" --total "$CIRCLE_NODE_TOTAL" \
               > "$TEST_WORKDIR/shard.txt"
+            if [[ -f .build/test-impact/run-key ]]; then
+              python3 Tools/test_impact_ci.py worker \
+                --mode "$IMPACT_MODE" --kind snapshot \
+                --assignment "$TEST_WORKDIR/shard.txt" --output "$TEST_WORKDIR/selected.txt"
+              mv "$TEST_WORKDIR/selected.txt" "$TEST_WORKDIR/shard.txt"
+            fi
             suite_count="$(wc -l < "$TEST_WORKDIR/shard.txt" | tr -d ' ')"
             printf 'CI_SHARD {"index":%s,"shards":%s,"suites":%s}\n' \
               "$CIRCLE_NODE_INDEX" "$CIRCLE_NODE_TOTAL" "$suite_count"
@@ -461,6 +588,8 @@ jobs:
               echo "The snapshot intake shard is empty."
               circleci-agent step halt
             fi
+          environment:
+            IMPACT_MODE: << pipeline.parameters.test_impact_mode >>
       - hydrate_snapshot_references
       - attach_workspace:
           at: ci-test-build
@@ -484,10 +613,17 @@ jobs:
       - run:
           name: Stage snapshot suite timings
           when: always
+          environment:
+            IMPACT_MODE: << pipeline.parameters.test_impact_mode >>
           command: |
             mkdir -p snapshot-timing-artifact
             cp test-results-snapshots/results.xml \
               "snapshot-timing-artifact/results-$CIRCLE_NODE_INDEX.xml"
+            if [[ "$IMPACT_MODE" != "off" ]]; then
+              python3 Tools/test_impact_ci.py evidence --mode "$IMPACT_MODE" \
+                --junit-directory snapshot-timing-artifact \
+                --output "snapshot-timing-artifact/impact-evidence-$CIRCLE_NODE_INDEX.json"
+            fi
       - store_artifacts:
           path: snapshot-timing-artifact
           destination: snapshot-timings
@@ -501,11 +637,12 @@ workflows:
     # Prototype and exploratory PRs opt out with `NO-CI` in their title. Main
     # pushes and explicit full-gate runs remain mandatory.
     when: >-
-      pipeline.parameters.manual_full_gate == "true" or
+      pipeline.parameters.test_impact_mode == "off" and
+      (pipeline.parameters.manual_full_gate == "true" or
       (pipeline.event.name == "push" and pipeline.git.branch == "main") or
       (pipeline.event.name == "pull_request" and
       pipeline.event.github.pull_request.base.ref == "main" and
-      not (pipeline.event.github.pull_request.title matches /.*NO-CI.*/))
+      not (pipeline.event.github.pull_request.title matches /.*NO-CI.*/)))
     jobs:
       - build-ios-tests:
           name: Build iOS Tests
@@ -523,6 +660,21 @@ workflows:
           name: Snapshot Tests (iOS)
           requires:
             - Build iOS Tests
+
+  "Test Selection Experiment":
+    when: pipeline.parameters.test_impact_mode != "off"
+    jobs:
+      - build-ios-tests:
+          name: Experiment Build iOS Tests
+      - test-ios:
+          name: Experiment Unit Tests
+          requires: [Experiment Build iOS Tests]
+      - snapshot:
+          name: Experiment Snapshot Tests
+          requires: [Experiment Build iOS Tests]
+      - build-where-audiences:
+          name: Experiment Audience Builds
+          requires: [Experiment Build iOS Tests]
 
   "Installer Archive":
     when: >-
