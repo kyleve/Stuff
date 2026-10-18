@@ -1,4 +1,8 @@
-"""Small signing fixtures and fake processes; no real credentials or devices."""
+"""Where Development signing fixtures and fake processes; no real credentials or devices.
+
+The fixed app, extension, and export names model Where/archive's contract.
+Keep these expected values independent of the production command's implementation.
+"""
 
 from datetime import datetime
 import json
@@ -62,6 +66,8 @@ def write_ipa(path, changes=None, omit=None):
 
 
 class ArchiveFixture:
+    """Run Where's archive and signing commands with isolated files and fake tools."""
+
     def __init__(self, temporary):
         repository = repository_root(Path(__file__))
         self.root = Path(temporary) / "repository with spaces ü"
