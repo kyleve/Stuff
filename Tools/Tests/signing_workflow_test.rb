@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require_relative '../repository'
 require 'minitest/autorun'
 require 'tmpdir'
 require 'ostruct'
@@ -29,7 +30,7 @@ class SigningActions
 end
 
 class SigningWorkflowTest < Minitest::Test
-  ROOT = File.expand_path('../..', __dir__)
+  ROOT = Repository.root(__FILE__)
   def setup
     @root = Dir.mktmpdir('source ü ')
     @env = ENV.to_h

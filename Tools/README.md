@@ -28,7 +28,7 @@ catalogs and captured command output rather than tracked assets, devices, or
 `/Applications`.
 
 `InstallerKit/signing_profiles.py` validates registered apps' ad hoc profiles and generates export settings.
-`repository.repository_root` finds a tool's checkout through its nearest `.git` directory or worktree file.
+`repository.repository_root` (Python) and `Repository.root` in `repository.rb` (Ruby) find a tool's checkout through its nearest `.git` directory or worktree file.
 Use it for checkout-relative resources instead of fixed parent-directory counts.
 `./signing` calls the shared Fastlane workflow for local maintenance and read-only archives.
 `Where/archive` is its Where-specific convenience wrapper.

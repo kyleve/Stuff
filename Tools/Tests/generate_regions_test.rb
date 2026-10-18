@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require_relative '../repository'
 
 require "fileutils"
 require "json"
@@ -8,7 +9,7 @@ require "tmpdir"
 require File.expand_path("../../Where/RegionKit/Tools/generate-regions", __dir__)
 
 class GenerateRegionsTest < Minitest::Test
-  REPOSITORY = File.expand_path("../..", __dir__)
+  REPOSITORY = Repository.root(__FILE__)
 
   def test_generates_ordered_manifest_and_exact_per_region_documents_idempotently
     Dir.mktmpdir do |root|

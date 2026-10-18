@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require_relative '../repository'
 
 require "fileutils"
 require "minitest/autorun"
@@ -6,7 +7,7 @@ require "open3"
 require "tmpdir"
 
 class PublicCommandContractTest < Minitest::Test
-  REPOSITORY = File.expand_path("../..", __dir__)
+  REPOSITORY = Repository.root(__FILE__)
   COMMANDS = %w[
     test
     profile

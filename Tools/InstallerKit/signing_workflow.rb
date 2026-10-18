@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require_relative '../repository'
 require 'open3'
 require 'tmpdir'
 require 'fileutils'
@@ -9,7 +10,7 @@ require 'shellwords'
 module InstallerSigning
   # Trusted orchestration. The selected source supplies project/build scripts only.
   class Workflow
-    ROOT = File.expand_path('../..', __dir__)
+    ROOT = Repository.root(__FILE__)
     DESCRIPTORS = File.join(__dir__, 'signing_apps.json')
     STORE = 'git@github.com:kyleve/Stuff-Signing.git'
 

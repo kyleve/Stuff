@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require_relative '../repository'
 
 require "fileutils"
 require "json"
@@ -178,7 +179,7 @@ class WhereInstallCommandTest < Minitest::Test
 
     def initialize(root, team_status:, team_id:, statuses:)
       @root = root
-      @repository = File.expand_path("../..", __dir__)
+      @repository = Repository.root(__FILE__)
       @home = root / "home"
       @temporary = root / "tmp"
       binary = root / "bin"

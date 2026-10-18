@@ -2,11 +2,12 @@
 
 require 'optparse'
 require 'json'
+require_relative '../repository'
 
 module InstallerSigning
   # Public arguments are parsed before tools or credentials are accessed.
   module Command
-    ROOT_DIRECTORY = File.expand_path('../..', __dir__)
+    ROOT_DIRECTORY = Repository.root(__FILE__)
 
     def self.run(argv)
       options = { 'source' => ROOT_DIRECTORY }
