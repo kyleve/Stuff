@@ -819,7 +819,8 @@ let project = Project(
             environmentVariables: snapshotEnvironment,
             scripts: [.post(
                 script: """
-                PYTHONDONTWRITEBYTECODE=1 python3 "$SRCROOT/Tools/Tests/Fixtures/installer_update_site_snapshots.py" \\
+                cd "$SRCROOT"
+                PYTHONDONTWRITEBYTECODE=1 python3 -m Tools.Tests.Fixtures.installer_update_site_snapshots \\
                     --output "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/InstallerSiteSnapshots.json"
                 """,
                 name: "Generate install-site snapshot fixtures",

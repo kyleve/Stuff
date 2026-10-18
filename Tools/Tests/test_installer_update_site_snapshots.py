@@ -8,19 +8,19 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from Fixtures.installer_update_site_snapshots import main, offline_html, pages
-from Fixtures.installer_update_fixtures import catalog, REPO, FEED_URL
-from installer_update_site import render_site
+from Tools.Tests.Fixtures.installer_update_site_snapshots import main, offline_html, pages
+from Tools.Tests.Fixtures.installer_update_fixtures import catalog, REPO, FEED_URL
+from Tools.InstallerKit.installer_update_site import render_site
+from Tools.repository import repository_root
 
 
 class InstallerUpdateSiteSnapshotsTests(unittest.TestCase):
     def test_command_generates_current_production_html_and_replaces_old_fixtures(self):
-        command = Path(__file__).parent / "Fixtures/installer_update_site_snapshots.py"
+        command = [sys.executable, "-m", "Tools.Tests.Fixtures.installer_update_site_snapshots"]
         with tempfile.TemporaryDirectory(prefix="site snapshots ü ") as temporary:
             output = Path(temporary) / "bundle resources" / "pages.json"
-            args = [sys.executable, str(command), "--output", str(output)]
-            environment = {"PATH": "/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE": "1"}
+            args = [*command, "--output", str(output)]
+            environment = {"PATH": "/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE": "1", "PYTHONPATH": str(repository_root(__file__))}
             result = subprocess.run(args, cwd=temporary, env=environment, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stderr, "")
@@ -30,7 +30,7 @@ class InstallerUpdateSiteSnapshotsTests(unittest.TestCase):
             self.assertEqual(subprocess.run(args, cwd=temporary, env=environment,
                                             capture_output=True).returncode, 0)
             self.assertEqual(json.loads(output.read_text()), pages())
-            help_result = subprocess.run([sys.executable, str(command), "--help"], cwd=temporary,
+            help_result = subprocess.run([*command, "--help"], cwd=temporary,
                                          env=environment, capture_output=True, text=True)
             self.assertEqual(help_result.returncode, 0)
             self.assertIn("--output", help_result.stdout)
@@ -39,7 +39,7 @@ class InstallerUpdateSiteSnapshotsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / "pages.json"
             output.write_text("previous fixtures")
-            with patch("Fixtures.installer_update_site_snapshots.os.replace", side_effect=OSError("disk full")), \
+            with patch("Tools.Tests.Fixtures.installer_update_site_snapshots.os.replace", side_effect=OSError("disk full")), \
                     redirect_stderr(io.StringIO()) as stderr:
                 self.assertEqual(main(["--output", str(output)]), 1)
             self.assertIn("disk full", stderr.getvalue())

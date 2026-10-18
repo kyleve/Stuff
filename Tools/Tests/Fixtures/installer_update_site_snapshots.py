@@ -9,10 +9,8 @@ from pathlib import Path
 import sys
 import tempfile
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from installer_update_site import render_site
-from Fixtures.installer_update_fixtures import catalog, multiple_apps, FEED_URL, REPO
+from Tools.InstallerKit.installer_update_site import render_site
+from Tools.Tests.Fixtures.installer_update_fixtures import catalog, multiple_apps, FEED_URL, REPO
 
 
 def offline_html(files, path):
