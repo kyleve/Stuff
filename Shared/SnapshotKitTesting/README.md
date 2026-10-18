@@ -135,6 +135,7 @@ PNG normalization, comparison, recording, timing, and diffs.
 
 The throwing `onReadyToMeasure` hook waits for document readiness while hosted.
 WebKit must paint after each viewport resize before its height can be measured again.
+Read document height in the same JavaScript callback. UIKit scroll-size updates can arrive after that callback.
 This browser-specific loop finishes before the shared intrinsic measurement starts.
 The hook has a 10-second timeout, scaled by the existing CI timeout multiplier.
 Failures and cancellation tear down the host without comparing or recording an image.
