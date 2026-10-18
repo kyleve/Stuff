@@ -1,6 +1,7 @@
-"""The CI lifecycle wrapper needs only the system Ruby, including during cleanup."""
+"""The CI lifecycle wrapper selects pinned Ruby after dependency-free guards."""
 from pathlib import Path
 import subprocess
+import tempfile
 import unittest
 from Tools.repository import repository_root
 
@@ -13,3 +14,27 @@ class WhereSigningCommandTests(unittest.TestCase):
                                     env={'PATH': '/usr/bin:/bin'}, capture_output=True, text=True)
             self.assertNotEqual(result.returncode, 0)
             self.assertIn(message, result.stderr)
+
+    def test_pinned_ruby_runs_from_control_checkout_and_preserves_status(self):
+        root = repository_root(Path(__file__))
+        with tempfile.TemporaryDirectory(prefix='signing wrapper ü ') as temporary:
+            directory = Path(temporary)
+            mise = directory / 'mise'
+            mise.write_text('#!/bin/bash\nprintf "%s\\n" "$PWD" "$@" > "$LOG"\nexit 47\n')
+            mise.chmod(0o755)
+            log = directory / 'log'
+            result = subprocess.run(['/bin/bash', str(root / '.github/where-signing.sh'), 'prepare'], cwd='/tmp',
+                                    env={'PATH': f'{directory}:/usr/bin:/bin', 'CIRCLECI': 'true',
+                                         'LOG': str(log)}, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 47)
+            self.assertEqual(log.read_text().splitlines(),
+                             [str(root), 'exec', '--', 'ruby', str(root / 'Tools/InstallerKit/signing_state.rb'), 'prepare'])
+
+    def test_cleanup_before_prepare_needs_no_runtime(self):
+        root = repository_root(Path(__file__))
+        with tempfile.TemporaryDirectory() as temporary:
+            result = subprocess.run(['/bin/bash', str(root / '.github/where-signing.sh'), 'cleanup'], cwd='/tmp',
+                                    env={'PATH': '/usr/bin:/bin', 'CIRCLECI': 'true',
+                                         'WHERE_SIGNING_DIR': str(Path(temporary) / 'absent')},
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
