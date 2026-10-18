@@ -8,6 +8,7 @@ The [repository rules](../../AGENTS.md) apply.
   modules, InstallerKitUI, SwiftUI, or UIKit. Hosts own audience gates, storage, and lifecycle.
 - Construct one service and model in the host composition root. Inject device-local
   `UpdatePreferencesStoring` and `UpdateFetching` dependencies.
+- Keep direct fixture initializers behind the DEBUG Testing SPI. Production callers use signed metadata and decoded catalogs.
 - Select channels by both app ID and bundle identifier. Retirement can offer only
   that app's main build. Pin manifest URLs to the signed feed, app, channel, run, and attempt.
 - Manual browsing includes only that app's active channels and retained releases. Resolve channel/build selections against the latest snapshot; browsing must not change the installed identity or update badge. Guard: `UpdateBuildBrowserTests`.

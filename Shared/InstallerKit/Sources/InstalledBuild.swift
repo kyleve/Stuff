@@ -7,6 +7,15 @@ public struct InstalledBuild: Sendable, Equatable {
         public let channel: Channel
         public let build: BuildID
         public let revision: Revision
+
+        #if DEBUG
+            @_spi(Testing)
+            public init(channel: Channel, build: BuildID, revision: Revision) {
+                self.channel = channel
+                self.build = build
+                self.revision = revision
+            }
+        #endif
     }
 
     /// Local checkouts can contain changes or lack Git metadata. Neither is a published build.
@@ -99,6 +108,24 @@ public struct InstalledBuild: Sendable, Equatable {
     public let repositoryURL: URL
     public let source: Source
     public let feedURL: URL
+
+    #if DEBUG
+        /// Constructs a typed fixture without interpreting signed Info.plist metadata.
+        @_spi(Testing)
+        public init(
+            appID: InstallerAppID,
+            bundleIdentifier: String,
+            repositoryURL: URL,
+            source: Source,
+            feedURL: URL,
+        ) {
+            self.appID = appID
+            self.bundleIdentifier = bundleIdentifier
+            self.repositoryURL = repositoryURL
+            self.source = source
+            self.feedURL = feedURL
+        }
+    #endif
 
     public var publication: Publication? {
         switch source {

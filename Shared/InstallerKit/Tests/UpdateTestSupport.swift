@@ -1,5 +1,5 @@
 import Foundation
-@testable import InstallerKit
+@_spi(Testing) @testable import InstallerKit
 
 enum UpdateFixtures {
     static let date = Date(timeIntervalSince1970: 1_800_000_000)

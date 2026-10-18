@@ -64,5 +64,9 @@ Publication and app registration are documented in [the installer guide](../../T
 
 ## Tests
 
+Debug builds expose typed fixture initializers through `@_spi(Testing) import InstallerKit`.
+Previews can construct installed identities and catalogs directly, then inject them through the existing service dependencies.
+Production callers still read signed metadata and decode catalogs. Services validate catalogs before use.
+
 Run `./test InstallerKitTests` for identity, catalog, request, cache, and cancellation coverage.
 `ToolsSnapshotTests` captures the shared download site.

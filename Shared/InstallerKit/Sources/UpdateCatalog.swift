@@ -9,6 +9,15 @@ public struct UpdateCatalog: Codable, Sendable, Equatable {
         public let minimumOSVersion: String
         public let sizeBytes: Int64
 
+        #if DEBUG
+            @_spi(Testing)
+            public init(version: String, minimumOSVersion: String, sizeBytes: Int64) {
+                self.version = version
+                self.minimumOSVersion = minimumOSVersion
+                self.sizeBytes = sizeBytes
+            }
+        #endif
+
         fileprivate var isValid: Bool {
             [version, minimumOSVersion]
                 .allSatisfy(InstallerPattern.version.matches) && sizeBytes > 0
@@ -21,6 +30,14 @@ public struct UpdateCatalog: Codable, Sendable, Equatable {
         public var id: InstalledBuild.Revision {
             sha
         }
+
+        #if DEBUG
+            @_spi(Testing)
+            public init(sha: InstalledBuild.Revision, subject: String) {
+                self.sha = sha
+                self.subject = subject
+            }
+        #endif
     }
 
     public struct Release: Codable, Sendable, Equatable, Identifiable {
@@ -32,6 +49,29 @@ public struct UpdateCatalog: Codable, Sendable, Equatable {
         public let historyChanged: Bool
         public let commits: [Commit]
         public let buildDetails: BuildDetails?
+
+        #if DEBUG
+            @_spi(Testing)
+            public init(
+                id: InstalledBuild.BuildID,
+                sha: InstalledBuild.Revision,
+                publishedAt: Date,
+                manifestURL: URL,
+                baseSHA: InstalledBuild.Revision?,
+                historyChanged: Bool,
+                commits: [Commit],
+                buildDetails: BuildDetails?,
+            ) {
+                self.id = id
+                self.sha = sha
+                self.publishedAt = publishedAt
+                self.manifestURL = manifestURL
+                self.baseSHA = baseSHA
+                self.historyChanged = historyChanged
+                self.commits = commits
+                self.buildDetails = buildDetails
+            }
+        #endif
 
         /// The system installer reads the validated HTTPS manifest for this exact build.
         public var installURL: URL {
@@ -50,6 +90,15 @@ public struct UpdateCatalog: Codable, Sendable, Equatable {
         public let name: InstalledBuild.Channel
         public let active: Bool
         public let releases: [Release]
+
+        #if DEBUG
+            @_spi(Testing)
+            public init(name: InstalledBuild.Channel, active: Bool, releases: [Release]) {
+                self.name = name
+                self.active = active
+                self.releases = releases
+            }
+        #endif
     }
 
     public enum Changes: Sendable, Equatable {
@@ -87,10 +136,34 @@ public struct UpdateCatalog: Codable, Sendable, Equatable {
         public let name: String
         public let bundleIdentifier: String
         public let channels: [Channel]
+
+        #if DEBUG
+            @_spi(Testing)
+            public init(
+                id: InstallerAppID,
+                name: String,
+                bundleIdentifier: String,
+                channels: [Channel],
+            ) {
+                self.id = id
+                self.name = name
+                self.bundleIdentifier = bundleIdentifier
+                self.channels = channels
+            }
+        #endif
     }
 
     public let schemaVersion: Int
     public let apps: [App]
+
+    #if DEBUG
+        /// Constructs a typed fixture. Catalog validation still applies at the service boundary.
+        @_spi(Testing)
+        public init(schemaVersion: Int, apps: [App]) {
+            self.schemaVersion = schemaVersion
+            self.apps = apps
+        }
+    #endif
 
     public func validate(feedURL: URL) throws {
         guard schemaVersion == 3, Set(apps.map(\.id)).count == apps.count,

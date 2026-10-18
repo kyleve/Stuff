@@ -1,5 +1,5 @@
 import Foundation
-@testable import InstallerKit
+@_spi(Testing) @testable import InstallerKit
 import Testing
 
 @MainActor
