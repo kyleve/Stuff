@@ -278,6 +278,14 @@ DEBUG-only developer surfaces survive at near-Release speed. Pass
 `--configuration Release` for the App Store audience. Options:
 `./Where/install --help`.
 
+`./Where/archive` exports the same optimized Development audience for ad hoc
+distribution. [DISTRIBUTION.md](DISTRIBUTION.md) owns account setup and operation.
+Keep CI profile overrides scoped to the Development device configuration in
+`Project.swift`; validate all three profiles against generated target settings
+before archiving. Sign the app and extensions during archive, not only export.
+Where's archive and signing guards are `Tools/Tests/test_where_signing.py`,
+`test_where_archive.py`, and `test_where_signing_command.py`.
+
 ## Testing
 
 Root [testing conventions](../AGENTS.md#testing) apply. What is specific here:
