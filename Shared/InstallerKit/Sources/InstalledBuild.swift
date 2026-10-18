@@ -28,8 +28,7 @@ public struct InstalledBuild: Sendable, Equatable {
         public static let main = Channel(rawValue: "main")!
 
         public init?(rawValue: String) {
-            guard rawValue
-                .range(of: #"\A(main|pr-[1-9][0-9]*)\z"#, options: .regularExpression) != nil
+            guard InstallerPattern.channel.matches(rawValue)
             else { return nil }
             self.rawValue = rawValue
         }
@@ -72,7 +71,7 @@ public struct InstalledBuild: Sendable, Equatable {
         public let rawValue: String
 
         public init?(rawValue: String) {
-            guard rawValue.range(of: #"\A[0-9a-f]{40}\z"#, options: .regularExpression) != nil
+            guard InstallerPattern.revision.matches(rawValue)
             else { return nil }
             self.rawValue = rawValue
         }
@@ -111,15 +110,9 @@ public struct InstalledBuild: Sendable, Equatable {
     public init?(infoDictionary info: [String: String]) {
         guard let appID = info["InstallerAppID"].flatMap(InstallerAppID.init(rawValue:)),
               let bundleIdentifier = info["CFBundleIdentifier"],
-              bundleIdentifier.range(
-                  of: #"\A[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+\z"#,
-                  options: .regularExpression,
-              ) != nil,
+              InstallerPattern.bundleIdentifier.matches(bundleIdentifier),
               let repositoryURL = info["InstallerRepositoryURL"].flatMap(URL.init(string:)),
-              repositoryURL.absoluteString.range(
-                  of: #"\Ahttps://github.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\z"#,
-                  options: .regularExpression,
-              ) != nil,
+              InstallerPattern.repositoryURL.matches(repositoryURL.absoluteString),
               let feedURL = info["InstallerFeedURL"].flatMap(URL.init(string:)),
               feedURL.scheme == "https", feedURL.host != nil,
               feedURL.user == nil, feedURL.password == nil, feedURL.fragment == nil,

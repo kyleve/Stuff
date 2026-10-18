@@ -5,7 +5,7 @@ public struct InstallerAppID: RawRepresentable, Hashable, Codable, Sendable {
     public let rawValue: String
 
     public init?(rawValue: String) {
-        guard rawValue.range(of: #"\A[a-z][a-z0-9-]{0,63}\z"#, options: .regularExpression) != nil
+        guard InstallerPattern.appID.matches(rawValue)
         else { return nil }
         self.rawValue = rawValue
     }

@@ -10,9 +10,8 @@ public struct UpdateCatalog: Codable, Sendable, Equatable {
         public let sizeBytes: Int64
 
         fileprivate var isValid: Bool {
-            [version, minimumOSVersion].allSatisfy {
-                $0.range(of: #"\A[0-9]+(?:\.[0-9]+){0,2}\z"#, options: .regularExpression) != nil
-            } && sizeBytes > 0
+            [version, minimumOSVersion]
+                .allSatisfy(InstallerPattern.version.matches) && sizeBytes > 0
         }
     }
 
@@ -105,10 +104,7 @@ public struct UpdateCatalog: Codable, Sendable, Equatable {
         }
         for app in apps {
             guard !app.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                  app.bundleIdentifier.range(
-                      of: #"\A[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+\z"#,
-                      options: .regularExpression,
-                  ) != nil,
+                  InstallerPattern.bundleIdentifier.matches(app.bundleIdentifier),
                   Set(app.channels.map(\.name)).count == app.channels.count
             else { throw ValidationError.invalidCatalog }
             for channel in app.channels {
