@@ -85,8 +85,9 @@ KINDS = [KIND_LIBRARY, KIND_DEVELOPMENT_TOOL].freeze
 # Always read it at the pinned revision rather than the default branch: a
 # notice we ship should be the one that governs the revision we actually use,
 # and upstream edits it (a bumped copyright year, a relicense) between releases.
-def github_license(slug, ref)
-  out, err, status = Open3.capture3("gh", "api", "repos/#{slug}/license?ref=#{ref}")
+def github_license(slug, ref, license_path = nil)
+  endpoint = license_path ? "contents/#{license_path}" : "license"
+  out, err, status = Open3.capture3("gh", "api", "repos/#{slug}/#{endpoint}?ref=#{ref}")
   fail_with("could not read the license for #{slug}: #{err.strip}") unless status.success?
   payload = JSON.parse(out)
   text = payload["content"].to_s.unpack1("m")
@@ -212,13 +213,22 @@ def manifest_credits(source, source_type)
   kind = source.fetch("kind")
   read_json(source.fetch("manifest"), source_type).map do |name, entry|
     ref = entry.fetch("ref")
-    credit(
+    value = credit(
       name: name,
       kind: kind,
       version: entry["version"] || ref[0, 12],
       slug: entry.fetch("repo"),
       ref: ref,
     )
+    if entry.key?("licensePath")
+      path = entry["licensePath"]
+      unless path.is_a?(String) && path.match?(%r{\A[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*\z}) &&
+             path.split("/").none? { |part| %w[. ..].include?(part) }
+        fail_with("#{name}: licensePath must name a repository-relative notice")
+      end
+      value["licensePath"] = path
+    end
+    value
   end
 end
 
@@ -295,7 +305,7 @@ end
 def write_report(credits, output_path)
   output = File.join(ROOT, output_path)
   entries = credits.map do |entry|
-    notice_free(entry).merge("license" => github_license(entry["slug"], entry["ref"]))
+    notice_free(entry).merge("license" => github_license(entry["slug"], entry["ref"], entry["licensePath"]))
   end
   FileUtils.mkdir_p(File.dirname(output))
   File.write(output, "#{JSON.pretty_generate({ "credits" => entries })}\n")

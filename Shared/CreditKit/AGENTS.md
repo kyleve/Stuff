@@ -22,6 +22,7 @@ CreditKit provides tools and types for working out what an app owes attribution 
 - **Credit names are unique across a report.** The generator enforces this case-insensitively.
 - **`SoftwareCredit` is `Identifiable` by `name`.** A library's name is its repo basename.
 - **Read notices at the pinned revision.** Never read the default branch. HEAD's text may not govern the code in the binary.
+- For a nested notice, set `licensePath` in the tool or skill manifest. Keep it repository-relative and pinned to the same revision.
 - **The generator keys off `.product(name:package:)`, not `dependencies:`.**
 - **Include packages that a target links.** A macro-linked package is a development tool.
 - **`kind` is derived from reachability, not declared.** `shippedFrom` names the app's root package targets.

@@ -3,6 +3,9 @@
 Tools and types for working out what an app owes attribution to, and for shipping that answer inside the app.
 
 CreditKit holds no credits of its own.
+
+Tool and skill manifest entries can specify a repository-relative `licensePath` for a nested notice.
+The generator reads that file at the entry's pinned revision. Other entries use GitHub's license endpoint.
 It defines the shape of an **attribution report** and provides the reporting tool that produces one.
 Each app runs the report over its own declared sources and ships the result in its own resources.
 That split is deliberate.
