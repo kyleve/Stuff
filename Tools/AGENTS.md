@@ -33,6 +33,11 @@ These rules also apply when changing a root command or installer that calls this
 
 ## Snapshot shard plans
 
+- Keep test-impact selection experimental. Ordinary CI must run the full gate.
+- Require matching base/head metadata before narrowing snapshots. Missing evidence selects more tests.
+- Reserve experiment budget before dispatch. Preserve uncertain reservations until reconciliation.
+  Guards: `test_test_impact*.py` and `TestImpact/Tests`.
+
 - Keep measured timings in balance reports, not the persisted execution plan.
 - Preserve assignments unless intake, the improvement threshold, or an explicit shard-count change requires an update.
   Guard: [test_snapshot_shards.py](Tests/test_snapshot_shards.py).

@@ -53,6 +53,10 @@ metadata remain readable. No-op writes preserve their original bytes.
 The [rebalance skill](../.agents/skills/rebalance-snapshot-shards/SKILL.md)
 owns sample selection and publication.
 
+The [snapshot selection experiment](TestImpact/README.md) uses `./test --impact`.
+It compares target selection with compiler-index selection inside existing snapshot bundles.
+Its separate CircleCI workflow is opt-in. Normal CI remains authoritative.
+
 ## Testing
 
 Install the site dependencies before the retained installer tests or snapshot builds:

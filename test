@@ -1,6 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
+# Planning and experiment administration do not generate a project, boot a
+# simulator, or change the normal test scope. Parse their help before bootstrap.
+if [ "${1:-}" = "--impact" ]; then
+    shift
+    exec python3 "$(dirname "$0")/Tools/test_impact.py" "$@"
+fi
+
 # test — the one way to run this repo's tests, for people and for agents.
 #
 # Three problems, one script:
@@ -109,6 +116,7 @@ Scope:
   --base REF        Compare against REF instead of origin/main
 
 Independent checks:
+  --impact COMMAND  Opt-in selection experiment (./test --impact --help)
   --architecture-only  Run only the Bumper configuration, rule tests, and lint
   --skip-architecture  Skip Bumper checks because another CI job owns them
   --skip-host-tests    Skip attribution, backup-upgrader, and macro tests
@@ -626,6 +634,10 @@ for scheme in "${SCHEMES[@]}"; do
     rm -rf "$result"
 
     if [ "$DO_BUILD" = true ]; then
+        impact_index_args=()
+        if [ -n "${TEST_IMPACT_INDEX_STORE:-}" ]; then
+            impact_index_args=(COMPILER_INDEX_STORE_ENABLE=YES "INDEX_DATA_STORE_DIR=$TEST_IMPACT_INDEX_STORE")
+        fi
         echo "==> Building $scheme for testing"
         started="$(phase_started)"
         if xcodebuild build-for-testing \
@@ -636,6 +648,7 @@ for scheme in "${SCHEMES[@]}"; do
             ${DERIVED_DATA_ARGS[@]+"${DERIVED_DATA_ARGS[@]}"} \
             ${BUILD_ARTIFACTS:+ARCHS=arm64} \
             ${BUILD_ARTIFACTS:+ONLY_ACTIVE_ARCH=YES} \
+            ${impact_index_args[@]+"${impact_index_args[@]}"} \
             >"$WORKDIR/$scheme-build.log" 2>&1
         then
             emit_phase_timing build "$started" "$scheme"
