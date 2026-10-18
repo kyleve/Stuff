@@ -1,0 +1,17 @@
+# This file always comes from the control checkout, including for PR archives.
+require_relative '../Tools/InstallerKit/signing_workflow'
+
+desc 'Refresh ad hoc signing assets locally'
+lane :refresh do |options|
+  InstallerSigning::Workflow.new(self, options).refresh
+end
+
+desc 'Register a device and refresh every app profile locally'
+lane :register_install_device do |options|
+  InstallerSigning::Workflow.new(self, options).register_device
+end
+
+desc 'Archive with existing ad hoc signing assets'
+lane :archive do |options|
+  InstallerSigning::Workflow.new(self, options).archive
+end

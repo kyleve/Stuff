@@ -1,73 +1,74 @@
+"""Public command parsing and trusted dependency selection, without Apple access."""
+from pathlib import Path
+import shutil
+import subprocess
 import tempfile
 import unittest
 
-from Fixtures.where_distribution_fixtures import ArchiveFixture
+from Tools.repository import repository_root
+
+ROOT = repository_root(Path(__file__))
 
 
 class WhereArchiveTests(unittest.TestCase):
-    def test_local_archive_preserves_project_defaults_instead_of_unknown_overrides(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            fixture = ArchiveFixture(temporary)
-            result = fixture.run("Where/archive", "--profiles", fixture.profiles, "--output", fixture.output)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            archive = next(command for command in fixture.commands() if "archive" in command)
-            installer_settings = [argument for argument in archive if argument.startswith("INSTALLER_")]
-            self.assertEqual(installer_settings, ["INSTALLER_APP_ID=where"])
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name) / 'checkout with spaces ü'
+        for name in ('signing', 'Where/archive', 'Tools/InstallerKit/signing_command.rb',
+                     'Tools/InstallerKit/signing_apps.json'):
+            destination = self.root / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(ROOT / name, destination)
+        (self.root / 'ide').touch()
+        self.bin = self.root / 'bin'
+        self.bin.mkdir()
+        self.log = self.root / 'calls'
+        mise = self.bin / 'mise'
+        mise.write_text('#!/bin/bash\nprintf "%s\\n" "$BUNDLE_GEMFILE" "$@" >> "$LOG"\nexit "${FAIL:-0}"\n')
+        mise.chmod(0o755)
+        self.env = {'PATH': f'{self.bin}:/usr/bin:/bin', 'LOG': str(self.log)}
 
-    def test_signed_archive_precedes_export_and_preserves_optimized_debug(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            fixture = ArchiveFixture(temporary)
-            metadata = {"INSTALLER_CHANNEL": "pr-42", "INSTALLER_RUN": "12", "INSTALLER_ATTEMPT": "2",
-                        "INSTALLER_FEED_URL": "https://fixture.github.io/Stuff/updates.json",
-                        "INSTALLER_REPOSITORY_URL": "https://github.com/fixture/Stuff"}
-            result = fixture.run("Where/archive", "--profiles", fixture.profiles, "--output", fixture.output,
-                                 overrides=metadata)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertTrue((fixture.output / "export/Where.ipa").is_file())
-            builds = [command for command in fixture.commands() if command[0] == "mise"]
-            self.assertEqual([command[4] for command in builds], ["-showBuildSettings", "archive", "-exportArchive"])
-            self.assertIn("SWIFT_OPTIMIZATION_LEVEL=-O", builds[1])
-            self.assertIn("Debug", builds[1])
-            self.assertIn("INSTALLER_APP_ID=where", builds[1])
-            for key, value in metadata.items():
-                self.assertIn(f"{key}={value}", builds[1])
-            self.assertIn(["ide", "--no-open"], fixture.commands())
-            self.assertEqual(list(fixture.temporary.iterdir()), [])
+    def run_command(self, *arguments, command='signing', overrides=None):
+        return subprocess.run([str(self.root / command), *arguments], cwd='/tmp',
+                              env={**self.env, **(overrides or {})}, capture_output=True, text=True)
 
-    def test_existing_output_and_missing_profiles_fail_before_any_process(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            fixture = ArchiveFixture(temporary)
-            fixture.output.mkdir()
-            result = fixture.run("Where/archive", "--profiles", fixture.profiles, "--output", fixture.output)
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn("already exists", result.stderr)
-            fixture.output.rmdir()
-            (fixture.profiles / "WhereWidgets.mobileprovision").unlink()
-            result = fixture.run("Where/archive", "--profiles", fixture.profiles, "--output", fixture.output)
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn("missing", result.stderr)
-            self.assertEqual(fixture.commands(), [])
-            self.assertFalse(fixture.output.exists())
+    def test_help_without_tools_from_other_directory(self):
+        # Bash dirname must be available for wrappers, but no mise/Xcode/Ruby gems.
+        result = self.run_command('--help', command='Where/archive', overrides={'PATH': '/usr/bin:/bin'})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('Usage:', result.stdout)
+        self.assertFalse(self.log.exists())
 
-    def test_failed_generation_settings_archive_and_export_stop_at_boundary(self):
-        for failure in ("ide:--no-open", "mise:-showBuildSettings", "mise:archive", "mise:-exportArchive"):
-            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as temporary:
-                fixture = ArchiveFixture(temporary)
-                result = fixture.run("Where/archive", "--profiles", fixture.profiles, "--output", fixture.output,
-                                     overrides={"FAIL_AT": failure})
-                self.assertEqual(result.returncode, 47, result.stderr)
-                self.assertFalse((fixture.output / "export/Where.ipa").exists())
-                self.assertEqual(list(fixture.temporary.iterdir()), [])
-                if failure != "mise:-exportArchive":
-                    self.assertFalse(any("-exportArchive" in command for command in fixture.commands()))
+    def test_invalid_input_precedes_dependencies(self):
+        cases = [('archive', '--app', 'missing', '--output', '/tmp/out'),
+                 ('archive', '--app', 'where'),
+                 ('refresh', '--app', 'where', '--output', '/tmp/out'),
+                 ('register-device', '--app', 'where', '--name', 'Phone', '--udid', 'bad'),
+                 ('archive', '--app', 'where', '--output', str(self.root))]
+        for arguments in cases:
+            with self.subTest(arguments=arguments):
+                self.assertNotEqual(self.run_command(*arguments).returncode, 0)
+                self.assertFalse(self.log.exists())
 
-    def test_settings_mismatch_prevents_archive_and_missing_export_is_failure(self):
-        for override in ("WRONG_BUNDLE", "MISSING_IPA"):
-            with self.subTest(override=override), tempfile.TemporaryDirectory() as temporary:
-                fixture = ArchiveFixture(temporary)
-                result = fixture.run("Where/archive", "--profiles", fixture.profiles, "--output", fixture.output,
-                                     overrides={override: "1"})
-                self.assertNotEqual(result.returncode, 0)
-                if override == "WRONG_BUNDLE":
-                    self.assertFalse(fixture.output.exists())
-                    self.assertFalse(any("archive" in command for command in fixture.commands()))
+    def test_archive_uses_control_gemfile_and_absolute_source_and_output(self):
+        output = self.root / 'new output'
+        source = self.root / 'old source'
+        source.mkdir()
+        (source / 'ide').touch()  # No Fastfile or Gemfile on this old branch.
+        result = self.run_command('--output', str(output), '--source', str(source), command='Where/archive')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = self.log.read_text()
+        self.assertEqual(calls.count(str(self.root / 'Gemfile')), 2)
+        for expected in ('bundle\ncheck', 'bundle\nexec\nfastlane\narchive', f'source:{source}', f'output:{output}', 'app:where'):
+            self.assertIn(expected, calls)
+
+    def test_missing_dependencies_and_ci_maintenance_fail(self):
+        result = self.run_command('refresh', '--app', 'where', overrides={'FAIL': '47'})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('./ide --install --no-open', result.stderr)
+        self.log.unlink()
+        result = self.run_command('refresh', '--app', 'where', overrides={'CI': 'true'})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('local only', result.stderr)
+        self.assertFalse(self.log.exists())

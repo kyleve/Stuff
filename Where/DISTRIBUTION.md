@@ -38,32 +38,47 @@ The IPA, manifest, commit notes, and build metadata are public.
 Apple's ad hoc profile still restricts installation to registered devices.
 The provisioning profile inside the IPA includes those device identifiers.
 
-1. In the Apple Developer account, register every phone that will install these builds.
-   Create an Apple Distribution certificate and export its private key as a password-protected `.p12` file.
-2. Create one **Ad Hoc** provisioning profile for each target below.
-   Use the same team, distribution certificate, and registered devices for all three profiles.
-   The checked-in [manifest](../Project.swift) owns the identifiers and entitlements.
+1. Install the locked tools with `./ide --install --no-open`.
+   Set the Apple Developer team with `./ide --team-id TEAM --no-open`.
+2. In the Apple Developer portal, create the explicit app IDs and enable these capabilities.
+   [Project.swift](../Project.swift) owns the identifiers and entitlements.
+   Fastlane creates certificates and profiles. It does not configure these capabilities.
 
-   | Profile filename | Current app identifier | Capabilities |
+   | Target | Current app identifier | Capabilities |
    | --- | --- | --- |
-   | `Where.mobileprovision` | `com.stuff.where.development` | Development App Group, iCloud, Push Notifications |
-   | `WhereWidgets.mobileprovision` | `com.stuff.where.development.widgets` | Development App Group |
-   | `WhereShareExtension.mobileprovision` | `com.stuff.where.development.share` | Development App Group |
+   | Where | `com.stuff.where.development` | Development App Group, iCloud, Push Notifications |
+   | WhereWidgets | `com.stuff.where.development.widgets` | Development App Group |
+   | WhereShareExtension | `com.stuff.where.development.share` | Development App Group |
 
-   The Development App Group is `group.com.stuff.where.development`.
-   The app's declared CloudKit container is `iCloud.com.stuff.where`.
-   Include the manifest's capabilities even though these builds select the local store.
-3. Create the CircleCI context `where-distribution-signing`, restricted to this project.
-   Add the signing secrets below to that context, not to project-wide environment variables.
-   Keep the original signing files outside the repository.
+   Associate all three IDs with `group.com.stuff.where.development`.
+   Associate the host app with the CloudKit container `iCloud.com.stuff.where`.
+   Include these capabilities even though Development uses the local store.
+   Register at least one iPhone or iPad in the Apple Developer portal.
+3. Create an App Store Connect **Team API key** with access to Certificates, Identifiers & Profiles.
+   Individual API keys cannot manage provisioning.
+   Store its [Fastlane JSON file](https://docs.fastlane.tools/app-store-connect-api/#using-an-app-store-connect-api-key)
+   outside the checkout, with permissions `600`.
+   Set `INSTALLER_API_KEY_PATH` to that file's absolute path for local maintenance.
+   Do not put this key in CI.
+4. Use the private [Stuff-Signing repository](https://github.com/kyleve/Stuff-Signing), on branch `main`.
+   Local maintenance needs SSH write access through your own GitHub account.
+   Store a strong encryption password in your password manager and supply it as `MATCH_PASSWORD`.
+   Use the same password locally and in CI. Do not commit or print it.
+   Run `./signing refresh --app where` to create the initial certificate and all three profiles.
+   Refresh regenerates every profile, including after a capability or device change.
+   It does not revoke unrelated certificates. It never calls `match nuke`.
+   Apple and Git updates are not atomic. If maintenance fails partway, fix the reported error and rerun it.
+5. Create the CircleCI context `where-distribution-signing`, restricted to this project.
+   Add these values to the context, not project-wide environment variables:
 
-   | Secret | Value |
+   | Variable | Value |
    | --- | --- |
-   | `WHERE_DISTRIBUTION_CERTIFICATE_BASE64` | Base64-encoded `.p12` file |
-   | `WHERE_DISTRIBUTION_CERTIFICATE_PASSWORD` | Password for that file |
-   | `WHERE_APP_PROFILE_BASE64` | Base64-encoded `Where.mobileprovision` |
-   | `WHERE_WIDGET_PROFILE_BASE64` | Base64-encoded `WhereWidgets.mobileprovision` |
-   | `WHERE_SHARE_PROFILE_BASE64` | Base64-encoded `WhereShareExtension.mobileprovision` |
+   | `TUIST_DEVELOPMENT_TEAM` | The Apple Developer team ID |
+   | `MATCH_PASSWORD` | The signing repository encryption password |
+   | `MATCH_DEPLOY_KEY` | A dedicated SSH private key with read-only deploy access to Stuff-Signing |
+
+   Remove the former `WHERE_DISTRIBUTION_CERTIFICATE_*` and `WHERE_*_PROFILE_BASE64` secrets, if present.
+   CI needs no Apple API key, Apple account password, or signing-repository write access.
 
    Use CircleCI's context secret form to enter the values. Do not commit or print them.
    Add this context expression restriction before enabling distribution:
@@ -81,7 +96,7 @@ The provisioning profile inside the IPA includes those device identifiers.
    It permits an API-triggered pipeline whose configuration comes from GitHub `main`.
    It rejects unversioned configuration submitted through the API.
    See [CircleCI context restrictions](https://circleci.com/docs/guides/security/contexts/#expression-restrictions).
-4. In CircleCI, select the GitHub App pipeline definition for this repository's `.circleci/config.yml`.
+6. In CircleCI, select the GitHub App pipeline definition for this repository's `.circleci/config.yml`.
    The controller requests `main` for both configuration and checkout.
    Add these values in GitHub Settings → Secrets and variables → Actions:
 
@@ -94,23 +109,29 @@ The provisioning profile inside the IPA includes those device identifiers.
    Keep this API token out of CircleCI's signing context and project environment.
    GitHub's Linux controller uses it without checking out or running PR code.
    See [CircleCI's trigger API](https://circleci.com/docs/api/v2/index.html#operation/triggerPipelineRun).
-5. In GitHub Settings → Actions → Policies, allow this workflow's `push`, `workflow_dispatch`, and `pull_request_target` events.
+7. In GitHub Settings → Actions → Policies, allow this workflow's `push`, `workflow_dispatch`, and `pull_request_target` events.
    Scope the event policy to `.github/workflows/where-distribution.yml`.
    GitHub's default policy can block `pull_request_target` in public repositories.
    See [workflow execution policies](https://docs.github.com/en/actions/how-tos/administer/control-workflow-execution).
-6. In GitHub Settings → Pages, select **GitHub Actions** as the publishing source.
+8. In GitHub Settings → Pages, select **GitHub Actions** as the publishing source.
    Allow `workflow_dispatch` for `.github/workflows/installer-pages.yml` in the Actions event policy.
    The default feed URL is `https://kyleve.github.io/Stuff/updates.json`.
    If Pages uses a custom domain, set `INSTALLER_FEED_URL` to its HTTPS catalog URL before building.
-7. Create the repository label `installable` if it does not exist.
+9. Create the repository label `installable` if it does not exist.
    Merge the integration into `main`, then set `WHERE_DISTRIBUTION_ENABLED` to `true`.
    Run **Where Dev Distribution** manually on `main` to publish the first build.
    Open its install link on a registered phone and verify launch, widgets, and sharing.
    Add `installable` to an open PR, then push again to verify that its page updates.
 
-Adding a device requires refreshed profiles for all three targets and a new build.
-Replace the profile secrets before they expire.
-Renew the certificate and profiles together when the signing certificate expires.
+To add a device, run this command locally, then publish a new build:
+
+```bash
+./signing register-device --app where --name "My iPhone" --udid DEVICE_UDID
+```
+
+Registration refreshes every app and extension profile.
+Run `./signing refresh --app where` before the certificate or profiles expire.
+Ordinary archives use Match in read-only mode and cannot repair missing or expired assets.
 The Apple Distribution certificate signs the app. GitHub provides the HTTPS certificate for downloads.
 See Apple's [ad hoc profile guide](https://developer.apple.com/help/account/provisioning-profiles/create-an-ad-hoc-provisioning-profile/).
 
@@ -135,10 +156,16 @@ The temporary keychain and cleanup limit persistence. They do not prevent a mali
 
 The archive job uses a temporary keychain and removes its signing files after the job.
 It validates each profile's expiry, device list, team, and generated target settings before archiving.
-It signs the app and both extensions during the archive, then exports with Xcode's `release-testing` method.
-This is Xcode's current name for ad hoc export.
+Fastlane signs the app and both extensions during the archive, then exports an ad hoc IPA.
+The pinned Gym uses `ad-hoc`, which Xcode accepts as an alias for `release-testing`.
+CI requires an isolated runner with an empty Xcode provisioning-profile directory.
+The helper refuses existing profiles before it changes keychains.
+Cleanup restores the original keychain search list and removes job-owned profiles and the temporary keychain.
+It never changes the default keychain.
 The archive job has no GitHub write token or CircleCI API token.
-Its configuration, eligibility checks, signing setup, cleanup, and IPA validation come from `main`.
+Its configuration, Fastfile, Gemfile lock, signing helper, eligibility checks, cleanup, and IPA validation come from `main`.
+The selected branch supplies the app source and project generation scripts.
+Older branches do not need a Fastfile or Gemfile.
 It rechecks the live PR before checking out the requested commit into a separate source directory.
 Only the final IPA is stored as a CircleCI artifact. Signing state is never uploaded.
 GitHub accepts the artifact only after that pipeline and archive job succeed.
@@ -255,17 +282,20 @@ It covers iPhone and iPad layouts in light and dark mode through the existing sn
 
 ## Archive locally
 
-Install the distribution identity in your keychain and the three profiles in Xcode first.
-Keep copies of the profiles together under the filenames listed above.
+Supply `MATCH_PASSWORD` and use your own SSH access to Stuff-Signing.
 From a clean checkout, run:
 
 ```bash
-./Where/archive --profiles /path/to/profiles --output /tmp/where-build
+./Where/archive --output /tmp/where-build
 ```
+
+The command downloads existing assets through Match and installs them in your local keychain and Xcode profile directory.
+It does not need an Apple API key. It cannot create or renew signing assets.
+For another registered app, use `./signing archive --app APP --output DIR`.
 
 The output directory must not exist.
 The command regenerates through `./ide --no-open`, archives optimized Debug, and exports `export/Where.ipa`.
-Build and export logs remain in the output directory if Xcode fails.
+Xcode logs remain under `logs/` in the output directory if the build fails.
 The command does not upload the IPA.
 Run `./ide --no-open` afterward to restore normal local signing settings.
 

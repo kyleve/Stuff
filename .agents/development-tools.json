@@ -9,6 +9,11 @@
     "ref": "112d3ea14cf997218239fd8a436707e56a3815fb",
     "version": "0.9.10"
   },
+  "Fastlane": {
+    "repo": "fastlane/fastlane",
+    "ref": "452f0b4e0c7129d9e99dc6a1aa4b8780ebd334f5",
+    "version": "2.241.1"
+  },
   "Node.js": {
     "repo": "nodejs/node",
     "ref": "f14cd3aa7bf9ca8df2cc5b8bb14beb0f335b1d93",

@@ -43,3 +43,7 @@ fastlane/test_output
 
 # System
 .DS_Store
+
+# Bundler local configuration and installed gems
+.bundle/
+vendor/bundle/

@@ -1,4 +1,4 @@
-"""Validate the three Where ad hoc profiles before archiving or exporting."""
+"""Validate registered app profiles before archiving or exporting."""
 
 import argparse
 from dataclasses import asdict, dataclass
@@ -7,7 +7,6 @@ import json
 from pathlib import Path
 import plistlib
 import re
-import shlex
 import sys
 
 
@@ -15,13 +14,6 @@ import sys
 class Target:
     name: str
     environment_key: str
-
-
-TARGETS = (
-    Target("Where", "TUIST_WHERE_ADHOC_APP_PROFILE"),
-    Target("WhereWidgets", "TUIST_WHERE_ADHOC_WIDGET_PROFILE"),
-    Target("WhereShareExtension", "TUIST_WHERE_ADHOC_SHARE_PROFILE"),
-)
 
 
 @dataclass(frozen=True)
@@ -64,10 +56,10 @@ def read_profile(target: Target, data: dict, now: datetime) -> Profile:
     return Profile(target.name, profile_uuid, teams[0], bundle_id)
 
 
-def prepare(profiles_directory: Path, destination: Path, now: datetime) -> None:
+def prepare(profiles_directory: Path, destination: Path, now: datetime, targets: tuple[Target, ...]) -> None:
     profiles = []
     device_sets = []
-    for target in TARGETS:
+    for target in targets:
         with (profiles_directory / f"{target.name}.plist").open("rb") as source:
             data = plistlib.load(source)
         if not isinstance(data, dict):
@@ -75,25 +67,19 @@ def prepare(profiles_directory: Path, destination: Path, now: datetime) -> None:
         profiles.append(read_profile(target, data, now))
         device_sets.append(set(data["ProvisionedDevices"]))
     if len({profile.team for profile in profiles}) != 1:
-        raise ValueError("All Where profiles must belong to the same Apple Developer team")
-    if len({profile.bundle_id for profile in profiles}) != len(TARGETS):
-        raise ValueError("Each Where target needs its own provisioning profile")
-    if len({profile.uuid for profile in profiles}) != len(TARGETS):
-        raise ValueError("Each Where target needs a distinct profile UUID")
+        raise ValueError("All app profiles must belong to the same Apple Developer team")
+    if len({profile.bundle_id for profile in profiles}) != len(targets):
+        raise ValueError("Each app target needs its own provisioning profile")
+    if len({profile.uuid for profile in profiles}) != len(targets):
+        raise ValueError("Each app target needs a distinct profile UUID")
     if not all(devices == device_sets[0] for devices in device_sets):
-        raise ValueError("All Where profiles must include the same registered devices")
+        raise ValueError("All app profiles must include the same registered devices")
 
     destination.mkdir(parents=True, exist_ok=True)
     (destination / "profiles.json").write_text(json.dumps([asdict(profile) for profile in profiles]))
-    environment = {"TUIST_DEVELOPMENT_TEAM": profiles[0].team}
-    for target, profile in zip(TARGETS, profiles):
-        environment[target.environment_key] = profile.uuid
-    (destination / "signing.env").write_text("".join(
-        f"export {key}={shlex.quote(value)}\n" for key, value in environment.items()
-    ))
     with (destination / "ExportOptions.plist").open("wb") as output:
         plistlib.dump({
-            "method": "release-testing",
+            "method": "ad-hoc",
             "destination": "export",
             "signingStyle": "manual",
             "signingCertificate": "Apple Distribution",
@@ -104,7 +90,7 @@ def prepare(profiles_directory: Path, destination: Path, now: datetime) -> None:
         }, output)
 
 
-def validate_settings(settings: list, profiles: list) -> None:
+def validate_settings(settings: list, profiles: list, required_settings: dict) -> None:
     for profile in profiles:
         matches = [item["buildSettings"] for item in settings if item.get("target") == profile["target"]]
         if len(matches) != 1:
@@ -115,7 +101,7 @@ def validate_settings(settings: list, profiles: list) -> None:
             "DEVELOPMENT_TEAM": profile["team"],
             "PROVISIONING_PROFILE_SPECIFIER": profile["uuid"],
             "CODE_SIGN_STYLE": "Manual",
-            "WHERE_AUDIENCE": "development",
+            **required_settings,
         }
         for key, value in expected.items():
             if actual.get(key) != value:
@@ -131,14 +117,22 @@ def main(argv=None) -> int:
     settings_parser = commands.add_parser("validate-settings")
     settings_parser.add_argument("--settings", type=Path, required=True)
     settings_parser.add_argument("--profiles", type=Path, required=True)
+    for command_parser in (prepare_parser, settings_parser):
+        command_parser.add_argument("--descriptor", type=Path, required=True)
+        command_parser.add_argument("--app", required=True)
     args = parser.parse_args(argv)
     try:
+        descriptor = json.loads(args.descriptor.read_text())[args.app]
         if args.command == "prepare":
-            prepare(args.profiles, args.output, datetime.now(timezone.utc))
+            prepare(args.profiles, args.output, datetime.now(timezone.utc),
+                    tuple(Target(**target) for target in descriptor["targets"]))
         else:
-            validate_settings(json.loads(args.settings.read_text()), json.loads(args.profiles.read_text()))
+            validate_settings(json.loads(args.settings.read_text()), json.loads(args.profiles.read_text()),
+                              descriptor["required_settings"])
     except (OSError, ValueError, plistlib.InvalidFileException, KeyError, TypeError) as error:
         print(f"error: {error}", file=sys.stderr)
+        if args.command == "prepare":
+            print(f"Refresh signing assets locally with ./signing refresh --app {args.app}", file=sys.stderr)
         return 1
     return 0
 

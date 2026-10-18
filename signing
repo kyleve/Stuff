@@ -1,0 +1,5 @@
+#!/bin/bash
+set -euo pipefail
+root="$(cd "$(dirname "$0")" && pwd)"
+# Ruby's standard library parses usage before mise, Bundler, Xcode, or credentials.
+exec /usr/bin/ruby "$root/Tools/InstallerKit/signing_command.rb" "$@"

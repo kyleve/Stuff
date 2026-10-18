@@ -3,7 +3,11 @@
 All registered iOS apps use one GitHub Pages site and one `updates.json` catalog.
 GitHub Releases stores the signed IPAs. InstallerKit supplies the in-app update engine.
 InstallerKitUI supplies the reusable native update page.
-Each app owns its signing configuration, archive command, audience gate, branding, and Settings navigation.
+Each app selects its signing configuration, audience gate, branding, and Settings navigation.
+The shared `./signing` command owns Match maintenance and Fastlane archives.
+Register the scheme, configuration, targets, and profile override keys in `signing_apps.json`.
+Bundle identifiers come from generated Xcode settings, not the descriptor.
+See [Where setup](../../Where/DISTRIBUTION.md#one-time-setup) for the shared signing repository and Apple account checklist.
 
 The homepage shows only the latest successful `main` build for each app.
 `/apps/<app-id>/` lists that app's PR builds.

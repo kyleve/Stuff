@@ -27,10 +27,12 @@ device-selection, and app-install policies are likewise tested with temporary
 catalogs and captured command output rather than tracked assets, devices, or
 `/Applications`.
 
-`where_signing.py` validates Where's ad hoc profiles and generates export settings.
+`InstallerKit/signing_profiles.py` validates registered apps' ad hoc profiles and generates export settings.
 `repository.repository_root` finds a tool's checkout through its nearest `.git` directory or worktree file.
 Use it for checkout-relative resources instead of fixed parent-directory counts.
-`Where/archive` owns the Xcode processes.
+`./signing` calls the shared Fastlane workflow for local maintenance and read-only archives.
+`Where/archive` is its Where-specific convenience wrapper.
+`Gemfile.lock` pins Fastlane and its transitive dependencies, isolated in ignored `vendor/bundle/`. Run `./ide --install --no-open` to install them.
 [`InstallerKit/`](InstallerKit/README.md) owns shared app registration, publication, build stamping, and install-site generation.
 Its private Python modules use qualified imports under `Tools.InstallerKit`.
 Run their commands from the repository root with `python3 -m Tools.InstallerKit.<module>`.

@@ -1,0 +1,13 @@
+{
+  "where": {
+    "scheme": "Where Development",
+    "configuration": "Debug",
+    "product": "Where",
+    "required_settings": {"WHERE_AUDIENCE": "development"},
+    "targets": [
+      {"name": "Where", "environment_key": "TUIST_WHERE_ADHOC_APP_PROFILE"},
+      {"name": "WhereWidgets", "environment_key": "TUIST_WHERE_ADHOC_WIDGET_PROFILE"},
+      {"name": "WhereShareExtension", "environment_key": "TUIST_WHERE_ADHOC_SHARE_PROFILE"}
+    ]
+  }
+}
