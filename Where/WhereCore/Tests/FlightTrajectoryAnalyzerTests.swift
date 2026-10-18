@@ -195,6 +195,34 @@ struct FlightTrajectoryAnalyzerTests {
         }
     }
 
+    /// Recorded callbacks preserve the original outage, coarse fixes, motion
+    /// availability, and ground resumption. No in-flight callback independently
+    /// establishes an airborne point, even though this journey requires a flight.
+    @Test func recordedSparseFlightRetainsRecognitionWithoutInventingAirbornePoints() throws {
+        let samples = RecordedSparseFlightFixture.samples
+        #expect(samples.count == 76)
+        let flights = analyzer.analyze(samples: samples, now: RecordedSparseFlightFixture.now)
+        try #require(flights.count == 1)
+        let flight = try #require(flights.first)
+        let firstGroundAt = Date(timeIntervalSince1970: 1_577_891_199.9787588)
+        let confirmedAt = Date(timeIntervalSince1970: 1_577_892_606.848868)
+        #expect(flight.progress == .completed(arrival: .observedGround(
+            firstObservedAt: firstGroundAt,
+            confirmedAt: confirmedAt,
+        )))
+        #expect(flight.airborneSampleIDs.isEmpty)
+        #expect(flight.inferredEndpoints.isEmpty)
+        #expect(flight.supportedIntervals.allSatisfy { $0.kind == .displacement })
+        #expect(flight.supportedIntervals.allSatisfy { $0.end <= firstGroundAt })
+        for timestamp in [firstGroundAt, confirmedAt] {
+            let ground = try #require(samples.first { $0.timestamp == timestamp })
+            #expect(flight.groundSampleIDs.contains(ground.id))
+        }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        #expect(flight.completedDays(in: calendar) == [CalendarDay(year: 2020, month: 1, day: 1)])
+    }
+
     @Test(.disabled(
         if: ProcessInfo.processInfo.environment["WHERE_SPARSE_FLIGHT_VERIFICATION_CONFIG"] == nil,
         "Supply a local sparse-flight verification configuration to replay an external backup.",
