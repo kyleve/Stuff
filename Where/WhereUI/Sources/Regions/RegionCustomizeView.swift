@@ -40,8 +40,7 @@ struct RegionAppearanceEditor: View {
             }
             .padding(stylesheet.spacing.large)
         }
-        .onAppear { tilt.start() }
-        .onDisappear { tilt.stop() }
+        .observesTilt(tilt, enabled: stylesheet.card.regular.surface.usesReflection)
     }
 
     private var preview: some View {
@@ -267,6 +266,16 @@ struct RegionCustomizeView: View {
 
     extension RegionCustomizeView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "FlatEditor",
+                configurations: .fullContentPhoneLightDark,
+                theme: .alternate,
+                measurementReadiness: .immediate,
+            ) {
+                NavigationStack {
+                    RegionCustomizeView(model: PreviewSupport.primaryRegionSelectionModel())
+                }
+            }
             whereSnapshot(
                 name: "Editor",
                 configurations: .fullContentPhoneLightDark,

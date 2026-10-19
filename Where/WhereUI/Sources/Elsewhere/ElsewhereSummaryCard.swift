@@ -51,19 +51,22 @@ struct ElsewhereSummaryCard: View {
         .frame(maxWidth: .infinity, minHeight: style.minimumHeight, alignment: .leading)
         .background { securityPrint }
         .background {
-            if style.surface.usesOpaquePaper {
-                shape.fill(style.surface.paper)
-            } else {
-                shape.fill(.clear)
-                    .glassEffect(
-                        .regular.tint(style.surface.ink.opacity(style.surface.glassTintOpacity))
-                            .interactive(),
-                        in: shape,
-                    )
+            if style.surface.treatment.usesReflection {
+                if style.surface.usesOpaquePaper {
+                    shape.fill(style.surface.paper)
+                } else {
+                    shape.fill(.clear)
+                        .glassEffect(
+                            .regular.tint(style.surface.ink.opacity(style.surface.glassTintOpacity))
+                                .interactive(),
+                            in: shape,
+                        )
+                }
             }
         }
         .clipShape(shape)
         .contentShape(shape)
+        .matteSurface(style.surface.treatment, tint: style.surface.ink, in: shape)
         .shadow(
             color: .black.opacity(style.surface.shadowOpacity),
             radius: style.surface.shadowRadius,
@@ -181,6 +184,12 @@ struct ElsewhereSummaryCard: View {
     extension ElsewhereSummaryCard: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             artworkSnapshot(
+                name: "FlatSeveral",
+                regions: [.canada, .europeanUnion, .other],
+                configurations: .componentDefaults,
+                theme: .alternate,
+            )
+            artworkSnapshot(
                 name: "Several",
                 regions: [.canada, .europeanUnion, .other],
                 configurations: .componentDefaults,
@@ -204,12 +213,14 @@ struct ElsewhereSummaryCard: View {
             name: String,
             regions: [Region],
             configurations: [SnapshotConfiguration],
+            theme: WhereTheme = .standard,
             reduceTransparency: Bool = false,
         ) -> SnapshotCase {
             let cache = RegionOutlinePathCache()
             return whereSnapshot(
                 name: name,
                 configurations: configurations,
+                theme: theme,
                 measurementReadiness: .immediate,
                 onReadyToSnapshot: {
                     _ = await ElsewhereRegionArtwork.load(regions: regions, cache: cache)

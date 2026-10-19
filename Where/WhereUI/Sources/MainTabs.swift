@@ -210,7 +210,15 @@ struct MainTabs: View {
             let largeTypeConfigurations = [
                 SnapshotConfiguration(dynamicType: .accessibility5, device: .iPhone),
             ]
-            return fastConfigurations.flatMap { configuration in
+            return [snapshot(
+                name: "FlatWelcomeLocations",
+                configurations: fastConfigurations,
+                settle: .settled,
+                selection: .locations,
+                theme: .alternate,
+            ) { welcome in
+                welcome.presentForTesting(region: .newYork, greeting: .returnVisit)
+            }] + fastConfigurations.flatMap { configuration in
                 snapshotCases(configurations: [configuration], settle: .settled)
             } + largeTypeConfigurations.flatMap { configuration in
                 snapshotCases(
@@ -273,6 +281,7 @@ struct MainTabs: View {
             configurations: [SnapshotConfiguration],
             settle: SnapshotSettle,
             selection: TabID,
+            theme: WhereTheme = .standard,
             updates: UpdateModel? = nil,
             configure: (LocationWelcomeModel) -> Void,
         ) -> SnapshotCase {
@@ -307,6 +316,7 @@ struct MainTabs: View {
             return whereSnapshot(
                 name: name,
                 configurations: configurations,
+                theme: theme,
                 measurementReadiness: .immediate,
                 settle: settle,
                 onReadyToSnapshot: { await report.activate() },

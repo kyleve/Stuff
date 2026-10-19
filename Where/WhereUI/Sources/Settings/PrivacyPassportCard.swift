@@ -31,8 +31,7 @@ struct PrivacyPassportCard: View {
             .padding(style.padding)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .onAppear { tilt.start() }
-        .onDisappear { tilt.stop() }
+        .observesTilt(tilt, enabled: style.surface.usesReflection)
     }
 }
 

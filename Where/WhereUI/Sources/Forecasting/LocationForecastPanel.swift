@@ -69,15 +69,17 @@ struct LocationForecastPanel: View {
         .background {
             ZStack {
                 shape.fill(.background)
-                LinearGradient(
-                    colors: [
-                        Color.primary.opacity(style.ink.surfaceWashOpacity),
-                        .clear,
-                        Color.primary.opacity(style.ink.surfaceWashOpacity * 0.45),
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing,
-                )
+                if style.ink.surfaceWashOpacity > 0 {
+                    LinearGradient(
+                        colors: [
+                            Color.primary.opacity(style.ink.surfaceWashOpacity),
+                            .clear,
+                            Color.primary.opacity(style.ink.surfaceWashOpacity * 0.45),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing,
+                    )
+                }
                 SecurityPrintRosette(
                     tint: .primary,
                     wobble: style.surface.rosetteWobble,

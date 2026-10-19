@@ -208,7 +208,9 @@ worked examples.
   `whereBroadwayRoot(theme:regionStyles:)`. Use no global accessor or hardcoded
   per-region look in a view.
 - **Seed `WhereTheme` through `whereBroadwayRoot(theme:regionStyles:)`.** Standard
-  and Alternate remain distinct persisted identities even while their tokens match.
+  and Flat use the stable `standard` and `alternate` identities. Resolve the
+  finish in the component style. Flat omits reflective layers and tilt observation.
+  System chrome keeps its native appearance. Guard: `WhereStylesheetSurfaceTreatmentTests`.
 - The DEBUG card designer may override only presentation values already owned
   by `CardStyles`. It must not add a second production styling system or alter
   count animation and outline-cache behavior.

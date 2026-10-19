@@ -410,10 +410,19 @@ default empty resolver yields the fallback looks
 region-map viewer. The catalog also owns the selectable color/emoji/symbol
 option lists the picker shows.
 
-`WhereTheme` is the device-local presentation identity. Standard and Alternate
-currently resolve through identical Liquid Glass tokens; onboarding previews
-before commit, Appearance Settings persists immediately, and widgets and
-snippets receive the same identity through their cross-process snapshots.
+`WhereTheme` is the device-local presentation identity. Standard uses Liquid
+Glass and reflective artwork. Flat uses opaque, strongly colored paper with
+printed edges and neutral drop shadows. It keeps the passport artwork and
+omits sheen, luminous glows, and GPS-dot halos. The welcome, Elsewhere, privacy,
+and estimate surfaces share this finish. System chrome stays native.
+
+Flat adjusts region text colors for contrast against its opaque fills.
+The palette test covers every selectable region color in light and dark modes.
+
+Flat retains the persisted `alternate` raw value. Onboarding previews before
+commit. Appearance Settings persists immediately. Widgets and snippets
+receive the same identity through their cross-process snapshots. Their existing
+lightweight content and system backgrounds stay unchanged.
 
 Regular `RegionSummaryCard`s ask the root-owned `RegionOutlinePathCache` for a
 medium SwiftUI path for the large security-print watermark and a small path for
@@ -431,9 +440,12 @@ blending, which keeps the ink legible without oversaturating it when interactive
 glass illuminates. Reduce Transparency removes the constellation halos while
 retaining the crisp centers.
 Live tilt is observed only by the sheen overlay, so its 60 Hz updates do not
-invalidate the card's text or Canvas artwork. The card adds no standalone edge
-stroke. Its containing Liquid Glass surface owns the subtle outer border so
-direct and production rendering do not diverge.
+invalidate the card's text or Canvas artwork. Observation runs only while a
+reflective surface is visible and active, with motion enabled. Standard's
+Liquid Glass supplies its border. Flat supplies an explicit printed stroke.
+The shared matte renderer owns fill, stroke, and shadow. Navigation zooms use
+the same resolved elevation. Card Designer drafts preserve the selected finish
+without changing their saved format.
 
 The Locations toolbar opens **Planned stays**. Each stay has an independent identity,
 a destination, and inclusive arrival and last-day windows. Exact dates use one day

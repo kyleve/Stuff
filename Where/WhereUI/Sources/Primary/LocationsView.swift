@@ -1,3 +1,4 @@
+import BroadwayUI
 import PeriscopeCore
 import RegionKit
 import SFSafeSymbols
@@ -6,7 +7,7 @@ import SwiftUI
 import WhereCore
 
 /// Locations tab: the regions you spend the most days in for the selected year,
-/// shown as prominent Liquid Glass cards, with the Elsewhere summary folded in
+/// shown as prominent passport cards, with the Elsewhere summary folded in
 /// at the bottom (only when there are secondary regions), plus toolbar actions
 /// for planned stays and any data issues that need resolution.
 struct LocationsView: View {
@@ -77,8 +78,10 @@ struct LocationsView: View {
                     }
                 }
         }
-        .onAppear { tilt.start() }
-        .onDisappear { tilt.stop() }
+        .observesTilt(
+            tilt,
+            enabled: isCardSurfaceUncovered && stylesheet.card.regular.surface.usesReflection,
+        )
         .sheet(isPresented: $showingResolution) {
             ResolutionView(report: report)
         }
@@ -187,9 +190,12 @@ struct LocationsView: View {
                                 recordedPointsID: report.primaryRegionLocations?.id,
                             )
                         }
-                        // Plain so the card's interactive Liquid Glass owns
-                        // the press feel rather than the button adding its own.
-                        .buttonStyle(.plain)
+                        .buttonStyle(CardSurfaceButtonStyle(
+                            surface: stylesheet.card.regular.surface,
+                            tint: regionStyles.style(for: item.region).tint,
+                            shape: RoundedRectangle(cornerRadius: stylesheet.card.regular
+                                .cornerRadius),
+                        ))
                         // The card is the zoom source: tapping it expands the
                         // card into the pushed calendar (matched geometry). The
                         // configuration re-states the card's rounded shape and
@@ -202,6 +208,7 @@ struct LocationsView: View {
                         ) { source in
                             let card = stylesheet.card.regular
                             let tint = regionStyles.style(for: item.region).tint
+                            let elevation = card.transitionElevation(tint: tint)
                             return source
                                 .clipShape(
                                     RoundedRectangle(
@@ -210,13 +217,13 @@ struct LocationsView: View {
                                     ),
                                 )
                                 .shadow(
-                                    color: tint.opacity(card.glow.opacity),
-                                    radius: card.glow.radius,
+                                    color: elevation.glow.color,
+                                    radius: elevation.glow.radius,
                                 )
                                 .shadow(
-                                    color: tint.opacity(card.lift.opacity),
-                                    radius: card.lift.radius,
-                                    y: card.lift.offsetY,
+                                    color: elevation.lift.color,
+                                    radius: elevation.lift.radius,
+                                    y: elevation.lift.offsetY,
                                 )
                         }
                         .accessibilityHint(String(localized: .primaryCardCalendarHint))
@@ -239,7 +246,12 @@ struct LocationsView: View {
                     } label: {
                         ElsewhereSummaryCard(regions: report.ranking.secondary.map(\.region))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(CardSurfaceButtonStyle(
+                        surface: stylesheet.elsewhereCard.surface.treatment,
+                        tint: stylesheet.elsewhereCard.surface.ink,
+                        shape: RoundedRectangle(cornerRadius: stylesheet.elsewhereCard
+                            .cornerRadius),
+                    ))
                 }
             }
             .padding()
@@ -385,6 +397,19 @@ private struct ResolveToolbarLabel: View {
         /// Allow native glass adaptation and the background artwork to settle before capture.
         static var snapshots: [SnapshotCase] {
             artworkSnapshot(
+                name: "FlatLoaded",
+                report: PreviewSupport.loadedYearReportModel(),
+                configurations: .fullContentScreenDefaults,
+                theme: .alternate,
+            )
+            artworkSnapshot(
+                name: "FlatReduceTransparency",
+                report: PreviewSupport.loadedYearReportModel(),
+                configurations: .fullContentPhoneLightDark,
+                theme: .alternate,
+                reduceTransparency: true,
+            )
+            artworkSnapshot(
                 name: "Itinerary",
                 report: PreviewSupport.itineraryYearReportModel(),
                 configurations: .fullContentScreenDefaults,
@@ -467,12 +492,15 @@ private struct ResolveToolbarLabel: View {
             name: String,
             report: YearReportModel,
             configurations: [SnapshotConfiguration],
+            theme: WhereTheme = .standard,
+            reduceTransparency: Bool = false,
         ) -> SnapshotCase {
             let cache = RegionOutlinePathCache()
             let regions = LocationsBackgroundArtwork.regions(in: report.ranking)
             return whereSnapshot(
                 name: name,
                 configurations: configurations,
+                theme: theme,
                 measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
                 onReadyToSnapshot: {
@@ -487,6 +515,13 @@ private struct ResolveToolbarLabel: View {
             ) {
                 LocationsView(report: report)
                     .environment(\.regionOutlinePathCache, cache)
+                    .bTraitOverrides { traits, overrides in
+                        if reduceTransparency {
+                            var accessibility = traits.accessibility
+                            accessibility.isReduceTransparencyEnabled = true
+                            overrides.accessibility = accessibility
+                        }
+                    }
             }
         }
 

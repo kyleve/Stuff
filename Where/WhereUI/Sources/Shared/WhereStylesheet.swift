@@ -133,6 +133,11 @@ struct WhereStylesheet: BStylesheet {
             elsewhereCard.surface.paper = Color(white: 0.16)
             featureDiscovery.siri.accent = Color(white: 0.42)
         }
+
+        switch theme {
+            case .standard: break
+            case .alternate: applyFlatAppearance(traits: traits)
+        }
     }
 
     /// The fixed token set: the fallback used off the `View` tree (layout
@@ -165,6 +170,7 @@ extension WhereStylesheet {
 extension WhereStylesheet {
     /// Appearance and motion for the live-region welcome over Locations.
     struct LocationWelcomeStyle: Equatable {
+        var surface = SurfaceTreatment.reflective
         var maxWidth: CGFloat
         var cornerRadius: CGFloat
         var padding: CGFloat
@@ -185,6 +191,7 @@ extension WhereStylesheet {
         }
 
         struct Close: Equatable {
+            var surface = SurfaceTreatment.reflective
             var offset: CGSize
             var tintOpacity: Double
             var glow: Shadow
@@ -715,6 +722,8 @@ extension WhereStylesheet {
     /// `compact` flag across ~30 tokens. Non-varying generic spacing (the inner
     /// header/number stacks) still comes from ``Spacing``.
     struct CardStyle: Equatable {
+        var surface = SurfaceTreatment.reflective
+        var contentTint = TintAdjustment.unchanged
         /// Which card the stylesheet vends: the Locations cards use `.regular`,
         /// the Elsewhere list `.compact`.
         enum Variant {
@@ -1907,6 +1916,7 @@ extension WhereStylesheet {
 
         struct Surface: Equatable {
             var ink = Color(white: 0.36)
+            var treatment = SurfaceTreatment.reflective
             var paper = Color(white: 0.94)
             var usesOpaquePaper = false
             var glassTintOpacity: Double = 0.06
@@ -2337,8 +2347,9 @@ extension WhereStylesheet {
         )
     }
 
-    /// Appearance for the reflective privacy statement in Settings.
+    /// Appearance for the passport-style privacy statement in Settings.
     struct PrivacyPassportCardStyle: Equatable {
+        var surface = SurfaceTreatment.reflective
         var headerLayout = ContentLayout.inline
         var cornerRadius: CGFloat
         var padding: CGFloat
@@ -2587,7 +2598,7 @@ extension WhereStylesheet {
 
 /// The Where app's Broadway themes, seeded at the root by `whereBroadwayRoot()`.
 /// Carries the selected presentation identity independently from system traits.
-/// Both identities currently resolve through the same tokens.
+/// Standard uses reflective surfaces; the stable Alternate identity renders Flat.
 enum WhereThemes {
     static func current(theme: WhereTheme) -> BThemes {
         var themes = BThemes()

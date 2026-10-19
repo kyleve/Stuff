@@ -7,6 +7,6 @@ public enum WhereTheme: String, CaseIterable, Codable, Hashable, Sendable {
     /// Where's default presentation theme.
     case standard
 
-    /// A second presentation theme whose visual language may diverge later.
+    /// The Flat presentation theme. Its original raw value remains permanent.
     case alternate
 }

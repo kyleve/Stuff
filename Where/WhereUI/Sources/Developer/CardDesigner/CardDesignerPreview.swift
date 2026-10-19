@@ -13,6 +13,7 @@ import BroadwayUI
         let days: Int
         let year: Int
         let tilt: TiltProvider
+        @Environment(\.stylesheet) private var stylesheet
 
         var body: some View {
             GlassEffectContainer(spacing: 16) {
@@ -27,7 +28,11 @@ import BroadwayUI
                         styleOverride: previewStyle,
                     )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(CardSurfaceButtonStyle(
+                    surface: stylesheet.card[variant.style].surface,
+                    tint: previewStyle.tint,
+                    shape: RoundedRectangle(cornerRadius: configuration[variant].cornerRadius),
+                ))
             }
             .environment(\.cardDesignerConfiguration, configuration)
             .environment(\.colorScheme, colorScheme)
