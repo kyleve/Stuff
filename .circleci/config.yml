@@ -81,21 +81,6 @@ commands:
             mkdir -p "$CIRCLE_WORKING_DIRECTORY/<< parameters.test_workdir >>"
             chmod 700 "$CIRCLE_WORKING_DIRECTORY/<< parameters.test_workdir >>"
 
-  test_ci_helpers:
-    steps:
-      - run:
-          name: Install locked Ruby dependencies
-          command: BUNDLE_PATH=vendor/bundle BUNDLE_FROZEN=true mise exec -- bundle install
-      - run:
-          name: Test CI helpers
-          command: |
-            ./shellcheck
-            python3 .circleci/Tests/test_xcresult_to_junit.py
-            python3 .circleci/Tests/test_test_artifacts.py
-            python3 -m unittest discover -s Tools/Tests -p 'test_*.py'
-            mise exec -- ruby -I Tools/Tests -e 'Dir["Tools/Tests/**/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
-            ./snapshot-shards check
-
   validate_build_environment:
     steps:
       - run:
@@ -147,9 +132,6 @@ commands:
     parameters:
       test_workdir:
         type: string
-      run_ci_helper_tests:
-        type: boolean
-        default: true
       require_simulator:
         type: boolean
         default: true
@@ -181,10 +163,6 @@ commands:
             - ~/.local/share/mise/installs
       - configure_test_workdir:
           test_workdir: << parameters.test_workdir >>
-      - when:
-          condition: << parameters.run_ci_helper_tests >>
-          steps:
-            - test_ci_helpers
       - run:
           name: Generate project and resolve Swift packages
           command: |
@@ -373,15 +351,14 @@ jobs:
     steps:
       - prepare_builder:
           test_workdir: test-output-build
-      - run:
-          name: Test backup upgrader
-          command: mise exec -- ruby Where/Tools/Tests/upgrade_backup_test.rb
+      # GitHub's required format and macOS jobs own helper and host tests.
+      # Start the shared simulator build without waiting for those checks.
       - run_with_timeout:
           seconds: 2700
           command: >-
             ./test --everything
             --build-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
-            --no-generate --skip-architecture
+            --no-generate --skip-architecture --skip-host-tests
       - run:
           name: Validate changed snapshot inventory with Xcode
           command: |
@@ -429,7 +406,6 @@ jobs:
     steps:
       - prepare_builder:
           test_workdir: test-output-audience-build
-          run_ci_helper_tests: false
           require_simulator: false
       - run:
           name: Select Where audience

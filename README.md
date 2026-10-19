@@ -59,6 +59,13 @@ It streams progress while tests run:
 
 See `./test --help` for the rest, including `--timings` and `--review` for reading a snapshot run.
 
+GitHub Actions runs helper checks and host regression tests alongside the CircleCI iOS build.
+The CircleCI builder uses `--skip-host-tests` because the required macOS job runs the attribution, backup-upgrader, and macro tests.
+Normal local runs keep their default host checks.
+
+For a stacked branch, run the GitHub `CI` workflow manually.
+Run CircleCI with `manual_full_gate` on the same tip.
+
 CircleCI also compiles the `Where Beta` and `Where App Store` schemes on two
 build-only shards. These shards do not run tests or start a simulator.
 
