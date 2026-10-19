@@ -1,6 +1,8 @@
 name: App Install Site
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -31,20 +33,17 @@ jobs:
         with:
           ref: main
           persist-credentials: false
-      - uses: actions/checkout@v4
-        with:
-          ref: installer-update-feed
-          persist-credentials: false
-          path: .installer-update-feed
       - uses: jdx/mise-action@v3
         with:
           install_args: node
       - name: Install site dependencies
         run: mise exec node -- npm ci --prefix Tools/InstallerKit/Site
       - name: Prepare install pages, manifests, and catalog
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: >-
           python3 -m Tools.InstallerKit.installer_update_site
-          --catalog .installer-update-feed/updates.json
+          --published-catalog
           --repository "$GITHUB_REPOSITORY"
           --feed-url "$INSTALLER_FEED_URL"
           --output "$RUNNER_TEMP/installer-pages"

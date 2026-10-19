@@ -32,6 +32,10 @@ Guards: `signing_workflow_test.rb`, `signing_state_test.rb`, and `test_signing_p
 - Advertise updates only after GitHub publishes the verified IPA. Never overwrite a
   published asset. Deploy the catalog and exact-build manifests together.
   Retired channels must not publish install manifests. Retain their commit history.
+- Deploy the site independently of archive enablement and signing configuration.
+  If the publication branch is absent, serve an empty schema-3 catalog.
+  Fail deployment on unreadable or invalid catalogs, including a missing catalog on an existing branch.
+  Guards: `test_installer_update_feed.py` and `test_installer_update_site.py`.
 - Show only main installs on the homepage. Put PR builds under their app's page.
   Load site artwork from registered paths in the trusted checkout and publish it with the site.
   Read build details from the signed IPA; keep missing historical details explicit.
