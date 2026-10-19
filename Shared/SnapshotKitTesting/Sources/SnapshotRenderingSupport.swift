@@ -264,14 +264,14 @@ func settleForCapture(
 
         var pixelSaysStable = false
         if mechanism != .quiescence {
-            // Byte-exact on purpose — not the tolerance the final image compare
-            // uses. The final compare answers "does this match the reference?",
-            // where sub-pixel/gamut noise warrants a perceptual threshold. This
-            // loop answers a different question — "has rendering *stopped
-            // changing*?" — and the quarter-resolution sample already absorbs
-            // sub-pixel jitter, so exact equality is the right settled signal. A
-            // tolerance here would let a slow, still-drifting animation read as
-            // settled between adjacent samples.
+            // Settling currently requires byte equality. The final comparison
+            // permits perceptual differences from its saved reference. Sampling
+            // at 0.25 pixels per point reduces pixel work, but not all noise:
+            // CI traces contain one-unit changes that prevent this loop settling.
+            // A tolerant replacement must retain the fixed anchor and quiet
+            // window, so adjacent comparisons cannot hide cumulative drift.
+            // The final comparison's allowances are broader than the measured
+            // noise. See the settling-noise investigation in TODOs.md.
             if sample != nil, sample == anchorSample {
                 stablePasses += 1
             } else {
