@@ -591,7 +591,7 @@ or unauthenticated responses fail closed. Foreground reconciliation refreshes
 authority before starting recording. Cloud push refresh is added in the system
 integration slice of this stack.
 
-### Lost-phone recovery and backup format 7
+### Lost-phone recovery and backup format 8
 
 When the former phone cannot approve, review its current owner and choose whether
 to keep its later automatic observations. The server receipt supplies the cutoff.
@@ -607,7 +607,7 @@ An exclusion applies only to that ownership tenure at or after the server cutoff
 Raw observations remain stored. Manual entries and earlier tenures remain visible.
 An offline former phone stops when it next observes the replacement.
 
-Backup format 7 preserves sample tenures, recovery exclusions, and the required
+Backup format 8 preserves sample tenures, recovery exclusions, and the required
 compatibility version. It excludes live authority grants and installation consent.
 Merge and Replace retain the greater destination requirement. Unsupported versions
 fail before mutation. The external upgrader assigns version 1 to earlier archives.
