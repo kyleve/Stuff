@@ -173,7 +173,22 @@ case " $* " in
     ;;
 esac
 case " $* " in
-  *" build-for-testing "*) exit "${BUILD_STATUS:-0}" ;;
+  *" build-for-testing "*)
+    if [ "${BUILD_STATUS:-0}" -ne 0 ]; then exit "$BUILD_STATUS"; fi
+    derived_data=""
+    scheme=""
+    previous=""
+    for argument in "$@"; do
+      if [ "$previous" = "-derivedDataPath" ]; then derived_data="$argument"; fi
+      if [ "$previous" = "-scheme" ]; then scheme="$argument"; fi
+      previous="$argument"
+    done
+    if [ -n "$derived_data" ]; then
+      mkdir -p "$derived_data/Build/Products/Debug-iphonesimulator"
+      touch "$derived_data/Build/Products/${scheme}_fixture.xctestrun"
+    fi
+    exit 0
+    ;;
 esac
 result=""
 previous=""
@@ -226,6 +241,10 @@ exit "${TEST_STATUS:-0}"
             self.bin / "xcrun",
             """#!/bin/bash
 printf 'xcrun %s\\n' "$*" >>"$TOOL_LOG"
+if [ "$1" = xctest ]; then
+  printf 'Host macro tests\\n'
+  exit "${MACRO_TEST_STATUS:-0}"
+fi
 if [ "$*" = "--sdk iphonesimulator --show-sdk-build-version" ]; then
   printf 'fixture-sdk-build\\n'
   exit 0
@@ -280,6 +299,105 @@ class XcodeCommandContractTests(unittest.TestCase):
         self.assertIn(f"xcrun xctest {current}", fixture.command_log())
         self.assertNotIn(f"xcrun xctest {stale}", fixture.command_log())
         self.assertNotIn("xcodebuild ", fixture.command_log())
+        self.assertIn(
+            "ruby Shared/CreditKit/Tools/Tests/generate_attribution_test.rb",
+            fixture.command_log(),
+        )
+        self.assertIn(
+            "ruby Where/Tools/Tests/upgrade_backup_test.rb", fixture.command_log()
+        )
+
+    def test_host_regression_failure_fails_the_command(self):
+        fixture = self.fixture()
+
+        result = fixture.run(
+            "test", "--skip-architecture", "PeriscopeMacrosTests", MACRO_TEST_STATUS="47"
+        )
+
+        self.assertEqual(47, result.returncode, result.stdout + result.stderr)
+        self.assertIn("Failed (exit 47)", result.stdout)
+        self.assertIn(
+            "Host macro tests", (fixture.test_work / "PeriscopeMacrosTests.log").read_text()
+        )
+
+    def test_artifact_producer_can_delegate_host_checks_without_dropping_schemes(self):
+        for skip_host_tests, macro_status in ((False, 0), (False, 47), (True, 0)):
+            with self.subTest(skip_host_tests=skip_host_tests, macro_status=macro_status):
+                fixture = self.fixture()
+                artifacts = fixture.root / "ci test build"
+                arguments = [
+                    "--everything",
+                    "--skip-architecture",
+                    "--no-generate",
+                    "--build-artifacts",
+                    str(artifacts),
+                ]
+                if skip_host_tests:
+                    arguments.append("--skip-host-tests")
+
+                result = fixture.run(
+                    "test",
+                    *arguments,
+                    MISE_STATUS="127" if skip_host_tests else "0",
+                    MACRO_TEST_STATUS=str(macro_status),
+                )
+
+                self.assertEqual(macro_status, result.returncode, result.stdout + result.stderr)
+                manifest = json.loads((artifacts / "manifest.json").read_text())
+                self.assertEqual(
+                    {"Stuff-iOS-Tests", "StuffSnapshotTests"}, set(manifest["schemes"])
+                )
+                self.assertIn(
+                    "-destination generic/platform=iOS Simulator", fixture.command_log()
+                )
+                self.assertNotIn("test-without-building", fixture.command_log())
+                if skip_host_tests:
+                    self.assertNotIn("mise ", fixture.command_log())
+                    self.assertNotIn("xcrun xctest", fixture.command_log())
+                else:
+                    self.assertIn(
+                        "swift build --product PeriscopeMacrosTests", fixture.command_log()
+                    )
+                    self.assertIn("xcrun xctest", fixture.command_log())
+                    self.assertIn("generate_attribution_test.rb", fixture.command_log())
+
+    def test_unit_scope_keeps_host_regressions_unless_explicitly_delegated(self):
+        for skip_host_tests in (False, True):
+            with self.subTest(skip_host_tests=skip_host_tests):
+                fixture = self.fixture()
+                arguments = ["--all", "--skip-architecture", "--no-generate", "--no-build"]
+                if skip_host_tests:
+                    arguments.append("--skip-host-tests")
+
+                result = fixture.run(
+                    "test", *arguments, MISE_STATUS="127" if skip_host_tests else "0"
+                )
+
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                self.assertIn("test-without-building -workspace", fixture.command_log())
+                if skip_host_tests:
+                    self.assertNotIn("mise ", fixture.command_log())
+                    self.assertNotIn("xcrun xctest", fixture.command_log())
+                else:
+                    self.assertIn("generate_attribution_test.rb", fixture.command_log())
+                    self.assertIn("upgrade_backup_test.rb", fixture.command_log())
+                    self.assertIn("xcrun xctest", fixture.command_log())
+
+    def test_explicit_macro_selection_rejects_disabled_host_tests_before_tools(self):
+        for arguments in (
+            ("--skip-host-tests", "PeriscopeMacrosTests"),
+            ("--test-artifacts", "unused", "PeriscopeMacrosTests"),
+        ):
+            with self.subTest(arguments=arguments):
+                fixture = self.fixture()
+
+                result = fixture.run("test", *arguments)
+
+                self.assertEqual(1, result.returncode)
+                self.assertIn(
+                    "PeriscopeMacrosTests requires host tests to be enabled", result.stderr
+                )
+                self.assertEqual("", fixture.command_log())
 
     def test_macro_suite_rejects_missing_current_bundle_even_if_stale_bundle_exists(self):
         fixture = self.fixture()
@@ -328,7 +446,7 @@ class XcodeCommandContractTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertNotIn("xcodebuild -version", fixture.command_log())
 
-    def test_artifact_consumer_skips_host_checks_owned_by_builder(self):
+    def test_artifact_consumer_skips_host_checks_owned_by_a_separate_invocation(self):
         fixture = self.fixture()
         artifacts = fixture.test_artifacts("Stuff-iOS-Tests")
 
