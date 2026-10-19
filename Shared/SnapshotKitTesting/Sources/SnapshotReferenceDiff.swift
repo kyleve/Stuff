@@ -58,31 +58,6 @@ import UIKit
     case incomparable(reason: String)
 }
 
-/// Where swift-snapshot-testing keeps the reference for a capture.
-///
-/// This mirrors the library's own layout — `__Snapshots__/<test file base
-/// name>/<test function>.<identifier>.png`, alongside the test source — because
-/// nothing public exposes it. That makes it a coupling worth stating: if a
-/// library update moves references, this returns
-/// ``SnapshotReferenceComparison/referenceMissing(_:)`` for every capture rather
-/// than silently reporting no differences, and `SnapshotReferenceDiffTests` pins
-/// the shape against a real reference in this repo.
-@_spi(Testing) public func snapshotReferenceURL(
-    testFilePath: String,
-    testName: String,
-    identifier: String,
-) -> URL {
-    let testFile = URL(fileURLWithPath: testFilePath)
-    // The library strips a trailing `()` from `#function`, so `year()` and the
-    // `year` directory component agree.
-    let function = testName.hasSuffix("()") ? String(testName.dropLast(2)) : testName
-    return testFile
-        .deletingLastPathComponent()
-        .appendingPathComponent("__Snapshots__")
-        .appendingPathComponent(testFile.deletingPathExtension().lastPathComponent)
-        .appendingPathComponent("\(function).\(identifier).png")
-}
-
 /// Compares `capturedPNG` against the reference at `referenceURL`.
 ///
 /// Byte equality is checked first and short-circuits: it is the common case when

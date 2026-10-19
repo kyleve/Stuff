@@ -20,6 +20,9 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 
 ## Invariants an agent can't re-derive
 
+- **Use `snapshotReferenceURL` for recording, comparison, and review paths.** Keep filenames stable when the directory changes.
+- **Nest standard captures with non-default Dynamic Type, increased contrast, RTL, or bold text under the suite's `other/` directory.**
+- **Keep all accessibility annotations at the suite root, even with those traits.** Device, frame, name, and light/dark appearance do not select `other/`. Guard: `SnapshotReferenceURLTests`.
 - **The rendering pipeline is one async function.** All captures (standard and accessibility) flow through `renderSnapshotImage(...)`.
 - **The hosted PNG API uses the same pipeline and capture lock.** It returns bytes and dimensions without comparing a reference.
 - **HTML snapshots wrap offline WebKit in the standard view pipeline.** Use its host, traits, capture lock, and pixel renderer. Await navigation, fonts, paint, and full-content height convergence from the pre-measure hook. Keep consumer HTML generation outside this module. Guards: `AssertHTMLSnapshotsTests`, `SnapshotWebPageTests`.
@@ -57,6 +60,10 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Report one clear issue, never hundreds of pixel diffs.**
 - **An unsettled capture is a failure, not a silent fallback.**
 - **Freeze endless motion behind `\.isCapturingSnapshot`.** Use deterministic readiness or `.settledAtLeast` for finite work.
+- **Compare settle samples in normalized 8-bit, premultiplied sRGB RGBA.** Allow at most one unit per channel, with no area exemption.
+- **Keep the anchor fixed through the quiet window.** A larger difference, changed dimensions, or missing sample resets the proof.
+- **Require two matching passes across at least 120 ms and preserve the case's minimum duration.** Never reuse final-reference tolerances for settling.
+- **Guards: `SnapshotPixelStabilityTests` and `SnapshotRenderingSupportTests`.** Keep the cumulative-fade and single-pixel motion guards when changing the allowance.
 - **The explicit CI multiplier may scale only maximum settle/hook ceilings.** Never scale the floor, quiet proof, cadence, or image tolerance.
 - **Guards: `SnapshotSettleTimeoutPolicyTests` and `SnapshotRenderingSupportTests`.**
 - **A settled capture is not a ready capture.** The loop proves the pixels stopped changing, not that intended content arrived.
@@ -76,7 +83,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Intrinsic/full-content cases await `onReadyToMeasure` only after the sizing probe is hosted and laid out.** Then they settle and resolve height.
 - **The hook is bounded by the effective settle ceiling unless an explicit timeout overrides it.** Scale either ceiling with the CI multiplier. Preserve thrown errors, skip failed captures, and require cancellation cooperation. Reject hooks for fixed sizing.
 - **Guards: `PreMeasureHookTests` and `SnapshotMeasurementHookTests`.**
-- **`.timedOut` requires observed motion.** Starvation is `.starved`.
+- **`.timedOut` requires observed motion beyond the settle allowance.** Starvation is `.starved`.
 - **A change-free settle loop keeps running until it can prove stability.** A starved machine can fit fewer passes than stability needs.
 - **Only a hard cap gives up as `.starved`.** That is an environment failure, not view motion.
 - **Guard: `SnapshotRenderingSupportTests`.**
