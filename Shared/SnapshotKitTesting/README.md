@@ -255,6 +255,22 @@ the quiet-window proof, render cadence, or image tolerances, so stable captures
 finish at the same point. Local runs leave it unset (1×). snapshot CI explicitly
 uses 2×. `./test` forwards it into the hosted test process.
 
+## Retries after settling failures
+
+`assertSnapshots` allows three attempts per configuration when settling times out
+or cannot prove stability on a slow runner. Each retry starts after capture
+cleanup, with a fresh host controller and the same timeout budget. Measurement,
+readiness hooks, and final capture run again. Supplied views and external model
+objects remain shared. Readiness hooks must tolerate repeated execution.
+
+After three settling failures, the runner records the final error. Cancellation
+stops immediately. Other rendering errors and reference mismatches fail without
+retries. Direct image and PNG capture APIs remain single-attempt operations.
+
+`SNAPSHOT_RETRY` lines identify failed attempts and successful recovery. `./test`
+shows these lines without adding to test or image counts. A successful capture
+emits one timing line that includes time spent on failed attempts.
+
 ## Requirements
 
 - Runs in a hosted test bundle (needs a host app window. in this repo that's

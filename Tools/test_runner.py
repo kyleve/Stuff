@@ -137,7 +137,7 @@ class ProgressReporter:
     TEST_STARTED = re.compile(r"^◇\s+Test (?!run\b)(\S+?) started")
     TEST_DONE = re.compile(r"^[✔✘]\s+Test (?!run\b)(\S+?) (passed|failed) after")
     INTERESTING = re.compile(
-        r"does not match reference|^error:|Failure collecting|"
+        r"does not match reference|^error:|Failure collecting|^SNAPSHOT_RETRY |"
         r"\*\* TEST (SUCCEEDED|FAILED) \*\*"
     )
 
