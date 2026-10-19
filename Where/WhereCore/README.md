@@ -207,10 +207,14 @@ one it belongs to rather than to a god-object:
   Both endpoints need independent nearby observations from the same recording device.
   The search spans intervening fixes and stops at confirmed ground episodes.
   Recognition accepts up to 1 km horizontal uncertainty; observed cruise and point corrections retain the 250 m limit.
-  The uncertainty-adjusted distance must reach 300 km, with an average speed of 450–1,500 km/h.
+  Travel must span at least five minutes, with an uncertainty-adjusted average speed of 450–1,500 km/h.
+  Speed comes from the distance and elapsed time between positions, including both endpoints' uncertainty.
   The gap must not exceed 18 hours. Each supporting observation must be within 30 minutes and 100 km of its endpoint.
+  It must also be closer to its own endpoint than the opposite endpoint after uncertainty is included.
+  This prevents alternating short GPS jumps from corroborating one another.
 
   Conflicting dense callbacks veto this inference. Reported speed and altitude are not required.
+  Stationary speed readings at the endpoints do not describe the travel between them.
   This evidence joins observed cruise segments before arrival and trip boundaries are resolved.
   It establishes flight history without classifying the gap or its endpoints as airborne.
   Automatic point exclusions still require observed cruise evidence. Explicit reviewed point decisions remain available after confirmed arrival.

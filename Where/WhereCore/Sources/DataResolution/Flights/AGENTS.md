@@ -10,6 +10,8 @@ and [repository rules](../../../../../AGENTS.md) also apply.
 - Keep later flight observations out of older pending assessments.
 - Keep recording gaps out of observed legs and automatic point exclusions.
   Corroborated displacement can establish a trip. Require independent nearby observations at both endpoints.
+  Derive travel speed from positional distance and elapsed time, accounting for both endpoints' uncertainty.
+  Reported speed alone cannot establish flight. Require support to favor its own endpoint beyond positional uncertainty.
   Search bounded windows across consistent intervening fixes. Stop at confirmed ground episodes.
   Keep recognition accuracy separate from correction eligibility.
   Preserve ground endpoints. Guard: `FlightDisplacementInferenceTests` and `FlightTrajectoryAnalyzerTests`.

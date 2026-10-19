@@ -97,9 +97,8 @@ enum FlightDisplacementInference {
         let seconds = destination.timestamp.timeIntervalSince(departure.timestamp)
         let distance = departure.coordinate.distance(to: destination.coordinate)
         let uncertainty = departure.horizontalAccuracy + destination.horizontalAccuracy
-        return seconds >= Trajectory.minimumAnchorInterval
+        return seconds >= Displacement.minimumTravelDuration
             && seconds <= Trajectory.maximumCorroboratingGap
-            && distance - uncertainty >= Displacement.minimumDistanceMeters
             && (distance - uncertainty) / seconds * 3.6 >= Trajectory.minimumCruiseSpeedKMH
             && (distance + uncertainty) / seconds * 3.6 <= Trajectory.maximumPlausibleSpeedKMH
     }
@@ -114,8 +113,9 @@ enum FlightDisplacementInference {
     ) -> Bool {
         guard Set([previous.id, departure.id, destination.id, next.id]).count == 4,
               qualifies(from: departure, to: destination),
-              corroborates(previous, endpoint: departure),
-              corroborates(next, endpoint: destination) else { return false }
+              corroborates(previous, endpoint: departure, oppositeEndpoint: destination),
+              corroborates(next, endpoint: destination, oppositeEndpoint: departure)
+        else { return false }
 
         // A lone remote fix or an immediate return cannot corroborate a destination.
         // Dense callbacks also retain their veto: anchor thinning must not hide a
@@ -136,6 +136,21 @@ enum FlightDisplacementInference {
             + sample.horizontalAccuracy + endpoint.horizontalAccuracy
             <= Displacement.maximumSupportDistanceMeters
             && isPlausible(sample, relativeTo: endpoint)
+    }
+
+    private static func corroborates(
+        _ sample: LocationSample,
+        endpoint: LocationSample,
+        oppositeEndpoint: LocationSample,
+    ) -> Bool {
+        // The absolute support radius can span both ends of a short journey.
+        // Require unambiguous support for this end so alternating GPS jumps
+        // cannot corroborate one another, even at a plausible travel speed.
+        let ownUpperDistance = sample.coordinate.distance(to: endpoint.coordinate)
+            + sample.horizontalAccuracy + endpoint.horizontalAccuracy
+        let oppositeLowerDistance = sample.coordinate.distance(to: oppositeEndpoint.coordinate)
+            - sample.horizontalAccuracy - oppositeEndpoint.horizontalAccuracy
+        return ownUpperDistance < oppositeLowerDistance && corroborates(sample, endpoint: endpoint)
     }
 
     private static func isPlausible(

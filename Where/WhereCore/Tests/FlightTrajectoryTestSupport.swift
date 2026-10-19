@@ -142,6 +142,17 @@ enum FlightTrajectoryFixtures {
         ]
     }
 
+    /// A 200 km flight whose only observations are stationary at either end.
+    static func shortSparseFlight() -> [LocationSample] {
+        [
+            sample(1, minutes: 0, east: 0),
+            sample(2, minutes: 5, east: 0),
+            sample(3, minutes: 25, east: 200),
+            sample(4, minutes: 30, east: 200),
+            sample(5, minutes: 35, east: 200),
+        ]
+    }
+
     /// A ten-hour flight with dense callbacks and observed arrival dwell.
     static func denseFlight(cruiseSampleCount: Int) -> [LocationSample] {
         (0 ..< cruiseSampleCount).map { index in

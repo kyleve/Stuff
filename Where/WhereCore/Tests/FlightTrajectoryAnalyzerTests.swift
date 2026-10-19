@@ -92,6 +92,92 @@ struct FlightTrajectoryAnalyzerTests {
         #expect(analyzer.analyze(samples: samples + samples, now: samples[4].timestamp) == flights)
     }
 
+    @Test(arguments: [nil, 0.0] as [Double?])
+    func shortSparseFlightUsesCalculatedSpeedAndPreservesGroundPoints(
+        reportedSpeed: Double?,
+    ) throws {
+        let motion = reportedSpeed.map {
+            LocationMotion(
+                speed: .init(metersPerSecond: $0, accuracyMetersPerSecond: 1),
+                altitude: nil,
+            )
+        }
+        let samples = Fixtures.shortSparseFlight().map { Fixtures.replacing($0, motion: motion) }
+        let flights = analyzer.analyze(samples: samples, now: samples[4].timestamp)
+        try #require(flights.count == 1)
+        let flight = flights[0]
+        #expect(flight.isPending == false)
+        #expect(flight.startedAt == samples[1].timestamp)
+        #expect(flight.lastObservationAt == samples[4].timestamp)
+        #expect(flight.peakSpeedKMH > 599 && flight.peakSpeedKMH < 601)
+        #expect(flight.airborneSampleIDs.isEmpty)
+        #expect(flight.inferredEndpoints.isEmpty)
+        #expect(flight.groundSampleIDs == Set(samples[2 ... 4].map(\.id)))
+        #expect(analyzer
+            .analyze(samples: samples + samples.reversed(), now: samples[4].timestamp) == flights)
+
+        // A coarse midpoint can corroborate travel without authorizing point exclusions.
+        let midpoint = Fixtures.sample(100, minutes: 15, east: 100, accuracy: 1000)
+        let withMidpoint = analyzer.analyze(
+            samples: samples + [midpoint],
+            now: samples[4].timestamp,
+        )
+        try #require(withMidpoint.count == 1)
+        #expect(withMidpoint[0].isPending == false)
+        #expect(withMidpoint[0].airborneSampleIDs.isEmpty)
+        #expect(withMidpoint[0].inferredEndpoints.isEmpty)
+        #expect(withMidpoint[0].groundSampleIDs == flight.groundSampleIDs)
+    }
+
+    @Test(arguments: [0.0, 25.0])
+    func reportedFlightSpeedCannotReplacePositionalTravel(distanceKM: Double) {
+        let motion = LocationMotion(
+            speed: .init(metersPerSecond: 250, accuracyMetersPerSecond: 1),
+            altitude: nil,
+        )
+        let samples = (0 ..< 5).map { index in
+            Fixtures.sample(
+                index + 1,
+                minutes: Double(index) * 5,
+                east: Double(index) * distanceKM,
+                motion: motion,
+            )
+        }
+        #expect(analyzer.analyze(samples: samples, now: samples[4].timestamp).isEmpty)
+    }
+
+    @Test func briefClusteredErrorsAndAlternatingJumpsCannotEstablishFlight() {
+        let clustered = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 5, east: 0),
+            Fixtures.sample(3, minutes: 6.5, east: 20),
+            Fixtures.sample(4, minutes: 7.5, east: 20),
+            Fixtures.sample(5, minutes: 8.5, east: 20),
+            Fixtures.sample(6, minutes: 10, east: 0),
+            Fixtures.sample(7, minutes: 15, east: 0),
+        ]
+        let alternating = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 5, east: 50),
+            Fixtures.sample(3, minutes: 10, east: 0),
+            Fixtures.sample(4, minutes: 15, east: 50),
+        ]
+        #expect(analyzer.analyze(samples: clustered, now: Fixtures.date(minutes: 20)).isEmpty)
+        #expect(analyzer.analyze(samples: alternating, now: Fixtures.date(minutes: 20)).isEmpty)
+    }
+
+    @Test func observedCruiseStillRecognizesJourneysBelowTheSparseDurationLimit() throws {
+        let samples = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 2, east: 30),
+            Fixtures.sample(3, minutes: 4, east: 60),
+        ]
+        let flights = analyzer.analyze(samples: samples, now: samples[2].timestamp)
+        try #require(flights.count == 1)
+        #expect(flights[0].isPending)
+        #expect(flights[0].airborneSampleIDs == [samples[1].id])
+    }
+
     @Test func sparseTravelWaitsForCorroborationThenObservedArrival() throws {
         let samples = Fixtures.sparseFlight()
         #expect(analyzer.analyze(samples: samples, now: samples[2].timestamp).isEmpty)

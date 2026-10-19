@@ -36,8 +36,9 @@ enum GPSCorrectionPolicy {
     enum Displacement {
         /// Coarse positions may establish a large journey, never point exclusions.
         static let maximumHorizontalAccuracyMeters = 1000.0
-        /// Require a substantial journey before two positions can establish flight.
-        static let minimumDistanceMeters = 300_000.0
+        /// Require five minutes between supported endpoints to reject brief GPS jumps.
+        /// Shorter journeys need observed cruise rather than sparse displacement.
+        static let minimumTravelDuration: TimeInterval = 5 * 60
         /// Independent nearby fixes must corroborate both ends of the journey.
         static let maximumSupportInterval: TimeInterval = 30 * 60
         static let maximumSupportDistanceMeters = 100_000.0
