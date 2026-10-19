@@ -148,8 +148,9 @@ own tests can't do this job. A test bundle can't read `Package.swift`.
 
 ## Architecture lint
 
-Bumper Bowling enforces the production Where module graph, LedgerCore's
-Periscope dependency, and selected source-level invariants. Classified logging
+Bumper Bowling enforces the production Where module graph, the shared
+InstallerKit/InstallerKitUI boundaries, LedgerCore's Periscope dependency,
+and selected source-level invariants. Classified logging
 authoring rules also cover the Periscope and consumer source/test paths. The entry point is
 [`BumperBowling.swift`](BumperBowling.swift). Repository-owned shapes and rules
 live in [`.bumper/Sources`](.bumper/Sources). [`.bumper/RULES.md`](.bumper/RULES.md) is the rule catalog.
