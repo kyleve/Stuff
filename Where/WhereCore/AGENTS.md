@@ -133,8 +133,12 @@ internal shape.
   assessment and review retain raw observations. Pin live attribution to the
   tracked set in the same store snapshot.
 - **Read related year projections from one samples snapshot.** Use
-  `ReportReader.yearReportDetails(for:primaryRegionCount:)` for the scene's
-  report and primary-region locations.
+  `ReportReader.yearReportDetails(for:)` for the scene's report, configured
+  primary set, primary-region locations, and Elsewhere evidence.
+- **Elsewhere is a read-only projection.** `ElsewhereResolver` expands ordinary
+  Other coordinates against the catalog on its actor. Preserve explicit sample
+  corrections and manual assertions. Never write inferred names back to reports,
+  calendars, or widget totals. Load full-catalog geometry only on demand.
 - **`LocationSource` abstracts GPS.** `CoreLocationSource` runs in production.
   `ScriptedLocationSource` runs in tests/previews. `requestCurrentLocation()`
   returns a typed, nonthrowing outcome and coalesces concurrent waiters without

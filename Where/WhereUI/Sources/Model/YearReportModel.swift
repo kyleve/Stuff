@@ -562,7 +562,6 @@ public final class YearReportModel {
         do {
             let details = try await services.reports.yearReportDetails(
                 for: requestedYear,
-                primaryRegionCount: RegionRanking.primaryCount,
             )
             guard requestedYear == selectedYear, requestedLifecycle == lifecycleRevision,
                   !Task.isCancelled else { return }

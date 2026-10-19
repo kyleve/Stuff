@@ -6,7 +6,7 @@ import RegionKit
 import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
-import WhereCore
+@_spi(Testing) import WhereCore
 
 /// The logged-in tab bar — the launch *destination* once the runner reaches
 /// `.ready`, not a launch step. Owns the scene-scoped ``YearReportModel`` as
@@ -291,6 +291,7 @@ struct MainTabs: View {
             let report = YearReportModel(
                 services: session.services,
                 details: YearReportDetails(
+                    primaryRegions: [.california, .newYork],
                     report: YearReport(year: PreviewSupport.year, days: [], totals: [:]),
                     primaryRegionLocations: [:],
                 ),

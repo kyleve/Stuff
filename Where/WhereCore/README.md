@@ -103,12 +103,16 @@ one it belongs to rather than to a god-object:
 ### Reads & aggregation
 
 - **`ReportReader`** — the pure read path: `yearReport(for:)`, the one-read
-  `yearReportDetails(for:primaryRegionCount:)` bundle used by the scene, the
+  `yearReportDetails(for:)` bundle used by the scene, the
   year's raw manual entries `manualDays(inYear:)`, single- or multi-region
   `locations(in:year:)` projections, and `representativeCoordinates(for:)`.
-  `YearReportDetails` keeps the aggregate report and its primary-region effective
-  locations on the same samples snapshot, including location-only changes that
-  do not alter day totals.
+  `YearReportDetails` keeps the aggregate report, configured primary set, effective
+  locations, and `ElsewhereInput` on one store snapshot. Its identity includes
+  location-only changes that do not alter day totals.
+- **`ElsewhereResolver`** — an injected actor that lazily resolves ordinary Other
+  coordinates against the existing catalog. Its `ElsewhereReport` keeps distinct
+  days and map points together. Explicit corrections and manual assertions win.
+  The projection does not change stored data, annual reports, or widget totals.
 - **`YearReport` / `YearReportDetails` / `DayPresence` /
   `RegionDayLocations`** — the aggregated, snapshot-stable value types the UI
   renders, each keyed by a
@@ -357,10 +361,10 @@ let services = try await WhereServices.make(
 let report = try await services.reports.yearReport(for: 2026)
 
 // Read the scene's aggregate and primary-region recorded fixes together.
-let details = try await services.reports.yearReportDetails(
-    for: 2026,
-    primaryRegionCount: 2,
-)
+let details = try await services.reports.yearReportDetails(for: 2026)
+
+// Resolve named non-primary visits when the Elsewhere tab needs them.
+let elsewhere = try await services.elsewhere.resolve(details.elsewhereInput)
 
 // Write a manual day (the caller supplies the ManualEntryAudit); the journal
 // commits, then reconciles reminders + widgets.

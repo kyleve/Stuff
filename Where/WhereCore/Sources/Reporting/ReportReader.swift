@@ -55,7 +55,6 @@ public struct ReportReader: Sendable {
     /// value as their refresh identity rather than inventing a change counter.
     public func yearReportDetails(
         for year: Int,
-        primaryRegionCount: Int,
     ) async throws -> YearReportDetails {
         try await Self.logger.measure(.yearReportDetails, budget: .seconds(1)) {
             try await store.readSnapshot {
@@ -69,16 +68,19 @@ public struct ReportReader: Sendable {
                     history: projection.samples,
                     manualDays: manuals,
                 )
-                let primaryRegions = Set(Region.primaryRegions(
-                    in: report.totals,
-                    count: primaryRegionCount,
-                ))
+                let primaryRegions = try await store.trackedRegions()
                 let locations = aggregator.locations(
                     in: primaryRegions,
                     history: projection.samples,
                 )
                 return YearReportDetails(
-                    report: report,
+                    elsewhereInput: ElsewhereInput(
+                        report: report,
+                        primaryRegions: primaryRegions,
+                        history: projection,
+                        manualDays: manuals,
+                        calendar: aggregator.calendar,
+                    ),
                     primaryRegionLocations: locations,
                 )
             }

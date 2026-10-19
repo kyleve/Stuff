@@ -382,6 +382,7 @@
             let model = YearReportModel(
                 services: previewServices(),
                 details: YearReportDetails(
+                    primaryRegions: [.california, .newYork],
                     report: YearReport(
                         year: completeReport.year,
                         days: recordedDays,
@@ -461,6 +462,7 @@
         /// in production, built synchronously for previews and image tests.
         public static func sampleYearReportDetails() -> YearReportDetails {
             YearReportDetails(
+                primaryRegions: [.california, .newYork],
                 report: sampleReport(),
                 primaryRegionLocations: sampleRegionLocations(),
             )
@@ -548,6 +550,7 @@
             YearReportModel(
                 services: previewServices(),
                 details: YearReportDetails(
+                    primaryRegions: [.california, .newYork],
                     report: YearReport(year: year, days: [], totals: [:]),
                     primaryRegionLocations: [:],
                 ),
@@ -559,7 +562,7 @@
 
         /// A report model whose only tracked days are in `.other` — there's data,
         /// but nothing ranks as "primary". Exercises the Primary tab's distinct
-        /// "nothing in your headline spots" state.
+        /// "no days in your primary regions" state.
         @MainActor
         public static func elsewhereOnlyYearReportModel() -> YearReportModel {
             var calendar = Calendar(identifier: .gregorian)
@@ -575,6 +578,7 @@
             return YearReportModel(
                 services: previewServices(),
                 details: YearReportDetails(
+                    primaryRegions: [.california, .newYork],
                     report: YearReport(year: year, days: days, totals: [.other: days.count]),
                     primaryRegionLocations: [:],
                 ),
@@ -606,6 +610,7 @@
             return YearReportModel(
                 services: previewServices(),
                 details: YearReportDetails(
+                    primaryRegions: [.california, .newYork],
                     report: YearReport(
                         year: year,
                         days: days,

@@ -917,6 +917,10 @@ struct YearReportModelTests {
     }
 
     private static func details(_ report: YearReport) -> YearReportDetails {
-        YearReportDetails(report: report, primaryRegionLocations: [:])
+        YearReportDetails(
+            primaryRegions: [.california, .newYork],
+            report: report,
+            primaryRegionLocations: [:],
+        )
     }
 }

@@ -18,6 +18,7 @@ struct PrimaryRegionLocationsTests {
             horizontalAccuracy: 30,
         )
         let details = YearReportDetails(
+            primaryRegions: [.california, .newYork],
             report: YearReport(
                 year: 2026,
                 days: [
