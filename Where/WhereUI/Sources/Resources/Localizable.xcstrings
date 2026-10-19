@@ -11388,6 +11388,94 @@
         }
       }
     },
+    "updates.appName" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where Dev"
+          }
+        }
+      }
+    },
+    "updates.available" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update available"
+          }
+        }
+      }
+    },
+    "updates.changes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changes Since Your Build"
+          }
+        }
+      }
+    },
+    "updates.check" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check for Updates"
+          }
+        }
+      }
+    },
+    "updates.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "update,install,build,version,commit,release,channel"
+          }
+        }
+      }
+    },
+    "updates.retiredTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This build channel has closed"
+          }
+        }
+      }
+    },
+    "updates.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your travel history, day by day."
+          }
+        }
+      }
+    },
+    "updates.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App Updates"
+          }
+        }
+      }
+    },
     "widget.today.accessibility.label" : {
       "comment" : "Accessibility label for a Today widget, including its localized month and day.",
       "extractionState" : "manual",

@@ -6,6 +6,8 @@ These rules also apply when changing a root command or installer that calls this
 
 ## Ownership
 
+- Use `Tools.repository.repository_root` (Python) or `Repository.root` from `Tools/repository.rb` (Ruby) for checkout resources. Resolve from the source file, not the current directory or a fixed parent count.
+
 - Keep public arguments, bootstrap, and process orchestration in the command wrapper.
   Keep parsing and policy in importable modules with direct tests.
   Preserve each command's failure policy when sharing parsers.
@@ -41,9 +43,10 @@ Shared installer tools have scoped rules in [`InstallerKit/AGENTS.md`](Installer
 
 ## Install-site snapshots
 
-- Generate the HTML fixtures from `installer_update_site.render_site` during each
-  `ToolsSnapshotTests` build. Keep fixture catalogs deterministic and offline.
-  Inline the generated artwork bytes in those fixtures without changing the rendered layout.
+- Generate the HTML fixtures through `installer_update_site.render_site` and the production
+  [Astro project](InstallerSite/AGENTS.md) during each `ToolsSnapshotTests` build.
+  Keep fixture catalogs deterministic and offline. Install dependencies before the build.
+  Inline the generated CSS and artwork in those fixtures without changing the rendered layout.
   Do not copy generated HTML into the test sources.
 - Capture through `SnapshotKitTesting.assertHTMLSnapshots` in the shared
   `StuffSnapshotTests` scheme. Keep WebKit capture mechanics in SnapshotKitTesting.

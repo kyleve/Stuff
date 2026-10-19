@@ -1,4 +1,5 @@
 import Foundation
+import InstallerKit
 import PeriscopeCore
 
 /// Which build of the app is running: the marketing version, the build number,
@@ -61,6 +62,8 @@ public struct BuildInfo: Sendable, Equatable {
     public let commit: Commit?
     /// The stamped compiler settings, or `nil` in an unstamped bundle.
     public let compilation: Compilation?
+    /// Local or published installer identity, present only in configured Development builds.
+    public let distribution: InstalledBuild?
 
     /// Reads the build metadata out of `bundle`. Pass `.main` from the app; the
     /// bundle is explicit (no default) so a caller can't accidentally read the
@@ -80,6 +83,8 @@ public struct BuildInfo: Sendable, Equatable {
         build = Self.value(for: .build, in: infoDictionary)
         commit = Self.commit(from: infoDictionary)
         compilation = Self.compilation(from: infoDictionary)
+        distribution = infoDictionary["WhereAudience"] == "development"
+            ? InstalledBuild(infoDictionary: infoDictionary) : nil
     }
 
     private static func commit(from info: [String: String]) -> Commit? {

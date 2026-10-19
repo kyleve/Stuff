@@ -7,7 +7,14 @@ The [tooling rules](../AGENTS.md) and [repository rules](../../AGENTS.md) also a
 Keep these modules private to the repository.
 Use qualified imports under `Tools.InstallerKit` and run commands with `python3 -m` from the repository root.
 Use `Tools.repository.repository_root` for checkout resources.
-Where-specific profile policy and the archive command remain in `Tools/where_signing.py` and `Where/archive`.
+Shared signing policy lives in `signing_profiles.py`; `signing_workflow.rb` orchestrates Match and Gym.
+`.github/installer-signing-apps.json` in the trusted checkout selects schemes and targets. Derive bundle IDs from generated build settings.
+Keep maintenance local and archives read-only. Never load a selected PR's Fastfile or Gemfile.
+Enable expired-certificate renewal for local maintenance only; disable it explicitly for archives.
+CI signing uses an isolated runner with an empty profile directory and a dedicated read-only deploy key.
+Never include raw `security` output or arguments in failure messages. Guard: `SigningStateTest.test_security_failure_never_reports_arguments_or_output`.
+Keep temporary keychain/profile ownership in `signing_state.rb`, including partial-failure cleanup.
+Guards: `signing_workflow_test.rb`, `signing_state_test.rb`, and `test_signing_profiles.py` under `Tools/Tests`.
 
 ## Publication
 

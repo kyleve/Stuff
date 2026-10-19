@@ -1,0 +1,11 @@
+---
+import Symbol from './Symbol.astro';
+interface Props { title: string; message: string }
+const { title, message } = Astro.props;
+---
+<section class="empty-state">
+  <Symbol name="apps" size={36}/>
+  <h2>{title}</h2>
+  <p>{message}</p>
+  <slot/>
+</section>

@@ -27,14 +27,17 @@ device-selection, and app-install policies are likewise tested with temporary
 catalogs and captured command output rather than tracked assets, devices, or
 `/Applications`.
 
-`where_signing.py` validates Where's ad hoc profiles and generates export settings.
-`repository.repository_root` finds a tool's checkout through its nearest `.git` directory or worktree file.
+`InstallerKit/signing_profiles.py` validates registered apps' ad hoc profiles and generates export settings.
+`repository.repository_root` (Python) and `Repository.root` in `repository.rb` (Ruby) find a tool's checkout through its nearest `.git` directory or worktree file.
 Use it for checkout-relative resources instead of fixed parent-directory counts.
-`Where/archive` owns the Xcode processes.
+`./signing` calls the shared Fastlane workflow for local maintenance and read-only archives.
+`Where/archive` is its Where-specific convenience wrapper.
+`Gemfile.lock` pins Fastlane and its transitive dependencies, isolated in ignored `vendor/bundle/`. Run `./ide --install --no-open` to install them.
 [`InstallerKit/`](InstallerKit/README.md) owns shared app registration, publication, build stamping, and install-site generation.
 Its private Python modules use qualified imports under `Tools.InstallerKit`.
 Run their commands from the repository root with `python3 -m Tools.InstallerKit.<module>`.
 Tests use the same module imports without changing Python's search path.
+The [Astro project](InstallerKit/Site/README.md) owns routes, components, and styles.
 [Where's distribution guide](../Where/DISTRIBUTION.md) owns its signing setup and device validation.
 
 ## Snapshot shard policy
@@ -52,6 +55,12 @@ owns sample selection and publication.
 
 ## Testing
 
+Install the site dependencies before the retained installer tests or snapshot builds:
+
+```bash
+mise exec -- npm ci --prefix Tools/InstallerKit/Site
+```
+
 ```bash
 python3 -m unittest discover -s Tools/Tests -p 'test_*.py'
 mise exec -- ruby -I Tools/Tests -e 'Dir["Tools/Tests/**/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
@@ -68,9 +77,9 @@ The install site's image tests run on the pinned iOS simulator:
 ```
 
 Each build runs [the fixture generator](Tests/Fixtures/installer_update_site_snapshots.py)
-against the production renderer. The bundle loads those pages in offline
+against the production Astro build. The bundle loads those pages in offline
 `WKWebView` instances through `SnapshotKitTesting.assertHTMLSnapshots`.
-The generator inlines the exact published artwork bytes for offline capture.
+The generator inlines the emitted CSS and artwork for offline capture.
 References cover the main-build homepage, app PR pages, release details, unavailable commit history,
 retired channels, an empty catalog, and missing artwork and metadata on iPhone and iPad in both appearances.
 They use the existing LFS references, snapshot scheme, and CI shard discovery.

@@ -3,7 +3,12 @@
 All registered iOS apps use one GitHub Pages site and one `updates.json` catalog.
 GitHub Releases stores the signed IPAs. InstallerKit supplies the in-app update engine.
 InstallerKitUI supplies the reusable native update page.
-Each app owns its signing configuration, archive command, audience gate, branding, and Settings navigation.
+Each app selects its signing configuration, audience gate, branding, and Settings navigation.
+The shared `./signing` command owns Match maintenance and Fastlane archives.
+Local maintenance renews expired certificates and regenerates profiles. Archives only download existing assets.
+Register the scheme, configuration, targets, and profile override keys in `.github/installer-signing-apps.json` in the trusted checkout.
+Bundle identifiers come from generated Xcode settings, not the descriptor.
+See [Where setup](../../Where/DISTRIBUTION.md#one-time-setup) for the shared signing repository and Apple account checklist.
 
 The homepage shows only the latest successful `main` build for each app.
 `/apps/<app-id>/` lists that app's PR builds.
@@ -11,6 +16,12 @@ The homepage shows only the latest successful `main` build for each app.
 Apps appear after their first publication or retirement receipt.
 App cards show their icon, version, download size, and publication date.
 Build pages add the minimum iOS version, source commit, workflow run, bundle ID, and release notes.
+
+## CI cleanup failures
+
+Cleanup attempts search-list restoration, temporary keychain deletion, and owned-profile removal independently. A failure makes the job fail and retains the ownership and recovery files for a retry. It does not delete unexpected profiles or a directory whose ownership changed.
+
+A failed deletion can leave signing credentials on that job's isolated runner until the runner is destroyed. Recovery files must not be uploaded as artifacts. Do not reuse a runner after failed cleanup. The lifecycle wrapper uses the pinned Ruby and the trusted checkout’s frozen bundle through `mise exec -- bundle exec ruby`. CI installs this bundle before preparing signing material. Cleanup before any signing state exists succeeds without loading Ruby.
 
 ## Add an app
 
@@ -63,6 +74,12 @@ Build pages add the minimum iOS version, source commit, workflow run, bundle ID,
 
 [Where's setup guide](../../Where/DISTRIBUTION.md) lists its signing secrets and device checks.
 New apps reuse publication and update logic. They do not need another site or a copy of the Swift engine.
+
+## Website development
+
+[The Astro project](Site/README.md) contains the Astro templates and local preview commands.
+Python owns catalog validation and install manifests. Astro renders the pages from validated input.
+Local previews and WebKit snapshots share deterministic catalogs and the production templates.
 
 ## Shared hosting
 

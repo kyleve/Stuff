@@ -57,9 +57,9 @@ extension View {
                             devices: [.iPhoneFullContent],
                             colorSchemes: [.light, .dark],
                         ),
-                    measurementReadiness: scenario == .offline ? .sameAsCapture : .immediate,
+                    measurementReadiness: scenario.requiresRefresh ? .sameAsCapture : .immediate,
                     onReadyToMeasure: {
-                        if scenario == .offline { await model.refresh(force: true) }
+                        if scenario.requiresRefresh { await model.refresh(force: true) }
                     },
                 ) {
                     UpdateBrowserView(model: model, branding: InstallerPreview.branding)

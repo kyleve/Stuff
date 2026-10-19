@@ -210,17 +210,6 @@
         }
       }
     },
-    "installer.checkFailedMessage" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Check your connection and try again. Any build information shown is from the last successful check."
-          }
-        }
-      }
-    },
     "installer.checking" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -272,6 +261,248 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Download"
+          }
+        }
+      }
+    },
+    "installer.failure.accessDenied" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update server denied access to the feed."
+          }
+        }
+      }
+    },
+    "installer.failure.authentication" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update server requires authentication. This app can only read public update feeds."
+          }
+        }
+      }
+    },
+    "installer.failure.cachedBuilds" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Build information shown is from the last successful check."
+          }
+        }
+      }
+    },
+    "installer.failure.cannotConnect" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The app could not connect to the update server."
+          }
+        }
+      }
+    },
+    "installer.failure.certificate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update server’s security certificate could not be verified."
+          }
+        }
+      }
+    },
+    "installer.failure.clientCertificate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update server requires a valid client certificate."
+          }
+        }
+      }
+    },
+    "installer.failure.connectionLost" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The connection to the update server was interrupted. Try again."
+          }
+        }
+      }
+    },
+    "installer.failure.dataNotAllowed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device does not allow network data for this request. Check the app’s network settings."
+          }
+        }
+      }
+    },
+    "installer.failure.feedGone" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update feed is no longer available at this address."
+          }
+        }
+      }
+    },
+    "installer.failure.feedNotFound" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update feed was not found on the server. It may not have been published yet, or its address may have changed."
+          }
+        }
+      }
+    },
+    "installer.failure.hostNotFound" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update server’s address could not be found."
+          }
+        }
+      }
+    },
+    "installer.failure.httpStatus" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update server returned an unexpected HTTP status."
+          }
+        }
+      }
+    },
+    "installer.failure.invalidCatalog" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update feed uses an unsupported format or contains invalid build information."
+          }
+        }
+      }
+    },
+    "installer.failure.invalidData" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update feed could not be read because its data is invalid."
+          }
+        }
+      }
+    },
+    "installer.failure.invalidResponse" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update server returned an unexpected response."
+          }
+        }
+      }
+    },
+    "installer.failure.offline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device is offline. Connect to the internet, then try again."
+          }
+        }
+      }
+    },
+    "installer.failure.rateLimited" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many requests reached the update server. Try again later."
+          }
+        }
+      }
+    },
+    "installer.failure.responseTooLarge" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update feed exceeds the size limit this app supports."
+          }
+        }
+      }
+    },
+    "installer.failure.secureConnection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A secure connection to the update server could not be established."
+          }
+        }
+      }
+    },
+    "installer.failure.server" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update server could not complete the request. Try again later."
+          }
+        }
+      }
+    },
+    "installer.failure.timeout" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update server did not respond in time. Try again."
+          }
+        }
+      }
+    },
+    "installer.failure.unexpectedLocation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update request reached an unexpected or insecure server address."
           }
         }
       }

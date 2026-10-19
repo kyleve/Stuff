@@ -1,0 +1,21 @@
+---
+import type { App, ActiveChannel } from '../data';
+import AppIcon from './AppIcon.astro';
+import InstallButton from './InstallButton.astro';
+interface Props { app: App; channel: ActiveChannel | undefined; label: string }
+const { app, channel, label } = Astro.props;
+---
+<header class="app-hero">
+  <AppIcon app={app}/>
+  <div>
+    <span class="tag">{label}</span>
+    <h1>{app.name}</h1>
+    <p class="subtitle">{app.presentation.subtitle}</p>
+    {channel && (
+      <div class="hero-action">
+        <InstallButton app={app} channel={channel}/>
+        <span>For registered devices</span>
+      </div>
+    )}
+  </div>
+</header>

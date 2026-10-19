@@ -5,15 +5,9 @@ Keep these expected values independent of the production command's implementatio
 """
 
 from datetime import datetime
-import json
-from pathlib import Path
 import plistlib
-import shutil
-import subprocess
-import sys
 import zipfile
 
-from Tools.repository import repository_root
 
 SHA = "a" * 40
 TARGET_NAMES = ("Where", "WhereWidgets", "WhereShareExtension")
@@ -55,95 +49,3 @@ def write_ipa(path, changes=None, omit=None):
                 name = f"{bundle}/{resource}"
                 if name != omit:
                     archive.writestr(name, b"fixture signing resource")
-
-
-class ArchiveFixture:
-    """Run Where's archive and signing commands with isolated files and fake tools."""
-
-    def __init__(self, temporary):
-        repository = repository_root(Path(__file__))
-        self.root = Path(temporary) / "repository with spaces ü"
-        self.bin = self.root / "fake bin"
-        self.home = self.root / "fixture home"
-        self.temporary = self.root / "runner temp"
-        self.profiles = self.root / "input profiles"
-        self.output = self.root / "output archive"
-        self.log = self.root / "commands.jsonl"
-        for directory in (self.bin, self.home, self.temporary):
-            directory.mkdir(parents=True, exist_ok=True)
-        for name in ("Where/archive", "Tools/where_signing.py", ".github/where-signing.sh"):
-            destination = self.root / name
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(repository / name, destination)
-        write_profiles(self.profiles, "mobileprovision")
-        for name in ("security", "mise", "openssl"):
-            self.executable(self.bin / name, FAKE_TOOL)
-        self.executable(self.root / "ide", FAKE_TOOL)
-
-    def executable(self, path, body):
-        path.write_text(f"#!{sys.executable}\n{body}")
-        path.chmod(0o755)
-
-    def environment(self, overrides=None):
-        environment = {"PATH": f"{self.bin}:{Path(sys.executable).parent}:/usr/bin:/bin",
-                       "HOME": str(self.home), "RUNNER_TEMP": str(self.temporary),
-                       "TMPDIR": str(self.temporary), "TOOL_LOG": str(self.log),
-                       "PYTHONDONTWRITEBYTECODE": "1"}
-        environment.update(overrides or {})
-        return environment
-
-    def run(self, command, *arguments, overrides=None):
-        return subprocess.run(["/bin/bash", str(self.root / command), *map(str, arguments)],
-                              cwd=self.root, env=self.environment(overrides),
-                              capture_output=True, text=True)
-
-    def commands(self):
-        return [json.loads(line) for line in self.log.read_text().splitlines()] if self.log.exists() else []
-
-
-FAKE_TOOL = r'''
-import json
-import os
-from pathlib import Path
-import sys
-
-name = Path(sys.argv[0]).name
-args = sys.argv[1:]
-with open(os.environ["TOOL_LOG"], "a") as log:
-    log.write(json.dumps([name, *args]) + "\n")
-action = args[0] if args else ""
-if name == "mise":
-    args = args[3:]
-    action = args[0]
-if os.environ.get("FAIL_AT") == f"{name}:{action}":
-    print("fixture process failure", file=sys.stderr)
-    sys.exit(47)
-if name == "security":
-    if action == "cms":
-        sys.stdout.buffer.write(Path(args[args.index("-i") + 1]).read_bytes())
-    elif action == "list-keychains" and "-s" not in args:
-        print('"/fixture/login.keychain-db"')
-    elif action == "create-keychain":
-        Path(args[-1]).touch()
-    elif action == "delete-keychain":
-        Path(args[-1]).unlink()
-elif name == "openssl":
-    print("fixture-keychain-password")
-elif name == "mise" and action == "-showBuildSettings":
-    settings = []
-    for target, suffix, key in (("Where", "", "APP"), ("WhereWidgets", ".widgets", "WIDGET"),
-                                ("WhereShareExtension", ".share", "SHARE")):
-        settings.append({"target": target, "buildSettings": {
-            "PRODUCT_BUNDLE_IDENTIFIER": "wrong.bundle" if os.environ.get("WRONG_BUNDLE") else "com.stuff.where.development" + suffix,
-            "DEVELOPMENT_TEAM": os.environ["TUIST_DEVELOPMENT_TEAM"],
-            "PROVISIONING_PROFILE_SPECIFIER": os.environ[f"TUIST_WHERE_ADHOC_{key}_PROFILE"],
-            "CODE_SIGN_STYLE": "Manual", "WHERE_AUDIENCE": "development"}})
-    print(json.dumps(settings))
-elif name == "mise" and action == "archive":
-    Path(args[args.index("-archivePath") + 1]).mkdir()
-elif name == "mise" and action == "-exportArchive":
-    destination = Path(args[args.index("-exportPath") + 1])
-    destination.mkdir()
-    if not os.environ.get("MISSING_IPA"):
-        (destination / "Where.ipa").write_bytes(b"fixture export")
-'''

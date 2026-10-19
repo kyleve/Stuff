@@ -194,6 +194,7 @@ let package = Package(
         .target(
             name: "WhereCore",
             dependencies: [
+                .target(name: "InstallerKit"),
                 .target(name: "CreditKit"),
                 .target(name: "JournalKit"),
                 .target(name: "PeriscopeCore"),
@@ -214,6 +215,8 @@ let package = Package(
         .target(
             name: "WhereUI",
             dependencies: [
+                .target(name: "InstallerKitUI"),
+                .target(name: "InstallerKit"),
                 .target(name: "WhereCore"),
                 .target(name: "BroadwayCore"),
                 .target(name: "BroadwayUI"),

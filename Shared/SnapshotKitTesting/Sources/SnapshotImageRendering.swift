@@ -754,6 +754,11 @@ extension CGSize {
     }
 }
 
+/// Marks a hosted view whose adapter supplies its complete content size.
+/// Generic scroll measurement must not reinterpret its asynchronous descendants.
+@MainActor
+protocol SnapshotContentSizeProviding: AnyObject {}
+
 extension UIView {
     /// The root height required when a full-width scrolling descendant's
     /// content exceeds the root's reported intrinsic height.
@@ -763,7 +768,7 @@ extension UIView {
     /// fallback to full-width scrolling content avoids expanding an intentionally
     /// narrow nested scroller inside an otherwise intrinsic component.
     fileprivate func fullScrollContentHeight(exceeding intrinsicHeight: CGFloat) -> CGFloat? {
-        descendants
+        scrollMeasurementDescendants
             .compactMap { view -> CGFloat? in
                 guard let scrollView = view as? UIScrollView else { return nil }
                 let visibleFrame = scrollView.convert(scrollView.bounds, to: self)
@@ -789,7 +794,7 @@ extension UIView {
     /// descendant. One scroll view owns both axes so an outer spatial canvas is
     /// never combined with the height of an unrelated nested list.
     fileprivate var viewportFillingScrollContentExtent: ScrollContentExtent? {
-        descendants
+        scrollMeasurementDescendants
             .compactMap { view -> ScrollContentExtent? in
                 guard let scrollView = view as? UIScrollView else { return nil }
                 let visibleFrame = scrollView.convert(scrollView.bounds, to: self)
@@ -818,7 +823,8 @@ extension UIView {
             .max { lhs, rhs in lhs.viewportArea < rhs.viewportArea }
     }
 
-    private var descendants: [UIView] {
-        subviews + subviews.flatMap(\.descendants)
+    private var scrollMeasurementDescendants: [UIView] {
+        guard !(self is any SnapshotContentSizeProviding) else { return [] }
+        return subviews + subviews.flatMap(\.scrollMeasurementDescendants)
     }
 }

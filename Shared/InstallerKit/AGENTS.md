@@ -20,6 +20,7 @@ The [repository rules](../../AGENTS.md) apply.
 - Keep signed build details optional for older feeds. Validate present metadata before caching or presenting it.
 - Cache reuse must not supersede a network request. Cancelled or superseded reads
   must not replace the last successful catalog or model state.
+- Preserve HTTP status codes and distinguish response-policy failures. Pass transport and feed errors through to the UI reporting boundary. Guard: `UpdateClientTests`.
 
 Guards: `UpdateCatalogTests`, `UpdateServiceTests`, and `UpdateModelTests`.
 Run `./test InstallerKitTests`. InstallerKitUI owns the shared image matrix; hosts cover their integration.

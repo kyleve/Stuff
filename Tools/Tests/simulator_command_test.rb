@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require_relative '../repository'
 
 require "digest"
 require "fileutils"
@@ -248,7 +249,7 @@ class SimulatorCommandTest < Minitest::Test
       sleep_delay:
     )
       @root = root
-      @repository = File.expand_path("../..", __dir__)
+      @repository = Repository.root(__FILE__)
       checkout_hash = Digest::SHA256.hexdigest(repository)[0, 8]
       @owned_name = "Stuff-#{File.basename(repository)}-#{checkout_hash}-iPhone-17-27.0"
       home = root / "home"

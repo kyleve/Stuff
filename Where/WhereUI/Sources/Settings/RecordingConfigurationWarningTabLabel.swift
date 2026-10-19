@@ -4,12 +4,17 @@ import SwiftUI
 struct RecordingConfigurationWarningTabLabel: View {
     let model: RecordingConfigurationWarningModel
     let source: RecordingConfigurationWarningModel.Source
+    var updateTitle: String?
 
     var body: some View {
         let inputs = source.localInputs
         Label(String(localized: .tabSettings), systemSymbol: .gearshapeFill)
             .accessibilityValue(
-                model.isPresented ? String(localized: .settingsRecordingWarningTitle) : "",
+                [
+                    model.isPresented ? String(localized: .settingsRecordingWarningTitle) : nil,
+                    updateTitle,
+                ]
+                .compactMap(\.self).joined(separator: ", "),
             )
             .task(id: inputs) {
                 await model.refresh(inputs, from: source)

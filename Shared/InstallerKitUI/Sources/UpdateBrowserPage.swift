@@ -6,16 +6,11 @@ struct UpdateBrowserPage<Content: View>: View {
     let model: UpdateModel
     @ViewBuilder let content: Content
     @State private var manualCheck: Task<Void, Never>?
-    @Environment(\.installerStylesheet) private var stylesheet
 
     var body: some View {
         UpdatePageLayout {
-            if case .failed = model.state {
-                UpdateCard(title: .installerCheckFailed) {
-                    Text(.installerCheckFailedMessage)
-                        .font(stylesheet.card.bodyFont)
-                        .foregroundStyle(.secondary)
-                }
+            if case let .failed(error, previous) = model.state {
+                UpdateFailureCard(error: error, hasCachedBuilds: previous != nil)
             }
             if model.state.snapshot != nil {
                 content

@@ -66,3 +66,12 @@ class InstallerUpdateSiteSnapshotsTests(unittest.TestCase):
         for path, data in assets.items():
             self.assertNotIn(FEED_URL[:-len("updates.json")] + path, html)
             self.assertIn("data:image/png;base64," + base64.b64encode(data).decode(), html)
+        self.assertNotIn('rel="stylesheet"', html)
+        for path, data in files.items():
+            if path.endswith(".css"):
+                self.assertIn(data.decode(), html)
+
+    def test_missing_built_assets_fail_instead_of_capturing_an_unstyled_page(self):
+        files = {"index.html": b'<link rel="stylesheet" href="/Stuff/_astro/missing.css">'}
+        with self.assertRaises(KeyError):
+            offline_html(files, "index.html")

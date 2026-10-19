@@ -1,0 +1,20 @@
+---
+import { site, type Release } from '../data';
+interface Props { release: Release }
+const { release } = Astro.props;
+---
+{release.historyChanged || release.baseSHA === null ? (
+  <p class="section-note">Complete commit history is unavailable for this build.</p>
+) : release.commits.length ? (
+  <ul class="commit-list">
+    {release.commits.map(commit => (
+      <li>
+        <a href={'https://github.com/' + site.repository + '/commit/' + commit.sha}>
+          <span>{commit.subject}</span><code>{commit.sha.slice(0, 7)}</code>
+        </a>
+      </li>
+    ))}
+  </ul>
+) : (
+  <p class="section-note">No new commits.</p>
+)}

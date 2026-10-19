@@ -6,7 +6,8 @@
 # which holds vendored package sources — formatting those rewrites other
 # people's code (and it isn't excluded by `.gitignore`, which SwiftFormat
 # doesn't read).
---exclude Derived,DerivedData
+# `vendor/bundle` contains locked Ruby gems, including Fastlane's Swift sources.
+--exclude Derived,DerivedData,vendor/bundle
 
 # SwiftFormat can't enforce "wrap when there are >= N arguments", only
 # "wrap when the unwrapped line exceeds --max-width". 100 columns is

@@ -1,4 +1,29 @@
 {
+  "Astro": {
+    "repo": "withastro/astro",
+    "ref": "c2c43a99f4d50676456c137ff88359579f78bf5c",
+    "version": "7.4.0"
+  },
+  "Astro Check": {
+    "repo": "withastro/astro",
+    "ref": "112d3ea14cf997218239fd8a436707e56a3815fb",
+    "version": "0.9.10"
+  },
+  "Fastlane": {
+    "repo": "fastlane/fastlane",
+    "ref": "452f0b4e0c7129d9e99dc6a1aa4b8780ebd334f5",
+    "version": "2.241.1"
+  },
+  "Node.js": {
+    "repo": "nodejs/node",
+    "ref": "f14cd3aa7bf9ca8df2cc5b8bb14beb0f335b1d93",
+    "version": "24.22.0"
+  },
+  "Node.js Types": {
+    "repo": "DefinitelyTyped/DefinitelyTyped",
+    "ref": "8cbe9250b21658bb36f7995a0b5cddcc22c8aa2e",
+    "version": "24.19.2"
+  },
   "ShellCheck": {
     "repo": "koalaman/shellcheck",
     "ref": "aac0823e6b58f8a499e856e93738082691cbf212",
@@ -8,5 +33,10 @@
     "repo": "tlaplus/tlaplus",
     "ref": "5a47802b5c391f59ecdd44117981f4ff8c0656ba",
     "version": "1.7.4"
+  },
+  "TypeScript": {
+    "repo": "microsoft/TypeScript",
+    "ref": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "version": "6.0.3"
   }
 }

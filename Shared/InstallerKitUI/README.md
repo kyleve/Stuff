@@ -25,7 +25,11 @@ Place it in the host's navigation stack. Hosts retain audience, demo, and foregr
 
 The page checks on appearance, supports pull-to-refresh, and offers a manual check.
 InstallerKit owns throttling, cancellation, cache persistence, and release selection.
-Offline state keeps the last successful result visible. Retired branches can offer that app's main build.
+Failed checks show the cause and a diagnostic code, such as **HTTP 404** for a missing feed.
+Network failures explain offline, timeout, DNS, connection, and certificate errors with their original codes.
+Unrecognized errors keep the system's description and diagnostic identity. Feed errors distinguish invalid data and rejected build information.
+The update page and build browser share this presentation. A failed refresh keeps the last successful result visible and labels it as cached.
+Retired branches can offer that app's main build.
 Older feeds omit build details and show “Not recorded” instead of inferred values.
 
 Hosts can pass `sectionDecoration` to attach search anchors or highlight modifiers to `.check` and `.changes`.
@@ -56,3 +60,5 @@ Previews inject these fixtures into the production service and model, which reta
 
 `./test InstallerKitUITests` checks stylesheet traits, root resolution, and hosted navigation.
 `./test InstallerKitUISnapshotTests --review` covers shared screen states without Where.
+The error card also has static Dynamic Type and accessibility captures, independent of page refreshes.
+WhereUI's `DevelopmentUpdatesView` supplies its real icon and Settings search integration.

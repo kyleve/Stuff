@@ -1,81 +1,42 @@
-import base64
+"""The CI lifecycle wrapper selects the locked bundle and pinned Ruby after dependency-free guards."""
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
-
-from Fixtures.where_distribution_fixtures import ArchiveFixture, TARGET_NAMES
+from Tools.repository import repository_root
 
 
 class WhereSigningCommandTests(unittest.TestCase):
-    def signing_environment(self, fixture):
-        values = {
-            "WHERE_SIGNING_DIR": str(fixture.temporary / "where-signing-fixture"),
-            "WHERE_DISTRIBUTION_CERTIFICATE_BASE64": base64.b64encode(b"fixture certificate").decode(),
-            "WHERE_DISTRIBUTION_CERTIFICATE_PASSWORD": "fixture password",
-        }
-        for target, key in zip(TARGET_NAMES, ("APP", "WIDGET", "SHARE")):
-            values[f"WHERE_{key}_PROFILE_BASE64"] = base64.b64encode(
-                (fixture.profiles / f"{target}.mobileprovision").read_bytes()).decode()
-        return values
-
-    def test_cleanup_restores_search_list_and_removes_only_owned_material(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            fixture = ArchiveFixture(temporary)
-            environment = self.signing_environment(fixture)
-            profile_root = fixture.home / "Library/Developer/Xcode/UserData/Provisioning Profiles"
-            profile_root.mkdir(parents=True)
-            existing = profile_root / "unrelated.mobileprovision"
-            existing.write_bytes(b"existing profile")
-            result = fixture.run(".github/where-signing.sh", "prepare", overrides=environment)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(len(list(profile_root.iterdir())), 4)
-            result = fixture.run(".github/where-signing.sh", "cleanup", overrides=environment)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(list(profile_root.iterdir()), [existing])
-            self.assertEqual(existing.read_bytes(), b"existing profile")
-            self.assertFalse(Path(environment["WHERE_SIGNING_DIR"]).exists())
-            self.assertIn(["security", "list-keychains", "-d", "user", "-s", "/fixture/login.keychain-db"],
-                          fixture.commands())
-
-    def test_partial_setup_is_cleaned_and_failed_cleanup_retains_recovery_files(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            fixture = ArchiveFixture(temporary)
-            environment = self.signing_environment(fixture)
-            result = fixture.run(".github/where-signing.sh", "prepare",
-                                 overrides={**environment, "FAIL_AT": "security:import"})
-            self.assertEqual(result.returncode, 47)
-            result = fixture.run(".github/where-signing.sh", "cleanup",
-                                 overrides={**environment, "FAIL_AT": "security:delete-keychain"})
+    def test_invalid_command_and_local_use_do_not_access_credentials(self):
+        command = repository_root(Path(__file__)) / '.github/where-signing.sh'
+        for arguments, message in (([], 'Usage:'), (['prepare'], 'CircleCI')):
+            result = subprocess.run(['/bin/bash', str(command), *arguments], cwd='/tmp',
+                                    env={'PATH': '/usr/bin:/bin'}, capture_output=True, text=True)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("Recovery files remain", result.stderr)
-            self.assertTrue(Path(environment["WHERE_SIGNING_DIR"]).is_dir())
-            result = fixture.run(".github/where-signing.sh", "cleanup", overrides=environment)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertFalse(Path(environment["WHERE_SIGNING_DIR"]).exists())
+            self.assertIn(message, result.stderr)
 
-    def test_preexisting_state_is_neither_replaced_nor_deleted(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            fixture = ArchiveFixture(temporary)
-            environment = self.signing_environment(fixture)
-            state = Path(environment["WHERE_SIGNING_DIR"])
-            state.mkdir()
-            sentinel = state / "unrelated"
-            sentinel.touch()
-            for command in ("prepare", "cleanup"):
-                result = fixture.run(".github/where-signing.sh", command, overrides=environment)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertTrue(sentinel.exists())
-            self.assertEqual(fixture.commands(), [])
-
-    def test_failed_search_list_read_does_not_restore_partial_output(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            fixture = ArchiveFixture(temporary)
-            environment = self.signing_environment(fixture)
-            result = fixture.run(".github/where-signing.sh", "prepare",
-                                 overrides={**environment, "FAIL_AT": "security:list-keychains"})
+    def test_locked_bundle_runs_from_control_checkout_and_preserves_status(self):
+        root = repository_root(Path(__file__))
+        with tempfile.TemporaryDirectory(prefix='signing wrapper ü ') as temporary:
+            directory = Path(temporary)
+            mise = directory / 'mise'
+            mise.write_text('#!/bin/bash\nprintf "%s\\n" "$PWD" "$BUNDLE_GEMFILE" "$BUNDLE_PATH" "$BUNDLE_FROZEN" "$@" > "$LOG"\nexit 47\n')
+            mise.chmod(0o755)
+            log = directory / 'log'
+            result = subprocess.run(['/bin/bash', str(root / '.github/where-signing.sh'), 'prepare'], cwd='/tmp',
+                                    env={'PATH': f'{directory}:/usr/bin:/bin', 'CIRCLECI': 'true',
+                                         'LOG': str(log), 'BUNDLE_GEMFILE': '/wrong/Gemfile',
+                                         'BUNDLE_PATH': '/wrong/bundle', 'BUNDLE_FROZEN': 'false'}, capture_output=True, text=True)
             self.assertEqual(result.returncode, 47)
-            result = fixture.run(".github/where-signing.sh", "cleanup", overrides=environment)
+            self.assertEqual(log.read_text().splitlines(),
+                             [str(root), str(root / 'Gemfile'), str(root / 'vendor/bundle'), 'true',
+                              'exec', '--', 'bundle', 'exec', 'ruby', str(root / 'Tools/InstallerKit/signing_state.rb'), 'prepare'])
+
+    def test_cleanup_before_prepare_needs_no_runtime(self):
+        root = repository_root(Path(__file__))
+        with tempfile.TemporaryDirectory() as temporary:
+            result = subprocess.run(['/bin/bash', str(root / '.github/where-signing.sh'), 'cleanup'], cwd='/tmp',
+                                    env={'PATH': '/usr/bin:/bin', 'CIRCLECI': 'true',
+                                         'WHERE_SIGNING_DIR': str(Path(temporary) / 'absent')},
+                                    capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertFalse(Path(environment["WHERE_SIGNING_DIR"]).exists())
-            keychain_commands = [command for command in fixture.commands() if "list-keychains" in command]
-            self.assertEqual(keychain_commands, [["security", "list-keychains", "-d", "user"]])

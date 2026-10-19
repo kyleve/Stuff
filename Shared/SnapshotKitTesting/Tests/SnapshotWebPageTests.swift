@@ -4,6 +4,20 @@ import Testing
 
 @MainActor
 struct SnapshotWebPageTests {
+    @Test(arguments: 0 ..< 3)
+    func capturesColdPageWithoutTrailingViewportSpace(_: Int) async throws {
+        let image = try await loadHTMLSnapshotImage(
+            """
+            <!doctype html><meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>body {margin:0} main {height:1200px;background:#ff0000}
+            footer {height:100px;background:#0000ff}</style><main></main><footer></footer>
+            """,
+            configuration: .init(device: .iPhoneFullContent),
+        )
+        #expect(image.size.height == 1300)
+        #expect(image.probePixel(atUnitPoint: CGPoint(x: 0.5, y: 0.99)).blue > 0.9)
+    }
+
     @Test func capturesSharpContentAtDocumentEdges() async throws {
         let image = try await loadHTMLSnapshotImage(
             """

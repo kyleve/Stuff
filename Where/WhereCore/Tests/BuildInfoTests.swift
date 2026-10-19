@@ -8,6 +8,27 @@ import Testing
 /// the degraded stamps the script writes when git or a build setting can't
 /// answer.
 struct BuildInfoTests {
+    @Test(arguments: ["development", "beta", "appStore", "unknown"], ["main", "local"])
+    func onlyDevelopmentAudienceExposesInstallerIdentity(_ audience: String, channel: String) {
+        let stamp = [
+            "WhereAudience": audience,
+            "CFBundleIdentifier": "com.stuff.where.development",
+            "InstallerAppID": "where",
+            "InstallerGitStatus": channel == "local" ? "dirty" : "clean",
+            "InstallerChannel": channel,
+            "InstallerRun": channel == "local" ? "unknown" : "1",
+            "InstallerAttempt": channel == "local" ? "unknown" : "1",
+            "InstallerGitSHA": String(
+                repeating: "a",
+                count: 40,
+            ),
+            "InstallerFeedURL": "https://example.org/updates.json",
+            "InstallerRepositoryURL": "https://github.com/fixture/Apps",
+        ]
+        #expect((BuildInfo(infoDictionary: stamp).distribution != nil) ==
+            (audience == "development"))
+    }
+
     private func info(
         version: String? = "1.4",
         build: String? = "27",

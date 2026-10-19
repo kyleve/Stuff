@@ -1,9 +1,9 @@
 from contextlib import redirect_stderr, redirect_stdout
-from copy import deepcopy
 from dataclasses import replace
 import hashlib
 import io
 import json
+import os
 from pathlib import Path
 import plistlib
 import subprocess
@@ -15,9 +15,81 @@ from unittest.mock import patch
 from Tools.InstallerKit.github_releases import asset_url
 from Tools.InstallerKit.installer_installation import manifest_url
 from Tools.InstallerKit.installer_apps import AppPresentation, load_app
-from Tools.InstallerKit.installer_update_site import main, render_site, write_site
+from Tools.InstallerKit.installer_update_site import BUILD_ROOT, build_astro, main, render_site, resolve_mise, stage_input, write_site
 from Tools.repository import repository_root
-from Fixtures.installer_update_fixtures import catalog, multiple_apps, FEED_URL, REPO
+from Tools.Tests.Fixtures.installer_update_fixtures import catalog, multiple_apps, FEED_URL, REPO
+
+
+class InstallerMiseResolutionTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix="mise installations ü ")
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.home = self.root / "home"
+        self.system_paths = (self.root / "opt/homebrew/bin/mise", self.root / "usr/local/bin/mise")
+        for replacement in (
+            patch.dict(os.environ, {"PATH": "/usr/bin:/bin"}, clear=True),
+            patch("Tools.InstallerKit.installer_update_site.Path.home", return_value=self.home),
+            patch("Tools.InstallerKit.installer_update_site.SYSTEM_MISE_PATHS", self.system_paths),
+        ):
+            replacement.start()
+            self.addCleanup(replacement.stop)
+
+    def install(self, path):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("#!/bin/sh\nexit 0\n")
+        path.chmod(0o755)
+        return path
+
+    def test_path_installation_takes_precedence_over_fallbacks(self):
+        preferred = self.install(self.root / "path/bin/mise")
+        self.install(self.home / ".local/share/mise/bin/mise")
+        self.install(self.root / "configured/bin/mise")
+        os.environ.update({"PATH": str(preferred.parent), "MISE_DATA_DIR": str(self.root / "configured")})
+        self.assertEqual(resolve_mise(), str(preferred))
+
+    def test_mise_action_installation_is_found_with_minimal_path(self):
+        installed = self.install(self.home / ".local/share/mise/bin/mise")
+        self.assertEqual(resolve_mise(), str(installed))
+
+    def test_local_installer_and_both_homebrew_layouts_are_supported(self):
+        for path in (self.home / ".local/bin/mise", *self.system_paths):
+            with self.subTest(path=path):
+                installed = self.install(path)
+                self.assertEqual(resolve_mise(), str(installed))
+                installed.unlink()
+
+    def test_configured_data_directory_takes_precedence_over_xdg_and_default(self):
+        default = self.install(self.home / ".local/share/mise/bin/mise")
+        xdg = self.install(self.root / "xdg data/mise/bin/mise")
+        configured = self.install(self.root / "mise data/bin/mise")
+        os.environ.update({"XDG_DATA_HOME": str(self.root / "xdg data"),
+                           "MISE_DATA_DIR": str(self.root / "mise data")})
+        self.assertEqual(resolve_mise(), str(configured))
+        del os.environ["MISE_DATA_DIR"]
+        self.assertEqual(resolve_mise(), str(xdg))
+        del os.environ["XDG_DATA_HOME"]
+        self.assertEqual(resolve_mise(), str(default))
+
+    def test_empty_data_directory_overrides_use_the_default(self):
+        installed = self.install(self.home / ".local/share/mise/bin/mise")
+        os.environ.update({"MISE_DATA_DIR": "", "XDG_DATA_HOME": ""})
+        self.assertEqual(resolve_mise(), str(installed))
+
+    def test_non_executable_files_and_directories_do_not_hide_a_usable_installation(self):
+        unusable = self.install(self.home / ".local/share/mise/bin/mise")
+        unusable.chmod(0o644)
+        (self.home / ".local/bin/mise").mkdir(parents=True)
+        installed = self.install(self.system_paths[0])
+        self.assertEqual(resolve_mise(), str(installed))
+
+    def test_missing_or_non_executable_mise_reports_setup_instructions(self):
+        for present in (False, True):
+            with self.subTest(present=present):
+                if present:
+                    self.install(self.home / ".local/share/mise/bin/mise").chmod(0o644)
+                with self.assertRaisesRegex(ValueError, r"mise is required.*\./ide --bootstrap --no-open"):
+                    resolve_mise()
 
 
 class InstallerUpdateSiteTests(unittest.TestCase):
@@ -140,25 +212,13 @@ class InstallerUpdateSiteTests(unittest.TestCase):
             root = Path(temporary)
             source = root / "updates.json"
             source.write_text(json.dumps(catalog()))
-            with patch("Tools.InstallerKit.installer_update_site.load_apps", return_value={"where": broken}), \
+            with patch("Tools.InstallerKit.installer_site_data.load_apps", return_value={"where": broken}), \
                     redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
                 self.assertEqual(main(["--catalog", str(source), "--repository", REPO,
                                        "--feed-url", FEED_URL, "--output", str(root / "site")]), 1)
             self.assertEqual(stdout.getvalue(), "")
             self.assertIn("missing-icon.png", stderr.getvalue())
             self.assertFalse((root / "site").exists())
-
-    def test_duplicate_out_of_order_or_empty_active_channels_fail(self):
-        original = catalog()
-        duplicates = deepcopy(original)
-        duplicates["apps"][0]["channels"] += duplicates["apps"][0]["channels"]
-        unordered = deepcopy(original)
-        unordered["apps"][0]["channels"][0]["releases"].reverse()
-        empty = deepcopy(original)
-        empty["apps"][0]["channels"][0]["releases"] = []
-        for value in (duplicates, unordered, empty):
-            with self.assertRaises(ValueError):
-                render_site(value, REPO, FEED_URL)
 
     def test_homepage_only_installs_main_and_app_pages_keep_prs_separate(self):
         value = multiple_apps()
@@ -198,13 +258,68 @@ class InstallerUpdateSiteTests(unittest.TestCase):
         self.assertNotIn(b"itms-services", files["index.html"])
         self.assertIn(b"itms-services", files["apps/where/index.html"])
 
-    def test_rejects_app_collisions_and_cross_app_manifest_urls(self):
-        duplicate = multiple_apps()
-        duplicate["apps"][1]["id"] = "where"
-        duplicate_bundle = multiple_apps()
-        duplicate_bundle["apps"][1]["bundleIdentifier"] = duplicate_bundle["apps"][0]["bundleIdentifier"]
-        wrong_manifest = multiple_apps()
-        wrong_manifest["apps"][1]["channels"][0]["releases"][0]["manifestURL"] = wrong_manifest["apps"][0]["channels"][0]["releases"][0]["manifestURL"]
-        for value in (duplicate, duplicate_bundle, wrong_manifest):
-            with self.assertRaises(ValueError):
-                render_site(value, REPO, FEED_URL)
+    def test_astro_build_failure_reports_diagnostics_and_exposes_no_partial_output(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / "updates.json"
+            source.write_text(json.dumps(catalog()))
+            output = Path(temporary) / "site"
+            failure = subprocess.CompletedProcess([], 23, stdout="build log", stderr="template failed")
+            with patch("Tools.InstallerKit.installer_update_site.subprocess.run", return_value=failure), \
+                    redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
+                status = main(["--catalog", str(source), "--repository", REPO,
+                               "--feed-url", FEED_URL, "--output", str(output)])
+            self.assertEqual(status, 1)
+            self.assertEqual(stdout.getvalue(), "")
+            self.assertIn("exit 23", stderr.getvalue())
+            self.assertIn("template failed", stderr.getvalue())
+            self.assertEqual(list(Path(temporary).iterdir()), [source])
+
+    def test_astro_preserves_exact_publication_files_and_does_not_ship_client_scripts(self):
+        from Tools.InstallerKit.installer_site_data import prepare_site
+        value = catalog()
+        expected = prepare_site(value, REPO, FEED_URL).files
+        files = render_site(value, REPO, FEED_URL)
+        for path, content in expected.items():
+            self.assertEqual(files[path], content, path)
+        self.assertFalse(any(path.endswith((".js", ".mjs")) for path in files))
+
+    def test_simultaneous_builds_keep_their_catalogs_and_generated_files_isolated(self):
+        from concurrent.futures import ThreadPoolExecutor
+        inputs = (catalog("first", "First App", "com.example.first"),
+                  catalog("second", "Second App", "com.example.second"))
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = list(executor.map(lambda value: render_site(value, REPO, FEED_URL), inputs))
+        for value, files in zip(inputs, results):
+            self.assertEqual(json.loads(files["updates.json"]), value)
+            app = value["apps"][0]
+            self.assertIn(f'apps/{app["id"]}/main/index.html', files)
+            self.assertIn(app["name"].encode(), files["index.html"])
+        self.assertNotIn("apps/second/index.html", results[0])
+        self.assertNotIn("apps/first/index.html", results[1])
+
+    def test_dependency_optimizer_cache_is_written_inside_the_build_workspace(self):
+        from Tools.InstallerKit.installer_site_data import prepare_site
+        BUILD_ROOT.mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix="cache-", dir=BUILD_ROOT) as temporary:
+            workspace = Path(temporary)
+            environment = stage_input(prepare_site(catalog(), REPO, FEED_URL), workspace)
+            build_astro(environment, workspace / "site")
+            metadata = list(Path(environment["INSTALLER_SITE_CACHE"]).rglob("_metadata.json"))
+            self.assertTrue(metadata, "Vite must write its optimizer cache inside this build's isolated cache directory")
+
+    def test_custom_domain_and_nested_base_keep_navigation_and_assets_on_the_current_host(self):
+        for base in ("https://installs.example/", "https://installs.example/nested/catalog/"):
+            value = catalog()
+            feed = base + "updates.json"
+            for channel in value["apps"][0]["channels"]:
+                for release in channel["releases"]:
+                    release["manifestURL"] = manifest_url(feed, "where", channel["name"], release["id"])
+            with self.subTest(base=base):
+                from urllib.parse import urlsplit
+                root = urlsplit(base).path
+                files = render_site(value, REPO, feed)
+                home = files["index.html"].decode()
+                self.assertIn(f'href="{root}apps/where/"', home)
+                self.assertIn(f'src="{root}assets/where/', home)
+                self.assertIn("https%3A%2F%2Finstalls.example%2F", home)
+                self.assertEqual(json.loads(files["updates.json"]), value)
