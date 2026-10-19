@@ -4,7 +4,7 @@ import Foundation
 /// This establishes travel between endpoints, never airborne sample identities.
 enum FlightDisplacementInference {
     private typealias Trajectory = GPSCorrectionPolicy.Trajectory
-    private typealias Policy = GPSCorrectionPolicy.Displacement
+    private typealias Displacement = GPSCorrectionPolicy.Displacement
 
     /// Anchor legs covered by a corroborated journey and its preceding support.
     struct Window {
@@ -27,7 +27,7 @@ enum FlightDisplacementInference {
             var candidate = index - 1
             while candidate >= 0,
                   anchors[index].timestamp.timeIntervalSince(anchors[candidate].timestamp)
-                  <= Policy.maximumSupportInterval
+                  <= Displacement.maximumSupportInterval
             {
                 if corroborates(anchors[candidate], endpoint: anchors[index]) {
                     previous[index].append(candidate)
@@ -99,7 +99,7 @@ enum FlightDisplacementInference {
         let uncertainty = departure.horizontalAccuracy + destination.horizontalAccuracy
         return seconds >= Trajectory.minimumAnchorInterval
             && seconds <= Trajectory.maximumCorroboratingGap
-            && distance - uncertainty >= Policy.minimumDistanceMeters
+            && distance - uncertainty >= Displacement.minimumDistanceMeters
             && (distance - uncertainty) / seconds * 3.6 >= Trajectory.minimumCruiseSpeedKMH
             && (distance + uncertainty) / seconds * 3.6 <= Trajectory.maximumPlausibleSpeedKMH
     }
@@ -131,10 +131,10 @@ enum FlightDisplacementInference {
     private static func corroborates(_ sample: LocationSample, endpoint: LocationSample) -> Bool {
         let seconds = abs(sample.timestamp.timeIntervalSince(endpoint.timestamp))
         return seconds >= Trajectory.minimumAnchorInterval
-            && seconds <= Policy.maximumSupportInterval
+            && seconds <= Displacement.maximumSupportInterval
             && sample.coordinate.distance(to: endpoint.coordinate)
             + sample.horizontalAccuracy + endpoint.horizontalAccuracy
-            <= Policy.maximumSupportDistanceMeters
+            <= Displacement.maximumSupportDistanceMeters
             && isPlausible(sample, relativeTo: endpoint)
     }
 
