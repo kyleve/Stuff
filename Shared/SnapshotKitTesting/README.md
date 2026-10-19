@@ -253,32 +253,6 @@ the quiet-window proof, render cadence, or image tolerances, so stable captures
 finish at the same point. Local runs leave it unset (1×). snapshot CI explicitly
 uses 2×. `./test` forwards it into the hosted test process.
 
-## Repeated CI probes
-
-The default-off CircleCI parameter `snapshot_probe` selects the `Snapshot Probe` workflow.
-It repeats `Flight-FlightLikely_iPhone_ax5` and `History_iPad` 32 times each on one isolated snapshot worker.
-The probe uses the existing references, capture policies, and CI timeout multiplier.
-It never records references. Normal snapshot runs skip these probe tests.
-
-`SNAPSHOT_SETTLE_TRACE_DIR` enables diagnostic files for each settle phase.
-The trace retains the last 16 existing samples and writes them after the verdict.
-Each trace includes PNGs, sample times, raw-byte equality, adjacent-frame pixel deltas, the outcome, and the total pass count.
-The run log associates each trace path with its probe iteration.
-The CI artifact includes traces from successful and failed captures, plus the tested revision and ordinary review reports.
-Trace encoding and file writes add time after settling. Probe timings therefore include diagnostic overhead.
-
-For a local probe, run:
-
-```bash
-SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER=2 \
-TEST_RUNNER_SNAPSHOT_PROBE=1 \
-TEST_RUNNER_SNAPSHOT_SETTLE=both \
-TEST_RUNNER_SNAPSHOT_SETTLE_TRACE_DIR="$PWD/.build/settle-traces" \
-./test --snapshots --record never --review --timings \
-  --only 'WhereUISnapshotTests/LocationsViewSnapshotTests/settlingProbe()' \
-  --only 'InstallerKitUISnapshotTests/UpdateHistoryViewSnapshotTests/settlingProbe()'
-```
-
 ## Requirements
 
 - Runs in a hosted test bundle (needs a host app window. in this repo that's
