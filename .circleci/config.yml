@@ -285,7 +285,7 @@ commands:
                     cp "$image" "$destination"
                   done
             fi
-            find diagnostics "<< parameters.test_workdir >>" -maxdepth 3 | head -200
+            find diagnostics "<< parameters.test_workdir >>" -maxdepth 3 | sed -n '1,200p'
       - store_artifacts:
           path: diagnostics
           destination: << parameters.artifact_name >>/diagnostics

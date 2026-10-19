@@ -789,8 +789,8 @@ let project = Project(
         // module's image suite should link only what that module needs: the
         // Periscope and Inspector suites don't build against WhereUI
         // at all. Each records its references beside its own sources —
-        // swift-snapshot-testing derives the `__Snapshots__` directory from the
-        // calling file's `#filePath`, which `assertSnapshots` threads through.
+        // SnapshotKitTesting derives the suite directory from the calling
+        // file's `#filePath` and nests special trait references under `other/`.
         //
         // Separate bundles are safe here because each `.xctest` gets its own
         // `StuffTestHost` process: measured on Xcode 27 by probing
