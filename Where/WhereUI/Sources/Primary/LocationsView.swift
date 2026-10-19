@@ -7,8 +7,8 @@ import SwiftUI
 import WhereCore
 
 /// Locations tab: the regions you spend the most days in for the selected year,
-/// shown as prominent passport cards, with the Elsewhere summary folded in
-/// at the bottom (only when there are secondary regions), plus toolbar actions
+/// shown as prominent passport cards, followed by Elsewhere (when there are
+/// secondary regions) and Estimated Time, plus toolbar actions
 /// for planned stays and any data issues that need resolution.
 struct LocationsView: View {
     let report: YearReportModel
@@ -236,10 +236,7 @@ struct LocationsView: View {
                     }
                 }
 
-                estimatePanel
-
-                // Fold Elsewhere in at the bottom — only when there's
-                // something in it — as an entry card into the full list.
+                // Keep Elsewhere with the recorded regions, before Estimated Time.
                 if !report.ranking.secondary.isEmpty {
                     NavigationLink {
                         ElsewhereView(report: report)
@@ -253,6 +250,8 @@ struct LocationsView: View {
                             .cornerRadius),
                     ))
                 }
+
+                estimatePanel
             }
             .padding()
             .frame(maxWidth: .infinity)
