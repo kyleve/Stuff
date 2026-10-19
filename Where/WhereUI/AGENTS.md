@@ -123,8 +123,12 @@ Layering, localization, preview, and testing conventions live in the feature
 - Keep the Locations background on the selected year’s complete visited-region set,
   in catalog order independent of card rank. Omit the catch-all Other entry from
   the print. Use the injected outline cache.
-- Keep the Elsewhere summary count and artwork on the same secondary-region input.
-  Use its own stylesheet tokens and the shared outline renderers.
+- Split Locations and Elsewhere by the configured primary set, not `RegionRanking`'s
+  top two. Exclude zero-day cards and sort ties in catalog order.
+- Keep Elsewhere cards, day lists, and map pins on the same resolved snapshot.
+  Refresh from complete evidence identity. Reject cancelled or superseded results,
+  retain successful same-year content on failure, and provide retry. Day actions
+  pass the original calendar day into the existing correction flow.
 - Keep Locations-card points on `YearReportModel`'s loaded
   `YearReportDetails`.
 - Keep `RootView` passing LifecycleKitUI the stylesheet's positive splash

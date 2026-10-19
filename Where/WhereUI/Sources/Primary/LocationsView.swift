@@ -5,12 +5,11 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Locations tab: the regions you spend the most days in for the selected year,
-/// shown as prominent Liquid Glass cards, with the Elsewhere summary folded in
-/// at the bottom (only when there are secondary regions), plus toolbar actions
-/// for planned stays and any data issues that need resolution.
+/// Locations tab: configured primary regions with recorded days in the selected
+/// year, ranked by day count, plus planning and data-resolution actions.
 struct LocationsView: View {
     let report: YearReportModel
+    var openElsewhere: (() -> Void)?
 
     @State private var showingResolution = false
     @State private var planningDestination: PlannedStaysDestination?
@@ -35,8 +34,9 @@ struct LocationsView: View {
             && planningDestination == nil
     }
 
-    init(report: YearReportModel) {
+    init(report: YearReportModel, openElsewhere: (() -> Void)? = nil) {
         self.report = report
+        self.openElsewhere = openElsewhere
         _cardPresentation = State(initialValue: LocationCardsPresentationModel(
             preferences: report.preferences,
             year: report.selectedYear,
@@ -109,9 +109,9 @@ struct LocationsView: View {
                     }
                 }
             case .idle, .loaded, .loading:
-                if report.ranking.primary.isEmpty {
+                if report.locationRegions.isEmpty {
                     // Distinguish "nothing tracked at all" from "tracked days
-                    // exist, but only in non-headline regions" (e.g. all in
+                    // exist, but only outside configured primary regions" (e.g. all in
                     // `.other`) — otherwise the latter wrongly reads as empty.
                     if report.trackedDayCount == 0 {
                         stateWithFlightNotice { emptyState }
@@ -157,7 +157,7 @@ struct LocationsView: View {
     }
 
     private var content: some View {
-        let presentedCards = cardPresentation.presented(report.ranking.primary)
+        let presentedCards = cardPresentation.presented(report.locationRegions)
 
         // Keep the flight notice immediately below navigation. Without a notice,
         // a short card list retains its centered presentation.
@@ -230,17 +230,6 @@ struct LocationsView: View {
                 }
 
                 estimatePanel
-
-                // Fold Elsewhere in at the bottom — only when there's
-                // something in it — as an entry card into the full list.
-                if !report.ranking.secondary.isEmpty {
-                    NavigationLink {
-                        ElsewhereView(report: report)
-                    } label: {
-                        ElsewhereSummaryCard(regions: report.ranking.secondary.map(\.region))
-                    }
-                    .buttonStyle(.plain)
-                }
             }
             .padding()
             .frame(maxWidth: .infinity)
@@ -256,7 +245,7 @@ struct LocationsView: View {
         // Count, order, flourish, persistence, and haptic all share this one
         // visibility-aware delayed reconciliation.
         .reconcilesLocationCards(
-            current: report.ranking.primary,
+            current: report.locationRegions,
             year: report.selectedYear,
             isVisible: isCardSurfaceUncovered,
             presentation: cardPresentation,
@@ -340,11 +329,9 @@ struct LocationsView: View {
                 } description: {
                     Text(WhereFormat.primaryElsewhereOnlyDescription(count: report.trackedDayCount))
                 } actions: {
-                    if !report.ranking.secondary.isEmpty {
-                        NavigationLink(String(localized: .primaryElsewhereOnlyOpen)) {
-                            ElsewhereView(report: report)
-                        }
-                        .buttonStyle(.borderedProminent)
+                    if report.hasElsewhere, let openElsewhere {
+                        Button(String(localized: .primaryElsewhereOnlyOpen), action: openElsewhere)
+                            .buttonStyle(.borderedProminent)
                     }
                 }
                 estimatePanel
@@ -440,7 +427,10 @@ private struct ResolveToolbarLabel: View {
                 measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
-                LocationsView(report: PreviewSupport.elsewhereOnlyYearReportModel())
+                LocationsView(
+                    report: PreviewSupport.elsewhereOnlyYearReportModel(),
+                    openElsewhere: {},
+                )
             }
             whereSnapshot(
                 name: "ElsewhereWithHome",
@@ -449,7 +439,7 @@ private struct ResolveToolbarLabel: View {
             ) {
                 let report = PreviewSupport.elsewhereOnlyYearReportModel()
                 report.forecasts.setPlanning(PlanningSnapshot(stays: [], homeRegion: .california))
-                return LocationsView(report: report)
+                return LocationsView(report: report, openElsewhere: {})
             }
             whereSnapshot(
                 name: "DotsHidden",
@@ -461,6 +451,11 @@ private struct ResolveToolbarLabel: View {
                     report: PreviewSupport.loadedYearReportModelWithLocationDotsHidden(),
                 )
             }
+            artworkSnapshot(
+                name: "ThreePrimaryRegions",
+                report: PreviewSupport.multiplePrimaryYearReportModel(),
+                configurations: .fullContentScreenDefaults,
+            )
         }
 
         private static func artworkSnapshot(
@@ -506,7 +501,6 @@ private struct ResolveToolbarLabel: View {
             LocationsView.self,
             routes: [
                 .push(to: CalendarContentView.flyoverID),
-                .push(to: ElsewhereView.flyoverID),
                 .modal(to: ResolutionView.flyoverID),
                 .modal(to: PlannedStaysView.flyoverID),
                 .modal(to: PlannedStayEditor.flyoverID),

@@ -4414,30 +4414,6 @@
         }
       }
     },
-    "locations.elsewhere.subtitle" : {
-      "comment" : "Subtitle on the Locations tab's Elsewhere entry card: region count.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld region"
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld regions"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "locations.planning.assign" : {
       "comment" : "Menu action for assigning the planned stay to a primary-card region. The placeholder is the localized region name.",
       "extractionState" : "manual",
@@ -5813,13 +5789,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld day logged this year, but none in a headline spot yet."
+                  "value" : "%lld day logged this year, but none in your primary regions."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld days logged this year, but none in a headline spot yet."
+                  "value" : "%lld days logged this year, but none in your primary regions."
                 }
               }
             }
@@ -5828,7 +5804,7 @@
       }
     },
     "primary.elsewhereOnly.open" : {
-      "comment" : "Button on the Locations elsewhere-only state that opens the Elsewhere list.",
+      "comment" : "Button on Locations that selects the Elsewhere tab.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -5845,7 +5821,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nothing in your headline spots"
+            "value" : "No days in your primary regions"
           }
         }
       }
@@ -5856,7 +5832,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Turn on tracking or add a day in Settings and your top spots will land here."
+            "value" : "Turn on tracking or add a day in Settings to see your primary regions here."
           }
         }
       }
@@ -6880,7 +6856,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Spend a day outside your top spots — or log a trip in Settings — and it'll appear here."
+            "value" : "Visits outside your primary regions appear here. You can also log a trip in Settings."
           }
         }
       }
@@ -9217,7 +9193,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Locations shows your leading regions. Tap a card for its calendar, or open Elsewhere to see the remaining regions. A travel day can count in more than one region."
+            "value" : "Locations shows your selected primary regions. Elsewhere has a card for each other region you visited, with recorded days and a map to explore."
           }
         }
       }
@@ -11206,6 +11182,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Log today here"
+          }
+        }
+      }
+    },
+    "tab.elsewhere" : {
+      "comment" : "Tab for recorded visits outside the configured primary regions.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elsewhere"
           }
         }
       }

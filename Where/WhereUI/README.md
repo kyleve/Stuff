@@ -16,10 +16,17 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 
 ## What you get
 
-The Elsewhere entry card uses a compact passport surface with neutral ink.
-Its count, separate background silhouettes, and microprint border share the ordered secondary regions.
-The catch-all Other region uses a background globe because it has no geographic outline.
-The card opens the existing Elsewhere list.
+Locations shows every configured primary region with recorded days.
+Elsewhere appears beside Locations when the selected year has other visits.
+Its compact cards name visited US jurisdictions, Canada, and the European Union
+from the existing catalog. Unknown visits stay under Other. Each card shows
+distinct recorded days and can show an optional place label. A multi-region
+day can appear on more than one card.
+
+Elsewhere cards open a day list and map from the same resolved snapshot. Day actions
+open the existing correction flow. These inferred names do not change calendar,
+report, or widget totals. Catalog names and counts work offline. Failed
+refreshes retain successful same-year content and offer retry.
 
 Completed flights appear in both history views. The calendar shows an airplane on each local flight day. Attachments and flights share one badge at the top-right of the day. The badge widens when both icons are present.
 Each calendar month is one accessibility element. Its label gives regional totals; its value reads chronological stay spans with dated attachment and flight cues.
@@ -47,9 +54,9 @@ Demo mode hides this surface and performs no update checks.
 - **`RootView`** — the app root: the typed launch plan (via
   [`LifecycleKit`](../../Shared/LifecycleKit), rendered by
   [`LifecycleKitUI`](../../Shared/LifecycleKitUI)'s container) gated in front of
-  `MainTabs`, the Liquid Glass tab bar over three tabs — Locations, Your Year,
-  Settings. Elsewhere is an entry card on Locations, Resolve a Locations toolbar
-  button, and the data screens (attachments, logged days, regions) sit in the
+  `MainTabs`, the Liquid Glass tab bar with Locations, optional Elsewhere,
+  Your Year, and Settings. Elsewhere has its own navigation stack. Resolve is
+  a Locations toolbar button, and the data screens (attachments, logged days, regions) sit in the
   Settings "Data" group. **Explore Features** starts with Your Places & Your Year
   and Recording & Devices. These guides explain cards, Elsewhere, calendars,
   Timeline, welcomes, automatic recording, and manual entries.
@@ -151,7 +158,8 @@ Demo mode hides this surface and performs no update checks.
   `refreshWidgetSnapshot()`). It holds no presentation state of its own.
 - **Scope-tiered models** — scene-scoped **`YearReportModel`** (the selected
   year's `YearReportDetails`, its `LoadState`, manual-day edit intents, and the shared
-  **`LocationForecastModel`** itinerary and Home-assumption mirror), plus
+  **`LocationForecastModel`** itinerary and Home-assumption mirror, and
+  **`ElsewhereModel`** catalog resolution and optional place labels), plus
   view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
   (Settings export progress and failures),
   **`RemindersSettingsModel`** (notification prefs),
@@ -464,12 +472,11 @@ The shared estimate retains its passport-visa endorsement. A neutral microprint 
 repeats the two main location-card silhouettes. Solid and hatched treatments distinguish
 recorded totals from projected totals. The range band shows uncertainty at its outer edge.
 
-While the Locations cards are visible, a live reversal between the same two
-primary regions holds the previous counts and order through the existing reveal
+When Locations has exactly two visible primary cards, a live reversal between them holds the previous counts and order through the existing reveal
 delay. The winning card then passes above the other card and settles with the
 count morph and one haptic in the same beat. Initial loads, year changes, hidden
-updates, and a different region entering the primary pair update without the
-spatial flourish. Reduce Motion replaces the pass with a brief fade emphasis.
+updates, and changes involving more than two cards update without the spatial
+flourish. Reduce Motion replaces the pass with a brief fade emphasis.
 
 DEBUG builds include Card Designer Studio under Settings → Appearance. It
 edits a versioned, persisted draft of the regular, compact, and shared card

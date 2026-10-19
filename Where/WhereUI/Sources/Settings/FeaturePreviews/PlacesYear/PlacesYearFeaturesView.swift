@@ -61,9 +61,17 @@ extension PlacesYearFeaturesView: SettingsSection {
 #if DEBUG
     extension PlacesYearFeaturesView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Loaded", configurations: .fullContentScreenDefaults) {
+            let loaded = PreviewSupport.plannedStayYearReportModel()
+            let demo = PreviewSupport.loadedYearReportModel()
+            whereSnapshot(
+                name: "Loaded",
+                configurations: .fullContentScreenDefaults,
+                onReadyToMeasure: {
+                    if let input = loaded.elsewhereInput { await loaded.elsewhere.refresh(input) }
+                },
+            ) {
                 PlacesYearFeaturesView(
-                    report: PreviewSupport.plannedStayYearReportModel(),
+                    report: loaded,
                     focus: nil,
                 )
             }
@@ -78,8 +86,14 @@ extension PlacesYearFeaturesView: SettingsSection {
                     now: { PreviewSupport.referenceNow },
                 ), focus: nil)
             }
-            whereSnapshot(name: "Demo", configurations: .fullContentPhoneLightDark) {
-                PlacesYearFeaturesView(report: PreviewSupport.loadedYearReportModel(), focus: nil)
+            whereSnapshot(
+                name: "Demo",
+                configurations: .fullContentPhoneLightDark,
+                onReadyToMeasure: {
+                    if let input = demo.elsewhereInput { await demo.elsewhere.refresh(input) }
+                },
+            ) {
+                PlacesYearFeaturesView(report: demo, focus: nil)
                     .environment(\.isInDemoMode, true)
             }
         }

@@ -149,7 +149,7 @@ public struct ReportReader: Sendable {
     }
 
     /// The raw coordinates recorded inside `region` during `year`, grouped by
-    /// day, so the Elsewhere drill-in can map and name where you actually were.
+    /// day for maps and location previews. Elsewhere uses its resolved snapshot.
     /// Manual overlays don't contribute coordinates (see `DayAggregator`).
     public func locations(in region: Region, year: Int) async throws -> [RegionDayLocations] {
         try await locations(in: [region], year: year)[region] ?? []

@@ -7,6 +7,12 @@ import WhereCore
 @testable import WhereUI
 
 @MainActor
+func findTabController(in controller: UIViewController) -> UITabBarController? {
+    if let tabs = controller as? UITabBarController { return tabs }
+    return controller.children.lazy.compactMap { findTabController(in: $0) }.first
+}
+
+@MainActor
 @Observable
 final class UpdateSceneFixture {
     var phase = ScenePhase.background

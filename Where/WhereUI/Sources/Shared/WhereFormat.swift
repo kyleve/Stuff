@@ -138,10 +138,6 @@ enum WhereFormat {
         count == 1 ? String(localized: .commonDay) : String(localized: .commonDays)
     }
 
-    static func elsewhereCardSubtitle(regions: Int) -> String {
-        String(localized: .locationsElsewhereSubtitle(regions))
-    }
-
     static func missingBannerCompact(count: Int) -> String {
         count == 1
             ? String(localized: .missingBannerCompactOne)

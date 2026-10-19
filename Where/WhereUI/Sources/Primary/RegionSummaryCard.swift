@@ -319,7 +319,7 @@ struct RegionSummaryCard: View {
                         Label(places, systemSymbol: .mappinAndEllipse)
                             .font(.caption2.weight(.medium))
                             .foregroundStyle(style.tint)
-                            .lineLimit(1)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
 
@@ -423,6 +423,7 @@ struct RegionSummaryCard: View {
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
+        .accessibilityValue(places ?? "")
         .regionArtworkTask(
             id: regionArtworkLoadID,
             displayKey: regionArtworkLoadID.staticArtworkID,

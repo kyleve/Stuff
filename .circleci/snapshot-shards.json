@@ -29,7 +29,6 @@
         "WhereUISnapshotTests/CalendarContentViewSnapshotTests",
         "WhereUISnapshotTests/DataSettingsViewSnapshotTests",
         "WhereUISnapshotTests/DeveloperDemoLaunchSheetSnapshotTests",
-        "WhereUISnapshotTests/ElsewhereSummaryCardSnapshotTests",
         "WhereUISnapshotTests/ElsewhereViewSnapshotTests",
         "WhereUISnapshotTests/LicenseViewSnapshotTests",
         "WhereUISnapshotTests/OnboardingThemeSelectionViewSnapshotTests",

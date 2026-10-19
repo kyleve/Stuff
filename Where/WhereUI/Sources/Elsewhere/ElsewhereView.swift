@@ -5,101 +5,129 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Elsewhere: every region outside your primary spots, shown as compact Liquid
-/// Glass cards for the selected year. Pushed from the Locations tab's Elsewhere
-/// entry card, so it renders inside that tab's `NavigationStack` (no stack of
-/// its own).
+/// The optional tab for named visits outside the configured primary regions.
 struct ElsewhereView: View {
     let report: YearReportModel
+    let model: ElsewhereModel
+    var isSelected: Bool
 
-    /// Reverse-geocoded "where" teaser per region, loaded asynchronously so
-    /// each card can show the place you turned up most. Empty in
-    /// previews/tests (no raw samples) and until the lookups resolve.
-    @State private var placeNames: [Region: String] = [:]
-
+    @State private var retrySequence = 0
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.scenePhase) private var scenePhase
 
-    var body: some View {
-        screen
-            .navigationTitle(String(localized: .secondaryTitle))
-            .task(id: report.report) { await loadPlaceNames() }
-            // Log View Mode: reveal an inspect badge for the year-report events
-            // backing Elsewhere (representative-coordinate loads). A no-op in
-            // release.
-            .debugLogInspectable(WhereLog.session(YearReportModelLog.self))
+    private struct Request: Hashable {
+        let input: ElsewhereInput?
+        let isVisible: Bool
+        let retrySequence: Int
     }
 
-    /// Pick each secondary region's most-sampled spot and reverse-geocode it,
-    /// so the cards gain a "Paris, France"-style teaser. One geocode per
-    /// region; results are cached by `LocationNamer`.
-    private func loadPlaceNames() async {
-        let coordinates = await report.representativeCoordinates()
-        var names: [Region: String] = [:]
-        for item in report.ranking.secondary {
-            guard let coordinate = coordinates[item.region] else { continue }
-            names[item.region] = await LocationNamer.shared.name(for: coordinate)
+    init(report: YearReportModel, model: ElsewhereModel? = nil, isSelected: Bool = true) {
+        self.report = report
+        self.model = model ?? report.elsewhere
+        self.isSelected = isSelected
+    }
+
+    private var request: Request {
+        Request(
+            input: report.elsewhereInput,
+            isVisible: isSelected && scenePhase != .background,
+            retrySequence: retrySequence,
+        )
+    }
+
+    private var failureMessage: String? {
+        if case let .failed(error) = report.loadState { return error.message }
+        return model.failure(for: report.selectedYear)?.localizedDescription
+    }
+
+    var body: some View {
+        NavigationStack {
+            screen
+                .navigationTitle(String(localized: .secondaryTitle))
         }
-        // Geocoding can outlive the report/year that started it (LocationNamer's
-        // in-flight tasks don't observe cancellation), so a stale run could
-        // publish last and show the wrong year's teasers. Drop it if superseded.
-        guard !Task.isCancelled else { return }
-        placeNames = names
+        .task(id: request) {
+            guard request.isVisible else { return }
+            if case .failed = report.loadState { await report.refresh() }
+            guard let input = report.elsewhereInput, !Task.isCancelled else { return }
+            await model.refresh(input)
+        }
+        .debugLogInspectable(WhereLog.session(ElsewhereModelLog.self))
     }
 
     @ViewBuilder
     private var screen: some View {
-        switch report.loadState {
-            case .loading where report.report == nil:
-                ProgressView(String(localized: .secondaryLoading))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case let .failed(error):
-                ContentUnavailableView {
-                    Label(
-                        String(localized: .commonLoadErrorTitle),
-                        systemSymbol: .exclamationmarkIcloud,
-                    )
-                } description: {
-                    Text(error.message)
-                }
-            case .idle, .loaded, .loading:
-                if report.ranking.secondary.isEmpty {
-                    emptyState
-                } else {
-                    content
-                }
-        }
-    }
-
-    private var content: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: stylesheet.spacing.xLarge) {
-                Text(WhereFormat.secondaryHeader(year: report.selectedYear))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                GlassEffectContainer(spacing: stylesheet.spacing.large) {
-                    VStack(spacing: stylesheet.spacing.large) {
-                        ForEach(report.ranking.secondary) { item in
-                            NavigationLink {
-                                RegionDaysView(region: item.region, report: report)
-                            } label: {
-                                RegionSummaryCard(
-                                    regionDays: item,
-                                    caption: caption(for: item),
-                                    places: placeNames[item.region],
-                                    variant: .compact,
-                                    yearLength: report.daysInSelectedYear,
-                                    year: report.selectedYear,
-                                )
+        if let content = model.content(for: report.selectedYear) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: stylesheet.spacing.xLarge) {
+                    Text(WhereFormat.secondaryHeader(year: report.selectedYear))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if let failureMessage {
+                        VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
+                            Label(failureMessage, systemSymbol: .exclamationmarkIcloud)
+                            retryButton
+                        }
+                    }
+                    if content.regions.isEmpty {
+                        emptyState
+                    } else {
+                        GlassEffectContainer(spacing: stylesheet.spacing.large) {
+                            VStack(spacing: stylesheet.spacing.large) {
+                                ForEach(content.regions) { item in
+                                    NavigationLink {
+                                        RegionDaysView(
+                                            region: item.region,
+                                            report: report,
+                                            model: model,
+                                        )
+                                    } label: {
+                                        RegionSummaryCard(
+                                            regionDays: RegionDays(
+                                                region: item.region,
+                                                days: item.days.count,
+                                            ),
+                                            caption: item.days.count <= 3
+                                                ?
+                                                String(
+                                                    localized: .secondaryCaptionPassingThrough,
+                                                ) :
+                                                nil,
+                                            places: content.placeNames[item.region],
+                                            variant: .compact,
+                                            yearLength: report.daysInSelectedYear,
+                                            year: report.selectedYear,
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                 }
+                .padding()
             }
-            .padding()
+            .accessibilityIdentifier("where_elsewhere_list")
+        } else if let failureMessage {
+            ContentUnavailableView {
+                Label(
+                    String(localized: .commonLoadErrorTitle),
+                    systemSymbol: .exclamationmarkIcloud,
+                )
+            } description: {
+                Text(failureMessage)
+            } actions: {
+                retryButton
+            }
+        } else {
+            ProgressView(String(localized: .secondaryLoading))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+
+    private var retryButton: some View {
+        Button(String(localized: .commonRetry)) { retrySequence += 1 }
+            .buttonStyle(.bordered)
     }
 
     private var emptyState: some View {
@@ -109,42 +137,59 @@ struct ElsewhereView: View {
             Text(String(localized: .secondaryEmptyDescription))
         }
     }
-
-    /// Light whimsy for the briefest stays.
-    private func caption(for item: RegionDays) -> String? {
-        item.days <= 3 ? String(localized: .secondaryCaptionPassingThrough) : nil
-    }
 }
 
 #if DEBUG
     extension ElsewhereView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Loaded", configurations: .fullContentScreenDefaults) {
-                NavigationStack {
-                    ElsewhereView(report: PreviewSupport.loadedYearReportModel())
-                }
-            }
-            whereSnapshot(name: "Empty", configurations: .phoneLightDark) {
-                NavigationStack {
-                    ElsewhereView(report: PreviewSupport.emptyYearReportModel())
-                }
+            snapshot(
+                name: "Loaded",
+                report: PreviewSupport.elsewhereCatalogYearReportModel(),
+                configurations: .fullContentScreenDefaults,
+            )
+            snapshot(
+                name: "Empty",
+                report: PreviewSupport.emptyYearReportModel(),
+                configurations: .fullContentPhoneLightDark,
+            )
+            snapshot(
+                name: "Failure",
+                report: PreviewSupport.elsewhereCatalogYearReportModel(),
+                configurations: .fullContentPhoneLightDark,
+                resolver: FailingElsewhereResolver(),
+            )
+        }
+
+        private static func snapshot(
+            name: String,
+            report: YearReportModel,
+            configurations: [SnapshotConfiguration],
+            resolver: (any ElsewhereResolving)? = nil,
+        ) -> SnapshotCase {
+            let model = ElsewhereModel(
+                resolver: resolver ?? report.services.elsewhere,
+                namer: PreviewPlaceNamer(),
+            )
+            return whereSnapshot(
+                name: name,
+                configurations: configurations,
+                onReadyToMeasure: {
+                    if let input = report.elsewhereInput { await model.refresh(input) }
+                },
+            ) {
+                ElsewhereView(report: report, model: model)
             }
         }
     }
 
-    #Preview {
-        ElsewhereView.snapshotPreviews
-    }
-#endif
+    #Preview { ElsewhereView.snapshotPreviews }
 
-#if DEBUG
     extension ElsewhereView: WhereFlyoverProviding {
         static let flyoverData = WhereFlyoverData.snapshots(
             ElsewhereView.self,
             title: "Elsewhere",
-            routes: [
-                .push(to: RegionDaysView.flyoverID),
-            ],
+            navigationContainer: .none,
+            routes: [.push(to: RegionDaysView.flyoverID)],
         )
     }
 #endif
