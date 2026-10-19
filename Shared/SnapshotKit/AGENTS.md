@@ -7,7 +7,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 ## Scope & dependencies
 
 - **Use SwiftUI, Foundation, and UIKit only. Do not link a snapshot-comparison engine.** UI modules link SnapshotKit (including in release) to drive previews. It must never pull in `SnapshotTesting`/XCTest. The capture and comparison pipeline lives in [`SnapshotKitTesting`](../SnapshotKitTesting).
-- **Declare the library target in [`Package.swift`](../../Package.swift).** UI modules (currently `WhereUI`) consume it for previews. `SnapshotKitTesting` consumes it for the config→traits mapping. `SnapshotKitTests` covers pure logic.
+- **Declare the library target in [`Package.swift`](../../Package.swift).** UI consumers listed in that manifest use it for previews. `SnapshotKitTesting` consumes it for the config→traits mapping. `SnapshotKitTests` covers pure logic.
 
 ## Invariants an agent can't re-derive
 

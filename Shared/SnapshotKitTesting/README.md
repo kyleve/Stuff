@@ -23,8 +23,10 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   nothing — when the live simulator doesn't match the scheme's
   `SNAPSHOT_EXPECTED_*` pins or when two variants would collide on one
   reference name.
-- **The rendering pipeline** — an async `renderSnapshotImage(...)` that renders
-  any view at any size on a single fixed simulator: safe-area-inset overriding
+- **The rendering pipeline** — async `renderSnapshotCapture(...)` returns the
+  normalized image and PNG bytes. `renderSnapshotImage(...)` wraps it for callers
+  needing only the image. Native assertions, hosted PNG export, and HTML snapshots
+  share this pipeline on a single fixed simulator: safe-area-inset overriding
   (zero by default. a frame's `safeAreaInsets`, e.g. `.iPhoneNotched`,
   simulates device chrome), animation quiescing, text-cursor hiding, and a
   size-stabilization pass for SwiftUI hosting controllers. Full-content captures

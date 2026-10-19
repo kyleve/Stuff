@@ -44,7 +44,7 @@ Shared installer tools have scoped rules in [`InstallerKit/AGENTS.md`](Installer
 ## Install-site snapshots
 
 - Generate the HTML fixtures through `installer_update_site.render_site` and the production
-  [Astro project](InstallerSite/AGENTS.md) during each `ToolsSnapshotTests` build.
+  [Astro project](InstallerKit/Site/AGENTS.md) during each `ToolsSnapshotTests` build.
   Keep fixture catalogs deterministic and offline. Install dependencies before the build.
   Inline the generated CSS and artwork in those fixtures without changing the rendered layout.
   Do not copy generated HTML into the test sources.
