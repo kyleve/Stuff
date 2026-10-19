@@ -6,6 +6,11 @@ parameters:
     enum: ["false", "true"]
     default: "false"
 
+  snapshot_probe:
+    type: enum
+    enum: ["false", "true"]
+    default: "false"
+
   installer_archive:
     type: enum
     enum: ["false", "true"]
@@ -313,6 +318,41 @@ commands:
           destination: << parameters.artifact_name >>/diagnostics
 
 jobs:
+  snapshot-probe:
+    executor: m4-pro-medium
+    environment:
+      SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER: "2"
+      TEST_RUNNER_SNAPSHOT_PROBE: "1"
+      TEST_RUNNER_SNAPSHOT_SETTLE: "both"
+    steps:
+      - prepare_builder:
+          test_workdir: test-output-snapshot-probe
+          run_ci_helper_tests: false
+      - hydrate_snapshot_references
+      - run:
+          name: Record probe revision
+          command: git rev-parse HEAD > "$TEST_WORKDIR/revision.txt"
+      - run_with_timeout:
+          step_name: Repeat snapshot failure probes
+          seconds: 1800
+          command: >-
+            TEST_RUNNER_SNAPSHOT_SETTLE_TRACE_DIR="$TEST_WORKDIR/settle-traces"
+            ./test --snapshots --shared --os 27.0 --no-generate
+            --only "WhereUISnapshotTests/LocationsViewSnapshotTests/settlingProbe()"
+            --only "InstallerKitUISnapshotTests/UpdateHistoryViewSnapshotTests/settlingProbe()"
+            --record never --review --timings --skip-architecture
+      - export_test_results:
+          test_workdir: test-output-snapshot-probe
+          output_directory: test-results-snapshot-probe
+      # Successful samples are controls for the intermittent failures.
+      - store_artifacts:
+          path: test-output-snapshot-probe
+          destination: snapshot-probe
+      - collect_diagnostics:
+          test_workdir: test-output-snapshot-probe
+          artifact_name: snapshot-probe
+          include_snapshot_images: true
+
   archive-where:
     executor: m4-pro-medium
     environment:
@@ -521,6 +561,12 @@ jobs:
           include_snapshot_images: true
 
 workflows:
+  "Snapshot Probe":
+    when: pipeline.parameters.snapshot_probe == "true"
+    jobs:
+      - snapshot-probe:
+          name: Repeat Snapshot Probes
+
   "iOS CI":
     # Prototype and exploratory PRs opt out with `NO-CI` in their title. Main
     # pushes and explicit full-gate runs remain mandatory.

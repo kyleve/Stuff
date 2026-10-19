@@ -59,6 +59,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Freeze endless motion behind `\.isCapturingSnapshot`.** Use deterministic readiness or `.settledAtLeast` for finite work.
 - **The explicit CI multiplier may scale only maximum settle/hook ceilings.** Never scale the floor, quiet proof, cadence, or image tolerance.
 - **Guards: `SnapshotSettleTimeoutPolicyTests` and `SnapshotRenderingSupportTests`.**
+- **Enable settling traces only through `SNAPSHOT_SETTLE_TRACE_DIR`.** Retain at most 16 existing samples per phase. Write files after the verdict. Preserve the pixel comparison, deadlines, and cadence. Guard: `SnapshotSettleTraceTests`.
 - **A settled capture is not a ready capture.** The loop proves the pixels stopped changing, not that intended content arrived.
 - **For native navigation or tab glass, do not use `SnapshotSettle.immediate`.**
 - **Keep a measured `SnapshotSettle.settledAtLeast` floor for delayed native-glass adaptation.**

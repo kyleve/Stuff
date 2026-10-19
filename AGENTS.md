@@ -758,3 +758,6 @@ setup and the full validation recipe.
 The separate [Where Dev distribution workflow](.github/workflows/where-distribution.yml)
 requests signed device archives on CircleCI and publishes them through GitHub Releases and Pages when enabled.
 Its `installable` label is independent of the test workflows' `NO-CI` title marker.
+
+The default-off CircleCI parameter `snapshot_probe` runs repeated snapshot diagnostics on an isolated worker.
+See [SnapshotKitTesting's probe guide](Shared/SnapshotKitTesting/README.md#repeated-ci-probes) for cases, artifacts, and local invocation.

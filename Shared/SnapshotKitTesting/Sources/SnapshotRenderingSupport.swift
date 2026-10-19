@@ -1,5 +1,6 @@
 import SnapshotKit
 import SwiftUI
+import Testing
 import UIKit
 
 /// How a settle phase ended. Only ``settled`` and ``skipped`` mean the pixels
@@ -172,6 +173,18 @@ func settleForCapture(
     var anchorTime = start
     var stablePasses = 0
     var passCount = 0
+    let trace = SnapshotSettleTrace.fromEnvironment(identifier: name)
+    func finish(_ outcome: SettleOutcome) -> SettleOutcome {
+        if let trace {
+            do {
+                let manifest = try trace.write(outcome: outcome, passes: passCount)
+                print("SNAPSHOT_SETTLE_TRACE \(manifest.path)")
+            } catch {
+                Issue.record(error)
+            }
+        }
+        return outcome
+    }
     // One per mechanism, deliberately not shared. Both feed the `.timedOut` vs
     // `.starved` decision, and only the mechanism holding the verdict may
     // influence it — otherwise `both` mode could fail a capture that `pixel`
@@ -206,7 +219,7 @@ func settleForCapture(
         do {
             try await Task.sleep(for: .milliseconds(16))
         } catch {
-            return .cancelled
+            return finish(.cancelled)
         }
         // Sampled *before* this pass lays out, because the loop performs the
         // layout itself: read afterwards, `needsLayout` is always clear and that
@@ -237,8 +250,17 @@ func settleForCapture(
 
         // Skipped entirely in `.quiescence` mode — not rendering it is the whole
         // point — so the expensive path only runs where its answer is used.
-        let sample = mechanism == .quiescence ? nil : view.renderedContentSample()
+        let sampledImage = mechanism == .quiescence ? nil : view.renderedContentSample()
+        let sample = sampledImage?.cgImage?.dataProvider?.data as Data?
         let now = clock.now
+        if let trace {
+            let elapsed = start.duration(to: now).components
+            trace.record(
+                image: sampledImage,
+                pass: passCount,
+                seconds: Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18,
+            )
+        }
 
         var pixelSaysStable = false
         if mechanism != .quiescence {
@@ -298,17 +320,17 @@ func settleForCapture(
             ? quiescenceObservedChange
             : pixelObservedChange
         if saysStable, now >= minDeadline {
-            return .settled
+            return finish(.settled)
         }
         // Checked after the stability check on purpose: a pass that completes
         // its proof late still settles rather than timing out — proven-stable
         // content is safe to capture no matter when the proof landed.
         if now >= maxDeadline {
             if observedContentChange {
-                return .timedOut(budget: maxDuration)
+                return finish(.timedOut(budget: maxDuration))
             }
             if now >= starvationDeadline {
-                return .starved(passes: passCount, cap: maxDuration * starvationHeadroom)
+                return finish(.starved(passes: passCount, cap: maxDuration * starvationHeadroom))
             }
         }
     }
@@ -323,15 +345,14 @@ extension UIView {
     /// mid-animation. `afterScreenUpdates: true` so each pass renders the
     /// current model state, not the last committed frame.
     @MainActor
-    fileprivate func renderedContentSample() -> Data? {
+    fileprivate func renderedContentSample() -> UIImage? {
         guard bounds.width >= 1, bounds.height >= 1 else { return nil }
         let format = UIGraphicsImageRendererFormat()
         format.scale = 0.25
         format.preferredRange = .standard
-        let image = UIGraphicsImageRenderer(bounds: bounds, format: format).image { _ in
+        return UIGraphicsImageRenderer(bounds: bounds, format: format).image { _ in
             drawHierarchy(in: bounds, afterScreenUpdates: true)
         }
-        return image.cgImage?.dataProvider?.data as Data?
     }
 }
 
