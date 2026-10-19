@@ -745,9 +745,10 @@ being written off as untestable from a cloud agent.
 
 **CI runs on two systems.** GitHub Actions
 ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs `format`,
-`architecture`, and `test-macos`. The `format` job checks Astro, ShellCheck,
-the retained Python and Ruby tool suites, SwiftFormat, the SF Symbol lint,
-the String Catalog lint, attribution, CircleCI helpers, and the snapshot plan.
+`architecture`, and `test-macos`. The `format` job (**Lint & Tooling Checks**)
+checks Astro, ShellCheck, the retained Python and Ruby tool suites, SwiftFormat,
+the SF Symbol lint, the String Catalog lint, attribution, CircleCI helpers, and
+the snapshot plan.
 The `test-macos` job runs the attribution, backup-upgrader, and macro tests
 before the Ledger suite. These required GitHub jobs run alongside the CircleCI builder. CircleCI
 ([`.circleci/config.yml`](.circleci/config.yml)) builds `build-ios-tests` once

@@ -25,7 +25,7 @@ jobs:
   # pushes still run every job.
   format:
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
-    name: SwiftFormat Lint
+    name: Lint & Tooling Checks
     runs-on: xcode-27
     timeout-minutes: 20
     steps:
@@ -53,9 +53,8 @@ jobs:
         run: ./sf-symbols --lint
       # Catalogs drift out of Xcode's serialization the moment one is written by
       # anything but Xcode, and the cost lands on whoever next builds in the IDE
-      # (see "Formatting" in AGENTS.md). This rides along in the format job
-      # rather than a job of its own because branch protection pins the two
-      # check names.
+      # (see "Formatting" in AGENTS.md). Keep this in the required
+      # Lint & Tooling Checks job.
       - name: String Catalog lint
         run: ./xcstrings --lint
       # The only thing that actually stops a stale attribution report from
