@@ -91,6 +91,22 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   (`repeatForever`, `TimelineView(.animation)`) at a deterministic phase. See
   the contract on the property in `SnapshotKit`.
 
+## Pixel settling
+
+The settle loop renders samples at 0.25 pixels per point and normalizes them to 8-bit, premultiplied sRGB RGBA.
+Every channel can differ from the fixed anchor by at most one unit (1/255).
+This allowance covers measured render noise without using the final comparison's broader perceptual and area tolerances.
+
+The anchor stays fixed throughout each quiet window.
+A larger channel difference, changed image dimensions, or missing sample resets that window.
+Two matching passes must span at least 120 ms, and the case's minimum duration still applies.
+The loop retains its 16 ms suspension between passes and its existing timeout, starvation, and cancellation behavior.
+
+The fixed anchor detects cumulative motion that exceeds one unit within the quiet window.
+It cannot distinguish slower motion inside that allowance from noise, or detect detail lost at the sample resolution.
+Readiness hooks and measured minimum durations remain necessary for asynchronous content and native glass adaptation.
+Final reference comparisons keep their existing tolerances and use the full capture after PNG encoding and decoding.
+
 ## Quick start
 
 ```swift
@@ -99,16 +115,28 @@ import Testing
 
 @MainActor
 struct MyBadgeSnapshotTests {
-    @Test func variants() { assertSnapshots(of: MyBadge.self) }
+    @Test func variants() async { await assertSnapshots(of: MyBadge.self) }
 }
 ```
 
 No `@Suite(.snapshots(...))` trait is needed: `assertSnapshots` resolves the
 record mode itself (see [Recording](#recording)), so a plain suite is enough — 
 though a trait still takes effect if you add one.
-Reference images are written next to the test file under `__Snapshots__/` and
-are stored in Git LFS (see the root `.gitattributes`). Recording a new image is
-a failure by design, so a run that records can't be mistaken for a pass.
+Reference images live beside the test file under `__Snapshots__/<test-file-name>/`.
+Git LFS stores these images (see the root `.gitattributes`). The runner selects
+the directory from each `SnapshotConfiguration`:
+
+| Capture | Directory within the suite |
+|---------|----------------------------|
+| Ordinary light or dark image | The suite directory |
+| Accessibility annotations, including combinations with other traits | The suite directory |
+| Standard image with non-default Dynamic Type, increased contrast, RTL layout, or bold text | `other/` |
+
+Device size, frame, and custom names do not change the directory.
+Filenames retain the test function and configuration identifier.
+[`snapshotReferenceURL`](Sources/SnapshotReferenceURL.swift) supplies the same
+location to recording, comparison, and review reports.
+Recording a new image fails the test, so a recording run cannot count as a pass.
 
 ## Hosted PNG capture
 

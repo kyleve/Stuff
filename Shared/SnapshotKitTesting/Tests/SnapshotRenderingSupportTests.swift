@@ -12,6 +12,57 @@ import UIKit
 /// can never be sampled ends `.starved` at the hard cap instead of hanging.
 @MainActor
 struct SnapshotRenderingSupportTests {
+    @Test(arguments: [SnapshotSettleMechanism.pixel, .both])
+    func oneUnitRenderNoiseSettlesWithoutShorteningTheFloor(
+        mechanism: SnapshotSettleMechanism,
+    ) async throws {
+        let window = try hostWindow()
+        let view = ScriptedSettleView { context, rect, pass in
+            context.setFillColor(gray: CGFloat(200 + pass % 2) / 255, alpha: 1)
+            context.fill(rect)
+        }
+        window.addSubview(view)
+        defer { view.removeFromSuperview() }
+        let clock = ContinuousClock()
+        let start = clock.now
+
+        let outcome = await settleContent(view, named: #function, mechanism: mechanism)
+
+        #expect(outcome == .settled)
+        #expect(start.duration(to: clock.now) >= .milliseconds(250))
+        #expect(view.sampleCount >= 3)
+    }
+
+    @Test func twoUnitRenderChangesStillTimeOut() async throws {
+        let window = try hostWindow()
+        let view = ScriptedSettleView { context, rect, pass in
+            context.setFillColor(gray: CGFloat(200 + (pass % 2) * 2) / 255, alpha: 1)
+            context.fill(rect)
+        }
+        window.addSubview(view)
+        defer { view.removeFromSuperview() }
+
+        let outcome = await settleContent(view, named: #function, minDuration: 0, maxDuration: 0.15)
+
+        #expect(outcome == .timedOut(budget: 0.15))
+        #expect(view.sampleCount >= 2)
+    }
+
+    @Test func cancellationAfterTheFirstSampleEndsSettling() async throws {
+        let window = try hostWindow()
+        let view = ScriptedSettleView { context, rect, _ in
+            context.setFillColor(gray: 0.5, alpha: 1)
+            context.fill(rect)
+            withUnsafeCurrentTask { $0?.cancel() }
+        }
+        window.addSubview(view)
+        defer { view.removeFromSuperview() }
+
+        let task = Task { await settleContent(view, named: #function) }
+        #expect(await task.value == .cancelled)
+        #expect(view.sampleCount == 1)
+    }
+
     /// A budget shorter than the quiet window means no run can prove stability
     /// inside it — the pre-fix loop always returned `.timedOut` here despite
     /// the content never once changing.

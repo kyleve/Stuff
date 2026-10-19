@@ -8,6 +8,18 @@ This report is derived from all 12 `TODOs.md` files and carries no actionable
 items. The root [`TODOs.md`](TODOs.md) owns their format and placement. It is
 true as of the header date and reviewed source, not as of later HEADs.
 
+**Later merge reconciliation:** this branch also includes `8d73c08e0` from main
+(PRs #392 and #369). Their CI host-check split, snapshot reference grouping and
+settling-noise fix are retained, including the completed SnapshotKitTesting item.
+The full audit and inventory below retain the `2d686c95d` cutoff; this integration
+check does not extend the weekly source review to those two PRs.
+The merged-tree check ran `./test SnapshotKitTestingTests`: 86 tests passed,
+along with 25 architecture rule tests, architecture lint, and host regressions
+(attribution: 1 test/3 assertions; backup upgrader: 16 tests/58 assertions).
+The two affected tooling suites passed 22 tests; SwiftFormat (0/1,405, 148
+skipped), ShellCheck, shard validation, agent sync and diff checks also passed.
+No app image suite or live user-interaction validation was repeated.
+
 ## Method and changes since the previous audit
 
 The pass read every open area backlog, inspected cited source/test mechanisms,
