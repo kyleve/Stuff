@@ -14,7 +14,7 @@ struct CompatibilityScopedStoreTests {
             try await scoped.restoreHomeRegionRecord(home)
             try await scoped.restoreHomeRegionRecord(historical)
         }
-        #expect(Set(try await scoped.homeRegionRecords()) == [home, historical])
+        #expect(try await Set(scoped.homeRegionRecords()) == [home, historical])
         try await scoped.perform {
             try await scoped.replaceHomeRegionRecord(with: home)
         }
