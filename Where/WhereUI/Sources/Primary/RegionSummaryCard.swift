@@ -5,7 +5,7 @@ import SwiftUI
 import WhereCore
 
 /// A Liquid Glass card summarizing how many days were spent in one region.
-/// Used prominently on the Primary tab and (more compactly) on Elsewhere.
+/// Used prominently on the Locations tab and (more compactly) on Elsewhere.
 struct RegionSummaryCard: View {
     /// Why the shared card is being rendered. A theme specimen keeps the real
     /// compact-card surface and hierarchy, but omits the provenance stamp that
@@ -18,7 +18,7 @@ struct RegionSummaryCard: View {
     let regionDays: RegionDays
     var caption: String?
     /// An optional reverse-geocoded "where" teaser (e.g. "Paris, France"),
-    /// shown beneath the caption. Used on the Elsewhere cards; `nil` on the
+    /// shown beneath the region name. Used on the Elsewhere cards; `nil` on the
     /// Locations cards, which intentionally stay a pure passport stamp.
     var places: String?
 
@@ -527,7 +527,7 @@ private struct EntryStamp: View {
     }
 }
 
-/// The cached render artifacts a regular card consumes together.
+/// The cached render artifacts both card sizes consume together.
 private struct RegionArtworkPaths {
     let watermark: Path
     let stamp: Path

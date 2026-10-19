@@ -289,7 +289,7 @@ struct WhereStylesheetTests {
         #expect(card.regionNameTracking == 0)
         #expect(card.watermarkFontSize == 96)
         #expect(card.watermarkOffset == CGSize(width: 12, height: 10))
-        #expect(card.regionShape == nil)
+        #expect(card.regionShape == style.card.regular.regionShape)
         #expect(card.sheen == .init(
             intensity: 0.5,
             staticGlintIntensity: 0.5,

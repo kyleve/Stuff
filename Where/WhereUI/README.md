@@ -423,15 +423,16 @@ currently resolve through identical Liquid Glass tokens; onboarding previews
 before commit, Appearance Settings persists immediately, and widgets and
 snippets receive the same identity through their cross-process snapshots.
 
-Regular `RegionSummaryCard`s ask the root-owned `RegionOutlinePathCache` for a
-medium SwiftUI path for the large security-print watermark and a small path for
-the seal inside the circular entry stamp. A separate micro path is repeated as
-a tangent-aligned microprint border around the card's inner perimeter. The UI
-cache derives all four resolutions from RegionKit's one cached source outline
-using its stateless simplifier. Compact cards retain the simpler symbol
-treatment. On the two large Locations cards, raw GPS fixes for the selected
-year are projected through that same geometry and reduced to a clipped,
-static constellation of glowing pinpricks. Manually logged days add no invented
+Both `RegionSummaryCard` sizes ask the root-owned `RegionOutlinePathCache` for
+region artwork. The watermark uses a medium path, and the stamp seal uses a
+small path. A separate micro path is repeated as a tangent-aligned microprint
+border around the card's inner perimeter. The UI cache derives all four
+resolutions from RegionKit's one cached source outline using its stateless
+simplifier. Compact cards share the watermark, stamp silhouette, and border
+while retaining their smaller typography, spacing, and stamp size.
+Regions without geometry retain the symbol treatment. On Locations cards, raw
+GPS fixes for the selected year are projected through that same geometry and
+reduced to a clipped, static constellation of glowing pinpricks. Manually logged days add no invented
 points. Settings > Appearance can hide or restore that constellation without
 altering the recorded data. Security-print layers use normal compositing in
 light mode. Dark mode mixes the region tint 65% toward white and uses luminosity

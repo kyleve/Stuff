@@ -95,6 +95,8 @@ Layering, localization, preview, and testing conventions live in the feature
   stateless simplifier. WhereUI chooses full/medium/small/micro tolerances and
   caches the resulting SwiftUI `Path`s. Use the small path for the stamp. Use
   the micro path for repeated borders on location cards and estimate panels.
+  Share the region artwork treatment across regular and compact cards. Keep
+  compact dimensions in the compact style.
   Project Locations-card GPS points through the cache's shared
   `RegionArtworkProjection`. Never project, simplify, or spatially reduce
   artwork in a card's `body`.

@@ -231,6 +231,7 @@ struct MainTabs: View {
         }
 
         private static func elsewhereSnapshot() -> SnapshotCase {
+            let cache = RegionOutlinePathCache()
             let session = PreviewSupport.loadedSession()
             session.preferences.showsLocationWelcome = false
             let report = YearReportModel(
@@ -273,8 +274,16 @@ struct MainTabs: View {
                     await report.refresh()
                     if let input = report.elsewhereInput { await report.elsewhere.refresh(input) }
                 },
+                onReadyToSnapshot: {
+                    await PreviewSupport.loadCardArtwork(
+                        for: report.elsewhere.content(for: report.selectedYear)?.regions
+                            .map(\.region) ?? [],
+                        cache: cache,
+                    )
+                },
             ) {
                 PreparedElsewhereSnapshot(session: session, report: report, welcome: welcome)
+                    .environment(\.regionOutlinePathCache, cache)
             }
         }
 

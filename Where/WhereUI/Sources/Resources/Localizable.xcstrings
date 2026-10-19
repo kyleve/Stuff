@@ -6839,17 +6839,6 @@
         }
       }
     },
-    "secondary.caption.passingThrough" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Just passing through"
-          }
-        }
-      }
-    },
     "secondary.empty.description" : {
       "extractionState" : "manual",
       "localizations" : {

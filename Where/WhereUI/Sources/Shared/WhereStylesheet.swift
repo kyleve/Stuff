@@ -730,8 +730,8 @@ extension WhereStylesheet {
         var watermarkFontSize: CGFloat
         /// Offset of that watermark toward the bottom-trailing corner.
         var watermarkOffset: CGSize
-        /// RegionKit silhouette artwork for the regular card. `nil` keeps the
-        /// compact card on its simpler SF Symbol watermark and stamp glyph.
+        /// RegionKit silhouette artwork shared by both card sizes. `nil` selects
+        /// the SF Symbol watermark and stamp glyph in the card designer.
         var regionShape: RegionShape?
         /// Light-sheen strength plus the deterministic pose used until a
         /// live motion sample arrives (and whenever motion must stay static).
@@ -934,6 +934,29 @@ extension WhereStylesheet {
             var watermark: Artwork
             var stamp: Artwork
             var securityBorder: SecurityBorder
+
+            static let standard = RegionShape(
+                watermark: .init(
+                    center: CGPoint(x: 0.7, y: 0.57),
+                    extent: CGSize(width: 0.72, height: 0.78),
+                    scale: 0.88,
+                    fillOpacity: 0.13,
+                    stroke: .init(opacity: 0.28, width: 1.5),
+                ),
+                stamp: .init(
+                    center: CGPoint(x: 0.5, y: 0.5),
+                    extent: CGSize(width: 0.78, height: 0.78),
+                    scale: 0.88,
+                    fillOpacity: 0.78,
+                    stroke: nil,
+                ),
+                securityBorder: .init(
+                    inset: 9,
+                    glyphSize: 8,
+                    spacing: 11,
+                    opacity: 0.22,
+                ),
+            )
 
             /// Projection geometry and ink treatment for one silhouette.
             struct Artwork: Equatable {
@@ -1195,28 +1218,7 @@ extension WhereStylesheet {
                 ),
                 watermarkFontSize: 150,
                 watermarkOffset: CGSize(width: 20, height: 12),
-                regionShape: CardStyle.RegionShape(
-                    watermark: .init(
-                        center: CGPoint(x: 0.7, y: 0.57),
-                        extent: CGSize(width: 0.72, height: 0.78),
-                        scale: 0.88,
-                        fillOpacity: 0.13,
-                        stroke: .init(opacity: 0.28, width: 1.5),
-                    ),
-                    stamp: .init(
-                        center: CGPoint(x: 0.5, y: 0.5),
-                        extent: CGSize(width: 0.78, height: 0.78),
-                        scale: 0.88,
-                        fillOpacity: 0.78,
-                        stroke: nil,
-                    ),
-                    securityBorder: .init(
-                        inset: 9,
-                        glyphSize: 8,
-                        spacing: 11,
-                        opacity: 0.22,
-                    ),
-                ),
+                regionShape: .standard,
                 sheen: CardStyle.Sheen(
                     intensity: 1,
                     staticGlintIntensity: 0.25,
@@ -1257,7 +1259,7 @@ extension WhereStylesheet {
                 ),
                 watermarkFontSize: 96,
                 watermarkOffset: CGSize(width: 12, height: 10),
-                regionShape: nil,
+                regionShape: .standard,
                 sheen: CardStyle.Sheen(
                     intensity: 0.5,
                     staticGlintIntensity: 0.5,

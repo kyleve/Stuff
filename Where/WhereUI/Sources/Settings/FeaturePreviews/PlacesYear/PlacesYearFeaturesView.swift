@@ -61,6 +61,7 @@ extension PlacesYearFeaturesView: SettingsSection {
 #if DEBUG
     extension PlacesYearFeaturesView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            let cache = RegionOutlinePathCache()
             let loaded = PreviewSupport.plannedStayYearReportModel()
             let demo = PreviewSupport.loadedYearReportModel()
             whereSnapshot(
@@ -69,11 +70,20 @@ extension PlacesYearFeaturesView: SettingsSection {
                 onReadyToMeasure: {
                     if let input = loaded.elsewhereInput { await loaded.elsewhere.refresh(input) }
                 },
+                onReadyToSnapshot: {
+                    await PreviewSupport.loadCardArtwork(
+                        for: loaded.locationRegions.map(\.region)
+                            + (loaded.elsewhere.content(for: loaded.selectedYear)?.regions
+                                .map(\.region) ?? []),
+                        cache: cache,
+                    )
+                },
             ) {
                 PlacesYearFeaturesView(
                     report: loaded,
                     focus: nil,
                 )
+                .environment(\.regionOutlinePathCache, cache)
             }
             whereSnapshot(name: "Empty", configurations: .fullContentPhoneLightDark) {
                 PlacesYearFeaturesView(report: PreviewSupport.emptyYearReportModel(), focus: nil)
@@ -92,9 +102,18 @@ extension PlacesYearFeaturesView: SettingsSection {
                 onReadyToMeasure: {
                     if let input = demo.elsewhereInput { await demo.elsewhere.refresh(input) }
                 },
+                onReadyToSnapshot: {
+                    await PreviewSupport.loadCardArtwork(
+                        for: demo.locationRegions.map(\.region)
+                            + (demo.elsewhere.content(for: demo.selectedYear)?.regions
+                                .map(\.region) ?? []),
+                        cache: cache,
+                    )
+                },
             ) {
                 PlacesYearFeaturesView(report: demo, focus: nil)
                     .environment(\.isInDemoMode, true)
+                    .environment(\.regionOutlinePathCache, cache)
             }
         }
     }

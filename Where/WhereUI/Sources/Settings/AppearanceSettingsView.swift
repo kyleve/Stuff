@@ -225,10 +225,14 @@ extension AppearanceSettingsView: SettingsSection {
 #if DEBUG
     extension AppearanceSettingsView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            let cache = RegionOutlinePathCache()
             whereSnapshot(
                 name: "Default",
                 configurations: .fullContentScreenDefaults,
                 measurementReadiness: .immediate,
+                onReadyToSnapshot: {
+                    await PreviewSupport.loadCardArtwork(for: [.california], cache: cache)
+                },
             ) {
                 NavigationStack {
                     AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())
@@ -238,6 +242,7 @@ extension AppearanceSettingsView: SettingsSection {
                     \.cardDesignerModel,
                     CardDesignerModel(configuration: .standard),
                 )
+                .environment(\.regionOutlinePathCache, cache)
             }
         }
     }

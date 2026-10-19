@@ -309,6 +309,20 @@
 
         // MARK: - Region picker / customization
 
+        /// Warms the injected cache before capture, including accessibility
+        /// reparenting. Pixel stability alone can accept the symbol fallback.
+        static func loadCardArtwork(
+            for regions: [Region],
+            cache: RegionOutlinePathCache,
+        ) async {
+            for region in regions {
+                guard !Task.isCancelled else { return }
+                _ = await cache.path(for: region, resolution: .small)
+                _ = await cache.path(for: region, resolution: .medium)
+                _ = await cache.path(for: region, resolution: .micro)
+            }
+        }
+
         /// A primary-region selection model seeded with a few US picks + looks,
         /// for the picker/customization previews and tests.
         @MainActor

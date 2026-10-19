@@ -87,12 +87,6 @@ struct ElsewhereView: View {
                                                 region: item.region,
                                                 days: item.days.count,
                                             ),
-                                            caption: item.days.count <= 3
-                                                ?
-                                                String(
-                                                    localized: .secondaryCaptionPassingThrough,
-                                                ) :
-                                                nil,
                                             places: content.placeNames[item.region],
                                             variant: .compact,
                                             yearLength: report.daysInSelectedYear,
@@ -166,6 +160,7 @@ struct ElsewhereView: View {
             configurations: [SnapshotConfiguration],
             resolver: (any ElsewhereResolving)? = nil,
         ) -> SnapshotCase {
+            let cache = RegionOutlinePathCache()
             let model = ElsewhereModel(
                 resolver: resolver ?? report.services.elsewhere,
                 namer: PreviewPlaceNamer(),
@@ -176,8 +171,15 @@ struct ElsewhereView: View {
                 onReadyToMeasure: {
                     if let input = report.elsewhereInput { await model.refresh(input) }
                 },
+                onReadyToSnapshot: {
+                    await PreviewSupport.loadCardArtwork(
+                        for: model.content(for: report.selectedYear)?.regions.map(\.region) ?? [],
+                        cache: cache,
+                    )
+                },
             ) {
                 ElsewhereView(report: report, model: model)
+                    .environment(\.regionOutlinePathCache, cache)
             }
         }
     }
