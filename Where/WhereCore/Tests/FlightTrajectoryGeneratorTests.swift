@@ -18,6 +18,16 @@ struct FlightTrajectoryGeneratorTests {
         })
     }
 
+    @Test func clusteredObservationErrorsPreserveStationaryJourneyGroundTruth() throws {
+        let scenario = FlightTrajectoryGenerator.make(profile: .clusteredDrift, seed: 42)
+        let first = try #require(scenario.samples.first)
+        let last = try #require(scenario.samples.last)
+        #expect(scenario.samples.contains { $0.coordinate.distance(to: first.coordinate) > 14000 })
+        #expect(last.coordinate.distance(to: first.coordinate) < 30)
+        #expect(scenario.groundIDs == Set(scenario.samples.map(\.id)))
+        #expect(scenario.expectedFlights == 0)
+    }
+
     @Test func reducerPreservesTheFailureWithoutKeepingUnnecessarySamples() {
         let samples = FlightTrajectoryGenerator.make(profile: .sparseJet, seed: 1).samples
         let required = samples[2].id

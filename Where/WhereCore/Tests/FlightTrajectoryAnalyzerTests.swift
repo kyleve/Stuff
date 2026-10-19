@@ -89,13 +89,15 @@ struct FlightTrajectoryAnalyzerTests {
             )
             // Retain enough cruise evidence in the dense profile; sparse profiles
             // already contain the required independent endpoint observations.
-            if profile == .denseJet || profile == .sparseJet || profile == .mixedSampling {
+            if profile == .denseJet || profile == .sparseJet || profile == .shortSparseJet ||
+                profile == .mixedSampling
+            {
                 #expect(
                     thinnerFlights.count == scenario.expectedFlights,
                     "Recognition after thinning: \(scenario.description)",
                 )
             }
-            if profile == .sparseJet || profile == .mixedSampling {
+            if profile == .sparseJet || profile == .shortSparseJet || profile == .mixedSampling {
                 let coarse = scenario.samples.enumerated().map { index, sample in
                     LocationSample(
                         id: sample.id,

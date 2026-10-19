@@ -236,7 +236,8 @@ one it belongs to rather than to a god-object:
   into the correction review.
 
   `FlightTrajectoryGenerator` builds synthetic journeys and then simulates GPS observations.
-  The analyzer tests run 1,000 fixed seeds per profile by default: 10,000 journeys across ten profiles.
+  The analyzer tests run 1,000 fixed seeds per profile by default: 12,000 journeys across twelve profiles.
+  These include short sparse flights and stationary journeys with brief clusters of remote GPS errors.
   Replay a failure with
   `TEST_RUNNER_WHERE_FLIGHT_FUZZ_PROFILE` and `TEST_RUNNER_WHERE_FLIGHT_FUZZ_SEED`.
   Run the suite with `./test --only WhereCoreTests/FlightTrajectoryAnalyzerTests`.

@@ -6,8 +6,8 @@ import WhereCore
 /// variations. Expected ground identities come from the journey, never the detector.
 enum FlightTrajectoryGenerator {
     enum Profile: String, CaseIterable {
-        case denseJet, sparseJet, mixedSampling, longHaul, connections
-        case overnightDateLine, stationaryDrift, road, fastGround, slowerAircraft
+        case denseJet, sparseJet, shortSparseJet, mixedSampling, longHaul, connections
+        case overnightDateLine, stationaryDrift, clusteredDrift, road, fastGround, slowerAircraft
     }
 
     struct JourneyPoint {
@@ -64,6 +64,8 @@ enum FlightTrajectoryGenerator {
             using: &random,
         )
         let base = FlightTrajectoryFixtures.start.addingTimeInterval(offset * 60)
+        let clusterOffsetKM = profile == .clusteredDrift
+            ? Double.random(in: 15 ... 25, using: &random) : 0
         var groundIDs: Set<LocationSample.ID> = []
         let samples = points.enumerated().map { index, point in
             let sampleID = FlightTrajectoryFixtures.sampleID(index + 1)
@@ -80,9 +82,16 @@ enum FlightTrajectoryGenerator {
                 bearing: bearing + 90,
                 distanceKM: bend,
             )
+            // Three callbacks share a remote GPS error while the underlying
+            // journey stays stationary. Returning fixes bound the brief outage.
+            let observedCenter = if profile == .clusteredDrift && (2 ... 4).contains(index) {
+                coordinate(from: trueCoordinate, bearing: bearing, distanceKM: clusterOffsetKM)
+            } else {
+                trueCoordinate
+            }
             let noiseMeters = Double.random(in: 0 ... 15, using: &random)
             let coordinate = coordinate(
-                from: trueCoordinate,
+                from: observedCenter,
                 bearing: Double.random(in: 0 ... 360, using: &random),
                 distanceKM: noiseMeters / 1000,
             )
@@ -103,9 +112,10 @@ enum FlightTrajectoryGenerator {
             )
         }
         let expectedFlights = switch profile {
-            case .denseJet, .sparseJet, .mixedSampling, .longHaul, .overnightDateLine: 1
+            case .denseJet, .sparseJet, .shortSparseJet, .mixedSampling, .longHaul,
+                 .overnightDateLine: 1
             case .connections: 2
-            case .stationaryDrift, .road, .fastGround, .slowerAircraft: 0
+            case .stationaryDrift, .clusteredDrift, .road, .fastGround, .slowerAircraft: 0
         }
         return Scenario(
             samples: samples,
@@ -118,7 +128,7 @@ enum FlightTrajectoryGenerator {
                 ]) : groundIDs,
             now: base
                 .addingTimeInterval(points[points.count - 1].minutes * timeScale * 60),
-            description: "profile=\(profile.rawValue), seed=\(seed), latitude=\(latitude), longitude=\(longitude), bearing=\(bearing), scale=\(scale), timeScale=\(timeScale)",
+            description: "profile=\(profile.rawValue), seed=\(seed), latitude=\(latitude), longitude=\(longitude), bearing=\(bearing), scale=\(scale), timeScale=\(timeScale), clusterOffsetKM=\(clusterOffsetKM)",
         )
     }
 
@@ -128,6 +138,14 @@ enum FlightTrajectoryGenerator {
         }
         let departure = [point(0, 0, ground: true), point(5, 0, ground: true)]
         switch profile {
+            case .shortSparseJet:
+                return departure + [
+                    point(25, 200, ground: true),
+                    point(30, 200, ground: true),
+                    point(35, 200, ground: true),
+                ]
+            case .clusteredDrift:
+                return [0.0, 5, 6.5, 7.5, 8.5, 10, 15, 20].map { point($0, 0, ground: true) }
             case .sparseJet, .mixedSampling, .overnightDateLine, .connections:
                 var points = departure
                 if profile == .mixedSampling { points.append(point(140, 2000, ground: false)) }
@@ -161,8 +179,9 @@ enum FlightTrajectoryGenerator {
                     case .road: speed = 30
                     case .fastGround: speed = 300
                     case .slowerAircraft: speed = 350
-                    case .denseJet, .sparseJet, .mixedSampling, .longHaul, .connections,
-                         .overnightDateLine:
+                    case .denseJet, .sparseJet, .shortSparseJet, .mixedSampling, .longHaul,
+                         .connections,
+                         .overnightDateLine, .clusteredDrift:
                         preconditionFailure("Only non-jet profiles use ground/slow speeds")
                 }
                 return (0 ... 12).map { point(
