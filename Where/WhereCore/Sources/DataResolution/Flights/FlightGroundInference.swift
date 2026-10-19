@@ -3,7 +3,7 @@ import Foundation
 /// Confirms ground episodes from positive observations on one device. Sparse
 /// stationary fixes and measured slow travel never borrow duration from silence.
 enum FlightGroundInference {
-    private typealias Policy = GPSCorrectionPolicy.Trajectory
+    private typealias Trajectory = GPSCorrectionPolicy.Trajectory
 
     struct Episode {
         let start: Int
@@ -15,7 +15,7 @@ enum FlightGroundInference {
 
         var duration: TimeInterval {
             switch self {
-                case .stationary: Policy.minimumGroundDuration
+                case .stationary: Trajectory.minimumGroundDuration
                 case .sparseStationary: GPSCorrectionPolicy.Ground.sparseMinimumDuration
                 case .moving: GPSCorrectionPolicy.Ground.movingMinimumDuration
             }
@@ -23,14 +23,14 @@ enum FlightGroundInference {
 
         var window: TimeInterval {
             switch self {
-                case .stationary, .moving: Policy.maximumGroundWindow
+                case .stationary, .moving: Trajectory.maximumGroundWindow
                 case .sparseStationary: GPSCorrectionPolicy.Ground.sparseMaximumWindow
             }
         }
 
         var gap: TimeInterval {
             switch self {
-                case .stationary, .moving: Policy.maximumGroundGap
+                case .stationary, .moving: Trajectory.maximumGroundGap
                 case .sparseStationary: GPSCorrectionPolicy.Ground.sparseMaximumGap
             }
         }
@@ -44,13 +44,13 @@ enum FlightGroundInference {
                 guard speed.metersPerSecond.isFinite, speed.accuracyMetersPerSecond.isFinite,
                       speed.metersPerSecond >= 0, speed.accuracyMetersPerSecond >= 0,
                       (speed.metersPerSecond + speed.accuracyMetersPerSecond) * 3.6
-                      <= Policy.maximumGroundSpeedKMH else { return false }
+                      <= Trajectory.maximumGroundSpeedKMH else { return false }
             }
             switch self {
                 case .moving: return speed != nil
                 case .stationary, .sparseStationary:
                     return sample.coordinate.distance(to: origin.coordinate)
-                        + sample.horizontalAccuracy + origin.horizontalAccuracy <= Policy
+                        + sample.horizontalAccuracy + origin.horizontalAccuracy <= Trajectory
                         .groundRadiusMeters
             }
         }
@@ -80,7 +80,8 @@ enum FlightGroundInference {
                       .window,
                       anchors[end].timestamp.timeIntervalSince(anchors[end - 1].timestamp) <= mode
                       .gap,
-                      upperSpeed(anchors[end - 1], anchors[end]) <= Policy.maximumGroundSpeedKMH,
+                      upperSpeed(anchors[end - 1], anchors[end]) <= Trajectory
+                      .maximumGroundSpeedKMH,
                       mode.accepts(anchors[end], origin: anchors[start]),
                       byLeg[end - 1].allSatisfy({ mode.accepts($0, origin: anchors[start]) }),
                       zip(byLeg[end - 1], byLeg[end - 1].dropFirst())
@@ -119,7 +120,7 @@ enum FlightGroundInference {
                 - before.horizontalAccuracy - after.horizontalAccuracy,
         )
         let seconds = after.timestamp.timeIntervalSince(before.timestamp)
-        if seconds < Policy.sameObservationInterval { return distance == 0 }
-        return distance / seconds * 3.6 <= Policy.maximumGroundSpeedKMH
+        if seconds < Trajectory.sameObservationInterval { return distance == 0 }
+        return distance / seconds * 3.6 <= Trajectory.maximumGroundSpeedKMH
     }
 }
