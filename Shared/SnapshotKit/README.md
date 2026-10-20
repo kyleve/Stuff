@@ -149,3 +149,33 @@ assertSnapshots(of: MyBadge.self)
 - The Where app wraps content in its Broadway design-system root via a
   `whereSnapshot(...)` adapter in `WhereUI`. SnapshotKit itself stays
   design-system-agnostic.
+
+## Component comparison sheets
+
+Use `SnapshotCase.comparison` for one component state across consumer-defined
+appearances. Each configuration produces a separate sheet. Panels retain normal
+component width and wrap into two-column rows. The consumer supplies stable typed
+identities, labels, ordering, and themed content:
+
+```swift
+SnapshotCase.comparison(
+    name: "Badge",
+    configurations: .componentDefaults,
+    panels: appearances.map { appearance in
+        SnapshotPanel(id: appearance.snapshotID, label: appearance.title) {
+            Badge(model: makeFreshFixture(), appearance: appearance)
+        }
+    }
+)
+```
+
+Here, `Badge`, `appearances`, `snapshotID`, and the fixture factory are consumer-owned examples.
+Build fresh fixture state inside each lazy panel builder. Preview sheets support
+horizontal scrolling and omit test-only accessibility annotations.
+
+Comparison cases default to the `themes` reference group. Ordinary cases accept an
+optional `SnapshotReferenceGroup`; omission preserves existing paths. A group is a
+stable lowercase slug, independent of localized labels and configuration identifiers.
+Special traits use `other/` inside the group. See
+[SnapshotKitTesting](../SnapshotKitTesting/README.md#component-comparison-sheets)
+for capture, comparison, metadata, and recording behavior.

@@ -45,6 +45,8 @@ public struct SnapshotCase: Identifiable {
     /// The case name — groups a component's variants and prefixes their
     /// reference-image identifiers.
     public let name: String
+    public let referenceGroup: SnapshotReferenceGroup?
+    public let comparisonPanels: [SnapshotPanel]
     /// The configurations (appearance/frame/type variants) to render.
     public let configurations: [SnapshotConfiguration]
     /// Whether the content needs the async settle loop before capture.
@@ -75,13 +77,15 @@ public struct SnapshotCase: Identifiable {
     private let contentFactory: @MainActor () -> AnyView
 
     public var id: String {
-        name
+        [referenceGroup?.rawValue, name].compactMap(\.self).joined(separator: "/")
     }
 
     @MainActor
     public init(
         name: String,
         configurations: [SnapshotConfiguration],
+        referenceGroup: SnapshotReferenceGroup? = nil,
+        comparisonPanels: [SnapshotPanel] = [],
         measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
         onReadyToMeasure: (@MainActor () async -> Void)? = nil,
         settle: SnapshotSettle = .settled,
@@ -89,6 +93,8 @@ public struct SnapshotCase: Identifiable {
         @ViewBuilder content: @escaping @MainActor () -> some View,
     ) {
         self.name = name
+        self.referenceGroup = referenceGroup
+        self.comparisonPanels = comparisonPanels
         self.configurations = configurations
         self.measurementReadiness = measurementReadiness
         self.onReadyToMeasure = onReadyToMeasure
@@ -117,11 +123,29 @@ extension SnapshotCase: View {
                     Text(label(for: configuration))
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
-                    framed(for: configuration)
-                        .snapshotTraits(configuration)
-                        // Preview the same deterministic content state as tests;
-                        // capture-only mechanics remain test-pipeline concerns.
-                        .environment(\.isCapturingSnapshot, true)
+                    if comparisonPanels.isEmpty {
+                        framed(for: configuration)
+                            .snapshotTraits(configuration)
+                            .environment(\.isCapturingSnapshot, true)
+                    } else {
+                        let width = configuration.device.size.previewPanelWidth
+                        LazyVGrid(
+                            columns: [GridItem(.fixed(width)), GridItem(.fixed(width))],
+                            spacing: 16,
+                        ) {
+                            ForEach(comparisonPanels) { panel in
+                                VStack(alignment: .leading) {
+                                    Text(panel.label).font(.caption)
+                                    SnapshotCase(name: panel.label, configurations: []) {
+                                        panel.content
+                                    }
+                                    .framed(for: configuration)
+                                    .snapshotTraits(configuration)
+                                    .environment(\.isCapturingSnapshot, true)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -152,6 +176,17 @@ extension SnapshotCase: View {
                 // Two-axis expansion is capture-only; preview the declared
                 // minimum viewport rather than an unbounded canvas.
                 content.frame(width: minimumSize.width, height: minimumSize.height)
+        }
+    }
+}
+
+extension SnapshotConfiguration.SizeStrategy {
+    fileprivate var previewPanelWidth: CGFloat {
+        switch self {
+            case let .fixed(size): size.width
+            case let .intrinsic(maxWidth): maxWidth ?? 402
+            case let .fullContent(width, _): width
+            case let .fullContent2D(minimumSize): minimumSize.width
         }
     }
 }

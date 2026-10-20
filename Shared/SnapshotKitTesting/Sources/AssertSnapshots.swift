@@ -48,10 +48,23 @@ public func assertSnapshots(
     }
     for snapshotCase in snapshots {
         guard Task.isCancelled == false else { return }
+        if !snapshotCase.comparisonPanels.isEmpty {
+            await assertComparisonSnapshots(
+                snapshotCase,
+                record: record,
+                fileID: fileID,
+                file: filePath,
+                testName: testName,
+                line: line,
+                column: column,
+            )
+            continue
+        }
         await assertSnapshots(
             of: snapshotCase.content,
             named: snapshotCase.name,
             configurations: snapshotCase.configurations,
+            referenceGroup: snapshotCase.referenceGroup,
             measurementReadiness: snapshotCase.measurementReadiness,
             onReadyToMeasure: snapshotCase.onReadyToMeasure,
             settle: snapshotCase.settle,
@@ -77,6 +90,7 @@ public func assertSnapshots(
     of view: some View,
     named name: String,
     configurations: [SnapshotConfiguration],
+    referenceGroup: SnapshotReferenceGroup? = nil,
     measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
     onReadyToMeasure: (@MainActor () async throws -> Void)? = nil,
     measurementHookTimeout: TimeInterval? = nil,
@@ -193,6 +207,7 @@ public func assertSnapshots(
             testName: testName,
             identifier: identifier,
             configuration: configuration,
+            referenceGroup: referenceGroup,
         )
         if isDiffReportingEnabled {
             SnapshotDiffReporting.report(
@@ -240,7 +255,7 @@ public func assertSnapshots(
 /// plain file-URL output — the diff tool only shapes failure messages, so an
 /// unknown value degrading to the default is harmless, unlike a record-mode
 /// typo.
-private func environmentDiffTool() -> SnapshotTestingConfiguration.DiffTool? {
+func environmentDiffTool() -> SnapshotTestingConfiguration.DiffTool? {
     guard let value = ProcessInfo.processInfo.environment["SNAPSHOT_DIFF_TOOL"] else { return nil }
     switch value {
         case "ksdiff": return .ksdiff
@@ -255,7 +270,7 @@ private func environmentDiffTool() -> SnapshotTestingConfiguration.DiffTool? {
 /// unrecognized value records an issue rather than silently falling back to the
 /// suite default — a typo'd re-record run must not quietly assert instead.
 @MainActor
-private func environmentRecordMode() -> SnapshotTestingConfiguration.Record? {
+func environmentRecordMode() -> SnapshotTestingConfiguration.Record? {
     guard let value = ProcessInfo.processInfo.environment["SNAPSHOT_RECORD"] else { return nil }
     guard let record = SnapshotTestingConfiguration.Record(rawValue: value) else {
         Issue.record(

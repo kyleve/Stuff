@@ -22,7 +22,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 
 - **Use `snapshotReferenceURL` for recording, comparison, and review paths.** Keep filenames stable when the directory changes.
 - **Nest standard captures with non-default Dynamic Type, increased contrast, RTL, or bold text under the suite's `other/` directory.**
-- **Keep all accessibility annotations at the suite root, even with those traits.** Device, frame, name, and light/dark appearance do not select `other/`. Guard: `SnapshotReferenceURLTests`.
+- **Keep accessibility annotations at the selected group root, even with those traits.** Device, frame, name, and light/dark appearance do not select `other/`. Guard: `SnapshotReferenceURLTests`.
 - **The rendering pipeline is one async function.** All captures (standard and accessibility) flow through `renderSnapshotCapture(...)`; `renderSnapshotImage(...)` is its image-only wrapper.
 - **The hosted PNG API uses the same pipeline and capture lock.** It returns bytes and dimensions without comparing a reference.
 - **HTML snapshots wrap offline WebKit in the standard view pipeline.** Use its host, traits, capture lock, and pixel renderer. Await navigation, fonts, paint, and full-content height convergence from the pre-measure hook. Keep consumer HTML generation outside this module. Guards: `AssertHTMLSnapshotsTests`, `SnapshotWebPageTests`.
@@ -150,6 +150,22 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **`CFRunLoopGetNextTimerFireDate` reports only `CFRunLoopTimer`s.** Then "is something scheduled to land in 200ms?" is unanswerable.
 - **That is why the floors exist and why they need per-case seams.**
 - **`CATransaction.addCommitHandler` is macOS-only and absent from the iOS SDK.** A commit-counting variant is not available either.
+
+## Component comparisons and reference groups
+
+- Prefer comparison sheets for theme-dependent component appearance. Keep full-screen
+  variants for critical integration or materially different screen composition.
+- Keep theme identities and ordering in the consumer. Shared snapshot code accepts
+  generic labeled panels and validated reference groups.
+- Preserve existing ungrouped filenames. Resolve grouped paths through the same
+  path resolver for recording, comparison, and review; `other/` nests inside the group.
+- Capture each panel independently with fresh fixture state through the hosted
+  pipeline, including readiness and accessibility annotation handling.
+- Store one sheet PNG and its panel-layout JSON together. Review both before recording.
+  Store bounds and canvas dimensions as whole pixels, including at 3x scale.
+  Compare each panel at the existing tolerance; never dilute its area budget across
+  the entire sheet. Layout or membership changes must fail explicitly.
+- Count real panel captures in timing reports; do not count composition as a capture.
 
 ## Testing
 

@@ -280,3 +280,24 @@ emits one timing line that includes time spent on failed attempts.
 - Timezone-pinned: references bake wall-clock dates/times into pixels, so the
   snapshot scheme pins `TZ` (and the runner verifies it via
   `SNAPSHOT_EXPECTED_TIMEZONE`) — see `testScheme` in `Project.swift`.
+
+## Component comparison sheets
+
+Use `SnapshotCase.comparison(name:configurations:panels:)` to capture the same
+component state across consumer-defined appearances. Each `SnapshotPanel` has a
+stable typed identity, a display label, and a lazy content builder. Build fresh
+fixture state inside that builder. Each configuration produces one two-column
+sheet with unscaled, independently hosted panels. Additional panels wrap to new rows.
+
+Comparison sheets live in the `themes` reference group by default. The test runner
+stores a PNG and companion JSON containing panel identities and pixel bounds.
+It compares each panel independently at the ordinary image tolerance, then checks
+the complete sheet. Changes to membership, labels, or dimensions also fail through
+the layout reference. Record and review both files together.
+
+Ordinary cases accept an optional `SnapshotReferenceGroup`. The default keeps
+existing paths. Groups are stable lowercase slugs owned by the consumer; they do
+not change configuration identifiers. Special traits use `other/` inside the group.
+Use component sheets for appearance coverage and keep screen variants for critical
+integration or materially different composition. Preview sheets approximate layout;
+the hosted test capture remains authoritative.

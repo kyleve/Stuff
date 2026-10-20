@@ -47,6 +47,17 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Use `.immediate` only for synchronously sized fixtures.** The case's final `settle` remains independently load-bearing.
 - **A measurement hook is intrinsic/full-content-only.** Guards: `AsyncContentCaptureTests` and `LargeViewCaptureTests`.
 
+## Component comparisons and reference groups
+
+- Keep theme identities and ordering in the consumer. Accept generic labeled panels
+  and validated reference groups; never import a consumer's theme model.
+- Keep panel builders lazy and require fresh fixture state on each invocation.
+  Preview panels at their normal width; allow horizontal scrolling for wide sheets.
+- Preserve ungrouped case identity and configuration identifiers. Include the group
+  in case identity so previews can distinguish otherwise identical case names.
+- Keep capture, pixel geometry, reference metadata, and per-panel comparison in
+  [`SnapshotKitTesting`](../SnapshotKitTesting/AGENTS.md). Previews remain an approximation.
+
 ## Testing
 
 `SnapshotKitTests` covers the matrix logic — `combinations` counts and `identifierParts` omission — as pure value assertions (no rendering). Consumers' snapshot bundles exercise the rendering pipeline through `SnapshotKitTesting`.
