@@ -4,8 +4,8 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Settings drill-in for Where's privacy promise and data management: export or
-/// restore the database, erase the selected year's data, or reset the entire app.
+/// Settings drill-in for Where's privacy promise and data management: export
+/// the database, erase the selected year's data, or reset the entire app.
 struct DataSettingsView: View {
     let report: YearReportModel
     let backup: BackupModel
@@ -20,8 +20,10 @@ struct DataSettingsView: View {
 
     @State private var showClearConfirmation = false
     @State private var showResetConfirmation = false
+    @State private var presentedShareItem: BackupShareSheet.Item?
 
     var body: some View {
+        @Bindable var backup = backup
         SettingsFocusScope(focus: focus) {
             Form {
                 PrivacyPassportCard(presentation: PrivacyPassportPresentation(
@@ -30,13 +32,35 @@ struct DataSettingsView: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets())
-                BackupSettingsSection(backup: backup)
+                BackupSettingsSection(backup: backup, onExport: runExport)
                 dataSection
                 resetSection
             }
         }
         .navigationTitle(String(localized: .settingsDataHeader))
         .navigationBarTitleDisplayMode(.inline)
+        // Keep one presenter outside the Form's reusable section content.
+        // The export row changes from progress to idle as the archive arrives.
+        .sheet(item: $presentedShareItem, content: BackupShareSheet.init)
+        .alert(
+            String(localized: .settingsBackupErrorTitle),
+            isPresented: $backup.isShowingBackupError,
+            presenting: backup.backupError,
+        ) { _ in
+            Button(String(localized: .commonOk), role: .cancel) {}
+        } message: { message in
+            Text(message)
+        }
+    }
+
+    /// Build the archive before presenting it. The coordinator retains the
+    /// file until the next export starts.
+    private func runExport() {
+        Task {
+            if let url = await backup.exportBackup() {
+                presentedShareItem = BackupShareSheet.Item(url: url)
+            }
+        }
     }
 
     private var eraseTitle: String {
