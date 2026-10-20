@@ -210,6 +210,12 @@ worked examples.
   per-region look in a view.
 - **Seed `WhereTheme` through `whereBroadwayRoot(theme:regionStyles:)`.** Standard
   and Flat use the stable `standard` and `alternate` identities.
+- Keep Standard as the base stylesheet. Resolve shared traits before applying `WhereThemeOverrides`.
+  Put theme values and theme-specific trait decisions in their definition, such as `WhereFlatTheme`.
+  Keep override application independent of theme selection and trait resolution.
+  Omitted overrides inherit the adjusted base. Explicit zero values disable effects.
+  Use `BModeVarying` for paired light/dark values. Keep runtime region colors outside theme definitions.
+  Guards: `WhereThemeOverridesTests`, `WhereFlatThemeTests`.
 - **Design new and changed custom components for every supported theme.**
   Resolve theme and accessibility choices in the owning `WhereStylesheet`
   component style. Views consume that style without checking the selected theme.

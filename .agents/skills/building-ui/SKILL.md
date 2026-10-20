@@ -69,6 +69,14 @@ For a module that owns a design language:
 5. Test default values, trait derivation, environment resolution, and every
    exported root path.
 
+When a module separates theme definitions from its base stylesheet:
+
+- Follow the module's documented order for base defaults, trait resolution, and theme overrides.
+- Keep theme values and theme-specific trait decisions in the definition. Keep application limited to assigning resolved fields.
+- Use `BModeVarying` for paired light/dark values, selected with the slice's explicit mode.
+- Test inheritance, explicit zero overrides, and preservation of unrelated component state.
+- For Where's concrete contract, follow the [module theme rules](../../../Where/WhereUI/AGENTS.md).
+
 Organize tokens by ownership:
 
 - Put geometry, fonts, colors, shadows, motion, and other authored appearance

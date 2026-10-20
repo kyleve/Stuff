@@ -419,6 +419,17 @@ printed edges and neutral drop shadows. It keeps the passport artwork and
 omits sheen, luminous glows, and GPS-dot halos. The welcome, Elsewhere, privacy,
 and estimate surfaces share this finish. System chrome stays native.
 
+Theme assembly starts with Standard defaults, resolves shared traits, then applies
+`WhereThemeOverrides`. Standard supplies empty overrides. `WhereFlatTheme` owns
+Flat's values and resolves them against the adjusted base. Its `BModeVarying`
+values keep light and dark choices together. Accessibility decisions stay explicit
+in the resolver.
+
+Overrides are `Equatable` values grouped by component. Omitted fields inherit the
+base, while explicit zero values disable effects. Application assigns only the
+specified fields. Views continue to consume complete component styles, and live
+Card Designer drafts compose over those styles.
+
 New custom components support both themes through their resolved styles.
 The [module rules](AGENTS.md) define surface treatments and required snapshot coverage.
 
