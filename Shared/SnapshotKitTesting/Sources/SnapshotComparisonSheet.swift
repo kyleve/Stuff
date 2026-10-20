@@ -2,7 +2,7 @@ import SnapshotKit
 import SnapshotTesting
 import UIKit
 
-/// Pixel-space panel geometry accompanies the sheet so a layout change cannot
+/// Pixel-space panel geometry is embedded in the PNG so a layout change cannot
 /// reinterpret approved pixels as a different theme or subject.
 struct SnapshotComparisonLayout: Codable, Equatable {
     struct Panel: Codable, Equatable {
@@ -15,8 +15,8 @@ struct SnapshotComparisonLayout: Codable, Equatable {
     let pixelSize: CGSize
 }
 
-/// Composes captures without scaling and compares each subject at the ordinary
-/// image tolerance. Adding panels cannot dilute a local regression.
+/// Plans a grid of independent captures, then composes it without scaling.
+/// Rendering is deferred so panel verification can run first.
 @MainActor
 struct SnapshotComparisonSheet {
     struct Panel {
@@ -25,7 +25,9 @@ struct SnapshotComparisonSheet {
         let image: UIImage
     }
 
-    let image: UIImage
+    let panels: [Panel]
+    private let size: CGSize
+    private let scale: CGFloat
     let layout: SnapshotComparisonLayout
 
     init(panels: [Panel]) throws {
@@ -66,6 +68,15 @@ struct SnapshotComparisonSheet {
                 height: (size.height * scale).rounded(),
             ),
         )
+        self.panels = panels
+        self.size = size
+        self.scale = scale
+    }
+
+    /// Composition happens only after independent panel comparison.
+    func render() throws -> UIImage {
+        let heading: CGFloat = 32
+        let width = panels.map(\.image.size.width).max()!
         let format = UIGraphicsImageRendererFormat()
         format.scale = scale
         format.opaque = true
@@ -73,7 +84,7 @@ struct SnapshotComparisonSheet {
         let rendered = UIGraphicsImageRenderer(size: size, format: format).image { context in
             UIColor.white.setFill()
             context.fill(CGRect(origin: .zero, size: size))
-            for (panel, placement) in zip(panels, placements) {
+            for (panel, placement) in zip(panels, layout.panels) {
                 let bounds = CGRect(
                     x: placement.bounds.minX / scale,
                     y: placement.bounds.minY / scale,
@@ -98,52 +109,12 @@ struct SnapshotComparisonSheet {
         guard let png = rendered.pngData(), let decoded = UIImage(data: png, scale: scale) else {
             throw Failure.invalidPanels
         }
-        image = decoded
+        return decoded
     }
 
     enum Failure: Error {
         case invalidPanels
         case mixedScales
         case oversizedSheet
-    }
-
-    /// The whole-sheet check guards labels and spacing. Panel checks preserve
-    /// the area budget of each individually captured component.
-    static func strategy(layout: SnapshotComparisonLayout) -> Snapshotting<UIImage, UIImage> {
-        var strategy: Snapshotting<UIImage, UIImage> = .image(
-            precision: defaultSnapshotPrecision,
-            perceptualPrecision: defaultSnapshotPerceptualPrecision,
-        )
-        let original = strategy.diffing
-        strategy.diffing = Diffing(
-            toData: original.toData,
-            fromData: original.fromData,
-            diff: { reference, actual in
-                guard let old = reference.cgImage, let new = actual.cgImage,
-                      old.width == new.width, old.height == new.height,
-                      new.width == Int(layout.pixelSize.width),
-                      new.height == Int(layout.pixelSize.height)
-                else { return (
-                    "Comparison sheet dimensions do not match the approved panel layout",
-                    [],
-                ) }
-                for panel in layout.panels {
-                    guard let oldPanel = old.cropping(to: panel.bounds),
-                          let newPanel = new.cropping(to: panel.bounds)
-                    else { return ("Invalid comparison bounds for \(panel.label)", []) }
-                    if let failure = original.diff(
-                        UIImage(cgImage: oldPanel, scale: reference.scale, orientation: .up),
-                        UIImage(cgImage: newPanel, scale: actual.scale, orientation: .up),
-                    ) {
-                        return (
-                            "Panel \(panel.label) (\(panel.identity.rawValue)): \(failure.0)",
-                            failure.1,
-                        )
-                    }
-                }
-                return original.diff(reference, actual)
-            },
-        )
-        return strategy
     }
 }

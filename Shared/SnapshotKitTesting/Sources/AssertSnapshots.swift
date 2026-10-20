@@ -135,64 +135,22 @@ public func assertSnapshots(
         Issue.record(error)
         return
     }
-    // Read once per call rather than per configuration: the environment can't
-    // change mid-run, and the pixel walk is the cost worth gating, not this.
-    let isDiffReportingEnabled = SnapshotDiffReporting.isEnabledByEnvironment
 
     for configuration in configurations {
         guard Task.isCancelled == false else { return }
-        let sizing: SnapshotSizing = switch configuration.device.size {
-            case .fixed:
-                .fixed
-            case let .intrinsic(maxWidth):
-                .intrinsic(
-                    width: maxWidth ?? UIScreen.main.bounds.width,
-                    minimumHeight: 0,
-                )
-            case let .fullContent(width, minimumHeight):
-                // Same measured-height pipeline as `.intrinsic`: a `ScrollView`
-                // measured under the unbounded proposal reports its content
-                // height (guarded by `LargeViewCaptureTests`), so the capture
-                // renders the whole scrollable content.
-                .intrinsic(
-                    width: width,
-                    minimumHeight: minimumHeight ?? 0,
-                )
-            case let .fullContent2D(minimumSize):
-                .fullContent2D(minimumSize: minimumSize)
-        }
         let identifier = fullSnapshotIdentifier(caseName: name, configuration: configuration)
-        let timing = SnapshotCaptureTiming(
-            identifier: identifier,
-            isEnabled: SnapshotCaptureTiming.isEnabledByEnvironment,
-            sizing: sizing,
-            measurementReadiness: measurementReadiness,
-            captureSettle: settle,
-        )
-        let capture: SnapshotCapture
+        let capture: ConfiguredSnapshotCapture
         do {
-            capture = try await SnapshotCaptureRetry.capture(
+            capture = try await captureConfiguredSnapshot(
+                of: view,
+                configuration: configuration,
                 named: identifier,
-                makeViewController: {
-                    makeHostingController(for: view, configuration: configuration)
-                },
-                capture: { hostingController in
-                    try await renderSnapshotCapture(
-                        of: hostingController,
-                        named: identifier,
-                        sizing: sizing,
-                        safeAreaInsets: configuration.device.safeAreaInsets.uiEdgeInsets,
-                        isAccessibility: configuration.snapshotType == .accessibility,
-                        measurementReadiness: measurementReadiness,
-                        onReadyToMeasure: onReadyToMeasure,
-                        measurementHookTimeout: measurementHookTimeout,
-                        settle: settle,
-                        onReadyToSnapshot: onReadyToSnapshot,
-                        settleTimeoutPolicy: settleTimeoutPolicy,
-                        timing: timing,
-                    )
-                },
-                report: { print($0) },
+                measurementReadiness: measurementReadiness,
+                onReadyToMeasure: onReadyToMeasure,
+                measurementHookTimeout: measurementHookTimeout,
+                settle: settle,
+                onReadyToSnapshot: onReadyToSnapshot,
+                timeoutPolicy: settleTimeoutPolicy,
             )
         } catch is CancellationError {
             return
@@ -200,53 +158,22 @@ public func assertSnapshots(
             Issue.record(error)
             continue
         }
-        // Before the verdict, so a reviewer gets the shape of the delta on the
-        // same run that reports the failure. Reads the reference from disk; the
-        // byte-equality check short-circuits when the capture is deterministic.
-        let reference = snapshotReferenceURL(
-            testFilePath: "\(filePath)",
-            testName: testName,
-            identifier: identifier,
-            configuration: configuration,
-            referenceGroup: referenceGroup,
-        )
-        if isDiffReportingEnabled {
-            SnapshotDiffReporting.report(
-                compareAgainstReference(capturedPNG: capture.pngData, referenceURL: reference),
+        capture.timing.measure(.compare) {
+            assertSnapshotReference(
+                .image(capture.capture.image),
                 identifier: identifier,
-                reference: reference,
+                configuration: configuration,
+                referenceGroup: referenceGroup,
+                record: resolvedRecord,
+                diffTool: resolvedDiffTool,
+                fileID: fileID,
+                file: filePath,
+                testName: testName,
+                line: line,
+                column: column,
             )
         }
-        timing.measure(.compare) {
-            withSnapshotTesting(record: resolvedRecord, diffTool: resolvedDiffTool) {
-                let failure = verifySnapshot(
-                    of: capture.image,
-                    as: .image(
-                        precision: defaultSnapshotPrecision,
-                        perceptualPrecision: defaultSnapshotPerceptualPrecision,
-                    ),
-                    named: identifier,
-                    snapshotDirectory: reference.deletingLastPathComponent().path,
-                    fileID: fileID,
-                    file: filePath,
-                    testName: testName,
-                    line: line,
-                    column: column,
-                )
-                if let failure {
-                    Issue.record(
-                        Comment(rawValue: failure),
-                        sourceLocation: SourceLocation(
-                            fileID: fileID.description,
-                            filePath: filePath.description,
-                            line: Int(line),
-                            column: Int(column),
-                        ),
-                    )
-                }
-            }
-        }
-        timing.emit()
+        capture.timing.emit()
     }
 }
 

@@ -23,55 +23,19 @@ func assertComparisonSnapshots(
                 configuration: configuration,
             )
             let sheet = try await captureComparisonSheet(snapshotCase, configuration: configuration)
-            let reference = snapshotReferenceURL(
-                testFilePath: "\(filePath)",
-                testName: testName,
+            assertSnapshotReference(
+                .sheet(sheet),
                 identifier: identifier,
                 configuration: configuration,
                 referenceGroup: snapshotCase.referenceGroup,
-            )
-            if SnapshotDiffReporting.isEnabledByEnvironment, let png = sheet.image.pngData() {
-                SnapshotDiffReporting.report(
-                    compareAgainstReference(capturedPNG: png, referenceURL: reference),
-                    identifier: identifier,
-                    reference: reference,
-                )
-            }
-            withSnapshotTesting(
                 record: record ?? environmentRecordMode(),
                 diffTool: environmentDiffTool(),
-            ) {
-                let layoutFailure = verifySnapshot(
-                    of: sheet.layout,
-                    as: .json,
-                    named: identifier,
-                    snapshotDirectory: reference.deletingLastPathComponent().path,
-                    fileID: fileID,
-                    file: filePath,
-                    testName: testName,
-                    line: line,
-                    column: column,
-                )
-                let imageFailure = verifySnapshot(
-                    of: sheet.image,
-                    as: SnapshotComparisonSheet.strategy(layout: sheet.layout),
-                    named: identifier,
-                    snapshotDirectory: reference.deletingLastPathComponent().path,
-                    fileID: fileID,
-                    file: filePath,
-                    testName: testName,
-                    line: line,
-                    column: column,
-                )
-                for failure in [layoutFailure, imageFailure].compactMap(\.self) {
-                    Issue.record(Comment(rawValue: failure), sourceLocation: SourceLocation(
-                        fileID: fileID.description,
-                        filePath: filePath.description,
-                        line: Int(line),
-                        column: Int(column),
-                    ))
-                }
-            }
+                fileID: fileID,
+                file: filePath,
+                testName: testName,
+                line: line,
+                column: column,
+            )
         } catch is CancellationError {
             return
         } catch {
@@ -97,41 +61,19 @@ func captureComparisonSheet(
     }
     var panels: [SnapshotComparisonSheet.Panel] = []
     for panel in subjects.panels {
-        let sizing: SnapshotSizing = switch configuration.device.size {
-            case .fixed: .fixed
-            case let .intrinsic(width): .intrinsic(
-                    width: width ?? UIScreen.main.bounds.width,
-                    minimumHeight: 0,
-                )
-            case let .fullContent(width, minimumHeight): .intrinsic(
-                    width: width,
-                    minimumHeight: minimumHeight ?? 0,
-                )
-            case let .fullContent2D(minimumSize): .fullContent2D(minimumSize: minimumSize)
-        }
-        let panelName = "\(identifier)/\(panel.id.rawValue)"
-        let timing = SnapshotCaptureTiming(
-            identifier: panelName,
-            isEnabled: SnapshotCaptureTiming.isEnabledByEnvironment,
-            sizing: sizing,
-            measurementReadiness: snapshotCase.measurementReadiness,
-            captureSettle: snapshotCase.settle,
-        )
-        let capture = try await renderSnapshotCapture(
-            of: makeHostingController(for: panel.content, configuration: configuration),
-            named: panelName,
-            sizing: sizing,
-            safeAreaInsets: configuration.device.safeAreaInsets.uiEdgeInsets,
-            isAccessibility: configuration.snapshotType == .accessibility,
+        let capture = try await captureConfiguredSnapshot(
+            of: panel.content,
+            configuration: configuration,
+            named: "\(identifier)/\(panel.id.rawValue)",
             measurementReadiness: snapshotCase.measurementReadiness,
             onReadyToMeasure: snapshotCase.onReadyToMeasure,
+            measurementHookTimeout: nil,
             settle: snapshotCase.settle,
             onReadyToSnapshot: snapshotCase.onReadyToSnapshot,
-            settleTimeoutPolicy: .fromEnvironment(),
-            timing: timing,
+            timeoutPolicy: .fromEnvironment(),
         )
-        timing.emit()
-        let image = capture.image
+        capture.timing.emit()
+        let image = capture.capture.image
         panels.append(.init(identity: panel.id, label: panel.label, image: image))
     }
     return try SnapshotComparisonSheet(panels: panels)

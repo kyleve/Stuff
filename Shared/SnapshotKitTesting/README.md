@@ -257,8 +257,9 @@ uses 2×. `./test` forwards it into the hosted test process.
 
 ## Retries after settling failures
 
-`assertSnapshots` allows three attempts per configuration when settling times out
-or cannot prove stability on a slow runner. Each retry starts after capture
+`assertSnapshots` allows three attempts per independent capture when settling
+times out or cannot prove stability on a slow runner. Each cutsheet panel has its
+own attempt budget. Each retry starts after capture
 cleanup, with a fresh host controller and the same timeout budget. Measurement,
 readiness hooks, and final capture run again. Supplied views and external model
 objects remain shared. Readiness hooks must tolerate repeated execution.
@@ -289,11 +290,18 @@ stable typed identity, a display label, and a lazy content builder. Build fresh
 fixture state inside that builder. Each configuration produces one two-column
 sheet with unscaled, independently hosted panels. Additional panels wrap to new rows.
 
-Comparison sheets live in the `themes` reference group by default. The test runner
-stores a PNG and companion JSON containing panel identities and pixel bounds.
-It compares each panel independently at the ordinary image tolerance, then checks
-the complete sheet. Changes to membership, labels, or dimensions also fail through
-the layout reference. Record and review both files together.
+The consumer chooses the reference group; Where's theme helper selects `themes`.
+The runner stores one PNG with a versioned panel map in its Description metadata.
+Each panel uses the ordinary image comparator and its own pixel budget. The complete
+sheet also guards headings and spacing. Membership, labels, dimensions, and missing
+or malformed metadata fail explicitly. Review the PNG before recording. Preserve
+its metadata when copying references; image optimizers that strip metadata invalidate
+cutsheet references.
+
+Single views and cutsheets share configured capture and reference recording helpers.
+Panels retain independent settling and fresh fixtures. The runner compares panels
+before composing their captured images. It does not render the views again. All
+failing panels appear in the verdict, subject to the existing recording policy.
 
 Ordinary cases accept an optional `SnapshotReferenceGroup`. The default keeps
 existing paths. Groups are stable lowercase slugs owned by the consumer; they do

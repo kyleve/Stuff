@@ -77,9 +77,9 @@ the pinned build. Then select it before you review or record references.
 
 For component comparison sheets, run the component suites plus selected screen
 integration suites. Inspect every theme panel at light/dark and relevant accessibility
-sizes. Review the sheet PNG and companion layout JSON together before recording;
-missing or changed layout metadata is a failure. A panel regression must fail at
-its own pixel-area budget even when the complete sheet would pass. Use `--timings`
+sizes. Review the sheet PNG before recording. Its embedded panel map is part of the
+reference; preserve PNG metadata. Missing, invalid, or changed panel maps fail.
+A panel regression must fail at its own pixel-area budget even when the complete sheet would pass. Use `--timings`
 to compare actual panel capture counts and runtime; composing panels does not avoid
 rendering them. Preserve ungrouped reference paths and nest special traits inside
 explicit theme groups. Follow the framework and consumer module `AGENTS.md` for

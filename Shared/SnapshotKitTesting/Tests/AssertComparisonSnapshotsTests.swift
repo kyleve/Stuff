@@ -53,7 +53,7 @@ struct AssertComparisonSnapshotsTests {
             snapshotCase,
             configuration: SnapshotConfiguration(snapshotType: .accessibility),
         )
-        #expect(annotated.image.pngData() != standard.image.pngData())
+        #expect(try annotated.render().pngData() != standard.render().pngData())
         #expect(annotated.layout.panels[0].bounds.height > standard.layout.panels[0].bounds.height)
     }
 }

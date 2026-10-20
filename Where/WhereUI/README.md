@@ -595,5 +595,5 @@ Use `whereSnapshot` for screen integration. Locations retains per-theme coverage
 appearance pickers retain selection-state coverage. Avoid repeating entire screens
 for changes confined to a child component. Standard references keep existing paths,
 Flat screen references use `flat/`, and comparison sheets use `themes/`. Special
-traits nest under the group's `other/` directory. Review sheet PNGs and layout JSON
-together before recording.
+traits nest under the group's `other/` directory. Review sheet PNGs before recording. Their embedded panel maps are part of the
+reference; preserve PNG metadata when copying them.

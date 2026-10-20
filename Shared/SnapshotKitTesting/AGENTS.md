@@ -60,7 +60,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **The runner fails fast, once, on setup problems.** Examples: a simulator that does not match the `SNAPSHOT_EXPECTED_*` pins, two variants sharing one reference name.
 - **Report one clear issue, never hundreds of pixel diffs.**
 - **An unsettled capture is a failure, not a silent fallback.**
-- **Assertions allow three attempts per configuration for `settleTimedOut` and `settleStarved` only.** Create a fresh controller after each attempt completes cleanup and releases the capture lock.
+- **Assertions allow three attempts per independent capture (single view or cutsheet panel) for `settleTimedOut` and `settleStarved` only.** Create a fresh controller after each attempt completes cleanup and releases the capture lock.
 - **Keep models shared and rerun readiness hooks on retries.** Hooks must tolerate repeated execution. Preserve cancellation and report the final original error once.
 - **Keep direct image/PNG APIs single-attempt.** Compare and record only after a successful capture. Guard: `SnapshotCaptureRetryTests` and `AssertSnapshotsTests`.
 - **Report retries through `SNAPSHOT_RETRY`, never extra timing or diff lines.** Include failed-attempt time in the successful capture's one timing line. Guard: `Tools/Tests/test_test_runner.py`.
@@ -162,7 +162,10 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
   path resolver for recording, comparison, and review; `other/` nests inside the group.
 - Capture each panel independently with fresh fixture state through the hosted
   pipeline, including readiness and accessibility annotation handling.
-- Store one sheet PNG and its panel-layout JSON together. Review both before recording.
+- Store one sheet PNG with a versioned panel map in PNG Description metadata.
+  Reject missing or invalid maps. Review the PNG before recording; preserve its metadata.
+- Share configured capture and reference recording between single views and cutsheets.
+  Collect all panel failures before composition; compose captured images without re-rendering views.
   Store bounds and canvas dimensions as whole pixels, including at 3x scale.
   Compare each panel at the existing tolerance; never dilute its area budget across
   the entire sheet. Layout or membership changes must fail explicitly.
