@@ -600,3 +600,52 @@ private struct ArcText: View {
         }
     }
 #endif
+
+#if DEBUG
+    import SnapshotKit
+
+    extension RegionSummaryCard: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            for variant in [WhereStylesheet.CardStyle.Variant.regular, .compact] {
+                themedSnapshot(variant: variant, reduceTransparency: false)
+                themedSnapshot(variant: variant, reduceTransparency: true)
+            }
+        }
+
+        private static func themedSnapshot(
+            variant: WhereStylesheet.CardStyle.Variant,
+            reduceTransparency: Bool,
+        ) -> SnapshotCase {
+            let cache = RegionOutlinePathCache()
+            let name = variant == .regular ? "Regular" : "Compact"
+            return whereThemeSnapshot(
+                name: name + (reduceTransparency ? "ReduceTransparency" : ""),
+                configurations: reduceTransparency ? .componentLightDark : .componentDefaults,
+                onReadyToMeasure: {
+                    _ = await cache.path(for: .california, resolution: .medium)
+                    _ = await cache.path(for: .california, resolution: .small)
+                    _ = await cache.path(for: .california, resolution: .micro)
+                },
+            ) {
+                RegionSummaryCard(
+                    regionDays: RegionDays(region: .california, days: 148),
+                    variant: variant,
+                    estimatedDays: DayBounds(lower: 180, upper: 220),
+                    year: 2026,
+                )
+                .padding(24)
+                .background(.background)
+                .environment(\.regionOutlinePathCache, cache)
+                .bTraitOverrides { traits, overrides in
+                    var accessibility = traits.accessibility
+                    accessibility.isReduceTransparencyEnabled = reduceTransparency
+                    overrides.accessibility = accessibility
+                }
+            }
+        }
+    }
+
+    #Preview("Themes") {
+        RegionSummaryCard.snapshotPreviews
+    }
+#endif

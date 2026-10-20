@@ -583,3 +583,17 @@ for the mode values):
 ```
 
 Then review and commit the images.
+
+### Theme snapshot coverage
+
+`whereThemeSnapshot` renders a production component in every `WhereTheme`, with
+Standard first, as one labeled comparison sheet per trait configuration. Add
+component states beside their owning view. Use the broad component matrix for a
+representative state and focused light/dark cases for additional states.
+
+Use `whereSnapshot` for screen integration. Locations retains per-theme coverage;
+appearance pickers retain selection-state coverage. Avoid repeating entire screens
+for changes confined to a child component. Standard references keep existing paths,
+Flat screen references use `flat/`, and comparison sheets use `themes/`. Special
+traits nest under the group's `other/` directory. Review sheet PNGs and layout JSON
+together before recording.

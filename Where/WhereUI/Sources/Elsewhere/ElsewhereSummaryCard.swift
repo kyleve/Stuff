@@ -184,12 +184,6 @@ struct ElsewhereSummaryCard: View {
     extension ElsewhereSummaryCard: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             artworkSnapshot(
-                name: "FlatSeveral",
-                regions: [.canada, .europeanUnion, .other],
-                configurations: .componentDefaults,
-                theme: .alternate,
-            )
-            artworkSnapshot(
                 name: "Several",
                 regions: [.canada, .europeanUnion, .other],
                 configurations: .componentDefaults,
@@ -213,14 +207,12 @@ struct ElsewhereSummaryCard: View {
             name: String,
             regions: [Region],
             configurations: [SnapshotConfiguration],
-            theme: WhereTheme = .standard,
             reduceTransparency: Bool = false,
         ) -> SnapshotCase {
             let cache = RegionOutlinePathCache()
-            return whereSnapshot(
+            return whereThemeSnapshot(
                 name: name,
                 configurations: configurations,
-                theme: theme,
                 measurementReadiness: .immediate,
                 onReadyToSnapshot: {
                     _ = await ElsewhereRegionArtwork.load(regions: regions, cache: cache)

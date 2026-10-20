@@ -1,0 +1,36 @@
+{
+  "panels" : [
+    {
+      "bounds" : [
+        [
+          48,
+          144
+        ],
+        [
+          1254,
+          1286
+        ]
+      ],
+      "identity" : "standard",
+      "label" : "Standard"
+    },
+    {
+      "bounds" : [
+        [
+          1350,
+          144
+        ],
+        [
+          1254,
+          1286
+        ]
+      ],
+      "identity" : "alternate",
+      "label" : "Flat"
+    }
+  ],
+  "pixelSize" : [
+    2652,
+    1478
+  ]
+}

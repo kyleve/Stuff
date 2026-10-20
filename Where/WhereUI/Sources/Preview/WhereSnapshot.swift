@@ -28,6 +28,7 @@
         SnapshotCase(
             name: name,
             configurations: configurations,
+            referenceGroup: theme.snapshotReferenceGroup,
             measurementReadiness: measurementReadiness,
             onReadyToMeasure: onReadyToMeasure,
             settle: settle,
@@ -35,6 +36,41 @@
         ) {
             content().whereBroadwayRoot(theme: theme)
         }
+    }
+
+    extension WhereTheme {
+        var snapshotReferenceGroup: SnapshotReferenceGroup? {
+            switch self {
+                case .standard: nil
+                case .alternate: SnapshotReferenceGroup(rawValue: "flat")!
+            }
+        }
+    }
+
+    /// One production component state in every supported theme, freshly built per panel.
+    @MainActor
+    func whereThemeSnapshot(
+        name: String,
+        configurations: [SnapshotConfiguration],
+        measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
+        onReadyToMeasure: (@MainActor () async -> Void)? = nil,
+        settle: SnapshotSettle = .settled,
+        onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
+        @ViewBuilder content: @escaping @MainActor () -> some View,
+    ) -> SnapshotCase {
+        .comparison(
+            name: name,
+            configurations: configurations,
+            measurementReadiness: measurementReadiness,
+            onReadyToMeasure: onReadyToMeasure,
+            settle: settle,
+            onReadyToSnapshot: onReadyToSnapshot,
+            panels: WhereTheme.allCases.map { theme in
+                SnapshotPanel(id: .init(rawValue: theme.rawValue), label: theme.title) {
+                    content().whereBroadwayRoot(theme: theme)
+                }
+            },
+        )
     }
 
     extension [SnapshotConfiguration] {

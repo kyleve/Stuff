@@ -154,3 +154,33 @@ struct LocationForecastPanel: View {
         .whereBroadwayRoot()
     }
 #endif
+
+#if DEBUG
+    import SnapshotKit
+
+    extension LocationForecastPanel: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            for collapsed in [false, true] {
+                whereThemeSnapshot(
+                    name: collapsed ? "Collapsed" : "Expanded",
+                    configurations: collapsed ? .componentLightDark : .componentDefaults,
+                ) {
+                    let report = PreviewSupport.plannedStayYearReportModel()
+                    LocationForecastPanel(
+                        forecasts: report.forecasts.leadingForecasts(report: report.report),
+                        microprintRegions: report.ranking.primary.map(\.region),
+                        homeRegion: report.forecasts.planning.homeRegion,
+                        planningAction: {},
+                        isCollapsible: collapsed,
+                    )
+                    .padding(24)
+                    .background(.background)
+                }
+            }
+        }
+    }
+
+    #Preview("Themes") {
+        LocationForecastPanel.snapshotPreviews
+    }
+#endif

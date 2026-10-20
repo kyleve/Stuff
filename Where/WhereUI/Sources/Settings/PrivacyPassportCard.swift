@@ -48,3 +48,26 @@ struct PrivacyPassportCard: View {
         .whereBroadwayRoot()
     }
 #endif
+
+#if DEBUG
+    import SnapshotKit
+
+    extension PrivacyPassportCard: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereThemeSnapshot(name: "Privacy", configurations: .componentDefaults) {
+                PrivacyPassportCard(
+                    presentation: PrivacyPassportPresentation(
+                        configuration: .defaults(isDebugBuild: false),
+                    ),
+                    disclosureInteraction: .linkToSettings,
+                )
+                .padding(24)
+                .background(.background)
+            }
+        }
+    }
+
+    #Preview("Themes") {
+        PrivacyPassportCard.snapshotPreviews
+    }
+#endif

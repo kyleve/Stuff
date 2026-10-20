@@ -209,7 +209,7 @@ worked examples.
   per-region look in a view.
 - **Seed `WhereTheme` through `whereBroadwayRoot(theme:regionStyles:)`.** Standard
   and Flat use the stable `standard` and `alternate` identities.
-- **Design new and changed custom components for both Standard and Flat.**
+- **Design new and changed custom components for every supported theme.**
   Resolve theme and accessibility choices in the owning `WhereStylesheet`
   component style. Views consume that style without checking the selected theme.
   Reuse `matteSurface` for Flat's opaque fills, visible strokes, and restrained
@@ -263,9 +263,19 @@ job, deliberately outside `Stuff-iOS-Tests` (root
 Follow `building-ui` for authoring and the repo `running-tests` skill for
 recording/reviewing references.
 
-For new or changed themed components, include Standard and Flat in the colocated
-snapshot matrix. Cover both themes in light/dark and relevant accessibility cases
-(increased contrast, Reduce Transparency, and accessibility text sizes).
-The `whereSnapshot` helper defaults to Standard. Pass `theme: .alternate` for Flat.
-Native chrome and unchanged lightweight widget/snippet surfaces do not need
-duplicate theme cases.
+For new or changed themed components, use `whereThemeSnapshot` for one comparison
+sheet containing every supported theme. Use representative states across light/dark
+and relevant accessibility configurations; keep each configuration in a separate
+sheet. Use narrower matrices for additional states. Keep production component
+width and behavior, including artwork readiness and informational gradients.
+
+Keep per-theme full-screen coverage for critical integration screens such as
+Locations, or screens whose composition changes materially with the theme.
+Do not duplicate entire screen matrices to exercise a child component's surface.
+Keep appearance-picker selection-state coverage. Native chrome and unchanged
+lightweight widget/snippet surfaces do not need duplicate theme cases.
+
+`whereSnapshot` defaults to Standard and preserves its existing reference paths.
+Other themes use stable consumer-owned groups (`flat/` for `.alternate`). Mixed-theme
+sheets use `themes/`. Special trait images use `other/` inside the selected group.
+Never derive the folder from a localized label or rename a persisted theme identity.

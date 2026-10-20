@@ -136,20 +136,6 @@ extension DataSettingsView: SettingsSection {
     extension DataSettingsView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
-                name: "Flat",
-                configurations: .fullContentScreenDefaults,
-                theme: .alternate,
-            ) {
-                NavigationStack {
-                    DataSettingsView(
-                        report: PreviewSupport.loadedYearReportModel(),
-                        backup: PreviewSupport.backupModel(),
-                    )
-                    .environment(PreviewSupport.loadedModel())
-                    .environment(PreviewSupport.loadedSession())
-                }
-            }
-            whereSnapshot(
                 name: "Default",
                 configurations: .fullContentScreenDefaults,
             ) {

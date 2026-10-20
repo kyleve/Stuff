@@ -387,19 +387,21 @@ private struct ResolveToolbarLabel: View {
     extension LocationsView: SnapshotProviding {
         /// Allow native glass adaptation and the background artwork to settle before capture.
         static var snapshots: [SnapshotCase] {
-            artworkSnapshot(
-                name: "FlatLoaded",
-                report: PreviewSupport.loadedYearReportModel(),
-                configurations: .fullContentScreenDefaults,
-                theme: .alternate,
-            )
-            artworkSnapshot(
-                name: "FlatReduceTransparency",
-                report: PreviewSupport.loadedYearReportModel(),
-                configurations: .fullContentPhoneLightDark,
-                theme: .alternate,
-                reduceTransparency: true,
-            )
+            for theme in WhereTheme.allCases where theme != .standard {
+                artworkSnapshot(
+                    name: "\(theme.snapshotReferenceGroup!.rawValue.capitalized)Loaded",
+                    report: PreviewSupport.loadedYearReportModel(),
+                    configurations: .fullContentScreenDefaults,
+                    theme: theme,
+                )
+                artworkSnapshot(
+                    name: "\(theme.snapshotReferenceGroup!.rawValue.capitalized)ReduceTransparency",
+                    report: PreviewSupport.loadedYearReportModel(),
+                    configurations: .fullContentPhoneLightDark,
+                    theme: theme,
+                    reduceTransparency: true,
+                )
+            }
             artworkSnapshot(
                 name: "Itinerary",
                 report: PreviewSupport.itineraryYearReportModel(),

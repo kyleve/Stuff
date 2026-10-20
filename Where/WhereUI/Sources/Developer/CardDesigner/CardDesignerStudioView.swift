@@ -172,15 +172,6 @@ import SFSafeSymbols
 
     extension CardDesignerStudioView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(
-                name: "Flat",
-                configurations: .fullContentPhoneLightDark,
-                theme: .alternate,
-            ) {
-                NavigationStack {
-                    CardDesignerStudioView(model: CardDesignerModel(configuration: .standard))
-                }
-            }
             whereSnapshot(name: "Default", configurations: .fullContentPhoneLightDark) {
                 NavigationStack {
                     CardDesignerStudioView(

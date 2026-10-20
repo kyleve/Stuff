@@ -92,7 +92,7 @@ struct OnboardingThemeSelectionView: View {
                 },
                 whereSnapshot(
                     name: "Alternate",
-                    configurations: configurations,
+                    configurations: .fullContentPhoneLightDark,
                     theme: .alternate,
                 ) {
                     OnboardingThemeSelectionSnapshotRoot(selection: .alternate)

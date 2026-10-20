@@ -267,16 +267,6 @@ struct RegionCustomizeView: View {
     extension RegionCustomizeView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
-                name: "FlatEditor",
-                configurations: .fullContentPhoneLightDark,
-                theme: .alternate,
-                measurementReadiness: .immediate,
-            ) {
-                NavigationStack {
-                    RegionCustomizeView(model: PreviewSupport.primaryRegionSelectionModel())
-                }
-            }
-            whereSnapshot(
                 name: "Editor",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,

@@ -209,10 +209,9 @@ struct RegionWelcomeCard: View {
     extension RegionWelcomeCard: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             let cache = RegionOutlinePathCache()
-            return [whereSnapshot(
-                name: "Flat",
+            return [whereThemeSnapshot(
+                name: "Welcome",
                 configurations: .componentDefaults,
-                theme: .alternate,
                 measurementReadiness: .immediate,
                 onReadyToSnapshot: {
                     _ = await cache.path(for: .newYork, resolution: .medium)

@@ -20,7 +20,7 @@ current SwiftUI API, performance, and platform guidance.
    Broadway root, stylesheet, preview fixtures, and snapshot declarations
    before designing another path.
    Check supported themes and their local surface rules before choosing materials.
-   For Where, follow the [Standard and Flat rules](../../../Where/WhereUI/AGENTS.md).
+   For Where, follow the [theme rules](../../../Where/WhereUI/AGENTS.md).
 3. Extend an existing view with a mode or shared subview when two surfaces
    express the same concept. Keep screen-specific registration and rendering
    declarations beside the represented screen.
@@ -240,8 +240,15 @@ API reference: [Apple's custom-glass guidance](https://developer.apple.com/docum
   same source file and render `Self.snapshotPreviews` from the preview. Declare
   the matrix once and use one `FooSnapshotTests` suite/file per represented
   view.
-- Choose theme variants from the module's `AGENTS.md`. Include supported themes
-  that snapshot helpers do not select by default.
+- Choose theme coverage from the module's `AGENTS.md`. Prefer one component
+  comparison sheet containing all supported themes for each representative state
+  and trait configuration. Build fresh fixture state per panel and preserve normal
+  component width, production behavior, and artwork readiness.
+- Keep full-screen theme variants for critical integration or materially different
+  screen composition. Do not multiply screen matrices for child-surface changes.
+- Use explicit reference groups: mixed-theme sheets have a neutral group; single-theme
+  screen references use a stable consumer-owned theme group. Keep existing default
+  theme paths. Never encode a directory in a case name or localized theme label.
 - Snapshot the production branch. Use a stand-in only for externally loaded or
   wall-clock-dependent content that no settle window can stabilize, keep its
   layout identical, and encapsulate the substitution inside the shared
