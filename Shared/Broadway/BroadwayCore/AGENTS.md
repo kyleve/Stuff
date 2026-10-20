@@ -19,6 +19,8 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) and the group [`../AGENTS.md`](.
 
 - **Scale authored geometry with `BScaledDimension` during slicing.** Pass the slice's content-size category explicitly.
 
+- **Keep both size classes registered in `BTraits.system`.** Preserve unspecified values; do not infer them from device identity.
+
 ## Testing
 
 Run `BroadwayCoreTests` in `StuffTestHost` (`./test BroadwayCoreTests`).
