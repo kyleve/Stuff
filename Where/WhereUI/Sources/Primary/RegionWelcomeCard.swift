@@ -150,11 +150,7 @@ struct RegionWelcomeCard: View {
                         .opacity(welcome.paperOpacity)
                 }
             }
-            .buttonStyle(CardSurfaceButtonStyle(
-                surface: welcome.close.surface,
-                tint: regionStyle.tint,
-                shape: Circle(),
-            ))
+            .buttonStyle(welcome.close.buttonStyle(tint: regionStyle.tint))
             .modifier(RegionWelcomeCloseSurface(style: welcome.close, tint: regionStyle.tint))
             .contentShape(Circle())
             .shadow(

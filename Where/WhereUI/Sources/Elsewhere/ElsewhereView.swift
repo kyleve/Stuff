@@ -94,11 +94,8 @@ struct ElsewhereView: View {
                                     year: report.selectedYear,
                                 )
                             }
-                            .buttonStyle(CardSurfaceButtonStyle(
-                                surface: stylesheet.card.compact.surface,
+                            .buttonStyle(stylesheet.card.compact.buttonStyle(
                                 tint: regionStyles.style(for: item.region).tint,
-                                shape: RoundedRectangle(cornerRadius: stylesheet.card.compact
-                                    .cornerRadius),
                             ))
                         }
                     }

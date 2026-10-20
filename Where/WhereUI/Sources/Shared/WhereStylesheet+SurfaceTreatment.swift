@@ -133,6 +133,14 @@ extension WhereStylesheet {
 }
 
 extension WhereStylesheet.CardStyle {
+    func buttonStyle(tint: Color) -> CardSurfaceButtonStyle<RoundedRectangle> {
+        CardSurfaceButtonStyle(
+            surface: surface,
+            tint: tint,
+            shape: RoundedRectangle(cornerRadius: cornerRadius),
+        )
+    }
+
     /// The zoom source must carry the same elevation as its complete card.
     struct TransitionElevation {
         let glow: WhereStylesheet.MatteSurface.Shadow
@@ -156,5 +164,21 @@ extension WhereStylesheet.CardStyle {
                     lift: style.shadow,
                 )
         }
+    }
+}
+
+extension WhereStylesheet.ElsewhereCardStyle {
+    var buttonStyle: CardSurfaceButtonStyle<RoundedRectangle> {
+        CardSurfaceButtonStyle(
+            surface: surface.treatment,
+            tint: surface.ink,
+            shape: RoundedRectangle(cornerRadius: cornerRadius),
+        )
+    }
+}
+
+extension WhereStylesheet.LocationWelcomeStyle.Close {
+    func buttonStyle(tint: Color) -> CardSurfaceButtonStyle<Circle> {
+        CardSurfaceButtonStyle(surface: surface, tint: tint, shape: Circle())
     }
 }

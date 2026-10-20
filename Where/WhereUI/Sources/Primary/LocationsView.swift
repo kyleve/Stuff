@@ -190,11 +190,8 @@ struct LocationsView: View {
                                 recordedPointsID: report.primaryRegionLocations?.id,
                             )
                         }
-                        .buttonStyle(CardSurfaceButtonStyle(
-                            surface: stylesheet.card.regular.surface,
+                        .buttonStyle(stylesheet.card.regular.buttonStyle(
                             tint: regionStyles.style(for: item.region).tint,
-                            shape: RoundedRectangle(cornerRadius: stylesheet.card.regular
-                                .cornerRadius),
                         ))
                         // The card is the zoom source: tapping it expands the
                         // card into the pushed calendar (matched geometry). The
@@ -243,12 +240,7 @@ struct LocationsView: View {
                     } label: {
                         ElsewhereSummaryCard(regions: report.ranking.secondary.map(\.region))
                     }
-                    .buttonStyle(CardSurfaceButtonStyle(
-                        surface: stylesheet.elsewhereCard.surface.treatment,
-                        tint: stylesheet.elsewhereCard.surface.ink,
-                        shape: RoundedRectangle(cornerRadius: stylesheet.elsewhereCard
-                            .cornerRadius),
-                    ))
+                    .buttonStyle(stylesheet.elsewhereCard.buttonStyle)
                 }
 
                 estimatePanel

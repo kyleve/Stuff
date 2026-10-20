@@ -28,15 +28,15 @@ import BroadwayUI
                         styleOverride: previewStyle,
                     )
                 }
-                .buttonStyle(CardSurfaceButtonStyle(
-                    surface: stylesheet.card[variant.style].surface,
-                    tint: previewStyle.tint,
-                    shape: RoundedRectangle(cornerRadius: configuration[variant].cornerRadius),
-                ))
+                .buttonStyle(cardStyle.buttonStyle(tint: previewStyle.tint))
             }
             .environment(\.cardDesignerConfiguration, configuration)
             .environment(\.colorScheme, colorScheme)
             .bMode(.init(colorScheme))
+        }
+
+        private var cardStyle: WhereStylesheet.CardStyle {
+            configuration.resolve(over: stylesheet.card, colorScheme: colorScheme)[variant.style]
         }
 
         private var previewStyle: RegionStyle {
