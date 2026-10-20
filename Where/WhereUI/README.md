@@ -24,6 +24,8 @@ distinct recorded days and can show an optional place label. A multi-region
 day can appear on more than one card.
 The tab starts with the cards, over the shared region-outline background,
 without a separate heading or subheading.
+Short content is centered vertically. Longer content scrolls from the top,
+with bounce enabled only when it exceeds the viewport.
 
 Elsewhere cards open a day list and map from the same resolved snapshot. Day actions
 open the existing correction flow. These inferred names do not change calendar,

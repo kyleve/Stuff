@@ -107,6 +107,8 @@ struct ElsewhereView: View {
                 }
                 .padding()
             }
+            .defaultScrollAnchor(.center, for: .alignment)
+            .scrollBounceBehavior(.basedOnSize)
             .accessibilityIdentifier("where_elsewhere_list")
         } else if let failureMessage {
             ContentUnavailableView {
