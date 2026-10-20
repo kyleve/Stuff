@@ -158,8 +158,8 @@ public func assertSnapshots(
             Issue.record(error)
             continue
         }
-        capture.timing.measure(.compare) {
-            assertSnapshotReference(
+        await capture.timing.measure(.compare) {
+            await assertSnapshotReference(
                 .image(capture.capture.image),
                 identifier: identifier,
                 configuration: configuration,

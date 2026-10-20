@@ -22,9 +22,9 @@ func assertComparisonSnapshots(
                 caseName: snapshotCase.name,
                 configuration: configuration,
             )
-            let sheet = try await captureComparisonSheet(snapshotCase, configuration: configuration)
-            assertSnapshotReference(
-                .sheet(sheet),
+            let panels = try await captureSnapshotPanels(snapshotCase, configuration: configuration)
+            await assertSnapshotReference(
+                .panels(panels),
                 identifier: identifier,
                 configuration: configuration,
                 referenceGroup: snapshotCase.referenceGroup,
@@ -47,10 +47,10 @@ func assertComparisonSnapshots(
 /// Captures a single configuration without recording; the assertion runner and
 /// hosted regression tests exercise this same path.
 @MainActor
-func captureComparisonSheet(
+func captureSnapshotPanels(
     _ snapshotCase: SnapshotCase,
     configuration: SnapshotConfiguration,
-) async throws -> SnapshotComparisonSheet {
+) async throws -> [SnapshotPanelCapture] {
     try waitFor { hostKeyWindow()?.rootViewController != nil }
     let identifier = fullSnapshotIdentifier(
         caseName: snapshotCase.name,
@@ -59,7 +59,7 @@ func captureComparisonSheet(
     guard case let .cutsheet(subjects) = snapshotCase.capture else {
         preconditionFailure("The comparison runner requires a cutsheet case")
     }
-    var panels: [SnapshotComparisonSheet.Panel] = []
+    var panels: [SnapshotPanelCapture] = []
     for panel in subjects.panels {
         let capture = try await captureConfiguredSnapshot(
             of: panel.content,
@@ -76,5 +76,5 @@ func captureComparisonSheet(
         let image = capture.capture.image
         panels.append(.init(identity: panel.id, label: panel.label, image: image))
     }
-    return try SnapshotComparisonSheet(panels: panels)
+    return panels
 }

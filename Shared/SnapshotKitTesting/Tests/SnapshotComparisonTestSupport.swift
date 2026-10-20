@@ -6,9 +6,9 @@ import UIKit
 func comparisonPanel(
     _ name: String,
     height: CGFloat = 80,
-    scale: CGFloat = 1,
+    scale: CGFloat = 3,
     changed: Bool = false,
-) -> SnapshotComparisonSheet.Panel {
+) -> SnapshotPanelCapture {
     let format = UIGraphicsImageRendererFormat()
     format.scale = scale
     let image = UIGraphicsImageRenderer(

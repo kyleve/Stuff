@@ -300,8 +300,10 @@ cutsheet references.
 
 Single views and cutsheets share configured capture and reference recording helpers.
 Panels retain independent settling and fresh fixtures. The runner compares panels
-before composing their captured images. It does not render the views again. All
-failing panels appear in the verdict, subject to the existing recording policy.
+before assembling their captured images in a SwiftUI `Grid`. SwiftUI lays out labels
+and images; geometry observations supply the embedded panel map. The shared hosted
+renderer captures the grid. The original component views run only for their independent
+captures. All failing panels appear in the verdict, subject to the existing recording policy.
 
 Ordinary cases accept an optional `SnapshotReferenceGroup`. The default keeps
 existing paths. Groups are stable lowercase slugs owned by the consumer; they do

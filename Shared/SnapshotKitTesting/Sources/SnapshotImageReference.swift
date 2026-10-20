@@ -99,7 +99,7 @@ struct SnapshotImageReference {
     /// Compares the independent captures before any sheet pixels are composed.
     static func comparePanels(
         referencePNG: Data,
-        sheet: SnapshotComparisonSheet,
+        panels: [SnapshotPanelCapture],
     ) -> ComparisonFailure? {
         do {
             let reference = try Self(png: referencePNG)
@@ -111,12 +111,14 @@ struct SnapshotImageReference {
             }
             var messages: [String] = []
             var attachments: [DiffAttachment] = []
-            if layout != sheet.layout {
-                messages.append("Cutsheet panel membership, labels, or geometry changed.")
+            if layout.panels.map(\.identity) != panels.map(\.identity)
+                || layout.panels.map(\.label) != panels.map(\.label)
+            {
+                messages.append("Cutsheet panel membership or labels changed.")
             }
             let references = Dictionary(uniqueKeysWithValues: layout.panels
                 .map { ($0.identity, $0) })
-            for panel in sheet.panels {
+            for panel in panels {
                 guard let placement = references[panel.identity] else {
                     messages
                         .append(

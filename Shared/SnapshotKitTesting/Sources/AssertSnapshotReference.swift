@@ -8,7 +8,7 @@ import UIKit
 @MainActor
 enum SnapshotReferenceSubject {
     case image(UIImage)
-    case sheet(SnapshotComparisonSheet)
+    case panels([SnapshotPanelCapture])
 }
 
 /// Shares reference paths, record-mode semantics, diagnostics, and failure reporting.
@@ -25,7 +25,7 @@ func assertSnapshotReference(
     testName: String,
     line: UInt,
     column: UInt,
-) {
+) async {
     let reference = snapshotReferenceURL(
         testFilePath: "\(filePath)",
         testName: testName,
@@ -41,18 +41,20 @@ func assertSnapshotReference(
             case let .image(image):
                 panelFailure = nil
                 capture = SnapshotImageReference(image: image, layout: nil)
-            case let .sheet(sheet):
+            case let .panels(panels):
                 if FileManager.default.fileExists(atPath: reference.path) {
                     panelFailure = try SnapshotImageReference.comparePanels(
                         referencePNG: Data(contentsOf: reference),
-                        sheet: sheet,
+                        panels: panels,
                     )
                 } else {
                     panelFailure = nil // The shared recorder handles missing references.
                 }
-                capture = try SnapshotImageReference(image: sheet.render(), layout: sheet.layout)
+                capture = try await SnapshotImageGrid.capture(panels: panels, named: identifier)
         }
         png = try capture.pngData()
+    } catch is CancellationError {
+        return
     } catch {
         Issue.record(error)
         return

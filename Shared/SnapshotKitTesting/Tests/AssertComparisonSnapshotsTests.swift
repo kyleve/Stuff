@@ -25,14 +25,15 @@ struct AssertComparisonSnapshotsTests {
             }
         }
         #expect(builds == 0)
-        let result = try await captureComparisonSheet(
+        let result = try await captureSnapshotPanels(
             snapshotCase,
             configuration: SnapshotConfiguration(),
         )
+        let grid = try await SnapshotImageGrid.capture(panels: result, named: "Hooks")
         #expect(builds == 2)
         #expect(measurementHooks == 2)
         #expect(captureHooks == 2)
-        #expect(result.layout.panels.count == 2)
+        #expect(grid.layout?.panels.count == 2)
     }
 
     @Test func accessibilityPanelsUseTheAnnotationPipeline() async throws {
@@ -45,15 +46,15 @@ struct AssertComparisonSnapshotsTests {
                 Text("Accessible subject").padding()
             }
         }
-        let standard = try await captureComparisonSheet(
+        let standard = try await captureSnapshotPanels(
             snapshotCase,
             configuration: SnapshotConfiguration(),
         )
-        let annotated = try await captureComparisonSheet(
+        let annotated = try await captureSnapshotPanels(
             snapshotCase,
             configuration: SnapshotConfiguration(snapshotType: .accessibility),
         )
-        #expect(try annotated.render().pngData() != standard.render().pngData())
-        #expect(annotated.layout.panels[0].bounds.height > standard.layout.panels[0].bounds.height)
+        #expect(annotated[0].image.pngData() != standard[0].image.pngData())
+        #expect(annotated[0].image.size.height > standard[0].image.size.height)
     }
 }
