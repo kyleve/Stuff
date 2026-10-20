@@ -4,8 +4,7 @@ import SwiftUI
 import WhereCore
 
 /// The adaptive theme selector shared by onboarding and Appearance Settings.
-/// Its specimens deliberately use the same current card language while the
-/// two theme identities remain visual scaffolding.
+/// Its specimens render production cards with each theme's resolved surface.
 struct WhereThemePicker: View {
     let selection: WhereTheme
     let onSelect: (WhereTheme) -> Void

@@ -128,6 +128,10 @@ struct WhereStylesheet: BStylesheet {
             card.elsewherePaper = .dark
             featureDiscovery.siri.accent = Color(white: 0.42)
         }
+
+        // Resolve theme finishes after shared traits so they retain their depth cues.
+        let overrides = WhereThemeOverrides.resolve(theme: theme, traits: traits, base: self)
+        overrides.apply(to: &self)
     }
 
     /// The fixed token set: the fallback used off the `View` tree (layout
@@ -160,6 +164,7 @@ extension WhereStylesheet {
 extension WhereStylesheet {
     /// Appearance and motion for the live-region welcome over Locations.
     struct LocationWelcomeStyle: Equatable {
+        var surface = SurfaceTreatment.reflective
         var maxWidth: CGFloat
         var cornerRadius: CGFloat
         var padding: CGFloat
@@ -180,6 +185,7 @@ extension WhereStylesheet {
         }
 
         struct Close: Equatable {
+            var surface = SurfaceTreatment.reflective
             var offset: CGSize
             var tintOpacity: Double
             var glow: Shadow
@@ -710,6 +716,8 @@ extension WhereStylesheet {
     /// `compact` flag across ~30 tokens. Non-varying generic spacing (the inner
     /// header/number stacks) still comes from ``Spacing``.
     struct CardStyle: Equatable {
+        var surface = SurfaceTreatment.reflective
+        var contentTint = TintAdjustment.unchanged
         /// Locations uses `.regular`; inline primary specimens use `.compact`.
         /// Elsewhere uses compact geometry with a separate paper treatment.
         enum Variant {
@@ -743,36 +751,36 @@ extension WhereStylesheet {
         var glow: Shadow
         /// The broad lift shadow beneath the card.
         var lift: Shadow
-        /// Opaque, neutral paper for Elsewhere. Glass cards leave this nil.
+        /// Opaque, neutral paper for Elsewhere. Primary cards leave this nil.
         var paper: Paper?
 
         var showsProgress: Bool {
             paper == nil
         }
 
-        /// Keeps low-count visits distinct from the primary glass cards.
+        /// Keeps low-count visits distinct from the primary cards.
         /// Only text receives a contrast adjustment; artwork keeps the region color.
         struct Paper: Equatable {
-            var background: Color
-            var textMix: Color
-            var textMixAmount: Double
-            var outlineOpacity: Double = 0.45
-            var outlineWidth: CGFloat = 1
-            var shadow = Shadow(opacity: 0.08, radius: 6, offsetY: 3)
-
-            func textTint(_ regionTint: Color) -> Color {
-                regionTint.mix(with: textMix, by: textMixAmount, in: .perceptual)
-            }
+            var surface: MatteSurface
+            var contentTint: TintAdjustment
 
             static let light = Paper(
-                background: .white,
-                textMix: .black,
-                textMixAmount: 0.4,
+                surface: .init(
+                    fill: .init(base: .white, tintMix: 0),
+                    outline: .init(opacity: 0.45, width: 1),
+                    shadow: .init(color: .black.opacity(0.08), radius: 6, offsetY: 3),
+                    pressedTintOpacity: 0.08,
+                ),
+                contentTint: .init(color: .black, fraction: 0.4),
             )
             static let dark = Paper(
-                background: Color(white: 36.0 / 255),
-                textMix: .white,
-                textMixAmount: 0.4,
+                surface: .init(
+                    fill: .init(base: Color(white: 36.0 / 255), tintMix: 0),
+                    outline: .init(opacity: 0.45, width: 1),
+                    shadow: .init(color: .black.opacity(0.08), radius: 6, offsetY: 3),
+                    pressedTintOpacity: 0.08,
+                ),
+                contentTint: .init(color: .white, fraction: 0.4),
             )
         }
 
@@ -1223,7 +1231,9 @@ extension WhereStylesheet {
                     var card = compact
                     card.paper = elsewherePaper
                     card.glow = .init(opacity: 0, radius: 0)
-                    card.lift = elsewherePaper.shadow
+                    card.lift = .init(opacity: 0, radius: 0)
+                    card.surface = .matte(elsewherePaper.surface)
+                    card.contentTint = elsewherePaper.contentTint
                     return card
             }
         }
@@ -2320,8 +2330,9 @@ extension WhereStylesheet {
         )
     }
 
-    /// Appearance for the reflective privacy statement in Settings.
+    /// Appearance for the passport-style privacy statement in Settings.
     struct PrivacyPassportCardStyle: Equatable {
+        var surface = SurfaceTreatment.reflective
         var headerLayout = ContentLayout.inline
         var cornerRadius: CGFloat
         var padding: CGFloat
@@ -2570,7 +2581,7 @@ extension WhereStylesheet {
 
 /// The Where app's Broadway themes, seeded at the root by `whereBroadwayRoot()`.
 /// Carries the selected presentation identity independently from system traits.
-/// Both identities currently resolve through the same tokens.
+/// Standard uses reflective surfaces; the stable Alternate identity renders Flat.
 enum WhereThemes {
     static func current(theme: WhereTheme) -> BThemes {
         var themes = BThemes()

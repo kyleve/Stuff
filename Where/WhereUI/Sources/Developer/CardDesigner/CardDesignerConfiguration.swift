@@ -68,6 +68,12 @@
             var resolved = base
             resolved.regular = regular.style
             resolved.compact = compact.style
+            // The saved draft predates surface selection. Keep its wire shape
+            // and let the active theme own reflections and matte elevation.
+            resolved.regular.surface = base.regular.surface
+            resolved.compact.surface = base.compact.surface
+            resolved.regular.contentTint = base.regular.contentTint
+            resolved.compact.contentTint = base.compact.contentTint
             resolved.watermarkOpacity = shared.watermarkOpacity
             resolved.glassTintOpacity = shared.glassTintOpacity
             resolved.nameOpacity = shared.nameOpacity
@@ -75,7 +81,9 @@
                 primary: shared.primaryRosetteOpacity,
                 secondary: shared.secondaryRosetteOpacity,
             )
-            resolved.securityPrint = shared.securityPrint(for: colorScheme).style
+            if base.regular.surface.usesReflection {
+                resolved.securityPrint = shared.securityPrint(for: colorScheme).style
+            }
             return resolved
         }
 

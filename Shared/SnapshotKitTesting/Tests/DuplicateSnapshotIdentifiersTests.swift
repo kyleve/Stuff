@@ -8,6 +8,23 @@ import Testing
 /// whichever records first, the other silently compares against its image.
 @MainActor
 struct DuplicateSnapshotIdentifiersTests {
+    @Test func groupsSeparateReferencesButSanitizedNamesCollide() {
+        let cases = [
+            SnapshotCase(name: "Card", configurations: [SnapshotConfiguration()]) { Color.red },
+            SnapshotCase(
+                name: "Card",
+                configurations: [SnapshotConfiguration()],
+                referenceGroup: .themes,
+            ) { Color.blue },
+        ]
+        #expect(duplicateSnapshotIdentifiers(in: cases).isEmpty)
+        let colliding = [
+            SnapshotCase(name: "Card a", configurations: [SnapshotConfiguration()]) { Color.red },
+            SnapshotCase(name: "Card-a", configurations: [SnapshotConfiguration()]) { Color.blue },
+        ]
+        #expect(duplicateSnapshotIdentifiers(in: colliding) == ["Card-a"])
+    }
+
     @Test func flagsTwoCasesWithTheSameName() {
         let cases = [
             SnapshotCase(name: "Badge", configurations: [SnapshotConfiguration()]) { Color.red },

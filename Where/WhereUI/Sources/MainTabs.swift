@@ -227,10 +227,10 @@ struct MainTabs: View {
                     configurations: [configuration],
                     settle: .settledAtLeast(minDuration: 1.0),
                 )
-            } + [elsewhereSnapshot()]
+            } + [elsewhereSnapshot(), elsewhereSnapshot(theme: .alternate)]
         }
 
-        private static func elsewhereSnapshot() -> SnapshotCase {
+        private static func elsewhereSnapshot(theme: WhereTheme = .standard) -> SnapshotCase {
             let cache = RegionOutlinePathCache()
             let session = PreviewSupport.loadedSession()
             session.preferences.showsLocationWelcome = false
@@ -246,8 +246,10 @@ struct MainTabs: View {
                 now: session.now,
             )
             return whereSnapshot(
-                name: "Elsewhere",
-                configurations: .fullContentScreenDefaults,
+                name: theme == .standard ? "Elsewhere" : "FlatElsewhere",
+                configurations: theme == .standard ? .fullContentScreenDefaults :
+                    .fullContentPhoneLightDark,
+                theme: theme,
                 onReadyToMeasure: {
                     try! await session.services.setPrimaryRegions([
                         PrimaryRegion(region: .california, appearance: nil, order: 0),
@@ -362,6 +364,7 @@ struct MainTabs: View {
             configurations: [SnapshotConfiguration],
             settle: SnapshotSettle,
             selection: TabID,
+            theme: WhereTheme = .standard,
             updates: UpdateModel? = nil,
             configure: (LocationWelcomeModel) -> Void,
         ) -> SnapshotCase {
@@ -397,6 +400,7 @@ struct MainTabs: View {
             return whereSnapshot(
                 name: name,
                 configurations: configurations,
+                theme: theme,
                 measurementReadiness: .immediate,
                 settle: settle,
                 onReadyToSnapshot: { await report.activate() },

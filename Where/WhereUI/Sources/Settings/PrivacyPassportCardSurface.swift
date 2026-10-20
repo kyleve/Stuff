@@ -1,6 +1,7 @@
+import BroadwayUI
 import SwiftUI
 
-/// Applies the reflective privacy surface without making its content observe motion.
+/// Applies the privacy card's finish without making its content observe motion.
 struct PrivacyPassportCardSurface<Content: View>: View {
     let tilt: TiltProvider
     @ViewBuilder let content: Content
@@ -12,14 +13,48 @@ struct PrivacyPassportCardSurface<Content: View>: View {
         let reflection = style.reflectiveSurface
         let shape = RoundedRectangle(cornerRadius: style.cornerRadius)
 
-        content
+        Group {
+            switch style.surface {
+                case .reflective:
+                    printedContent
+                        .tiltSheen(
+                            tilt: tilt,
+                            staticRoll: reflection.staticPose.roll,
+                            staticPitch: reflection.staticPose.pitch,
+                            in: shape,
+                            intensity: reflection.intensity,
+                            staticGlintIntensity: reflection.staticGlintIntensity,
+                        )
+                        .clipShape(shape)
+                        .overlay {
+                            shape.strokeBorder(
+                                reflection.accent.opacity(style.outlineOpacity),
+                                lineWidth: style.outlineWidth,
+                            )
+                        }
+                case .matte:
+                    printedContent.matteSurface(style.surface, tint: reflection.accent, in: shape)
+            }
+        }
+        .tint(reflection.accent)
+        .environment(\.colorScheme, .dark)
+        .bMode(.dark)
+        .contentShape(shape)
+    }
+
+    private var printedContent: some View {
+        let style = stylesheet.privacyPassportCard
+        let reflection = style.reflectiveSurface
+        return content
             .background {
                 ZStack {
-                    LinearGradient(
-                        colors: [reflection.backgroundTop, reflection.backgroundBottom],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing,
-                    )
+                    if style.surface.usesReflection {
+                        LinearGradient(
+                            colors: [reflection.backgroundTop, reflection.backgroundBottom],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing,
+                        )
+                    }
                     SecurityPrintRosette(
                         tint: reflection.accent,
                         wobble: style.rosette.wobble,
@@ -31,24 +66,6 @@ struct PrivacyPassportCardSurface<Content: View>: View {
                     )
                 }
             }
-            .tiltSheen(
-                tilt: tilt,
-                staticRoll: reflection.staticPose.roll,
-                staticPitch: reflection.staticPose.pitch,
-                in: shape,
-                intensity: reflection.intensity,
-                staticGlintIntensity: reflection.staticGlintIntensity,
-            )
-            .tint(reflection.accent)
-            .environment(\.colorScheme, .dark)
-            .clipShape(shape)
-            .overlay {
-                shape.strokeBorder(
-                    reflection.accent.opacity(style.outlineOpacity),
-                    lineWidth: style.outlineWidth,
-                )
-            }
-            .contentShape(shape)
     }
 }
 

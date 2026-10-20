@@ -54,6 +54,7 @@ Layering, localization, preview, and testing conventions live in the feature
   through any failure (`WhereLaunchTests`).
 - Keep backup import onboarding-only. Settings exports archives but never
   starts or resumes an import (`BackupModelTests`).
+  Attach export sheets and error alerts to `DataSettingsView` outside its `Form` sections.
 - Keep diagnostic reporting's saved, process-effective, applying, and failed
   states distinct. Crash and replay choices stay pending until relaunch.
   Remote-log revisions apply live. A runtime failure invalidates in-flight
@@ -97,7 +98,9 @@ Layering, localization, preview, and testing conventions live in the feature
   the micro path for repeated borders on location cards and estimate panels.
   Share the region artwork treatment across regular and compact cards. Keep
   compact dimensions in the compact style. Resolve Elsewhere's paper surface
-  from that geometry, without a progress bar. Keep primary specimens on glass.
+  from that geometry, without a progress bar, using the shared matte renderer.
+  Keep primary specimens on the selected theme's surface. Preserve Elsewhere's
+  white/neutral-dark fill when Flat overrides its outline and shadow.
   Use the original region color for Elsewhere artwork and borders. Apply its
   contrast adjustment only to text.
   Project Locations-card GPS points through the cache's shared
@@ -222,7 +225,22 @@ worked examples.
   Keep the catalog's palette order and hash stable across launches.
   Guard: `RegionAppearanceCatalogTests.idDerivedDefaultsHaveStableAssignments`.
 - **Seed `WhereTheme` through `whereBroadwayRoot(theme:regionStyles:)`.** Standard
-  and Alternate remain distinct persisted identities even while their tokens match.
+  and Flat use the stable `standard` and `alternate` identities.
+- Keep Standard as the base stylesheet. Resolve shared traits before applying `WhereThemeOverrides`.
+  Put theme values and theme-specific trait decisions in their definition, such as `WhereFlatTheme`.
+  Keep override application independent of theme selection and trait resolution.
+  Omitted overrides inherit the adjusted base. Explicit zero values disable effects.
+  Use `BModeVarying` for paired light/dark values. Keep runtime region colors outside theme definitions.
+  Guards: `WhereThemeOverridesTests`, `WhereFlatThemeTests`.
+- **Design new and changed custom components for every supported theme.**
+  Resolve theme and accessibility choices in the owning `WhereStylesheet`
+  component style. Views consume that style without checking the selected theme.
+  Reuse `matteSurface` for Flat's opaque fills, visible strokes, and restrained
+  shadows. Use a subtle tint for pressed feedback. Exclude glass, reflections,
+  and luminous glows from Flat's view hierarchy. Observe tilt only while a
+  visible surface needs sheen. Preserve artwork and informational gradients.
+  Keep system chrome native and widget/snippet surfaces lightweight.
+  Guard: `WhereStylesheetSurfaceTreatmentTests`.
 - The DEBUG card designer may override only presentation values already owned
   by `CardStyles`. It must not add a second production styling system or alter
   count animation and outline-cache behavior.
@@ -269,3 +287,20 @@ job, deliberately outside `Stuff-iOS-Tests` (root
 [`Sources/Preview/WhereSnapshot.swift`](Sources/Preview/WhereSnapshot.swift).
 Follow `building-ui` for authoring and the repo `running-tests` skill for
 recording/reviewing references.
+
+For new or changed themed components, use `whereThemeSnapshot` for one comparison
+sheet containing every supported theme. Use representative states across light/dark
+and relevant accessibility configurations; keep each configuration in a separate
+sheet. Use narrower matrices for additional states. Keep production component
+width and behavior, including artwork readiness and informational gradients.
+
+Keep per-theme full-screen coverage for critical integration screens such as
+Locations, or screens whose composition changes materially with the theme.
+Do not duplicate entire screen matrices to exercise a child component's surface.
+Keep appearance-picker selection-state coverage. Native chrome and unchanged
+lightweight widget/snippet surfaces do not need duplicate theme cases.
+
+`whereSnapshot` defaults to Standard and preserves its existing reference paths.
+Other themes use stable consumer-owned groups (`flat/` for `.alternate`). Mixed-theme
+sheets use `themes/`. Special trait images use `other/` inside the selected group.
+Never derive the folder from a localized label or rename a persisted theme identity.

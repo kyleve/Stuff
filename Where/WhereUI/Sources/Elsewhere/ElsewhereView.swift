@@ -14,6 +14,7 @@ struct ElsewhereView: View {
     @State private var retrySequence = 0
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.regionStyles) private var regionStyles
 
     private struct Request: Hashable {
         let input: ElsewhereInput?
@@ -99,7 +100,9 @@ struct ElsewhereView: View {
                                             year: report.selectedYear,
                                         )
                                     }
-                                    .buttonStyle(.plain)
+                                    .buttonStyle(stylesheet.card[.elsewhere].buttonStyle(
+                                        tint: regionStyles.style(for: item.region).tint,
+                                    ))
                                 }
                             }
                         }
@@ -150,6 +153,12 @@ struct ElsewhereView: View {
                 configurations: .fullContentScreenDefaults,
             )
             snapshot(
+                name: "FlatLoaded",
+                report: PreviewSupport.elsewhereCatalogYearReportModel(),
+                configurations: .fullContentPhoneLightDark,
+                theme: .alternate,
+            )
+            snapshot(
                 name: "Empty",
                 report: PreviewSupport.emptyYearReportModel(),
                 configurations: .fullContentPhoneLightDark,
@@ -166,6 +175,7 @@ struct ElsewhereView: View {
             name: String,
             report: YearReportModel,
             configurations: [SnapshotConfiguration],
+            theme: WhereTheme = .standard,
             resolver: (any ElsewhereResolving)? = nil,
         ) -> SnapshotCase {
             let cache = RegionOutlinePathCache()
@@ -176,6 +186,7 @@ struct ElsewhereView: View {
             return whereSnapshot(
                 name: name,
                 configurations: configurations,
+                theme: theme,
                 onReadyToMeasure: {
                     if let input = report.elsewhereInput { await model.refresh(input) }
                 },

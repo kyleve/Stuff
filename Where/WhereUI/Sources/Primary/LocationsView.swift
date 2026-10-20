@@ -1,3 +1,4 @@
+import BroadwayUI
 import PeriscopeCore
 import RegionKit
 import SFSafeSymbols
@@ -77,8 +78,10 @@ struct LocationsView: View {
                     }
                 }
         }
-        .onAppear { tilt.start() }
-        .onDisappear { tilt.stop() }
+        .observesTilt(
+            tilt,
+            enabled: isCardSurfaceUncovered && stylesheet.card.regular.surface.usesReflection,
+        )
         .sheet(isPresented: $showingResolution) {
             ResolutionView(report: report)
         }
@@ -187,9 +190,9 @@ struct LocationsView: View {
                                 recordedPointsID: report.primaryRegionLocations?.id,
                             )
                         }
-                        // Plain so the card's interactive Liquid Glass owns
-                        // the press feel rather than the button adding its own.
-                        .buttonStyle(.plain)
+                        .buttonStyle(stylesheet.card.regular.buttonStyle(
+                            tint: regionStyles.style(for: item.region).tint,
+                        ))
                         // The card is the zoom source: tapping it expands the
                         // card into the pushed calendar (matched geometry). The
                         // configuration re-states the card's rounded shape and
@@ -202,6 +205,7 @@ struct LocationsView: View {
                         ) { source in
                             let card = stylesheet.card.regular
                             let tint = regionStyles.style(for: item.region).tint
+                            let elevation = card.transitionElevation(tint: tint)
                             return source
                                 .clipShape(
                                     RoundedRectangle(
@@ -210,13 +214,13 @@ struct LocationsView: View {
                                     ),
                                 )
                                 .shadow(
-                                    color: tint.opacity(card.glow.opacity),
-                                    radius: card.glow.radius,
+                                    color: elevation.glow.color,
+                                    radius: elevation.glow.radius,
                                 )
                                 .shadow(
-                                    color: tint.opacity(card.lift.opacity),
-                                    radius: card.lift.radius,
-                                    y: card.lift.offsetY,
+                                    color: elevation.lift.color,
+                                    radius: elevation.lift.radius,
+                                    y: elevation.lift.offsetY,
                                 )
                         }
                         .accessibilityHint(String(localized: .primaryCardCalendarHint))
@@ -371,6 +375,21 @@ private struct ResolveToolbarLabel: View {
     extension LocationsView: SnapshotProviding {
         /// Allow native glass adaptation and the background artwork to settle before capture.
         static var snapshots: [SnapshotCase] {
+            for theme in WhereTheme.allCases where theme != .standard {
+                artworkSnapshot(
+                    name: "\(theme.snapshotReferenceGroup!.rawValue.capitalized)Loaded",
+                    report: PreviewSupport.loadedYearReportModel(),
+                    configurations: .fullContentScreenDefaults,
+                    theme: theme,
+                )
+                artworkSnapshot(
+                    name: "\(theme.snapshotReferenceGroup!.rawValue.capitalized)ReduceTransparency",
+                    report: PreviewSupport.loadedYearReportModel(),
+                    configurations: .fullContentPhoneLightDark,
+                    theme: theme,
+                    reduceTransparency: true,
+                )
+            }
             artworkSnapshot(
                 name: "Itinerary",
                 report: PreviewSupport.itineraryYearReportModel(),
@@ -462,12 +481,15 @@ private struct ResolveToolbarLabel: View {
             name: String,
             report: YearReportModel,
             configurations: [SnapshotConfiguration],
+            theme: WhereTheme = .standard,
+            reduceTransparency: Bool = false,
         ) -> SnapshotCase {
             let cache = RegionOutlinePathCache()
             let regions = LocationsBackgroundArtwork.regions(in: report.ranking)
             return whereSnapshot(
                 name: name,
                 configurations: configurations,
+                theme: theme,
                 measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
                 onReadyToSnapshot: {
@@ -482,6 +504,13 @@ private struct ResolveToolbarLabel: View {
             ) {
                 LocationsView(report: report)
                     .environment(\.regionOutlinePathCache, cache)
+                    .bTraitOverrides { traits, overrides in
+                        if reduceTransparency {
+                            var accessibility = traits.accessibility
+                            accessibility.isReduceTransparencyEnabled = true
+                            overrides.accessibility = accessibility
+                        }
+                    }
             }
         }
 

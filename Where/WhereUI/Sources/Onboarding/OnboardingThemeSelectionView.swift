@@ -100,7 +100,8 @@ struct OnboardingThemeSelectionView: View {
                 },
                 whereSnapshot(
                     name: "Alternate",
-                    configurations: configurations,
+                    configurations: .fullContentPhoneLightDark,
+                    theme: .alternate,
                     onReadyToSnapshot: {
                         await PreviewSupport.loadCardArtwork(for: [.california], cache: cache)
                     },

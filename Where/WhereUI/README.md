@@ -184,6 +184,9 @@ Demo mode hides this surface and performs no update checks.
   services or presentation state.
   None reimplements Core rules.
 
+`DataSettingsView` owns the backup share sheet and error alert outside its `Form` sections.
+`BackupSettingsSection` shows export progress and forwards the export action to that screen.
+
 ### Flight status and GPS corrections
 
 Locations shows a quiet notice for this installation's recent flight evidence.
@@ -427,10 +430,33 @@ selectable palette. The assignment does not depend on language, visit count, or
 card order. Cards, map pins, and customization defaults share that assignment.
 User-picked appearances and the original bespoke defaults take precedence.
 
-`WhereTheme` is the device-local presentation identity. Standard and Alternate
-currently resolve through identical Liquid Glass tokens; onboarding previews
-before commit, Appearance Settings persists immediately, and widgets and
-snippets receive the same identity through their cross-process snapshots.
+`WhereTheme` is the device-local presentation identity. Standard uses Liquid
+Glass and reflective artwork. Flat uses opaque, strongly colored paper with
+printed edges and neutral drop shadows. It keeps the passport artwork and
+omits sheen, luminous glows, and GPS-dot halos. The welcome, Elsewhere, privacy,
+and estimate surfaces share this finish. System chrome stays native.
+
+Theme assembly starts with Standard defaults, resolves shared traits, then applies
+`WhereThemeOverrides`. Standard supplies empty overrides. `WhereFlatTheme` owns
+Flat's values and resolves them against the adjusted base. Its `BModeVarying`
+values keep light and dark choices together. Accessibility decisions stay explicit
+in the resolver.
+
+Overrides are `Equatable` values grouped by component. Omitted fields inherit the
+base, while explicit zero values disable effects. Application assigns only the
+specified fields. Views continue to consume complete component styles, and live
+Card Designer drafts compose over those styles.
+
+New custom components support both themes through their resolved styles.
+The [module rules](AGENTS.md) define surface treatments and required snapshot coverage.
+
+Flat adjusts region text colors for contrast against its opaque fills.
+The palette test covers every selectable region color in light and dark modes.
+
+Flat retains the persisted `alternate` raw value. Onboarding previews before
+commit. Appearance Settings persists immediately. Widgets and snippets
+receive the same identity through their cross-process snapshots. Their existing
+lightweight content and system backgrounds stay unchanged.
 
 Both `RegionSummaryCard` sizes ask the root-owned `RegionOutlinePathCache` for
 region artwork. The watermark uses a medium path, and the stamp seal uses a
@@ -443,7 +469,9 @@ Elsewhere uses that compact geometry on white paper, with neutral dark
 paper in dark mode. Silhouettes, stamps, and borders use the original region color
 with the shared decorative opacities. Text uses a separate contrast adjustment.
 Its cards omit annual progress bars. Compact primary specimens in theme pickers
-and galleries retain the Locations glass treatment.
+and galleries retain the selected Locations theme. Elsewhere uses the shared
+matte renderer in both themes. Flat supplies its outline and shadow and
+preserves the white or neutral-dark fill.
 Regions without geometry retain the symbol treatment. On Locations cards, raw
 GPS fixes for the selected year are projected through that same geometry and
 reduced to a clipped, static constellation of glowing pinpricks. Manually logged days add no invented
@@ -454,8 +482,12 @@ blending, which keeps the ink legible without oversaturating it when interactive
 glass illuminates. Reduce Transparency removes the constellation halos while
 retaining the crisp centers.
 Live tilt is observed only by the sheen overlay, so its 60 Hz updates do not
-invalidate the card's text or Canvas artwork. Glass supplies the primary cards'
-outer border. Elsewhere paper has a thin border in the region's ink.
+invalidate the card's text or Canvas artwork. Observation runs only while a
+reflective surface is visible and active, with motion enabled. Standard's
+Liquid Glass supplies its border. Flat supplies an explicit printed stroke.
+The shared matte renderer owns fill, stroke, and shadow. Navigation zooms use
+the same resolved elevation. Card Designer drafts preserve the selected finish
+without changing their saved format.
 
 The Locations toolbar opens **Planned stays**. Each stay has an independent identity,
 a destination, and inclusive arrival and last-day windows. Exact dates use one day
@@ -591,3 +623,17 @@ for the mode values):
 ```
 
 Then review and commit the images.
+
+### Theme snapshot coverage
+
+`whereThemeSnapshot` renders a production component in every `WhereTheme`, with
+Standard first, as one labeled comparison sheet per trait configuration. Add
+component states beside their owning view. Use the broad component matrix for a
+representative state and focused light/dark cases for additional states.
+
+Use `whereSnapshot` for screen integration. Locations retains per-theme coverage;
+appearance pickers retain selection-state coverage. Avoid repeating entire screens
+for changes confined to a child component. Standard references keep existing paths,
+Flat screen references use `flat/`, and comparison sheets use `themes/`. Special
+traits nest under the group's `other/` directory. Review sheet PNGs before recording. Their embedded panel maps are part of the
+reference; preserve PNG metadata when copying them.

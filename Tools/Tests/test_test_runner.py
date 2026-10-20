@@ -89,6 +89,35 @@ class TestRunnerTests(unittest.TestCase):
 
             self.assertIn("1 images", output.getvalue())
 
+    def test_retry_diagnostics_are_visible_without_counting_as_tests_or_images(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = io.StringIO()
+            reporter = ProgressReporter(
+                heartbeat=0,
+                status_path=None,
+                counts_path=Path(directory) / "counts.json",
+                scheme="Snapshots",
+                is_terminal=False,
+                count_images=True,
+                output=output,
+                clock=Clock(),
+            )
+            lines = [
+                "SNAPSHOT_RETRY example: attempt 1/3 failed: settle timeout; retrying attempt 2/3",
+                "SNAPSHOT_RETRY example: recovered on attempt 2/3",
+            ]
+            for line in lines:
+                reporter.consume(line)
+                self.assertIn(line, output.getvalue())
+            self.assertEqual(reporter.tests, 0)
+            self.assertEqual(reporter.images, 0)
+            self.assertEqual(reporter.failures, 0)
+            reporter.consume('SNAPSHOT_TIMING {"id":"example"}')
+            reporter.consume("✔ Test example() passed after 1.0 seconds")
+            self.assertEqual(reporter.images, 1)
+            self.assertEqual(reporter.tests, 1)
+            self.assertEqual(reporter.failures, 0)
+
     def test_progress_keeps_cached_test_count_labeled_as_tests(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

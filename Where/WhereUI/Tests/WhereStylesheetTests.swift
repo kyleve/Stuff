@@ -113,7 +113,7 @@ struct WhereStylesheetTests {
     }
 
     @MainActor
-    @Test func themesRetainDistinctIdentityWithEquivalentTokens() throws {
+    @Test func themesRetainDistinctIdentityAndSharedGeometry() throws {
         var standardThemes = BThemes()
         standardThemes[WhereTheme.self] = .standard
         var alternateThemes = BThemes()
@@ -126,9 +126,16 @@ struct WhereStylesheetTests {
 
         #expect(standard.theme == .standard)
         #expect(alternate.theme == .alternate)
-        var normalizedStandard = standard
-        normalizedStandard.theme = WhereTheme.alternate
-        #expect(normalizedStandard == alternate)
+        #expect(standard.card.regular.surface == .reflective)
+        #expect(alternate.card.regular.surface.usesReflection == false)
+        #expect(standard.card.regular.cornerRadius == alternate.card.regular.cornerRadius)
+        #expect(standard.card.compact.padding == alternate.card.compact.padding)
+        #expect(standard.card.regular.entryStamp == alternate.card.regular.entryStamp)
+        #expect(standard.card.dayCount == alternate.card.dayCount)
+        #expect(standard.locationCardStack == alternate.locationCardStack)
+        #expect(standard.locationsBackground == alternate.locationsBackground)
+        #expect(standard.yearModePicker == alternate.yearModePicker)
+        #expect(standard.timeline == alternate.timeline)
     }
 
     @Test func spacingScale() {
@@ -317,7 +324,7 @@ struct WhereStylesheetTests {
         #expect(elsewhere.entryStamp == style.card.compact.entryStamp)
         #expect(elsewhere.regionShape == style.card.regular.regionShape)
         #expect(elsewhere.glow == .init(opacity: 0, radius: 0))
-        #expect(elsewhere.lift == .init(opacity: 0.08, radius: 6, offsetY: 3))
+        #expect(elsewhere.lift == .init(opacity: 0, radius: 0))
     }
 
     @MainActor
@@ -328,9 +335,9 @@ struct WhereStylesheetTests {
         let sheet = try context.stylesheets.get(WhereStylesheet.self)
         let paper = try #require(sheet.card[.elsewhere].paper)
         #expect(paper == (mode == .dark ? .dark : .light))
-        #expect(paper.background == (mode == .dark ? Color(white: 36.0 / 255) : .white))
-        #expect(paper.outlineOpacity == 0.45)
-        #expect(paper.outlineWidth == 1)
+        #expect(paper.surface.fill.base == (mode == .dark ? Color(white: 36.0 / 255) : .white))
+        #expect(paper.surface.outline.opacity == 0.45)
+        #expect(paper.surface.outline.width == 1)
 
         var environment = EnvironmentValues()
         environment.colorScheme = mode == .dark ? .dark : .light
@@ -344,8 +351,8 @@ struct WhereStylesheetTests {
                 + 0.7152 * linear(resolved.green)
                 + 0.0722 * linear(resolved.blue)
         }
-        let ink = luminance(paper.textTint(color.color))
-        let background = luminance(paper.background)
+        let ink = luminance(paper.contentTint.apply(to: color.color))
+        let background = luminance(paper.surface.fill.base)
         let contrast = (max(ink, background) + 0.05) / (min(ink, background) + 0.05)
         #expect(contrast >= 4.5)
     }
@@ -1178,6 +1185,23 @@ struct WhereStylesheetEnvironmentTests {
         )
         try show(host) { _ in
             try waitFor { box.theme == .alternate }
+        }
+    }
+
+    @Test func themeChangesUpdateMountedSurfacesInBothDirections() throws {
+        let box = StylesheetProbeBox()
+        func content(theme: WhereTheme) -> some View {
+            StylesheetProbe(box: box).whereBroadwayRoot(theme: theme)
+        }
+        let host = UIHostingController(rootView: content(theme: .standard))
+        try show(host) { _ in
+            try waitFor { box.sheet?.card.regular.surface.usesReflection == true }
+            host.rootView = content(theme: .alternate)
+            try waitFor { box.sheet?.card.regular.surface.usesReflection == false }
+            #expect(box.sheet?.privacyPassportCard.surface.usesReflection == false)
+            host.rootView = content(theme: .standard)
+            try waitFor { box.sheet?.card.regular.surface.usesReflection == true }
+            #expect(box.sheet?.privacyPassportCard.surface.usesReflection == true)
         }
     }
 }

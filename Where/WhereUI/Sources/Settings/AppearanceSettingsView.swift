@@ -227,6 +227,24 @@ extension AppearanceSettingsView: SettingsSection {
         static var snapshots: [SnapshotCase] {
             let cache = RegionOutlinePathCache()
             whereSnapshot(
+                name: "FlatSelected",
+                configurations: .fullContentPhoneLightDark,
+                theme: .alternate,
+                measurementReadiness: .immediate,
+                onReadyToSnapshot: {
+                    await PreviewSupport.loadCardArtwork(for: [.california], cache: cache)
+                },
+            ) {
+                let model = PreviewSupport.loadedModel()
+                model.previewTheme(.alternate)
+                return NavigationStack {
+                    AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())
+                }
+                .environment(model)
+                .environment(\.cardDesignerModel, CardDesignerModel(configuration: .standard))
+                .environment(\.regionOutlinePathCache, cache)
+            }
+            whereSnapshot(
                 name: "Default",
                 configurations: .fullContentScreenDefaults,
                 measurementReadiness: .immediate,

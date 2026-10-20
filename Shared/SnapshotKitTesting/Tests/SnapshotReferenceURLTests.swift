@@ -5,6 +5,29 @@ import Testing
 
 @MainActor
 struct SnapshotReferenceURLTests {
+    @Test func referenceGroupsContainTheirSpecialTraitDirectory() throws {
+        let group = try #require(SnapshotReferenceGroup(rawValue: "flat"))
+        let url = snapshotReferenceURL(
+            testFilePath: "/repo/ThingSnapshotTests.swift",
+            testName: "thing()",
+            identifier: "Loaded",
+            configuration: SnapshotConfiguration(contrast: .increased),
+            referenceGroup: group,
+        )
+        #expect(url.path == "/repo/__Snapshots__/ThingSnapshotTests/flat/other/thing.Loaded.png")
+        let annotations = snapshotReferenceURL(
+            testFilePath: "/repo/ThingSnapshotTests.swift",
+            testName: "thing()",
+            identifier: "Loaded",
+            configuration: SnapshotConfiguration(
+                contrast: .increased,
+                snapshotType: .accessibility,
+            ),
+            referenceGroup: group,
+        )
+        #expect(annotations.path == "/repo/__Snapshots__/ThingSnapshotTests/flat/thing.Loaded.png")
+    }
+
     @Test(arguments: ["thing()", "thing"])
     func ordinaryReferenceKeepsItsExistingPath(testName: String) {
         let url = snapshotReferenceURL(
