@@ -49,6 +49,19 @@ let package = Package(
         .package(url: "https://github.com/swiftlang/swift-syntax", exact: "603.0.2"),
     ],
     targets: [
+        .testTarget(
+            name: "ViewLayoutDiscoveryTests",
+            dependencies: [.target(name: "ViewLayoutDiscovery")],
+            path: "Tools/ViewLayoutDiscovery/Tests",
+        ),
+        .executableTarget(
+            name: "ViewLayoutDiscovery",
+            dependencies: [
+                .product(name: "SwiftParser", package: "swift-syntax"),
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+            ],
+            path: "Tools/ViewLayoutDiscovery/Sources",
+        ),
         .macro(
             name: "PeriscopeMacros",
             dependencies: [

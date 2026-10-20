@@ -62,3 +62,5 @@ Previews inject these fixtures into the production service and model, which reta
 `./test InstallerKitUISnapshotTests --review` covers shared screen states without Where.
 The error card also has static Dynamic Type and accessibility captures, independent of page refreshes.
 WhereUI's `DevelopmentUpdatesView` supplies its real icon and Settings search integration.
+
+Audit-only layout probes are maintained by the [compiled view audit](../../Tools/ViewLayoutAudit/README.md).

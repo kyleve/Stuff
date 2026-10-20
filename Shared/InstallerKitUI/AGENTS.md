@@ -15,3 +15,5 @@ See [README.md](README.md) and the [repository rules](../../AGENTS.md).
 
 Run `./test InstallerKitUITests` and `./test InstallerKitUISnapshotTests --review`.
 The update page and browser destinations own their shared image matrices; hosts cover branding and navigation wrappers.
+
+Audit-only layout probes are maintained by the [compiled view audit](../../Tools/ViewLayoutAudit/README.md).

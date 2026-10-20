@@ -1,0 +1,280 @@
+{
+  "BroadwayUI/BRootView": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "BRootView<Text>"
+    ]
+  },
+  "Flyover/FlyoverAppearanceMenu": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FlyoverAppearanceMenu<_LayoutAuditScreenID>"
+    ]
+  },
+  "Flyover/FlyoverCanvasView": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FlyoverCanvasView<_LayoutAuditScreenID>"
+    ]
+  },
+  "Flyover/FlyoverCompactControlBar": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FlyoverCompactControlBar<_LayoutAuditScreenID>"
+    ]
+  },
+  "Flyover/FlyoverConnectorCanvas": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FlyoverConnectorCanvas<_LayoutAuditScreenID>"
+    ]
+  },
+  "Flyover/FlyoverControlBar": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FlyoverControlBar<_LayoutAuditScreenID>"
+    ]
+  },
+  "Flyover/FlyoverFocusedControls": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FlyoverFocusedControls<_LayoutAuditScreenID>"
+    ]
+  },
+  "Flyover/FlyoverFocusedVariantPicker": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FlyoverFocusedVariantPicker<_LayoutAuditScreenID>"
+    ]
+  },
+  "Flyover/FlyoverFocusedView": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FlyoverFocusedView<_LayoutAuditScreenID>"
+    ]
+  },
+  "Flyover/FlyoverListView": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FlyoverListView<_LayoutAuditScreenID>"
+    ]
+  },
+  "Flyover/FlyoverOverview": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FlyoverOverview<_LayoutAuditScreenID>"
+    ]
+  },
+  "Flyover/FlyoverRootView": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FlyoverRootView<_LayoutAuditScreenID>"
+    ]
+  },
+  "Flyover/FlyoverRouteSummary": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FlyoverRouteSummary<_LayoutAuditScreenID>"
+    ]
+  },
+  "Flyover/FlyoverScreenContent": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FlyoverScreenContent<_LayoutAuditScreenID>"
+    ]
+  },
+  "Flyover/FlyoverScreenControls": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FlyoverScreenControls<_LayoutAuditScreenID>"
+    ]
+  },
+  "Flyover/FlyoverScreenFrame": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FlyoverScreenFrame<_LayoutAuditScreenID>"
+    ]
+  },
+  "Flyover/FlyoverScreenHeader": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FlyoverScreenHeader<_LayoutAuditScreenID>"
+    ]
+  },
+  "Flyover/FlyoverScreenPlaceholder": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FlyoverScreenPlaceholder<_LayoutAuditScreenID>"
+    ]
+  },
+  "Flyover/FlyoverView": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FlyoverView<_LayoutAuditScreenID>"
+    ]
+  },
+  "Flyover/FlyoverViewModePicker": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FlyoverViewModePicker<_LayoutAuditScreenID>"
+    ]
+  },
+  "Flyover/FlyoverViewportMenu": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FlyoverViewportMenu<_LayoutAuditScreenID>"
+    ]
+  },
+  "Flyover/FlyoverZoomSlider": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FlyoverZoomSlider<_LayoutAuditScreenID>"
+    ]
+  },
+  "InstallerKitUI/AppUpdatesView": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "AppUpdatesView<EmptyModifier>"
+    ]
+  },
+  "InstallerKitUI/UpdateBrowserPage": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "UpdateBrowserPage<Text>"
+    ]
+  },
+  "InstallerKitUI/UpdateCard": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "UpdateCard<Text>"
+    ]
+  },
+  "InstallerKitUI/UpdateDetailRow": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "UpdateDetailRow<Text>"
+    ]
+  },
+  "InstallerKitUI/UpdateHero": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "UpdateHero<Text>"
+    ]
+  },
+  "InstallerKitUI/UpdatePage": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "UpdatePage<EmptyModifier>"
+    ]
+  },
+  "InstallerKitUI/UpdatePageLayout": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "UpdatePageLayout<Text>"
+    ]
+  },
+  "Ledger/SettingsPane": {
+    "exemption": "A protocol is not a concrete View. Its discovered concrete conformers are audited.",
+    "reason": "No concrete metatype exists for this protocol."
+  },
+  "LifecycleKitUI/LifecycleContainer": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "LifecycleContainer<Int, Text, Text, Text>"
+    ]
+  },
+  "SnapshotKit/SnapshotTraitOverrideHost": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "SnapshotTraitOverrideHost<Text>"
+    ]
+  },
+  "WhereUI/DaysInRegionSnippetCard": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "DaysInRegionSnippetCard<Text>"
+    ]
+  },
+  "WhereUI/FeatureGuideForm": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FeatureGuideForm<Text>"
+    ]
+  },
+  "WhereUI/FeatureGuidePage": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FeatureGuidePage<Text>"
+    ]
+  },
+  "WhereUI/FeatureGuidePanel": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FeatureGuidePanel<Text>"
+    ]
+  },
+  "WhereUI/FeatureMarketingPanel": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "FeatureMarketingPanel<Text>"
+    ]
+  },
+  "WhereUI/GroupedRegionSections": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "GroupedRegionSections<Text>"
+    ]
+  },
+  "WhereUI/LocationCardRankingStack": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "LocationCardRankingStack<Text>"
+    ]
+  },
+  "WhereUI/PrivacyPassportCardSurface": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "PrivacyPassportCardSurface<Text>"
+    ]
+  },
+  "WhereUI/RootStyledContent": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "RootStyledContent<Text>"
+    ]
+  },
+  "WhereUI/SettingsFocusScope": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "SettingsFocusScope<Text>"
+    ]
+  },
+  "WhereUI/StaggeredRevealScope": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "StaggeredRevealScope<Text>"
+    ]
+  },
+  "WhereUI/StampBanner": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "StampBanner<Text>"
+    ]
+  },
+  "WhereUI/WhereFlyoverHost": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "WhereFlyoverHost<Text>"
+    ]
+  },
+  "WhereUI/WhereFlyoverProviding": {
+    "exemption": "A protocol is not a concrete View. Its discovered concrete conformers are audited.",
+    "reason": "No concrete metatype exists for this protocol."
+  },
+  "WhereUI/WidgetExampleFrame": {
+    "reason": "Concrete reference case for the generic wrapper; other type arguments can have different layouts.",
+    "types": [
+      "WidgetExampleFrame<Text>"
+    ]
+  }
+}

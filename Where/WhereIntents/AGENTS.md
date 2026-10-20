@@ -91,3 +91,5 @@ outside the intent perform flow (a probe was tried and trapped). Verify it by
 invoking a Siri/Shortcuts intent on a device. Do not construct extra
 `AppDelegate`s in tests. Each `didFinishLaunching` re-registers the handoff.
 `AppDependencyManager`'s re-registration behavior is undocumented.
+
+Audit-only layout probes are maintained by the [compiled view audit](../../Tools/ViewLayoutAudit/README.md).

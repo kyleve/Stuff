@@ -99,3 +99,5 @@ How the tools render is pinned by image snapshots in [`SnapshotTests/`](Snapshot
 They build as the module's own `PeriscopeToolsSnapshotTests` bundle, which runs alongside every other module's image suite in the shared `StuffSnapshotTests` scheme.
 Run with `./test --snapshots`.
 To re-record after an intentional UI change, see the [SnapshotKitTesting README](../../SnapshotKitTesting/README.md#recording).
+
+Audit-only layout probes are maintained by the [compiled view audit](../../../Tools/ViewLayoutAudit/README.md).

@@ -62,3 +62,5 @@ Each widget file ships `#Preview` timelines at the bottom (DEBUG only), using `W
 - There is no dedicated widget test bundle.
   Timeline logic is covered indirectly via **WhereCore** store tests and **WhereUI** widget view hosting tests.
 - Cross-process publish → read integration is not exercised in CI (see [`AGENTS.md`](AGENTS.md)).
+
+Audit-only layout probes are maintained by the [compiled view audit](../../Tools/ViewLayoutAudit/README.md).

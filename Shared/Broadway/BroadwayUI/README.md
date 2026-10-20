@@ -34,3 +34,5 @@ WindowGroup {
 
 Local SPM library declared in the root [`Package.swift`](../../../Package.swift) (depends on BroadwayCore): `.package(product: "BroadwayUI")`.
 Run tests with `./test BroadwayUITests`.
+
+Audit-only layout probes are maintained by the [compiled view audit](../../../Tools/ViewLayoutAudit/README.md).

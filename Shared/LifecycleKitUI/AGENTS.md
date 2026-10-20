@@ -29,3 +29,5 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build system,
 ## Testing
 
 Swift Testing lives in [`Tests/`](Tests), hosted in `StuffTestHost` through the `LifecycleKitUITests` bundle. Container tests host `LifecycleContainer` and assert which branch renders (probe views). Proxy tests cover the connected/disconnected environment paths. Engine behavior is tested in LifecycleKit's own bundle. Do not duplicate it here.
+
+Audit-only layout probes are maintained by the [compiled view audit](../../Tools/ViewLayoutAudit/README.md).

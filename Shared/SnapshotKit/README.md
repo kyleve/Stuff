@@ -191,3 +191,5 @@ when their identities differ. Raw capture content is available only through the
 `SnapshotCase.ID` stores the reference group and case name separately. A slash in
 an ungrouped case name cannot impersonate a grouped case in previews. Reference
 filenames and configuration identifiers remain unchanged.
+
+Audit-only layout probes are maintained by the [compiled view audit](../../Tools/ViewLayoutAudit/README.md).

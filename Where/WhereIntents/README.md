@@ -95,3 +95,5 @@ they do not call an intent's `perform()`. The framework's `@Dependency` lookup
 traps outside the system perform flow. Dependency resolution, snippet wiring,
 and error-to-dialog mapping therefore require a Siri/Shortcuts invocation on a
 device; these are not covered by the unit suite.
+
+Audit-only layout probes are maintained by the [compiled view audit](../../Tools/ViewLayoutAudit/README.md).

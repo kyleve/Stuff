@@ -40,3 +40,5 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build, format
 ## Testing
 
 Swift Testing lives in [`Tests/`](Tests), split by implementation concern. Use temporary directories, isolated defaults suites, and in-memory SwiftData containers. Image references live in [`SnapshotTests/`](SnapshotTests) and run in the shared `StuffSnapshotTests` scheme.
+
+Audit-only layout probes are maintained by the [compiled view audit](../../Tools/ViewLayoutAudit/README.md).

@@ -1,0 +1,217 @@
+{
+  "budgets": {
+    "iOSSimulator/Beta/arm64/WhereUI/AboutSettingsView:AboutSettingsView/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 20392
+    },
+    "iOSSimulator/Beta/arm64/WhereUI/EstimatedTimeFeaturesContent:EstimatedTimeFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 134440
+    },
+    "iOSSimulator/Beta/arm64/WhereUI/FeatureGuideForm:FeatureGuideForm<Text>/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 19112
+    },
+    "iOSSimulator/Beta/arm64/WhereUI/FeatureHomeScreenExample:FeatureHomeScreenExample/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 38416
+    },
+    "iOSSimulator/Beta/arm64/WhereUI/FeatureLockScreenExample:FeatureLockScreenExample/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 26016
+    },
+    "iOSSimulator/Beta/arm64/WhereUI/FlightDayDetailView:FlightDayDetailView/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 21728
+    },
+    "iOSSimulator/Beta/arm64/WhereUI/InsightsAccuracyFeaturesContent:InsightsAccuracyFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 89552
+    },
+    "iOSSimulator/Beta/arm64/WhereUI/MainTabs:MainTabs/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 20320
+    },
+    "iOSSimulator/Beta/arm64/WhereUI/PersonalizationFeaturesContent:PersonalizationFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 95952
+    },
+    "iOSSimulator/Beta/arm64/WhereUI/PlacesYearFeaturesContent:PlacesYearFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 90000
+    },
+    "iOSSimulator/Beta/arm64/WhereUI/PlannedPresenceJourneyRow:PlannedPresenceJourneyRow/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 19256
+    },
+    "iOSSimulator/Beta/arm64/WhereUI/PresenceTimelineList:PresenceTimelineList/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 20168
+    },
+    "iOSSimulator/Beta/arm64/WhereUI/PrivacyBackupsFeaturesContent:PrivacyBackupsFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 64288
+    },
+    "iOSSimulator/Beta/arm64/WhereUI/RecordingFeaturesContent:RecordingFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 64024
+    },
+    "iOSSimulator/Beta/arm64/WhereUI/ShareEvidenceFeaturesContent:ShareEvidenceFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 76584
+    },
+    "iOSSimulator/Beta/arm64/WhereUI/SiriFeaturesContent:SiriFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 44736
+    },
+    "iOSSimulator/Beta/arm64/WhereUI/WidgetFeaturesContent:WidgetFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 76576
+    },
+    "iOSSimulator/Debug/arm64/WhereUI/AboutSettingsView:AboutSettingsView/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 20392
+    },
+    "iOSSimulator/Debug/arm64/WhereUI/AppearanceSettingsView:AppearanceSettingsView/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 22344
+    },
+    "iOSSimulator/Debug/arm64/WhereUI/DeveloperOverlayMenu:DeveloperOverlayMenu/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 19328
+    },
+    "iOSSimulator/Debug/arm64/WhereUI/EstimatedTimeFeaturesContent:EstimatedTimeFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 134440
+    },
+    "iOSSimulator/Debug/arm64/WhereUI/FeatureGuideForm:FeatureGuideForm<Text>/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 19112
+    },
+    "iOSSimulator/Debug/arm64/WhereUI/FeatureHomeScreenExample:FeatureHomeScreenExample/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 38416
+    },
+    "iOSSimulator/Debug/arm64/WhereUI/FeatureLockScreenExample:FeatureLockScreenExample/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 26016
+    },
+    "iOSSimulator/Debug/arm64/WhereUI/FlightDayDetailView:FlightDayDetailView/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 21728
+    },
+    "iOSSimulator/Debug/arm64/WhereUI/InsightsAccuracyFeaturesContent:InsightsAccuracyFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 89552
+    },
+    "iOSSimulator/Debug/arm64/WhereUI/MainTabs:MainTabs/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 20320
+    },
+    "iOSSimulator/Debug/arm64/WhereUI/PersonalizationFeaturesContent:PersonalizationFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 95952
+    },
+    "iOSSimulator/Debug/arm64/WhereUI/PlacesYearFeaturesContent:PlacesYearFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 91344
+    },
+    "iOSSimulator/Debug/arm64/WhereUI/PlannedPresenceJourneyRow:PlannedPresenceJourneyRow/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 19256
+    },
+    "iOSSimulator/Debug/arm64/WhereUI/PresenceTimelineList:PresenceTimelineList/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 20168
+    },
+    "iOSSimulator/Debug/arm64/WhereUI/PrivacyBackupsFeaturesContent:PrivacyBackupsFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 64288
+    },
+    "iOSSimulator/Debug/arm64/WhereUI/RecordingFeaturesContent:RecordingFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 64024
+    },
+    "iOSSimulator/Debug/arm64/WhereUI/ShareEvidenceFeaturesContent:ShareEvidenceFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 76584
+    },
+    "iOSSimulator/Debug/arm64/WhereUI/SiriFeaturesContent:SiriFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 44736
+    },
+    "iOSSimulator/Debug/arm64/WhereUI/WidgetFeaturesContent:WidgetFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 76576
+    },
+    "iOSSimulator/Release/arm64/WhereUI/AboutSettingsView:AboutSettingsView/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 20392
+    },
+    "iOSSimulator/Release/arm64/WhereUI/EstimatedTimeFeaturesContent:EstimatedTimeFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 134440
+    },
+    "iOSSimulator/Release/arm64/WhereUI/FeatureGuideForm:FeatureGuideForm<Text>/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 19112
+    },
+    "iOSSimulator/Release/arm64/WhereUI/FeatureHomeScreenExample:FeatureHomeScreenExample/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 38416
+    },
+    "iOSSimulator/Release/arm64/WhereUI/FeatureLockScreenExample:FeatureLockScreenExample/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 26016
+    },
+    "iOSSimulator/Release/arm64/WhereUI/FlightDayDetailView:FlightDayDetailView/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 21728
+    },
+    "iOSSimulator/Release/arm64/WhereUI/InsightsAccuracyFeaturesContent:InsightsAccuracyFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 89552
+    },
+    "iOSSimulator/Release/arm64/WhereUI/MainTabs:MainTabs/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 20320
+    },
+    "iOSSimulator/Release/arm64/WhereUI/PersonalizationFeaturesContent:PersonalizationFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 95952
+    },
+    "iOSSimulator/Release/arm64/WhereUI/PlacesYearFeaturesContent:PlacesYearFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 90000
+    },
+    "iOSSimulator/Release/arm64/WhereUI/PlannedPresenceJourneyRow:PlannedPresenceJourneyRow/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 19256
+    },
+    "iOSSimulator/Release/arm64/WhereUI/PresenceTimelineList:PresenceTimelineList/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 20168
+    },
+    "iOSSimulator/Release/arm64/WhereUI/PrivacyBackupsFeaturesContent:PrivacyBackupsFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 64288
+    },
+    "iOSSimulator/Release/arm64/WhereUI/RecordingFeaturesContent:RecordingFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 64024
+    },
+    "iOSSimulator/Release/arm64/WhereUI/ShareEvidenceFeaturesContent:ShareEvidenceFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 76584
+    },
+    "iOSSimulator/Release/arm64/WhereUI/SiriFeaturesContent:SiriFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 44736
+    },
+    "iOSSimulator/Release/arm64/WhereUI/WidgetFeaturesContent:WidgetFeaturesContent/body": {
+      "reason": "Existing composition at audit rollout; see Where/TODOs.md oversized-view follow-up. Budget may not grow.",
+      "stride": 76576
+    }
+  },
+  "version": 1
+}
