@@ -54,6 +54,7 @@ Layering, localization, preview, and testing conventions live in the feature
   through any failure (`WhereLaunchTests`).
 - Keep backup import onboarding-only. Settings exports archives but never
   starts or resumes an import (`BackupModelTests`).
+  Attach export sheets and error alerts to `DataSettingsView` outside its `Form` sections.
 - Keep diagnostic reporting's saved, process-effective, applying, and failed
   states distinct. Crash and replay choices stay pending until relaunch.
   Remote-log revisions apply live. A runtime failure invalidates in-flight

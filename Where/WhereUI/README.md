@@ -172,6 +172,9 @@ Demo mode hides this surface and performs no update checks.
   services or presentation state.
   None reimplements Core rules.
 
+`DataSettingsView` owns the backup share sheet and error alert outside its `Form` sections.
+`BackupSettingsSection` shows export progress and forwards the export action to that screen.
+
 ### Flight status and GPS corrections
 
 Locations shows a quiet notice for this installation's recent flight evidence.
