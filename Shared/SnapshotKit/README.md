@@ -152,30 +152,42 @@ assertSnapshots(of: MyBadge.self)
 
 ## Component comparison sheets
 
-Use `SnapshotCase.comparison` for one component state across consumer-defined
+Use `SnapshotCase.cutsheet` for one component state across consumer-defined
 appearances. Each configuration produces a separate sheet. Panels retain normal
 component width and wrap into two-column rows. The consumer supplies stable typed
 identities, labels, ordering, and themed content:
 
 ```swift
-SnapshotCase.comparison(
+SnapshotCase.cutsheet(
     name: "Badge",
     configurations: .componentDefaults,
-    panels: appearances.map { appearance in
+    referenceGroup: .themes,
+) {
+    for appearance in appearances {
         SnapshotPanel(id: appearance.snapshotID, label: appearance.title) {
             Badge(model: makeFreshFixture(), appearance: appearance)
         }
     }
-)
+}
 ```
 
 Here, `Badge`, `appearances`, `snapshotID`, and the fixture factory are consumer-owned examples.
 Build fresh fixture state inside each lazy panel builder. Preview sheets support
 horizontal scrolling and omit test-only accessibility annotations.
 
-Comparison cases default to the `themes` reference group. Ordinary cases accept an
-optional `SnapshotReferenceGroup`; omission preserves existing paths. A group is a
+Both case constructors accept an optional `SnapshotReferenceGroup`. Omission keeps
+references ungrouped. The example explicitly selects `themes` for its theme panels. A group is a
 stable lowercase slug, independent of localized labels and configuration identifiers.
 Special traits use `other/` inside the group. See
 [SnapshotKitTesting](../SnapshotKitTesting/README.md#component-comparison-sheets)
 for capture, comparison, metadata, and recording behavior.
+
+A case contains either one lazy view or a validated cutsheet. The ordinary initializer
+cannot also accept panels, and the cutsheet factory cannot accept a second view tree.
+Empty cutsheets and duplicate panel identities fail at declaration. Labels can repeat
+when their identities differ. Raw capture content is available only through the
+`Capture` SPI used by SnapshotKitTesting and Flyover. Previews use the same stored subject.
+
+`SnapshotCase.ID` stores the reference group and case name separately. A slash in
+an ungrouped case name cannot impersonate a grouped case in previews. Reference
+filenames and configuration identifiers remain unchanged.

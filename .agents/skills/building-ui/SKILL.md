@@ -244,6 +244,9 @@ API reference: [Apple's custom-glass guidance](https://developer.apple.com/docum
   comparison sheet containing all supported themes for each representative state
   and trait configuration. Build fresh fixture state per panel and preserve normal
   component width, production behavior, and artwork readiness.
+- For generic comparison sheets, use `SnapshotCase.cutsheet { SnapshotPanel(...) { ... } }`.
+  Keep panel identities stable and choose the reference group explicitly when grouping related sheets.
+  Use a module's theme helper when it supplies that module's root and theme ordering.
 - Keep full-screen theme variants for critical integration or materially different
   screen composition. Do not multiply screen matrices for child-surface changes.
 - Use explicit reference groups: mixed-theme sheets have a neutral group; single-theme

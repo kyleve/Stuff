@@ -46,7 +46,6 @@ public struct SnapshotCase: Identifiable {
     /// reference-image identifiers.
     public let name: String
     public let referenceGroup: SnapshotReferenceGroup?
-    public let comparisonPanels: [SnapshotPanel]
     /// The configurations (appearance/frame/type variants) to render.
     public let configurations: [SnapshotConfiguration]
     /// Whether the content needs the async settle loop before capture.
@@ -65,19 +64,30 @@ public struct SnapshotCase: Identifiable {
     /// for content that renders as declared; the preview cutsheet ignores it
     /// (only the test pipeline can re-settle around it).
     public let onReadyToSnapshot: (@MainActor () async -> Void)?
-    /// The content rendered under each configuration.
-    ///
-    /// The builder stays lazy so describing a snapshot matrix does not also
-    /// instantiate every view and its model. Each access invokes the builder;
-    /// the current test runner accesses it once per case, sharing captured models.
-    @MainActor public var content: AnyView {
-        contentFactory()
+    /// Capture machinery is shared with SnapshotKitTesting and Flyover. Author cases through
+    /// the single-view initializer or the validated cutsheet builder.
+    @_spi(Capture) public enum Capture {
+        case single(@MainActor () -> AnyView)
+        case cutsheet(SnapshotPanelCollection)
     }
 
-    private let contentFactory: @MainActor () -> AnyView
+    @_spi(Capture) public let capture: Capture
 
-    public var id: String {
-        [referenceGroup?.rawValue, name].compactMap(\.self).joined(separator: "/")
+    var isCutsheet: Bool {
+        switch capture {
+            case .single: false
+            case .cutsheet: true
+        }
+    }
+
+    /// Structured preview identity keeps a group distinct from punctuation in a case name.
+    public struct ID: Hashable, Sendable {
+        public let referenceGroup: SnapshotReferenceGroup?
+        public let name: String
+    }
+
+    public var id: ID {
+        ID(referenceGroup: referenceGroup, name: name)
     }
 
     @MainActor
@@ -85,7 +95,6 @@ public struct SnapshotCase: Identifiable {
         name: String,
         configurations: [SnapshotConfiguration],
         referenceGroup: SnapshotReferenceGroup? = nil,
-        comparisonPanels: [SnapshotPanel] = [],
         measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
         onReadyToMeasure: (@MainActor () async -> Void)? = nil,
         settle: SnapshotSettle = .settled,
@@ -94,13 +103,33 @@ public struct SnapshotCase: Identifiable {
     ) {
         self.name = name
         self.referenceGroup = referenceGroup
-        self.comparisonPanels = comparisonPanels
         self.configurations = configurations
         self.measurementReadiness = measurementReadiness
         self.onReadyToMeasure = onReadyToMeasure
         self.settle = settle
         self.onReadyToSnapshot = onReadyToSnapshot
-        contentFactory = { AnyView(content()) }
+        capture = .single { AnyView(content()) }
+    }
+
+    @MainActor
+    init(
+        name: String,
+        configurations: [SnapshotConfiguration],
+        referenceGroup: SnapshotReferenceGroup?,
+        measurementReadiness: SnapshotMeasurementReadiness,
+        onReadyToMeasure: (@MainActor () async -> Void)?,
+        settle: SnapshotSettle,
+        onReadyToSnapshot: (@MainActor () async -> Void)?,
+        panels: SnapshotPanelCollection,
+    ) {
+        self.name = name
+        self.configurations = configurations
+        self.referenceGroup = referenceGroup
+        self.measurementReadiness = measurementReadiness
+        self.onReadyToMeasure = onReadyToMeasure
+        self.settle = settle
+        self.onReadyToSnapshot = onReadyToSnapshot
+        capture = .cutsheet(panels)
     }
 
     /// The configurations that can render without linking test-only dependencies.
@@ -123,28 +152,26 @@ extension SnapshotCase: View {
                     Text(label(for: configuration))
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
-                    if comparisonPanels.isEmpty {
-                        framed(for: configuration)
-                            .snapshotTraits(configuration)
-                            .environment(\.isCapturingSnapshot, true)
-                    } else {
-                        let width = configuration.device.size.previewPanelWidth
-                        LazyVGrid(
-                            columns: [GridItem(.fixed(width)), GridItem(.fixed(width))],
-                            spacing: 16,
-                        ) {
-                            ForEach(comparisonPanels) { panel in
-                                VStack(alignment: .leading) {
-                                    Text(panel.label).font(.caption)
-                                    SnapshotCase(name: panel.label, configurations: []) {
-                                        panel.content
+                    switch capture {
+                        case let .single(content):
+                            framed(content(), for: configuration)
+                                .snapshotTraits(configuration)
+                                .environment(\.isCapturingSnapshot, true)
+                        case let .cutsheet(panels):
+                            let width = configuration.device.size.previewPanelWidth
+                            LazyVGrid(
+                                columns: [GridItem(.fixed(width)), GridItem(.fixed(width))],
+                                spacing: 16,
+                            ) {
+                                ForEach(panels.panels) { panel in
+                                    VStack(alignment: .leading) {
+                                        Text(panel.label).font(.caption)
+                                        framed(panel.content, for: configuration)
+                                            .snapshotTraits(configuration)
+                                            .environment(\.isCapturingSnapshot, true)
                                     }
-                                    .framed(for: configuration)
-                                    .snapshotTraits(configuration)
-                                    .environment(\.isCapturingSnapshot, true)
                                 }
                             }
-                        }
                     }
                 }
             }
@@ -156,7 +183,10 @@ extension SnapshotCase: View {
     }
 
     @ViewBuilder
-    @MainActor private func framed(for configuration: SnapshotConfiguration) -> some View {
+    @MainActor private func framed(
+        _ content: AnyView,
+        for configuration: SnapshotConfiguration,
+    ) -> some View {
         switch configuration.device.size {
             case let .intrinsic(maxWidth):
                 if let maxWidth {

@@ -51,10 +51,14 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 
 - Keep theme identities and ordering in the consumer. Accept generic labeled panels
   and validated reference groups; never import a consumer's theme model.
+- Author independent captures with `SnapshotCase.cutsheet` and `SnapshotPanelBuilder`.
+  Keep single-view and cutsheet construction mutually exclusive. Reject empty sheets and duplicate panel identities.
+  Keep raw content and capture descriptors behind the `Capture` SPI.
+  Preview the same stored subject that the runner captures.
 - Keep panel builders lazy and require fresh fixture state on each invocation.
   Preview panels at their normal width; allow horizontal scrolling for wide sheets.
-- Preserve ungrouped case identity and configuration identifiers. Include the group
-  in case identity so previews can distinguish otherwise identical case names.
+- Preserve reference filenames and configuration identifiers. Use structured case identity
+  so a reference group cannot collide with punctuation in a case name.
 - Keep capture, pixel geometry, reference metadata, and per-panel comparison in
   [`SnapshotKitTesting`](../SnapshotKitTesting/AGENTS.md). Previews remain an approximation.
 

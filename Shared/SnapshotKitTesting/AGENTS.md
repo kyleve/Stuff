@@ -16,6 +16,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **`WhereUISnapshotTests` double-embeds `SnapshotKit`, tolerated and guarded.** This product's closure plus WhereUI's own copy live in one image. The other image bundles do not link WhereUI.
 - **Guard: `WhereUISnapshotTests.SnapshotCaptureFlagProbeTests` fails loudly if the copies split.** Mechanism: PR #145.
 - **Re-export `SnapshotKit` and `SnapshotTesting`** so consumers need one import.
+- Read case subjects through SnapshotKit's `Capture` SPI. Dispatch exhaustively by case, never by panel-array emptiness.
 - **Declare the library target in [`Package.swift`](../../Package.swift).**
 
 ## Invariants an agent can't re-derive

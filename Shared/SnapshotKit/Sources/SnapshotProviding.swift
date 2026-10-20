@@ -34,7 +34,7 @@ struct SnapshotCutsheet: View {
 
     var body: some View {
         ScrollView(cases
-            .contains { !$0.comparisonPanels.isEmpty } ? [.horizontal, .vertical] : [.vertical])
+            .contains { $0.isCutsheet } ? [.horizontal, .vertical] : [.vertical])
         {
             VStack(alignment: .leading, spacing: 32) {
                 ForEach(cases) { snapshotCase in

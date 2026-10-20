@@ -17,6 +17,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build, format
 - **Route Flyover appearance through `FlyoverStylesheet`.** `FlyoverView` seeds its Broadway root so the tool renders independently of its host. Follow the repo [`building-ui`](../../.agents/skills/building-ui/SKILL.md) skill for the general stylesheet, layout, accessibility, preview, and snapshot rules.
 - **Keep overview screen content inert.** Enable native interaction only in the focused inspector. Per-frame controls remain interactive in both modes.
 - **Give every screen a `NavigationStack` by default** so its navigation chrome renders in the frame. Use `.none` only for self-contained navigation roots and non-screen surfaces.
+- Adapt snapshot cases with `FlyoverVariant.snapshots`. Keep each cutsheet panel in its own variant with a stable panel-derived ID.
 - **Keep variant content builders lazy.** Catalog construction must not instantiate off-screen views or their models.
 - **Load the canvas from the viewport.** Keep at most six automatic screen trees live. A manually requested preview replaces that set with one tree. Presenting the focused inspector suspends the canvas set.
 - **Open the canvas fitted to its first group's width.** Reserve whole-graph framing for the explicit Fit All action.

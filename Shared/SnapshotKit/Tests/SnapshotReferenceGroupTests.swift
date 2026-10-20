@@ -2,7 +2,18 @@ import SnapshotKit
 import Testing
 
 struct SnapshotReferenceGroupTests {
-    @Test(arguments: ["", ".", "..", "../flat", "/flat", "flat/other", "Flat", "other"])
+    @Test(arguments: [
+        "",
+        ".",
+        "..",
+        "../flat",
+        "/flat",
+        "flat/other",
+        "Flat",
+        "other",
+        "flat\n",
+        "flat\r\n",
+    ])
     func rejectsUnsafeOrReservedGroups(_ value: String) {
         #expect(SnapshotReferenceGroup(rawValue: value) == nil)
     }

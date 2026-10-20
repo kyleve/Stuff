@@ -1,4 +1,4 @@
-import SnapshotKit
+@_spi(Capture) import SnapshotKit
 import SnapshotTesting
 import TestHostSupport
 import Testing
@@ -92,8 +92,11 @@ func captureComparisonSheet(
         caseName: snapshotCase.name,
         configuration: configuration,
     )
+    guard case let .cutsheet(subjects) = snapshotCase.capture else {
+        preconditionFailure("The comparison runner requires a cutsheet case")
+    }
     var panels: [SnapshotComparisonSheet.Panel] = []
-    for panel in snapshotCase.comparisonPanels {
+    for panel in subjects.panels {
         let sizing: SnapshotSizing = switch configuration.device.size {
             case .fixed: .fixed
             case let .intrinsic(width): .intrinsic(

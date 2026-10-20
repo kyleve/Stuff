@@ -283,7 +283,7 @@ emits one timing line that includes time spent on failed attempts.
 
 ## Component comparison sheets
 
-Use `SnapshotCase.comparison(name:configurations:panels:)` to capture the same
+Use `SnapshotCase.cutsheet(name:configurations:panels:)` to capture the same
 component state across consumer-defined appearances. Each `SnapshotPanel` has a
 stable typed identity, a display label, and a lazy content builder. Build fresh
 fixture state inside that builder. Each configuration produces one two-column
@@ -301,3 +301,7 @@ not change configuration identifiers. Special traits use `other/` inside the gro
 Use component sheets for appearance coverage and keep screen variants for critical
 integration or materially different composition. Preview sheets approximate layout;
 the hosted test capture remains authoritative.
+
+The runner reads SnapshotKit's `Capture` SPI and switches exhaustively between
+single-view and cutsheet captures. Panel collections are validated before capture.
+No empty-array fallback selects the single-view path.

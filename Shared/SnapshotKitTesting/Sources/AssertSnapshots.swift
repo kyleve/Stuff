@@ -1,4 +1,4 @@
-import SnapshotKit
+@_spi(Capture) import SnapshotKit
 import SnapshotTesting
 import SwiftUI
 import TestHostSupport
@@ -48,34 +48,35 @@ public func assertSnapshots(
     }
     for snapshotCase in snapshots {
         guard Task.isCancelled == false else { return }
-        if !snapshotCase.comparisonPanels.isEmpty {
-            await assertComparisonSnapshots(
-                snapshotCase,
-                record: record,
-                fileID: fileID,
-                file: filePath,
-                testName: testName,
-                line: line,
-                column: column,
-            )
-            continue
+        switch snapshotCase.capture {
+            case .cutsheet:
+                await assertComparisonSnapshots(
+                    snapshotCase,
+                    record: record,
+                    fileID: fileID,
+                    file: filePath,
+                    testName: testName,
+                    line: line,
+                    column: column,
+                )
+            case let .single(content):
+                await assertSnapshots(
+                    of: content(),
+                    named: snapshotCase.name,
+                    configurations: snapshotCase.configurations,
+                    referenceGroup: snapshotCase.referenceGroup,
+                    measurementReadiness: snapshotCase.measurementReadiness,
+                    onReadyToMeasure: snapshotCase.onReadyToMeasure,
+                    settle: snapshotCase.settle,
+                    onReadyToSnapshot: snapshotCase.onReadyToSnapshot,
+                    record: record,
+                    fileID: fileID,
+                    file: filePath,
+                    testName: testName,
+                    line: line,
+                    column: column,
+                )
         }
-        await assertSnapshots(
-            of: snapshotCase.content,
-            named: snapshotCase.name,
-            configurations: snapshotCase.configurations,
-            referenceGroup: snapshotCase.referenceGroup,
-            measurementReadiness: snapshotCase.measurementReadiness,
-            onReadyToMeasure: snapshotCase.onReadyToMeasure,
-            settle: snapshotCase.settle,
-            onReadyToSnapshot: snapshotCase.onReadyToSnapshot,
-            record: record,
-            fileID: fileID,
-            file: filePath,
-            testName: testName,
-            line: line,
-            column: column,
-        )
     }
 }
 

@@ -9,20 +9,21 @@ struct AssertComparisonSnapshotsTests {
         var builds = 0
         var measurementHooks = 0
         var captureHooks = 0
-        let snapshotCase = SnapshotCase.comparison(
+        let snapshotCase = SnapshotCase.cutsheet(
             name: "Hooks",
             configurations: [SnapshotConfiguration()],
             measurementReadiness: .immediate,
             onReadyToMeasure: { measurementHooks += 1 },
             settle: .immediate,
             onReadyToSnapshot: { captureHooks += 1 },
-            panels: ["one", "two"].map { identity in
+        ) {
+            for identity in ["one", "two"] {
                 SnapshotPanel(id: .init(rawValue: identity), label: identity) {
                     builds += 1
                     return Color.blue.frame(height: 40)
                 }
-            },
-        )
+            }
+        }
         #expect(builds == 0)
         let result = try await captureComparisonSheet(
             snapshotCase,
@@ -35,14 +36,15 @@ struct AssertComparisonSnapshotsTests {
     }
 
     @Test func accessibilityPanelsUseTheAnnotationPipeline() async throws {
-        let snapshotCase = SnapshotCase.comparison(
+        let snapshotCase = SnapshotCase.cutsheet(
             name: "Accessibility",
             configurations: [],
             settle: .immediate,
-            panels: [SnapshotPanel(id: .init(rawValue: "one"), label: "One") {
+        ) {
+            SnapshotPanel(id: .init(rawValue: "one"), label: "One") {
                 Text("Accessible subject").padding()
-            }],
-        )
+            }
+        }
         let standard = try await captureComparisonSheet(
             snapshotCase,
             configuration: SnapshotConfiguration(),

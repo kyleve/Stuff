@@ -58,19 +58,21 @@
         onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
         @ViewBuilder content: @escaping @MainActor () -> some View,
     ) -> SnapshotCase {
-        .comparison(
+        .cutsheet(
             name: name,
             configurations: configurations,
+            referenceGroup: .themes,
             measurementReadiness: measurementReadiness,
             onReadyToMeasure: onReadyToMeasure,
             settle: settle,
             onReadyToSnapshot: onReadyToSnapshot,
-            panels: WhereTheme.allCases.map { theme in
+        ) {
+            for theme in WhereTheme.allCases {
                 SnapshotPanel(id: .init(rawValue: theme.rawValue), label: theme.title) {
                     content().whereBroadwayRoot(theme: theme)
                 }
-            },
-        )
+            }
+        }
     }
 
     extension [SnapshotConfiguration] {

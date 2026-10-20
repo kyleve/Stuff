@@ -1,4 +1,4 @@
-import SnapshotKit
+@_spi(Capture) import SnapshotKit
 import SwiftUI
 
 /// One named content state of a registered screen.
@@ -32,11 +32,19 @@ public struct FlyoverVariant {
         focusedContent = { AnyView(focused()) }
     }
 
-    /// Adapts existing snapshot content into a Flyover variant.
-    public init(id: FlyoverVariantID, snapshotCase: SnapshotCase) {
-        self.id = id
-        title = snapshotCase.name
-        overviewContent = { snapshotCase.content }
-        focusedContent = { snapshotCase.content }
+    /// Adapts each independent subject into its own lazy, interactive variant.
+    /// Single-view cases retain their supplied ID; cutsheet IDs append the panel identity.
+    public static func snapshots(id: FlyoverVariantID, snapshotCase: SnapshotCase) -> [Self] {
+        switch snapshotCase.capture {
+            case let .single(content):
+                [Self(id: id, title: snapshotCase.name) { content() }]
+            case let .cutsheet(collection):
+                collection.panels.map { panel in
+                    Self(
+                        id: FlyoverVariantID("\(id.rawValue)/\(panel.id.rawValue)"),
+                        title: "\(snapshotCase.name) — \(panel.label)",
+                    ) { panel.content }
+                }
+        }
     }
 }

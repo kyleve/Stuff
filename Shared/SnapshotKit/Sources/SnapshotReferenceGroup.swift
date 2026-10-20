@@ -6,7 +6,7 @@ public struct SnapshotReferenceGroup: RawRepresentable, Hashable, Sendable {
 
     public init?(rawValue: String) {
         guard !rawValue.isEmpty,
-              rawValue.range(of: "^[a-z][a-z0-9-]*$", options: .regularExpression) != nil,
+              rawValue.range(of: "^[a-z][a-z0-9-]*\\z", options: .regularExpression) != nil,
               rawValue != "other"
         else { return nil }
         self.rawValue = rawValue
