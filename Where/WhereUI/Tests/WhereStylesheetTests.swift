@@ -322,12 +322,13 @@ struct WhereStylesheetTests {
 
     @MainActor
     @Test(arguments: RegionColorToken.allCases, [BMode.light, .dark])
-    func elsewherePaperKeepsEveryRegionInkReadable(color: RegionColorToken, mode: BMode) throws {
+    func elsewherePaperKeepsEveryRegionTextReadable(color: RegionColorToken, mode: BMode) throws {
         var context = BContext(traits: .system)
         context.traitOverrides.mode = mode
         let sheet = try context.stylesheets.get(WhereStylesheet.self)
         let paper = try #require(sheet.card[.elsewhere].paper)
         #expect(paper == (mode == .dark ? .dark : .light))
+        #expect(paper.background == (mode == .dark ? Color(white: 36.0 / 255) : .white))
         #expect(paper.outlineOpacity == 0.45)
         #expect(paper.outlineWidth == 1)
 
@@ -343,7 +344,7 @@ struct WhereStylesheetTests {
                 + 0.7152 * linear(resolved.green)
                 + 0.0722 * linear(resolved.blue)
         }
-        let ink = luminance(paper.tint(color.color))
+        let ink = luminance(paper.textTint(color.color))
         let background = luminance(paper.background)
         let contrast = (max(ink, background) + 0.05) / (min(ink, background) + 0.05)
         #expect(contrast >= 4.5)

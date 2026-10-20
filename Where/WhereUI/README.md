@@ -430,8 +430,9 @@ border around the card's inner perimeter. The UI cache derives all four
 resolutions from RegionKit's one cached source outline using its stateless
 simplifier. Compact cards share the watermark, stamp silhouette, and border
 while retaining their smaller typography, spacing, and stamp size.
-Elsewhere uses that compact geometry on warm off-white paper, with neutral dark
-paper in dark mode. Text, silhouettes, stamps, and borders use the region's ink.
+Elsewhere uses that compact geometry on white paper, with neutral dark
+paper in dark mode. Silhouettes, stamps, and borders use the original region color
+with the shared decorative opacities. Text uses a separate contrast adjustment.
 Its cards omit annual progress bars. Compact primary specimens in theme pickers
 and galleries retain the Locations glass treatment.
 Regions without geometry retain the symbol treatment. On Locations cards, raw

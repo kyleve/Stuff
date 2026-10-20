@@ -743,7 +743,7 @@ extension WhereStylesheet {
         var glow: Shadow
         /// The broad lift shadow beneath the card.
         var lift: Shadow
-        /// Opaque, single-ink paper for Elsewhere. Glass cards leave this nil.
+        /// Opaque, neutral paper for Elsewhere. Glass cards leave this nil.
         var paper: Paper?
 
         var showsProgress: Bool {
@@ -751,28 +751,28 @@ extension WhereStylesheet {
         }
 
         /// Keeps low-count visits distinct from the primary glass cards.
-        /// Ink retains the region hue with enough contrast for small labels.
+        /// Only text receives a contrast adjustment; artwork keeps the region color.
         struct Paper: Equatable {
             var background: Color
-            var inkMix: Color
-            var inkMixAmount: Double
+            var textMix: Color
+            var textMixAmount: Double
             var outlineOpacity: Double = 0.45
             var outlineWidth: CGFloat = 1
             var shadow = Shadow(opacity: 0.08, radius: 6, offsetY: 3)
 
-            func tint(_ regionTint: Color) -> Color {
-                regionTint.mix(with: inkMix, by: inkMixAmount, in: .perceptual)
+            func textTint(_ regionTint: Color) -> Color {
+                regionTint.mix(with: textMix, by: textMixAmount, in: .perceptual)
             }
 
             static let light = Paper(
-                background: Color(red: 0.975, green: 0.968, blue: 0.95),
-                inkMix: .black,
-                inkMixAmount: 0.4,
+                background: .white,
+                textMix: .black,
+                textMixAmount: 0.4,
             )
             static let dark = Paper(
-                background: Color(red: 0.14, green: 0.137, blue: 0.13),
-                inkMix: .white,
-                inkMixAmount: 0.4,
+                background: Color(white: 36.0 / 255),
+                textMix: .white,
+                textMixAmount: 0.4,
             )
         }
 

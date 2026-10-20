@@ -120,13 +120,13 @@ struct RegionSummaryCard: View {
     }
 
     private var contentTint: Color {
-        card.paper?.tint(style.tint) ?? style.tint
+        card.paper?.textTint(style.tint) ?? style.tint
     }
 
-    /// Region ink on light cards; a pale derivative on dark cards that remains
-    /// distinct while interactive Liquid Glass illuminates nearby surfaces.
+    /// Paper artwork uses the original region color. Dark glass uses a pale
+    /// derivative while interactive Liquid Glass illuminates nearby surfaces.
     private var securityPrintTint: Color {
-        card.paper?.tint(style.tint) ?? cardStyles.securityPrint.tint(style.tint)
+        card.paper == nil ? cardStyles.securityPrint.tint(style.tint) : style.tint
     }
 
     private var cardShape: RoundedRectangle {
@@ -409,7 +409,7 @@ struct RegionSummaryCard: View {
                 .background(paper.background, in: cardShape)
                 .overlay {
                     cardShape.strokeBorder(
-                        contentTint.opacity(paper.outlineOpacity),
+                        style.tint.opacity(paper.outlineOpacity),
                         lineWidth: paper.outlineWidth,
                     )
                     .allowsHitTesting(false)

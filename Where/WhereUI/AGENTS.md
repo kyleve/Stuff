@@ -98,6 +98,8 @@ Layering, localization, preview, and testing conventions live in the feature
   Share the region artwork treatment across regular and compact cards. Keep
   compact dimensions in the compact style. Resolve Elsewhere's paper surface
   from that geometry, without a progress bar. Keep primary specimens on glass.
+  Use the original region color for Elsewhere artwork and borders. Apply its
+  contrast adjustment only to text.
   Project Locations-card GPS points through the cache's shared
   `RegionArtworkProjection`. Never project, simplify, or spatially reduce
   artwork in a card's `body`.
