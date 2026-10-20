@@ -418,6 +418,11 @@ default empty resolver yields the fallback looks
 region-map viewer. The catalog also owns the selectable color/emoji/symbol
 option lists the picker shows.
 
+Automatic colors use a fixed FNV-1a hash of the permanent region ID across the
+selectable palette. The assignment does not depend on language, visit count, or
+card order. Cards, map pins, and customization defaults share that assignment.
+User-picked appearances and the original bespoke defaults take precedence.
+
 `WhereTheme` is the device-local presentation identity. Standard and Alternate
 currently resolve through identical Liquid Glass tokens; onboarding previews
 before commit, Appearance Settings persists immediately, and widgets and

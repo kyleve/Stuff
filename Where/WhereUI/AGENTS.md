@@ -216,6 +216,10 @@ worked examples.
   `@Environment(\.regionStyles)` and seed by
   `whereBroadwayRoot(theme:regionStyles:)`. Use no global accessor or hardcoded
   per-region look in a view.
+  Derive automatic colors from the permanent region ID with a fixed hash.
+  Never use localized names, card order, or Swift's randomized `Hasher`.
+  Keep the catalog's palette order and hash stable across launches.
+  Guard: `RegionAppearanceCatalogTests.idDerivedDefaultsHaveStableAssignments`.
 - **Seed `WhereTheme` through `whereBroadwayRoot(theme:regionStyles:)`.** Standard
   and Alternate remain distinct persisted identities even while their tokens match.
 - The DEBUG card designer may override only presentation values already owned
