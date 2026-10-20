@@ -134,10 +134,9 @@ struct WhereStylesheet: BStylesheet {
             featureDiscovery.siri.accent = Color(white: 0.42)
         }
 
-        switch theme {
-            case .standard: break
-            case .alternate: applyFlatAppearance(traits: traits)
-        }
+        // Resolve theme finishes after shared traits so they retain their depth cues.
+        let overrides = WhereThemeOverrides.resolve(theme: theme, traits: traits, base: self)
+        overrides.apply(to: &self)
     }
 
     /// The fixed token set: the fallback used off the `View` tree (layout
