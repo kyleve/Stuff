@@ -14,7 +14,7 @@ struct LocationCardsReconciliationModifier: ViewModifier {
     /// change does not restart the fixed reveal delay.
     @State private var releaseMotion =
         WhereStylesheet.LocationCardStackStyle.OvertakeMotion.standard
-    @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.stylesheet.card.dayCount.revealDelay) private var revealDelay
 
     private var reconciliationID: LocationCardsPresentationModel.ReconciliationID {
         LocationCardsPresentationModel.ReconciliationID(
@@ -36,7 +36,7 @@ struct LocationCardsReconciliationModifier: ViewModifier {
                 let reconciliation = reconciliationID
                 guard reconciliation.isVisible else { return }
                 do {
-                    try await Task.sleep(for: stylesheet.card.dayCount.revealDelay)
+                    try await Task.sleep(for: revealDelay)
                     try Task.checkCancellation()
                     try await waitForReleasedOvertakeToFinish()
                 } catch is CancellationError {
