@@ -70,6 +70,8 @@ public func assertSnapshots(
 /// don't warrant a ``SnapshotProviding`` conformance. A throwing pre-measure
 /// hook aborts that capture. Its optional timeout is in seconds; nil uses the
 /// settle ceiling. The CI multiplier applies to either ceiling.
+/// Settling failures get two retries with fresh host controllers. Supplied models
+/// remain shared, and readiness hooks must tolerate running again on each attempt.
 @MainActor
 public func assertSnapshots(
     of view: some View,
@@ -124,7 +126,6 @@ public func assertSnapshots(
 
     for configuration in configurations {
         guard Task.isCancelled == false else { return }
-        let hostingController = makeHostingController(for: view, configuration: configuration)
         let sizing: SnapshotSizing = switch configuration.device.size {
             case .fixed:
                 .fixed
@@ -155,19 +156,28 @@ public func assertSnapshots(
         )
         let capture: SnapshotCapture
         do {
-            capture = try await renderSnapshotCapture(
-                of: hostingController,
+            capture = try await SnapshotCaptureRetry.capture(
                 named: identifier,
-                sizing: sizing,
-                safeAreaInsets: configuration.device.safeAreaInsets.uiEdgeInsets,
-                isAccessibility: configuration.snapshotType == .accessibility,
-                measurementReadiness: measurementReadiness,
-                onReadyToMeasure: onReadyToMeasure,
-                measurementHookTimeout: measurementHookTimeout,
-                settle: settle,
-                onReadyToSnapshot: onReadyToSnapshot,
-                settleTimeoutPolicy: settleTimeoutPolicy,
-                timing: timing,
+                makeViewController: {
+                    makeHostingController(for: view, configuration: configuration)
+                },
+                capture: { hostingController in
+                    try await renderSnapshotCapture(
+                        of: hostingController,
+                        named: identifier,
+                        sizing: sizing,
+                        safeAreaInsets: configuration.device.safeAreaInsets.uiEdgeInsets,
+                        isAccessibility: configuration.snapshotType == .accessibility,
+                        measurementReadiness: measurementReadiness,
+                        onReadyToMeasure: onReadyToMeasure,
+                        measurementHookTimeout: measurementHookTimeout,
+                        settle: settle,
+                        onReadyToSnapshot: onReadyToSnapshot,
+                        settleTimeoutPolicy: settleTimeoutPolicy,
+                        timing: timing,
+                    )
+                },
+                report: { print($0) },
             )
         } catch is CancellationError {
             return

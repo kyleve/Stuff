@@ -42,6 +42,24 @@ struct SnapshotCaptureTimingTests {
         #expect(try #require(line.phases["settle"]) >= 0.06)
     }
 
+    @Test func failedAsyncPhasesAccumulateWithTheSuccessfulAttempt() async throws {
+        let timing = SnapshotCaptureTiming(identifier: "retried", isEnabled: true)
+        for _ in 0 ..< 2 {
+            await #expect(throws: SnapshotRetryProbeError.self) {
+                try await timing.measure(.settle) { () async throws in
+                    spin(for: .milliseconds(20))
+                    throw SnapshotRetryProbeError()
+                }
+            }
+        }
+        timing.measure(.settle) { spin(for: .milliseconds(20)) }
+
+        let line = try decodedLine(from: timing)
+        #expect(line.phases.keys.sorted() == ["settle"])
+        #expect(try #require(line.phases["settle"]) >= 0.06)
+        #expect(line.total >= 0.06)
+    }
+
     @Test func asyncAndSyncPhasesBothRecord() async throws {
         let timing = SnapshotCaptureTiming(identifier: "mixed", isEnabled: true)
         timing.measure(.host) { spin(for: .milliseconds(10)) }

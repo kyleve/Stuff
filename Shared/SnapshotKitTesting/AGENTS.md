@@ -59,6 +59,10 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **The runner fails fast, once, on setup problems.** Examples: a simulator that does not match the `SNAPSHOT_EXPECTED_*` pins, two variants sharing one reference name.
 - **Report one clear issue, never hundreds of pixel diffs.**
 - **An unsettled capture is a failure, not a silent fallback.**
+- **Assertions allow three attempts per configuration for `settleTimedOut` and `settleStarved` only.** Create a fresh controller after each attempt completes cleanup and releases the capture lock.
+- **Keep models shared and rerun readiness hooks on retries.** Hooks must tolerate repeated execution. Preserve cancellation and report the final original error once.
+- **Keep direct image/PNG APIs single-attempt.** Compare and record only after a successful capture. Guard: `SnapshotCaptureRetryTests` and `AssertSnapshotsTests`.
+- **Report retries through `SNAPSHOT_RETRY`, never extra timing or diff lines.** Include failed-attempt time in the successful capture's one timing line. Guard: `Tools/Tests/test_test_runner.py`.
 - **Freeze endless motion behind `\.isCapturingSnapshot`.** Use deterministic readiness or `.settledAtLeast` for finite work.
 - **Compare settle samples in normalized 8-bit, premultiplied sRGB RGBA.** Allow at most one unit per channel, with no area exemption.
 - **Keep the anchor fixed through the quiet window.** A larger difference, changed dimensions, or missing sample resets the proof.
