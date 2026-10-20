@@ -80,3 +80,5 @@ Showing dollars alongside the headline would look like they do not add up.
 - Reuses your Cursor **web session**.
   When it expires you re-open Cursor (or paste a fresh token).
 - On a plan with usage-based pricing off, the `$` figures reflect the value of included compute, not money owed.
+
+Audit-only layout probes are maintained by the [compiled view audit](../../Tools/ViewLayoutAudit/README.md).

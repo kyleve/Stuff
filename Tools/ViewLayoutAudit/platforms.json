@@ -1,0 +1,41 @@
+{
+  "BroadwayCatalog": [
+    "iOSSimulator"
+  ],
+  "BroadwayUI": [
+    "iOSSimulator"
+  ],
+  "Flyover": [
+    "iOSSimulator"
+  ],
+  "Inspector": [
+    "iOSSimulator"
+  ],
+  "InstallerKitUI": [
+    "iOSSimulator"
+  ],
+  "Ledger": [
+    "macOS"
+  ],
+  "LifecycleKitUI": [
+    "iOSSimulator"
+  ],
+  "PeriscopeTools": [
+    "iOSSimulator"
+  ],
+  "SnapshotKit": [
+    "iOSSimulator"
+  ],
+  "WhereIntents": [
+    "iOSSimulator"
+  ],
+  "WhereShareExtension": [
+    "iOSSimulator"
+  ],
+  "WhereUI": [
+    "iOSSimulator"
+  ],
+  "WhereWidgets": [
+    "iOSSimulator"
+  ]
+}

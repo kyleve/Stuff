@@ -14,3 +14,5 @@ Declared as a Tuist `.app` target (`com.stuff.broadway.catalog`, iPhone/iPad) in
 Generate the project with `./ide --no-open`.
 Then build/run the `BroadwayCatalog` scheme.
 Run tests with `./test BroadwayCatalogTests`.
+
+Audit-only layout probes are maintained by the [compiled view audit](../../../Tools/ViewLayoutAudit/README.md).

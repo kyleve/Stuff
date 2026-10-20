@@ -289,3 +289,5 @@ lightweight widget/snippet surfaces do not need duplicate theme cases.
 Other themes use stable consumer-owned groups (`flat/` for `.alternate`). Mixed-theme
 sheets use `themes/`. Special trait images use `other/` inside the selected group.
 Never derive the folder from a localized label or rename a persisted theme identity.
+
+Audit-only layout probes are maintained by the [compiled view audit](../../Tools/ViewLayoutAudit/README.md).

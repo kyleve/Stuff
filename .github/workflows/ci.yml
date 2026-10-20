@@ -48,6 +48,12 @@ jobs:
           python3 .circleci/Tests/test_xcresult_to_junit.py
           python3 .circleci/Tests/test_test_artifacts.py
           ./snapshot-shards check
+      - name: View layout discovery and coverage
+        run: |
+          ./view-layout-audit check
+          ./view-layout-audit self-test
+          swift build --product ViewLayoutDiscoveryTests
+          xcrun xctest .build/debug/ViewLayoutDiscoveryTests.xctest
       - run: ./swiftformat --lint
       - name: SF Symbol lint
         run: ./sf-symbols --lint
@@ -95,6 +101,8 @@ jobs:
   test-macos:
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
     name: Build & Test (macOS)
+    env:
+      TUIST_VIEW_LAYOUT_AUDIT: "1"
     # Keep the native-macOS target on GitHub's pinned Xcode image.
     runs-on: xcode-27
     # The macOS-only Ledger scheme is self-contained and fast (no simulator, no
@@ -114,7 +122,24 @@ jobs:
       # runs here rather than alongside the iOS bundles. The iOS `test-ios` and
       # `snapshot` jobs live in .circleci/config.yml (PR #237).
       - name: Build & Test (macOS)
-        run: mise exec -- tuist test Ledger-macOS-Tests --no-selective-testing -- -destination 'platform=macOS'
+        run: |
+          mise exec -- tuist test Ledger-macOS-Tests --no-selective-testing -- \
+            -destination 'platform=macOS' -derivedDataPath .build/layout-audit-derived \
+            'OTHER_SWIFT_FLAGS=$(inherited) -DVIEW_LAYOUT_AUDIT' \
+            "VIEW_LAYOUT_AUDIT_COMMIT=$(git rev-parse HEAD)" \
+            "VIEW_LAYOUT_AUDIT_INPUT_HASH=$(./view-layout-audit fingerprint)"
+      - name: Measure compiled macOS views
+        run: |
+          ./view-layout-audit run --platform macOS --configuration Debug \
+            --products .build/layout-audit-derived/Build/Products/Debug \
+            --output .build/view-layout-report
+      - name: Upload view layout report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: view-layout-macos
+          path: .build/view-layout-report
+          if-no-files-found: warn
       # Tests can crash the host process on CI without leaving any error in
       # Tuist's summarized log. On failure, capture crash reports + the .xcresult
       # bundle (which holds the per-test crash backtraces) and upload them.

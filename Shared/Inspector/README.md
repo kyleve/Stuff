@@ -138,3 +138,5 @@ Run:
 
 Unit tests use temporary directories, private UserDefaults suites, and in-memory SwiftData schemas.
 The module's image references are owned by `InspectorSnapshotTests` in the repository-wide `StuffSnapshotTests` scheme.
+
+Audit-only layout probes are maintained by the [compiled view audit](../../Tools/ViewLayoutAudit/README.md).

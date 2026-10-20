@@ -53,3 +53,5 @@ The app target has no test bundle of its own. Logic is tested in
 `LedgerCoreTests`. `PreviewSupport` (DEBUG) builds sessions from
 `ScriptedDashboardProvider` + `StubTokenSource` + `InMemoryKeychainStore`. Then
 previews never hit the network, the Keychain, or Cursor's local state.
+
+Audit-only layout probes are maintained by the [compiled view audit](../../Tools/ViewLayoutAudit/README.md).

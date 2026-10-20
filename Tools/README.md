@@ -87,3 +87,10 @@ They use the existing LFS references, snapshot scheme, and CI shard discovery.
 [`ADVERSARIAL_TEST_PLAN.md`](ADVERSARIAL_TEST_PLAN.md) records the public
 behavior contracts, portability matrix, destructive-operation boundaries, and
 mutation review used to accept changes to these tools.
+
+## Compiled SwiftUI layouts
+
+[`ViewLayoutAudit`](ViewLayoutAudit/README.md) documents the `./view-layout-audit`
+command, generated same-file probes, coverage registrations, budgets, and CI
+execution. [`ViewLayoutDiscovery`](ViewLayoutDiscovery/README.md) owns the pinned
+SwiftSyntax inventory executable.

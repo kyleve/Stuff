@@ -32,3 +32,5 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build, format
 ## Testing
 
 Swift Testing in [`Tests/`](Tests) covers catalog validation, graph layout, and session state. Rendering is pinned in [`SnapshotTests/`](SnapshotTests) through the module's `FlyoverSnapshotTests` target in the shared `StuffSnapshotTests` scheme.
+
+Audit-only layout probes are maintained by the [compiled view audit](../../Tools/ViewLayoutAudit/README.md).

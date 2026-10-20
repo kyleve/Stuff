@@ -619,3 +619,5 @@ for changes confined to a child component. Standard references keep existing pat
 Flat screen references use `flat/`, and comparison sheets use `themes/`. Special
 traits nest under the group's `other/` directory. Review sheet PNGs before recording. Their embedded panel maps are part of the
 reference; preserve PNG metadata when copying them.
+
+Audit-only layout probes are maintained by the [compiled view audit](../../Tools/ViewLayoutAudit/README.md).

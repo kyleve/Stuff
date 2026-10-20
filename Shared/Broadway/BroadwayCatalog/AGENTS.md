@@ -12,3 +12,5 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) and the group [`../AGENTS.md`](.
 ## Testing
 
 Run `BroadwayCatalogTests` (`./test BroadwayCatalogTests`). This app currently hosts its own tests. That deviates from the shared-`StuffTestHost` convention. Track it in [`../TODOs.md`](../TODOs.md).
+
+Audit-only layout probes are maintained by the [compiled view audit](../../../Tools/ViewLayoutAudit/README.md).

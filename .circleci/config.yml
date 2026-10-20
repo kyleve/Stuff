@@ -348,9 +348,14 @@ jobs:
 
   build-ios-tests:
     executor: m4-pro-large
+    environment:
+      TUIST_VIEW_LAYOUT_AUDIT: "1"
     steps:
       - prepare_builder:
           test_workdir: test-output-build
+      - run:
+          name: Validate view layout probe coverage
+          command: ./view-layout-audit check
       # GitHub's required format and macOS jobs own helper and host tests.
       # Start the shared simulator build without waiting for those checks.
       - run_with_timeout:
@@ -373,10 +378,14 @@ jobs:
               --skip-architecture
             ./snapshot-shards compare-enumeration \
               --enumeration "$TEST_WORKDIR/suites.txt"
+      - run:
+          name: Include layout discovery in the build handoff
+          command: cp .build/debug/ViewLayoutDiscovery ci-test-build/ViewLayoutDiscovery
       - persist_to_workspace:
           root: ci-test-build
           paths:
             - manifest.json
+            - ViewLayoutDiscovery
             - DerivedData/Build/Products
       - collect_diagnostics:
           test_workdir: test-output-build
@@ -393,6 +402,16 @@ jobs:
             ./test --all --shared --os 27.0
             --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
             --skip-architecture
+      - run:
+          name: Measure compiled Debug views
+          command: |
+            ./view-layout-audit run --platform iOSSimulator --configuration Debug \
+              --products ci-test-build/DerivedData/Build/Products/Debug-iphonesimulator \
+              --discovery ci-test-build/ViewLayoutDiscovery \
+              --shared --os 27.0 --output test-output-ios/view-layout
+      - store_artifacts:
+          path: test-output-ios/view-layout
+          destination: view-layout-debug
       - export_test_results:
           test_workdir: test-output-ios
           output_directory: test-results-ios
@@ -402,6 +421,8 @@ jobs:
 
   build-where-audiences:
     executor: m4-pro-medium
+    environment:
+      TUIST_VIEW_LAYOUT_AUDIT: "1"
     parallelism: 2
     steps:
       - prepare_builder:
@@ -411,14 +432,15 @@ jobs:
           name: Select Where audience
           command: |
             case "$CIRCLE_NODE_INDEX" in
-              0) scheme="Where Beta" ;;
-              1) scheme="Where App Store" ;;
+              0) scheme="Where Beta"; configuration="Beta" ;;
+              1) scheme="Where App Store"; configuration="Release" ;;
               *)
                 echo "No Where audience for shard $CIRCLE_NODE_INDEX" >&2
                 exit 1
                 ;;
             esac
             printf 'export WHERE_AUDIENCE_SCHEME=%q\n' "$scheme" >> "$BASH_ENV"
+            printf 'export WHERE_AUDIENCE_CONFIGURATION=%q\n' "$configuration" >> "$BASH_ENV"
             echo "Selected scheme: $scheme"
       - run_with_timeout:
           step_name: Build selected Where audience
@@ -428,8 +450,23 @@ jobs:
             mise exec -- tuist xcodebuild build
             -workspace Stuff.xcworkspace
             -scheme "$WHERE_AUDIENCE_SCHEME"
+            -configuration "$WHERE_AUDIENCE_CONFIGURATION"
+            -derivedDataPath .build/layout-audit-derived
+            "OTHER_SWIFT_FLAGS=\$(inherited) -DVIEW_LAYOUT_AUDIT"
+            "VIEW_LAYOUT_AUDIT_COMMIT=$(git rev-parse HEAD)"
+            "VIEW_LAYOUT_AUDIT_INPUT_HASH=$(./view-layout-audit fingerprint)"
             -destination "generic/platform=iOS Simulator"
             2>&1 | tee "$TEST_WORKDIR/build.log"
+      - run:
+          name: Measure compiled audience views
+          command: |
+            ./view-layout-audit run --platform iOSSimulator \
+              --configuration "$WHERE_AUDIENCE_CONFIGURATION" \
+              --products ".build/layout-audit-derived/Build/Products/$WHERE_AUDIENCE_CONFIGURATION-iphonesimulator" \
+              --shared --os 27.0 --output test-output-audience-build/view-layout
+      - store_artifacts:
+          path: test-output-audience-build/view-layout
+          destination: view-layout-audience
       - collect_diagnostics:
           test_workdir: test-output-audience-build
           artifact_name: where-audience-build

@@ -115,3 +115,5 @@ await lifecycle.teardown(WhereLaunch.resetPlan(for: model), input: session)
 ## Defaults
 
 `LifecycleSplash` (a plain centered spinner) and `LifecycleFailureView` (a terminal `ContentUnavailableView`, no retry button) are used by the convenience initializers when the host passes no custom surfaces.
+
+Audit-only layout probes are maintained by the [compiled view audit](../../Tools/ViewLayoutAudit/README.md).

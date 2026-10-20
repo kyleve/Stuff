@@ -47,3 +47,5 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 No hosted bundle. Exercise `EvidenceContentType.classify` and the store write
 contract in **WhereCore**. Preview the compose sheet via the in-file `#Preview`
 (DEBUG). It uses an `.inMemory` model with no shared-container access.
+
+Audit-only layout probes are maintained by the [compiled view audit](../../Tools/ViewLayoutAudit/README.md).

@@ -628,6 +628,14 @@ for scheme in "${SCHEMES[@]}"; do
     if [ "$DO_BUILD" = true ]; then
         echo "==> Building $scheme for testing"
         started="$(phase_started)"
+        layout_audit_args=()
+        if [ "${TUIST_VIEW_LAYOUT_AUDIT:-}" = "1" ]; then
+            layout_audit_args=(
+                "OTHER_SWIFT_FLAGS=\$(inherited) -DVIEW_LAYOUT_AUDIT"
+                "VIEW_LAYOUT_AUDIT_COMMIT=$(git rev-parse HEAD)"
+                "VIEW_LAYOUT_AUDIT_INPUT_HASH=$(./view-layout-audit fingerprint)"
+            )
+        fi
         if xcodebuild build-for-testing \
             -workspace "$WORKSPACE" \
             -scheme "$scheme" \
@@ -636,6 +644,7 @@ for scheme in "${SCHEMES[@]}"; do
             ${DERIVED_DATA_ARGS[@]+"${DERIVED_DATA_ARGS[@]}"} \
             ${BUILD_ARTIFACTS:+ARCHS=arm64} \
             ${BUILD_ARTIFACTS:+ONLY_ACTIVE_ARCH=YES} \
+            ${layout_audit_args[@]+"${layout_audit_args[@]}"} \
             >"$WORKDIR/$scheme-build.log" 2>&1
         then
             emit_phase_timing build "$started" "$scheme"

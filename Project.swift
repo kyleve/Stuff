@@ -360,6 +360,109 @@ private let whereAudienceSchemes: [Scheme] = [
     )
 }
 
+/// Audit apps compile native views without their production app entry points.
+/// They inherit the source target's audience settings and resources. No audit
+/// targets exist in ordinary generated projects or distribution archives.
+private let layoutAuditEnabled = Environment.viewLayoutAudit.getString(default: "") == "1"
+
+private func withLayoutAuditTargets(_ targets: [Target]) -> [Target] {
+    guard layoutAuditEnabled else { return targets }
+    let metadata: [String: Plist.Value] = [
+        "LayoutAuditConfiguration": .string("$(CONFIGURATION)"),
+        "LayoutAuditPlatform": .string("$(PLATFORM_NAME)"),
+        "LayoutAuditXcode": .string("$(XCODE_PRODUCT_BUILD_VERSION)"),
+        "LayoutAuditCommit": .string("$(VIEW_LAYOUT_AUDIT_COMMIT)"),
+        "LayoutAuditInputHash": .string("$(VIEW_LAYOUT_AUDIT_INPUT_HASH)"),
+        "LayoutAuditOptimization": .string("$(SWIFT_OPTIMIZATION_LEVEL)"),
+        "UILaunchScreen": .dictionary([:]),
+    ]
+    let entryPoints: [String: Path] = [
+        "Ledger": "Ledger/Ledger/Sources/LedgerApp.swift",
+        "BroadwayCatalog": "Shared/Broadway/BroadwayCatalog/Sources/BroadwayApp.swift",
+        "WhereWidgets": "Where/WhereWidgets/Sources/WhereWidgetsBundle.swift",
+    ]
+    let companionNames: Set = ["Ledger", "BroadwayCatalog", "WhereWidgets", "WhereShareExtension"]
+    let companions = targets.filter { companionNames.contains($0.name) }.map { original in
+        var companion = original
+        companion.name += "LayoutAuditCompanion"
+        companion.product = .app
+        companion.productName = nil
+        companion.bundleId = "com.stuff.layoutaudit.\(original.name.lowercased())"
+        companion.infoPlist = .extendingDefault(with: metadata)
+        companion.entitlements = nil
+        companion.scripts = []
+        var globs = companion.sources?.globs ?? []
+        if let entry = entryPoints[original.name] {
+            for index in globs.indices {
+                globs[index].excluding.append(entry)
+            }
+        }
+        globs += [
+            .glob("Tools/ViewLayoutAudit/Runner/Common/**"),
+            .glob("Tools/ViewLayoutAudit/Runner/Native/**"),
+        ]
+        companion.sources = .sourceFilesList(globs: globs)
+        if var settings = companion.settings {
+            for index in settings.configurations.indices {
+                settings.configurations[index].settings
+                    .removeValue(forKey: "PRODUCT_BUNDLE_IDENTIFIER")
+            }
+            companion.settings = settings
+        }
+        return companion
+    }
+    let ios: Target = .target(
+        name: "ViewLayoutAuditIOS",
+        destinations: destinations,
+        product: .app,
+        bundleId: "com.stuff.layoutaudit.ios",
+        deploymentTargets: deployment,
+        infoPlist: .extendingDefault(with: metadata),
+        sources: [
+            "Tools/ViewLayoutAudit/Runner/Common/**",
+            "Tools/ViewLayoutAudit/Runner/Packages/**",
+        ],
+        dependencies: [.package(product: "WhereUI"), .package(product: "WhereIntents")],
+    )
+    return targets + companions + [ios]
+}
+
+private func withLayoutAuditSchemes(_ schemes: [Scheme]) -> [Scheme] {
+    guard layoutAuditEnabled else { return schemes }
+    let configured = schemes.map { original in
+        var scheme = original
+        if ["Stuff-iOS-Tests", "Where Beta", "Where App Store"].contains(scheme.name) {
+            scheme.buildAction?.targets += [
+                "ViewLayoutAuditIOS",
+                "BroadwayCatalogLayoutAuditCompanion",
+                "WhereWidgetsLayoutAuditCompanion",
+                "WhereShareExtensionLayoutAuditCompanion",
+            ]
+        } else if scheme.name == "Ledger-macOS-Tests" {
+            scheme.buildAction?.targets.append("LedgerLayoutAuditCompanion")
+        }
+        return scheme
+    }
+    return configured + [
+        .scheme(
+            name: "ViewLayoutAudit-iOS",
+            shared: true,
+            buildAction: .buildAction(targets: [
+                "Where",
+                "ViewLayoutAuditIOS",
+                "BroadwayCatalogLayoutAuditCompanion",
+                "WhereWidgetsLayoutAuditCompanion",
+                "WhereShareExtensionLayoutAuditCompanion",
+            ]),
+        ),
+        .scheme(
+            name: "ViewLayoutAudit-macOS",
+            shared: true,
+            buildAction: .buildAction(targets: ["LedgerLayoutAuditCompanion"]),
+        ),
+    ]
+}
+
 let project = Project(
     name: "Stuff",
     options: .options(
@@ -368,7 +471,7 @@ let project = Project(
     ),
     packages: [stuffPackage, sfSafeSymbolsPackage],
     settings: projectSettings,
-    targets: [
+    targets: withLayoutAuditTargets([
         .target(
             name: "Where",
             destinations: destinations,
@@ -915,13 +1018,13 @@ let project = Project(
                 "BroadwayCore",
             ],
         ),
-    ],
+    ]),
     // Tuist's autogeneration doesn't emit working standalone test actions for
     // these unit-test bundles (only the aggregate `Stuff-Workspace` scheme
     // runs them), so declare them explicitly. This lets `tuist test
     // WhereCoreTests` / `tuist test WhereTests` / `tuist test WhereUITests`
     // target a single bundle without building the whole workspace.
-    schemes: whereAudienceSchemes + [
+    schemes: withLayoutAuditSchemes(whereAudienceSchemes + [
         // App target schemes are normally autogenerated, but declare the
         // RegionViewer one explicitly so `tuist build RegionViewer` (and a
         // Run that launches the Catalyst app) is always available.
@@ -1064,5 +1167,5 @@ let project = Project(
         testScheme(name: "BroadwayCoreTests"),
         testScheme(name: "BroadwayUITests"),
         testScheme(name: "BroadwayCatalogTests"),
-    ],
+    ]),
 )

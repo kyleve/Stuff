@@ -53,3 +53,5 @@ Follow the repo [`building-ui`](../../../.agents/skills/building-ui/SKILL.md) sk
 ## Testing
 
 Swift Testing lives in [`Tests/`](Tests), hosted in `StuffTestHost` (`PeriscopeToolsTests`). Seed an in-memory store. Drive the view models directly. Host views with `TestHostSupport`'s `show()` helpers.
+
+Audit-only layout probes are maintained by the [compiled view audit](../../../Tools/ViewLayoutAudit/README.md).

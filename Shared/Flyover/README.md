@@ -158,3 +158,5 @@ snapshot case, or one variant per cutsheet panel. Single-view IDs remain unchang
 Cutsheet variants append their stable panel identity to the supplied ID. Panel
 reordering therefore preserves variant identity. The adapter never hosts the entire
 comparison sheet as one interactive screen.
+
+Audit-only layout probes are maintained by the [compiled view audit](../../Tools/ViewLayoutAudit/README.md).
