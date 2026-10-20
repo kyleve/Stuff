@@ -24,8 +24,7 @@ struct PlacesYearFeaturesContent: View {
             if let region = report.elsewhere.content(for: report.selectedYear)?.regions.first {
                 RegionSummaryCard(
                     regionDays: RegionDays(region: region.region, days: region.days.count),
-                    variant: .compact,
-                    yearLength: report.daysInSelectedYear,
+                    variant: .elsewhere,
                     year: report.selectedYear,
                 )
             }

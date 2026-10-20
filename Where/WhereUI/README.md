@@ -430,19 +430,22 @@ border around the card's inner perimeter. The UI cache derives all four
 resolutions from RegionKit's one cached source outline using its stateless
 simplifier. Compact cards share the watermark, stamp silhouette, and border
 while retaining their smaller typography, spacing, and stamp size.
+Elsewhere uses that compact geometry on warm off-white paper, with neutral dark
+paper in dark mode. Text, silhouettes, stamps, and borders use the region's ink.
+Its cards omit annual progress bars. Compact primary specimens in theme pickers
+and galleries retain the Locations glass treatment.
 Regions without geometry retain the symbol treatment. On Locations cards, raw
 GPS fixes for the selected year are projected through that same geometry and
 reduced to a clipped, static constellation of glowing pinpricks. Manually logged days add no invented
 points. Settings > Appearance can hide or restore that constellation without
 altering the recorded data. Security-print layers use normal compositing in
-light mode. Dark mode mixes the region tint 65% toward white and uses luminosity
+light mode. On glass, dark mode mixes the region tint 65% toward white and uses luminosity
 blending, which keeps the ink legible without oversaturating it when interactive
 glass illuminates. Reduce Transparency removes the constellation halos while
 retaining the crisp centers.
 Live tilt is observed only by the sheen overlay, so its 60 Hz updates do not
-invalidate the card's text or Canvas artwork. The card adds no standalone edge
-stroke. Its containing Liquid Glass surface owns the subtle outer border so
-direct and production rendering do not diverge.
+invalidate the card's text or Canvas artwork. Glass supplies the primary cards'
+outer border. Elsewhere paper has a thin border in the region's ink.
 
 The Locations toolbar opens **Planned stays**. Each stay has an independent identity,
 a destination, and inclusive arrival and last-day windows. Exact dates use one day

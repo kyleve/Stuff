@@ -125,6 +125,7 @@ struct WhereStylesheet: BStylesheet {
         if traits.mode == .dark {
             settings.iconForeground = .black
             card.securityPrint = .dark
+            card.elsewherePaper = .dark
             featureDiscovery.siri.accent = Color(white: 0.42)
         }
     }
@@ -703,17 +704,18 @@ extension WhereStylesheet {
 
 extension WhereStylesheet {
     /// The complete visual spec for a `RegionSummaryCard`. Bundling every value
-    /// the card's appearance depends on into one type — with a `.regular` variant
-    /// (the big Locations cards) and a `.compact` variant (the Elsewhere list) —
+    /// the card's appearance depends on into one type — regular Locations cards,
+    /// compact primary specimens, and Elsewhere paper cards —
     /// lets the view read a single resolved `CardStyle` instead of branching on a
     /// `compact` flag across ~30 tokens. Non-varying generic spacing (the inner
     /// header/number stacks) still comes from ``Spacing``.
     struct CardStyle: Equatable {
-        /// Which card the stylesheet vends: the Locations cards use `.regular`,
-        /// the Elsewhere list `.compact`.
+        /// Locations uses `.regular`; inline primary specimens use `.compact`.
+        /// Elsewhere uses compact geometry with a separate paper treatment.
         enum Variant {
             case regular
             case compact
+            case elsewhere
         }
 
         var cornerRadius: CGFloat
@@ -741,6 +743,38 @@ extension WhereStylesheet {
         var glow: Shadow
         /// The broad lift shadow beneath the card.
         var lift: Shadow
+        /// Opaque, single-ink paper for Elsewhere. Glass cards leave this nil.
+        var paper: Paper?
+
+        var showsProgress: Bool {
+            paper == nil
+        }
+
+        /// Keeps low-count visits distinct from the primary glass cards.
+        /// Ink retains the region hue with enough contrast for small labels.
+        struct Paper: Equatable {
+            var background: Color
+            var inkMix: Color
+            var inkMixAmount: Double
+            var outlineOpacity: Double = 0.45
+            var outlineWidth: CGFloat = 1
+            var shadow = Shadow(opacity: 0.08, radius: 6, offsetY: 3)
+
+            func tint(_ regionTint: Color) -> Color {
+                regionTint.mix(with: inkMix, by: inkMixAmount, in: .perceptual)
+            }
+
+            static let light = Paper(
+                background: Color(red: 0.975, green: 0.968, blue: 0.95),
+                inkMix: .black,
+                inkMixAmount: 0.4,
+            )
+            static let dark = Paper(
+                background: Color(red: 0.14, green: 0.137, blue: 0.13),
+                inkMix: .white,
+                inkMixAmount: 0.4,
+            )
+        }
 
         /// The concentric "security print" rings printed behind the stamp.
         struct Rosette: Equatable {
@@ -1004,11 +1038,12 @@ extension WhereStylesheet {
         }
     }
 
-    /// The `.regular` / `.compact` card specs the stylesheet vends; a view picks
+    /// The card specs the stylesheet vends; a view picks
     /// one with `stylesheet.card[variant]`.
     struct CardStyles: Equatable {
         var regular: CardStyle
         var compact: CardStyle
+        var elsewherePaper = CardStyle.Paper.light
         /// Opacity of the region tint applied to the watermark glyph.
         var watermarkOpacity: Double
         /// Opacity of the region tint mixed into the Liquid Glass surface.
@@ -1182,8 +1217,14 @@ extension WhereStylesheet {
 
         subscript(_ variant: CardStyle.Variant) -> CardStyle {
             switch variant {
-                case .regular: regular
-                case .compact: compact
+                case .regular: return regular
+                case .compact: return compact
+                case .elsewhere:
+                    var card = compact
+                    card.paper = elsewherePaper
+                    card.glow = .init(opacity: 0, radius: 0)
+                    card.lift = elsewherePaper.shadow
+                    return card
             }
         }
 

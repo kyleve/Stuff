@@ -88,8 +88,7 @@ struct ElsewhereView: View {
                                                 days: item.days.count,
                                             ),
                                             places: content.placeNames[item.region],
-                                            variant: .compact,
-                                            yearLength: report.daysInSelectedYear,
+                                            variant: .elsewhere,
                                             year: report.selectedYear,
                                         )
                                     }

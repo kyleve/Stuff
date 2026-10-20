@@ -4,8 +4,7 @@ import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
-/// A Liquid Glass card summarizing how many days were spent in one region.
-/// Used prominently on the Locations tab and (more compactly) on Elsewhere.
+/// A region-day summary with glass for Locations and compact paper for Elsewhere.
 struct RegionSummaryCard: View {
     /// Why the shared card is being rendered. A theme specimen keeps the real
     /// compact-card surface and hierarchy, but omits the provenance stamp that
@@ -22,9 +21,8 @@ struct RegionSummaryCard: View {
     /// Locations cards, which intentionally stay a pure passport stamp.
     var places: String?
 
-    /// Which card spec to render — the big `.regular` Locations card or the
-    /// `.compact` Elsewhere one. The caller picks; the view reads the one
-    /// resolved ``WhereStylesheet/CardStyle`` and never branches on it again.
+    /// The caller selects a presentation; the stylesheet resolves its complete
+    /// geometry and surface, including compact primary specimens for galleries.
     var variant: WhereStylesheet.CardStyle.Variant = .regular
 
     var renderPurpose: RenderPurpose = .content
@@ -121,10 +119,14 @@ struct RegionSummaryCard: View {
         estimatedDays.map { fraction(for: $0.upper) }
     }
 
+    private var contentTint: Color {
+        card.paper?.tint(style.tint) ?? style.tint
+    }
+
     /// Region ink on light cards; a pale derivative on dark cards that remains
     /// distinct while interactive Liquid Glass illuminates nearby surfaces.
     private var securityPrintTint: Color {
-        cardStyles.securityPrint.tint(style.tint)
+        card.paper?.tint(style.tint) ?? cardStyles.securityPrint.tint(style.tint)
     }
 
     private var cardShape: RoundedRectangle {
@@ -246,7 +248,7 @@ struct RegionSummaryCard: View {
                     .offset(x: card.watermarkOffset.width, y: card.watermarkOffset.height)
             }
         }
-        .blendMode(cardStyles.securityPrint.backgroundBlendMode)
+        .blendMode(card.paper == nil ? cardStyles.securityPrint.backgroundBlendMode : .normal)
         .clipShape(cardShape)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -294,17 +296,17 @@ struct RegionSummaryCard: View {
         )
     }
 
-    var body: some View {
+    private var content: some View {
         let regionName = Text(regionDays.region.localizedName)
             .font(card.regionNameTypography.font)
             .tracking(card.regionNameTracking)
             .lineLimit(1)
             .allowsTightening(true)
             .minimumScaleFactor(0.7)
-            .foregroundStyle(style.tint)
-            .opacity(cardStyles.nameOpacity)
+            .foregroundStyle(contentTint)
+            .opacity(card.paper == nil ? cardStyles.nameOpacity : 1)
 
-        VStack(alignment: .leading, spacing: card.contentSpacing) {
+        return VStack(alignment: .leading, spacing: card.contentSpacing) {
             HStack(alignment: .top, spacing: stylesheet.spacing.large) {
                 VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
                     regionName
@@ -313,12 +315,14 @@ struct RegionSummaryCard: View {
                             .font(.caption2.weight(.semibold))
                             .textCase(.uppercase)
                             .tracking(1)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(card.paper == nil
+                                ? AnyShapeStyle(.secondary)
+                                : AnyShapeStyle(contentTint))
                     }
                     if let places {
                         Label(places, systemSymbol: .mappinAndEllipse)
                             .font(.caption2.weight(.medium))
-                            .foregroundStyle(style.tint)
+                            .foregroundStyle(contentTint)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -334,7 +338,7 @@ struct RegionSummaryCard: View {
                 LocationCardEstimateSticker(
                     recordedDays: regionDays.days,
                     estimatedDays: estimatedDays,
-                    regionTint: style.tint,
+                    regionTint: contentTint,
                     securityPrintTint: securityPrintTint,
                     card: card,
                     style: cardStyles.estimateSticker,
@@ -343,48 +347,50 @@ struct RegionSummaryCard: View {
             } else {
                 LocationCardDayCount(
                     days: regionDays.days,
-                    tint: style.tint,
+                    tint: contentTint,
                     card: card,
                     transition: dayCount.transition(days: regionDays.days),
                 )
             }
 
-            Capsule()
-                .fill(.quaternary)
-                .frame(height: barHeight)
-                .overlay(alignment: .leading) {
-                    GeometryReader { proxy in
-                        ZStack(alignment: .leading) {
-                            if let estimatedFraction {
-                                Capsule()
-                                    .fill(securityPrintTint.opacity(
-                                        cardStyles.estimatedProgressOpacity,
-                                    ))
-                                    .frame(width: proxy.size.width * estimatedFraction)
-                                if let estimatedDays, !estimatedDays.isExact {
+            if card.showsProgress {
+                Capsule()
+                    .fill(.quaternary)
+                    .frame(height: barHeight)
+                    .overlay(alignment: .leading) {
+                        GeometryReader { proxy in
+                            ZStack(alignment: .leading) {
+                                if let estimatedFraction {
                                     Capsule()
                                         .fill(securityPrintTint.opacity(
                                             cardStyles.estimatedProgressOpacity,
                                         ))
-                                        .frame(width: proxy.size
-                                            .width * fraction(for: estimatedDays.lower))
-                                    Rectangle()
-                                        .fill(securityPrintTint)
-                                        .frame(width: barHeight / 3)
-                                        .offset(x: proxy.size
-                                            .width * fraction(for: estimatedDays.lower))
+                                        .frame(width: proxy.size.width * estimatedFraction)
+                                    if let estimatedDays, !estimatedDays.isExact {
+                                        Capsule()
+                                            .fill(securityPrintTint.opacity(
+                                                cardStyles.estimatedProgressOpacity,
+                                            ))
+                                            .frame(width: proxy.size
+                                                .width * fraction(for: estimatedDays.lower))
+                                        Rectangle()
+                                            .fill(securityPrintTint)
+                                            .frame(width: barHeight / 3)
+                                            .offset(x: proxy.size
+                                                .width * fraction(for: estimatedDays.lower))
+                                    }
                                 }
+                                Capsule()
+                                    .fill(style.tint)
+                                    .frame(width: proxy.size.width * recordedFraction)
                             }
-                            Capsule()
-                                .fill(style.tint)
-                                .frame(width: proxy.size.width * recordedFraction)
+                            .frame(width: proxy.size.width, height: barHeight, alignment: .leading)
+                            .clipShape(.capsule)
                         }
-                        .frame(width: proxy.size.width, height: barHeight, alignment: .leading)
-                        .clipShape(.capsule)
                     }
-                }
-                .frame(height: barHeight)
-                .accessibilityHidden(true)
+                    .frame(height: barHeight)
+                    .accessibilityHidden(true)
+            }
         }
         // What makes the count's `.contentTransition` run at all — one morphs
         // only inside an animation transaction — and it sweeps the ambient bar,
@@ -394,42 +400,64 @@ struct RegionSummaryCard: View {
         .padding(card.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background { stampPaper }
-        .glassEffect(
-            .regular.tint(style.tint.opacity(cardStyles.glassTintOpacity))
-                .interactive(interactive),
-            in: cardShape,
-        )
-        .tiltSheen(
-            tilt: tilt,
-            staticRoll: card.sheen.staticPose.roll,
-            staticPitch: card.sheen.staticPose.pitch,
-            in: cardShape,
-            intensity: card.sheen.intensity,
-            staticGlintIntensity: card.sheen.staticGlintIntensity,
-        )
-        .clipShape(cardShape)
-        // Make the whole card a single hit target — without this only the
-        // opaque sub-views (text, stamp, bar) take taps, leaving dead gaps
-        // (e.g. the bottom-right) when the card is wrapped in a Button/link.
-        .contentShape(cardShape)
-        .shadow(
-            color: style.tint.opacity(card.glow.opacity),
-            radius: card.glow.radius,
-        )
-        .shadow(
-            color: style.tint.opacity(card.lift.opacity),
-            radius: card.lift.radius,
-            y: card.lift.offsetY,
-        )
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityLabel)
-        .accessibilityValue(places ?? "")
-        .regionArtworkTask(
-            id: regionArtworkLoadID,
-            displayKey: regionArtworkLoadID.staticArtworkID,
-            model: artworkModel,
-            load: loadRegionOutlines,
-        )
+    }
+
+    @ViewBuilder
+    private var surface: some View {
+        if let paper = card.paper {
+            content
+                .background(paper.background, in: cardShape)
+                .overlay {
+                    cardShape.strokeBorder(
+                        contentTint.opacity(paper.outlineOpacity),
+                        lineWidth: paper.outlineWidth,
+                    )
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                }
+        } else {
+            content
+                .glassEffect(
+                    .regular.tint(style.tint.opacity(cardStyles.glassTintOpacity))
+                        .interactive(interactive),
+                    in: cardShape,
+                )
+                .tiltSheen(
+                    tilt: tilt,
+                    staticRoll: card.sheen.staticPose.roll,
+                    staticPitch: card.sheen.staticPose.pitch,
+                    in: cardShape,
+                    intensity: card.sheen.intensity,
+                    staticGlintIntensity: card.sheen.staticGlintIntensity,
+                )
+        }
+    }
+
+    var body: some View {
+        surface
+            .clipShape(cardShape)
+            // Make the whole card a single hit target — without this only the
+            // opaque sub-views (text, stamp, bar) take taps, leaving dead gaps
+            // (e.g. the bottom-right) when the card is wrapped in a Button/link.
+            .contentShape(cardShape)
+            .shadow(
+                color: style.tint.opacity(card.glow.opacity),
+                radius: card.glow.radius,
+            )
+            .shadow(
+                color: (card.paper == nil ? style.tint : .black).opacity(card.lift.opacity),
+                radius: card.lift.radius,
+                y: card.lift.offsetY,
+            )
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityValue(places ?? "")
+            .regionArtworkTask(
+                id: regionArtworkLoadID,
+                displayKey: regionArtworkLoadID.staticArtworkID,
+                model: artworkModel,
+                load: loadRegionOutlines,
+            )
     }
 }
 
@@ -579,7 +607,7 @@ private struct ArcText: View {
             )
             RegionSummaryCard(
                 regionDays: RegionDays(region: .europeanUnion, days: 22),
-                variant: .compact,
+                variant: .elsewhere,
                 year: 2026,
             )
         }

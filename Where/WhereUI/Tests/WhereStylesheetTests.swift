@@ -308,6 +308,45 @@ struct WhereStylesheetTests {
     @Test func cardVariantSubscriptSelectsTheMatchingSpec() {
         #expect(style.card[.regular] == style.card.regular)
         #expect(style.card[.compact] == style.card.compact)
+        #expect(style.card[.regular].showsProgress)
+        #expect(style.card[.compact].showsProgress)
+        let elsewhere = style.card[.elsewhere]
+        #expect(elsewhere.paper == .light)
+        #expect(elsewhere.showsProgress == false)
+        #expect(elsewhere.padding == style.card.compact.padding)
+        #expect(elsewhere.entryStamp == style.card.compact.entryStamp)
+        #expect(elsewhere.regionShape == style.card.regular.regionShape)
+        #expect(elsewhere.glow == .init(opacity: 0, radius: 0))
+        #expect(elsewhere.lift == .init(opacity: 0.08, radius: 6, offsetY: 3))
+    }
+
+    @MainActor
+    @Test(arguments: RegionColorToken.allCases, [BMode.light, .dark])
+    func elsewherePaperKeepsEveryRegionInkReadable(color: RegionColorToken, mode: BMode) throws {
+        var context = BContext(traits: .system)
+        context.traitOverrides.mode = mode
+        let sheet = try context.stylesheets.get(WhereStylesheet.self)
+        let paper = try #require(sheet.card[.elsewhere].paper)
+        #expect(paper == (mode == .dark ? .dark : .light))
+        #expect(paper.outlineOpacity == 0.45)
+        #expect(paper.outlineWidth == 1)
+
+        var environment = EnvironmentValues()
+        environment.colorScheme = mode == .dark ? .dark : .light
+        func luminance(_ color: Color) -> Double {
+            let resolved = color.resolve(in: environment)
+            func linear(_ channel: Float) -> Double {
+                let value = Double(channel)
+                return value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+            }
+            return 0.2126 * linear(resolved.red)
+                + 0.7152 * linear(resolved.green)
+                + 0.0722 * linear(resolved.blue)
+        }
+        let ink = luminance(paper.tint(color.color))
+        let background = luminance(paper.background)
+        let contrast = (max(ink, background) + 0.05) / (min(ink, background) + 0.05)
+        #expect(contrast >= 4.5)
     }
 
     private func expectedEntryStamp(

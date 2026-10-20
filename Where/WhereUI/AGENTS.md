@@ -96,7 +96,8 @@ Layering, localization, preview, and testing conventions live in the feature
   caches the resulting SwiftUI `Path`s. Use the small path for the stamp. Use
   the micro path for repeated borders on location cards and estimate panels.
   Share the region artwork treatment across regular and compact cards. Keep
-  compact dimensions in the compact style.
+  compact dimensions in the compact style. Resolve Elsewhere's paper surface
+  from that geometry, without a progress bar. Keep primary specimens on glass.
   Project Locations-card GPS points through the cache's shared
   `RegionArtworkProjection`. Never project, simplify, or spatially reduce
   artwork in a card's `body`.
