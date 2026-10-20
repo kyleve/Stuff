@@ -159,7 +159,10 @@ struct SnapshotImageReference {
                     let old = try Self(png: oldData)
                     let new = try Self(png: newData)
                     let imageFailure = imageDiff.diffV2(old.image, new.image)
-                    let messages = [panelFailure?.message, imageFailure?.0].compactMap(\.self)
+                    var messages = [panelFailure?.message, imageFailure?.0].compactMap(\.self)
+                    if old.layout != new.layout, panelFailure == nil {
+                        messages.append("Snapshot panel metadata changed.")
+                    }
                     let attachments = (panelFailure?.attachments ?? []) + (imageFailure?.1 ?? [])
                     return messages.isEmpty ? nil : (
                         messages.joined(separator: "\n\n"),
