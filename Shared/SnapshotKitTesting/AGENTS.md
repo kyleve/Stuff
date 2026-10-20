@@ -165,10 +165,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - Store one sheet PNG with a versioned panel map in PNG Description metadata.
   Reject missing or invalid maps. Review the PNG before recording; preserve its metadata.
 - Share configured capture and reference recording between single views and cutsheets.
-  Collect all panel failures before composition. Assemble captured images and labels
-  in a SwiftUI grid, then capture it through the shared hosted renderer. Derive the
-  panel map from SwiftUI geometry; do not duplicate layout or text drawing.
-  Do not re-render the original component views during composition.
+  Collect all panel failures before composition; compose captured images without re-rendering views.
   Store bounds and canvas dimensions as whole pixels, including at 3x scale.
   Compare each panel at the existing tolerance; never dilute its area budget across
   the entire sheet. Layout or membership changes must fail explicitly.
