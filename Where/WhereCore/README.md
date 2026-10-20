@@ -492,9 +492,11 @@ It applies device-removal cutoffs and selects the half-open interval `[from, unt
 It retains callback order, duplicates, conflicting identities, accuracy, motion readings, and device boundaries.
 Manual and evidence-derived samples are outside this GPS-only fixture.
 
-The exporter replaces sample and device IDs, shifts every timestamp by one constant, and rotates all coordinates together.
-The rotation preserves spherical distances, including across the date line and near the poles.
-The output contains no original path, IDs, absolute dates, or rotation origin.
+The exporter replaces sample and device IDs and shifts every timestamp by one constant.
+By default, it rotates all coordinates together. The rotation preserves spherical distances, including across the date line and near the poles.
+The optional `coordinateMode` accepts `rotate` or `preserve`. Preserve mode copies the original coordinates exactly, so RegionKit attribution and boundary distances remain unchanged.
+Both modes omit the input path and replace IDs. The generated comment identifies whether coordinates are original or rotated.
+The date shift depends on `replacementStart`; coordinate preservation does not disable it.
 Route shape, timing, accuracy, and sensor values remain recognizable characteristics. Review the output before publishing it.
 
 1. Keep the backup and export configuration outside the checkout.
@@ -516,6 +518,11 @@ Route shape, timing, accuracy, and sensor values remain recognizable characteris
    }
    ```
 
+   For original coordinates, add `"coordinateMode": "preserve"` and remove `replacementOrigin`.
+   For rotation, omit `coordinateMode` or set it to `"rotate"`, and supply `replacementOrigin`.
+   The exporter rejects a missing rotation origin or an origin supplied with preserve mode.
+   Preserve mode publishes the selected coordinates unchanged in the generated Swift file.
+
 4. Run from the repository root:
 
    ```sh
@@ -526,8 +533,8 @@ Route shape, timing, accuracy, and sensor values remain recognizable characteris
    The export stops if transformation changes flight recognition, arrival evidence, supported intervals, or correction identities.
    It also refuses to overwrite an existing output file.
    These checks verify transformation fidelity. They do not establish the correct flight result.
-5. Review the generated Swift array. For calendar, latitude, or date-line failures, preserve the relevant boundary in the replacement configuration.
-   Coordinate rotation does not preserve country attribution.
+5. Review the generated Swift array. For calendar failures, select a replacement date that retains the relevant boundary.
+   Coordinate rotation does not preserve country or state attribution. Use preserve mode when a regression needs the original RegionKit geometry.
 6. Copy the reviewed file into `Tests/` and format it with `./swiftformat`.
    Add a named regression in `FlightTrajectoryAnalyzerTests.swift` with independently reviewed expectations.
    Assert flight count, arrival evidence, supported days, airborne identities, and protected ground points as applicable.

@@ -4,22 +4,47 @@ import WhereCore
 
 /// Extracts a complete GPS window without thinning or inventing observations.
 /// Replacement identities preserve duplicate conflicts and UUID tie ordering.
-/// One spherical rotation preserves the detector's distances. A constant date
-/// shift preserves gaps; calendar-sensitive cases must select a suitable start.
+/// Coordinates can retain their geography or rotate together to preserve distances.
+/// A constant date shift preserves gaps; calendar-sensitive cases need a suitable start.
 struct FlightFixtureExporter {
     struct Configuration: Decodable {
+        enum CoordinateMode: String, Decodable {
+            case rotate, preserve
+        }
+
         let backupPath: String
         let from: Date
         let until: Date
         let now: Date
         let replacementStart: Date
-        let replacementOrigin: Coordinate
+        let coordinateMode: CoordinateMode?
+        let replacementOrigin: Coordinate?
         let typeName: String
         let outputPath: String
+
+        /// Existing configurations rotate. Keeping original coordinates requires
+        /// an explicit mode; an absent rotation origin must never select it.
+        func coordinateTransform() throws -> CoordinateTransform {
+            switch coordinateMode ?? .rotate {
+                case .rotate:
+                    guard let replacementOrigin else { throw ExportError.missingReplacementOrigin }
+                    return .rotate(origin: replacementOrigin)
+                case .preserve:
+                    guard replacementOrigin == nil
+                    else { throw ExportError.unexpectedReplacementOrigin }
+                    return .preserve
+            }
+        }
     }
 
-    enum ExportError: Error {
+    enum CoordinateTransform: Equatable {
+        case rotate(origin: Coordinate)
+        case preserve
+    }
+
+    enum ExportError: Error, Equatable {
         case invalidWindow, invalidCoordinate, noSamples, invalidTypeName
+        case missingReplacementOrigin, unexpectedReplacementOrigin
     }
 
     let originalSamples: [LocationSample]
@@ -28,6 +53,7 @@ struct FlightFixtureExporter {
     let sampleIDs: [LocationSample.ID: LocationSample.ID]
     let deviceIDs: [RecordingDeviceID: RecordingDeviceID]
     private let dateShift: TimeInterval
+    private let coordinateTransform: CoordinateTransform
 
     init(
         samples input: [LocationSample],
@@ -35,7 +61,7 @@ struct FlightFixtureExporter {
         until: Date,
         now: Date,
         replacementStart: Date,
-        replacementOrigin: Coordinate,
+        coordinateTransform: CoordinateTransform,
     ) throws {
         guard [from, until, now, replacementStart].allSatisfy(\.timeIntervalSince1970.isFinite),
               from < until, now >= from else { throw ExportError.invalidWindow }
@@ -45,8 +71,16 @@ struct FlightFixtureExporter {
             if $0.timestamp != $1.timestamp { return $0.timestamp < $1.timestamp }
             return $0.id.uuidString < $1.id.uuidString
         }) else { throw ExportError.noSamples }
-        guard Self.isValid(replacementOrigin), selected.allSatisfy({ Self.isValid($0.coordinate) })
+        guard selected.allSatisfy({ Self.isValid($0.coordinate) })
         else { throw ExportError.invalidCoordinate }
+        let rotation: Rotation?
+        switch coordinateTransform {
+            case let .rotate(origin):
+                guard Self.isValid(origin) else { throw ExportError.invalidCoordinate }
+                rotation = Rotation(from: anchor.coordinate, to: origin)
+            case .preserve:
+                rotation = nil
+        }
         let sampleIDs = Dictionary(uniqueKeysWithValues: Set(selected.map(\.id))
             .sorted { $0.uuidString < $1.uuidString }
             .enumerated().map { index, sampleID in
@@ -62,8 +96,8 @@ struct FlightFixtureExporter {
                         )
                     })
         let shift = replacementStart.timeIntervalSince(from)
-        let rotation = Rotation(from: anchor.coordinate, to: replacementOrigin)
         originalSamples = selected
+        self.coordinateTransform = coordinateTransform
         self.sampleIDs = sampleIDs
         self.deviceIDs = deviceIDs
         dateShift = shift
@@ -72,7 +106,7 @@ struct FlightFixtureExporter {
             LocationSample(
                 id: sampleIDs[sample.id]!,
                 timestamp: sample.timestamp.addingTimeInterval(shift),
-                coordinate: rotation.apply(sample.coordinate),
+                coordinate: rotation.map { $0.apply(sample.coordinate) } ?? sample.coordinate,
                 horizontalAccuracy: sample.horizontalAccuracy,
                 source: sample.source,
                 recordingDeviceID: sample.recordingDeviceID.map { deviceIDs[$0]! },
@@ -85,7 +119,7 @@ struct FlightFixtureExporter {
         date.addingTimeInterval(dateShift)
     }
 
-    /// The generated file contains neither the input path nor the rotation origin.
+    /// The generated file omits the input path and identifies its coordinate mode.
     /// It is ordinary Swift so CI needs no archive, decoder, or export configuration.
     func swiftSource(typeName: String) throws -> String {
         guard typeName.range(of: "^[A-Z][A-Za-z0-9]*$", options: .regularExpression) != nil,
@@ -110,13 +144,17 @@ struct FlightFixtureExporter {
                     ),
             """
         }.joined(separator: "\n")
+        let coordinateDescription = switch coordinateTransform {
+            case .rotate: "rotated coordinates"
+            case .preserve: "original recorded coordinates (not relocated)"
+        }
         return """
         import Foundation
         import RegionKit
         import WhereCore
 
         /// A complete recorded GPS window with shifted dates, replacement IDs,
-        /// and rotated coordinates. Expected behavior is defined in the analyzer tests.
+        /// and \(coordinateDescription). Expected behavior is defined in the regression tests.
         enum \(typeName) {
             static let now = Date(timeIntervalSince1970: \(Self.number(now.timeIntervalSince1970)))
             static let samples: [LocationSample] = [
