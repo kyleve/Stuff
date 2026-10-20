@@ -82,15 +82,19 @@ struct OnboardingThemeSelectionView: View {
 
     extension OnboardingThemeSelectionView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            let configurations = [SnapshotConfiguration].screenDefaults + [
-                SnapshotConfiguration(layoutDirection: .rightToLeft, device: .iPhone),
-                SnapshotConfiguration(layoutDirection: .rightToLeft, device: .iPad),
+            let configurations = [SnapshotConfiguration].fullContentScreenDefaults + [
+                SnapshotConfiguration(layoutDirection: .rightToLeft, device: .iPhoneFullContent),
+                SnapshotConfiguration(layoutDirection: .rightToLeft, device: .iPadFullContent),
             ]
             return [
                 whereSnapshot(name: "Standard", configurations: configurations) {
                     OnboardingThemeSelectionSnapshotRoot(selection: .standard)
                 },
-                whereSnapshot(name: "Alternate", configurations: configurations) {
+                whereSnapshot(
+                    name: "Alternate",
+                    configurations: .fullContentPhoneLightDark,
+                    theme: .alternate,
+                ) {
                     OnboardingThemeSelectionSnapshotRoot(selection: .alternate)
                 },
             ]

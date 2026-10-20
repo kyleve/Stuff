@@ -1,12 +1,23 @@
-@testable import SnapshotKit
+@testable @_spi(Capture) import SnapshotKit
 import SwiftUI
 import Testing
 
 @MainActor
 struct SnapshotCaseTests {
-    @Test func idIsTheName() {
+    @Test func identityRetainsNameAndReferenceGroup() {
         let snapshotCase = SnapshotCase(name: "States", configurations: []) { Color.red }
-        #expect(snapshotCase.id == "States")
+        #expect(snapshotCase.id.name == "States")
+        #expect(snapshotCase.id.referenceGroup == nil)
+    }
+
+    @Test func groupIdentityCannotCollideWithPunctuationInTheName() {
+        let ungrouped = SnapshotCase(name: "themes/Card", configurations: []) { Color.red }
+        let grouped = SnapshotCase(
+            name: "Card",
+            configurations: [],
+            referenceGroup: .themes,
+        ) { Color.red }
+        #expect(ungrouped.id != grouped.id)
     }
 
     @Test func settleDefaultsToSettled() {
@@ -89,9 +100,13 @@ struct SnapshotCaseTests {
         }
 
         #expect(buildCount == 0)
-        _ = snapshotCase.content
+        guard case let .single(makeContent) = snapshotCase.capture else {
+            Issue.record("Single-view construction must use a single capture")
+            return
+        }
+        _ = makeContent()
         #expect(buildCount == 1)
-        _ = snapshotCase.content
+        _ = makeContent()
         #expect(buildCount == 2)
     }
 

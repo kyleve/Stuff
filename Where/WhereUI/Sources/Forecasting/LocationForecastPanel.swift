@@ -69,15 +69,17 @@ struct LocationForecastPanel: View {
         .background {
             ZStack {
                 shape.fill(.background)
-                LinearGradient(
-                    colors: [
-                        Color.primary.opacity(style.ink.surfaceWashOpacity),
-                        .clear,
-                        Color.primary.opacity(style.ink.surfaceWashOpacity * 0.45),
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing,
-                )
+                if style.ink.surfaceWashOpacity > 0 {
+                    LinearGradient(
+                        colors: [
+                            Color.primary.opacity(style.ink.surfaceWashOpacity),
+                            .clear,
+                            Color.primary.opacity(style.ink.surfaceWashOpacity * 0.45),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing,
+                    )
+                }
                 SecurityPrintRosette(
                     tint: .primary,
                     wobble: style.surface.rosetteWobble,
@@ -150,5 +152,35 @@ struct LocationForecastPanel: View {
         )
         .padding()
         .whereBroadwayRoot()
+    }
+#endif
+
+#if DEBUG
+    import SnapshotKit
+
+    extension LocationForecastPanel: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            for collapsed in [false, true] {
+                whereThemeSnapshot(
+                    name: collapsed ? "Collapsed" : "Expanded",
+                    configurations: collapsed ? .componentLightDark : .componentDefaults,
+                ) {
+                    let report = PreviewSupport.plannedStayYearReportModel()
+                    LocationForecastPanel(
+                        forecasts: report.forecasts.leadingForecasts(report: report.report),
+                        microprintRegions: report.ranking.primary.map(\.region),
+                        homeRegion: report.forecasts.planning.homeRegion,
+                        planningAction: {},
+                        isCollapsible: collapsed,
+                    )
+                    .padding(24)
+                    .background(.background)
+                }
+            }
+        }
+    }
+
+    #Preview("Themes") {
+        LocationForecastPanel.snapshotPreviews
     }
 #endif

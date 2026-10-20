@@ -26,7 +26,17 @@ public func duplicateSnapshotIdentifiers(in cases: [SnapshotCase]) -> [String] {
                 caseName: snapshotCase.name,
                 configuration: configuration,
             )
-            occurrences[identifier, default: 0] += 1
+            let path = snapshotReferenceURL(
+                testFilePath: "/Snapshots.swift",
+                testName: "snapshot",
+                identifier: identifier,
+                configuration: configuration,
+                referenceGroup: snapshotCase.referenceGroup,
+            )
+            let key = path.path.replacingOccurrences(of: "/__Snapshots__/Snapshots/", with: "")
+                .replacingOccurrences(of: "snapshot.", with: "")
+                .replacingOccurrences(of: ".png", with: "")
+            occurrences[key, default: 0] += 1
         }
     }
     return occurrences.filter { $0.value > 1 }.keys.sorted()

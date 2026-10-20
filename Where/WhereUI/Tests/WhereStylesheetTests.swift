@@ -113,7 +113,7 @@ struct WhereStylesheetTests {
     }
 
     @MainActor
-    @Test func themesRetainDistinctIdentityWithEquivalentTokens() throws {
+    @Test func themesRetainDistinctIdentityAndSharedGeometry() throws {
         var standardThemes = BThemes()
         standardThemes[WhereTheme.self] = .standard
         var alternateThemes = BThemes()
@@ -126,9 +126,16 @@ struct WhereStylesheetTests {
 
         #expect(standard.theme == .standard)
         #expect(alternate.theme == .alternate)
-        var normalizedStandard = standard
-        normalizedStandard.theme = WhereTheme.alternate
-        #expect(normalizedStandard == alternate)
+        #expect(standard.card.regular.surface == .reflective)
+        #expect(alternate.card.regular.surface.usesReflection == false)
+        #expect(standard.card.regular.cornerRadius == alternate.card.regular.cornerRadius)
+        #expect(standard.card.compact.padding == alternate.card.compact.padding)
+        #expect(standard.card.regular.entryStamp == alternate.card.regular.entryStamp)
+        #expect(standard.card.dayCount == alternate.card.dayCount)
+        #expect(standard.locationCardStack == alternate.locationCardStack)
+        #expect(standard.locationsBackground == alternate.locationsBackground)
+        #expect(standard.yearModePicker == alternate.yearModePicker)
+        #expect(standard.timeline == alternate.timeline)
     }
 
     @Test func spacingScale() {
@@ -1178,6 +1185,23 @@ struct WhereStylesheetEnvironmentTests {
         )
         try show(host) { _ in
             try waitFor { box.theme == .alternate }
+        }
+    }
+
+    @Test func themeChangesUpdateMountedSurfacesInBothDirections() throws {
+        let box = StylesheetProbeBox()
+        func content(theme: WhereTheme) -> some View {
+            StylesheetProbe(box: box).whereBroadwayRoot(theme: theme)
+        }
+        let host = UIHostingController(rootView: content(theme: .standard))
+        try show(host) { _ in
+            try waitFor { box.sheet?.card.regular.surface.usesReflection == true }
+            host.rootView = content(theme: .alternate)
+            try waitFor { box.sheet?.card.regular.surface.usesReflection == false }
+            #expect(box.sheet?.privacyPassportCard.surface.usesReflection == false)
+            host.rootView = content(theme: .standard)
+            try waitFor { box.sheet?.card.regular.surface.usesReflection == true }
+            #expect(box.sheet?.privacyPassportCard.surface.usesReflection == true)
         }
     }
 }

@@ -273,6 +273,7 @@ struct MainTabs: View {
             configurations: [SnapshotConfiguration],
             settle: SnapshotSettle,
             selection: TabID,
+            theme: WhereTheme = .standard,
             updates: UpdateModel? = nil,
             configure: (LocationWelcomeModel) -> Void,
         ) -> SnapshotCase {
@@ -307,6 +308,7 @@ struct MainTabs: View {
             return whereSnapshot(
                 name: name,
                 configurations: configurations,
+                theme: theme,
                 measurementReadiness: .immediate,
                 settle: settle,
                 onReadyToSnapshot: { await report.activate() },

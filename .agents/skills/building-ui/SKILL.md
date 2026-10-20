@@ -19,6 +19,8 @@ current SwiftUI API, performance, and platform guidance.
 2. Inspect the feature's existing views, view models, reusable components,
    Broadway root, stylesheet, preview fixtures, and snapshot declarations
    before designing another path.
+   Check supported themes and their local surface rules before choosing materials.
+   For Where, follow the [theme rules](../../../Where/WhereUI/AGENTS.md).
 3. Extend an existing view with a mode or shared subview when two surfaces
    express the same concept. Keep screen-specific registration and rendering
    declarations beside the represented screen.
@@ -142,6 +144,8 @@ module-owned stylesheets.
 
 ## Build with Liquid Glass
 
+Apply these rules only when the resolved component style uses glass.
+
 - Put related glass effects in one nearest `GlassEffectContainer` only when
   they must blend or morph.
 - Give independently moving glass surfaces separate containers when the
@@ -236,6 +240,18 @@ API reference: [Apple's custom-glass guidance](https://developer.apple.com/docum
   same source file and render `Self.snapshotPreviews` from the preview. Declare
   the matrix once and use one `FooSnapshotTests` suite/file per represented
   view.
+- Choose theme coverage from the module's `AGENTS.md`. Prefer one component
+  comparison sheet containing all supported themes for each representative state
+  and trait configuration. Build fresh fixture state per panel and preserve normal
+  component width, production behavior, and artwork readiness.
+- For generic comparison sheets, use `SnapshotCase.cutsheet { SnapshotPanel(...) { ... } }`.
+  Keep panel identities stable and choose the reference group explicitly when grouping related sheets.
+  Use a module's theme helper when it supplies that module's root and theme ordering.
+- Keep full-screen theme variants for critical integration or materially different
+  screen composition. Do not multiply screen matrices for child-surface changes.
+- Use explicit reference groups: mixed-theme sheets have a neutral group; single-theme
+  screen references use a stable consumer-owned theme group. Keep existing default
+  theme paths. Never encode a directory in a case name or localized theme label.
 - Snapshot the production branch. Use a stand-in only for externally loaded or
   wall-clock-dependent content that no settle window can stabilize, keep its
   layout identical, and encapsulate the substitution inside the shared

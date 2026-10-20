@@ -7345,7 +7345,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Show recorded GPS locations as glowing dots on the maps in Locations."
+            "value" : "Show recorded GPS locations as dots on the maps in Locations."
           }
         }
       }
@@ -11261,7 +11261,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A second theme, currently matching Standard."
+            "value" : "Strong colors, matte surfaces, and subtle depth."
           }
         }
       }
@@ -11272,7 +11272,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Alternate"
+            "value" : "Flat"
           }
         }
       }
