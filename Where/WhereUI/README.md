@@ -416,6 +416,9 @@ printed edges and neutral drop shadows. It keeps the passport artwork and
 omits sheen, luminous glows, and GPS-dot halos. The welcome, Elsewhere, privacy,
 and estimate surfaces share this finish. System chrome stays native.
 
+New custom components support both themes through their resolved styles.
+The [module rules](AGENTS.md) define surface treatments and required snapshot coverage.
+
 Flat adjusts region text colors for contrast against its opaque fills.
 The palette test covers every selectable region color in light and dark modes.
 

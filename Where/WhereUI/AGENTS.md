@@ -208,9 +208,16 @@ worked examples.
   `whereBroadwayRoot(theme:regionStyles:)`. Use no global accessor or hardcoded
   per-region look in a view.
 - **Seed `WhereTheme` through `whereBroadwayRoot(theme:regionStyles:)`.** Standard
-  and Flat use the stable `standard` and `alternate` identities. Resolve the
-  finish in the component style. Flat omits reflective layers and tilt observation.
-  System chrome keeps its native appearance. Guard: `WhereStylesheetSurfaceTreatmentTests`.
+  and Flat use the stable `standard` and `alternate` identities.
+- **Design new and changed custom components for both Standard and Flat.**
+  Resolve theme and accessibility choices in the owning `WhereStylesheet`
+  component style. Views consume that style without checking the selected theme.
+  Reuse `matteSurface` for Flat's opaque fills, visible strokes, and restrained
+  shadows. Use a subtle tint for pressed feedback. Exclude glass, reflections,
+  and luminous glows from Flat's view hierarchy. Observe tilt only while a
+  visible surface needs sheen. Preserve artwork and informational gradients.
+  Keep system chrome native and widget/snippet surfaces lightweight.
+  Guard: `WhereStylesheetSurfaceTreatmentTests`.
 - The DEBUG card designer may override only presentation values already owned
   by `CardStyles`. It must not add a second production styling system or alter
   count animation and outline-cache behavior.
@@ -255,3 +262,10 @@ job, deliberately outside `Stuff-iOS-Tests` (root
 [`Sources/Preview/WhereSnapshot.swift`](Sources/Preview/WhereSnapshot.swift).
 Follow `building-ui` for authoring and the repo `running-tests` skill for
 recording/reviewing references.
+
+For new or changed themed components, include Standard and Flat in the colocated
+snapshot matrix. Cover both themes in light/dark and relevant accessibility cases
+(increased contrast, Reduce Transparency, and accessibility text sizes).
+The `whereSnapshot` helper defaults to Standard. Pass `theme: .alternate` for Flat.
+Native chrome and unchanged lightweight widget/snippet surfaces do not need
+duplicate theme cases.
