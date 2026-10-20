@@ -491,6 +491,18 @@ jobs:
       - store_artifacts:
           path: snapshot-timing-artifact
           destination: snapshot-timings
+      - run:
+          name: Stage snapshot memory samples
+          when: always
+          command: |
+            mkdir -p snapshot-memory-artifact
+            if [[ -f "$TEST_WORKDIR/memory.jsonl" ]]; then
+              cp "$TEST_WORKDIR/memory.jsonl" \
+                "snapshot-memory-artifact/memory-$CIRCLE_NODE_INDEX.jsonl"
+            fi
+      - store_artifacts:
+          path: snapshot-memory-artifact
+          destination: snapshot-memory
       - collect_diagnostics:
           test_workdir: test-output-snapshots
           artifact_name: snapshots

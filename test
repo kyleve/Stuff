@@ -134,7 +134,7 @@ Running:
 
 Reporting:
   --timings         Collect per-phase snapshot capture timings and print a
-                    breakdown (sets SNAPSHOT_TIMING)
+                    breakdown with test-host memory peaks (sets SNAPSHOT_TIMING)
   --review          Report how each differing snapshot differs — pixel count,
                     max channel delta, changed region (sets SNAPSHOT_DIFF)
   --heartbeat SECS  Seconds between progress lines when not on a terminal
@@ -763,11 +763,15 @@ if [ "$TIMINGS" = true ]; then
     echo "SNAPSHOT CAPTURE PHASES"
     rule
     : >"$WORKDIR/timings.jsonl"
+    : >"$WORKDIR/memory.jsonl"
     for log in "${LOGS[@]}"; do
         grep -o 'SNAPSHOT_TIMING {.*}' "$log" 2>/dev/null \
             | sed 's/^SNAPSHOT_TIMING //' >>"$WORKDIR/timings.jsonl" || true
+        grep -o 'SNAPSHOT_MEMORY {.*}' "$log" 2>/dev/null \
+            | sed 's/^SNAPSHOT_MEMORY //' >>"$WORKDIR/memory.jsonl" || true
     done
     python3 Tools/snapshot_reports.py timings "$WORKDIR/timings.jsonl"
+    python3 Tools/snapshot_reports.py memory "$WORKDIR/memory.jsonl"
 fi
 
 if [ "$REVIEW" = true ]; then

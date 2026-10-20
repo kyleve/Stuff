@@ -16,6 +16,10 @@ These rules also apply when changing a root command or installer that calls this
 - Parse help and usage errors before requiring tools, devices, or network access.
   Preserve composable stdout, diagnostic stderr, child status, and interruption handling.
 
+- Report snapshot memory peaks per process, never as a sum across captures or processes.
+  Keep memory samples separate from capture counters. Logs without memory samples remain valid.
+  Guards: `test_snapshot_reports.py` and `test_xcode_command_contracts.py`.
+
 ## Mutations
 
 - Validate inputs before the first mutation. Use the existing `FileTransaction`

@@ -205,6 +205,11 @@ case "${XCODE_OUTPUT:-passing}" in
     printf '◇ Test works() started\\n'
     printf '✔ Test works() passed after 0.001 seconds\\n'
     ;;
+  memory)
+    printf '✔ Test works() passed after 0.001 seconds\\n'
+    printf '%s\\n' 'SNAPSHOT_TIMING {"id":"measured","total":1,"phases":{"compare":1},"settlePasses":1}'
+    printf '%s\\n' 'SNAPSHOT_MEMORY {"reference":"file:///tmp/__Snapshots__/Suite/measured.png","processID":123,"memory":{"residentBytes":104857600,"peakResidentBytes":209715200,"footprintBytes":52428800,"peakFootprintBytes":104857600}}'
+    ;;
   failed)
     printf '◇ Suite ValueTests started\\n'
     printf '◇ Test fails() started\\n'
@@ -282,6 +287,25 @@ print(json.dumps({"testNodes": [{"nodeType": "Unit test bundle", "name": "CoreTe
 
 
 class XcodeCommandContractTests(unittest.TestCase):
+    def test_timings_recovers_test_host_memory_from_run_logs(self):
+        fixture = self.fixture()
+        result = fixture.run(
+            "test", "--snapshots", "--timings", "--skip-architecture",
+            "--no-generate", "--no-build", "--heartbeat", "0", XCODE_OUTPUT="memory",
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("test-host memory", result.stdout)
+        self.assertIn("host footprint 50 MiB (peak 100, PID 123)", result.stdout)
+        self.assertRegex(result.stdout, r"123\s+100\.0\s+200\.0")
+        rows = [
+            json.loads(line)
+            for line in (fixture.test_work / "memory.jsonl").read_text().splitlines()
+        ]
+        self.assertIn("1 captures,", result.stdout)
+        self.assertEqual(1, len(rows))
+        self.assertEqual(123, rows[0]["processID"])
+        self.assertEqual(104857600, rows[0]["memory"]["peakFootprintBytes"])
+
     def fixture(self):
         temporary = tempfile.TemporaryDirectory(prefix="stuff-xcode-contract-")
         self.addCleanup(temporary.cleanup)

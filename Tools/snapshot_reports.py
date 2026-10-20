@@ -80,6 +80,33 @@ def timing_report(
     return "\n".join(lines)
 
 
+def memory_report(rows: Sequence[Mapping[str, object]]) -> str:
+    if not rows:
+        return "  (no test-host memory samples)"
+    lines = [
+        "",
+        "  test-host memory (MiB; process lifetime peaks, not per-image allocations):",
+        "  excludes simulator services and other worker processes; do not sum peaks",
+        f"  {'PID':>8s} {'peak footprint':>16s} {'peak RSS':>12s}",
+    ]
+    for process_id in sorted({int(row["processID"]) for row in rows}):
+        samples = [
+            row["memory"] for row in rows if int(row["processID"]) == process_id
+        ]
+        footprint = max(int(sample["peakFootprintBytes"]) for sample in samples)
+        resident = max(int(sample["peakResidentBytes"]) for sample in samples)
+        lines.append(
+            f"  {process_id:8d} {footprint / 2**20:16.1f} {resident / 2**20:12.1f}"
+        )
+    lines.extend(["", "  largest footprints sampled after comparison (MiB):"])
+    largest = sorted(rows, key=lambda item: -int(item["memory"]["footprintBytes"]))[:8]
+    for row in largest:
+        footprint = int(row["memory"]["footprintBytes"]) / 2**20
+        reference = str(row["reference"]).split("__Snapshots__/")[-1]
+        lines.append(f"    {footprint:8.1f}  PID {row['processID']}  {reference}")
+    return "\n".join(lines)
+
+
 def difference_report(
     rows: Sequence[Mapping[str, object]],
     *,
@@ -146,6 +173,9 @@ def main(arguments: Optional[Iterable[str]] = None) -> int:
         default="no timing lines — was this a snapshot scheme?",
     )
 
+    memory = subparsers.add_parser("memory")
+    memory.add_argument("path", type=Path)
+
     differences = subparsers.add_parser("differences")
     differences.add_argument("path", type=Path)
     differences.add_argument("--recording", action="store_true")
@@ -160,6 +190,8 @@ def main(arguments: Optional[Iterable[str]] = None) -> int:
                 empty_message=options.empty_message,
             )
         )
+    elif options.command == "memory":
+        print(memory_report(rows))
     elif options.command == "differences":
         print(difference_report(rows, is_recording=options.recording))
     return 0

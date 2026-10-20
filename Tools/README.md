@@ -17,6 +17,10 @@ result reporting without requiring Java in its tests. The Xcode-facing root
 commands keep process and simulator orchestration in shell; `xcode_results.py`
 shares xcresult traversal, `snapshot_reports.py` shares capture reports, and
 the command-specific Python modules retain each command's distinct policy.
+The `--timings` progress line and capture report also show test-host memory when the log contains it.
+Memory peaks belong to each process lifetime. The report groups them by PID and never adds peaks across captures or processes.
+The separate `SNAPSHOT_MEMORY` channel writes `memory.jsonl` and does not increase capture counts.
+Older timing logs remain readable without memory samples.
 Filesystem-heavy Ruby generators are require-safe so their behavior can be
 exercised against temporary repositories. `SimulatorRegistry` validates exact
 runtime ownership from captured `simctl` JSON and persists private claims

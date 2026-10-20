@@ -246,6 +246,21 @@ anything here: it is what showed that `drainInFlightAnimations` was burning a
 flat second on every image, and that the settle *floor* rather than its render
 passes is what the remaining time buys.
 
+With `--timings`, each completed reference comparison emits a separate `SNAPSHOT_MEMORY` line.
+It contains the reference URL, test host PID, and memory usage in bytes.
+For comparison sheets, it follows panel composition and final comparison. It does not increase the capture count.
+`memory` contains current RSS, peak RSS, current physical footprint, and peak physical footprint.
+The kernel supplies the peaks for the process lifetime, including earlier captures and startup.
+Current values are sampled after comparison; caller-owned capture images can still be alive.
+These values exclude simulator services and other worker processes. They do not measure memory allocated by one image.
+The live progress line shows the latest footprint, lifetime peak, and PID.
+The final report groups peaks by PID and lists the largest sampled footprints in MiB.
+Raw readings remain in `memory.jsonl` beside the test logs.
+CircleCI retains each shard’s readings under the `snapshot-memory` artifact on successful and failed runs. A failed memory query prints `SNAPSHOT_MEMORY_ERROR` and omits the sample.
+
+Synchronous autorelease pools bound settle samples, tile rendering, capture normalization, and reference comparison.
+The capture pool returns only the normalized image and PNG bytes. Pools never span an `await`.
+
 `SNAPSHOT_SETTLE` selects the stability mechanism (`pixel`, `quiescence`,
 `both`). see [`AGENTS.md`](AGENTS.md) for why `pixel` is the only safe default.
 

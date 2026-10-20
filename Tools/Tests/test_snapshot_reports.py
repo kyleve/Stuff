@@ -5,10 +5,32 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from snapshot_reports import difference_report, timing_report
+from snapshot_reports import difference_report, memory_report, timing_report
 
 
 class SnapshotReportsTests(unittest.TestCase):
+    def test_memory_peaks_are_grouped_by_process_and_never_added(self):
+        rows = []
+        for process_id, footprint, peak in [(101, 80, 100), (101, 60, 120), (202, 30, 40)]:
+            rows.append({
+                "reference": f"file:///tmp/__Snapshots__/Suite/capture-{footprint}.png",
+                "processID": process_id,
+                "memory": {
+                    "footprintBytes": footprint * 2**20,
+                    "peakFootprintBytes": peak * 2**20,
+                    "residentBytes": footprint * 2**20,
+                    "peakResidentBytes": (peak + 10) * 2**20,
+                },
+            })
+
+        report = memory_report(rows)
+
+        self.assertRegex(report, r"101\s+120\.0\s+130\.0")
+        self.assertRegex(report, r"202\s+40\.0\s+50\.0")
+        self.assertNotIn("file:///tmp/", report)
+        self.assertIn("process lifetime peaks", report)
+        self.assertLess(report.index("capture-80"), report.index("capture-60"))
+
     def test_timing_report_shares_common_summary_and_optional_detail(self):
         rows = [
             {
@@ -67,6 +89,7 @@ class SnapshotReportsTests(unittest.TestCase):
                 self.assertNotIn("referenceMissing", report)
 
     def test_empty_reports_preserve_public_messages(self):
+        self.assertEqual(memory_report([]), "  (no test-host memory samples)")
         self.assertEqual(
             timing_report([], detailed=False, empty_message="no timing lines found"),
             "  (no timing lines found)",
