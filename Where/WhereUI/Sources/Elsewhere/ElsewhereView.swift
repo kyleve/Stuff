@@ -40,10 +40,21 @@ struct ElsewhereView: View {
         return model.failure(for: report.selectedYear)?.localizedDescription
     }
 
+    private var backgroundRegions: [Region] {
+        let visited = Set(model.content(for: report.selectedYear)?.report.regions
+            .map(\.region) ?? [])
+        return Region.allCases.filter { visited.contains($0) }
+    }
+
     var body: some View {
         NavigationStack {
             screen
-                .navigationTitle(String(localized: .secondaryTitle))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background {
+                    LocationsBackground(regions: backgroundRegions)
+                        .ignoresSafeArea()
+                }
+                .navigationBarTitleDisplayMode(.inline)
         }
         .task(id: request) {
             guard request.isVisible else { return }
@@ -59,10 +70,6 @@ struct ElsewhereView: View {
         if let content = model.content(for: report.selectedYear) {
             ScrollView {
                 VStack(alignment: .leading, spacing: stylesheet.spacing.xLarge) {
-                    Text(WhereFormat.secondaryHeader(year: report.selectedYear))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                     if let failureMessage {
                         VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
                             Label(failureMessage, systemSymbol: .exclamationmarkIcloud)

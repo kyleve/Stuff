@@ -266,10 +266,6 @@ enum WhereFormat {
         String(localized: .primaryElsewhereOnlyDescription(count))
     }
 
-    static func secondaryHeader(year: Int) -> String {
-        String(localized: .secondaryHeader(yearText(year)))
-    }
-
     static func settingsDataErase(year: Int) -> String {
         String(localized: .settingsDataErase(yearText(year)))
     }

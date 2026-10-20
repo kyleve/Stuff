@@ -6861,17 +6861,6 @@
         }
       }
     },
-    "secondary.header" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Everywhere else you turned up in %@."
-          }
-        }
-      }
-    },
     "secondary.loading" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6934,17 +6923,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Map of where you were"
-          }
-        }
-      }
-    },
-    "secondary.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Elsewhere"
           }
         }
       }

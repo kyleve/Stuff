@@ -22,6 +22,8 @@ Its compact cards name visited US jurisdictions, Canada, and the European Union
 from the existing catalog. Unknown visits stay under Other. Each card shows
 distinct recorded days and can show an optional place label. A multi-region
 day can appear on more than one card.
+The tab starts with the cards, over the shared region-outline background,
+without a separate heading or subheading.
 
 Elsewhere cards open a day list and map from the same resolved snapshot. Day actions
 open the existing correction flow. These inferred names do not change calendar,
@@ -544,10 +546,11 @@ from the latest uncancelled operation and hides artwork for mismatched display
 keys. Region cards use a separate static-artwork key to retain their outlines
 while recorded points refresh. Each surface owns its resolutions and rendering.
 
-### Locations background
+### Locations and Elsewhere backgrounds
 
 The Locations root screen uses a stationary monochrome pattern of all regions
 visited in the selected year, including manually recorded visits and Elsewhere.
+Elsewhere reuses the same renderer with its resolved non-primary regions.
 The catch-all Other entry is omitted because it has no geographic outline.
 Catalog order keeps the pattern stable when card rankings change. Planned stays
 do not contribute. The shared outline cache supplies the region paths. Full-view
@@ -555,7 +558,8 @@ rosette rings sit behind staggered region outlines with a half-cell row offset. 
 regions receive a bounded size adjustment to balance their visual weight. The
 monochrome ink uses faint strokes without a shadow or blur. Appearance belongs
 to `WhereStylesheet.locationsBackground`; Reduce Transparency hides the ink.
-Empty, initial-loading, and failed screens show only the full-view rosette texture.
+Without resolved regions, the background shows only the full-view rosette texture.
+Elsewhere keeps its outlines with retained content during same-year refresh failures.
 
 ## Testing
 

@@ -126,8 +126,9 @@ Layering, localization, preview, and testing conventions live in the feature
   Keep request identity complete; use a broader display key only when retaining
   compatible artwork during refresh is intentional.
 - Keep the Locations background on the selected year’s complete visited-region set,
-  in catalog order independent of card rank. Omit the catch-all Other entry from
-  the print. Use the injected outline cache.
+  and reuse that renderer in Elsewhere with its resolved visited-region set.
+  Keep both in catalog order independent of card rank. Omit the catch-all Other
+  entry from the print. Use the injected outline cache.
 - Split Locations and Elsewhere by the configured primary set, not `RegionRanking`'s
   top two. Exclude zero-day cards and sort ties in catalog order.
 - Keep Elsewhere cards, day lists, and map pins on the same resolved snapshot.
