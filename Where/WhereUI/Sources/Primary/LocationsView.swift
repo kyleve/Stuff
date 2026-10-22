@@ -26,8 +26,7 @@ struct LocationsView: View {
     /// plain slide.
     @Namespace private var calendarTransition
 
-    @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.regionStyles) private var regionStyles
+    @Environment(\.stylesheet.card.regular.surface) private var cardSurface
 
     private var isCardSurfaceUncovered: Bool {
         isCardSurfaceVisible
@@ -80,7 +79,7 @@ struct LocationsView: View {
         }
         .observesTilt(
             tilt,
-            enabled: isCardSurfaceUncovered && stylesheet.card.regular.surface.usesReflection,
+            enabled: isCardSurfaceUncovered && cardSurface.usesReflection,
         )
         .sheet(isPresented: $showingResolution) {
             ResolutionView(report: report)
@@ -96,165 +95,31 @@ struct LocationsView: View {
     @ViewBuilder
     private var screen: some View {
         switch report.loadState {
-            case .loading where report.report == nil:
-                stateWithFlightNotice {
-                    AppIconLoadingView(caption: String(localized: .primaryLoading))
-                }
-            case let .failed(error):
-                stateWithFlightNotice {
-                    ContentUnavailableView {
-                        Label(
-                            String(localized: .commonLoadErrorTitle),
-                            systemSymbol: .exclamationmarkIcloud,
-                        )
-                    } description: {
-                        Text(error.message)
-                    }
-                }
+            case .loading where report.report == nil, .failed:
+                LocationsStateView(
+                    report: report,
+                    planningAction: openPlanning,
+                    openElsewhere: openElsewhere,
+                )
             case .idle, .loaded, .loading:
                 if report.locationRegions.isEmpty {
-                    // Distinguish "nothing tracked at all" from "tracked days
-                    // exist, but only outside configured primary regions" (e.g. all in
-                    // `.other`) — otherwise the latter wrongly reads as empty.
-                    if report.trackedDayCount == 0 {
-                        stateWithFlightNotice { emptyState }
-                    } else {
-                        stateWithFlightNotice { elsewhereOnlyState }
-                    }
+                    LocationsStateView(
+                        report: report,
+                        planningAction: openPlanning,
+                        openElsewhere: openElsewhere,
+                    )
                 } else {
-                    content
+                    LocationsCardsView(
+                        report: report,
+                        cardPresentation: cardPresentation,
+                        tilt: tilt,
+                        calendarTransition: calendarTransition,
+                        isCardSurfaceUncovered: isCardSurfaceUncovered,
+                        isCardSurfaceVisible: $isCardSurfaceVisible,
+                        planningAction: openPlanning,
+                    )
                 }
         }
-    }
-
-    @ViewBuilder
-    private var flightNotice: some View {
-        if let review = report.liveFlightReview {
-            NavigationLink {
-                FlightDayDetailView(review: review, report: report)
-            } label: {
-                FlightStatusBanner(
-                    review: review,
-                    deviceLabel: report.liveFlightAssessment(in: review)
-                        .map(report.flightDeviceLabel),
-                    flight: report.liveFlightAssessment(in: review),
-                )
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint(String(localized: .flightStatusOpenReview))
-        }
-    }
-
-    /// Keep short states centered and let a flight notice or larger text scroll.
-    private func stateWithFlightNotice(@ViewBuilder content: () -> some View) -> some View {
-        ScrollView {
-            VStack(spacing: stylesheet.spacing.xxLarge) {
-                flightNotice
-                content()
-            }
-            .padding()
-            .frame(maxWidth: .infinity)
-        }
-        .scrollBounceBehavior(.basedOnSize)
-        .defaultScrollAnchor(report.liveFlightReview == nil ? .center : .top, for: .alignment)
-    }
-
-    private var content: some View {
-        let presentedCards = cardPresentation.presented(report.locationRegions)
-
-        // Keep the flight notice immediately below navigation. Without a notice,
-        // a short card list retains its centered presentation.
-        return ScrollView {
-            VStack(spacing: stylesheet.spacing.xxLarge) {
-                flightNotice
-
-                LocationCardRankingStack(
-                    spacing: stylesheet.spacing.xxLarge,
-                    presentation: cardPresentation,
-                    motion: stylesheet.locationCardStack.overtake,
-                ) {
-                    ForEach(presentedCards) { item in
-                        NavigationLink {
-                            calendarDestination(item.region)
-                        } label: {
-                            RegionSummaryCard(
-                                regionDays: item,
-                                interactive: true,
-                                yearLength: report.daysInSelectedYear,
-                                estimatedDays: estimatedDays(for: item.region),
-                                year: report.selectedYear,
-                                tilt: tilt,
-                                recordedPoints: report.primaryRegionLocations?
-                                    .pointsByRegion[item.region] ?? [],
-                                showsRecordedPoints: report.showsRecordedLocationDots,
-                                recordedPointsID: report.primaryRegionLocations?.id,
-                            )
-                        }
-                        .buttonStyle(stylesheet.card.regular.buttonStyle(
-                            tint: regionStyles.style(for: item.region).tint,
-                        ))
-                        // The card is the zoom source: tapping it expands the
-                        // card into the pushed calendar (matched geometry). The
-                        // configuration re-states the card's rounded shape and
-                        // its glow/lift shadows so the transition interpolates
-                        // them — without it, the zoom clips the source to a bare
-                        // rectangle and the card's soft shadow pops on/off.
-                        .matchedTransitionSource(
-                            id: item.region,
-                            in: calendarTransition,
-                        ) { source in
-                            let card = stylesheet.card.regular
-                            let tint = regionStyles.style(for: item.region).tint
-                            let elevation = card.transitionElevation(tint: tint)
-                            return source
-                                .clipShape(
-                                    RoundedRectangle(
-                                        cornerRadius: card.cornerRadius,
-                                        style: .continuous,
-                                    ),
-                                )
-                                .shadow(
-                                    color: elevation.glow.color,
-                                    radius: elevation.glow.radius,
-                                )
-                                .shadow(
-                                    color: elevation.lift.color,
-                                    radius: elevation.lift.radius,
-                                    y: elevation.lift.offsetY,
-                                )
-                        }
-                        .accessibilityHint(String(localized: .primaryCardCalendarHint))
-                        .locationCardOvertakeEffect(
-                            region: item.region,
-                            presentation: cardPresentation,
-                            motion: stylesheet.locationCardStack.overtake,
-                        )
-                        .locationCardRankingRegion(item.region)
-                    }
-                }
-
-                estimatePanel
-            }
-            .padding()
-            .frame(maxWidth: .infinity)
-        }
-        .defaultScrollAnchor(report.liveFlightReview == nil ? .center : .top)
-        .scrollBounceBehavior(.basedOnSize)
-        // The card normally stays clipped to the scrolling viewport. Reveal
-        // overflow only while the authored arc, scale, and rotation need it.
-        .scrollClipDisabled(cardPresentation.isSpatialOvertakeActive)
-        .accessibilityIdentifier("where_root_title")
-        .onAppear { isCardSurfaceVisible = true }
-        .onDisappear { isCardSurfaceVisible = false }
-        // Count, order, flourish, persistence, and haptic all share this one
-        // visibility-aware delayed reconciliation.
-        .reconcilesLocationCards(
-            current: report.locationRegions,
-            year: report.selectedYear,
-            isVisible: isCardSurfaceUncovered,
-            presentation: cardPresentation,
-            motion: stylesheet.locationCardStack.overtake,
-        )
     }
 
     private var backgroundRegions: [Region] {
@@ -266,82 +131,12 @@ struct LocationsView: View {
         }
     }
 
-    private var primaryRegions: [Region] {
-        report.ranking.primary.map(\.region).filter { $0 != .other }
-    }
-
     private var showsPlanningMenu: Bool {
         report.showsEstimatedTimeAndPlanning
     }
 
-    private func estimatedDays(for region: Region) -> DayBounds? {
-        guard report.showsEstimatedTimeAndPlanning else { return nil }
-        return report.forecasts.forecast(for: region, report: report.report)?.estimatedTotalDays
-    }
-
-    /// The region's calendar, pushed as a nested view. It's the zoom
-    /// destination: the tapped card expands into it via matched geometry, and the
-    /// stack's back gesture collapses it again.
-    private func calendarDestination(_ region: Region) -> some View {
-        CalendarContentView(focusedRegion: region, report: report)
-            .navigationTitle(
-                WhereFormat.calendarRegionTitle(region: region, year: report.selectedYear),
-            )
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationTransition(.zoom(sourceID: region, in: calendarTransition))
-    }
-
-    @ViewBuilder
-    private var estimatePanel: some View {
-        let forecasts = report.forecasts.leadingForecasts(report: report.report)
-        if report.showsEstimatedTimeAndPlanning, !forecasts.isEmpty {
-            LocationForecastPanel(
-                forecasts: forecasts,
-                microprintRegions: primaryRegions,
-                homeRegion: report.forecasts.planning.homeRegion,
-                planningAction: { planningDestination = .list },
-                isCollapsible: true,
-            )
-        }
-    }
-
-    private var emptyState: some View {
-        ScrollView {
-            VStack(spacing: stylesheet.spacing.large) {
-                ContentUnavailableView {
-                    Label(
-                        WhereFormat.primaryEmptyTitle(year: report.selectedYear),
-                        systemSymbol: .map,
-                    )
-                } description: {
-                    Text(String(localized: .primaryEmptyDescription))
-                }
-                estimatePanel
-            }
-            .padding()
-        }
-    }
-
-    private var elsewhereOnlyState: some View {
-        ScrollView {
-            VStack(spacing: stylesheet.spacing.large) {
-                ContentUnavailableView {
-                    Label(
-                        String(localized: .primaryElsewhereOnlyTitle),
-                        systemSymbol: .globeAmericas,
-                    )
-                } description: {
-                    Text(WhereFormat.primaryElsewhereOnlyDescription(count: report.trackedDayCount))
-                } actions: {
-                    if report.hasElsewhere, let openElsewhere {
-                        Button(String(localized: .primaryElsewhereOnlyOpen), action: openElsewhere)
-                            .buttonStyle(.borderedProminent)
-                    }
-                }
-                estimatePanel
-            }
-            .padding()
-        }
+    private func openPlanning() {
+        planningDestination = .list
     }
 }
 
@@ -350,7 +145,7 @@ struct LocationsView: View {
 private struct ResolveToolbarLabel: View {
     let count: Int
 
-    @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.stylesheet.spacing) private var spacing
 
     var body: some View {
         Image(systemSymbol: .checklist)
@@ -359,10 +154,10 @@ private struct ResolveToolbarLabel: View {
                     Text(count, format: .number)
                         .font(.caption2.weight(.bold))
                         .foregroundStyle(.white)
-                        .padding(.horizontal, stylesheet.spacing.xSmall)
-                        .padding(.vertical, stylesheet.spacing.xxSmall)
+                        .padding(.horizontal, spacing.xSmall)
+                        .padding(.vertical, spacing.xxSmall)
                         .background(.red, in: Capsule())
-                        .offset(x: stylesheet.spacing.small, y: -stylesheet.spacing.small)
+                        .offset(x: spacing.small, y: -spacing.small)
                         .accessibilityHidden(true)
                 }
             }

@@ -128,6 +128,9 @@ Layering, localization, preview, and testing conventions live in the feature
 - Use `regionArtworkTask` and `RegionArtworkModel` for cached artwork loading.
   Keep request identity complete; use a broader display key only when retaining
   compatible artwork during refresh is intentional.
+- Keep Locations state payloads, flight notices, estimates, and ranked cards behind
+  named view boundaries. Preserve presentation state and the calendar namespace
+  at the screen root. Guard their body sizes with the colocated view tests.
 - Keep the Locations background on the selected year’s complete visited-region set,
   and reuse that renderer in Elsewhere with its resolved visited-region set.
   Keep both in catalog order independent of card rank. Omit the catch-all Other

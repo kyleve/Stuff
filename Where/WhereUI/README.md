@@ -581,6 +581,14 @@ from the latest uncancelled operation and hides artwork for mismatched display
 keys. Region cards use a separate static-artwork key to retain their outlines
 while recorded points refresh. Each surface owns its resolutions and rendering.
 
+### Locations composition
+
+`LocationsView` owns navigation, sheets, the calendar transition namespace, and
+card presentation state. Its ranked content and short states render through
+separate named views, with shared flight-notice and estimate-panel components.
+These boundaries limit the SwiftUI value copies made during launch; the matching
+view-size tests guard each body against growth.
+
 ### Locations and Elsewhere backgrounds
 
 The Locations root screen uses a stationary monochrome pattern of all regions
