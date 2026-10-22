@@ -7,8 +7,6 @@ import WhereCore
 /// geography are invented; callback timing, accuracy, and coordinates come from
 /// the transformed recording. No external archive or configuration is required.
 enum RecordedFlightArchiveFixture {
-    static let samples = RecordedResumedCruiseFlightFixture.samples
-    static let now = RecordedResumedCruiseFlightFixture.now
     static let day = CalendarDay(year: 2020, month: 5, day: 1)
 
     static let calendar: Calendar = {
@@ -34,7 +32,8 @@ enum RecordedFlightArchiveFixture {
         }
     }
 
-    static func makeArchiveFile() throws -> URL {
+    static func makeArchiveFile(fixture: RecordedFlightFixture) throws -> URL {
+        let samples = fixture.samples
         let first = try #require(samples.min { $0.timestamp < $1.timestamp })
         let deviceID = try #require(first.recordingDeviceID)
         let regions = Regions().loadedRegions
@@ -60,7 +59,7 @@ enum RecordedFlightArchiveFixture {
             homeRegionRecords: [],
             sampleAttributionRevisions: [],
             blobs: [:],
-            exportedAt: now,
+            exportedAt: fixture.now,
             archiveName: "recorded-flight.zip",
         )
     }

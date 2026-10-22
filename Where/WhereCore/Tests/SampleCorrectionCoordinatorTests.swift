@@ -335,7 +335,8 @@ struct SampleCorrectionCoordinatorTests {
     @Test func recordedFlightBackupAppliesCorrectionsWithoutChangingGroundOrRawSamples(
     ) async throws {
         typealias F = RecordedFlightArchiveFixture
-        let archiveURL = try F.makeArchiveFile()
+        let fixture = try RecordedFlightFixture.load(.resumedCruise)
+        let archiveURL = try F.makeArchiveFile(fixture: fixture)
         defer {
             do {
                 try FileManager.default.removeItem(at: archiveURL.deletingLastPathComponent())
@@ -350,7 +351,7 @@ struct SampleCorrectionCoordinatorTests {
             locationSource: ScriptedLocationSource(),
             attributor: regions,
             aggregator: DayAggregator(calendar: F.calendar, timeZone: F.calendar.timeZone),
-            now: { F.now },
+            now: { fixture.now },
         )
         let imported = try await services.backup.importAndAcknowledgeBackup(
             from: archiveURL,
@@ -358,10 +359,10 @@ struct SampleCorrectionCoordinatorTests {
         )
         #expect(imported.sampleCount == 52)
         #expect(imported.recordingDeviceCount == 1)
-        #expect(try await Set(store.allSamples()) == Set(F.samples))
+        #expect(try await Set(store.allSamples()) == Set(fixture.samples))
         #expect(try await Set(store.trackedRegions()) == Set(regions.loadedRegions))
         let before = try await services.reports.dataIssueReads(for: F.day.year)
-        #expect(before.history.samples.count == F.samples.count)
+        #expect(before.history.samples.count == fixture.samples.count)
         #expect(before.report.days.first { $0.day == F.day }?.regions
             == [.california, .newYork, .canada])
 
@@ -377,13 +378,13 @@ struct SampleCorrectionCoordinatorTests {
         // independent cruise observations on both sides of every point.
         let overflightIDs = Set([17, 3, 26, 6, 39].map(FlightTrajectoryFixtures.sampleID))
         #expect(overflightIDs.isSubset(of: editedIDs))
-        let departure = try #require(F.samples.first {
+        let departure = try #require(fixture.samples.first {
             $0.id == FlightTrajectoryFixtures.sampleID(33)
         })
-        let arrival = try #require(F.samples.first {
+        let arrival = try #require(fixture.samples.first {
             $0.id == FlightTrajectoryFixtures.sampleID(30)
         })
-        let groundIDs = Set(F.samples.filter {
+        let groundIDs = Set(fixture.samples.filter {
             $0.timestamp <= departure.timestamp || $0.timestamp >= arrival.timestamp
         }.map(\.id))
         #expect(editedIDs.isDisjoint(with: groundIDs))
@@ -402,7 +403,7 @@ struct SampleCorrectionCoordinatorTests {
         }
         #expect(after.history.samples.filter { groundIDs.contains($0.sample.id) }
             == before.history.samples.filter { groundIDs.contains($0.sample.id) })
-        #expect(try await Set(store.allSamples()) == Set(F.samples))
+        #expect(try await Set(store.allSamples()) == Set(fixture.samples))
         let revisions = try await store.allSampleAttributionRevisions()
         #expect(Set(revisions.map(\.sampleID)) == editedIDs)
         #expect(revisions.count == editedIDs.count)

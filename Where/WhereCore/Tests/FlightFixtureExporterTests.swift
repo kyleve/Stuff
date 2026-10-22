@@ -75,16 +75,14 @@ struct FlightFixtureExporterTests {
         #expect(exported.samples[1].coordinate != exported.samples[3].coordinate)
         #expect(exported.samples[1].recordingDeviceID != exported.samples[4].recordingDeviceID)
         #expect(exported.now == replacementStart.addingTimeInterval(65 * 60))
-        let source = try exported.swiftSource(typeName: "RecordedFlightFixture")
-        #expect(source.contains("enum RecordedFlightFixture"))
-        #expect(source.contains("LocationMotion(speed: nil, altitude: nil)"))
-        #expect(!source.contains(Fixtures.device.rawValue.uuidString))
-        #expect(try exported.swiftSource(typeName: "RecordedFlightFixture") == source)
-        for invalidName in ["Injected {}", "Any", "Self"] {
-            #expect(throws: FlightFixtureExporter.ExportError.self) {
-                try exported.swiftSource(typeName: invalidName)
-            }
-        }
+        let data = try exported.fixture.jsonData()
+        let decoded = try RecordedFlightFixture.decode(data)
+        #expect(decoded.samples == exported.samples)
+        #expect(decoded.now == exported.now)
+        #expect(decoded.coordinates == exported.fixture.coordinates)
+        #expect(String(decoding: data, as: UTF8.self)
+            .contains(Fixtures.device.storeURL.absoluteString) == false)
+        #expect(try exported.fixture.jsonData() == data)
     }
 
     @Test func rotationPreservesDistancesAcrossTheDateLineAndNearPoles() throws {
@@ -115,8 +113,9 @@ struct FlightFixtureExporterTests {
             coordinateTransform: .rotate(origin: replacementOrigin),
         )
         #expect(exported.samples[0].coordinate.distance(to: replacementOrigin) < 0.001)
-        #expect(try exported.swiftSource(typeName: "RotatedFixture")
-            .contains("rotated coordinates"))
+        let decoded = try RecordedFlightFixture.decode(exported.fixture.jsonData())
+        #expect(decoded.coordinates == .rotated)
+        #expect(decoded.samples == exported.samples)
         for i in samples.indices {
             for j in samples.indices {
                 let before = samples[i].coordinate.distance(to: samples[j].coordinate)
@@ -166,9 +165,11 @@ struct FlightFixtureExporterTests {
             #expect(distance.isFinite)
             #expect(attributor.distanceToBoundary(of: .newYork, from: after.coordinate) == distance)
         }
-        let source = try exported.swiftSource(typeName: "PreservedBoundaryFixture")
-        #expect(source.contains("original recorded coordinates (not relocated)"))
-        #expect(source.contains("Coordinate(latitude: 40.825, longitude: -73.973)"))
+        let decoded = try RecordedFlightFixture.decode(exported.fixture.jsonData())
+        #expect(decoded.coordinates == .original)
+        #expect(decoded.samples.map(\.coordinate) == coordinates)
+        #expect(decoded.samples.map { attributor.region(at: $0.coordinate) }
+            == [.newYork, newJersey, .newYork])
     }
 
     @Test(arguments: [
@@ -184,7 +185,7 @@ struct FlightFixtureExporterTests {
             from: Data("""
             {
               "backupPath": "/private/tmp/input.zip", "from": 0, "until": 60, "now": 90,
-              "replacementStart": 1000, "typeName": "Fixture", "outputPath": "/private/tmp/Fixture.swift",
+              "replacementStart": 1000, "outputPath": "/private/tmp/Fixture.json",
               \(fields)
             }
             """.utf8),
@@ -204,8 +205,7 @@ struct FlightFixtureExporterTests {
                 replacementStart: replacementStart,
                 coordinateMode: mode,
                 replacementOrigin: nil,
-                typeName: "Fixture",
-                outputPath: "/private/tmp/Fixture.swift",
+                outputPath: "/private/tmp/Fixture.json",
             )
             #expect(throws: FlightFixtureExporter.ExportError.missingReplacementOrigin) {
                 try configuration.coordinateTransform()
@@ -219,8 +219,7 @@ struct FlightFixtureExporterTests {
             replacementStart: replacementStart,
             coordinateMode: .preserve,
             replacementOrigin: replacementOrigin,
-            typeName: "Fixture",
-            outputPath: "/private/tmp/Fixture.swift",
+            outputPath: "/private/tmp/Fixture.json",
         )
         #expect(throws: FlightFixtureExporter.ExportError.unexpectedReplacementOrigin) {
             try contradictory.coordinateTransform()
@@ -305,6 +304,41 @@ struct FlightFixtureExporterTests {
         }
     }
 
+    @Test func archiveExportWritesReloadableJSONAndRefusesOverwrite() throws {
+        let fixture = try RecordedFlightFixture.load(.resumedCruise)
+        let archiveURL = try RecordedFlightArchiveFixture.makeArchiveFile(fixture: fixture)
+        defer {
+            do {
+                try FileManager.default.removeItem(at: archiveURL.deletingLastPathComponent())
+            } catch {
+                Issue.record(error, "Could not remove the fixture export test archive")
+            }
+        }
+        let first = try #require(fixture.samples.min { $0.timestamp < $1.timestamp })
+        let outputURL = archiveURL.deletingLastPathComponent().appendingPathComponent("flight.json")
+        let configuration = FlightFixtureExporter.Configuration(
+            backupPath: archiveURL.path,
+            from: first.timestamp,
+            until: fixture.now,
+            now: fixture.now,
+            replacementStart: first.timestamp,
+            coordinateMode: .preserve,
+            replacementOrigin: nil,
+            outputPath: outputURL.path,
+        )
+        let exported = try exportArchiveFixture(configuration: configuration)
+        let reloaded = try RecordedFlightFixture.read(from: outputURL)
+        #expect(reloaded == exported)
+        #expect(reloaded.coordinates == .original)
+        #expect(reloaded.samples == fixture.samples)
+        #expect(reloaded.now == fixture.now)
+        let bytes = try Data(contentsOf: outputURL)
+        #expect(throws: CocoaError.self) {
+            try exportArchiveFixture(configuration: configuration)
+        }
+        #expect(try Data(contentsOf: outputURL) == bytes)
+    }
+
     @Test(.disabled(
         if: ProcessInfo.processInfo.environment["WHERE_FLIGHT_FIXTURE_EXPORT_CONFIG"] == nil,
         "Supply a local export configuration to extract a recorded GPS fixture.",
@@ -318,6 +352,15 @@ struct FlightFixtureExporterTests {
             FlightFixtureExporter.Configuration.self,
             from: Data(contentsOf: URL(fileURLWithPath: path)),
         )
+        let fixture = try exportArchiveFixture(configuration: configuration)
+        print(
+            "Exported \(fixture.samples.count) GPS callbacks after flight-evidence parity checks. Add independent expectations before committing the fixture.",
+        )
+    }
+
+    private func exportArchiveFixture(
+        configuration: FlightFixtureExporter.Configuration,
+    ) throws -> RecordedFlightFixture {
         let archive = try BackupService()
             .readArchive(at: URL(fileURLWithPath: configuration.backupPath)).archive
         let exported = try FlightFixtureExporter(
@@ -332,14 +375,11 @@ struct FlightFixtureExporterTests {
             coordinateTransform: configuration.coordinateTransform(),
         )
         try verifyAssessmentParity(exported, originalNow: configuration.now)
-        let source = try exported.swiftSource(typeName: configuration.typeName)
-        try Data(source.utf8).write(
+        try exported.fixture.jsonData().write(
             to: URL(fileURLWithPath: configuration.outputPath),
             options: .withoutOverwriting,
         )
-        print(
-            "Exported \(exported.samples.count) GPS callbacks after flight-evidence parity checks. Add independent expectations before committing the fixture.",
-        )
+        return exported.fixture
     }
 
     /// Export must not silently alter recognition or correction authority. Numeric
@@ -350,7 +390,10 @@ struct FlightFixtureExporterTests {
     ) throws {
         let analyzer = FlightTrajectoryAnalyzer()
         let original = analyzer.analyze(samples: exported.originalSamples, now: originalNow)
-        let replacement = analyzer.analyze(samples: exported.samples, now: exported.now)
+        // Compare the actual exported representation, including its Codable round trip.
+        let decoded = try RecordedFlightFixture.decode(exported.fixture.jsonData())
+        try #require(decoded == exported.fixture)
+        let replacement = analyzer.analyze(samples: decoded.samples, now: decoded.now)
         try #require(original.count == replacement.count)
         for (before, after) in zip(original, replacement) {
             try #require(after.id.departureSampleID == exported

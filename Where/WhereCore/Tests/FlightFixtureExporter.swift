@@ -19,7 +19,6 @@ struct FlightFixtureExporter {
         let replacementStart: Date
         let coordinateMode: CoordinateMode?
         let replacementOrigin: Coordinate?
-        let typeName: String
         let outputPath: String
 
         /// Existing configurations rotate. Keeping original coordinates requires
@@ -43,7 +42,7 @@ struct FlightFixtureExporter {
     }
 
     enum ExportError: Error, Equatable {
-        case invalidWindow, invalidCoordinate, noSamples, invalidTypeName
+        case invalidWindow, invalidCoordinate, noSamples
         case missingReplacementOrigin, unexpectedReplacementOrigin
     }
 
@@ -119,50 +118,13 @@ struct FlightFixtureExporter {
         date.addingTimeInterval(dateShift)
     }
 
-    /// The generated file omits the input path and identifies its coordinate mode.
-    /// It is ordinary Swift so CI needs no archive, decoder, or export configuration.
-    func swiftSource(typeName: String) throws -> String {
-        guard typeName.range(of: "^[A-Z][A-Za-z0-9]*$", options: .regularExpression) != nil,
-              typeName != "Any", typeName != "Self"
-        else { throw ExportError.invalidTypeName }
-        let points = samples.map { sample in
-            let device = sample.recordingDeviceID.map {
-                "RecordingDeviceID(rawValue: UUID(uuidString: \"\($0.rawValue.uuidString)\")!)"
-            } ?? "nil"
-            return """
-                    LocationSample(
-                        id: UUID(uuidString: "\(sample.id.uuidString)")!,
-                        timestamp: Date(timeIntervalSince1970: \(Self
-                .number(sample.timestamp.timeIntervalSince1970))),
-                        coordinate: Coordinate(latitude: \(Self
-                .number(sample.coordinate.latitude)), longitude: \(Self
-                .number(sample.coordinate.longitude))),
-                        horizontalAccuracy: \(Self.number(sample.horizontalAccuracy)),
-                        source: .\(sample.source.discriminator),
-                        recordingDeviceID: \(device),
-                        motion: \(Self.motionSource(sample.motion)),
-                    ),
-            """
-        }.joined(separator: "\n")
-        let coordinateDescription = switch coordinateTransform {
-            case .rotate: "rotated coordinates"
-            case .preserve: "original recorded coordinates (not relocated)"
+    /// The fixture omits the input path and records whether its coordinates were relocated.
+    var fixture: RecordedFlightFixture {
+        let coordinates: RecordedFlightFixture.Coordinates = switch coordinateTransform {
+            case .rotate: .rotated
+            case .preserve: .original
         }
-        return """
-        import Foundation
-        import RegionKit
-        import WhereCore
-
-        /// A complete recorded GPS window with shifted dates, replacement IDs,
-        /// and \(coordinateDescription). Expected behavior is defined in the regression tests.
-        enum \(typeName) {
-            static let now = Date(timeIntervalSince1970: \(Self.number(now.timeIntervalSince1970)))
-            static let samples: [LocationSample] = [
-        \(points)
-            ]
-        }
-
-        """
+        return RecordedFlightFixture(coordinates: coordinates, now: now, samples: samples)
     }
 
     private static func replacementID(_ number: Int, namespace: Int) -> UUID {
@@ -173,24 +135,6 @@ struct FlightFixtureExporter {
         coordinate.latitude.isFinite && coordinate.longitude.isFinite
             && (-90 ... 90).contains(coordinate.latitude)
             && (-180 ... 180).contains(coordinate.longitude)
-    }
-
-    private static func number(_ value: Double) -> String {
-        if value.isNaN { return ".nan" }
-        if value == .infinity { return ".infinity" }
-        if value == -.infinity { return "-.infinity" }
-        return String(value)
-    }
-
-    private static func motionSource(_ motion: LocationMotion?) -> String {
-        guard let motion else { return "nil" }
-        let speed = motion.speed.map {
-            "LocationMotion.Speed(metersPerSecond: \(number($0.metersPerSecond)), accuracyMetersPerSecond: \(number($0.accuracyMetersPerSecond)))"
-        } ?? "nil"
-        let altitude = motion.altitude.map {
-            "LocationMotion.Altitude(meters: \(number($0.meters)), accuracyMeters: \(number($0.accuracyMeters)))"
-        } ?? "nil"
-        return "LocationMotion(speed: \(speed), altitude: \(altitude))"
     }
 
     /// Orthonormal Earth-centered frames avoid a flat latitude/longitude translation,

@@ -199,9 +199,10 @@ struct FlightTrajectoryAnalyzerTests {
     /// availability, and ground resumption. No in-flight callback independently
     /// establishes an airborne point, even though this journey requires a flight.
     @Test func recordedSparseFlightRetainsRecognitionWithoutInventingAirbornePoints() throws {
-        let samples = RecordedSparseFlightFixture.samples
+        let fixture = try RecordedFlightFixture.load(.sparse)
+        let samples = fixture.samples
         #expect(samples.count == 76)
-        let flights = analyzer.analyze(samples: samples, now: RecordedSparseFlightFixture.now)
+        let flights = analyzer.analyze(samples: samples, now: fixture.now)
         try #require(flights.count == 1)
         let flight = try #require(flights.first)
         let firstGroundAt = Date(timeIntervalSince1970: 1_577_891_199.9787588)
@@ -226,12 +227,13 @@ struct FlightTrajectoryAnalyzerTests {
     /// A complete legacy window has a five-hour outage and initially coarse
     /// destination fixes. The displacement supports a flight, never point exclusions.
     @Test func recordedLegacySparseFlightNeedsNoMotionSensors() throws {
-        let samples = RecordedLegacySparseFlightFixture.samples
+        let fixture = try RecordedFlightFixture.load(.legacySparse)
+        let samples = fixture.samples
         #expect(samples.count == 58)
         #expect(samples.allSatisfy { $0.motion == nil && $0.recordingDeviceID == nil })
         let flight = try RecordedFlightAssertions.completedFlight(
             samples: samples,
-            now: RecordedLegacySparseFlightFixture.now,
+            now: fixture.now,
             travelDay: CalendarDay(year: 2020, month: 2, day: 1),
             lastDepartureGroundID: Fixtures.sampleID(1),
             firstArrivalGroundID: Fixtures.sampleID(43),
@@ -245,12 +247,13 @@ struct FlightTrajectoryAnalyzerTests {
     /// Hour-long recording gaps precede a dense cruise run. Legacy identity,
     /// simultaneous callbacks, and coarse road fixes must not split or extend the flight.
     @Test func recordedLegacyMixedSamplingKeepsOneFlightAndProtectsGround() throws {
-        let samples = RecordedLegacyMixedFlightFixture.samples
+        let fixture = try RecordedFlightFixture.load(.legacyMixed)
+        let samples = fixture.samples
         #expect(samples.count == 66)
         #expect(samples.allSatisfy { $0.motion == nil && $0.recordingDeviceID == nil })
         let flight = try RecordedFlightAssertions.completedFlight(
             samples: samples,
-            now: RecordedLegacyMixedFlightFixture.now,
+            now: fixture.now,
             travelDay: CalendarDay(year: 2020, month: 3, day: 1),
             lastDepartureGroundID: Fixtures.sampleID(34),
             firstArrivalGroundID: Fixtures.sampleID(44),
@@ -265,12 +268,13 @@ struct FlightTrajectoryAnalyzerTests {
     /// Cruise resumes after a 77-minute outage, then turns during approach.
     /// A burst of stationary arrival callbacks must retain every ground identity.
     @Test func recordedInterruptedCruiseKeepsOneFlightThroughTurningApproach() throws {
-        let samples = RecordedInterruptedCruiseFlightFixture.samples
+        let fixture = try RecordedFlightFixture.load(.interruptedCruise)
+        let samples = fixture.samples
         #expect(samples.count == 89)
         #expect(samples.allSatisfy { $0.motion == nil })
         let flight = try RecordedFlightAssertions.completedFlight(
             samples: samples,
-            now: RecordedInterruptedCruiseFlightFixture.now,
+            now: fixture.now,
             travelDay: CalendarDay(year: 2020, month: 4, day: 1),
             lastDepartureGroundID: Fixtures.sampleID(39),
             // Point 67 starts a 12.8-minute ground sequence within 1.8 km;
@@ -288,12 +292,13 @@ struct FlightTrajectoryAnalyzerTests {
     /// Recording first resumes in cruise after more than four hours. Independent
     /// position evidence can corroborate that first point without excluding the airport.
     @Test func recordedResumedCruiseCorroboratesOnlyTheAirborneEndpoint() throws {
-        let samples = RecordedResumedCruiseFlightFixture.samples
+        let fixture = try RecordedFlightFixture.load(.resumedCruise)
+        let samples = fixture.samples
         #expect(samples.count == 52)
         #expect(samples.allSatisfy { $0.motion == nil })
         let flight = try RecordedFlightAssertions.completedFlight(
             samples: samples,
-            now: RecordedResumedCruiseFlightFixture.now,
+            now: fixture.now,
             travelDay: CalendarDay(year: 2020, month: 5, day: 1),
             lastDepartureGroundID: Fixtures.sampleID(33),
             firstArrivalGroundID: Fixtures.sampleID(30),
@@ -314,7 +319,8 @@ struct FlightTrajectoryAnalyzerTests {
     }
 
     @Test func recordedCruiseProgressRequiresObservedArrival() throws {
-        let samples = RecordedResumedCruiseFlightFixture.samples
+        let fixture = try RecordedFlightFixture.load(.resumedCruise)
+        let samples = fixture.samples
         let departure = try #require(samples.first { $0.id == Fixtures.sampleID(33) })
         let cruise = try #require(samples.first { $0.id == Fixtures.sampleID(6) })
         let arrival = try #require(samples.first { $0.id == Fixtures.sampleID(30) })
