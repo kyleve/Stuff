@@ -37,6 +37,7 @@ The root `flyover` command owns capture orchestration, staging, rollback, and pu
 `src/layouts/` and `src/pages/` own the document and loading state.
 `src/scripts/load-atlas.ts` owns loading and visible errors.
 `navigation.ts`, `image-residency.ts`, and `capture-scroller.ts` own typed interaction policies.
+`inspector-position.ts` retains pending scroll restoration across overlapping image loads. Each viewer owns one controller and clears it on screen changes or dismissal.
 `viewer.js` retains the existing DOM presentation and session orchestration. It is not a second rendering framework.
 `src/styles/styles.css` retains the viewer's responsive styles.
 
@@ -48,5 +49,5 @@ PNG capture, thumbnail generation, and geometry remain native responsibilities.
 
 Playwright loads the production Astro build with synthetic PNG captures under a nested HTTP path.
 The suite covers Chromium and WebKit at desktop, portrait, and landscape widths.
-It checks modal frame cancellation, profile scroll restoration, select sizing, and dark action contrast.
+It checks modal frame cancellation, overlapping profile and history navigation, inspector position reset, select sizing, and dark action contrast.
 These tests do not replace native capture tests.

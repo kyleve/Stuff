@@ -1,11 +1,11 @@
 interface ScrollPosition { left: number; top: number }
-export interface InspectorPosition {
+interface InspectorPosition {
     screenID: string;
     frame: ScrollPosition;
     device: ScrollPosition;
 }
 
-export function captureInspectorPosition(dialog: HTMLElement | null): InspectorPosition | null {
+function captureInspectorPosition(dialog: HTMLElement | null): InspectorPosition | null {
     const frame = dialog?.querySelector<HTMLElement>('.inspector-image');
     const device = dialog?.querySelector<HTMLElement>('.inspector-device');
     if (!dialog?.dataset.screenId || !frame || !device) return null;
@@ -16,15 +16,43 @@ export function captureInspectorPosition(dialog: HTMLElement | null): InspectorP
     };
 }
 
-/** Restore only this screen, after the replacement image establishes its scroll bounds. */
-export function restoreInspectorPosition(dialog: HTMLElement, position: InspectorPosition | null): void {
-    if (!position || position.screenID !== dialog.dataset.screenId) return;
-    const restore = () => {
-        if (!dialog.isConnected) return;
-        dialog.querySelector('.inspector-image')?.scrollTo(position.frame);
-        dialog.querySelector('.inspector-device')?.scrollTo(position.device);
-    };
-    const image = dialog.querySelector('img');
-    if (image && !image.complete) image.addEventListener('load', restore, { once: true });
-    else restore();
+/** Owns one inspector's pending position until its replacement image establishes scroll bounds. */
+export class InspectorPositionController {
+    private pendingPosition: InspectorPosition | null = null;
+    private loadEvents: AbortController | null = null;
+
+    capture(dialog: HTMLElement | null): void {
+        this.loadEvents?.abort();
+        this.loadEvents = null;
+        // An unloaded replacement is still at zero; retain the last measured position instead.
+        if (!dialog || this.pendingPosition?.screenID !== dialog.dataset.screenId) {
+            this.pendingPosition = captureInspectorPosition(dialog);
+        }
+    }
+
+    restore(dialog: HTMLElement): void {
+        this.loadEvents?.abort();
+        const position = this.pendingPosition;
+        if (!position || position.screenID !== dialog.dataset.screenId) {
+            this.reset();
+            return;
+        }
+        const events = new AbortController();
+        this.loadEvents = events;
+        const restore = () => {
+            if (events.signal.aborted || !dialog.isConnected) return;
+            dialog.querySelector('.inspector-image')?.scrollTo(position.frame);
+            dialog.querySelector('.inspector-device')?.scrollTo(position.device);
+            this.reset();
+        };
+        const image = dialog.querySelector('img');
+        if (image?.complete && image.naturalWidth > 0) restore();
+        else image?.addEventListener('load', restore, { once: true, signal: events.signal });
+    }
+
+    reset(): void {
+        this.loadEvents?.abort();
+        this.loadEvents = null;
+        this.pendingPosition = null;
+    }
 }

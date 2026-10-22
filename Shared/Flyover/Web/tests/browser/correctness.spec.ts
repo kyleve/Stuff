@@ -14,6 +14,48 @@ test('profile changes preserve the full-content reading position', async ({ page
     await expect.poll(() => capture.evaluate(node => node.scrollTop)).toBe(350);
 });
 
+for (const nextAction of ['profile', 'history', 'close', 'screen'] as const) {
+    const preservesPosition = nextAction === 'profile' || nextAction === 'history';
+    test(`pending reading position ${preservesPosition ? 'survives' : 'resets after'} ${nextAction} navigation`, async ({ page }) => {
+        const held = Promise.withResolvers<void>();
+        const requested = Promise.withResolvers<void>();
+        await page.route('**/images/0/default/phone-dark.png', async route => {
+            requested.resolve();
+            await held.promise;
+            await route.continue();
+        });
+        try {
+            await page.goto('./#screen=screen-1&variant=default&profile=phone-light');
+            const inspector = page.locator('.inspector');
+            const capture = inspector.locator('.inspector-device');
+            await expect.poll(() => capture.evaluate(node => node.scrollHeight)).toBeGreaterThan(1000);
+            await capture.evaluate(node => { node.scrollTop = 350; });
+            await inspector.getByLabel('Capture profile', { exact: true }).selectOption('phone-dark');
+            await requested.promise;
+            await expect(inspector.locator('img')).toHaveAttribute('src', /phone-dark/);
+            if (nextAction === 'profile') {
+                await inspector.getByLabel('Capture profile', { exact: true }).selectOption('phone-light');
+            } else if (nextAction === 'history') {
+                await page.goBack();
+            } else if (nextAction === 'close') {
+                await inspector.getByRole('button', { name: 'Close inspector', exact: true }).click();
+                await expect(inspector).toHaveCount(0);
+                await page.goBack();
+                held.resolve();
+            } else {
+                await inspector.getByRole('button', { name: 'Next screen', exact: true }).click();
+                await expect(inspector).toHaveAttribute('data-screen-id', 'screen-2');
+            }
+            await expect(inspector.locator('img')).toHaveAttribute('src', preservesPosition ? /phone-light/ : /phone-dark/);
+            await expect.poll(() => capture.evaluate(node => node.scrollHeight)).toBeGreaterThan(1000);
+            await expect.poll(() => capture.evaluate(node => node.scrollTop)).toBe(preservesPosition ? 350 : 0);
+        } finally {
+            held.resolve();
+            await page.unrouteAll({ behavior: 'wait' });
+        }
+    });
+}
+
 test('superseded modal frames cannot open detached dialogs', async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
