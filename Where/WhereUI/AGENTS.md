@@ -315,3 +315,7 @@ Never derive the folder from a localized label or rename a persisted theme ident
 - Require an explicit role choice for a new installation even when restored preferences say onboarding finished. Keep identity, consent, and pending handoffs in the backup-excluded installation sidecar.
 
 - Bind lost-phone recovery confirmation to the reviewed owner. Show the offline overlap and history choices before submitting (`RecordingDeviceRoleModel`).
+
+- Retain one bootstrap and compatibility coordinator across normal scope replacement. Construct the production coordinator only in `WhereLaunch`; isolated test fixtures may construct their own. Evaluate compatibility before onboarding data operations and service assembly (`where.compatibility_coordination_composition`).
+- Interrupt onboarding when compatibility blocks, including before scope creation. Run onboarding finish and demo preparation through the gate's `perform` API; cancel and drain before retiring the scope or re-driving launch (`where.onboarding_gate_lifetime`, `WhereCompatibilityLifecycleTests`). Preserve committed-import markers for the next gate's recovery.
+- Keep blocked recording-role recovery on the bootstrap. Allow cancellation of an owner's pending handoff even when approval is unavailable. Never create normal services to show update, retry, or replacement-device choices (`WhereCompatibilityLifecycleTests`, `RecordingDeviceRoleModelTests`).

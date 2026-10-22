@@ -58,6 +58,7 @@ public actor DataCompatibilityCoordinator {
 
     private func evaluate() async -> DataCompatibilityState {
         do {
+            await recording.waitUntilIdle()
             let authority = try await recording.refreshForUse()
             let required = try await store.requiredDataCompatibilityVersion()
             guard supportedVersion >= required else { return .updateRequired(required) }

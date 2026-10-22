@@ -3,6 +3,46 @@ import BumperBowlingTestSupport
 import Testing
 
 struct WhereProjectRulesTests {
+    @Test(arguments: ["Task", "Task<Void, Never>", "Task.detached", "Task.init"])
+    func onboardingWorkBelongsToTheGate(constructor: String) throws {
+        let path: RelativeFilePath = "Where/WhereUI/Sources/Onboarding/OnboardingFlowModel.swift"
+        let rejected = try evaluate(
+            path: path,
+            component: .whereUI,
+            source: "func finish() { \(constructor) { await model.resolveScope() } }",
+        )
+        #expect(rejected.violations.map(\.rule.id) == ["where.onboarding_gate_lifetime"])
+        let allowed = try evaluate(
+            path: path,
+            component: .whereUI,
+            source: "func finish() { gate.perform { try Task.checkCancellation(); await model.resolveScope() } }",
+        )
+        #expect(allowed.violations.isEmpty)
+    }
+
+    @Test func compatibilityCoordinatorIsComposedAtBootstrap() throws {
+        let source = "func make() { _ = DataCompatibilityCoordinator(store: store, recording: recording, installation: installation) }"
+        let allowed = try evaluate(
+            path: "Where/WhereUI/Sources/Launch/WhereLaunch.swift",
+            component: .whereUI,
+            source: source,
+        )
+        let rejected = try evaluate(
+            path: "Where/WhereUI/Sources/Model/Other.swift",
+            component: .whereUI,
+            source: source,
+        )
+        let fixture = try evaluate(
+            path: "Where/WhereUI/Tests/Support/CompatibilityBootstrap.swift",
+            component: .loggingTests,
+            source: source,
+        )
+        #expect(allowed.violations.isEmpty)
+        #expect(fixture.violations.isEmpty)
+        #expect(rejected.violations
+            .contains { $0.rule.id == "where.compatibility_coordination_composition" })
+    }
+
     @Test
     func `recording coordination is composed once at bootstrap`() throws {
         let allowed = try evaluate(

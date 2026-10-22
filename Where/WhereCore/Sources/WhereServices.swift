@@ -34,6 +34,7 @@ private struct DerivedDataReconciler {
 /// authority, then discard pending fixes) — it lives here so teardown stays in
 /// Core rather than leaking into the UI layer.
 public struct WhereServices: Sendable {
+    private let locationLifetime: CompatibilityLocationSource
     /// Pure reads: `YearReport` + location projections.
     public let reports: ReportReader
     /// Lazy, read-only expansion of non-primary history for Elsewhere browsing.
@@ -133,6 +134,8 @@ public struct WhereServices: Sendable {
             NoopBackupImportRecoveryPersistence(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
+        let locationSource = CompatibilityLocationSource(base: locationSource, store: store)
+        locationLifetime = locationSource
         let currentDevice = installationContext.currentDevice
         let recordingAuthority = recordingAuthority ?? RecordingAuthority
             .ownedForTesting(by: currentDevice.id)
@@ -410,6 +413,14 @@ public struct WhereServices: Sendable {
         try await store.performInCurrentGeneration {
             try await store.setPrimaryRegions(regions)
         }
+    }
+
+    /// Permanently retire a normal world without changing consent or discarding its queued fixes.
+    public func suspendForCompatibility() async {
+        async let locationStopped: Void = locationLifetime.retire()
+        await recording.retireForCompatibility()
+        await resolution.invalidate()
+        await locationStopped
     }
 
     /// Return the services to a clean slate for the app's "erase all data & reset" teardown:
