@@ -393,7 +393,7 @@ extension WhereStylesheet {
             var paper = Color(white: 0.94)
             var usesOpaquePaper = false
             var glassTintOpacity: Double = 0.06
-            var outlineOpacity: Double = 0.22
+            var outlineColor = Color.black.opacity(0.14)
             var outlineWidth: CGFloat = 1
             var shadowOpacity: Double = 0.06
             var shadowRadius: CGFloat = 8

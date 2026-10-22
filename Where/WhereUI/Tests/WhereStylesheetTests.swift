@@ -523,7 +523,7 @@ struct WhereStylesheetTests {
         #expect(forecast.summary.ink == Color(white: 0.36))
         #expect(forecast.summary.paper == Color(white: 0.94))
         #expect(forecast.summary.glassTintOpacity == 0.06)
-        #expect(forecast.summary.outlineOpacity == 0.22)
+        #expect(forecast.summary.outlineColor == Color.black.opacity(0.14))
         #expect(forecast.summary.outlineWidth == 1)
         #expect(forecast.summary.shadowOpacity == 0.06)
         #expect(forecast.summary.shadowRadius == 8)

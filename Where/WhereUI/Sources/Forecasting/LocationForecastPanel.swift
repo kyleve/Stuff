@@ -185,6 +185,7 @@ struct LocationForecastPanel: View {
             reduceTransparency: Bool = false,
         ) -> SnapshotCase {
             let cache = RegionOutlinePathCache()
+            let artwork = RegionArtworkModel<[Region], [Path]>()
             let report = PreviewSupport.plannedStayYearReportModel()
             let regions = report.ranking.primary.map(\.region)
             return whereThemeSnapshot(
@@ -192,8 +193,12 @@ struct LocationForecastPanel: View {
                 configurations: reduceTransparency ? .componentLightDark : .componentDefaults,
                 measurementReadiness: .immediate,
                 onReadyToSnapshot: {
-                    for region in regions {
-                        _ = await cache.path(for: region, resolution: .micro)
+                    await artwork.load(for: regions) {
+                        var paths: [Path] = []
+                        for region in regions {
+                            await paths.append(cache.path(for: region, resolution: .micro))
+                        }
+                        return paths
                     }
                 },
             ) {
@@ -206,6 +211,7 @@ struct LocationForecastPanel: View {
                     isCollapsible: collapsible,
                 )
                 panel._isExpanded = State(initialValue: expanded)
+                panel._artworkModel = State(initialValue: artwork)
                 return panel
                     .environment(\.regionOutlinePathCache, cache)
                     .bTraitOverrides { traits, overrides in

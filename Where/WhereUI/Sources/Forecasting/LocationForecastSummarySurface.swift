@@ -48,7 +48,7 @@ struct LocationForecastSummarySurface: View {
         .overlay {
             if style.treatment.usesReflection {
                 shape.strokeBorder(
-                    style.ink.opacity(style.outlineOpacity),
+                    style.outlineColor,
                     lineWidth: style.outlineWidth,
                 )
             }
