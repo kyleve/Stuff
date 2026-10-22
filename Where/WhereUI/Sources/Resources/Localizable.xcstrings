@@ -5123,7 +5123,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Your location stays on your device and in your own iCloud. Turn on background location to start your passport."
+            "value" : "Your history stays on your devices and in your private iCloud account. You choose whether this device records automatically."
           }
         }
       }
@@ -5136,7 +5136,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Private by design"
+            "value" : "Your history, your control"
           }
         }
       }
@@ -5229,6 +5229,17 @@
         }
       }
     },
+    "onboarding.regions.heading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your regions"
+          }
+        }
+      }
+    },
     "onboarding.regions.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5283,6 +5294,17 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Restoring…"
+          }
+        }
+      }
+    },
+    "onboarding.sampleHistory" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sample history · Your story starts here"
           }
         }
       }

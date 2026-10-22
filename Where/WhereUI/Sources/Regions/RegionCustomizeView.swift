@@ -12,6 +12,7 @@ import WhereCore
 struct RegionAppearanceEditor: View {
     @Bindable var model: PrimaryRegionSelectionModel
     let region: Region
+    var presentation: RegionSetupPresentation = .settings
 
     /// Matches the Locations card's live sheen response while this editor is
     /// visible; the card uses its static pose until the first sample arrives.
@@ -39,6 +40,9 @@ struct RegionAppearanceEditor: View {
                 }
             }
             .padding(stylesheet.spacing.large)
+            .frame(maxWidth: presentation == .onboarding ? stylesheet.onboarding
+                .maxWidth : .infinity)
+            .frame(maxWidth: .infinity)
         }
         .observesTilt(tilt, enabled: stylesheet.card.regular.surface.usesReflection)
     }
@@ -62,6 +66,13 @@ struct RegionAppearanceEditor: View {
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(presentation == .onboarding ? stylesheet.onboarding.padding : 0)
+        .background {
+            if presentation == .onboarding {
+                RoundedRectangle(cornerRadius: stylesheet.onboarding.cornerRadius)
+                    .fill(Color(uiColor: .secondarySystemGroupedBackground))
+            }
+        }
     }
 
     private var style: WhereStylesheet.RegionPickerStyle {
@@ -119,7 +130,7 @@ struct RegionAppearanceEditor: View {
                     model.setEmoji(emoji, for: region)
                 } label: {
                     Text(emoji)
-                        .font(.title2)
+                        .font(.system(size: style.emojiFontSize))
                         .frame(width: style.glyphTileSize, height: style.glyphTileSize)
                         .background(selectionBackground(isSelected))
                 }
@@ -137,7 +148,7 @@ struct RegionAppearanceEditor: View {
                     model.setSymbol(symbol, for: region)
                 } label: {
                     Image(systemSymbol: symbol.sfSymbol)
-                        .font(.title3)
+                        .font(.system(size: style.symbolFontSize))
                         .foregroundStyle(appearance.color.color)
                         .frame(width: style.glyphTileSize, height: style.glyphTileSize)
                         .background(selectionBackground(isSelected))
@@ -174,6 +185,7 @@ struct RegionCustomizeView: View {
     @Bindable var model: PrimaryRegionSelectionModel
     var onBack: () -> Void = {}
     var onFinish: () -> Void = {}
+    var presentation: RegionSetupPresentation = .settings
 
     @State private var index = 0
 
@@ -186,7 +198,10 @@ struct RegionCustomizeView: View {
     var body: some View {
         Group {
             if let region = currentRegion {
-                RegionAppearanceEditor(model: model, region: region)
+                RegionAppearanceEditor(model: model, region: region, presentation: presentation)
+                    .background {
+                        if presentation == .onboarding { OnboardingBackground(regions: [region]) }
+                    }
                     .id(region)
                     .transition(.opacity)
             } else {

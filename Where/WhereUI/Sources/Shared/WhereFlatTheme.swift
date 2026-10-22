@@ -77,6 +77,7 @@ enum WhereFlatTheme {
             pressedTintOpacity: 0,
         ))
         overrides.forecast.surfaceWashOpacity = 0
+        overrides.onboarding.usesOpaqueSurfaces = true
         return overrides
     }
 }

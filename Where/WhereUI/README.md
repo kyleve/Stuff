@@ -241,11 +241,16 @@ journal intent.
   Welcome cards must be enabled, and the device must confidently resolve a
   tracked region with recording active.
 
+- **Onboarding presentation** uses `WhereStylesheet.onboarding` for shared headings,
+  actions, and passport backgrounds. Read-only region cards and a year ribbon show
+  labeled sample history. The privacy passport uses process-effective diagnostics.
+  Artwork uses the root-injected region cache; illustrations do not open a store.
+  The picker and customization editor retain their Settings presentation.
 - **`OnboardingView` / `OnboardingFlowModel`** — the rendered first-run flow and its view-scoped
   observable coordinator, registered for the launch's
   `OnboardingGate` and handed its `LifecycleGateHandle`. The gate follows the
   side-effect-free demo preflight and precedes every world-building step, so
-  there is no session behind it: a paged intro,
+  there is no session behind it: a paged intro and theme selection,
   then picking up to five primary US regions (map or searchable list) and
   giving each a look, then verifying this installation's automatic-recording
   choice. The final page opens the real store in a dormant state to inspect recent synced advisory

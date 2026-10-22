@@ -17,39 +17,25 @@ struct OnboardingThemeSelectionView: View {
                 VStack(spacing: stylesheet.spacing.xxxLarge) {
                     Spacer(minLength: 0)
 
-                    Image(systemSymbol: .square3Layers3d)
-                        .font(stylesheet.typography.onboardingIcon)
-                        .foregroundStyle(Color.accentColor)
-                        .accessibilityHidden(true)
-
-                    VStack(spacing: stylesheet.spacing.large) {
-                        Text(.onboardingThemeTitle)
-                            .font(.largeTitle.bold())
-                            .multilineTextAlignment(.center)
-                        Text(.onboardingThemeDescription)
-                            .font(.body)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
+                    OnboardingHeader(
+                        title: String(localized: .onboardingThemeTitle),
+                        detail: String(localized: .onboardingThemeDescription),
+                    )
 
                     WhereThemePicker(selection: selection, onSelect: onSelect)
 
-                    Button(action: onContinue) {
-                        Text(.onboardingContinue)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+                    OnboardingAction(title: .onboardingContinue, action: onContinue)
 
                     Spacer(minLength: 0)
                 }
                 .padding(.horizontal, stylesheet.spacing.xxxLarge)
                 .padding(.vertical, stylesheet.spacing.xxxLarge)
-                .frame(maxWidth: 720, minHeight: geometry.size.height)
+                .frame(maxWidth: stylesheet.onboarding.maxWidth, minHeight: geometry.size.height)
                 .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.hidden)
             .scrollBounceBehavior(.basedOnSize)
+            .scrollEdgeEffectHidden()
         }
     }
 }
@@ -61,15 +47,7 @@ struct OnboardingThemeSelectionView: View {
 
         var body: some View {
             ZStack {
-                LinearGradient(
-                    colors: [
-                        stylesheet.palette.onboarding.backgroundTop,
-                        stylesheet.palette.onboarding.backgroundBottom,
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom,
-                )
-                .ignoresSafeArea()
+                OnboardingBackground()
 
                 OnboardingThemeSelectionView(
                     selection: selection,
@@ -82,32 +60,20 @@ struct OnboardingThemeSelectionView: View {
 
     extension OnboardingThemeSelectionView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            let cache = RegionOutlinePathCache()
             let configurations = [SnapshotConfiguration].fullContentScreenDefaults + [
                 SnapshotConfiguration(layoutDirection: .rightToLeft, device: .iPhoneFullContent),
                 SnapshotConfiguration(layoutDirection: .rightToLeft, device: .iPadFullContent),
             ]
             return [
-                whereSnapshot(
-                    name: "Standard",
-                    configurations: configurations,
-                    onReadyToSnapshot: {
-                        await PreviewSupport.loadCardArtwork(for: [.california], cache: cache)
-                    },
-                ) {
+                onboardingSnapshot(name: "Standard", configurations: configurations) {
                     OnboardingThemeSelectionSnapshotRoot(selection: .standard)
-                        .environment(\.regionOutlinePathCache, cache)
                 },
-                whereSnapshot(
+                onboardingSnapshot(
                     name: "Alternate",
                     configurations: .fullContentPhoneLightDark,
                     theme: .alternate,
-                    onReadyToSnapshot: {
-                        await PreviewSupport.loadCardArtwork(for: [.california], cache: cache)
-                    },
                 ) {
                     OnboardingThemeSelectionSnapshotRoot(selection: .alternate)
-                        .environment(\.regionOutlinePathCache, cache)
                 },
             ]
         }

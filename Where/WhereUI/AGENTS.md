@@ -261,6 +261,10 @@ worked examples.
 - Establish the first successful live-region baseline without a welcome, including after backup import.
   Preserve explicit DEBUG reset requests and commit no history from cancelled or superseded lookups. Guard: `LocationWelcomeModelTests`.
 
+Keep onboarding examples read-only and labeled as sample history. Reuse production
+renderers without constructing a scope. Privacy disclosures use process-effective
+diagnostics. Guard: `OnboardingIntroPageSnapshotTests`.
+
 ## Feature discovery
 
 Keep gallery rows and Forms behind small named views inside focus and reveal scopes. Guard: `FeatureGuidePageTests` and the gallery view-size tests.

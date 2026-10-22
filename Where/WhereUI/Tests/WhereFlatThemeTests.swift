@@ -59,6 +59,8 @@ struct WhereFlatThemeTests {
         let flatContext = BContext(traits: traits, themes: WhereThemes.current(theme: .alternate))
         let base = try standardContext.stylesheets.get(WhereStylesheet.self)
         let flat = try flatContext.stylesheets.get(WhereStylesheet.self)
+        #expect(flat.onboarding.usesOpaqueSurfaces)
+        #expect(flat.onboarding.showsArtwork == base.onboarding.showsArtwork)
         #expect(flat.locationForecast.header.layout == base.locationForecast.header.layout)
         #expect(flat.locationWelcome.motion == base.locationWelcome.motion)
         #expect(flat.locationsBackground == base.locationsBackground)

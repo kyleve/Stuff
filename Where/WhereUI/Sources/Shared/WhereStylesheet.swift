@@ -33,6 +33,7 @@ struct WhereStylesheet: BStylesheet {
     var motion = Motion.standard
     var launch = LaunchStyle.standard
     var typography = Typography.standard
+    var onboarding = OnboardingStyle()
     var themePicker = ThemePickerStyle()
     var yearModePicker = YearModePickerStyle()
     var settings = SettingsStyle.standard
@@ -60,6 +61,7 @@ struct WhereStylesheet: BStylesheet {
 
         // Grow day-grid tap targets at accessibility Dynamic Type sizes.
         if traits.contentSizeCategory.isAccessibilitySize {
+            onboarding.contentSpacing = 20
             locationWelcome.accessory.copy = .compact
             locationForecast.header.layout = .stacked
             locationForecast.row.layout = .stacked
@@ -94,6 +96,8 @@ struct WhereStylesheet: BStylesheet {
         // Reduce Transparency flattens the cards: drop the decorative rim-glow
         // layer (the translucent halo) on both card variants.
         if traits.accessibility.isReduceTransparencyEnabled {
+            onboarding.usesOpaqueSurfaces = true
+            onboarding.showsArtwork = false
             locationsBackground.showsInk = false
             card.regular.glow.radius = 0
             card.compact.glow.radius = 0
@@ -1673,6 +1677,9 @@ extension WhereStylesheet {
     /// ``Spacing``. The camera is stored as raw degrees so the stylesheet stays
     /// MapKit-free; the view assembles the `MKCoordinateRegion`.
     struct RegionPickerStyle: Equatable {
+        // Picker artwork stays inside fixed, tappable tiles at every text size.
+        var emojiFontSize: CGFloat = 22
+        var symbolFontSize: CGFloat = 20
         /// Corner radius of the map's rounded container.
         var mapCornerRadius: CGFloat
         /// Polygon fill opacity for a selected vs unselected state.
@@ -2698,5 +2705,32 @@ extension WhereStylesheet {
     struct ThemePickerStyle: Equatable {
         var layout = ContentLayout.inline
         var spacing: CGFloat = 12
+    }
+}
+
+extension WhereStylesheet {
+    /// Shared first-run framing; illustrations reuse the production card renderers.
+    struct OnboardingStyle: Equatable {
+        var pageIndicatorClearance: CGFloat = 44
+        var maxWidth: CGFloat = 720
+        var padding: CGFloat = 24
+        var contentSpacing: CGFloat = 28
+        var cornerRadius: CGFloat = 28
+        var usesOpaqueSurfaces = false
+        var showsArtwork = true
+        var rosette = CardStyle.Rosette(
+            wobble: 5,
+            lineWidth: 0.5,
+            primaryRingSpacing: 22,
+            secondaryRingSpacing: 31,
+        )
+        var rosetteOpacity: Double = 0.045
+        var outline = CardStyle.RegionShape.Artwork(
+            center: CGPoint(x: 0.8, y: 0.3),
+            extent: CGSize(width: 0.85, height: 0.7),
+            scale: 1,
+            fillOpacity: 0,
+            stroke: .init(opacity: 0.06, width: 1),
+        )
     }
 }
