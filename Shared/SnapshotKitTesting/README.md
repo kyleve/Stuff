@@ -246,6 +246,9 @@ anything here: it is what showed that `drainInFlightAnimations` was burning a
 flat second on every image, and that the settle *floor* rather than its render
 passes is what the remaining time buys.
 
+Synchronous autorelease pools bound settle samples, tile rendering, capture normalization, and reference comparison.
+The capture pool returns only the normalized image and PNG bytes. Pools never span an `await`.
+
 `SNAPSHOT_SETTLE` selects the stability mechanism (`pixel`, `quiescence`,
 `both`). see [`AGENTS.md`](AGENTS.md) for why `pixel` is the only safe default.
 

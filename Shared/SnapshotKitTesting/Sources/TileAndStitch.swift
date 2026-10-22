@@ -75,10 +75,13 @@ func tileAndStitchImage(
             contentView.frame.origin = CGPoint(x: -tileRect.minX, y: -tileRect.minY)
             CATransaction.performWithoutAnimation(frameView.layoutIfNeeded)
 
-            let tile = UIGraphicsImageRenderer(bounds: frameView.bounds, format: rendererFormat)
-                .image { _ in
-                    frameView.drawHierarchy(in: frameView.bounds, afterScreenUpdates: true)
-                }
+            // Keep the tile, but drain each renderer's temporary objects before the next tile.
+            let tile = autoreleasepool {
+                UIGraphicsImageRenderer(bounds: frameView.bounds, format: rendererFormat)
+                    .image { _ in
+                        frameView.drawHierarchy(in: frameView.bounds, afterScreenUpdates: true)
+                    }
+            }
             row.append(tile)
             tileRect.origin.x += tileDimension
         }
@@ -89,9 +92,8 @@ func tileAndStitchImage(
     }
 
     // A single tile *is* the capture, so stitching it would redraw the whole
-    // image through a second full-size renderer to produce a copy. Every
-    // reference in this repo is single-tile, so that second pass was the common
-    // case rather than the exception.
+    // image through a second full-size renderer to produce a copy. Skip that
+    // extra allocation for captures that fit within one tile.
     let stitched = if let onlyTile = rows.first?.first, rows.count == 1, rows[0].count == 1 {
         onlyTile
     } else {

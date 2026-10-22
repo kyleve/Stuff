@@ -415,19 +415,21 @@ private func renderSnapshotImageLocked(
         viewController.view.hideTextInputCursors()
         timing.measure(.drain) { drainInFlightAnimations() }
 
-        let image = timing.measure(.tileStitch) {
-            tileAndStitchImage(of: wrappingViewController, timing: timing)
-        }
-        // Round-trip through PNG bytes (preserving scale, which `UIImage(data:)`
-        // alone would reset to 1) so the compare and the disk artifact are the
-        // same bytes — see the doc comment above.
-        return try timing.measure(.pngRoundTrip) {
-            guard let pngData = image.pngData(),
-                  let decoded = UIImage(data: pngData, scale: image.scale)
-            else {
-                throw SnapshotRenderingError.pngEncodingFailed(name: name)
+        // Drain rendering intermediates before returning to the async caller.
+        // Only the normalized image and PNG bytes escape this synchronous pool.
+        return try autoreleasepool {
+            let image = timing.measure(.tileStitch) {
+                tileAndStitchImage(of: wrappingViewController, timing: timing)
             }
-            return SnapshotCapture(image: decoded, pngData: pngData)
+            // Preserve scale so comparison sees the same pixels as the disk artifact.
+            return try timing.measure(.pngRoundTrip) {
+                guard let pngData = image.pngData(),
+                      let decoded = UIImage(data: pngData, scale: image.scale)
+                else {
+                    throw SnapshotRenderingError.pngEncodingFailed(name: name)
+                }
+                return SnapshotCapture(image: decoded, pngData: pngData)
+            }
         }
     }
 
