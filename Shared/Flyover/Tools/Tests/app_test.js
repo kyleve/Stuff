@@ -3,7 +3,7 @@ import { readSelection, selectionHash } from '../../Web/src/scripts/navigation.t
 import { selectResidentImages } from '../../Web/src/scripts/image-residency.ts';
 import { updateCaptureScroller as configureCaptureScroller } from '../../Web/src/scripts/capture-scroller.ts';
 import { FrameScope } from '../../Web/src/scripts/frame-scope.ts';
-import { captureInspectorPosition, restoreInspectorPosition } from '../../Web/src/scripts/inspector-position.ts';
+import { InspectorPositionController } from '../../Web/src/scripts/inspector-position.ts';
 const print = console.log;
 const readFile = path => readFileSync(path, 'utf8');
 // Execute the application's private navigation code with browser-boundary doubles.

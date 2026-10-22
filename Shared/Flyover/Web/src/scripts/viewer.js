@@ -2,7 +2,7 @@ import { readSelection, selectionHash } from "./navigation";
 import { selectResidentImages } from "./image-residency";
 import { updateCaptureScroller as configureCaptureScroller } from "./capture-scroller";
 import { FrameScope } from "./frame-scope";
-import { captureInspectorPosition, restoreInspectorPosition } from "./inspector-position";
+import { InspectorPositionController } from "./inspector-position";
 
 export function startAtlas(manifest) {
     "use strict";
@@ -29,6 +29,7 @@ export function startAtlas(manifest) {
     const maximumZoom = 1.5;
     let inspectorResizeObserver = null;
     const renderFrames = new FrameScope(window);
+    const inspectorPosition = new InspectorPositionController();
     const selectedVariants = new Map(manifest.screens.map(screen => [screen.id, screen.variants[0]?.id]));
     const state = {
         view: defaultView,
@@ -1781,7 +1782,7 @@ export function startAtlas(manifest) {
     }
 
     function render() {
-        const inspectorPosition = captureInspectorPosition(document.getElementById("inspector"));
+        inspectorPosition.capture(document.getElementById("inspector"));
         renderFrames.cancel();
         if (!state.pendingCanvasPosition) captureViewPosition();
         if (canvasNavigationFrame !== null) {
@@ -1814,9 +1815,10 @@ export function startAtlas(manifest) {
                 updateInspectorDetailsAccessibility();
                 fitInspectorImage();
                 observeInspectorSize();
-                restoreInspectorPosition(inspection, inspectorPosition);
+                inspectorPosition.restore(inspection);
             });
         } else {
+            inspectorPosition.reset();
             const panel = activePanel();
             if (panel) {
                 root.append(panel);
