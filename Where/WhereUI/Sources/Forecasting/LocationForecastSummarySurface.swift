@@ -45,6 +45,14 @@ struct LocationForecastSummarySurface: View {
         }
         .clipShape(shape)
         .matteSurface(style.treatment, tint: style.ink, in: shape)
+        .overlay {
+            if style.treatment.usesReflection {
+                shape.strokeBorder(
+                    style.ink.opacity(style.outlineOpacity),
+                    lineWidth: style.outlineWidth,
+                )
+            }
+        }
         .shadow(
             color: .black.opacity(style.shadowOpacity),
             radius: style.shadowRadius,
