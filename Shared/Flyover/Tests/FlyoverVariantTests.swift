@@ -121,7 +121,10 @@ struct FlyoverVariantTests {
         var captures = 0
         let snapshotCase = SnapshotCase.cutsheet(
             name: "Panels",
-            configurations: [SnapshotConfiguration(device: .fullContent(name: "scroll", width: 100))],
+            configurations: [SnapshotConfiguration(device: .fullContent(
+                name: "scroll",
+                width: 100,
+            ))],
             measurementReadiness: .immediate,
             onReadyToMeasure: { measurements += 1 },
             settle: .immediate,
@@ -130,7 +133,10 @@ struct FlyoverVariantTests {
             SnapshotPanel(id: .init(rawValue: "first"), label: "First") { Color.red }
             SnapshotPanel(id: .init(rawValue: "second"), label: "Second") { Color.blue }
         }
-        let variants = FlyoverVariant.snapshots(id: FlyoverVariantID("panels"), snapshotCase: snapshotCase)
+        let variants = FlyoverVariant.snapshots(
+            id: FlyoverVariantID("panels"),
+            snapshotCase: snapshotCase,
+        )
         #expect(variants.count == 2)
         for variant in variants {
             let policy = try #require(variant.exportPolicy)

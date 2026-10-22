@@ -163,7 +163,10 @@
             let screen = FlyoverScreen(
                 id: FlyoverTestScreen.root,
                 title: "Root",
-                variants: FlyoverVariant.snapshots(id: FlyoverVariantID("mixed"), snapshotCase: mixed),
+                variants: FlyoverVariant.snapshots(
+                    id: FlyoverVariantID("mixed"),
+                    snapshotCase: mixed,
+                ),
             )
             let catalog = FlyoverCatalog(groups: [
                 FlyoverGroup(
