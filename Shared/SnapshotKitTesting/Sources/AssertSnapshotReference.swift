@@ -91,5 +91,4 @@ func assertSnapshotReference(
             }
         }
     }
-    SnapshotMemoryReporting.report(reference: reference)
 }

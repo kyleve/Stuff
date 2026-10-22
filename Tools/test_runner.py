@@ -137,7 +137,7 @@ class ProgressReporter:
     TEST_STARTED = re.compile(r"^◇\s+Test (?!run\b)(\S+?) started")
     TEST_DONE = re.compile(r"^[✔✘]\s+Test (?!run\b)(\S+?) (passed|failed) after")
     INTERESTING = re.compile(
-        r"does not match reference|^error:|^SNAPSHOT_MEMORY_ERROR|Failure collecting|^SNAPSHOT_RETRY |"
+        r"does not match reference|^error:|Failure collecting|^SNAPSHOT_RETRY |"
         r"\*\* TEST (SUCCEEDED|FAILED) \*\*"
     )
 
@@ -178,7 +178,6 @@ class ProgressReporter:
         self.failures = 0
         self.suite = ""
         self.current = ""
-        self.memory_status = ""
         self.last_emit = 0.0
 
     def run(self, lines: Iterable[str]) -> None:
@@ -192,14 +191,6 @@ class ProgressReporter:
         self.finish()
 
     def consume(self, line: str) -> None:
-        if line == "◇ Test run started.":
-            self.memory_status = ""
-        if line.startswith("SNAPSHOT_MEMORY "):
-            self.memory_status = self._memory_status(line.removeprefix("SNAPSHOT_MEMORY "))
-            self.emit()
-            return
-        if line.startswith("SNAPSHOT_MEMORY_ERROR"):
-            self.memory_status = "host memory unavailable"
         if self.count_images and line.startswith("SNAPSHOT_TIMING "):
             self.images += 1
             self.emit()
@@ -257,27 +248,8 @@ class ProgressReporter:
             parts.append(self.suite)
         if self.current:
             parts.append(self.current)
-        if self.memory_status:
-            parts.append(self.memory_status)
         parts.append(f"{self.failures} failed" if self.failures else "ok")
         return " · ".join(parts)
-
-    @staticmethod
-    def _memory_status(payload: str) -> str:
-        try:
-            row = json.loads(payload)
-            memory = row["memory"]
-            process_id = row["processID"]
-            current = memory["footprintBytes"]
-            peak = memory["peakFootprintBytes"]
-            if any(type(value) is not int or value < 0 for value in (process_id, current, peak)):
-                return "host memory unavailable"
-            return (
-                f"host footprint {current / 2**20:.0f} MiB "
-                f"(peak {peak / 2**20:.0f}, PID {process_id})"
-            )
-        except (ValueError, KeyError, TypeError, AttributeError):
-            return "host memory unavailable"
 
     def emit(self, force: bool = False) -> None:
         now = self.clock()

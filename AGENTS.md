@@ -607,8 +607,6 @@ cannot exercise them. Record skipped checks in the commit or PR validation.
 Semantic changes to configuration, scripts, generator inputs, executable
 examples, or app-rendered copy are not documentation-only.
 
-`./test --snapshots --timings` reports capture durations and test-host memory. See [SnapshotKitTesting](Shared/SnapshotKitTesting/README.md#where-a-captures-time-goes) for metric scope and units.
-
 `./test PeriscopeMacrosTests` runs the host-side macro suite without selecting a simulator. `./test --all` and `./test --everything` include it. `./test --snapshots` alone does not.
 
 When another invocation owns the attribution, backup-upgrader, and macro tests, you can use `--skip-host-tests`.

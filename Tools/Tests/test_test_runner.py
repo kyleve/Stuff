@@ -140,37 +140,6 @@ class TestRunnerTests(unittest.TestCase):
             self.assertIn("0/34 tests", output.getvalue())
             self.assertNotIn("images", output.getvalue())
 
-    def test_memory_samples_do_not_count_as_captures_or_tests(self):
-        with tempfile.TemporaryDirectory() as directory:
-            output = io.StringIO()
-            reporter = ProgressReporter(
-                heartbeat=0, status_path=None, counts_path=Path(directory) / "counts.json",
-                scheme="Snapshots", is_terminal=False, count_images=True,
-                output=output, clock=Clock(),
-            )
-            # Two panel captures share one comparison, which reports memory separately.
-            reporter.consume('SNAPSHOT_TIMING {"id":"panel-a"}')
-            reporter.consume('SNAPSHOT_TIMING {"id":"panel-b"}')
-            for process_id, current, peak in [(123, 500, 900), (456, 50, 90)]:
-                reporter.consume("SNAPSHOT_MEMORY " + json.dumps({
-                    "reference": "file:///tmp/cutsheet.png", "processID": process_id,
-                    "memory": {"footprintBytes": current * 2**20, "peakFootprintBytes": peak * 2**20},
-                }))
-                self.assertIn(
-                    f"host footprint {current} MiB (peak {peak}, PID {process_id})",
-                    reporter.status(),
-                )
-                reporter.consume("◇ Test run started.")
-                self.assertNotIn("footprint", reporter.status())
-            reporter.consume('SNAPSHOT_MEMORY {"memory":{}}')
-            self.assertIn("host memory unavailable", reporter.status())
-            reporter.consume("SNAPSHOT_MEMORY_ERROR /tmp/cutsheet.png: read failed")
-            self.assertIn("read failed", output.getvalue())
-            reporter.consume("✔ Test cutsheet() passed after 0.001 seconds")
-            reporter.finish()
-            counts = json.loads((Path(directory) / "counts.json").read_text())
-            self.assertEqual({"tests": 1, "images": 2}, counts)
-
     def test_progress_ignores_schema_shifted_cached_count_fields(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

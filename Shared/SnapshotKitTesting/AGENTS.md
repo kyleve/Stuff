@@ -36,7 +36,6 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **The umbrella also links the upstream SnapshotTesting integration that this module replaces.**
 - **The compare sees on-disk bytes.** Every capture round-trips through PNG encoding before comparison.
 - **Keep autorelease pools synchronous.** Drain settle samples, tile-rendering intermediates, capture normalization, and comparison temporaries before the next async suspension.
-- **Memory telemetry measures the host process.** Report current RSS/footprint and kernel lifetime peaks with the PID. Never label a process peak as one image's allocation or the worker's total. Report after the complete reference comparison through a separate channel that does not count captures. Guards: `SnapshotProcessMemoryTests`, `SnapshotMemoryReportingTests`, and `Tools/Tests/test_test_runner.py`.
 - **Removing PNG encoding re-opens the wide-gamut vs. sRGB flake.** See `renderSnapshotImage`'s doc.
 - **`CILabDeltaE` is not perceptually uniform.** The ΔE tolerance is loose by design.
 - **The verdict's metric is far steeper near black than the CIE76 it approximates.**
@@ -52,7 +51,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **The genuine glyph-shift regression in `inspectorSurfaces.SwiftData_iPhone_dark` still fails at 0.178%.** Differing pixels massed at ΔE 62.
 - **0.95 (ΔE 5) was rejected.** It passes, but leaves 7,120 noise pixels at 66% of the budget.
 - **Only the pipeline prints a report channel.** A test asks for the payload.
-- **`./test` recovers `SNAPSHOT_TIMING`, `SNAPSHOT_MEMORY`, and `SNAPSHOT_DIFF` by grepping run logs.** By hand, it also recovers `SNAPSHOT_SETTLE`.
+- **`./test` recovers `SNAPSHOT_TIMING` and `SNAPSHOT_DIFF` by grepping run logs.** By hand, it also recovers `SNAPSHOT_SETTLE`.
 - **It counts timing lines as captured images for the progress line.**
 - **Anything that prints one is a row in a report and an image in the count.** Nothing marks it synthetic.
 - **Split each channel for that reason.** `report(...)` / `emit()` print. `line(...)` only returns the JSON.
