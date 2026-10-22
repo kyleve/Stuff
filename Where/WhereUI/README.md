@@ -519,6 +519,7 @@ The Estimated Time settings page also opens the planner.
 
 On Locations, the collapsible estimate uses soft glass with faint security print and a translucent black outer stroke.
 Flat appearance and Reduce Transparency use opaque paper. Calendar, Timeline, and discovery panels retain their passport-visa appearance.
+The estimate's outline sits outside the card in both Standard and Flat, blending with the surrounding background.
 A neutral microprint border repeats the two main location-card silhouettes. Solid and hatched treatments distinguish
 recorded totals from projected totals. The range band shows uncertainty at its outer edge.
 

@@ -47,7 +47,7 @@ struct LocationForecastSummarySurface: View {
         .matteSurface(style.treatment, tint: style.ink, in: shape)
         .overlay {
             if style.treatment.usesReflection {
-                shape.strokeBorder(
+                shape.inset(by: -style.outlineWidth).strokeBorder(
                     style.outlineColor,
                     lineWidth: style.outlineWidth,
                 )
