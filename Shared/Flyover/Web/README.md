@@ -44,6 +44,7 @@ The root `flyover` command owns capture orchestration, staging, rollback, and pu
 `navigation.ts`, `geometry.ts`, `image-residency.ts`, and `capture-scroller.ts` contain separately tested interaction policies.
 `inspector-position.ts` retains pending scroll restoration across overlapping image loads. Each viewer owns one controller and clears it on screen changes or dismissal.
 The application retains cards during selection and overlay changes. Only view switches replace the active atlas view.
+Group navigation updates the retained canvas and dock labels, including selections from Search and Filters.
 State and profile changes update existing previews. Inspector selection changes replace only the overlay and preserve reading position.
 The cleanup function returned by `startAtlas` removes global listeners, scheduled work, observers, and mounted DOM.
 `src/styles/styles.css` retains the viewer's responsive styles.
@@ -57,5 +58,6 @@ PNG capture, thumbnail generation, and geometry remain native responsibilities.
 Playwright loads the production Astro build with synthetic PNG captures under a nested HTTP path.
 The suite covers Chromium and WebKit at desktop, portrait, and landscape widths.
 It checks modal frame cancellation, overlapping profile and history navigation, inspector position reset, select sizing, dark action contrast, and visible-image loading.
+Group navigation tests cover Groups, Search, and Filters without replacing the canvas.
 Unit tests import production modules directly. They do not evaluate extracted source strings or emulate browser history.
 These tests do not replace native capture tests.

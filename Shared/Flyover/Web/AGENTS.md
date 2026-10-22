@@ -8,7 +8,7 @@ Read the [project guide](README.md), [Flyover rules](../AGENTS.md), and [reposit
 - Keep images unchanged. Astro must not optimize or resize native captures.
 - Preserve visible-image residency, URL restoration, keyboard scrolling, and modal focus behavior during module extraction.
 - Type-check every client module and TypeScript test. Use explicit component dependencies and one application-owned session.
-- Retain atlas nodes during selection and overlay changes. Replace the active view only when its mode changes.
+- Retain atlas nodes during selection and overlay changes. Replace the active view only when its mode changes. Synchronize retained group labels after explicit navigation and viewport changes.
 - Test module exports directly. Use browser tests for DOM, history, layout, and accessibility behavior; do not extract source strings.
 - Cancel render-owned frames before replacing their DOM. Preserve pending inspector scroll position across same-screen selections until the replacement image loads. Clear it when inspection ends or changes screen.
 - Verify control dimensions and foreground/background contrast in browser tests, not only CSS source assertions.
