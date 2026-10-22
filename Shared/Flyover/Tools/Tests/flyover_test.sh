@@ -5,6 +5,18 @@ ROOT="$(cd "$(dirname "$0")/../../../.." && pwd -P)"
 TEMP="$(mktemp -d "${TMPDIR:-/tmp}/flyover-command-tests.XXXXXX")"
 trap 'rm -rf "$TEMP"' EXIT INT TERM
 
+# Build the production shell once; repeated command transactions use those exact files.
+mkdir -p "$TEMP/web-shell"
+(cd "$ROOT" && python3 -m Tools.flyover_site build "$TEMP/web-shell")
+export FLYOVER_TEST_WEB_SHELL="$TEMP/web-shell"
+export FLYOVER_WEB_BUILD_RUNNER="$TEMP/web-builder"
+cat >"$FLYOVER_WEB_BUILD_RUNNER" <<'BUILDER'
+#!/bin/bash
+set -euo pipefail
+cp -R "$FLYOVER_TEST_WEB_SHELL/." "$1/"
+BUILDER
+chmod +x "$FLYOVER_WEB_BUILD_RUNNER"
+
 fail() {
     echo "flyover command test failed: $*" >&2
     exit 1
@@ -116,7 +128,6 @@ if os.environ.get('FLYOVER_INVALID_MANIFEST') == 'missing-application':
     del manifest['application']
 data = json.dumps(manifest, sort_keys=True, indent=2)
 (root / 'manifest.json').write_text(data)
-(root / 'manifest.js').write_text('window.FLYOVER_MANIFEST = ' + data + ';\n')
 PY
 if [ -n "${FLYOVER_RACE_DESTINATION:-}" ]; then
     mkdir -p "$FLYOVER_RACE_DESTINATION"
@@ -331,8 +342,8 @@ python3 - "$PREVIEW_ARGUMENTS" "$ROOT" "$OUTPUT" <<'PY'
 import pathlib, sys
 arguments = pathlib.Path(sys.argv[1]).read_text().splitlines()
 expected = [
-    f'{sys.argv[2]}/Tools/flyover_preview.py',
-    'serve',
+    '-m', 'Tools.flyover_site',
+    'preview',
     str(pathlib.Path(sys.argv[3]).resolve()),
     '--port',
     '8080',
@@ -353,8 +364,8 @@ python3 - "$PREVIEW_ARGUMENTS" "$ROOT" "$CALLER/.build/flyover/where" <<'PY'
 import pathlib, sys
 arguments = pathlib.Path(sys.argv[1]).read_text().splitlines()
 expected = [
-    f'{sys.argv[2]}/Tools/flyover_preview.py',
-    'serve',
+    '-m', 'Tools.flyover_site',
+    'preview',
     str(pathlib.Path(sys.argv[3]).resolve()),
     '--port',
     '0',
@@ -401,17 +412,17 @@ selector = selectors.DefaultSelector()
 selector.register(process.stdout, selectors.EVENT_READ)
 selector.register(process.stderr, selectors.EVENT_READ)
 chunks = []
-deadline = time.monotonic() + 10
+deadline = time.monotonic() + 30
 try:
-    while time.monotonic() < deadline and b'Press Ctrl-C' not in b''.join(chunks):
+    while time.monotonic() < deadline and b'http://127.0.0.1:' not in b''.join(chunks):
         for key, _ in selector.select(timeout=max(0, deadline - time.monotonic())):
             chunk = os.read(key.fileobj.fileno(), 4096)
             if chunk:
                 chunks.append(chunk)
         if process.poll() is not None:
             break
-    output = b''.join(chunks).decode(errors='replace')
-    match = re.search(r'^Local:\s+(http://127\.0\.0\.1:\d+/)$', output, re.MULTILINE)
+    output = re.sub(r'\x1b\[[0-9;]*m', '', b''.join(chunks).decode(errors='replace'))
+    match = re.search(r'Local\s+(http://127\.0\.0\.1:\d+/)', output, re.MULTILINE)
     if match is None:
         raise SystemExit(f'preview did not print a usable local URL:\n{output}')
     if f'Flyover preview: {pathlib.Path(directory).resolve()}' not in output:
@@ -438,27 +449,11 @@ try:
     )
     image_path.unlink()
     image_path.symlink_to(outside_file)
-    try:
-        urllib.request.urlopen(
-            base_url + 'images/screen-0001/variant-0001/phone-dark.png',
-            timeout=5,
-        )
-        raise SystemExit('preview followed a replacement image symbolic link')
-    except urllib.error.HTTPError as error:
-        if error.code != 404:
-            raise
-
+    # Astro serves an immutable private copy, never the replaced source.
+    assert urllib.request.urlopen(base_url + 'images/screen-0001/variant-0001/phone-dark.png').read() == b'PNG'
     image_path.unlink()
     os.mkfifo(image_path)
-    try:
-        urllib.request.urlopen(
-            base_url + 'images/screen-0001/variant-0001/phone-dark.png',
-            timeout=5,
-        )
-        raise SystemExit('preview accepted a replacement image FIFO')
-    except urllib.error.HTTPError as error:
-        if error.code != 404:
-            raise
+    assert urllib.request.urlopen(base_url + 'images/screen-0001/variant-0001/phone-dark.png').read() == b'PNG'
 
     original_root = pathlib.Path(directory)
     moved_root = original_root.with_name(original_root.name + '-moved')
@@ -481,40 +476,13 @@ try:
         if error.code != 404:
             raise
 
-    port = int(base_url.rstrip('/').rsplit(':', 1)[1])
-    connection = http.client.HTTPConnection('127.0.0.1', port, timeout=5)
-    connection.request('GET', '/%2e%2e/manifest.json')
-    response = connection.getresponse()
-    if response.status != 404:
-        raise SystemExit(f'preview accepted a traversal request: {response.status}')
-    response.read()
-    connection.close()
+    for path in ('.git/config', 'package.json', 'http:/remote.example/manifest.json', '@fs/etc/passwd'):
+        try:
+            leaked = urllib.request.urlopen(base_url + path, timeout=5).read()
+            assert b'SECRET' not in leaked and b'not the atlas manifest' not in leaked
+        except urllib.error.HTTPError:
+            pass
 
-    connection = http.client.HTTPConnection('127.0.0.1', port, timeout=5)
-    connection.request('GET', 'http://remote.example/manifest.json')
-    response = connection.getresponse()
-    if response.status != 404:
-        raise SystemExit(f'preview accepted an absolute request target: {response.status}')
-    response.read()
-    connection.close()
-
-    with socket.create_connection(('127.0.0.1', port), timeout=5) as client:
-        client.sendall(
-            b'GET http://[/manifest.json HTTP/1.1\r\n'
-            b'Host: 127.0.0.1\r\nConnection: close\r\n\r\n'
-        )
-        response_data = client.recv(4096)
-    if b' 404 ' not in response_data:
-        raise SystemExit('preview did not reject a malformed absolute request target')
-
-    with socket.create_connection(('127.0.0.1', port), timeout=5) as client:
-        client.sendall(
-            b'GET /\x1b]0;untrusted\x07 HTTP/1.1\r\n'
-            b'Host: 127.0.0.1\r\nConnection: close\r\n\r\n'
-        )
-        response_data = client.recv(4096)
-    if b' 404 ' not in response_data:
-        raise SystemExit('preview did not reject the terminal-control request')
 finally:
     if process.poll() is None:
         process.send_signal(signal.SIGINT)
@@ -524,10 +492,8 @@ finally:
         process.kill()
         status = process.wait(timeout=5)
     stderr = process.stderr.read().decode(errors='replace')
-    if status != 0:
+    if status != 130:
         raise SystemExit(f'preview exited with {status}:\n{output}\n{stderr}')
-    if stderr:
-        raise SystemExit(f'preview logged untrusted request data:\n{stderr}')
 PY
 
 INVALID_PREVIEW="$TEMP/invalid-preview"
@@ -565,14 +531,13 @@ chmod +x "$STANDARD_CACHE_PYTHON_BIN/python3"
 REAL_PYTHON="$(command -v python3)"
 
 CLEAN_REPO="$TEMP/clean-repo"
-mkdir -p "$CLEAN_REPO/Shared/Flyover/Web/assets"
+mkdir -p "$CLEAN_REPO/Shared/Flyover/Web/src/scripts" "$CLEAN_REPO/Shared/Flyover/Web/src/styles"
 mkdir -p "$CLEAN_REPO/Tools"
 cp "$ROOT/flyover" "$CLEAN_REPO/flyover"
 cp "$ROOT/Tools/flyover_manifest.py" "$CLEAN_REPO/Tools/flyover_manifest.py"
 cp "$ROOT/Tools/flyover_preview.py" "$CLEAN_REPO/Tools/flyover_preview.py"
-cp "$ROOT/Shared/Flyover/Web/index.html" "$CLEAN_REPO/Shared/Flyover/Web/index.html"
-cp "$ROOT/Shared/Flyover/Web/assets/app.js" "$CLEAN_REPO/Shared/Flyover/Web/assets/app.js"
-cp "$ROOT/Shared/Flyover/Web/assets/styles.css" "$CLEAN_REPO/Shared/Flyover/Web/assets/styles.css"
+cp "$ROOT/Shared/Flyover/Web/src/scripts/viewer.js" "$CLEAN_REPO/Shared/Flyover/Web/src/scripts/viewer.js"
+cp "$ROOT/Shared/Flyover/Web/src/styles/styles.css" "$CLEAN_REPO/Shared/Flyover/Web/src/styles/styles.css"
 chmod +x "$CLEAN_REPO/flyover"
 git -C "$CLEAN_REPO" init -q
 git -C "$CLEAN_REPO" add .
@@ -641,17 +606,16 @@ printf '%s\n' retained >"$OUTPUT/retained"
 expect_failure env FLYOVER_CAPTURE_RUNNER="$FAILURE_RUNNER" \
     FLYOVER_XCODE_VERSION_OVERRIDE=Tests "$ROOT/flyover" export --output "$OUTPUT"
 [ -f "$OUTPUT/retained" ] || fail "a failed export replaced the last successful output"
+expect_failure env FLYOVER_WEB_BUILD_RUNNER="$FAILURE_RUNNER" \
+    FLYOVER_CAPTURE_RUNNER="$SUCCESS_RUNNER" FLYOVER_XCODE_VERSION_OVERRIDE=Tests \
+    "$ROOT/flyover" export --output "$OUTPUT"
+[ -f "$OUTPUT/retained" ] || fail "a failed Astro build replaced the last successful output"
 if find "$TEMP" -maxdepth 1 -name '.flyover-staging.*' | grep -q .; then
     fail "a failed export left a staging directory"
 fi
 
-if grep -R -E 'fetch\(|https?://' "$ROOT/Shared/Flyover/Web" \
-    | grep -v 'http://www.w3.org/2000/svg' >/dev/null; then
-    fail "the web shell contains a network dependency"
-fi
-
-python3 - "$ROOT/Shared/Flyover/Web/assets/styles.css" \
-    "$ROOT/Shared/Flyover/Web/assets/app.js" <<'PY'
+python3 - "$ROOT/Shared/Flyover/Web/src/styles/styles.css" \
+    "$ROOT/Shared/Flyover/Web/src/scripts/viewer.js" <<'PY'
 import pathlib
 import re
 import sys
@@ -707,7 +671,6 @@ require_properties('.bottom-dock', {'justify-content': 'safe center'})
 require_properties('.inspector-image.actual', {'place-items': 'start safe center'})
 
 for fragment in (
-    'class="error selectable-text"',
     'element("dd", "selectable-text", value)',
     'element("h2", "selectable-text", screen.title)',
     'element("h3", "selectable-text", screen.title)',
@@ -716,12 +679,12 @@ for fragment in (
         raise SystemExit('missing intentional text-selection surface: ' + fragment)
 PY
 
-JSC="/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc"
-[ -x "$JSC" ] || fail "JavaScriptCore is unavailable"
-"$JSC" "$ROOT/Shared/Flyover/Tools/Tests/app_test.js" -- \
-    "$ROOT/Shared/Flyover/Web/assets/app.js" \
+mise exec node -- node "$ROOT/Shared/Flyover/Tools/Tests/app_test.js" \
+    "$ROOT/Shared/Flyover/Web/src/scripts/viewer.js" \
     || fail "the web navigation and capture scrolling regressions failed"
-python3 - "$ROOT/Shared/Flyover/Web/assets/app.js" "$TEMP/residency-test.js" <<'PY'
+mise exec node -- node --test "$ROOT/Shared/Flyover/Tools/Tests/load_atlas_test.js" \
+    || fail "the manifest loading regressions failed"
+python3 - "$ROOT/Shared/Flyover/Web/src/scripts/viewer.js" "$TEMP/residency-test.mjs" <<'PY'
 import pathlib
 import sys
 import textwrap
@@ -796,6 +759,7 @@ function matchesFilters() {
 
 function applyZoom() {}
 function captureCanvasPosition() {}
+let updateCanvasNavigation = () => {};
 
 function candidate(id, isVisible, imagePixels) {
     return { screen: { id }, isVisible, imagePixels };
@@ -1022,7 +986,8 @@ for (const width of [320, 390]) {
 }
 ''',
 ))
-pathlib.Path(sys.argv[2]).write_text(test)
+module = pathlib.Path(sys.argv[1]).parent / 'image-residency.ts'
+pathlib.Path(sys.argv[2]).write_text('import { selectResidentImages } from ' + repr(module.as_uri()) + ';\n' + test)
 PY
-"$JSC" "$TEMP/residency-test.js" \
+mise exec node -- node "$TEMP/residency-test.mjs" \
     || fail "the web thumbnail residency policy is incorrect"

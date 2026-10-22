@@ -138,10 +138,10 @@ A generated source scan would add build ordering and cache invalidation complexi
 ## Static web export
 
 `FlyoverWebExporter` converts a DEBUG catalog into a static QA atlas. It writes
-native PNG captures and card-size thumbnails. It also writes `manifest.json`
-and `manifest.js`. The exporter derives each thumbnail from its hosted native
-capture. It does not render the SwiftUI content again. The web shell reads
-`manifest.js`, so the atlas works from `file://` and any static host. The
+native PNG captures, card-size thumbnails, and `manifest.json`.
+The exporter derives each thumbnail from its hosted native capture.
+It does not render the SwiftUI content again. Astro builds the web shell.
+The browser loads `manifest.json` over HTTP. Direct `file://` viewing is not supported. The
 browser changes images and navigation state. It does not run SwiftUI or
 serialize `FlyoverControl` actions.
 
@@ -184,7 +184,7 @@ Run Where's exporter from the repository root:
 
 The default output is `.build/flyover/where`, resolved from the caller's
 directory. The command stages the complete site and replaces only an existing
-directory marked with `.flyover-generated`. A failed capture leaves the last
+directory marked with `.flyover-generated`. A failed build or capture leaves the last
 successful atlas unchanged. Before replacement, the command validates all
 schema fields, references, image mappings, and generated PNG files. A repeated
 in-repository export excludes its prior generated directory from dirty-build
@@ -212,9 +212,9 @@ Use `--lan` to open the preview to other devices on the local network:
 
 The command prints one URL for each network address that it finds. The other
 device must be able to reach this computer. A macOS firewall prompt can appear.
-The server pins the validated directory for its lifetime. It does not follow a
-symbolic link that replaces an allowed file or directory after startup.
-It rejects replacement special files without waiting for a FIFO writer.
+Astro serves a private copy of the validated artifact. The copy contains only
+the declared web assets, manifest, and images. It excludes unrelated files.
+The copy rejects symbolic links and special files, including replacements during startup.
 
 WARNING: LAN preview has no authentication or TLS. Any device that can reach
 the computer can view the native screenshots. Stop and restart the preview
@@ -228,7 +228,9 @@ The manifest compatibility boundary is `schemaVersion: 1`. It contains the
 application and build identity, profiles, precomputed canvas geometry, groups,
 screens, routes, and image metadata. It contains no local source or account
 paths. New image records include the optional thumbnail path and pixel size.
-Older schema-1 artifacts remain readable. The web shell uses the full capture
+Schema-1 image data remains readable. Regenerate older exports before using the new preview command.
+The generated `web-assets.json` lists Astro's emitted assets for validation and isolated previews.
+The web shell uses the full capture
 when thumbnail metadata is absent. Full-content sizing uses SnapshotKitTesting
 limits and convergence rules. A sizing error stops the export. The exporter
 never substitutes a viewport image.
@@ -277,6 +279,22 @@ changing screens. The site also supplies these keyboard controls:
 - Press Escape to close the inspector.
 
 ## Testing
+
+### Web development
+
+Install the shared web dependencies from the repository root:
+
+```sh
+mise exec -- npm ci
+./flyover dev --output /path/to/export
+```
+
+Astro updates the viewer after source changes. Captured images remain fixed until the next export.
+Restart dev or preview after a new export. Both commands support `--lan` and `--port`.
+The [web project guide](Web/README.md) describes the module boundaries and checks.
+The generated directory needs only a static HTTP host. It needs no Node runtime or backend.
+
+### Native tests
 
 Run unit coverage with:
 

@@ -15,5 +15,5 @@ and the [repository rules](../../../AGENTS.md).
   Keep generated files isolated so previews and snapshot builds can run concurrently.
 - Share fixture catalogs with `../../Tests/Fixtures/installer_update_fixtures.py`.
   Snapshots must consume the production build, including its emitted CSS and artwork.
-- Pin dependencies in `package.json` and commit the lockfile. Run the type check,
+- Pin dependencies in the root npm workspace and commit its lockfile. Run the type check,
   retained installer tests, and `./test ToolsSnapshotTests --review` after presentation changes.

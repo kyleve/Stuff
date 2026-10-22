@@ -14,9 +14,7 @@ MARKER_CONTENT = "schemaVersion=1"
 REQUIRED_FILES = (
     "index.html",
     "manifest.json",
-    "manifest.js",
-    "assets/app.js",
-    "assets/styles.css",
+    "web-assets.json",
 )
 
 
@@ -92,14 +90,25 @@ def validate_artifact(
         raise FlyoverArtifactError("manifest.json does not use schemaVersion 1")
     _validate_manifest(manifest)
 
-    manifest_script_path = root / "manifest.js"
+    web_assets_path = root / "web-assets.json"
     try:
-        manifest_script = manifest_script_path.read_bytes()
-    except OSError as error:
-        raise FlyoverArtifactError(f"could not read manifest.js: {error}") from error
-    expected_script = b"window.FLYOVER_MANIFEST = " + manifest_data + b";\n"
-    if manifest_script != expected_script:
-        raise FlyoverArtifactError("manifest.js does not match manifest.json")
+        web_assets = json.loads(web_assets_path.read_bytes())
+    except (OSError, ValueError) as error:
+        raise FlyoverArtifactError(f"could not read web-assets.json: {error}") from error
+    if not isinstance(web_assets, list) or not web_assets:
+        raise FlyoverArtifactError("web-assets.json must contain the built asset paths")
+    for relative in web_assets:
+        if (not isinstance(relative, str) or not relative.startswith("assets/")
+                or any(part in ("", ".", "..") for part in relative.split("/"))
+                or "\\" in relative or "%" in relative or "?" in relative or "#" in relative
+                or PurePosixPath(relative).suffix not in (".js", ".css")
+                or not (root / relative).is_file()):
+            raise FlyoverArtifactError(f"invalid or missing web asset: {relative}")
+    if len(set(web_assets)) != len(web_assets):
+        raise FlyoverArtifactError("duplicate web asset")
+    actual_web_assets = {path.relative_to(root).as_posix() for path in (root / "assets").rglob("*") if path.is_file()}
+    if set(web_assets) != actual_web_assets:
+        raise FlyoverArtifactError("web asset files do not match web-assets.json")
 
     images = manifest.get("images")
     if not isinstance(images, list):
@@ -150,7 +159,7 @@ def validate_artifact(
 
     return FlyoverArtifact(
         root=root,
-        allowed_paths=frozenset((*REQUIRED_FILES, *asset_paths)),
+        allowed_paths=frozenset((*REQUIRED_FILES, *web_assets, *asset_paths)),
         root_device=root_status.st_dev,
         root_inode=root_status.st_ino,
     )
