@@ -760,8 +760,9 @@ being written off as untestable from a cloud agent.
 checks Astro, ShellCheck, the retained Python and Ruby tool suites, SwiftFormat,
 the SF Symbol lint, the String Catalog lint, attribution, CircleCI helpers, and
 the snapshot plan.
-The `test-macos` job runs the attribution, backup-upgrader, and macro tests
-before the Ledger suite. These required GitHub jobs run alongside the CircleCI builder. CircleCI
+The `test-macos` job installs the shared web dependencies before the host tests.
+It runs the Flyover, attribution, backup-upgrader, and macro tests before the Ledger suite.
+These required GitHub jobs run alongside the CircleCI builder. CircleCI
 ([`.circleci/config.yml`](.circleci/config.yml)) builds `build-ios-tests` once
 and attaches its products to `test-ios` and a five-way-sharded `snapshot` job,
 plus two build-only shards for **Where Beta** and **Where App Store**. The iOS

@@ -103,7 +103,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v3
-      # This invocation includes the attribution and backup-upgrader regressions.
+      - name: Install site dependencies
+        run: mise exec -- npm ci
+      # This invocation includes Flyover, attribution, and backup-upgrader checks.
       # Keep all host checks in this required job, alongside the iOS builder.
       - name: Host-side regression tests
         env:
