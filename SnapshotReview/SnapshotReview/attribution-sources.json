@@ -1,0 +1,8 @@
+{
+  "output": "SnapshotReview/SnapshotReview/Resources/attribution.json",
+  "sources": [
+    {"type": "swiftPackageManager", "manifest": "Package.swift", "resolved": "Package.resolved", "shippedFrom": ["SnapshotReviewUI"]},
+    {"type": "agentSkills", "kind": "developmentTool", "manifest": ".agents/external-skills.json"},
+    {"type": "developmentTools", "kind": "developmentTool", "manifest": ".agents/development-tools.json"}
+  ]
+}

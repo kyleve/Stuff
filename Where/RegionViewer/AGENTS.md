@@ -17,7 +17,7 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 - **Shell only, session-less.** No domain logic, SwiftData, App Group, or
   `WhereSession` here. `RegionMapView` is self-contained on purpose. If a
   feature needs more, add it in `WhereUI`/`WhereCore`.
-- **This is the repo's only Catalyst target.** Keep it buildable for
+- **This and SnapshotReview are Catalyst targets.** Keep it buildable for
   `ios-macabi` (`tuist build RegionViewer` on macOS verifies).
 - No test bundle. The geometry catalog is covered by `RegionKitTests`
   (`RegionGeometryCatalogTests`). `RegionMapView` is covered by WhereUI's

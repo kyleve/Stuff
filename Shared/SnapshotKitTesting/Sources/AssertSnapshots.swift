@@ -191,6 +191,7 @@ public func assertSnapshots(
                 reference: reference,
             )
         }
+        var matchedReference = false
         timing.measure(.compare) {
             withSnapshotTesting(record: resolvedRecord, diffTool: resolvedDiffTool) {
                 let failure = verifySnapshot(
@@ -207,6 +208,7 @@ public func assertSnapshots(
                     line: line,
                     column: column,
                 )
+                matchedReference = failure == nil
                 if let failure {
                     Issue.record(
                         Comment(rawValue: failure),
@@ -219,6 +221,22 @@ public func assertSnapshots(
                     )
                 }
             }
+        }
+        do {
+            // Recording intentionally reports a test failure; exact bytes prove that
+            // the recorded reference is this capture without parsing engine messages.
+            if FileManager.default.fileExists(atPath: reference.path),
+               try matchedReference || Data(contentsOf: reference) == capture.pngData
+            {
+                try SnapshotReviewManifest.write(
+                    reference: reference,
+                    testName: testName,
+                    caseName: name,
+                    configuration: configuration,
+                )
+            }
+        } catch {
+            Issue.record(error)
         }
         timing.emit()
     }

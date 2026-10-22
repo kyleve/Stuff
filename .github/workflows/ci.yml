@@ -115,6 +115,8 @@ jobs:
       # `snapshot` jobs live in .circleci/config.yml (PR #237).
       - name: Build & Test (macOS)
         run: mise exec -- tuist test Ledger-macOS-Tests --no-selective-testing -- -destination 'platform=macOS'
+      - name: Build Snapshot Review (Mac Catalyst)
+        run: mise exec -- tuist build SnapshotReview -- -destination 'platform=macOS,variant=Mac Catalyst' CODE_SIGNING_ALLOWED=NO
       # Tests can crash the host process on CI without leaving any error in
       # Tuist's summarized log. On failure, capture crash reports + the .xcresult
       # bundle (which holds the per-test crash backtraces) and upload them.

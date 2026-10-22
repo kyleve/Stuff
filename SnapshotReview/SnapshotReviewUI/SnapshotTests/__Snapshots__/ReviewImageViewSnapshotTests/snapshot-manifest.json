@@ -1,0 +1,20 @@
+{
+  "entries" : [
+    {
+      "caseName" : "PinnedImage",
+      "configurationIdentifier" : "iPad",
+      "frame" : "iPad",
+      "path" : "captures.PinnedImage_iPad.png",
+      "testName" : "captures()",
+      "variant" : {
+        "accessibility" : false,
+        "bold" : false,
+        "colorScheme" : "light",
+        "dynamicType" : "large",
+        "increasedContrast" : false,
+        "rightToLeft" : false
+      }
+    }
+  ],
+  "version" : 1
+}

@@ -6,7 +6,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 
 ## Scope & dependencies
 
-- **Depend on `SnapshotKit`, `TestHostSupport`, and `SnapshotTesting`.** Also depend on AccessibilitySnapshot's focused Core + Previews products (cashapp).
+- **Depend on `SnapshotKit`, `SnapshotReviewCore`, `TestHostSupport`, and `SnapshotTesting`.** Also depend on AccessibilitySnapshot's focused Core + Previews products (cashapp).
 - **Link the comparison engine, XCTest/Testing, and the SwiftUI accessibility renderer.**
 - **Consume this module only from test bundles.** Use `extraPackageProducts`, or `productDependency` when this module is the bundle's primary dependency. Image bundles share the `StuffSnapshotTests` scheme; pipeline regressions use `SnapshotKitTestingTests`.
 - **Never link this module from a shipping app or `StuffTestHost`.**
@@ -17,6 +17,12 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Guard: `WhereUISnapshotTests.SnapshotCaptureFlagProbeTests` fails loudly if the copies split.** Mechanism: PR #145.
 - **Re-export `SnapshotKit` and `SnapshotTesting`** so consumers need one import.
 - **Declare the library target in [`Package.swift`](../../Package.swift).**
+
+## Review metadata
+
+- Export suite manifests through `SnapshotReviewManifest` after successful comparison or recording.
+- Preserve entries from filtered-out tests. Do not rewrite unchanged metadata or rename image references.
+- Keep manifest write failures observable as test issues. Guards: `SnapshotReviewManifestTests`.
 
 ## Invariants an agent can't re-derive
 

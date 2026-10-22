@@ -1,0 +1,20 @@
+{
+  "entries" : [
+    {
+      "caseName" : "Annotations",
+      "configurationIdentifier" : "iPhone",
+      "frame" : "iPhone",
+      "path" : "captures.Annotations_iPhone.png",
+      "testName" : "captures()",
+      "variant" : {
+        "accessibility" : false,
+        "bold" : false,
+        "colorScheme" : "light",
+        "dynamicType" : "large",
+        "increasedContrast" : false,
+        "rightToLeft" : false
+      }
+    }
+  ],
+  "version" : 1
+}

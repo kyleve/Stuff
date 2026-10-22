@@ -264,3 +264,10 @@ uses 2×. `./test` forwards it into the hosted test process.
 - Timezone-pinned: references bake wall-clock dates/times into pixels, so the
   snapshot scheme pins `TZ` (and the runner verifies it via
   `SNAPSHOT_EXPECTED_TIMEZONE`) — see `testScheme` in `Project.swift`.
+
+## Snapshot Review metadata
+
+Successful comparisons and recordings update `snapshot-manifest.json` at the suite root.
+The companion app uses exact case names and variant axes from this file. Image names remain unchanged.
+Filtered test runs preserve other entries. Unchanged metadata produces no write.
+Review annotations live in a separate `snapshot-reviews.json` that the capture runner never edits.

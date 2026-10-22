@@ -219,6 +219,13 @@ Keep the review history in the PR and link the rule to its guard or source.
 - **Separate snapshot bundles are safe because each `.xctest` gets its own `StuffTestHost` process** (measured on Xcode 27 — `ProcessInfo.processIdentifier` probes. Details in the snapshot-bundle comment in [`Project.swift`](Project.swift)). Each bundle statically embeds its own copy of `SnapshotKitTesting`'s capture state. Two copies in one process corrupt each other. Tripwire: if a toolchain ever shares one host process across bundles, re-measure before adding another image bundle.
 - **Snapshots containing scrolling content use full-content sizing.** Use SnapshotKit's full-content device presets for ordinary `ScrollView`, `List`, `Form`, or equivalent UIKit-backed content. Those presets keep the normal device width and minimum viewport height while growing vertically. Use an explicit two-axis preset for a spatial canvas that intentionally scrolls in both dimensions. Its bounded capture grows from the normal viewport along both axes. Fixed device frames are for subjects without scrolling content. Preserve production navigation, tab, sheet, search, and toolbar chrome when measurement converges. Snapshot an intentionally bounded or greedy container's shared scrolling child directly. Never add snapshot-only production layout (see `SnapshotConfiguration.Frame.fullContent` and `.fullContent2D`).
 
+### Snapshot Review companion
+
+`SnapshotReview/` contains the Catalyst companion, its Core format/storage module, and its UI module.
+Its unit bundles run in Stuff-iOS-Tests; image coverage runs in StuffSnapshotTests.
+The GitHub macOS job also builds its Catalyst app. SnapshotKitTesting exports suite manifests through SnapshotReviewCore.
+The app never links the testing engine. See [its module contract](SnapshotReview/AGENTS.md).
+
 ### Never double-link a product WhereUI already carries
 
 A target that depends on **WhereUI** must not also list one of WhereUI's own

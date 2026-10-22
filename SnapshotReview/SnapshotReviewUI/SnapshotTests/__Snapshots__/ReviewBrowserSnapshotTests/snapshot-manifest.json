@@ -1,0 +1,53 @@
+{
+  "entries" : [
+    {
+      "caseName" : "Empty",
+      "configurationIdentifier" : "iPad_tablet-regular-regular",
+      "frame" : "iPad",
+      "layoutTraits" : "tablet-regular-regular",
+      "path" : "browser.Empty_iPad_tablet-regular-regular.png",
+      "testName" : "browser()",
+      "variant" : {
+        "accessibility" : false,
+        "bold" : false,
+        "colorScheme" : "light",
+        "dynamicType" : "large",
+        "increasedContrast" : false,
+        "rightToLeft" : false
+      }
+    },
+    {
+      "caseName" : "Empty",
+      "configurationIdentifier" : "iPad_tablet-regular-regular_dark",
+      "frame" : "iPad",
+      "layoutTraits" : "tablet-regular-regular",
+      "path" : "browser.Empty_iPad_tablet-regular-regular_dark.png",
+      "testName" : "browser()",
+      "variant" : {
+        "accessibility" : false,
+        "bold" : false,
+        "colorScheme" : "dark",
+        "dynamicType" : "large",
+        "increasedContrast" : false,
+        "rightToLeft" : false
+      }
+    },
+    {
+      "caseName" : "Grid",
+      "configurationIdentifier" : "iPad_tablet-regular-regular",
+      "frame" : "iPad",
+      "layoutTraits" : "tablet-regular-regular",
+      "path" : "browser.Grid_iPad_tablet-regular-regular.png",
+      "testName" : "browser()",
+      "variant" : {
+        "accessibility" : false,
+        "bold" : false,
+        "colorScheme" : "light",
+        "dynamicType" : "large",
+        "increasedContrast" : false,
+        "rightToLeft" : false
+      }
+    }
+  ],
+  "version" : 1
+}

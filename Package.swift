@@ -22,6 +22,8 @@ let package = Package(
         .library(name: "PeriscopeTools", targets: ["PeriscopeTools"]),
         .library(name: "Inspector", targets: ["Inspector"]),
         .library(name: "Flyover", targets: ["Flyover"]),
+        .library(name: "SnapshotReviewCore", targets: ["SnapshotReviewCore"]),
+        .library(name: "SnapshotReviewUI", targets: ["SnapshotReviewUI"]),
         .library(name: "SnapshotKit", targets: ["SnapshotKit"]),
         .library(name: "SnapshotKitTesting", targets: ["SnapshotKitTesting"]),
         .library(name: "TestHostSupport", targets: ["TestHostSupport"]),
@@ -151,6 +153,18 @@ let package = Package(
             ],
             path: "Shared/Flyover/Sources",
         ),
+        .target(name: "SnapshotReviewCore", path: "SnapshotReview/SnapshotReviewCore/Sources"),
+        .target(
+            name: "SnapshotReviewUI",
+            dependencies: [
+                .target(name: "SnapshotReviewCore"),
+                .target(name: "BroadwayCore"),
+                .target(name: "BroadwayUI"),
+                .target(name: "SnapshotKit"),
+                .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
+            ],
+            path: "SnapshotReview/SnapshotReviewUI/Sources",
+        ),
         .target(
             name: "SnapshotKit",
             path: "Shared/SnapshotKit/Sources",
@@ -158,6 +172,7 @@ let package = Package(
         .target(
             name: "SnapshotKitTesting",
             dependencies: [
+                .target(name: "SnapshotReviewCore"),
                 .target(name: "SnapshotKit"),
                 .target(name: "TestHostSupport"),
                 .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
