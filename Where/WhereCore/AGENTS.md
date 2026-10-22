@@ -222,7 +222,8 @@ a fix; never start passive monitoring in those tests. The CloudKit remote-import
 
 Keep raw flight archives and export configurations outside Git. Preserve the complete selected GPS window before minimizing a regression.
 Verify transformation fidelity with `FlightFixtureExporterTests` and write expected flight behavior independently of detector output.
-Require explicit `coordinateMode: preserve` to export original coordinates. Keep coordinate provenance in the generated fixture comment.
+Require explicit `coordinateMode: preserve` to export original coordinates. Keep coordinate provenance in the JSON fixture's `coordinates` field.
+Keep recorded windows in `Tests/Fixtures/Flights/` as `RecordedFlightFixture` JSON. Load them from the test bundle and keep expected behavior in Swift tests.
 The [recorded-fixture procedure](README.md#recorded-flight-fixtures) covers extraction and publication.
 
 `InMemoryKeyValueStore` and the noop schedulers/refreshers are plain `public`
