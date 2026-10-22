@@ -1,11 +1,12 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Reshapes legacy Where backups into the current v7 manifest. The automatic-recording feature
+# Reshapes legacy Where backups into the current v8 manifest. The automatic-recording feature
 # was not shipped in v1 or v2, so upgrading adds empty recording tables without inventing consent.
 # v4 expands device kinds and groups metadata edit payloads; v5 adds the planned-stay register.
 # v6 preserves optional motion readings and adds per-sample attribution history.
 # v7 expands the stay register into independent plans and adds the forecast home-region register.
+# v8 adds the compatibility floor, recording tenures, and recovery exclusions.
 
 require "json"
 require "tmpdir"
@@ -15,7 +16,7 @@ require "set"
 require "date"
 
 MANIFEST_NAME = "manifest.json"
-CURRENT_FORMAT_VERSION = 7
+CURRENT_FORMAT_VERSION = 8
 SUPPORTED_SOURCE_FORMAT_VERSIONS = (1..CURRENT_FORMAT_VERSION).freeze
 # All legacy singular records revised the same logical stay. Keep that identity across archives, including
 # clearing tombstones, so merging upgraded backups cannot revive superseded plans.
@@ -37,7 +38,7 @@ ISSUE_PARAM_NAMES = {
 
 DATE_KEYS = %w[
   exportedAt timestamp capturedAt dismissedAt registeredAt changedAt removedAt recordedAt
-  lastSeenAt auditRecordedAt auditLocationTimestamp updatedAt
+  lastSeenAt auditRecordedAt auditLocationTimestamp updatedAt replacedAt
 ].to_set.freeze
 
 def die(message)
@@ -236,6 +237,10 @@ def upgrade_manifest(manifest)
   manifest.delete("recordingDevices")
   manifest.delete("recordingDeviceCheckIns")
   manifest.delete("recordingPolicyChanges")
+  if source_version < 8
+    manifest["requiredCompatibilityVersion"] ||= 1
+    manifest["recordingRecoveryExclusions"] ||= []
+  end
   manifest["formatVersion"] = CURRENT_FORMAT_VERSION
   warnings.uniq.each { |message| warn "warning: #{message}" }
   manifest

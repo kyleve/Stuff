@@ -106,6 +106,17 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
     /// Installation that produced an automatic GPS sample. Nil for legacy
     /// samples and user-asserted/manual data.
     public let recordingDeviceID: RecordingDeviceID?
+    // Keep the original optional ID wire field so existing durable outboxes retain attribution.
+    // Public construction only creates a tenure through recorded(under:), with its mandatory owner.
+    private let recordingTenureID: RecordingAuthority.EventID?
+    public var recordingProvenance: SampleRecordingProvenance? {
+        recordingDeviceID.map { .init(deviceID: $0, tenureID: recordingTenureID) }
+    }
+
+    var hasValidRecordingProvenance: Bool {
+        recordingTenureID == nil || (recordingDeviceID != nil && source.isGPS)
+    }
+
     /// Sensor readings when the source supplies valid speed or altitude evidence.
     public let motion: LocationMotion?
 
@@ -124,7 +135,28 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
         self.horizontalAccuracy = horizontalAccuracy
         self.source = source
         self.recordingDeviceID = recordingDeviceID
+        recordingTenureID = nil
         self.motion = motion
+    }
+
+    private init(copying sample: Self, provenance: SampleRecordingProvenance) {
+        id = sample.id
+        timestamp = sample.timestamp
+        coordinate = sample.coordinate
+        horizontalAccuracy = sample.horizontalAccuracy
+        source = sample.source
+        motion = sample.motion
+        recordingDeviceID = provenance.deviceID
+        recordingTenureID = provenance.tenureID
+    }
+
+    /// Stamp only automatically admitted samples, leaving manual one-shot actions unclaimed.
+    func recorded(under owner: RecordingAuthority.Owner) -> Self {
+        guard source.isGPS else { return self }
+        return .init(
+            copying: self,
+            provenance: .init(deviceID: owner.deviceID, tenureID: owner.tenureID),
+        )
     }
 
     /// Stamp an automatic sample with the installation that received it.
