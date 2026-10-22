@@ -188,6 +188,8 @@ Layering, localization, preview, and testing conventions live in the feature
   and membership changes quietly.
 - Keep settled Location cards in displayed rank source order. Use each card's
   `Region` for the `ForEach` and ranking-layout identity.
+- Keep the collapsible Locations estimate on its summary surface in both expansion states.
+  Calendar, Timeline, and discovery panels retain the detailed passport surface.
 - Use only `RegionRanking.primary` silhouettes in the estimate-panel microprint,
   even when the panel shows a third forecast or a focused secondary region.
 - Give each ranked card an independent `GlassEffectContainer`. Apply ranking

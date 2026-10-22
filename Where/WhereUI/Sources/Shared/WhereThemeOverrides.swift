@@ -46,6 +46,8 @@ struct WhereThemeOverrides: Equatable {
 
     struct Forecast: Equatable {
         var surfaceWashOpacity: Double?
+        var summarySurface: WhereStylesheet.SurfaceTreatment?
+        var summaryShadowOpacity: Double?
     }
 
     static func resolve(
@@ -105,6 +107,12 @@ struct WhereThemeOverrides: Equatable {
         }
         if let value = forecast.surfaceWashOpacity {
             sheet.locationForecast.ink.surfaceWashOpacity = value
+        }
+        if let value = forecast.summarySurface {
+            sheet.locationForecast.summary.treatment = value
+        }
+        if let value = forecast.summaryShadowOpacity {
+            sheet.locationForecast.summary.shadowOpacity = value
         }
     }
 }

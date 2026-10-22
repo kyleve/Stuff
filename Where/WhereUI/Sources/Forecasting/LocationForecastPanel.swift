@@ -2,8 +2,8 @@ import RegionKit
 import SwiftUI
 import WhereCore
 
-/// Annual location estimates presented as one passport-style visa endorsement.
-/// Locations collapses the endorsement; calendars and feature discovery show
+/// Annual location estimates with a soft glass summary on Locations.
+/// Locations collapses the summary; calendars and feature discovery show
 /// its complete region rows and optional stay-planning controls.
 struct LocationForecastPanel: View {
     let forecasts: [LocationForecast]
@@ -64,55 +64,61 @@ struct LocationForecastPanel: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .padding(style.padding)
+        .padding(isCollapsible ? style.summary.padding : style.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
-            ZStack {
-                shape.fill(.background)
-                if style.ink.surfaceWashOpacity > 0 {
-                    LinearGradient(
-                        colors: [
-                            Color.primary.opacity(style.ink.surfaceWashOpacity),
-                            .clear,
-                            Color.primary.opacity(style.ink.surfaceWashOpacity * 0.45),
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing,
+            if isCollapsible {
+                LocationForecastSummarySurface(paths: regionBorderPaths)
+            } else {
+                ZStack {
+                    shape.fill(.background)
+                    if style.ink.surfaceWashOpacity > 0 {
+                        LinearGradient(
+                            colors: [
+                                Color.primary.opacity(style.ink.surfaceWashOpacity),
+                                .clear,
+                                Color.primary.opacity(style.ink.surfaceWashOpacity * 0.45),
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing,
+                        )
+                    }
+                    SecurityPrintRosette(
+                        tint: .primary,
+                        wobble: style.surface.rosetteWobble,
+                        lineWidth: style.surface.rosetteLineWidth,
+                        primaryRingSpacing: style.surface.primaryRingSpacing,
+                        secondaryRingSpacing: style.surface.secondaryRingSpacing,
+                        primaryOpacity: style.ink.rosettePrimaryOpacity,
+                        secondaryOpacity: style.ink.rosetteSecondaryOpacity,
                     )
                 }
-                SecurityPrintRosette(
-                    tint: .primary,
-                    wobble: style.surface.rosetteWobble,
-                    lineWidth: style.surface.rosetteLineWidth,
-                    primaryRingSpacing: style.surface.primaryRingSpacing,
-                    secondaryRingSpacing: style.surface.secondaryRingSpacing,
-                    primaryOpacity: style.ink.rosettePrimaryOpacity,
-                    secondaryOpacity: style.ink.rosetteSecondaryOpacity,
-                )
+                .clipShape(shape)
+                .allowsHitTesting(false)
             }
-            .clipShape(shape)
-            .allowsHitTesting(false)
         }
         .overlay {
-            ZStack {
-                shape.strokeBorder(
-                    Color.primary.opacity(style.ink.surfaceOutlineOpacity),
-                    lineWidth: style.surface.outlineWidth,
-                )
-                RegionOutlineSecurityBorder(
-                    paths: regionBorderPaths,
-                    tint: .primary,
-                    cornerRadius: style.cornerRadius,
-                    inset: style.surface.inset,
-                    glyphSize: style.surface.microprintGlyphSize,
-                    spacing: style.surface.microprintSpacing,
-                    opacity: style.ink.microprintOpacity,
-                )
+            if !isCollapsible {
+                ZStack {
+                    shape.strokeBorder(
+                        Color.primary.opacity(style.ink.surfaceOutlineOpacity),
+                        lineWidth: style.surface.outlineWidth,
+                    )
+                    RegionOutlineSecurityBorder(
+                        paths: regionBorderPaths,
+                        tint: .primary,
+                        cornerRadius: style.cornerRadius,
+                        inset: style.surface.inset,
+                        glyphSize: style.surface.microprintGlyphSize,
+                        spacing: style.surface.microprintSpacing,
+                        opacity: style.ink.microprintOpacity,
+                    )
+                }
+                .allowsHitTesting(false)
             }
-            .allowsHitTesting(false)
         }
         .shadow(
-            color: style.surface.shadowColor,
+            color: isCollapsible ? .clear : style.surface.shadowColor,
             radius: style.surface.shadowRadius,
             y: style.surface.shadowOffsetY,
         )
@@ -156,26 +162,61 @@ struct LocationForecastPanel: View {
 #endif
 
 #if DEBUG
+    import BroadwayUI
     import SnapshotKit
 
     extension LocationForecastPanel: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            for collapsed in [false, true] {
-                whereThemeSnapshot(
-                    name: collapsed ? "Collapsed" : "Expanded",
-                    configurations: collapsed ? .componentLightDark : .componentDefaults,
-                ) {
-                    let report = PreviewSupport.plannedStayYearReportModel()
-                    LocationForecastPanel(
-                        forecasts: report.forecasts.leadingForecasts(report: report.report),
-                        microprintRegions: report.ranking.primary.map(\.region),
-                        homeRegion: report.forecasts.planning.homeRegion,
-                        planningAction: {},
-                        isCollapsible: collapsed,
-                    )
+            snapshot(name: "Expanded", collapsible: false, expanded: true)
+            snapshot(name: "Collapsed", collapsible: true, expanded: false)
+            snapshot(name: "SummaryExpanded", collapsible: true, expanded: true)
+            snapshot(
+                name: "ReduceTransparency",
+                collapsible: true,
+                expanded: false,
+                reduceTransparency: true,
+            )
+        }
+
+        private static func snapshot(
+            name: String,
+            collapsible: Bool,
+            expanded: Bool,
+            reduceTransparency: Bool = false,
+        ) -> SnapshotCase {
+            let cache = RegionOutlinePathCache()
+            let report = PreviewSupport.plannedStayYearReportModel()
+            let regions = report.ranking.primary.map(\.region)
+            return whereThemeSnapshot(
+                name: name,
+                configurations: reduceTransparency ? .componentLightDark : .componentDefaults,
+                measurementReadiness: .immediate,
+                onReadyToSnapshot: {
+                    for region in regions {
+                        _ = await cache.path(for: region, resolution: .micro)
+                    }
+                },
+            ) {
+                let report = PreviewSupport.plannedStayYearReportModel()
+                var panel = LocationForecastPanel(
+                    forecasts: report.forecasts.leadingForecasts(report: report.report),
+                    microprintRegions: regions,
+                    homeRegion: report.forecasts.planning.homeRegion,
+                    planningAction: {},
+                    isCollapsible: collapsible,
+                )
+                panel._isExpanded = State(initialValue: expanded)
+                return panel
+                    .environment(\.regionOutlinePathCache, cache)
+                    .bTraitOverrides { traits, overrides in
+                        if reduceTransparency {
+                            var accessibility = traits.accessibility
+                            accessibility.isReduceTransparencyEnabled = true
+                            overrides.accessibility = accessibility
+                        }
+                    }
                     .padding(24)
                     .background(.background)
-                }
             }
         }
     }
