@@ -382,6 +382,10 @@ scope and invariants on top rather than restating these.
 
 ### Types, state, and API design
 
+- **Preserve the nested type name in shorthand aliases.** When shortening a
+  qualified type, use its final component: `typealias Episode = FlightGroundInference.Episode`.
+  Use `Trajectory` for `GPSCorrectionPolicy.Trajectory`.
+  If that name conflicts in the current scope, keep the qualified type name.
 - Prefer small named structs over tuples for any value with more than
   one field or that escapes a single function. Tuples are fine as
   ad-hoc inline returns. They must not appear in property types,

@@ -4,7 +4,7 @@ import Foundation
 /// thresholds are product policy, not measurements of a particular user's trip.
 /// Short-interval fixes retain their identities but do not break motion baselines.
 public struct FlightTrajectoryAnalyzer: Sendable {
-    private typealias Policy = GPSCorrectionPolicy.Trajectory
+    private typealias Trajectory = GPSCorrectionPolicy.Trajectory
 
     private struct Leg {
         let seconds: TimeInterval
@@ -16,18 +16,18 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         var isCore: Bool {
             // Every cruise leg must clear the minimum after subtracting positional
             // uncertainty. Averaging the run could hide a slow or contradictory leg.
-            qualifies(minimumSpeed: Policy.minimumCruiseSpeedKMH)
+            qualifies(minimumSpeed: Trajectory.minimumCruiseSpeedKMH)
         }
 
         var isTransition: Bool {
-            qualifies(minimumSpeed: Policy.minimumTransitionSpeedKMH)
+            qualifies(minimumSpeed: Trajectory.minimumTransitionSpeedKMH)
         }
 
         private func qualifies(minimumSpeed: Double) -> Bool {
-            supportsCorrection && seconds >= Policy.minimumAnchorInterval
-                && seconds <= Policy.maximumLegInterval
+            supportsCorrection && seconds >= Trajectory.minimumAnchorInterval
+                && seconds <= Trajectory.maximumLegInterval
                 && lowerSpeed >= minimumSpeed
-                && upperSpeed <= Policy.maximumPlausibleSpeedKMH
+                && upperSpeed <= Trajectory.maximumPlausibleSpeedKMH
         }
     }
 
@@ -69,10 +69,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         }
     }
 
-    private struct Ground {
-        let start: Int
-        let confirmation: Int
-    }
+    private typealias Episode = FlightGroundInference.Episode
 
     public init() {}
 
@@ -106,7 +103,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         for sample in usable {
             if let last = anchors.last,
                sample.timestamp.timeIntervalSince(last.timestamp)
-               < Policy.minimumAnchorInterval
+               < Trajectory.minimumAnchorInterval
             { continue }
             anchors.append(sample)
         }
@@ -117,7 +114,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         let cruise = Self.cruiseSegments(anchors: anchors, legs: legs)
         // Sparse displacement can establish a trip without supplying observed cruise
         // legs. Merge both evidence kinds before arrival and trip ownership are resolved.
-        let grounds = Self.grounds(anchors: anchors, legs: legs, observations: usable)
+        let grounds = FlightGroundInference.episodes(anchors: anchors, observations: usable)
         let displacement = FlightDisplacementInference.windows(
             anchors: anchors,
             observations: usable,
@@ -135,7 +132,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         for segment in segments {
             if let previous = groups.last?.max(by: { $0.end < $1.end }),
                anchors[segment.start].timestamp.timeIntervalSince(anchors[previous.end].timestamp)
-               <= Policy.maximumLegInterval,
+               <= Trajectory.maximumLegInterval,
                !grounds.contains(where: {
                    $0.start >= previous.end && $0.confirmation <= segment.start
                })
@@ -181,7 +178,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         anchors: [LocationSample],
         legs: [Leg],
         usable: [LocationSample],
-        grounds: [Ground],
+        grounds: [Episode],
         next: NextFlightBoundary,
         deviceID: RecordingDeviceID?,
         now: Date,
@@ -226,7 +223,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             while after < limit,
                   legs[after].isTransition,
                   anchors[after + 1].timestamp.timeIntervalSince(anchors[segment.end].timestamp)
-                  <= Policy.maximumTransitionDuration
+                  <= Trajectory.maximumTransitionDuration
             {
                 supportedLegs.insert(after)
                 after += 1
@@ -238,7 +235,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             usable.filter {
                 $0.timestamp >= anchors[ground.start].timestamp
                     && $0.timestamp <= anchors[ground.confirmation].timestamp
-                    && Self.fitsGround($0, origin: anchors[ground.start])
+                    && $0.horizontalAccuracy <= GPSCorrectionPolicy.maximumHorizontalAccuracyMeters
             }.map(\.id)
         })
         // Displacement contributes a trip interval and average speed, but never
@@ -328,7 +325,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         }).map { Self.isPlausible(lastObservation, relativeTo: $0) } ?? false
         let observationStillCruising = trailingMotionIsPlausible
             && (anchors.last(where: {
-                lastObservation.timestamp.timeIntervalSince($0.timestamp) >= Policy
+                lastObservation.timestamp.timeIntervalSince($0.timestamp) >= Trajectory
                     .minimumAnchorInterval
             }).map { Self.leg(from: $0, to: lastObservation).isCore } ?? false)
         let lastFlightAt = observationStillCruising
@@ -336,7 +333,17 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         // Arrival wins immediately when the observed dwell confirms it. Freshness
         // only changes the live-flight label when arrival evidence is still missing.
         let progress: FlightAssessment.Progress = if let arrival {
-            .completed(arrivedAt: anchors[arrival.start].timestamp)
+            .completed(arrival: anchors[arrival.start].timestamp.timeIntervalSince(latest.timestamp)
+                > GPSCorrectionPolicy.Ground.maximumArrivalEvidenceGap
+                ? .uncertainTiming(
+                    lastSupportedTravelAt: latest.timestamp,
+                    firstObservedAt: anchors[arrival.start].timestamp,
+                    confirmedAt: anchors[arrival.confirmation].timestamp,
+                )
+                : .observedGround(
+                    firstObservedAt: anchors[arrival.start].timestamp,
+                    confirmedAt: anchors[arrival.confirmation].timestamp,
+                ))
         } else if observationStillCruising,
                   now.timeIntervalSince(lastFlightAt) < GPSCorrectionPolicy.Presentation
                   .liveFlightFreshnessInterval
@@ -358,6 +365,19 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             peakSpeedKMH: peakSpeedKMH,
             progress: progress,
             inferredEndpoints: inferredEndpoints,
+            supportedIntervals: supportedLegs.sorted().map {
+                .init(
+                    start: anchors[$0].timestamp,
+                    end: anchors[$0 + 1].timestamp,
+                    kind: .observedMotion,
+                )
+            } + segments.filter { !$0.isCruise }.map {
+                .init(
+                    start: anchors[$0.start].timestamp,
+                    end: anchors[$0.end].timestamp,
+                    kind: .displacement,
+                )
+            },
         )
     }
 
@@ -375,7 +395,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         while start > 0,
               legs[start - 1].isTransition,
               anchors[segment.start].timestamp.timeIntervalSince(anchors[start - 1].timestamp)
-              <= Policy.maximumTransitionDuration
+              <= Trajectory.maximumTransitionDuration
         {
             start -= 1
         }
@@ -397,62 +417,11 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             let progress = anchors[start].coordinate.distance(to: anchors[index].coordinate)
             // Two legs provide three anchors. Require duration and net displacement
             // as well as per-leg speed so a short burst or out-and-back jump cannot qualify.
-            if index - start >= 2, seconds >= Policy.minimumCruiseDuration,
+            if index - start >= 2, seconds >= Trajectory.minimumCruiseDuration,
                path > 0,
-               progress / path >= Policy.minimumDirectProgressRatio
+               progress / path >= Trajectory.minimumDirectProgressRatio
             {
                 result.append(.cruise(start ..< index))
-            }
-        }
-        return result
-    }
-
-    private static func grounds(
-        anchors: [LocationSample],
-        legs: [Leg],
-        observations: [LocationSample],
-    ) -> [Ground] {
-        // Preserve dense contradictory callbacks as evidence. Bucketing once
-        // keeps each bounded ground-window check local to its own observations.
-        var observationsByLeg = [[LocationSample]](repeating: [], count: legs.count)
-        var legIndex = 0
-        for sample in observations {
-            while legIndex + 1 < legs.count, sample.timestamp > anchors[legIndex + 1].timestamp {
-                legIndex += 1
-            }
-            if sample.timestamp <= anchors[legIndex + 1].timestamp {
-                observationsByLeg[legIndex].append(sample)
-                if legIndex + 1 < legs.count,
-                   sample.timestamp == anchors[legIndex + 1].timestamp
-                {
-                    observationsByLeg[legIndex + 1].append(sample)
-                }
-            }
-        }
-        // Confirm arrival from at least three compatible anchors spanning the dwell
-        // minimum. The window and gap caps prevent silence from filling missing evidence;
-        // all intervening callbacks must fit the same ground cluster.
-        var result: [Ground] = []
-        for start in anchors.indices where fitsGround(anchors[start], origin: anchors[start]) {
-            var end = start + 1
-            while end < anchors.count,
-                  anchors[end].timestamp.timeIntervalSince(anchors[start].timestamp)
-                  <= Policy.maximumGroundWindow,
-                  legs[end - 1].seconds <= Policy.maximumGroundGap,
-                  legs[end - 1].upperSpeed <= Policy.maximumGroundSpeedKMH,
-                  fitsGround(anchors[end], origin: anchors[start]),
-                  observationsByLeg[end - 1].allSatisfy({
-                      fitsGround($0, origin: anchors[start])
-                  })
-            {
-                if end - start >= 2,
-                   anchors[end].timestamp.timeIntervalSince(anchors[start].timestamp)
-                   >= Policy.minimumGroundDuration
-                {
-                    result.append(Ground(start: start, confirmation: end))
-                    break
-                }
-                end += 1
             }
         }
         return result
@@ -463,23 +432,9 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         as endpoint: LocationSample,
     ) -> Bool {
         abs(sample.timestamp.timeIntervalSince(endpoint.timestamp))
-            < Policy.sameObservationInterval
+            < Trajectory.sameObservationInterval
             && sample.coordinate.distance(to: endpoint.coordinate)
             <= sample.horizontalAccuracy + endpoint.horizontalAccuracy
-    }
-
-    private static func fitsGround(_ sample: LocationSample, origin: LocationSample) -> Bool {
-        guard sample.horizontalAccuracy <= GPSCorrectionPolicy.maximumHorizontalAccuracyMeters,
-              origin.horizontalAccuracy <= GPSCorrectionPolicy.maximumHorizontalAccuracyMeters
-        else { return false }
-        if let speed = sample.motion?.speed,
-           GPSCorrectionPolicy.kilometersPerHour(
-               fromMetersPerSecond: speed.metersPerSecond + speed.accuracyMetersPerSecond,
-           ) > Policy.maximumGroundSpeedKMH
-        { return false }
-        return sample.coordinate.distance(to: origin.coordinate)
-            + sample.horizontalAccuracy + origin.horizontalAccuracy <= Policy
-            .groundRadiusMeters
     }
 
     private static func fitsMotion(
@@ -498,12 +453,12 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         let seconds = abs(sample.timestamp.timeIntervalSince(endpoint.timestamp))
         let distance = sample.coordinate.distance(to: endpoint.coordinate)
         let uncertainty = sample.horizontalAccuracy + endpoint.horizontalAccuracy
-        if seconds < Policy.sameObservationInterval {
+        if seconds < Trajectory.sameObservationInterval {
             return distance <= uncertainty
         }
         return GPSCorrectionPolicy.kilometersPerHour(
             fromMetersPerSecond: max(0, distance - uncertainty) / seconds,
-        ) <= Policy.maximumPlausibleSpeedKMH
+        ) <= Trajectory.maximumPlausibleSpeedKMH
     }
 
     private static func leg(from before: LocationSample, to after: LocationSample) -> Leg {

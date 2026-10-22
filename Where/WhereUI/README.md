@@ -34,7 +34,8 @@ refreshes retain successful same-year content and offer retry.
 
 Completed flights appear in both history views. The calendar shows an airplane on each local flight day. Attachments and flights share one badge at the top-right of the day. The badge widens when both icons are present.
 Each calendar month is one accessibility element. Its label gives regional totals; its value reads chronological stay spans with dated attachment and flight cues.
-The timeline inserts a plane in a circle at departure, with the flight's date range beside the rail.
+The timeline inserts a plane in a circle at departure, with supported travel periods beside the rail.
+When arrival timing is uncertain, it labels that uncertainty and shows the later ground observation separately.
 A flight can split a displayed regional stay into segments without changing residency totals.
 These indicators have no separate action and remain visible after correction dismissal.
 
@@ -193,7 +194,8 @@ Locations shows a quiet notice for this installation's recent flight evidence.
 The Resolve list keeps pending and completed flight reviews separate from
 its actionable issue count. Historical device labels use the latest saved name, including after device removal.
 A shared review shows recording devices, the last
-observation, flight evidence, and the exact sample edits. Apply includes only flights with supported arrival.
+observation, flight evidence, and the exact sample edits. Apply includes only flights with positive ground confirmation.
+Uncertain arrival timing permits exclusions only for independently supported airborne points.
 Completed flights remain correctable when another flight on the same day is pending.
 Each banner shows its flight's progress. Applying or dismissing the proposal retains pending flight information.
 Manual day editing stays available.

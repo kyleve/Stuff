@@ -520,7 +520,10 @@ struct DataIssueScannerTests {
         #expect(!hasPendingReview)
         #expect(completed.reviews.allSatisfy {
             $0.flight?
-                .progress == .completed(arrivedAt: FlightTrajectoryFixtures.date(minutes: 5768))
+                .progress == .completed(arrival: .observedGround(
+                    firstObservedAt: FlightTrajectoryFixtures.date(minutes: 5768),
+                    confirmedAt: FlightTrajectoryFixtures.date(minutes: 5778),
+                ))
         })
         #expect(Set(completed.issues.map(\.id)) == [unrelatedID, .flightDay(day: arrivalDay)])
         let proposal = try #require(completed.reviews.first { $0.day.day == arrivalDay }?.proposal)

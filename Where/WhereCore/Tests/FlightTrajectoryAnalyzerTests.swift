@@ -45,10 +45,54 @@ struct FlightTrajectoryAnalyzerTests {
         #expect(samples.count == configuration.expectedInputSampleCount)
         let flights = analyzer.analyze(samples: samples, now: configuration.now)
         try #require(flights.count == 1)
-        #expect(flights[0].progress == .completed(arrivedAt: configuration.expectedArrivalAt))
+        #expect(flights[0].progress.arrival?.firstGroundAt == configuration.expectedArrivalAt)
         #expect(flights[0].lastObservationAt == configuration.expectedArrivalConfirmedAt)
         #expect(flights[0].airborneSampleIDs.isEmpty)
         #expect(flights[0].inferredEndpoints.isEmpty)
+    }
+
+    @Test func delayedGroundDoesNotInventInterveningFlightDays() throws {
+        let samples = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 5, east: 75),
+            Fixtures.sample(3, minutes: 10, east: 150),
+            Fixtures.sample(4, minutes: 4320, east: 4000),
+            Fixtures.sample(5, minutes: 4325, east: 4000),
+            Fixtures.sample(6, minutes: 4330, east: 4000),
+        ]
+        let flight = try #require(analyzer.analyze(samples: samples, now: samples[5].timestamp)
+            .first)
+        #expect(flight.progress == .completed(arrival: .uncertainTiming(
+            lastSupportedTravelAt: samples[2].timestamp,
+            firstObservedAt: samples[3].timestamp,
+            confirmedAt: samples[5].timestamp,
+        )))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        #expect(flight.completedDays(in: calendar) == [CalendarDay(
+            from: samples[0].timestamp,
+            in: calendar,
+        )])
+        #expect(flight.airborneSampleIDs == [samples[1].id])
+        #expect(flight.supportedPeriods == [DateInterval(
+            start: samples[0].timestamp,
+            end: samples[2].timestamp,
+        )])
+    }
+
+    @Test(arguments: [30.0, 30.01])
+    func arrivalTimingUsesTheSupportedTravelBoundary(gapMinutes: Double) throws {
+        let samples = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 5, east: 75),
+            Fixtures.sample(3, minutes: 10, east: 150),
+            Fixtures.sample(4, minutes: 10 + gapMinutes, east: 150),
+            Fixtures.sample(5, minutes: 15 + gapMinutes, east: 150),
+            Fixtures.sample(6, minutes: 20 + gapMinutes, east: 150),
+        ]
+        let flight = try #require(analyzer.analyze(samples: samples, now: samples[5].timestamp)
+            .first)
+        #expect(flight.progress.arrival?.isTimingUncertain == (gapMinutes > 30))
     }
 
     @Test func consistentMidpointPreservesSparseFlightRecognition() throws {
@@ -57,7 +101,7 @@ struct FlightTrajectoryAnalyzerTests {
         let flights = analyzer.analyze(samples: samples + [midpoint], now: samples[4].timestamp)
         let flight = try #require(flights.first)
         #expect(flights.count == 1)
-        #expect(flight.progress == .completed(arrivedAt: samples[2].timestamp))
+        #expect(flight.progress.arrival?.firstGroundAt == samples[2].timestamp)
         #expect(flight.airborneSampleIDs.isEmpty)
     }
 
@@ -81,7 +125,7 @@ struct FlightTrajectoryAnalyzerTests {
         let flight = try #require(flights.first)
         #expect(flights.count == 1)
         #expect(flight.startedAt == samples[1].timestamp)
-        #expect(flight.progress == .completed(arrivedAt: samples[2].timestamp))
+        #expect(flight.progress.arrival?.firstGroundAt == samples[2].timestamp)
         #expect(flight.lastObservationAt == samples[4].timestamp)
         #expect(flight.airborneSampleIDs.isEmpty)
         #expect(flight.inferredEndpoints.isEmpty)
@@ -213,9 +257,9 @@ struct FlightTrajectoryAnalyzerTests {
         ]
         let flights = analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 570))
         try #require(flights.count == 2)
-        #expect(flights[0].progress == .completed(arrivedAt: Fixtures.date(minutes: 275)))
+        #expect(flights[0].progress.arrival?.firstGroundAt == Fixtures.date(minutes: 275))
         #expect(flights[1].startedAt == Fixtures.date(minutes: 290))
-        #expect(flights[1].progress == .completed(arrivedAt: Fixtures.date(minutes: 560)))
+        #expect(flights[1].progress.arrival?.firstGroundAt == Fixtures.date(minutes: 560))
         #expect(flights.allSatisfy { $0.airborneSampleIDs == [] })
     }
 
@@ -233,7 +277,7 @@ struct FlightTrajectoryAnalyzerTests {
         try #require(flights.count == 2)
         #expect(flights[0].progress == .awaitingArrival)
         #expect(flights[0].lastObservationAt == earlier[3].timestamp)
-        #expect(flights[1].progress == .completed(arrivedAt: later[2].timestamp))
+        #expect(flights[1].progress.arrival?.firstGroundAt == later[2].timestamp)
     }
 
     @Test(arguments: [false, true])
@@ -261,7 +305,7 @@ struct FlightTrajectoryAnalyzerTests {
         try #require(flights.count == 2)
         #expect(flights[0] == initial)
         #expect(flights[1].startedAt == earlier[4].timestamp)
-        #expect(flights[1].progress == .completed(arrivedAt: later[0].timestamp))
+        #expect(flights[1].progress.arrival?.firstGroundAt == later[0].timestamp)
         #expect(flights[1].airborneSampleIDs.isEmpty)
     }
 
@@ -334,7 +378,7 @@ struct FlightTrajectoryAnalyzerTests {
         let assessments = analyzer.analyze(samples: samples, now: configuration.now)
         try #require(assessments.count == 1)
         let flight = assessments[0]
-        #expect(flight.progress == .completed(arrivedAt: configuration.expectedArrivalAt))
+        #expect(flight.progress.arrival?.firstGroundAt == configuration.expectedArrivalAt)
         #expect(flight.lastObservationAt == configuration.expectedArrivalConfirmedAt)
         #expect(configuration.expectedAirborneSampleIDs.isSubset(of: flight.airborneSampleIDs))
         #expect(configuration.expectedPreservedSampleIDs.isDisjoint(with: flight.airborneSampleIDs))
@@ -412,7 +456,7 @@ struct FlightTrajectoryAnalyzerTests {
             samples: samples,
             now: Fixtures.date(minutes: 20),
         ).first)
-        #expect(confirmed.progress == .completed(arrivedAt: Fixtures.date(minutes: 10)))
+        #expect(confirmed.progress.arrival?.firstGroundAt == Fixtures.date(minutes: 10))
         #expect(confirmed.lastObservationAt == Fixtures.date(minutes: 20))
         #expect(confirmed.reassessment == .whenEvidenceChanges)
     }
@@ -422,7 +466,7 @@ struct FlightTrajectoryAnalyzerTests {
         let assessments = analyzer.analyze(samples: trace.samples, now: trace.readyAt)
         let flight = try #require(assessments.first)
         #expect(assessments.count == 1)
-        #expect(flight.progress == .completed(arrivedAt: trace.firstGroundAt))
+        #expect(flight.progress.arrival?.firstGroundAt == trace.firstGroundAt)
         #expect(flight.peakSpeedKMH > 850)
         #expect(flight.airborneSampleIDs.contains(trace.shortIntervalID))
         #expect(flight.airborneSampleIDs.contains(Fixtures.sampleID(13)))
@@ -464,7 +508,7 @@ struct FlightTrajectoryAnalyzerTests {
         #expect(flights[0].progress == .awaitingArrival)
         #expect(flights[0].lastObservationAt == trace.earlierLastObservationAt)
         #expect(flights[1].startedAt == trace.laterStartedAt)
-        #expect(flights[1].progress == .completed(arrivedAt: trace.laterFirstGroundAt))
+        #expect(flights[1].progress.arrival?.firstGroundAt == trace.laterFirstGroundAt)
         #expect(flights[0].airborneSampleIDs.isDisjoint(with: flights[1].airborneSampleIDs))
     }
 
@@ -561,7 +605,7 @@ struct FlightTrajectoryAnalyzerTests {
             now: Fixtures.date(minutes: 45),
         ).first)
         #expect(flight.startedAt == Fixtures.date(minutes: 15))
-        #expect(flight.progress == .completed(arrivedAt: Fixtures.date(minutes: 35)))
+        #expect(flight.progress.arrival?.firstGroundAt == Fixtures.date(minutes: 35))
         #expect(flight.airborneSampleIDs.isEmpty == false)
     }
 
@@ -617,7 +661,7 @@ struct FlightTrajectoryAnalyzerTests {
         ).first)
         #expect(flight.airborneSampleIDs.contains(poor.id) == false)
         #expect(flight.airborneSampleIDs.contains(conflicting.id) == false)
-        #expect(flight.progress == .completed(arrivedAt: trace.firstGroundAt))
+        #expect(flight.progress.arrival?.firstGroundAt == trace.firstGroundAt)
     }
 
     @Test func teleportReversalsAndImpossibleSpeedsDoNotConfirmAFlight() {
@@ -722,7 +766,7 @@ struct FlightTrajectoryAnalyzerTests {
         let flight = try #require(expected.first)
         #expect(expected.count == 1)
         #expect(flight
-            .progress == .completed(arrivedAt: trace.firstGroundAt.addingTimeInterval(offset)))
+            .progress.arrival?.firstGroundAt == trace.firstGroundAt.addingTimeInterval(offset))
         #expect(reversed == expected)
     }
 
@@ -733,7 +777,7 @@ struct FlightTrajectoryAnalyzerTests {
             samples: trace.samples + [later],
             now: later.timestamp,
         ).first)
-        #expect(flight.progress == .completed(arrivedAt: trace.firstGroundAt))
+        #expect(flight.progress.arrival?.firstGroundAt == trace.firstGroundAt)
         #expect(flight.lastObservationAt == trace.readyAt)
     }
 
@@ -752,8 +796,8 @@ struct FlightTrajectoryAnalyzerTests {
         ]
         let flights = analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 45))
         try #require(flights.count == 2)
-        #expect(flights[0].progress == .completed(arrivedAt: Fixtures.date(minutes: 10)))
-        #expect(flights[1].progress == .completed(arrivedAt: Fixtures.date(minutes: 35)))
+        #expect(flights[0].progress.arrival?.firstGroundAt == Fixtures.date(minutes: 10))
+        #expect(flights[1].progress.arrival?.firstGroundAt == Fixtures.date(minutes: 35))
         let layoverIDs = Set(samples[2 ... 5].map(\.id))
         #expect(flights.allSatisfy { $0.airborneSampleIDs.isDisjoint(with: layoverIDs) })
         #expect(flights[0].groundSampleIDs.contains(Fixtures.sampleID(4)))
@@ -764,7 +808,7 @@ struct FlightTrajectoryAnalyzerTests {
         let flights = analyzer.analyze(samples: trace.samples, now: trace.readyAt)
         let flight = try #require(flights.first)
         #expect(flights.count == 1)
-        #expect(flight.progress == .completed(arrivedAt: trace.firstGroundAt))
+        #expect(flight.progress.arrival?.firstGroundAt == trace.firstGroundAt)
         #expect(flight.airborneSampleIDs == trace.airborneSampleIDs)
         #expect(flight.airborneSampleIDs.isDisjoint(with: trace.layoverSampleIDs))
         #expect(flight.groundSampleIDs.isDisjoint(with: trace.layoverSampleIDs))
@@ -787,7 +831,7 @@ struct FlightTrajectoryAnalyzerTests {
         let flights = analyzer.analyze(samples: samples, now: trace.readyAt)
         let flight = try #require(flights.first)
         #expect(flights.count == 1)
-        #expect(flight.progress == .completed(arrivedAt: trace.firstGroundAt))
+        #expect(flight.progress.arrival?.firstGroundAt == trace.firstGroundAt)
         #expect(flight.airborneSampleIDs == trace.airborneSampleIDs)
         let unknownIDs = trace.layoverSampleIDs.union(duplicates.map(\.id))
         #expect(flight.airborneSampleIDs.isDisjoint(with: unknownIDs))
@@ -811,9 +855,9 @@ struct FlightTrajectoryAnalyzerTests {
         ]
         let flights = analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 40))
         try #require(flights.count == 2)
-        #expect(flights[0].progress == .completed(arrivedAt: Fixtures.date(minutes: 10)))
+        #expect(flights[0].progress.arrival?.firstGroundAt == Fixtures.date(minutes: 10))
         #expect(flights[0].lastObservationAt == Fixtures.date(minutes: 20))
-        #expect(flights[1].progress == .completed(arrivedAt: Fixtures.date(minutes: 30)))
+        #expect(flights[1].progress.arrival?.firstGroundAt == Fixtures.date(minutes: 30))
         #expect(flights[1].id.departureSampleID == Fixtures.sampleID(5))
         let layoverIDs = Set(samples[2 ... 4].map(\.id))
         #expect(flights.allSatisfy { $0.airborneSampleIDs.isDisjoint(with: layoverIDs) })
@@ -850,7 +894,7 @@ struct FlightTrajectoryAnalyzerTests {
             samples: samples,
             now: Fixtures.date(minutes: 55),
         ).first)
-        #expect(flight.progress == .completed(arrivedAt: Fixtures.date(minutes: 45)))
+        #expect(flight.progress.arrival?.firstGroundAt == Fixtures.date(minutes: 45))
         #expect(flight.airborneSampleIDs.contains(Fixtures.sampleID(8)))
         #expect(flight.airborneSampleIDs.contains(Fixtures.sampleID(9)) == false)
         #expect(flight.airborneSampleIDs.contains(Fixtures.sampleID(10)) == false)

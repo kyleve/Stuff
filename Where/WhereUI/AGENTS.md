@@ -111,6 +111,7 @@ Layering, localization, preview, and testing conventions live in the feature
   on aggregate-report equality. Schedule presentation deadlines only in the foreground.
 - Expose each calendar month as one accessibility element: regional totals in the label, chronological stay spans and dated badges in the value. Preserve planning qualifiers. Guard: `CalendarMonthAccessibilityTests`.
 - Keep calendar flight days and timeline flight events independent of review dismissal.
+  Show uncertain arrival timing explicitly. Render supported travel periods separately from later ground observations.
   Split timeline stays only for presentation; preserve every region-day exactly once.
 - Keep the raw GPS path visible in correction reviews after samples lose attribution.
   Bound display geometry without changing the evidence or edits. Never join separate recording devices into one route.
