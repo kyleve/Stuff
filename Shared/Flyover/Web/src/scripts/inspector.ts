@@ -183,8 +183,10 @@ export function createInspector(deps: Dependencies): Inspector {
     function toggleInspectorDetails() {
         deps.state.inspectorDetails = !deps.state.inspectorDetails;
         syncInspectorPresentation();
-        if (deps.state.inspectorDetails) document.querySelector<HTMLButtonElement>(".details-close")?.focus();
-        else document.getElementById("details-trigger")?.focus();
+        // The drawer is still transformed when focus moves. WebKit otherwise scrolls the
+        // entire dialog to its offscreen position before the transition completes.
+        if (deps.state.inspectorDetails) document.querySelector<HTMLButtonElement>(".details-close")?.focus({ preventScroll: true });
+        else document.getElementById("details-trigger")?.focus({ preventScroll: true });
     }
 
     function syncInspectorPresentation() {

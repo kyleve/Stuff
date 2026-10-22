@@ -1,0 +1,256 @@
+/* List styles. Responsive overrides stay beside their owning component. */
+
+@layer components {
+    .list-view {
+        min-height: 0;
+        overflow: auto;
+        padding: 54px max(28px, calc((100vw - 1180px) / 2)) 120px;
+        background: var(--background);
+    }
+
+    .list-intro {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 48px;
+    }
+
+    .list-intro h2 {
+        margin-top: 7px;
+        font-size: clamp(28px, 3vw, 42px);
+        font-weight: 720;
+        letter-spacing: -0.04em;
+    }
+
+    .list-summary {
+        color: var(--secondary);
+        font-size: 13px;
+    }
+
+    .list-group {
+        margin-bottom: 48px;
+    }
+
+    .list-group-header {
+        position: sticky;
+        z-index: 5;
+        top: 0;
+        display: grid;
+        grid-template-columns: 40px 1fr auto;
+        align-items: center;
+        gap: 10px;
+        min-height: 60px;
+        border-bottom: 1px solid var(--line-strong);
+        background: color-mix(in srgb, var(--background) 90%, transparent);
+        -webkit-backdrop-filter: blur(18px);
+        backdrop-filter: blur(18px);
+    }
+
+    .list-group-header h2 {
+        font-size: 19px;
+        font-weight: 690;
+        letter-spacing: -0.02em;
+    }
+
+    .group-count {
+        color: var(--secondary);
+        font-size: 12px;
+    }
+
+    .list-rows {
+        display: grid;
+    }
+
+    .list-row {
+        display: grid;
+        grid-template-columns: 112px minmax(190px, 1fr) 150px minmax(180px, 0.8fr) 44px;
+        align-items: center;
+        gap: 22px;
+        min-height: 146px;
+        border-bottom: 1px solid var(--line);
+        transition: opacity 160ms ease, background 160ms ease;
+    }
+
+    .list-row:hover {
+        background: color-mix(in srgb, var(--surface-solid) 40%, transparent);
+    }
+
+    .list-row[data-hidden="true"] {
+        display: none;
+    }
+
+    .list-thumbnail {
+        display: grid;
+        width: 96px;
+        height: 118px;
+        place-items: center;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        padding: 0;
+        background: var(--surface-muted);
+        box-shadow: var(--shadow-small);
+    }
+
+    .list-thumbnail img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    .list-thumbnail img[data-capture-extent="fullContent"],
+    .list-thumbnail img[data-capture-extent="fullContent2D"] {
+        object-fit: cover;
+        object-position: top center;
+    }
+
+    .list-identity {
+        display: grid;
+        gap: 9px;
+        min-width: 0;
+    }
+
+    .list-identity h3 {
+        overflow: hidden;
+        font-size: 17px;
+        font-weight: 680;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .list-state {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--secondary);
+        font-size: 11px;
+        font-weight: 650;
+        text-transform: uppercase;
+    }
+
+    .list-state select {
+        max-width: 210px;
+        min-width: 0;
+        text-transform: none;
+    }
+
+    .list-facts {
+        display: grid;
+        justify-items: start;
+        gap: 9px;
+        font-size: 12px;
+    }
+
+    .list-facts .capture-badge {
+        border-color: var(--line);
+        background: var(--surface-muted);
+        color: var(--secondary);
+    }
+
+    .list-routes {
+        display: flex;
+        gap: 6px;
+        min-width: 0;
+        overflow-x: auto;
+        padding: 4px 0;
+        scrollbar-width: thin;
+    }
+
+    .list-route-summary {
+        display: none;
+    }
+
+    .list-inspect {
+        display: grid;
+        width: 42px;
+        height: 42px;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--surface-muted);
+        color: var(--accent);
+    }
+
+    .list-inspect:hover {
+        background: var(--accent-soft);
+    }
+}
+
+@layer responsive {
+    @media (max-width: 1050px) {
+        .list-row {
+            grid-template-columns: 104px minmax(170px, 1fr) 130px 44px;
+        }
+
+        .list-routes {
+            display: none;
+        }
+    }
+
+    @media (max-width: 760px) {
+        .list-view {
+            padding: 34px 16px 104px;
+        }
+
+        .list-intro {
+            display: grid;
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+
+        .list-intro h2 {
+            font-size: 30px;
+        }
+
+        .list-group {
+            margin-bottom: 36px;
+        }
+
+        .list-group-header {
+            grid-template-columns: 32px 1fr auto;
+        }
+
+        .list-row {
+            grid-template-columns: 82px minmax(0, 1fr) 42px;
+            gap: 14px;
+            min-height: 122px;
+        }
+
+        .list-thumbnail {
+            width: 76px;
+            height: 96px;
+        }
+
+        .list-facts,
+        .list-routes {
+            display: none;
+        }
+
+        .list-state {
+            display: grid;
+            gap: 4px;
+        }
+
+        .list-state select {
+            max-width: 100%;
+        }
+
+        .list-route-summary {
+            display: block;
+            font-size: 11px;
+        }
+    }
+
+    @media (pointer: coarse), (max-width: 760px) {
+        .list-state select,
+        .list-inspect {
+            min-width: var(--touch-target-size);
+            min-height: var(--touch-target-size);
+        }
+
+        .list-state select {
+            height: var(--touch-target-size);
+        }
+    }
+}
