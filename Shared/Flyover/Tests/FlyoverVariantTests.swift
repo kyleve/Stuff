@@ -89,4 +89,72 @@ struct FlyoverVariantTests {
         _ = variants[1].focusedContent()
         #expect(builds == 3)
     }
+
+    @Test func mixedSnapshotSizingDoesNotExposeAFallbackPolicy() {
+        let snapshotCase = SnapshotCase(
+            name: "Mixed",
+            configurations: [
+                SnapshotConfiguration(
+                    device: SnapshotConfiguration.Frame(
+                        name: "viewport",
+                        size: .fixed(CGSize(width: 100, height: 100)),
+                    ),
+                ),
+                SnapshotConfiguration(
+                    device: .fullContent(name: "full-content", width: 100),
+                ),
+            ],
+        ) {
+            Color.red
+        }
+
+        let variants = FlyoverVariant.snapshots(
+            id: FlyoverVariantID("mixed"),
+            snapshotCase: snapshotCase,
+        )
+
+        #expect(variants.allSatisfy { $0.exportPolicy == nil })
+    }
+
+    @Test func cutsheetVariantsPreserveCapturePolicyAndReadiness() async throws {
+        var measurements = 0
+        var captures = 0
+        let snapshotCase = SnapshotCase.cutsheet(
+            name: "Panels",
+            configurations: [SnapshotConfiguration(device: .fullContent(
+                name: "scroll",
+                width: 100,
+            ))],
+            measurementReadiness: .immediate,
+            onReadyToMeasure: { measurements += 1 },
+            settle: .immediate,
+            onReadyToSnapshot: { captures += 1 },
+        ) {
+            SnapshotPanel(id: .init(rawValue: "first"), label: "First") { Color.red }
+            SnapshotPanel(id: .init(rawValue: "second"), label: "Second") { Color.blue }
+        }
+        let variants = FlyoverVariant.snapshots(
+            id: FlyoverVariantID("panels"),
+            snapshotCase: snapshotCase,
+        )
+        #expect(variants.count == 2)
+        for variant in variants {
+            let policy = try #require(variant.exportPolicy)
+            #expect(policy.captureExtent == .fullContent)
+            #expect(policy.measurementReadiness == .immediate)
+            #expect(policy.settle == .immediate)
+            await policy.onReadyToMeasure?()
+            await policy.onReadyToSnapshot?()
+        }
+        #expect(measurements == 2)
+        #expect(captures == 2)
+
+        let overridden = FlyoverVariant.snapshots(
+            id: FlyoverVariantID("panels"),
+            snapshotCase: snapshotCase,
+            exportPolicy: .hosted,
+        )
+        #expect(overridden.map(\.id) == variants.map(\.id))
+        #expect(overridden.allSatisfy { $0.exportPolicy?.captureExtent == .viewport })
+    }
 }
