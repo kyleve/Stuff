@@ -472,10 +472,11 @@ Its cards omit annual progress bars. Compact primary specimens in theme pickers
 and galleries retain the selected Locations theme. Elsewhere uses the shared
 matte renderer in both themes. Flat supplies its outline and shadow and
 preserves the white or neutral-dark fill.
-Regions without geometry retain the symbol treatment. On Locations cards, raw
-GPS fixes for the selected year are projected through that same geometry and
+Regions without geometry retain the symbol treatment. On both tabs, recorded
+fixes for the selected year are projected through that same geometry and
 reduced to a clipped, static constellation of glowing pinpricks. Manually logged days add no invented
-points. Settings > Appearance can hide or restore that constellation without
+points. Elsewhere uses the same resolved coordinates as its day list and map.
+Settings > Appearance can hide or restore these dots on both tabs without
 altering the recorded data. Security-print layers use normal compositing in
 light mode. On glass, dark mode mixes the region tint 65% toward white and uses luminosity
 blending, which keeps the ink legible without oversaturating it when interactive

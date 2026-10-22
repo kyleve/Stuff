@@ -139,7 +139,9 @@ Layering, localization, preview, and testing conventions live in the feature
   retain successful same-year content on failure, and provide retry. Day actions
   pass the original calendar day into the existing correction flow.
 - Keep Locations-card points on `YearReportModel`'s loaded
-  `YearReportDetails`.
+  `YearReportDetails`. Elsewhere cards use their resolved report's locations through
+  the shared `RegionCardLocations` identity and constellation renderer. Both tabs
+  honor the recorded-location-dot preference.
 - Keep `RootView` passing LifecycleKitUI the stylesheet's positive splash
   minimum and active-scene visibility: the first foreground-visible `MainTabs`
   reveal stays covered when headless promotion coalesces or the first hold is

@@ -5,7 +5,7 @@ import Testing
 @testable import WhereUI
 
 @MainActor
-struct PrimaryRegionLocationsTests {
+struct RegionCardLocationsTests {
     @Test func keepsRequestedRegionPointsOnlyOnCreditedDays() {
         let creditedDay = CalendarDay(year: 2026, month: 2, day: 1)
         let relabeledDay = CalendarDay(year: 2026, month: 7, day: 1)
@@ -35,7 +35,7 @@ struct PrimaryRegionLocationsTests {
             ],
         )
 
-        let locations = PrimaryRegionLocations(details: details)
+        let locations = RegionCardLocations(details: details)
 
         #expect(locations.pointsByRegion == [.california: [creditedPoint]])
     }

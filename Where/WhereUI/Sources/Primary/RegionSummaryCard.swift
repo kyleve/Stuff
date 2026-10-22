@@ -56,17 +56,17 @@ struct RegionSummaryCard: View {
     /// other caller leaves it `nil` and gets the resolved look.
     var styleOverride: RegionStyle?
 
-    /// Raw recorded fixes for the region's selected year. Locations cards pass
-    /// these in; every other card keeps the empty zero-value treatment.
+    /// Recorded fixes from the card's selected-year projection. Primary and
+    /// Elsewhere cards share the same clipping and constellation renderer.
     var recordedPoints: [RegionDayPoint] = []
 
-    /// Whether the card renders `recordedPoints`. Locations binds this to the
+    /// Whether the card renders `recordedPoints`. Both tabs bind this to the
     /// user's Appearance preference so hiding dots leaves the raw data intact.
     var showsRecordedPoints = true
 
-    /// Identity of the loaded recorded-point snapshot. Locations supplies it to
+    /// Identity of the loaded recorded-point snapshot. Callers supply it to
     /// restart projection only when the underlying point content changes.
-    var recordedPointsID: PrimaryRegionLocations.ID?
+    var recordedPointsID: RegionCardLocations.ID?
 
     /// Loaded from the root-owned UI path cache. The large watermark uses
     /// medium fidelity, the stamp uses small, and the repeated border uses
@@ -440,7 +440,7 @@ struct RegionArtworkLoadID: Equatable {
     let variant: WhereStylesheet.CardStyle.Variant
     let isEnabled: Bool
     let showsRecordedPoints: Bool
-    let recordedPointsID: PrimaryRegionLocations.ID?
+    let recordedPointsID: RegionCardLocations.ID?
 
     var staticArtworkID: StaticArtworkID {
         StaticArtworkID(

@@ -11,6 +11,13 @@ final class ElsewhereModel {
     struct Content {
         let report: ElsewhereReport
         var placeNames: [Region: String]
+        let cardLocations: RegionCardLocations
+
+        init(report: ElsewhereReport) {
+            self.report = report
+            placeNames = [:]
+            cardLocations = RegionCardLocations(report: report)
+        }
 
         var regions: [ElsewhereRegion] {
             Region.rankedByDayCount(report.regions, days: { $0.days.count }, region: \.region)
@@ -83,7 +90,7 @@ final class ElsewhereModel {
             return
         }
         guard requestSequence == sequence else { return }
-        var content = Content(report: resolved, placeNames: [:])
+        var content = Content(report: resolved)
         state = .naming(input, content)
         for region in content.regions {
             guard let coordinate = region.representativeCoordinate else { continue }

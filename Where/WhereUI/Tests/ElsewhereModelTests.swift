@@ -107,6 +107,11 @@ struct ElsewhereModelTests {
         ])
         #expect(content.regions.map(\.days.count) == [2, 1, 1, 1])
         #expect(content.placeNames.isEmpty)
+        for region in content.regions {
+            #expect(content.cardLocations.pointsByRegion[region.region]
+                == region.locations.flatMap(\.points))
+        }
+        #expect(content.cardLocations.pointsByRegion[.other]?.isEmpty == true)
         #expect(report.report?.totals == [.other: 5])
     }
 
@@ -176,6 +181,9 @@ struct ElsewhereModelTests {
         let nevada = try #require(Region(rawValue: "us-NV"))
         let oregon = try #require(Region(rawValue: "us-OR"))
         #expect(model.content(for: 2026)?.regions.first?.region == nevada)
+        let originalLocations = try #require(model.content(for: 2026)?.cardLocations)
+        await model.refresh(input)
+        #expect(model.content(for: 2026)?.cardLocations.id == originalLocations.id)
         await model.refresh(changed)
         let leading = try #require(model.content(for: 2026)?.regions.first)
         #expect(leading.region == oregon)
@@ -184,5 +192,8 @@ struct ElsewhereModelTests {
         #expect(leading.locations.flatMap(\.points)
             .allSatisfy { $0.coordinate == ElsewherePreview.portland })
         #expect(changed.report == input.report)
+        let updatedLocations = try #require(model.content(for: 2026)?.cardLocations)
+        #expect(updatedLocations.id != originalLocations.id)
+        #expect(updatedLocations.pointsByRegion[oregon] == leading.locations.flatMap(\.points))
     }
 }

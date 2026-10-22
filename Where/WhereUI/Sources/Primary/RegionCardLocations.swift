@@ -2,16 +2,22 @@ import Foundation
 import RegionKit
 import WhereCore
 
-/// Render-ready recorded points for the Locations card surface. Its identity is
-/// minted only when a different ``YearReportDetails`` value is installed, so
-/// cards can restart projection without comparing a year's fixes in `body`.
-struct PrimaryRegionLocations {
+/// Recorded points shared by primary and Elsewhere cards. Each installed snapshot
+/// has a stable identity so artwork refreshes without comparing fixes in `body`.
+struct RegionCardLocations {
     struct ID: Hashable {
         fileprivate let rawValue = UUID()
     }
 
     let id = ID()
     let pointsByRegion: [Region: [RegionDayPoint]]
+
+    /// Elsewhere already applies corrections and manual overlays during resolution.
+    init(report: ElsewhereReport) {
+        pointsByRegion = Dictionary(uniqueKeysWithValues: report.regions.map {
+            ($0.region, $0.locations.flatMap(\.points))
+        })
+    }
 
     init(details: YearReportDetails) {
         var filtered: [Region: [RegionDayPoint]] = [:]

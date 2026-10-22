@@ -98,6 +98,10 @@ struct ElsewhereView: View {
                                             places: content.placeNames[item.region],
                                             variant: .elsewhere,
                                             year: report.selectedYear,
+                                            recordedPoints: content.cardLocations
+                                                .pointsByRegion[item.region] ?? [],
+                                            showsRecordedPoints: report.showsRecordedLocationDots,
+                                            recordedPointsID: content.cardLocations.id,
                                         )
                                     }
                                     .buttonStyle(stylesheet.card[.elsewhere].buttonStyle(
@@ -157,6 +161,16 @@ struct ElsewhereView: View {
                 report: PreviewSupport.elsewhereCatalogYearReportModel(),
                 configurations: .fullContentPhoneLightDark,
                 theme: .alternate,
+            )
+            let hiddenDots = {
+                let report = PreviewSupport.elsewhereCatalogYearReportModel()
+                report.showsRecordedLocationDots = false
+                return report
+            }()
+            snapshot(
+                name: "DotsHidden",
+                report: hiddenDots,
+                configurations: .fullContentPhoneLightDark,
             )
             snapshot(
                 name: "Empty",

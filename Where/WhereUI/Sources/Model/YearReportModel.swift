@@ -79,11 +79,11 @@ public final class YearReportModel {
 
     private struct LoadedYear {
         let details: YearReportDetails
-        let primaryRegionLocations: PrimaryRegionLocations
+        let primaryRegionLocations: RegionCardLocations
 
         init(details: YearReportDetails, previous: LoadedYear?) {
             self.details = details
-            let updatedLocations = PrimaryRegionLocations(details: details)
+            let updatedLocations = RegionCardLocations(details: details)
             if
                 let previous,
                 previous.primaryRegionLocations.pointsByRegion == updatedLocations.pointsByRegion
@@ -115,7 +115,7 @@ public final class YearReportModel {
     }
 
     /// Recorded GPS points derived from the same store snapshot as `report`.
-    var primaryRegionLocations: PrimaryRegionLocations? {
+    var primaryRegionLocations: RegionCardLocations? {
         loadedYear?.primaryRegionLocations
     }
 
