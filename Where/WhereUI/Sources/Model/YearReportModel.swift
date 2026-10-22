@@ -75,14 +75,15 @@ public final class YearReportModel {
     private var scanRequestID = UUID()
     private var isActive = false
     private var lifecycleRevision = UUID()
+    private var reportRequestSequence: UInt64 = 0
 
     private struct LoadedYear {
         let details: YearReportDetails
-        let primaryRegionLocations: PrimaryRegionLocations
+        let primaryRegionLocations: RegionCardLocations
 
         init(details: YearReportDetails, previous: LoadedYear?) {
             self.details = details
-            let updatedLocations = PrimaryRegionLocations(details: details)
+            let updatedLocations = RegionCardLocations(details: details)
             if
                 let previous,
                 previous.primaryRegionLocations.pointsByRegion == updatedLocations.pointsByRegion
@@ -114,7 +115,7 @@ public final class YearReportModel {
     }
 
     /// Recorded GPS points derived from the same store snapshot as `report`.
-    var primaryRegionLocations: PrimaryRegionLocations? {
+    var primaryRegionLocations: RegionCardLocations? {
         loadedYear?.primaryRegionLocations
     }
 
@@ -298,6 +299,23 @@ public final class YearReportModel {
         return RegionRanking(report: report)
     }
 
+    /// The configured Locations set is independent of the top-two issue-scan ranking.
+    var locationRegions: [RegionDays] {
+        guard let loadedYear else { return [] }
+        return RegionRanking.ranked(report: loadedYear.details.report)
+            .filter { loadedYear.details.primaryRegions.contains($0.region) && $0.region != .other }
+    }
+
+    var elsewhereInput: ElsewhereInput? {
+        loadedYear?.details.elsewhereInput
+    }
+
+    var hasElsewhere: Bool {
+        elsewhereInput?.hasVisits == true
+    }
+
+    let elsewhere: ElsewhereModel
+
     /// Total distinct days with any tracked presence in the loaded year.
     public var trackedDayCount: Int {
         report?.days.count ?? 0
@@ -343,6 +361,7 @@ public final class YearReportModel {
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.services = services
+        elsewhere = ElsewhereModel(resolver: services.elsewhere, namer: LocationNamer())
         if let details {
             loadedYear = LoadedYear(details: details, previous: nil)
         }
@@ -413,6 +432,7 @@ public final class YearReportModel {
         guard year != selectedYear else { return }
         Self.logger.selectedYear(year: .restricted(.domainValue, year))
         selectedYear = year
+        elsewhere.invalidate()
         // Drop the previous year's report so views fall back to their loading
         // state instead of rendering stale data under the new year's label.
         loadedYear = nil
@@ -554,6 +574,8 @@ public final class YearReportModel {
         // install a stale report under the newer year's label.
         let requestedYear = selectedYear
         let requestedLifecycle = lifecycleRevision
+        reportRequestSequence += 1
+        let sequence = reportRequestSequence
         // Only surface the loading state when there's nothing on screen yet — an
         // initial load or a year switch (which nils `report` first). A background
         // refresh keeps the current report visible (no spinner flicker), and the
@@ -562,9 +584,9 @@ public final class YearReportModel {
         do {
             let details = try await services.reports.yearReportDetails(
                 for: requestedYear,
-                primaryRegionCount: RegionRanking.primaryCount,
             )
-            guard requestedYear == selectedYear, requestedLifecycle == lifecycleRevision,
+            guard sequence == reportRequestSequence,
+                  requestedYear == selectedYear, requestedLifecycle == lifecycleRevision,
                   !Task.isCancelled else { return }
             let changed = loadedYear?.details != details
             if changed { loadedYear = LoadedYear(details: details, previous: loadedYear) }
@@ -576,7 +598,8 @@ public final class YearReportModel {
                 )
             }
         } catch {
-            guard requestedYear == selectedYear, requestedLifecycle == lifecycleRevision,
+            guard sequence == reportRequestSequence,
+                  requestedYear == selectedYear, requestedLifecycle == lifecycleRevision,
                   !Task.isCancelled else { return }
             loadState = .failed(.reportUnavailable(message: error.localizedDescription))
             Self.logger.reportLoadFailed(
@@ -671,14 +694,14 @@ public final class YearReportModel {
     }
 
     /// The days in the loaded report whose presence includes `region`, sorted
-    /// ascending (matching `report.days`). Powers the Elsewhere drill-in list.
+    /// ascending (matching `report.days`). Elsewhere uses its resolved projection.
     public func days(in region: Region) -> [DayPresence] {
         guard let report else { return [] }
         return report.days.filter { $0.regions.contains(region) }
     }
 
-    /// The raw coordinates recorded inside `region` during the selected year,
-    /// grouped by day, for the Elsewhere drill-in's map and place names. Logs and
+    /// The raw coordinates attributed to `region` during the selected year,
+    /// grouped by day without Elsewhere's catalog enrichment. Logs and
     /// returns empty on failure — the view renders nothing, but the failure still
     /// surfaces in the log rather than passing silently as "no locations".
     public func locations(in region: Region) async -> [RegionDayLocations] {
@@ -710,8 +733,8 @@ public final class YearReportModel {
         }
     }
 
-    /// One representative coordinate per region for the selected year (the most
-    /// heavily sampled spot in each), for the Elsewhere cards' place-name teaser.
+    /// One representative coordinate per attributed region for the selected year
+    /// (the most heavily sampled spot), without Elsewhere's catalog enrichment.
     /// Logs and returns empty on failure (see `locations(in:)`).
     public func representativeCoordinates() async -> [Region: Coordinate] {
         do {

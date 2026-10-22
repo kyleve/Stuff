@@ -64,17 +64,17 @@ struct WhereFormatTests {
     @Test func generatedSymbolsResolveToCatalogValues() {
         #expect(String(localized: .tabSettings) == "Settings")
         #expect(String(localized: .commonOk) == "OK")
-        #expect(String(localized: .primaryElsewhereOnlyTitle) == "Nothing in your headline spots")
+        #expect(String(localized: .primaryElsewhereOnlyTitle) == "No days in your primary regions")
     }
 
     @Test func elsewhereOnlyDescriptionUsesPluralVariations() {
         #expect(
             WhereFormat.primaryElsewhereOnlyDescription(count: 1)
-                == "1 day logged this year, but none in a headline spot yet.",
+                == "1 day logged this year, but none in your primary regions.",
         )
         #expect(
             WhereFormat.primaryElsewhereOnlyDescription(count: 9)
-                == "9 days logged this year, but none in a headline spot yet.",
+                == "9 days logged this year, but none in your primary regions.",
         )
     }
 
@@ -135,12 +135,6 @@ struct WhereFormatTests {
             WhereFormat.locationsPlanningCurrentValue(region: .newYork)
                 == "Current plan: New York",
         )
-    }
-
-    @Test(arguments: [0, 1, 2, 3, 12])
-    func elsewhereCardSubtitleUsesPluralVariations(count: Int) {
-        let expected = count == 1 ? "1 region" : "\(count) regions"
-        #expect(WhereFormat.elsewhereCardSubtitle(regions: count) == expected)
     }
 
     @Test func yearsAreFormattedWithoutGroupingSeparator() {

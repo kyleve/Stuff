@@ -100,7 +100,7 @@ public enum RegionAppearanceCatalog {
     public static func defaultAppearance(for region: Region) -> RegionAppearance {
         bespokeAppearances[region.rawValue]
             ?? RegionAppearance(
-                color: defaultColor(for: region.rawValue),
+                color: defaultColor(for: region),
                 emoji: "📍",
                 symbolName: .mappinCircleFill,
             )
@@ -122,10 +122,17 @@ public enum RegionAppearanceCatalog {
             RegionAppearance(color: .teal, emoji: "🧭", symbolName: .locationMagnifyingglass),
     ]
 
-    /// An accent token derived from the region id across every selectable color.
-    private static func defaultColor(for id: String) -> RegionColorToken {
-        let sum = id.unicodeScalars.reduce(0) { $0 &+ Int($1.value) }
-        return colors[sum % colors.count]
+    /// FNV-1a over the permanent catalog ID gives every surface the same color
+    /// across launches and locales. Swift's randomized `Hasher` and localized
+    /// region names cannot provide that stability. Keep the palette order and
+    /// hash fixed unless intentionally changing the automatic color assignments.
+    private static func defaultColor(for region: Region) -> RegionColorToken {
+        let offsetBasis: UInt64 = 14_695_981_039_346_656_037
+        let prime: UInt64 = 1_099_511_628_211
+        let hash = region.rawValue.utf8.reduce(offsetBasis) { hash, byte in
+            (hash ^ UInt64(byte)) &* prime
+        }
+        return colors[Int(hash % UInt64(colors.count))]
     }
 }
 

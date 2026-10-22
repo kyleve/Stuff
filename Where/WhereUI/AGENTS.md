@@ -96,6 +96,13 @@ Layering, localization, preview, and testing conventions live in the feature
   stateless simplifier. WhereUI chooses full/medium/small/micro tolerances and
   caches the resulting SwiftUI `Path`s. Use the small path for the stamp. Use
   the micro path for repeated borders on location cards and estimate panels.
+  Share the region artwork treatment across regular and compact cards. Keep
+  compact dimensions in the compact style. Resolve Elsewhere's paper surface
+  from that geometry, without a progress bar, using the shared matte renderer.
+  Keep primary specimens on the selected theme's surface. Preserve Elsewhere's
+  white/neutral-dark fill when Flat overrides its outline and shadow.
+  Use the original region color for Elsewhere artwork and borders. Apply its
+  contrast adjustment only to text.
   Project Locations-card GPS points through the cache's shared
   `RegionArtworkProjection`. Never project, simplify, or spatially reduce
   artwork in a card's `body`.
@@ -122,12 +129,19 @@ Layering, localization, preview, and testing conventions live in the feature
   Keep request identity complete; use a broader display key only when retaining
   compatible artwork during refresh is intentional.
 - Keep the Locations background on the selected year’s complete visited-region set,
-  in catalog order independent of card rank. Omit the catch-all Other entry from
-  the print. Use the injected outline cache.
-- Keep the Elsewhere summary count and artwork on the same secondary-region input.
-  Use its own stylesheet tokens and the shared outline renderers.
+  and reuse that renderer in Elsewhere with its resolved visited-region set.
+  Keep both in catalog order independent of card rank. Omit the catch-all Other
+  entry from the print. Use the injected outline cache.
+- Split Locations and Elsewhere by the configured primary set, not `RegionRanking`'s
+  top two. Exclude zero-day cards and sort ties in catalog order.
+- Keep Elsewhere cards, day lists, and map pins on the same resolved snapshot.
+  Refresh from complete evidence identity. Reject cancelled or superseded results,
+  retain successful same-year content on failure, and provide retry. Day actions
+  pass the original calendar day into the existing correction flow.
 - Keep Locations-card points on `YearReportModel`'s loaded
-  `YearReportDetails`.
+  `YearReportDetails`. Elsewhere cards use their resolved report's locations through
+  the shared `RegionCardLocations` identity and constellation renderer. Both tabs
+  honor the recorded-location-dot preference.
 - Keep `RootView` passing LifecycleKitUI the stylesheet's positive splash
   minimum and active-scene visibility: the first foreground-visible `MainTabs`
   reveal stays covered when headless promotion coalesces or the first hold is
@@ -208,6 +222,10 @@ worked examples.
   `@Environment(\.regionStyles)` and seed by
   `whereBroadwayRoot(theme:regionStyles:)`. Use no global accessor or hardcoded
   per-region look in a view.
+  Derive automatic colors from the permanent region ID with a fixed hash.
+  Never use localized names, card order, or Swift's randomized `Hasher`.
+  Keep the catalog's palette order and hash stable across launches.
+  Guard: `RegionAppearanceCatalogTests.idDerivedDefaultsHaveStableAssignments`.
 - **Seed `WhereTheme` through `whereBroadwayRoot(theme:regionStyles:)`.** Standard
   and Flat use the stable `standard` and `alternate` identities.
 - Keep Standard as the base stylesheet. Resolve shared traits before applying `WhereThemeOverrides`.
@@ -260,6 +278,8 @@ assembled by `WhereFlyoverCatalog`. Add a registration beside every new
 top-level screen. List its type in the appropriate catalog group. Flyover
 frames share one `WhereFlyoverWorld`. Synthetic preview models are reserved for
 states the seeded demo cannot express.
+When registrations, routes, or default variants change, run
+`WhereFlyoverViewSnapshotTests` alongside the affected screen suites.
 
 Screens, widgets, and app-flow surfaces are pinned as matrixed image
 snapshots under [`SnapshotTests/`](SnapshotTests). Those build as this module's

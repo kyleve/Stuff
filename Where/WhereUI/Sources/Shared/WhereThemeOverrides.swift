@@ -24,8 +24,7 @@ struct WhereThemeOverrides: Equatable {
     }
 
     struct Elsewhere: Equatable {
-        var surface: WhereStylesheet.SurfaceTreatment?
-        var shadowOpacity: Double?
+        var surface: WhereStylesheet.MatteSurface?
     }
 
     struct Welcome: Equatable {
@@ -81,10 +80,7 @@ struct WhereThemeOverrides: Equatable {
             sheet.card.securityPrint.backgroundBlendMode = value
         }
         if let value = elsewhere.surface {
-            sheet.elsewhereCard.surface.treatment = value
-        }
-        if let value = elsewhere.shadowOpacity {
-            sheet.elsewhereCard.surface.shadowOpacity = value
+            sheet.card.elsewherePaper.surface = value
         }
         if let value = welcome.surface {
             sheet.locationWelcome.surface = value

@@ -13,7 +13,7 @@ struct PlacesYearFeaturesContent: View {
             detail: .settingsExplorePlacesLocationsDetail,
             symbol: .mapFill,
         ) {
-            if let region = report.ranking.primary.first {
+            if let region = report.locationRegions.first {
                 RegionSummaryCard(
                     regionDays: region,
                     variant: .compact,
@@ -21,9 +21,21 @@ struct PlacesYearFeaturesContent: View {
                     year: report.selectedYear,
                 )
             }
-            if !report.ranking.secondary.isEmpty {
-                ElsewhereSummaryCard(regions: report.ranking.secondary.map(\.region))
+            if let content = report.elsewhere.content(for: report.selectedYear),
+               let region = content.regions.first
+            {
+                RegionSummaryCard(
+                    regionDays: RegionDays(region: region.region, days: region.days.count),
+                    variant: .elsewhere,
+                    year: report.selectedYear,
+                    recordedPoints: content.cardLocations.pointsByRegion[region.region] ?? [],
+                    showsRecordedPoints: report.showsRecordedLocationDots,
+                    recordedPointsID: content.cardLocations.id,
+                )
             }
+        }
+        .task(id: report.elsewhereInput) {
+            if let input = report.elsewhereInput { await report.elsewhere.refresh(input) }
         }
         .featureMarketingRow(order: 1)
         .settingsRow(PlacesYearFeaturesView.Item.locations, restingBackground: .clear)

@@ -93,16 +93,6 @@ extension WhereStylesheet.CardStyle {
     }
 }
 
-extension WhereStylesheet.ElsewhereCardStyle {
-    var buttonStyle: CardSurfaceButtonStyle<RoundedRectangle> {
-        CardSurfaceButtonStyle(
-            surface: surface.treatment,
-            tint: surface.ink,
-            shape: RoundedRectangle(cornerRadius: cornerRadius),
-        )
-    }
-}
-
 extension WhereStylesheet.LocationWelcomeStyle.Close {
     func buttonStyle(tint: Color) -> CardSurfaceButtonStyle<Circle> {
         CardSurfaceButtonStyle(surface: surface, tint: tint, shape: Circle())

@@ -26,7 +26,7 @@ struct WhereFlatThemeTests {
 
     @Test func inheritsPaperAndPrivacyOutlineFromSuppliedBase() throws {
         var base = WhereStylesheet.default
-        base.elsewhereCard.surface.paper = .purple
+        base.card.elsewherePaper.surface.fill.base = .purple
         base.privacyPassportCard.outlineOpacity = 0.83
         base.privacyPassportCard.outlineWidth = 2.25
         var traits = BTraits.system
@@ -34,11 +34,11 @@ struct WhereFlatThemeTests {
         let overrides = WhereFlatTheme.overrides(traits: traits, base: base)
         let elsewhere = try #require(overrides.elsewhere.surface)
         let privacy = try #require(overrides.privacy.surface)
-        guard case let .matte(paper) = elsewhere, case let .matte(passport) = privacy else {
+        guard case let .matte(passport) = privacy else {
             Issue.record("Flat requires matte paper and passport surfaces")
             return
         }
-        #expect(paper.fill.base == .purple)
+        #expect(elsewhere.fill.base == .purple)
         #expect(passport.outline.opacity == 0.83)
         #expect(passport.outline.width == 2.25)
     }
@@ -64,12 +64,15 @@ struct WhereFlatThemeTests {
         #expect(flat.locationsBackground == base.locationsBackground)
         #expect(flat.card.regular.padding == base.card.regular.padding)
         #expect(flat.calendar == base.calendar)
-        guard case let .matte(paper) = flat.elsewhereCard.surface.treatment else {
+        guard case let .matte(paper) = flat.card[.elsewhere].surface else {
             Issue.record("Flat must resolve after shared traits")
             return
         }
-        #expect(paper.fill.base == base.elsewhereCard.surface.paper)
+        #expect(paper.fill.base == base.card.elsewherePaper.surface.fill.base)
         #expect(paper.shadow.radius == 8)
-        #expect(flat.elsewhereCard.surface.shadowOpacity == 0)
+        #expect(flat.card[.elsewhere].glow.opacity == 0)
+        #expect(flat.card[.elsewhere].lift.opacity == 0)
+        #expect(flat.card[.elsewhere].contentTint == base.card[.elsewhere].contentTint)
+        #expect(flat.card[.elsewhere].showsProgress == false)
     }
 }

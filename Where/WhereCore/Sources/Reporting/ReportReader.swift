@@ -55,7 +55,6 @@ public struct ReportReader: Sendable {
     /// value as their refresh identity rather than inventing a change counter.
     public func yearReportDetails(
         for year: Int,
-        primaryRegionCount: Int,
     ) async throws -> YearReportDetails {
         try await Self.logger.measure(.yearReportDetails, budget: .seconds(1)) {
             try await store.readSnapshot {
@@ -69,16 +68,19 @@ public struct ReportReader: Sendable {
                     history: projection.samples,
                     manualDays: manuals,
                 )
-                let primaryRegions = Set(Region.primaryRegions(
-                    in: report.totals,
-                    count: primaryRegionCount,
-                ))
+                let primaryRegions = try await store.trackedRegions()
                 let locations = aggregator.locations(
                     in: primaryRegions,
                     history: projection.samples,
                 )
                 return YearReportDetails(
-                    report: report,
+                    elsewhereInput: ElsewhereInput(
+                        report: report,
+                        primaryRegions: primaryRegions,
+                        history: projection,
+                        manualDays: manuals,
+                        calendar: aggregator.calendar,
+                    ),
                     primaryRegionLocations: locations,
                 )
             }
@@ -147,7 +149,7 @@ public struct ReportReader: Sendable {
     }
 
     /// The raw coordinates recorded inside `region` during `year`, grouped by
-    /// day, so the Elsewhere drill-in can map and name where you actually were.
+    /// day for maps and location previews. Elsewhere uses its resolved snapshot.
     /// Manual overlays don't contribute coordinates (see `DayAggregator`).
     public func locations(in region: Region, year: Int) async throws -> [RegionDayLocations] {
         try await locations(in: [region], year: year)[region] ?? []
