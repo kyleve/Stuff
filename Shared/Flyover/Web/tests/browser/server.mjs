@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fixture, capturePNG } from './fixture.mjs';
+import { fixture, capturePNG } from './fixture.ts';
 
 const root = fileURLToPath(new URL('../../../../..', import.meta.url));
 const directory = mkdtempSync(join(tmpdir(), 'flyover-browser-'));
