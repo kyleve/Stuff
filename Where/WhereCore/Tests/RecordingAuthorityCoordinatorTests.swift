@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 struct RecordingAuthorityCoordinatorTests {
     @Test func partialHistoryFailsClosedUntilRefreshRepairsIt() async throws {
@@ -38,6 +38,7 @@ struct RecordingAuthorityCoordinatorTests {
             version: .init(rawValue: 2),
         )
         _ = try await coordinator.submit(upgrade)
+        await store.setSupportedDataCompatibilityVersionForTesting(.init(rawValue: 2))
         try await store.perform {
             _ = try await store.rotateDataGeneration(
                 reason: .accountReset,
