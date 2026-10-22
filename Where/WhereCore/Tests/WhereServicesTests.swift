@@ -58,6 +58,9 @@ struct WhereServicesTests {
             store: store,
             locationSource: ScriptedLocationSource(),
             installationContext: .testing,
+            recordingAuthority: RecordingAuthority
+                .ownedForTesting(by: InstallationRecordingContext.testing.currentDevice.id),
+            deviceCoordination: nil,
             aggregator: Self.makeAggregator(),
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
@@ -847,7 +850,11 @@ struct WhereServicesTests {
             locationOutbox: outbox,
         )
         _ = try await services.recording.register(authorization: .always)
-        try await outbox.save([LocationOutboxEntry(sample: pending, dataGenerationID: .initial)])
+        try await outbox.save([LocationOutboxEntry(
+            sample: pending,
+            dataGenerationID: .initial,
+            recordingTenureID: nil,
+        )])
         await outbox.setFailsToClear(true)
 
         let error = await #expect(throws: WhereServices.ResetCleanupError.self) {
@@ -897,7 +904,11 @@ struct WhereServicesTests {
                 registrationGenerationID: .initial,
             ))
         }
-        try await outbox.save([LocationOutboxEntry(sample: pending, dataGenerationID: .initial)])
+        try await outbox.save([LocationOutboxEntry(
+            sample: pending,
+            dataGenerationID: .initial,
+            recordingTenureID: nil,
+        )])
 
         try await services.reset()
 
