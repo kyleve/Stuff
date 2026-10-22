@@ -1022,6 +1022,7 @@ struct WhereStylesheetTests {
         context.traitOverrides.contentSizeCategory = .accessibilityLarge
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.onboarding.contentSpacing == 20)
+        #expect(resolved.onboarding.phone.width == resolved.onboarding.maxWidth)
         #expect(resolved.calendar.day.minHeight == 56)
         #expect(resolved.calendar.day.numberSize == 36)
         #expect(resolved.calendar.day.numberFontSize == 24)
@@ -1045,6 +1046,7 @@ struct WhereStylesheetTests {
         #expect(resolved.privacyPassportCard.disclosure.fillOpacity == 0.16)
         #expect(resolved.onboarding.usesOpaqueSurfaces)
         #expect(resolved.onboarding.showsArtwork == false)
+        #expect(resolved.onboarding.footer.backgroundOpacity == 1)
         #expect(resolved.locationsBackground.showsInk == false)
     }
 

@@ -24,8 +24,6 @@ struct OnboardingThemeSelectionView: View {
 
                     WhereThemePicker(selection: selection, onSelect: onSelect)
 
-                    OnboardingAction(title: .onboardingContinue, action: onContinue)
-
                     Spacer(minLength: 0)
                 }
                 .padding(.horizontal, stylesheet.spacing.xxxLarge)
@@ -36,6 +34,11 @@ struct OnboardingThemeSelectionView: View {
             .scrollIndicators(.hidden)
             .scrollBounceBehavior(.basedOnSize)
             .scrollEdgeEffectHidden()
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            OnboardingFooter {
+                OnboardingAction(title: .onboardingContinue, action: onContinue)
+            }
         }
     }
 }

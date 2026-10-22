@@ -217,8 +217,10 @@ struct RegionCustomizeView: View {
         .navigationTitle(currentRegion?.localizedName ?? String(localized: .regionCustomizeTitle))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button(String(localized: .onboardingBack), action: goBack)
+            if presentation == .settings {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(String(localized: .onboardingBack), action: goBack)
+                }
             }
             ToolbarItem(placement: .principal) {
                 Text(WhereFormat.regionCustomizeStep(
@@ -228,11 +230,22 @@ struct RegionCustomizeView: View {
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
             }
-            ToolbarItem(placement: .confirmationAction) {
-                Button(
-                    isLast ? String(localized: .commonDone) : String(localized: .onboardingNext),
-                    action: goNext,
-                )
+            if presentation == .settings {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(
+                        isLast ? String(localized: .commonDone) :
+                            String(localized: .onboardingNext),
+                        action: goNext,
+                    )
+                }
+            }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if presentation == .onboarding {
+                OnboardingFooter {
+                    OnboardingAction(title: isLast ? .commonDone : .onboardingNext, action: goNext)
+                    OnboardingAction(title: .onboardingBack, prominence: .secondary, action: goBack)
+                }
             }
         }
     }

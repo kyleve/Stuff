@@ -242,8 +242,9 @@ journal intent.
   tracked region with recording active.
 
 - **Onboarding presentation** uses `WhereStylesheet.onboarding` for shared headings,
-  actions, and passport backgrounds. Read-only region cards and a year ribbon show
-  labeled sample history. The privacy passport uses process-effective diagnostics.
+  actions, and passport backgrounds. Every setup step anchors its primary and
+  secondary actions in a shared safe-area footer. Read-only region cards and a
+  year ribbon sit in minimal device frames with labeled sample history. The privacy passport uses process-effective diagnostics.
   Artwork uses the root-injected region cache; illustrations do not open a store.
   The picker and customization editor retain their Settings presentation.
 - **`OnboardingView` / `OnboardingFlowModel`** — the rendered first-run flow and its view-scoped

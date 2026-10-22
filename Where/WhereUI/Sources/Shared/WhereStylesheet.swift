@@ -62,6 +62,8 @@ struct WhereStylesheet: BStylesheet {
         // Grow day-grid tap targets at accessibility Dynamic Type sizes.
         if traits.contentSizeCategory.isAccessibilitySize {
             onboarding.contentSpacing = 20
+            onboarding.phone.width = onboarding.maxWidth
+            onboarding.phone.padding = 8
             locationWelcome.accessory.copy = .compact
             locationForecast.header.layout = .stacked
             locationForecast.row.layout = .stacked
@@ -98,6 +100,7 @@ struct WhereStylesheet: BStylesheet {
         if traits.accessibility.isReduceTransparencyEnabled {
             onboarding.usesOpaqueSurfaces = true
             onboarding.showsArtwork = false
+            onboarding.footer.backgroundOpacity = 1
             locationsBackground.showsInk = false
             card.regular.glow.radius = 0
             card.compact.glow.radius = 0
@@ -2711,6 +2714,31 @@ extension WhereStylesheet {
 extension WhereStylesheet {
     /// Shared first-run framing; illustrations reuse the production card renderers.
     struct OnboardingStyle: Equatable {
+        var phone = Phone()
+        var footer = Footer()
+
+        struct Footer: Equatable {
+            var backgroundOpacity: Double = 0.96
+        }
+
+        struct Phone: Equatable {
+            var width: CGFloat = 270
+            var minHeight: CGFloat = 330
+            var padding: CGFloat = 16
+            var contentSpacing: CGFloat = 20
+            var cornerRadius: CGFloat = 38
+            var cameraWidth: CGFloat = 64
+            var cameraHeight: CGFloat = 8
+            var homeWidth: CGFloat = 72
+            var homeHeight: CGFloat = 4
+            var hardwareOpacity: Double = 0.18
+            var borderOpacity: Double = 0.16
+            var borderWidth: CGFloat = 1
+            var shadowOpacity: Double = 0.12
+            var shadowRadius: CGFloat = 18
+            var shadowY: CGFloat = 10
+        }
+
         var pageIndicatorClearance: CGFloat = 44
         var maxWidth: CGFloat = 720
         var padding: CGFloat = 24

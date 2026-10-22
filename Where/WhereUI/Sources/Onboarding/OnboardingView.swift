@@ -126,7 +126,9 @@ public struct OnboardingView: View {
         VStack(spacing: stylesheet.spacing.medium) {
             TabView(selection: $flow.page) {
                 ForEach(pages.indices, id: \.self) { index in
+                    // Keep headings below the native pager's top edge treatment.
                     pageView(pages[index])
+                        .padding(.top, stylesheet.onboarding.padding)
                         .padding(.bottom, stylesheet.onboarding.pageIndicatorClearance)
                         .tag(index)
                         .padding(.horizontal, stylesheet.spacing.xxxLarge)
@@ -134,12 +136,9 @@ public struct OnboardingView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .always))
             .indexViewStyle(.page(backgroundDisplayMode: .always))
-
-            introFooter
-                .padding(.horizontal, stylesheet.spacing.xxxLarge)
-                .padding(.bottom, stylesheet.spacing.large)
-                .frame(maxWidth: stylesheet.onboarding.maxWidth)
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) { introFooter }
+        .scrollEdgeEffectHidden()
         .fileImporter(
             isPresented: $flow.showImporter,
             allowedContentTypes: [.zip],
@@ -181,24 +180,32 @@ public struct OnboardingView: View {
     }
 
     private var introFooter: some View {
-        VStack(spacing: stylesheet.spacing.medium) {
+        OnboardingFooter {
             OnboardingAction(title: .onboardingContinue) {
                 withAnimation(stylesheet.motion.reducedReveal) {
                     flow.advanceIntro(pageCount: pages.count)
                 }
             }
 
-            // Returning users can skip the manual setup by restoring a backup;
-            // the restore's progress replaces the intro with the loading view.
-            Button(String(localized: .onboardingRestoreBackup)) { flow.showImporter = true }
-                .controlSize(.large)
-
-            // And anyone can look around first, without handing over a
-            // location permission or leaving anything on their device.
-            Button(String(localized: .onboardingTryDemo)) { flow.enterDemoMode(using: model) }
-                .controlSize(.large)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: stylesheet.spacing.medium) {
+                    introSecondaryActions.fixedSize(horizontal: true, vertical: false)
+                }
+                VStack(spacing: stylesheet.spacing.medium) { introSecondaryActions }
+            }
+            .font(.subheadline)
         }
         .disabled(flow.intro.isBuildingDemo)
+    }
+
+    @ViewBuilder
+    private var introSecondaryActions: some View {
+        OnboardingAction(title: .onboardingRestoreBackup, prominence: .secondary) {
+            flow.showImporter = true
+        }
+        OnboardingAction(title: .onboardingTryDemo, prominence: .secondary) {
+            flow.enterDemoMode(using: model)
+        }
     }
 
     // MARK: - Pick regions
@@ -212,9 +219,9 @@ public struct OnboardingView: View {
                 .background(OnboardingBackground(regions: flow.selection.hasSelection
                         ? flow.selection.selectedRegions : [.california, .newYork]))
                 .navigationTitle(String(localized: .onboardingRegionsHeading))
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button(String(localized: .onboardingNext)) { flow.phase = .customize }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    OnboardingFooter {
+                        OnboardingAction(title: .onboardingNext) { flow.phase = .customize }
                             .disabled(!flow.selection.hasSelection)
                     }
                 }
@@ -298,13 +305,6 @@ public struct OnboardingView: View {
                             Color(uiColor: .secondarySystemGroupedBackground),
                             in: .rect(cornerRadius: stylesheet.onboarding.cornerRadius),
                         )
-
-                        OnboardingAction(title: .onboardingContinue) {
-                            // Request Always-location only after the user confirms an
-                            // enabled choice; the launch's reconcile step picks up
-                            // whatever the system grants.
-                            flow.finish(using: model)
-                        }
                     }
                     .disabled(flow.isFinishing || flow.deviceDiscovery == .loading)
                 }
@@ -315,6 +315,12 @@ public struct OnboardingView: View {
             }
             .scrollBounceBehavior(.basedOnSize)
             .scrollEdgeEffectHidden()
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            OnboardingFooter {
+                OnboardingAction(title: .onboardingContinue) { flow.finish(using: model) }
+                    .disabled(flow.isFinishing || flow.deviceDiscovery == .loading)
+            }
         }
         .task { await flow.discoverRecordingDevices(using: model) }
     }
