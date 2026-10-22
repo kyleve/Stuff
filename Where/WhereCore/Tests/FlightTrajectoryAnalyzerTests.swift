@@ -23,6 +23,178 @@ struct FlightTrajectoryAnalyzerTests {
         #expect(flight.inferredEndpoints.isEmpty)
     }
 
+    @Test(arguments: FlightTrajectoryGenerator.Profile.allCases)
+    func generatedRecordingProfilesPreserveRecognitionAndGroundSafety(
+        profile: FlightTrajectoryGenerator.Profile,
+    ) throws {
+        let environment = ProcessInfo.processInfo.environment
+        if let selected = environment["WHERE_FLIGHT_FUZZ_PROFILE"] {
+            let selectedProfile = try #require(FlightTrajectoryGenerator
+                .Profile(rawValue: selected))
+            if profile != selectedProfile { return }
+        }
+        let seeds: [UInt64]
+        if let replay = environment["WHERE_FLIGHT_FUZZ_SEED"] {
+            seeds = try [#require(UInt64(replay))]
+        } else {
+            let count = try #require(Int(environment["WHERE_FLIGHT_FUZZ_COUNT"] ?? "1000"))
+            try #require((1 ... 10000).contains(count))
+            seeds = (0 ..< count).map(UInt64.init)
+        }
+        for seed in seeds {
+            let scenario = FlightTrajectoryGenerator.make(profile: profile, seed: seed)
+            let flights = analyzer.analyze(samples: scenario.samples, now: scenario.now)
+            let airborne = flights
+                .reduce(into: Set<LocationSample.ID>()) { $0.formUnion($1.airborneSampleIDs) }
+            let correct = flights.count == scenario.expectedFlights
+                && flights.allSatisfy { !$0.isPending }
+                && airborne.isDisjoint(with: scenario.groundIDs)
+            if !correct {
+                let reduced = FlightTrajectoryGenerator.reduced(scenario.samples) { samples in
+                    let result = analyzer.analyze(samples: samples, now: scenario.now)
+                    if !airborne.isDisjoint(with: scenario.groundIDs) {
+                        return result
+                            .contains { !$0.airborneSampleIDs.isDisjoint(with: scenario.groundIDs) }
+                    }
+                    // Keep independent journey witnesses while minimizing a missed
+                    // recognition or completion; deletion alone must not create it.
+                    guard scenario.requiredEvidenceIDs.isSubset(of: Set(samples.map(\.id)))
+                    else { return false }
+                    return result.count != scenario.expectedFlights || result
+                        .contains(where: \.isPending)
+                }
+                let data = try JSONEncoder().encode(reduced)
+                let trace = try #require(String(data: data, encoding: .utf8))
+                Issue
+                    .record(
+                        "\(scenario.description); expected=\(scenario.expectedFlights), actual=\(flights.count), pending=\(flights.filter(\.isPending).count); synthetic trace=\(trace)",
+                    )
+                return
+            }
+            var random = FlightTrajectoryGenerator.Random(seed: seed)
+            var reordered = scenario.samples + scenario.samples
+            reordered.shuffle(using: &random)
+            #expect(
+                analyzer.analyze(samples: reordered, now: scenario.now) == flights,
+                "Permutation/duplication: \(scenario.description)",
+            )
+            let thinned = scenario.samples.enumerated().filter { index, sample in
+                scenario.groundIDs.contains(sample.id) || index.isMultiple(of: Int(seed % 3) + 2)
+            }.map(\.element)
+            let thinnerFlights = analyzer.analyze(samples: thinned, now: scenario.now)
+            #expect(
+                thinnerFlights
+                    .allSatisfy { $0.airborneSampleIDs.isDisjoint(with: scenario.groundIDs) },
+                "Thinning: \(scenario.description)",
+            )
+            // Retain enough cruise evidence in the dense profile; sparse profiles
+            // already contain the required independent endpoint observations.
+            if profile == .denseJet || profile == .sparseJet || profile == .shortSparseJet ||
+                profile == .mixedSampling
+            {
+                #expect(
+                    thinnerFlights.count == scenario.expectedFlights,
+                    "Recognition after thinning: \(scenario.description)",
+                )
+            }
+            if profile == .sparseJet || profile == .shortSparseJet || profile == .mixedSampling {
+                let coarse = scenario.samples.enumerated().map { index, sample in
+                    LocationSample(
+                        id: sample.id,
+                        timestamp: sample.timestamp,
+                        coordinate: sample.coordinate,
+                        horizontalAccuracy: index < 2 ? 1000 : sample.horizontalAccuracy,
+                        source: sample.source,
+                        recordingDeviceID: sample.recordingDeviceID,
+                        motion: sample.motion,
+                    )
+                }
+                let recognized = analyzer.analyze(samples: coarse, now: scenario.now)
+                #expect(recognized.count == 1, "Coarse endpoint support: \(scenario.description)")
+                #expect(recognized.allSatisfy { $0.airborneSampleIDs == [] })
+                let split = scenario.samples.enumerated().map { index, sample in
+                    LocationSample(
+                        id: sample.id,
+                        timestamp: sample.timestamp,
+                        coordinate: sample.coordinate,
+                        horizontalAccuracy: sample.horizontalAccuracy,
+                        source: sample.source,
+                        recordingDeviceID: index < 2 ? sample.recordingDeviceID : nil,
+                        motion: sample.motion,
+                    )
+                }
+                #expect(
+                    analyzer.analyze(samples: split, now: scenario.now).isEmpty,
+                    "Different recording sources: \(scenario.description)",
+                )
+            }
+            if profile == .denseJet {
+                let delayed = scenario.samples.enumerated().map { index, sample in
+                    Fixtures.replacing(
+                        sample,
+                        timestamp: sample.timestamp
+                            .addingTimeInterval(index >= scenario.samples
+                                .count - 3 ? 3 * 86400 : 0),
+                    )
+                }
+                let lateFlights = analyzer.analyze(
+                    samples: delayed,
+                    now: scenario.now.addingTimeInterval(3 * 86400),
+                )
+                #expect(lateFlights.count == 1)
+                #expect(
+                    lateFlights.first?.progress.arrival?.isTimingUncertain == true,
+                    "Delayed arrival: \(scenario.description)",
+                )
+                var calendar = Calendar(identifier: .gregorian)
+                calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+                let lateDay = CalendarDay(
+                    from: scenario.now.addingTimeInterval(3 * 86400),
+                    in: calendar,
+                )
+                #expect(lateFlights
+                    .allSatisfy { !$0.completedDays(in: calendar).contains(lateDay) })
+            }
+            if scenario.expectedFlights == 0 { continue }
+            let anchor = scenario.samples[2]
+            let conflict = LocationSample(
+                id: Fixtures.sampleID(99999),
+                timestamp: anchor.timestamp.addingTimeInterval(0.1),
+                coordinate: .init(
+                    latitude: -anchor.coordinate.latitude,
+                    longitude: anchor.coordinate
+                        .longitude > 0 ? anchor.coordinate
+                        .longitude - 180 : anchor.coordinate
+                        .longitude + 180,
+                ),
+                horizontalAccuracy: 20,
+                source: .gpsSignificantChange,
+                recordingDeviceID: anchor.recordingDeviceID,
+                motion: nil,
+            )
+            let contradicted = analyzer.analyze(
+                samples: scenario.samples + [conflict],
+                now: scenario.now,
+            )
+            #expect(
+                contradicted.allSatisfy { $0.airborneSampleIDs.isSubset(of: airborne) },
+                "Contradiction cannot add corrections: \(scenario.description)",
+            )
+            let unlanded = scenario.samples
+                .filter { $0.timestamp < scenario.now.addingTimeInterval(-600) }
+            let beforeSilence = analyzer.analyze(samples: unlanded, now: scenario.now)
+            let afterSilence = analyzer.analyze(
+                samples: unlanded,
+                now: scenario.now.addingTimeInterval(3 * 86400),
+            )
+            #expect(
+                afterSilence.filter { !$0.isPending }.map(\.id) == beforeSilence
+                    .filter { !$0.isPending }.map(\.id),
+                "Silence: \(scenario.description)",
+            )
+        }
+    }
+
     @Test(.disabled(
         if: ProcessInfo.processInfo.environment["WHERE_SPARSE_FLIGHT_VERIFICATION_CONFIG"] == nil,
         "Supply a local sparse-flight verification configuration to replay an external backup.",
