@@ -8,37 +8,15 @@ import WhereCore
 /// committed archive before exposing a running session.
 struct BackupSettingsSection: View {
     let backup: BackupModel
-
-    /// Backup export: the ready-to-share archive built up-front, presented as
-    /// soon as the background export finishes.
-    @State private var presentedShareItem: BackupShareSheet.Item?
+    let onExport: () -> Void
 
     var body: some View {
-        @Bindable var backup = backup
-        backupSection
-            .sheet(item: $presentedShareItem) { item in
-                BackupShareSheet(item: item)
-            }
-            .alert(
-                String(localized: .settingsBackupErrorTitle),
-                isPresented: $backup.isShowingBackupError,
-                presenting: backup.backupError,
-            ) { _ in
-                Button(String(localized: .commonOk), role: .cancel) {}
-            } message: { message in
-                Text(message)
-            }
-    }
-
-    private var backupSection: some View {
         Section {
             // The archive is built up-front on a background task (with an
             // in-app "Exporting…" bar), then handed to the system activity sheet
             // as a ready file — so it opens instantly instead of sitting in the
             // system's blocking "Preparing…" state.
-            Button {
-                runExport()
-            } label: {
+            Button(action: onExport) {
                 if backup.backupState == .exporting {
                     backupProgressLabel(
                         String(localized: .settingsBackupExporting),
@@ -71,22 +49,12 @@ struct BackupSettingsSection: View {
             ProgressView(value: backup.backupProgress)
         }
     }
-
-    /// Build the archive in the background, then present its system activity
-    /// sheet. The coordinator purges the previous export when this one starts.
-    private func runExport() {
-        Task {
-            if let url = await backup.exportBackup() {
-                presentedShareItem = BackupShareSheet.Item(url: url)
-            }
-        }
-    }
 }
 
 #if DEBUG
     #Preview {
         Form {
-            BackupSettingsSection(backup: PreviewSupport.backupModel())
+            BackupSettingsSection(backup: PreviewSupport.backupModel(), onExport: {})
         }
         .whereBroadwayRoot()
     }

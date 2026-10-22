@@ -226,6 +226,20 @@ extension AppearanceSettingsView: SettingsSection {
     extension AppearanceSettingsView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
+                name: "FlatSelected",
+                configurations: .fullContentPhoneLightDark,
+                theme: .alternate,
+                measurementReadiness: .immediate,
+            ) {
+                let model = PreviewSupport.loadedModel()
+                model.previewTheme(.alternate)
+                return NavigationStack {
+                    AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())
+                }
+                .environment(model)
+                .environment(\.cardDesignerModel, CardDesignerModel(configuration: .standard))
+            }
+            whereSnapshot(
                 name: "Default",
                 configurations: .fullContentScreenDefaults,
                 measurementReadiness: .immediate,

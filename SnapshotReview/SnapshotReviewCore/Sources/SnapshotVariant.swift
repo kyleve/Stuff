@@ -2,8 +2,17 @@ import Foundation
 
 /// Device-independent appearance axes, used to pair equivalent images across frames.
 public struct SnapshotVariant: Codable, Hashable, Sendable {
-    public enum Appearance: String, Codable, CaseIterable, Sendable { case light, dark, other }
-    public enum ColorScheme: String, Codable, Sendable { case light, dark }
+    public enum Appearance: String, Codable, CaseIterable, Sendable {
+        case light
+        case dark
+        case other
+    }
+
+    public enum ColorScheme: String, Codable, Sendable {
+        case light
+        case dark
+    }
+
     public var colorScheme: ColorScheme
     public var dynamicType: String
     public var increasedContrast: Bool

@@ -22,6 +22,7 @@
                             path: path,
                             testName: "profile",
                             caseName: "Loaded",
+                            referenceGroup: nil,
                             configurationIdentifier: frame,
                             frame: frame,
                             configurationName: nil,

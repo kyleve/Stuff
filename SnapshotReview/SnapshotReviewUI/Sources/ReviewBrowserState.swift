@@ -6,11 +6,14 @@ struct ReviewCase: Identifiable, Hashable, Codable {
         var suite: URL
         var testName: String?
         var caseName: String?
+        var referenceGroup: String?
     }
 
     var id: ID
     var label: String {
-        id.caseName.map { "\(id.testName ?? "") · \($0)" } ?? "Ungrouped"
+        guard let caseName = id.caseName else { return "Ungrouped" }
+        return [id.referenceGroup, id.testName, caseName].compactMap(\.self)
+            .joined(separator: " · ")
     }
 }
 

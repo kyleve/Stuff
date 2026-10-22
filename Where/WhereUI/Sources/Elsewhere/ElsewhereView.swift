@@ -5,8 +5,8 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Elsewhere: every region outside your primary spots, shown as compact Liquid
-/// Glass cards for the selected year. Pushed from the Locations tab's Elsewhere
+/// Elsewhere: every region outside your primary spots, shown as compact passport
+/// cards for the selected year. Pushed from the Locations tab's Elsewhere
 /// entry card, so it renders inside that tab's `NavigationStack` (no stack of
 /// its own).
 struct ElsewhereView: View {
@@ -18,6 +18,7 @@ struct ElsewhereView: View {
     @State private var placeNames: [Region: String] = [:]
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
 
     var body: some View {
         screen
@@ -93,7 +94,9 @@ struct ElsewhereView: View {
                                     year: report.selectedYear,
                                 )
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(stylesheet.card.compact.buttonStyle(
+                                tint: regionStyles.style(for: item.region).tint,
+                            ))
                         }
                     }
                 }

@@ -17,15 +17,13 @@ public final class ReviewBrowserModel {
     var selection: ReviewSelection?
     var appearance: SnapshotVariant.Appearance = .light {
         didSet {
-            if oldValue !=
-                appearance { queue = nil; placement = nil; displayedImage = nil; saveSession() }
+            if oldValue != appearance { queue = nil; placement = nil; saveSession() }
         }
     }
 
     var other: SnapshotVariant? {
         didSet {
-            if oldValue !=
-                other { queue = nil; placement = nil; displayedImage = nil; saveSession() }
+            if oldValue != other { queue = nil; placement = nil; saveSession() }
         }
     }
 
@@ -96,6 +94,7 @@ public final class ReviewBrowserModel {
             suite: image.id.suite,
             testName: image.metadata?.testName,
             caseName: image.metadata?.caseName,
+            referenceGroup: image.metadata?.referenceGroup,
         )
     }
 
@@ -182,8 +181,8 @@ public final class ReviewBrowserModel {
     }
 
     func select(_ value: ReviewSelection?) {
-        if selection != value { displayedImage = nil }
         selection = value
+        if selectedImage?.id != displayedImage?.imageID { displayedImage = nil }
         queue = nil
         placement = nil
         selectedAnnotation = nil
@@ -242,6 +241,7 @@ public final class ReviewBrowserModel {
                             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))),
                     testName: location.group.testName,
                     caseName: location.group.caseName,
+                    referenceGroup: location.group.referenceGroup,
                 )
                 select(location.image
                     .map { .image(.init(suite: group.suite, path: $0)) } ?? .group(group))

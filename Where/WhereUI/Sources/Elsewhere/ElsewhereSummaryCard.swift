@@ -51,19 +51,22 @@ struct ElsewhereSummaryCard: View {
         .frame(maxWidth: .infinity, minHeight: style.minimumHeight, alignment: .leading)
         .background { securityPrint }
         .background {
-            if style.surface.usesOpaquePaper {
-                shape.fill(style.surface.paper)
-            } else {
-                shape.fill(.clear)
-                    .glassEffect(
-                        .regular.tint(style.surface.ink.opacity(style.surface.glassTintOpacity))
-                            .interactive(),
-                        in: shape,
-                    )
+            if style.surface.treatment.usesReflection {
+                if style.surface.usesOpaquePaper {
+                    shape.fill(style.surface.paper)
+                } else {
+                    shape.fill(.clear)
+                        .glassEffect(
+                            .regular.tint(style.surface.ink.opacity(style.surface.glassTintOpacity))
+                                .interactive(),
+                            in: shape,
+                        )
+                }
             }
         }
         .clipShape(shape)
         .contentShape(shape)
+        .matteSurface(style.surface.treatment, tint: style.surface.ink, in: shape)
         .shadow(
             color: .black.opacity(style.surface.shadowOpacity),
             radius: style.surface.shadowRadius,
@@ -207,7 +210,7 @@ struct ElsewhereSummaryCard: View {
             reduceTransparency: Bool = false,
         ) -> SnapshotCase {
             let cache = RegionOutlinePathCache()
-            return whereSnapshot(
+            return whereThemeSnapshot(
                 name: name,
                 configurations: configurations,
                 measurementReadiness: .immediate,

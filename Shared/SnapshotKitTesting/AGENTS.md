@@ -16,11 +16,13 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **`WhereUISnapshotTests` double-embeds `SnapshotKit`, tolerated and guarded.** This product's closure plus WhereUI's own copy live in one image. The other image bundles do not link WhereUI.
 - **Guard: `WhereUISnapshotTests.SnapshotCaptureFlagProbeTests` fails loudly if the copies split.** Mechanism: PR #145.
 - **Re-export `SnapshotKit` and `SnapshotTesting`** so consumers need one import.
+- Read case subjects through SnapshotKit's `Capture` SPI. Dispatch exhaustively by case, never by panel-array emptiness.
 - **Declare the library target in [`Package.swift`](../../Package.swift).**
 
 ## Review metadata
 
 - Export suite manifests through `SnapshotReviewManifest` after successful comparison or recording.
+- Use the common reference assertion for single images and cutsheets. Preserve exact reference groups in metadata.
 - Preserve entries from filtered-out tests. Do not rewrite unchanged metadata or rename image references.
 - Keep manifest write failures observable as test issues. Guards: `SnapshotReviewManifestTests`.
 
@@ -28,7 +30,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 
 - **Use `snapshotReferenceURL` for recording, comparison, and review paths.** Keep filenames stable when the directory changes.
 - **Nest standard captures with non-default Dynamic Type, increased contrast, RTL, or bold text under the suite's `other/` directory.**
-- **Keep all accessibility annotations at the suite root, even with those traits.** Device, frame, name, and light/dark appearance do not select `other/`. Guard: `SnapshotReferenceURLTests`.
+- **Keep accessibility annotations at the selected group root, even with those traits.** Device, frame, name, and light/dark appearance do not select `other/`. Guard: `SnapshotReferenceURLTests`.
 - **The rendering pipeline is one async function.** All captures (standard and accessibility) flow through `renderSnapshotCapture(...)`; `renderSnapshotImage(...)` is its image-only wrapper.
 - **The hosted PNG API uses the same pipeline and capture lock.** It returns bytes and dimensions without comparing a reference.
 - **HTML snapshots wrap offline WebKit in the standard view pipeline.** Use its host, traits, capture lock, and pixel renderer. Await navigation, fonts, paint, and full-content height convergence from the pre-measure hook. Keep consumer HTML generation outside this module. Guards: `AssertHTMLSnapshotsTests`, `SnapshotWebPageTests`.
@@ -65,6 +67,10 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **The runner fails fast, once, on setup problems.** Examples: a simulator that does not match the `SNAPSHOT_EXPECTED_*` pins, two variants sharing one reference name.
 - **Report one clear issue, never hundreds of pixel diffs.**
 - **An unsettled capture is a failure, not a silent fallback.**
+- **Assertions allow three attempts per independent capture (single view or cutsheet panel) for `settleTimedOut` and `settleStarved` only.** Create a fresh controller after each attempt completes cleanup and releases the capture lock.
+- **Keep models shared and rerun readiness hooks on retries.** Hooks must tolerate repeated execution. Preserve cancellation and report the final original error once.
+- **Keep direct image/PNG APIs single-attempt.** Compare and record only after a successful capture. Guard: `SnapshotCaptureRetryTests` and `AssertSnapshotsTests`.
+- **Report retries through `SNAPSHOT_RETRY`, never extra timing or diff lines.** Include failed-attempt time in the successful capture's one timing line. Guard: `Tools/Tests/test_test_runner.py`.
 - **Freeze endless motion behind `\.isCapturingSnapshot`.** Use deterministic readiness or `.settledAtLeast` for finite work.
 - **Compare settle samples in normalized 8-bit, premultiplied sRGB RGBA.** Allow at most one unit per channel, with no area exemption.
 - **Keep the anchor fixed through the quiet window.** A larger difference, changed dimensions, or missing sample resets the proof.
@@ -152,6 +158,25 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **`CFRunLoopGetNextTimerFireDate` reports only `CFRunLoopTimer`s.** Then "is something scheduled to land in 200ms?" is unanswerable.
 - **That is why the floors exist and why they need per-case seams.**
 - **`CATransaction.addCommitHandler` is macOS-only and absent from the iOS SDK.** A commit-counting variant is not available either.
+
+## Component comparisons and reference groups
+
+- Prefer comparison sheets for theme-dependent component appearance. Keep full-screen
+  variants for critical integration or materially different screen composition.
+- Keep theme identities and ordering in the consumer. Shared snapshot code accepts
+  generic labeled panels and validated reference groups.
+- Preserve existing ungrouped filenames. Resolve grouped paths through the same
+  path resolver for recording, comparison, and review; `other/` nests inside the group.
+- Capture each panel independently with fresh fixture state through the hosted
+  pipeline, including readiness and accessibility annotation handling.
+- Store one sheet PNG with a versioned panel map in PNG Description metadata.
+  Reject missing or invalid maps. Review the PNG before recording; preserve its metadata.
+- Share configured capture and reference recording between single views and cutsheets.
+  Collect all panel failures before composition; compose captured images without re-rendering views.
+  Store bounds and canvas dimensions as whole pixels, including at 3x scale.
+  Compare each panel at the existing tolerance; never dilute its area budget across
+  the entire sheet. Layout or membership changes must fail explicitly.
+- Count real panel captures in timing reports; do not count composition as a capture.
 
 ## Testing
 

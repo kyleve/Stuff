@@ -14,6 +14,7 @@ public struct SnapshotManifest: Codable, Equatable, Sendable {
         public var path: SnapshotPath
         public var testName: String
         public var caseName: String
+        public var referenceGroup: String?
         public var configurationIdentifier: String
         public var frame: String
         public var configurationName: String?
@@ -24,6 +25,7 @@ public struct SnapshotManifest: Codable, Equatable, Sendable {
             path: SnapshotPath,
             testName: String,
             caseName: String,
+            referenceGroup: String?,
             configurationIdentifier: String,
             frame: String,
             configurationName: String?,
@@ -33,6 +35,7 @@ public struct SnapshotManifest: Codable, Equatable, Sendable {
             self.path = path
             self.testName = testName
             self.caseName = caseName
+            self.referenceGroup = referenceGroup
             self.configurationIdentifier = configurationIdentifier
             self.frame = frame
             self.configurationName = configurationName

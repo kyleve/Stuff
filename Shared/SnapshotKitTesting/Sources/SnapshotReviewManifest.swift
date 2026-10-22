@@ -9,6 +9,7 @@ enum SnapshotReviewManifest {
         reference: URL,
         testName: String,
         caseName: String,
+        referenceGroup: SnapshotReferenceGroup?,
         configuration: SnapshotConfiguration,
     ) throws -> SnapshotManifest.Entry {
         let suite = try suiteURL(reference)
@@ -24,6 +25,7 @@ enum SnapshotReviewManifest {
             path: path,
             testName: testName,
             caseName: caseName,
+            referenceGroup: referenceGroup?.rawValue,
             configurationIdentifier: configuration.identifier,
             frame: configuration.device.name.isEmpty ? "Component" : configuration.device.name,
             configurationName: configuration.name,
@@ -43,6 +45,7 @@ enum SnapshotReviewManifest {
         reference: URL,
         testName: String,
         caseName: String,
+        referenceGroup: SnapshotReferenceGroup?,
         configuration: SnapshotConfiguration,
     ) throws {
         let suite = try suiteURL(reference)
@@ -51,6 +54,7 @@ enum SnapshotReviewManifest {
                 reference: reference,
                 testName: testName,
                 caseName: caseName,
+                referenceGroup: referenceGroup,
                 configuration: configuration,
             ),
             suite: suite,

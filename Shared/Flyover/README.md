@@ -150,3 +150,11 @@ This keeps every horizontally shelved group visible at the same readable initial
 ```sh
 ./test --snapshots
 ```
+
+## Snapshot case adapters
+
+`FlyoverVariant.snapshots(id:snapshotCase:)` returns one lazy variant for a single-view
+snapshot case, or one variant per cutsheet panel. Single-view IDs remain unchanged.
+Cutsheet variants append their stable panel identity to the supplied ID. Panel
+reordering therefore preserves variant identity. The adapter never hosts the entire
+comparison sheet as one interactive screen.

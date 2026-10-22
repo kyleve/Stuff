@@ -9,7 +9,12 @@ public struct ReviewAnnotation: Codable, Equatable, Identifiable, Sendable {
         }
     }
 
-    public enum Status: String, Codable, CaseIterable, Sendable { case note, open, resolved }
+    public enum Status: String, Codable, CaseIterable, Sendable {
+        case note
+        case open
+        case resolved
+    }
+
     public struct Point: Codable, Equatable, Sendable {
         public var x: Double
         public var y: Double

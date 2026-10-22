@@ -4,7 +4,7 @@ import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
-/// A Liquid Glass card summarizing how many days were spent in one region.
+/// A themed passport card summarizing how many days were spent in one region.
 /// Used prominently on the Primary tab and (more compactly) on Elsewhere.
 struct RegionSummaryCard: View {
     /// Why the shared card is being rendered. A theme specimen keeps the real
@@ -127,6 +127,14 @@ struct RegionSummaryCard: View {
         cardStyles.securityPrint.tint(style.tint)
     }
 
+    private var contentTint: Color {
+        card.contentTint.apply(to: style.tint)
+    }
+
+    private var foregroundPrintTint: Color {
+        card.contentTint.apply(to: securityPrintTint)
+    }
+
     private var cardShape: RoundedRectangle {
         RoundedRectangle(cornerRadius: card.cornerRadius, style: .continuous)
     }
@@ -178,7 +186,7 @@ struct RegionSummaryCard: View {
             title: regionDays.region.localizedName.uppercased(),
             year: year,
             symbol: style.symbol,
-            tint: securityPrintTint,
+            tint: foregroundPrintTint,
             style: card.entryStamp,
             regionPath: regionPaths?.stamp ?? Path(),
             regionShape: card.regionShape,
@@ -301,7 +309,7 @@ struct RegionSummaryCard: View {
             .lineLimit(1)
             .allowsTightening(true)
             .minimumScaleFactor(0.7)
-            .foregroundStyle(style.tint)
+            .foregroundStyle(contentTint)
             .opacity(cardStyles.nameOpacity)
 
         VStack(alignment: .leading, spacing: card.contentSpacing) {
@@ -318,7 +326,7 @@ struct RegionSummaryCard: View {
                     if let places {
                         Label(places, systemSymbol: .mappinAndEllipse)
                             .font(.caption2.weight(.medium))
-                            .foregroundStyle(style.tint)
+                            .foregroundStyle(contentTint)
                             .lineLimit(1)
                     }
                 }
@@ -334,8 +342,8 @@ struct RegionSummaryCard: View {
                 LocationCardEstimateSticker(
                     recordedDays: regionDays.days,
                     estimatedDays: estimatedDays,
-                    regionTint: style.tint,
-                    securityPrintTint: securityPrintTint,
+                    regionTint: contentTint,
+                    securityPrintTint: foregroundPrintTint,
                     card: card,
                     style: cardStyles.estimateSticker,
                     transition: dayCount,
@@ -343,7 +351,7 @@ struct RegionSummaryCard: View {
             } else {
                 LocationCardDayCount(
                     days: regionDays.days,
-                    tint: style.tint,
+                    tint: contentTint,
                     card: card,
                     transition: dayCount.transition(days: regionDays.days),
                 )
@@ -376,7 +384,7 @@ struct RegionSummaryCard: View {
                                 }
                             }
                             Capsule()
-                                .fill(style.tint)
+                                .fill(contentTint)
                                 .frame(width: proxy.size.width * recordedFraction)
                         }
                         .frame(width: proxy.size.width, height: barHeight, alignment: .leading)
@@ -394,33 +402,13 @@ struct RegionSummaryCard: View {
         .padding(card.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background { stampPaper }
-        .glassEffect(
-            .regular.tint(style.tint.opacity(cardStyles.glassTintOpacity))
-                .interactive(interactive),
-            in: cardShape,
-        )
-        .tiltSheen(
+        .modifier(RegionCardSurface(
+            card: card,
+            glassTintOpacity: cardStyles.glassTintOpacity,
+            tint: style.tint,
+            interactive: interactive,
             tilt: tilt,
-            staticRoll: card.sheen.staticPose.roll,
-            staticPitch: card.sheen.staticPose.pitch,
-            in: cardShape,
-            intensity: card.sheen.intensity,
-            staticGlintIntensity: card.sheen.staticGlintIntensity,
-        )
-        .clipShape(cardShape)
-        // Make the whole card a single hit target — without this only the
-        // opaque sub-views (text, stamp, bar) take taps, leaving dead gaps
-        // (e.g. the bottom-right) when the card is wrapped in a Button/link.
-        .contentShape(cardShape)
-        .shadow(
-            color: style.tint.opacity(card.glow.opacity),
-            radius: card.glow.radius,
-        )
-        .shadow(
-            color: style.tint.opacity(card.lift.opacity),
-            radius: card.lift.radius,
-            y: card.lift.offsetY,
-        )
+        ))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
         .regionArtworkTask(
@@ -610,5 +598,54 @@ private struct ArcText: View {
             }
             .padding()
         }
+    }
+#endif
+
+#if DEBUG
+    import SnapshotKit
+
+    extension RegionSummaryCard: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            for variant in [WhereStylesheet.CardStyle.Variant.regular, .compact] {
+                themedSnapshot(variant: variant, reduceTransparency: false)
+                themedSnapshot(variant: variant, reduceTransparency: true)
+            }
+        }
+
+        private static func themedSnapshot(
+            variant: WhereStylesheet.CardStyle.Variant,
+            reduceTransparency: Bool,
+        ) -> SnapshotCase {
+            let cache = RegionOutlinePathCache()
+            let name = variant == .regular ? "Regular" : "Compact"
+            return whereThemeSnapshot(
+                name: name + (reduceTransparency ? "ReduceTransparency" : ""),
+                configurations: reduceTransparency ? .componentLightDark : .componentDefaults,
+                onReadyToMeasure: {
+                    _ = await cache.path(for: .california, resolution: .medium)
+                    _ = await cache.path(for: .california, resolution: .small)
+                    _ = await cache.path(for: .california, resolution: .micro)
+                },
+            ) {
+                RegionSummaryCard(
+                    regionDays: RegionDays(region: .california, days: 148),
+                    variant: variant,
+                    estimatedDays: DayBounds(lower: 180, upper: 220),
+                    year: 2026,
+                )
+                .padding(24)
+                .background(.background)
+                .environment(\.regionOutlinePathCache, cache)
+                .bTraitOverrides { traits, overrides in
+                    var accessibility = traits.accessibility
+                    accessibility.isReduceTransparencyEnabled = reduceTransparency
+                    overrides.accessibility = accessibility
+                }
+            }
+        }
+    }
+
+    #Preview("Themes") {
+        RegionSummaryCard.snapshotPreviews
     }
 #endif

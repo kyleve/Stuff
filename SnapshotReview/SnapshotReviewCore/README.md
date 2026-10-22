@@ -34,6 +34,7 @@ The store rejects a changed image or externally edited review file. It never rep
 ## Capture metadata
 
 `SnapshotManifest` describes exact test/case names, configuration labels, and appearance axes for each reference path.
+Optional reference groups keep named captures distinct. Grouped images and cutsheets remain ordinary reviewable PNG files.
 SnapshotKitTesting calls `ReviewFileStore.updateManifest(_:suite:)` after a successful comparison or recording.
 The operation merges entries and skips identical writes. Filtered runs retain entries from other tests.
 The browser discovers actual PNG files independently, so stale manifest entries do not create images.

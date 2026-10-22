@@ -59,6 +59,7 @@ actor ReviewTestStorage: ReviewWorkspaceStorage {
                         path: path,
                         testName: "test",
                         caseName: "Loaded",
+                        referenceGroup: nil,
                         configurationIdentifier: frame,
                         frame: frame,
                         configurationName: nil,

@@ -31,6 +31,7 @@ struct ReviewFileStoreTests {
             path: SnapshotPath("a.png"),
             testName: "test",
             caseName: "Name_with_underscores",
+            referenceGroup: nil,
             configurationIdentifier: "iPhone",
             frame: "iPhone",
             configurationName: nil,

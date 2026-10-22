@@ -4,6 +4,28 @@ import SnapshotReviewCore
 import Testing
 
 @MainActor struct ReviewBrowserModelTests {
+    @Test func referenceGroupsKeepCasesAndVariantCounterpartsSeparate() async throws {
+        let storage = ReviewTestStorage()
+        let model = try ReviewBrowserTestSupport.model(storage: storage)
+        var suites = model.suites
+        let grouped = try suites[0].images.map { image in
+            var image = image
+            image.id.path = try SnapshotPath("themes/" + image.id.path.value)
+            image.metadata?.path = image.id.path
+            image.metadata?.referenceGroup = "themes"
+            return image
+        }
+        suites[0].images += grouped
+        await storage.setScan(suites)
+        await model.refresh()
+        #expect(model.cases.count == 2)
+        #expect(model.visibleImages.count == 2)
+        try model.select(.image(#require(grouped.first).id))
+        model.appearance = .dark
+        #expect(model.selectedImage?.metadata?.referenceGroup == "themes")
+        #expect(model.selectedImage?.metadata?.variant == .dark)
+    }
+
     @Test func reloadingAnEditorPreservesDraftAndExternalAnnotations() async throws {
         let storage = ReviewTestStorage()
         let model = try ReviewBrowserTestSupport.model(storage: storage)
@@ -63,6 +85,14 @@ import Testing
             fingerprint: dark.content.get().fingerprint,
         )
         #expect(model.canReviewDisplayedImage)
+        // Changing the anchor to the already displayed counterpart must not
+        // disable review while SwiftUI reuses the same loaded canvas.
+        model.select(.image(dark.id))
+        #expect(model.canReviewDisplayedImage)
+        model.select(.group(model.caseID(dark)))
+        #expect(!model.canReviewDisplayedImage)
+        model.select(.image(dark.id))
+        #expect(!model.canReviewDisplayedImage)
     }
 
     @Test func defaultsToBothLightDevicesAndPairsSingleImage() throws {
