@@ -15,6 +15,8 @@ mise exec -- npm ci
 mise exec -- npm run check
 bash Shared/Flyover/Tools/Tests/flyover_test.sh
 python3 -m unittest Tools.Tests.test_flyover_site Tools.Tests.test_flyover_manifest Tools.Tests.test_flyover_preview
+mise exec -- npx playwright install chromium webkit
+mise exec -- npm run test:browser --workspace stuff-flyover-site
 ```
 
 The preview command serves the existing generated viewer. The dev command uses current source with the existing captures.
@@ -41,3 +43,10 @@ The root `flyover` command owns capture orchestration, staging, rollback, and pu
 The native manifest schema remains version 1. The exporter no longer writes `manifest.js`.
 Regenerate earlier artifacts before using the new preview command.
 PNG capture, thumbnail generation, and geometry remain native responsibilities.
+
+## Browser regressions
+
+Playwright loads the production Astro build with synthetic PNG captures under a nested HTTP path.
+The suite covers Chromium and WebKit at desktop, portrait, and landscape widths.
+It checks modal frame cancellation, profile scroll restoration, select sizing, and dark action contrast.
+These tests do not replace native capture tests.
