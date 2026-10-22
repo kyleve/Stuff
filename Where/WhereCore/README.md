@@ -478,7 +478,7 @@ Calendar-day persistence keys use `CalendarDay.iso8601` (`YYYY-MM-DD`); diagnost
 ### Recorded flight fixtures
 
 The recorded corpus covers sparse displacement, legacy recordings with mixed sampling, interrupted cruise with a turning approach, and late cruise resumption.
-Each fixture retains its complete selected window, including ground travel and duplicate callbacks.
+Each JSON fixture in `Tests/Fixtures/Flights/` retains its complete selected window, including ground travel and duplicate callbacks.
 The analyzer regressions check flight recognition, positive arrival evidence, supported days, and protection of ground points.
 They also check reordered delivery, repeated callbacks, and removal of arrival evidence.
 
@@ -487,14 +487,30 @@ The recorded cruise regression checks live progress, stale observations, and arr
 The correction regression imports this archive, applies reviewed exclusions, and checks the report and preservation of ground points and raw samples.
 These checks run in ordinary CI without a private backup or replay configuration.
 
+`RecordedFlightFixture` uses synthesized `Codable` with the existing `LocationSample` representation.
+Its JSON contains `coordinates` (`rotated` or `original`), `now`, and the ordered `samples` array.
+Fixture dates use Foundation's default Codable representation: seconds since January 1, 2001 UTC.
+This representation preserves timestamp precision without conversion to another epoch.
+The encoder preserves nonfinite sensor values as `NaN`, `Infinity`, or `-Infinity` strings.
+The JSON contains observations only. Swift tests keep the independently reviewed expectations.
+`Project.swift` copies the `Flights` folder into `WhereCoreTests.xctest`, including for CI workers that receive prebuilt products.
+A missing or malformed fixture throws an error.
+
+```swift
+let fixture = try RecordedFlightFixture.load(.sparse)
+let flights = FlightTrajectoryAnalyzer().analyze(samples: fixture.samples, now: fixture.now)
+```
+
 `FlightFixtureExporterTests.exportArchiveFixtureOnRequest` extracts GPS callbacks from a current-format backup through `BackupService`.
 It applies device-removal cutoffs and selects the half-open interval `[from, until)`.
 It retains callback order, duplicates, conflicting identities, accuracy, motion readings, and device boundaries.
 Manual and evidence-derived samples are outside this GPS-only fixture.
 
-The exporter replaces sample and device IDs, shifts every timestamp by one constant, and rotates all coordinates together.
-The rotation preserves spherical distances, including across the date line and near the poles.
-The output contains no original path, IDs, absolute dates, or rotation origin.
+The exporter replaces sample and device IDs and shifts every timestamp by one constant.
+By default, it rotates all coordinates together. The rotation preserves spherical distances, including across the date line and near the poles.
+The optional `coordinateMode` accepts `rotate` or `preserve`. Preserve mode copies the original coordinates exactly, so RegionKit attribution and boundary distances remain unchanged.
+Both modes omit the input path and replace IDs. The JSON `coordinates` field identifies whether coordinates are original or rotated.
+The date shift depends on `replacementStart`; coordinate preservation does not disable it.
 Route shape, timing, accuracy, and sensor values remain recognizable characteristics. Review the output before publishing it.
 
 1. Keep the backup and export configuration outside the checkout.
@@ -511,10 +527,14 @@ Route shape, timing, accuracy, and sensor values remain recognizable characteris
      "now": 1767398400,
      "replacementStart": 1577836800,
      "replacementOrigin": {"latitude": 15, "longitude": -30},
-     "typeName": "RecordedFlightFixture",
-     "outputPath": "/private/tmp/RecordedFlightFixture.swift"
+     "outputPath": "/private/tmp/sparse-flight.json"
    }
    ```
+
+   For original coordinates, add `"coordinateMode": "preserve"` and remove `replacementOrigin`.
+   For rotation, omit `coordinateMode` or set it to `"rotate"`, and supply `replacementOrigin`.
+   The exporter rejects a missing rotation origin or an origin supplied with preserve mode.
+   Preserve mode publishes the selected coordinates unchanged in the JSON file.
 
 4. Run from the repository root:
 
@@ -523,14 +543,15 @@ Route shape, timing, accuracy, and sensor values remain recognizable characteris
      ./test --only WhereCoreTests/FlightFixtureExporterTests
    ```
 
-   The export stops if transformation changes flight recognition, arrival evidence, supported intervals, or correction identities.
+   The export stops if transformation or JSON decoding changes flight recognition, arrival evidence, supported intervals, or correction identities.
    It also refuses to overwrite an existing output file.
    These checks verify transformation fidelity. They do not establish the correct flight result.
-5. Review the generated Swift array. For calendar, latitude, or date-line failures, preserve the relevant boundary in the replacement configuration.
-   Coordinate rotation does not preserve country attribution.
-6. Copy the reviewed file into `Tests/` and format it with `./swiftformat`.
+5. Review the generated JSON file. For calendar failures, select a replacement date that retains the relevant boundary.
+   Coordinate rotation does not preserve country or state attribution. Use preserve mode when a regression needs the original RegionKit geometry.
+6. Copy the reviewed JSON file into `Tests/Fixtures/Flights/`.
+   Add its filename stem to `RecordedFlightFixture.Name`.
    Add a named regression in `FlightTrajectoryAnalyzerTests.swift` with independently reviewed expectations.
    Assert flight count, arrival evidence, supported days, airborne identities, and protected ground points as applicable.
-   Use `RecordedSparseFlightFixture` and its analyzer regression as an example.
+   Use `sparse-flight.json` and `recordedSparseFlightRetainsRecognitionWithoutInventingAirbornePoints` as an example.
 7. Run `./test --only WhereCoreTests/FlightTrajectoryAnalyzerTests` with the export configuration unset.
-   The committed Swift fixture runs in ordinary CI without the private archive or export configuration.
+   The bundled JSON fixture runs in ordinary CI without the private archive or export configuration.

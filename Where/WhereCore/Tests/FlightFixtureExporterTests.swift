@@ -8,7 +8,16 @@ struct FlightFixtureExporterTests {
     private let replacementStart = Date(timeIntervalSince1970: 1_577_836_800)
     private let replacementOrigin = Coordinate(latitude: 15, longitude: -30)
 
-    @Test func retainsOrderDuplicatesConflictsDevicesAndSensorAvailability() throws {
+    @Test(arguments: [
+        FlightFixtureExporter.CoordinateTransform.rotate(origin: Coordinate(
+            latitude: 15,
+            longitude: -30,
+        )),
+        .preserve,
+    ])
+    func retainsOrderDuplicatesConflictsDevicesAndSensorAvailability(
+        coordinateTransform: FlightFixtureExporter.CoordinateTransform,
+    ) throws {
         let motion = LocationMotion(
             speed: .init(metersPerSecond: 220, accuracyMetersPerSecond: 5),
             altitude: .init(meters: 10000, accuracyMeters: 20),
@@ -48,7 +57,7 @@ struct FlightFixtureExporterTests {
             until: Fixtures.date(minutes: 70),
             now: Fixtures.date(minutes: 65),
             replacementStart: replacementStart,
-            replacementOrigin: replacementOrigin,
+            coordinateTransform: coordinateTransform,
         )
         #expect(exported.originalSamples == [input[0], input[1], input[3], input[4], input[5]])
         #expect(exported.samples.count == 5)
@@ -66,16 +75,14 @@ struct FlightFixtureExporterTests {
         #expect(exported.samples[1].coordinate != exported.samples[3].coordinate)
         #expect(exported.samples[1].recordingDeviceID != exported.samples[4].recordingDeviceID)
         #expect(exported.now == replacementStart.addingTimeInterval(65 * 60))
-        let source = try exported.swiftSource(typeName: "RecordedFlightFixture")
-        #expect(source.contains("enum RecordedFlightFixture"))
-        #expect(source.contains("LocationMotion(speed: nil, altitude: nil)"))
-        #expect(!source.contains(Fixtures.device.rawValue.uuidString))
-        #expect(try exported.swiftSource(typeName: "RecordedFlightFixture") == source)
-        for invalidName in ["Injected {}", "Any", "Self"] {
-            #expect(throws: FlightFixtureExporter.ExportError.self) {
-                try exported.swiftSource(typeName: invalidName)
-            }
-        }
+        let data = try exported.fixture.jsonData()
+        let decoded = try RecordedFlightFixture.decode(data)
+        #expect(decoded.samples == exported.samples)
+        #expect(decoded.now == exported.now)
+        #expect(decoded.coordinates == exported.fixture.coordinates)
+        #expect(String(decoding: data, as: UTF8.self)
+            .contains(Fixtures.device.storeURL.absoluteString) == false)
+        #expect(try exported.fixture.jsonData() == data)
     }
 
     @Test func rotationPreservesDistancesAcrossTheDateLineAndNearPoles() throws {
@@ -103,9 +110,12 @@ struct FlightFixtureExporterTests {
             until: Fixtures.date(minutes: 5),
             now: Fixtures.date(minutes: 6),
             replacementStart: replacementStart,
-            replacementOrigin: replacementOrigin,
+            coordinateTransform: .rotate(origin: replacementOrigin),
         )
         #expect(exported.samples[0].coordinate.distance(to: replacementOrigin) < 0.001)
+        let decoded = try RecordedFlightFixture.decode(exported.fixture.jsonData())
+        #expect(decoded.coordinates == .rotated)
+        #expect(decoded.samples == exported.samples)
         for i in samples.indices {
             for j in samples.indices {
                 let before = samples[i].coordinate.distance(to: samples[j].coordinate)
@@ -116,10 +126,139 @@ struct FlightFixtureExporterTests {
         }
     }
 
-    @Test(arguments: FlightTrajectoryGenerator.Profile.allCases)
-    func transformationPreservesGeneratedFlightEvidence(profile: FlightTrajectoryGenerator
-        .Profile) throws
-    {
+    @Test func preservesExactCoordinatesAndRealRegionBoundaries() throws {
+        // Invented points on opposite sides of the Hudson, not personal GPS records.
+        let coordinates = [
+            Coordinate(latitude: 40.81, longitude: -73.967),
+            Coordinate(latitude: 40.825, longitude: -73.973),
+            Coordinate(latitude: 40.818, longitude: -73.962),
+        ]
+        let samples = coordinates.enumerated().map { index, coordinate in
+            LocationSample(
+                id: Fixtures.sampleID(index + 100),
+                timestamp: Fixtures.date(minutes: Double(index) * 5),
+                coordinate: coordinate,
+                horizontalAccuracy: 20,
+                source: .gpsSignificantChange,
+                recordingDeviceID: Fixtures.device,
+                motion: nil,
+            )
+        }
+        let exported = try FlightFixtureExporter(
+            samples: samples,
+            from: Fixtures.start,
+            until: Fixtures.date(minutes: 15),
+            now: Fixtures.date(minutes: 20),
+            replacementStart: replacementStart,
+            coordinateTransform: .preserve,
+        )
+        #expect(exported.samples.map(\.coordinate) == coordinates)
+        let newJersey = try #require(Region(rawValue: "us-NJ"))
+        let attributor = RegionAttributor(for: [.newYork, newJersey])
+        #expect(exported.samples.map { attributor.region(at: $0.coordinate) }
+            == [.newYork, newJersey, .newYork])
+        for (before, after) in zip(samples, exported.samples) {
+            let distance = try #require(attributor.distanceToBoundary(
+                of: .newYork,
+                from: before.coordinate,
+            ))
+            #expect(distance.isFinite)
+            #expect(attributor.distanceToBoundary(of: .newYork, from: after.coordinate) == distance)
+        }
+        let decoded = try RecordedFlightFixture.decode(exported.fixture.jsonData())
+        #expect(decoded.coordinates == .original)
+        #expect(decoded.samples.map(\.coordinate) == coordinates)
+        #expect(decoded.samples.map { attributor.region(at: $0.coordinate) }
+            == [.newYork, newJersey, .newYork])
+    }
+
+    @Test(arguments: [
+        "\"replacementOrigin\": {\"latitude\": 15, \"longitude\": -30}",
+        "\"coordinateMode\": \"rotate\", \"replacementOrigin\": {\"latitude\": 15, \"longitude\": -30}",
+        "\"coordinateMode\": \"preserve\"",
+    ])
+    func configurationSelectsExplicitPreservationOrDefaultRotation(fields: String) throws {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        let configuration = try decoder.decode(
+            FlightFixtureExporter.Configuration.self,
+            from: Data("""
+            {
+              "backupPath": "/private/tmp/input.zip", "from": 0, "until": 60, "now": 90,
+              "replacementStart": 1000, "outputPath": "/private/tmp/Fixture.json",
+              \(fields)
+            }
+            """.utf8),
+        )
+        let expected: FlightFixtureExporter.CoordinateTransform = fields.contains("preserve")
+            ? .preserve : .rotate(origin: replacementOrigin)
+        #expect(try configuration.coordinateTransform() == expected)
+    }
+
+    @Test func configurationRejectsMissingOrContradictoryOrigins() throws {
+        for mode in [nil, FlightFixtureExporter.Configuration.CoordinateMode.rotate] {
+            let configuration = FlightFixtureExporter.Configuration(
+                backupPath: "/private/tmp/input.zip",
+                from: Fixtures.start,
+                until: Fixtures.date(minutes: 1),
+                now: Fixtures.date(minutes: 2),
+                replacementStart: replacementStart,
+                coordinateMode: mode,
+                replacementOrigin: nil,
+                outputPath: "/private/tmp/Fixture.json",
+            )
+            #expect(throws: FlightFixtureExporter.ExportError.missingReplacementOrigin) {
+                try configuration.coordinateTransform()
+            }
+        }
+        let contradictory = FlightFixtureExporter.Configuration(
+            backupPath: "/private/tmp/input.zip",
+            from: Fixtures.start,
+            until: Fixtures.date(minutes: 1),
+            now: Fixtures.date(minutes: 2),
+            replacementStart: replacementStart,
+            coordinateMode: .preserve,
+            replacementOrigin: replacementOrigin,
+            outputPath: "/private/tmp/Fixture.json",
+        )
+        #expect(throws: FlightFixtureExporter.ExportError.unexpectedReplacementOrigin) {
+            try contradictory.coordinateTransform()
+        }
+    }
+
+    @Test func preservationStillRejectsInvalidCoordinates() {
+        let sample = LocationSample(
+            id: Fixtures.sampleID(1),
+            timestamp: Fixtures.start,
+            coordinate: Coordinate(latitude: .nan, longitude: 0),
+            horizontalAccuracy: 5,
+            source: .gpsSignificantChange,
+            recordingDeviceID: Fixtures.device,
+            motion: nil,
+        )
+        #expect(throws: FlightFixtureExporter.ExportError.invalidCoordinate) {
+            try FlightFixtureExporter(
+                samples: [sample],
+                from: Fixtures.start,
+                until: Fixtures.date(minutes: 1),
+                now: Fixtures.date(minutes: 2),
+                replacementStart: replacementStart,
+                coordinateTransform: .preserve,
+            )
+        }
+    }
+
+    @Test(arguments: FlightTrajectoryGenerator.Profile.allCases, [
+        FlightFixtureExporter.CoordinateTransform.rotate(origin: Coordinate(
+            latitude: 15,
+            longitude: -30,
+        )),
+        .preserve,
+    ])
+    func transformationPreservesGeneratedFlightEvidence(
+        profile: FlightTrajectoryGenerator.Profile,
+        coordinateTransform: FlightFixtureExporter.CoordinateTransform,
+    ) throws {
         let scenario = FlightTrajectoryGenerator.make(profile: profile, seed: 42)
         let exported = try FlightFixtureExporter(
             samples: scenario.samples,
@@ -127,7 +266,7 @@ struct FlightFixtureExporterTests {
             until: scenario.now.addingTimeInterval(1),
             now: scenario.now,
             replacementStart: replacementStart,
-            replacementOrigin: replacementOrigin,
+            coordinateTransform: coordinateTransform,
         )
         try verifyAssessmentParity(exported, originalNow: scenario.now)
     }
@@ -140,7 +279,7 @@ struct FlightFixtureExporterTests {
                 until: Fixtures.date(minutes: 60),
                 now: Fixtures.date(minutes: 60),
                 replacementStart: replacementStart,
-                replacementOrigin: replacementOrigin,
+                coordinateTransform: .rotate(origin: replacementOrigin),
             )
         }
         #expect(throws: FlightFixtureExporter.ExportError.self) {
@@ -150,7 +289,7 @@ struct FlightFixtureExporterTests {
                 until: Fixtures.start,
                 now: Fixtures.start,
                 replacementStart: replacementStart,
-                replacementOrigin: replacementOrigin,
+                coordinateTransform: .rotate(origin: replacementOrigin),
             )
         }
         #expect(throws: FlightFixtureExporter.ExportError.self) {
@@ -160,9 +299,44 @@ struct FlightFixtureExporterTests {
                 until: Fixtures.date(minutes: 300),
                 now: Fixtures.date(minutes: 300),
                 replacementStart: replacementStart,
-                replacementOrigin: Coordinate(latitude: 91, longitude: 0),
+                coordinateTransform: .rotate(origin: Coordinate(latitude: 91, longitude: 0)),
             )
         }
+    }
+
+    @Test func archiveExportWritesReloadableJSONAndRefusesOverwrite() throws {
+        let fixture = try RecordedFlightFixture.load(.resumedCruise)
+        let archiveURL = try RecordedFlightArchiveFixture.makeArchiveFile(fixture: fixture)
+        defer {
+            do {
+                try FileManager.default.removeItem(at: archiveURL.deletingLastPathComponent())
+            } catch {
+                Issue.record(error, "Could not remove the fixture export test archive")
+            }
+        }
+        let first = try #require(fixture.samples.min { $0.timestamp < $1.timestamp })
+        let outputURL = archiveURL.deletingLastPathComponent().appendingPathComponent("flight.json")
+        let configuration = FlightFixtureExporter.Configuration(
+            backupPath: archiveURL.path,
+            from: first.timestamp,
+            until: fixture.now,
+            now: fixture.now,
+            replacementStart: first.timestamp,
+            coordinateMode: .preserve,
+            replacementOrigin: nil,
+            outputPath: outputURL.path,
+        )
+        let exported = try exportArchiveFixture(configuration: configuration)
+        let reloaded = try RecordedFlightFixture.read(from: outputURL)
+        #expect(reloaded == exported)
+        #expect(reloaded.coordinates == .original)
+        #expect(reloaded.samples == fixture.samples)
+        #expect(reloaded.now == fixture.now)
+        let bytes = try Data(contentsOf: outputURL)
+        #expect(throws: CocoaError.self) {
+            try exportArchiveFixture(configuration: configuration)
+        }
+        #expect(try Data(contentsOf: outputURL) == bytes)
     }
 
     @Test(.disabled(
@@ -178,6 +352,15 @@ struct FlightFixtureExporterTests {
             FlightFixtureExporter.Configuration.self,
             from: Data(contentsOf: URL(fileURLWithPath: path)),
         )
+        let fixture = try exportArchiveFixture(configuration: configuration)
+        print(
+            "Exported \(fixture.samples.count) GPS callbacks after flight-evidence parity checks. Add independent expectations before committing the fixture.",
+        )
+    }
+
+    private func exportArchiveFixture(
+        configuration: FlightFixtureExporter.Configuration,
+    ) throws -> RecordedFlightFixture {
         let archive = try BackupService()
             .readArchive(at: URL(fileURLWithPath: configuration.backupPath)).archive
         let exported = try FlightFixtureExporter(
@@ -189,17 +372,14 @@ struct FlightFixtureExporterTests {
             until: configuration.until,
             now: configuration.now,
             replacementStart: configuration.replacementStart,
-            replacementOrigin: configuration.replacementOrigin,
+            coordinateTransform: configuration.coordinateTransform(),
         )
         try verifyAssessmentParity(exported, originalNow: configuration.now)
-        let source = try exported.swiftSource(typeName: configuration.typeName)
-        try Data(source.utf8).write(
+        try exported.fixture.jsonData().write(
             to: URL(fileURLWithPath: configuration.outputPath),
             options: .withoutOverwriting,
         )
-        print(
-            "Exported \(exported.samples.count) GPS callbacks after flight-evidence parity checks. Add independent expectations before committing the fixture.",
-        )
+        return exported.fixture
     }
 
     /// Export must not silently alter recognition or correction authority. Numeric
@@ -210,7 +390,10 @@ struct FlightFixtureExporterTests {
     ) throws {
         let analyzer = FlightTrajectoryAnalyzer()
         let original = analyzer.analyze(samples: exported.originalSamples, now: originalNow)
-        let replacement = analyzer.analyze(samples: exported.samples, now: exported.now)
+        // Compare the actual exported representation, including its Codable round trip.
+        let decoded = try RecordedFlightFixture.decode(exported.fixture.jsonData())
+        try #require(decoded == exported.fixture)
+        let replacement = analyzer.analyze(samples: decoded.samples, now: decoded.now)
         try #require(original.count == replacement.count)
         for (before, after) in zip(original, replacement) {
             try #require(after.id.departureSampleID == exported

@@ -1,0 +1,786 @@
+{
+  "coordinates" : "rotated",
+  "now" : 610151910.907681,
+  "samples" : [
+    {
+      "coordinate" : {
+        "latitude" : 15.000000000000002,
+        "longitude" : -29.999999999999996
+      },
+      "horizontalAccuracy" : 64.3992897006003,
+      "id" : "00000000-0000-0000-0000-000000000052",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 610013953.9961865
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.997106856685946,
+        "longitude" : -29.999151157028585
+      },
+      "horizontalAccuracy" : 14.245954471185843,
+      "id" : "00000000-0000-0000-0000-000000000004",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610014020.0860748
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.990750195322896,
+        "longitude" : -29.98760867067312
+      },
+      "horizontalAccuracy" : 1000,
+      "id" : "00000000-0000-0000-0000-000000000023",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610014321.0152369
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.982300804754463,
+        "longitude" : -29.980033058522533
+      },
+      "horizontalAccuracy" : 61.46088506634278,
+      "id" : "00000000-0000-0000-0000-000000000048",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610014624.2686992
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.96166674270278,
+        "longitude" : -29.962246317839455
+      },
+      "horizontalAccuracy" : 49.455486075581696,
+      "id" : "00000000-0000-0000-0000-000000000014",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610014928.6540799
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.955881446448599,
+        "longitude" : -29.912511402715133
+      },
+      "horizontalAccuracy" : 151.695014,
+      "id" : "00000000-0000-0000-0000-000000000032",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610015231.0973349
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.935584353512153,
+        "longitude" : -29.87388229124666
+      },
+      "horizontalAccuracy" : 1000,
+      "id" : "00000000-0000-0000-0000-000000000050",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610015533.596328
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.884203629901918,
+        "longitude" : -29.861219281746063
+      },
+      "horizontalAccuracy" : 2.0242057495853594,
+      "id" : "00000000-0000-0000-0000-000000000018",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610015834.096976
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.867926614993156,
+        "longitude" : -29.84286341799972
+      },
+      "horizontalAccuracy" : 11.677067897096231,
+      "id" : "00000000-0000-0000-0000-000000000009",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 610015953.0000796
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.86785733414262,
+        "longitude" : -29.842846954524514
+      },
+      "horizontalAccuracy" : 16.72994854003908,
+      "id" : "00000000-0000-0000-0000-000000000031",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610016134.641247
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.863374047648916,
+        "longitude" : -29.84164269811179
+      },
+      "horizontalAccuracy" : 24.535778009499065,
+      "id" : "00000000-0000-0000-0000-000000000015",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610016926.95768
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.86416214377167,
+        "longitude" : -29.84235139313522
+      },
+      "horizontalAccuracy" : 104.85499821427129,
+      "id" : "00000000-0000-0000-0000-000000000038",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 610023939.021522
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.857983106070263,
+        "longitude" : -29.838910204095583
+      },
+      "horizontalAccuracy" : 28.132735344716373,
+      "id" : "00000000-0000-0000-0000-000000000034",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610024003.180023
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.864411774695085,
+        "longitude" : -29.83839204146755
+      },
+      "horizontalAccuracy" : 176.51277598676225,
+      "id" : "00000000-0000-0000-0000-000000000045",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 610024033.350518
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.86478916501129,
+        "longitude" : -29.839564496378237
+      },
+      "horizontalAccuracy" : 224.61184135385437,
+      "id" : "00000000-0000-0000-0000-000000000025",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 610024033.350518
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.86478916501129,
+        "longitude" : -29.839564496378237
+      },
+      "horizontalAccuracy" : 224.61184135385437,
+      "id" : "00000000-0000-0000-0000-000000000051",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 610024033.350518
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.864140826695643,
+        "longitude" : -29.837788358413935
+      },
+      "horizontalAccuracy" : 222.195014,
+      "id" : "00000000-0000-0000-0000-000000000024",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610024316.212223
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.87002544556407,
+        "longitude" : -29.833772584772206
+      },
+      "horizontalAccuracy" : 232.5225120031576,
+      "id" : "00000000-0000-0000-0000-000000000044",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610024644.6366129
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.8579993774765,
+        "longitude" : -29.837719139036906
+      },
+      "horizontalAccuracy" : 21.486920179594776,
+      "id" : "00000000-0000-0000-0000-000000000033",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610024989.079349
+    },
+    {
+      "coordinate" : {
+        "latitude" : 17.9086268843275,
+        "longitude" : -60.276076662319106
+      },
+      "horizontalAccuracy" : 6.21416872832095,
+      "id" : "00000000-0000-0000-0000-000000000049",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610040812.2305479
+    },
+    {
+      "coordinate" : {
+        "latitude" : 17.890252056763877,
+        "longitude" : -60.867659052928225
+      },
+      "horizontalAccuracy" : 4.304223052553191,
+      "id" : "00000000-0000-0000-0000-000000000036",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610041113.04252
+    },
+    {
+      "coordinate" : {
+        "latitude" : 17.894615717460304,
+        "longitude" : -61.44834865164604
+      },
+      "horizontalAccuracy" : 3.80648633308025,
+      "id" : "00000000-0000-0000-0000-000000000017",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610041414.037144
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.104806810021177,
+        "longitude" : -61.91755876422522
+      },
+      "horizontalAccuracy" : 6.3907037976015095,
+      "id" : "00000000-0000-0000-0000-000000000003",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610041714.043788
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.294400977397718,
+        "longitude" : -62.3481381826837
+      },
+      "horizontalAccuracy" : 13.059785049689966,
+      "id" : "00000000-0000-0000-0000-000000000026",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610042014.053726
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.176793678973624,
+        "longitude" : -62.903880394688116
+      },
+      "horizontalAccuracy" : 4.196957103563738,
+      "id" : "00000000-0000-0000-0000-000000000006",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610042314.06216
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.15522430616874,
+        "longitude" : -63.49515129555473
+      },
+      "horizontalAccuracy" : 2.970099292614165,
+      "id" : "00000000-0000-0000-0000-000000000039",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610042615.0585179
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.12630599710173,
+        "longitude" : -64.08981296693091
+      },
+      "horizontalAccuracy" : 4.135267732328734,
+      "id" : "00000000-0000-0000-0000-000000000037",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610042916.082365
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.084972101325715,
+        "longitude" : -64.85712892166812
+      },
+      "horizontalAccuracy" : 18.860761364740743,
+      "id" : "00000000-0000-0000-0000-000000000028",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610043312.050498
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.052465713756675,
+        "longitude" : -65.42169728473387
+      },
+      "horizontalAccuracy" : 3.399206248048443,
+      "id" : "00000000-0000-0000-0000-000000000011",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610043612.0514779
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.074523935459816,
+        "longitude" : -66.01482707552226
+      },
+      "horizontalAccuracy" : 5.195574030720578,
+      "id" : "00000000-0000-0000-0000-000000000022",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610043912.054153
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.181837125484495,
+        "longitude" : -66.62585265066878
+      },
+      "horizontalAccuracy" : 8.179019273369118,
+      "id" : "00000000-0000-0000-0000-000000000029",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610044220.089524
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.480098762870696,
+        "longitude" : -68.29309732942855
+      },
+      "horizontalAccuracy" : 17.84935481863253,
+      "id" : "00000000-0000-0000-0000-000000000002",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610045149.2953281
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.595717730077347,
+        "longitude" : -68.58524791860066
+      },
+      "horizontalAccuracy" : 14,
+      "id" : "00000000-0000-0000-0000-000000000047",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610045450.0896668
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.72506707586565,
+        "longitude" : -68.71006213267877
+      },
+      "horizontalAccuracy" : 26.41293291203062,
+      "id" : "00000000-0000-0000-0000-000000000030",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610045751.048636
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.724944228974714,
+        "longitude" : -68.71022113012279
+      },
+      "horizontalAccuracy" : 35.995014,
+      "id" : "00000000-0000-0000-0000-000000000035",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610045759.641787
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.724944228974714,
+        "longitude" : -68.71022113012279
+      },
+      "horizontalAccuracy" : 35.995014,
+      "id" : "00000000-0000-0000-0000-000000000010",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610045759.641787
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.724944228974714,
+        "longitude" : -68.71022113012279
+      },
+      "horizontalAccuracy" : 35.995014,
+      "id" : "00000000-0000-0000-0000-000000000005",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610045759.641787
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.72199372781386,
+        "longitude" : -68.71001315558152
+      },
+      "horizontalAccuracy" : 307.3212018699852,
+      "id" : "00000000-0000-0000-0000-000000000001",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610045962.4166088
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.71828886278628,
+        "longitude" : -68.71408398167162
+      },
+      "horizontalAccuracy" : 109.33676915641132,
+      "id" : "00000000-0000-0000-0000-000000000012",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610046085.609551
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.72241182769644,
+        "longitude" : -68.72026373803796
+      },
+      "horizontalAccuracy" : 21.395014,
+      "id" : "00000000-0000-0000-0000-000000000016",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610047464.975352
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.725024606180973,
+        "longitude" : -68.72812956184278
+      },
+      "horizontalAccuracy" : 5.018007510007949,
+      "id" : "00000000-0000-0000-0000-000000000020",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610048388.1023879
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.78096538251966,
+        "longitude" : -68.74384295537297
+      },
+      "horizontalAccuracy" : 1414,
+      "id" : "00000000-0000-0000-0000-000000000027",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610048721.1711478
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.813789166659816,
+        "longitude" : -68.7547237731768
+      },
+      "horizontalAccuracy" : 5.319692157684045,
+      "id" : "00000000-0000-0000-0000-000000000041",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610049022.0804172
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.828606493347337,
+        "longitude" : -68.73422444667528
+      },
+      "horizontalAccuracy" : 39.95356061991251,
+      "id" : "00000000-0000-0000-0000-000000000019",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610049325.509999
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.843837794515867,
+        "longitude" : -68.71106941574844
+      },
+      "horizontalAccuracy" : 1000,
+      "id" : "00000000-0000-0000-0000-000000000021",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610049629.1373329
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.869795406356822,
+        "longitude" : -68.68854197691975
+      },
+      "horizontalAccuracy" : 1215.3935737065126,
+      "id" : "00000000-0000-0000-0000-000000000042",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610049929.1420469
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.888091999565752,
+        "longitude" : -68.66458009049494
+      },
+      "horizontalAccuracy" : 57.22098031687026,
+      "id" : "00000000-0000-0000-0000-000000000040",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610050229.8270731
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.88756300552553,
+        "longitude" : -68.66240419355053
+      },
+      "horizontalAccuracy" : 44.996013999999995,
+      "id" : "00000000-0000-0000-0000-000000000007",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 610050510.7811368
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.884040065790042,
+        "longitude" : -68.660600869236
+      },
+      "horizontalAccuracy" : 73.49801570284315,
+      "id" : "00000000-0000-0000-0000-000000000013",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 610050530.555305
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.88316568522517,
+        "longitude" : -68.66023935306659
+      },
+      "horizontalAccuracy" : 26.248794188324645,
+      "id" : "00000000-0000-0000-0000-000000000008",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 610050530.555305
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.885026786434597,
+        "longitude" : -68.66110439133693
+      },
+      "horizontalAccuracy" : 23.295014,
+      "id" : "00000000-0000-0000-0000-000000000043",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 610050692.5080009
+    },
+    {
+      "coordinate" : {
+        "latitude" : 18.881765606529413,
+        "longitude" : -68.65949210126149
+      },
+      "horizontalAccuracy" : 17.929754444370317,
+      "id" : "00000000-0000-0000-0000-000000000046",
+      "recordingDeviceID" : "store://devices/00000001-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 610051110.907681
+    }
+  ]
+}
