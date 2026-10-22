@@ -8,6 +8,7 @@
     "check": "npm run check --workspaces --if-present"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@astrojs/check": "0.9.10",
     "@types/node": "24.19.2",
     "astro": "7.4.0",

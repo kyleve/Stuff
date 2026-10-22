@@ -684,6 +684,8 @@ mise exec node -- node "$ROOT/Shared/Flyover/Tools/Tests/app_test.js" \
     || fail "the web navigation and capture scrolling regressions failed"
 mise exec node -- node --test "$ROOT/Shared/Flyover/Tools/Tests/load_atlas_test.js" \
     || fail "the manifest loading regressions failed"
+mise exec -- npm run test:unit --workspace stuff-flyover-site --prefix "$ROOT" \
+    || fail "the viewer policy regressions failed"
 python3 - "$ROOT/Shared/Flyover/Web/src/scripts/viewer.js" "$TEMP/residency-test.mjs" <<'PY'
 import pathlib
 import sys

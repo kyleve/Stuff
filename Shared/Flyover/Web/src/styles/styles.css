@@ -3,6 +3,9 @@
     --accent: #3157e8;
     --accent-strong: #2444c4;
     --accent-soft: #e8edff;
+    --action-background: #3157e8;
+    --action-hover: #2444c4;
+    --action-text: #ffffff;
     --modal: #a12aad;
     --background: #eef0f5;
     --canvas: #e9ebf1;
@@ -29,6 +32,9 @@
         --accent: #7891ff;
         --accent-strong: #9eafff;
         --accent-soft: #242b4d;
+        --action-background: #7891ff;
+        --action-hover: #9eafff;
+        --action-text: #151721;
         --modal: #e28bee;
         --background: #15161a;
         --canvas: #111216;
@@ -807,8 +813,8 @@ img[data-src]:not([src]) {
     height: 17px;
     place-items: center;
     border-radius: 99px;
-    background: var(--accent);
-    color: white;
+    background: var(--action-background);
+    color: var(--action-text);
     font-size: 9px;
     font-weight: 750;
 }
@@ -871,12 +877,12 @@ img[data-src]:not([src]) {
 }
 
 .primary-button {
-    background: var(--accent);
-    color: white;
+    background: var(--action-background);
+    color: var(--action-text);
 }
 
 .primary-button:hover {
-    background: var(--accent-strong);
+    background: var(--action-hover);
 }
 
 .secondary-button {
@@ -1705,6 +1711,7 @@ a.inspector-action {
 .inspector-field select {
     max-width: 190px;
     min-height: 30px;
+    height: 30px;
     border: 0;
     padding-left: 0;
     background-color: transparent;
@@ -2200,6 +2207,12 @@ a.inspector-action {
     }
 
     .header-profile select {
+        height: 44px;
+    }
+
+    .inspector-dock .inspector-field select,
+    .list-state select,
+    .card-state-select {
         height: 44px;
     }
 }

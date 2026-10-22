@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "cd ../../.. && ./flyover dev",
     "preview": "cd ../../.. && ./flyover preview",
-    "check": "ASTRO_TELEMETRY_DISABLED=1 astro check"
+    "check": "ASTRO_TELEMETRY_DISABLED=1 astro check",
+    "test:unit": "node --test tests/*.test.ts",
+    "test:browser": "playwright test"
   }
 }
