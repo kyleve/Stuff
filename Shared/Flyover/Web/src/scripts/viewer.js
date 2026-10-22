@@ -1,8 +1,11 @@
-(() => {
+import { readSelection, selectionHash } from "./navigation";
+import { selectResidentImages } from "./image-residency";
+import { updateCaptureScroller as configureCaptureScroller } from "./capture-scroller";
+
+export function startAtlas(manifest) {
     "use strict";
 
     const root = document.getElementById("app");
-    const manifest = window.FLYOVER_MANIFEST;
     if (!manifest || manifest.schemaVersion !== 1) {
         root.innerHTML = '<main class="error selectable-text"><p class="eyebrow">Manifest error</p><h1>Flyover cannot open this atlas</h1><p>This site requires manifest schema version 1.</p></main>';
         return;
@@ -168,49 +171,17 @@
 
     function parseHash() {
         const previousScreenID = state.screen;
-        const values = new URLSearchParams(location.hash.replace(/^#/, ""));
-        const view = values.get("view");
-        const profile = values.get("profile");
-        const screenID = values.get("screen");
-        const variantID = values.get("variant");
-        state.view = view === "canvas" || view === "list" ? view : defaultView;
-        state.profile = profileByID.has(profile) ? profile : defaultProfile;
-        state.panel = null;
-        state.panelTrigger = null;
-        state.commandQuery = "";
-        // Restore the complete selection, including defaults omitted from the URL.
-        for (const screen of manifest.screens) {
-            const selection = values.get("state." + screen.id);
-            selectedVariants.set(screen.id, screen.variants.some(variant => variant.id === selection)
-                ? selection : screen.variants[0]?.id);
-        }
-        if (screenByID.has(screenID)) {
-            state.screen = screenID;
-            const screen = screenByID.get(screenID);
-            const selectedVariant = screen.variants.some(variant => variant.id === variantID)
-                ? variantID : screen.variants[0]?.id;
-            selectedVariants.set(screenID, selectedVariant);
-        } else {
-            state.screen = null;
-            if (previousScreenID) {
-                state.pendingFocusKey = state.inspectorReturnFocusKey || "atlas-screen-" + previousScreenID;
-            }
+        const selection = readSelection(location.hash, manifest);
+        Object.assign(state, { view: selection.view, profile: selection.profile, screen: selection.screen,
+            panel: null, panelTrigger: null, commandQuery: "" });
+        for (const [screenID, variantID] of selection.variants) selectedVariants.set(screenID, variantID);
+        if (!state.screen && previousScreenID) {
+            state.pendingFocusKey = state.inspectorReturnFocusKey || "atlas-screen-" + previousScreenID;
         }
     }
 
     function writeHash() {
-        const values = new URLSearchParams();
-        values.set("view", state.view);
-        values.set("profile", state.profile);
-        for (const screen of manifest.screens) {
-            const selection = selectedVariants.get(screen.id);
-            if (selection !== screen.variants[0]?.id) values.set("state." + screen.id, selection);
-        }
-        if (state.screen) {
-            values.set("screen", state.screen);
-            values.set("variant", selectedVariants.get(state.screen));
-        }
-        const next = "#" + values;
+        const next = selectionHash({ ...state, variants: selectedVariants }, manifest);
         if (location.hash === next) return false;
         location.hash = next;
         return true;
@@ -947,26 +918,7 @@
     }
 
     function updateCaptureScroller(frame, device, screen, variant) {
-        const fullContent = variant.captureExtent === "fullContent"
-            || variant.captureExtent === "fullContent2D";
-        const scroller = state.inspectorScale === "actual" ? frame : (fullContent ? device : null);
-        const previous = [frame, device].find(node => node === document.activeElement);
-        for (const node of [frame, device]) {
-            if (node === scroller) {
-                node.tabIndex = 0;
-                node.dataset.captureScroller = "";
-                node.setAttribute("role", "region");
-                node.setAttribute("aria-label", screen.title + " scrollable capture");
-                node.dataset.focusKey = "inspector-capture";
-            } else {
-                node.removeAttribute("tabindex");
-                node.removeAttribute("data-capture-scroller");
-                node.removeAttribute("data-focus-key");
-                node.removeAttribute("role");
-                node.removeAttribute("aria-label");
-            }
-        }
-        if (previous && scroller && previous !== scroller) scroller.focus();
+        configureCaptureScroller(frame, device, screen.title, variant.captureExtent, state.inspectorScale);
     }
 
     function observeInspectorSize() {
@@ -1494,21 +1446,7 @@
     }
 
     function residentScreenIDs(candidates) {
-        const result = new Set();
-        let pixels = 0;
-        for (const candidate of candidates) {
-            if (!candidate.isVisible) continue;
-            result.add(candidate.screen.id);
-            pixels += candidate.imagePixels;
-        }
-        for (const candidate of candidates) {
-            if (candidate.isVisible) continue;
-            if (result.size >= targetResidentImageCount) break;
-            if (result.size > 0 && pixels + candidate.imagePixels > targetResidentPixelCount) continue;
-            result.add(candidate.screen.id);
-            pixels += candidate.imagePixels;
-        }
-        return result;
+        return selectResidentImages(candidates, targetResidentImageCount, targetResidentPixelCount);
     }
 
     function screenImagePixels(screen) {
@@ -1942,4 +1880,4 @@
 
     parseHash();
     render();
-})();
+}

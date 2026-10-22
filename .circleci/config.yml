@@ -159,7 +159,7 @@ commands:
             mise install
       - run:
           name: Install site dependencies
-          command: mise exec -- npm ci --prefix Tools/InstallerKit/Site
+          command: mise exec -- npm ci
       - save_cache:
           key: mise-installs-v2-{{ arch }}-{{ checksum ".mise.toml" }}
           paths:

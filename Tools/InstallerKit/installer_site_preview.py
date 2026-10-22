@@ -7,7 +7,8 @@ import sys
 import tempfile
 
 from Tools.InstallerKit.installer_site_data import prepare_site
-from Tools.InstallerKit.installer_update_site import ASTRO_ROOT, BUILD_ROOT, astro_command, build_astro, stage_input
+from Tools.InstallerKit.installer_update_site import ASTRO_ROOT, BUILD_ROOT, build_astro, stage_input
+from Tools.astro_site import astro_command
 
 from Tools.Tests.Fixtures.installer_update_fixtures import site_scenarios, FEED_URL, REPO
 
@@ -33,7 +34,7 @@ def main(argv=None):
             print("Install links use synthetic fixture releases.", flush=True)
             # Keep the server in the foreground: these inputs live only for this process.
             # Each invocation already has an isolated root, so no shared lock is needed.
-            result = subprocess.run(astro_command(workspace, args.mode, "--ignore-lock", "--port", str(args.port),
+            result = subprocess.run(astro_command(ASTRO_ROOT, workspace, args.mode, "--ignore-lock", "--port", str(args.port),
                                                  "--outDir", str(output)),
                                     cwd=ASTRO_ROOT, env=environment)
             return result.returncode if result.returncode >= 0 else 128 - result.returncode

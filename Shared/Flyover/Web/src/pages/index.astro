@@ -1,0 +1,17 @@
+---
+import AtlasLayout from '../layouts/AtlasLayout.astro';
+---
+<AtlasLayout>
+    <div id="app" aria-busy="true">
+        <main class="error selectable-text" role="status">
+            <p class="eyebrow">Flyover</p>
+            <h1>Opening the atlas…</h1>
+            <noscript>Enable JavaScript to explore this atlas.</noscript>
+        </main>
+    </div>
+    <script>
+        import { openAtlas } from '../scripts/load-atlas';
+        import { startAtlas } from '../scripts/viewer.js';
+        void openAtlas(document.getElementById('app')!, startAtlas);
+    </script>
+</AtlasLayout>

@@ -37,7 +37,7 @@ jobs:
         with:
           install_args: node
       - name: Install site dependencies
-        run: mise exec node -- npm ci --prefix Tools/InstallerKit/Site
+        run: mise exec node -- npm ci
       - name: Prepare install pages, manifests, and catalog
         env:
           GH_TOKEN: ${{ github.token }}

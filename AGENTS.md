@@ -29,7 +29,7 @@ Roughly, this file covers:
 | Ruby        | `.mise.toml` |
 | Fastlane and Ruby dependencies | `Gemfile.lock` |
 | Node.js     | `.mise.toml` |
-| Astro and TypeScript | `Tools/InstallerKit/Site/package-lock.json` |
+| Astro and TypeScript | `package-lock.json` |
 | Swift PM    | `Package.swift` (`swift-tools-version`) |
 | Bumper Bowling | `Package.swift` / `Package.resolved` |
 | Xcode snapshot renderer | `.xcode-build-version` |
@@ -48,7 +48,7 @@ Xcode project](#generating-the-xcode-project)). On a fresh machine, run `./ide
 --bootstrap` first. That command installs `mise` and the pinned tools before
 generating. Plain `./ide` fails fast and points at bootstrap.
 `./ide --bootstrap` and `./ide --install` also install the locked site and Fastlane dependencies.
-After a site lockfile change, run `mise exec -- npm ci --prefix Tools/InstallerKit/Site`.
+After a site lockfile change, run `mise exec -- npm ci`.
 
 The executables in the repo root are the dev scripts. They are `ide`, `test`,
 `swiftformat`, `sf-symbols`, `sync-agents`, `profile`, `flyover`, `icons`, `flaky`, `simulator`,
@@ -717,7 +717,7 @@ external agent skills. Those skills are gitignored and absent from a bare checko
 | Check | Command |
 |-------|---------|
 | Install the pinned tools | `mise install` (skips Tuist) |
-| Install-site type check | `mise exec -- npm run check --prefix Tools/InstallerKit/Site` (install dependencies first) |
+| Website type checks | `mise exec -- npm run check --workspaces --if-present` (install dependencies first) |
 | SwiftFormat lint | `./swiftformat --lint` |
 | Shell lint | `./shellcheck` |
 | Attribution drift | `./attribution --check` |

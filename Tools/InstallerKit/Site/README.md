@@ -10,7 +10,7 @@ From the repository root, install the pinned tools and site dependencies:
 
 ```bash
 mise install
-mise exec -- npm ci --prefix Tools/InstallerKit/Site
+mise exec -- npm ci
 ```
 
 Start the development server:
@@ -75,7 +75,8 @@ Pages are static: refresh after deployment to see changed status or a newly publ
 `../installer_site_data.py` validates identities and releases, then prepares assets and manifests.
 `../installer_update_site.py` runs Astro with that input and stages the complete deployment.
 `../installer_site_preview.py` supplies fixture data to the same templates.
-The build uses the Node version in `.mise.toml` and dependencies in `package-lock.json`.
+The build uses the Node version in the root `.mise.toml` and dependencies in the root `package-lock.json`.
+Flyover shares this toolchain through `Tools/astro_site.py`. The sites retain separate configurations, data, and outputs.
 The launcher first finds mise through `PATH`, then checks its data directory, the standalone installer location, and Homebrew locations.
 Data directory discovery honors `MISE_DATA_DIR`, then `XDG_DATA_HOME`, with `~/.local/share/mise` as the default.
 This also supports Xcode and snapshot commands with a minimal `PATH`.
@@ -85,7 +86,7 @@ This also supports Xcode and snapshot commands with a minimal `PATH`.
 From the repository root:
 
 ```bash
-mise exec -- npm run check --prefix Tools/InstallerKit/Site
+mise exec -- npm run check --workspaces --if-present
 python3 -m unittest discover -s Tools/Tests -p 'test_installer*.py'
 ./test ToolsSnapshotTests --review
 ```
