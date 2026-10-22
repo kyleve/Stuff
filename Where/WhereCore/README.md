@@ -242,7 +242,8 @@ one it belongs to rather than to a god-object:
   `TEST_RUNNER_WHERE_FLIGHT_FUZZ_PROFILE` and `TEST_RUNNER_WHERE_FLIGHT_FUZZ_SEED`.
   Run the suite with `./test --only WhereCoreTests/FlightTrajectoryAnalyzerTests`.
   Use `TEST_RUNNER_WHERE_FLIGHT_FUZZ_COUNT` to override the count for a focused run.
-  Failures report the seed, sampling parameters, and synthetic trace. No personal archive enters this corpus.
+  Failures report the seed, sampling parameters, and synthetic trace.
+  Recorded regressions use the [flight fixture export procedure](#recorded-flight-fixtures).
 - **`SampleCorrectionAssessment`** — shares the raw-evidence assessment for flights
   and border drift. Its named policy includes 24-hour report context and local
   boundary brackets within ten minutes on each side. These conservative limits
@@ -473,3 +474,53 @@ requires those seams instead: naming the real world is the composition root's
 job, not something a caller falls into by omission.
 
 Calendar-day persistence keys use `CalendarDay.iso8601` (`YYYY-MM-DD`); diagnostic `description` is not a storage API.
+
+### Recorded flight fixtures
+
+`FlightFixtureExporterTests.exportArchiveFixtureOnRequest` extracts GPS callbacks from a current-format backup through `BackupService`.
+It applies device-removal cutoffs and selects the half-open interval `[from, until)`.
+It retains callback order, duplicates, conflicting identities, accuracy, motion readings, and device boundaries.
+Manual and evidence-derived samples are outside this GPS-only fixture.
+
+The exporter replaces sample and device IDs, shifts every timestamp by one constant, and rotates all coordinates together.
+The rotation preserves spherical distances, including across the date line and near the poles.
+The output contains no original path, IDs, absolute dates, or rotation origin.
+Route shape, timing, accuracy, and sensor values remain recognizable characteristics. Review the output before publishing it.
+
+1. Keep the backup and export configuration outside the checkout.
+   Upgrade an old backup with [`upgrade-backup.rb`](../Tools/upgrade-backup.rb) first.
+2. Select a window with departure support, arrival observations, and any relevant layover.
+   Keep the complete window before reducing a failure to a smaller example.
+3. Save a local JSON configuration. Dates are Unix seconds. This example uses invented dates and paths:
+
+   ```json
+   {
+     "backupPath": "/private/tmp/where-backup.zip",
+     "from": 1767225600,
+     "until": 1767312000,
+     "now": 1767398400,
+     "replacementStart": 1577836800,
+     "replacementOrigin": {"latitude": 15, "longitude": -30},
+     "typeName": "RecordedFlightFixture",
+     "outputPath": "/private/tmp/RecordedFlightFixture.swift"
+   }
+   ```
+
+4. Run from the repository root:
+
+   ```sh
+   TEST_RUNNER_WHERE_FLIGHT_FIXTURE_EXPORT_CONFIG=/private/tmp/flight-export.json \
+     ./test --only WhereCoreTests/FlightFixtureExporterTests
+   ```
+
+   The export stops if transformation changes flight recognition, arrival evidence, supported intervals, or correction identities.
+   It also refuses to overwrite an existing output file.
+   These checks verify transformation fidelity. They do not establish the correct flight result.
+5. Review the generated Swift array. For calendar, latitude, or date-line failures, preserve the relevant boundary in the replacement configuration.
+   Coordinate rotation does not preserve country attribution. Retain the local archive replay for checks that need the original geography.
+6. Copy the reviewed file into `Tests/` and format it with `./swiftformat`.
+   Add a named regression in `FlightTrajectoryAnalyzerTests.swift` with independently reviewed expectations.
+   Assert flight count, arrival evidence, supported days, airborne identities, and protected ground points as applicable.
+   Use `RecordedSparseFlightFixture` and its analyzer regression as an example.
+7. Run `./test --only WhereCoreTests/FlightTrajectoryAnalyzerTests` with the export configuration unset.
+   The committed Swift fixture runs in ordinary CI without the private archive or export configuration.
