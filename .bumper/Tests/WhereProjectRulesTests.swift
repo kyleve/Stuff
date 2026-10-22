@@ -20,6 +20,29 @@ struct WhereProjectRulesTests {
         #expect(allowed.violations.isEmpty)
     }
 
+    @Test func outputLifetimesBelongToTheServiceScope() throws {
+        let source = "func make() { _ = DataCompatibilityOutputs(store: store, destinations: destinations) }"
+        let allowed = try evaluate(
+            path: "Where/WhereCore/Sources/WhereServices.swift",
+            component: .whereCore,
+            source: source,
+        )
+        let rejected = try evaluate(
+            path: "Where/WhereCore/Sources/Widgets/Other.swift",
+            component: .whereCore,
+            source: source,
+        )
+        let fixture = try evaluate(
+            path: "Where/WhereCore/Tests/Support/CompatibilityOutputsFixture.swift",
+            component: .loggingTests,
+            source: source,
+        )
+        #expect(allowed.violations.isEmpty)
+        #expect(fixture.violations.isEmpty)
+        #expect(rejected.violations
+            .contains { $0.rule.id == "where.compatibility_output_composition" })
+    }
+
     @Test func compatibilityCoordinatorIsComposedAtBootstrap() throws {
         let source = "func make() { _ = DataCompatibilityCoordinator(store: store, recording: recording, installation: installation) }"
         let allowed = try evaluate(

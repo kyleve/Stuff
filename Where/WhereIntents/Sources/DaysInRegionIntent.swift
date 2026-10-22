@@ -40,6 +40,7 @@ public struct DaysInRegionIntent: AppIntent {
         }
         // The value + dialog answer voice-only Siri; the interactive snippet
         // renders the card and its "Log today here" button on screen.
+        try await services.validateDataAccess()
         return .result(
             value: count,
             dialog: IntentDialog(

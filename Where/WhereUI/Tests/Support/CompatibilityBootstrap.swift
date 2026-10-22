@@ -14,6 +14,11 @@ final class CompatibilityBootstrap: WhereScopeAssembling {
     var preparationError: (any Error)?
     var serviceAssemblyGate: CompatibilityOperationGate?
     var locationSource: any LocationSource = ScriptedLocationSource(authorizationStatus: .always)
+    private(set) var withdrawals = 0
+    func withdrawCompatibilityOutputs() async {
+        withdrawals += 1
+    }
+
     private(set) var makeServicesCount = 0
     private(set) var makeLogStoreCount = 0
     private(set) var lastDomainStore: (any WhereStore)?

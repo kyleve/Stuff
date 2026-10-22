@@ -1,32 +1,33 @@
 # IntentServices handoff
 
-Models [`IntentServices`](../../WhereIntents/Sources/IntentServices.swift): the App Intents
-stack must never self-open a store. at most one installed stack is authoritative. 
-parked intents resume exactly once. `clear()` forces later callers to park until
-the next `install(_:)`.
+Run `./tla-check IntentServicesHandoff`.
 
-## Correspondence
+The model gives each consumer its own continuation, service epoch, and presentation epoch.
+A compatibility block rejects parked consumers.
+Already-resumed consumers retain their captured context until their next validation.
+Recovery installs a new epoch and never revives an old permit.
+
+## Source correspondence
 
 | Model | Production |
 | --- | --- |
-| `installed` | `IntentServices.installed` |
-| `waiterCount` | parked continuations in `current()` |
-| `consumerPhase` | intent awaiting / holding / cancelled |
-| `selfCreated` | forbidden fallback store open |
+| `availability`, `installed` | `IntentServices.availability` |
+| `parked`, `resumed` | The waiter dictionary and checked continuations |
+| `context`, `theme` | The atomic `IntentServices.Context` |
+| `revoked` | Scope permits revoked before lifecycle teardown |
+| `Use` | Access validation in `currentContext` and before the final intent result |
 
-## Properties
+Safety checks cover one resume per parked consumer, matching context identities,
+rejection of revoked results, and preservation of the compatibility block through `clear()`.
+The liveness check assumes an already-resumed consumer eventually reaches its validation.
+It does not assume that launch or CloudKit eventually succeeds.
 
-- `NoSelfCreate` — no self-assembled stack
-- `AtMostOneAuthoritative` — single install generation
-- `WaiterExactlyOnce` — park has a matching resume or cancel
-- `AfterClearMustPark` — holding requires an installed stack
-- `NoMixedWorld` — consumers never run against a cleared install
+Negative controls omit validation, permit self-creation, lose the block on clear,
+or retain a resumed continuation in the waiter dictionary.
+Reachability controls exercise two parked waiters and an old consumer after recovery.
+Swift guards live in `IntentServicesTests` and `WhereIntentReaderTests`.
 
-## Result
-
-**Verified for these model bounds and assumptions** on `Current.cfg`.
-`Broken.cfg` (fallback `make()`) falsifies `NoSelfCreate`.
-
-Swift guard: [`IntentServicesTests.clearWhileParkedResumesOnTheNextInstall`](../../WhereIntents/Tests/IntentServicesTests.swift).
-
-Run: `./tla-check IntentServicesHandoff`
+Bounds: two consumers, two installation epochs, and one compatibility block/recovery cycle.
+Installation callbacks remain serialized by the launch runner.
+This model does not authorize overlapping installs from independent launch runners.
+An intent result already delivered to the OS cannot be recalled by this handoff.

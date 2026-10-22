@@ -4,6 +4,106 @@ import Testing
 
 @MainActor
 struct DataCompatibilityCoordinatorTests {
+    @Test(arguments: [CompatibilityRemoteChange.signedOut, .newerRequirement])
+    func remoteRetriesDuringLocalInspectionStillVerifyAuthority(
+        change: CompatibilityRemoteChange,
+    ) async throws {
+        let store = try SwiftDataStore.inMemory()
+        let transport = CompatibilityTestTransport()
+        let authority = RecordingAuthorityCoordinator(store: store, transport: transport)
+        let installation = RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID()))
+        let recording = RecordingDeviceCoordination(
+            supportedVersion: .current,
+            authority: authority,
+            installation: installation,
+        )
+        let owned = try await recording.selectRecordingRole(.recordingRequested)
+        let coordinator = DataCompatibilityCoordinator(
+            store: store,
+            recording: recording,
+            installation: installation,
+        )
+        #expect(await coordinator.recheck() == .compatible(.current))
+        let domain = try await coordinator.openDomainStore()
+        // Hold a user operation so the local check parks at waitUntilIdle().
+        let gate = CompatibilityTestGate()
+        await transport.holdNextRead(gate)
+        let selection = Task { try await recording.selectRecordingRole(.secondary) }
+        await gate.waitUntilEntered()
+        defer { gate.resume() }
+        let local = Task { await coordinator.recheckLocalHistory() }
+        try await waitForCompatibilityChecks(1, in: coordinator)
+        let firstRemote = Task { await coordinator.recheck() }
+        let secondRemote = Task { await coordinator.recheck() }
+        try await waitForCompatibilityChecks(3, in: coordinator)
+        let reads = await transport.readCount
+        let newerVersion = DataCompatibilityVersion(rawValue: 2)
+        switch change {
+            case .signedOut: await transport.setAvailability(.signedOut)
+            case .newerRequirement:
+                _ = try await transport.commit(RecordingAuthorityProposal(
+                    state: owned,
+                    action: .upgrade,
+                    deviceID: installation.onboardingContext.currentDevice.id,
+                    buildVersion: newerVersion,
+                    eventID: .init(rawValue: UUID()),
+                ))
+        }
+        gate.resume()
+        _ = try await selection.value
+        #expect(await local.value == .compatible(.current))
+        let results = await [firstRemote.value, secondRemote.value]
+        for result in results {
+            switch change {
+                case .signedOut:
+                    guard case .verificationFailed = result else {
+                        Issue.record("A remote retry must observe the account failure.")
+                        continue
+                    }
+                case .newerRequirement: #expect(result == .updateRequired(newerVersion))
+            }
+        }
+        #expect(await transport.readCount == reads + 1)
+        await #expect(throws: DataCompatibilityError.accessRevoked) {
+            _ = try await domain.allSamples()
+        }
+    }
+
+    @Test func localHigherFloorWinsWhileRemoteVerificationIsSuspended() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let transport = CompatibilityTestTransport()
+        let authority = RecordingAuthorityCoordinator(store: store, transport: transport)
+        let installation = RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID()))
+        let recording = RecordingDeviceCoordination(
+            supportedVersion: .current,
+            authority: authority,
+            installation: installation,
+        )
+        _ = try await recording.selectRecordingRole(.recordingRequested)
+        let coordinator = DataCompatibilityCoordinator(
+            store: store,
+            recording: recording,
+            installation: installation,
+        )
+        #expect(await coordinator.recheck() == .compatible(.current))
+        let domain = try await coordinator.openDomainStore()
+        let gate = CompatibilityTestGate()
+        await transport.holdNextRead(gate)
+        let remote = Task { await coordinator.recheck() }
+        await gate.waitUntilEntered()
+        let version = DataCompatibilityVersion(rawValue: 2)
+        try await store.perform { try await store.addDataCompatibilityRequirement(.init(
+            id: UUID(),
+            version: version,
+        )) }
+        #expect(await coordinator.recheckLocalHistory() == .updateRequired(version))
+        await #expect(throws: DataCompatibilityError.accessRevoked) {
+            _ = try await domain.allSamples()
+        }
+        gate.resume()
+        #expect(await remote.value == .updateRequired(version))
+    }
+
     @Test func secondaryUpdatingFirstWaitsWithoutRaisingTheFloor() async throws {
         let fixture = RecordingAuthorityFixture()
         let store = try SwiftDataStore.inMemory()
@@ -142,6 +242,10 @@ struct DataCompatibilityCoordinatorTests {
         await transport.setAvailability(.signedOut)
         guard case .verificationFailed = await established.recheck() else {
             Issue.record("Account failures must not authorize cached use.")
+            return
+        }
+        guard case .verificationFailed = await established.recheckLocalHistory() else {
+            Issue.record("Local history must not erase a known account-verification failure.")
             return
         }
     }
