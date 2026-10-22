@@ -59,6 +59,8 @@ export function createCanvasController(deps: Dependencies): CanvasController {
             updateCanvasNavigation();
         }
         deps.state.canvas.initialized = true;
+        // Explicit navigation already changed state.group; retained labels still need a refresh.
+        updateActiveGroup();
         deps.residency.updateCanvasImageResidency();
     }
 

@@ -1,5 +1,33 @@
 import { test, expect } from '@playwright/test';
 
+for (const entry of ['groups', 'search', 'filters'] as const) {
+    test(`group navigation through ${entry} updates retained canvas and dock labels`, async ({ page }) => {
+        await page.goto('./');
+        const viewport = page.locator('#canvas-viewport');
+        const handle = await viewport.elementHandle();
+        if (entry === 'groups') {
+            await page.getByRole('button', { name: 'Browse groups', exact: true }).click();
+            await page.locator('.group-button[data-group-id="second"]').click();
+        } else if (entry === 'search') {
+            await page.locator('#search-trigger').click();
+            await page.getByRole('searchbox').fill('Group 2');
+            await page.locator('.command-result').filter({ has: page.getByText('Group', { exact: true }) }).click();
+        } else {
+            await page.locator('#filter-trigger').click();
+            await page.getByRole('dialog').getByRole('combobox', { name: 'Group', exact: true }).selectOption('second');
+            await page.getByRole('button', { name: 'Show results', exact: true }).click();
+        }
+        await expect(page.getByRole('dialog')).toHaveCount(0);
+        await expect(page.locator('.canvas-context strong')).toHaveText('Group 2');
+        await expect(page.locator('.canvas-context .context-kicker')).toHaveText('Group 2 of 2');
+        await expect(page.locator('.group-trigger .button-label')).toHaveText('Group 2');
+        expect(await handle!.evaluate(node => node.isConnected && node === document.getElementById('canvas-viewport'))).toBe(true);
+        await page.getByRole('button', { name: 'Browse groups', exact: true }).click();
+        await expect(page.locator('.group-button[data-group-id="second"]')).toHaveAttribute('aria-current', 'true');
+        await expect(page.locator('.group-button[data-group-id="first"]')).toHaveAttribute('aria-current', 'false');
+    });
+}
+
 test('selection and panels preserve atlas nodes, then history restores states after reload', async ({ page }) => {
     await page.goto('./');
     const card = page.locator('.screen-card[data-screen-id="screen-1"]');
