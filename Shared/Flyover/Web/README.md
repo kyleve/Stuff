@@ -36,9 +36,16 @@ The root `flyover` command owns capture orchestration, staging, rollback, and pu
 
 `src/layouts/` and `src/pages/` own the document and loading state.
 `src/scripts/load-atlas.ts` owns loading and visible errors.
-`navigation.ts`, `image-residency.ts`, and `capture-scroller.ts` own typed interaction policies.
+`manifest.ts` defines the wire contract. Native export and Python publication validate the complete catalog.
+`viewer.ts` owns one session, URL navigation, mounted views, overlays, and global event cleanup.
+`catalog.ts` indexes the manifest and resolves selected captures. Controllers receive explicit, typed dependencies.
+`atlas-view.ts`, `controls.ts`, `inspector.ts`, `panels.ts`, and `search.ts` own their presentation surfaces.
+`canvas-controller.ts` owns zoom and scrolling. `image-controller.ts` owns thumbnail residency and scheduled loading.
+`navigation.ts`, `geometry.ts`, `image-residency.ts`, and `capture-scroller.ts` contain separately tested interaction policies.
 `inspector-position.ts` retains pending scroll restoration across overlapping image loads. Each viewer owns one controller and clears it on screen changes or dismissal.
-`viewer.js` retains the existing DOM presentation and session orchestration. It is not a second rendering framework.
+The application retains cards during selection and overlay changes. Only view switches replace the active atlas view.
+State and profile changes update existing previews. Inspector selection changes replace only the overlay and preserve reading position.
+The cleanup function returned by `startAtlas` removes global listeners, scheduled work, observers, and mounted DOM.
 `src/styles/styles.css` retains the viewer's responsive styles.
 
 The native manifest schema remains version 1. The exporter no longer writes `manifest.js`.
@@ -49,5 +56,6 @@ PNG capture, thumbnail generation, and geometry remain native responsibilities.
 
 Playwright loads the production Astro build with synthetic PNG captures under a nested HTTP path.
 The suite covers Chromium and WebKit at desktop, portrait, and landscape widths.
-It checks modal frame cancellation, overlapping profile and history navigation, inspector position reset, select sizing, and dark action contrast.
+It checks modal frame cancellation, overlapping profile and history navigation, inspector position reset, select sizing, dark action contrast, and visible-image loading.
+Unit tests import production modules directly. They do not evaluate extracted source strings or emulate browser history.
 These tests do not replace native capture tests.

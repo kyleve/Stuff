@@ -1,9 +1,10 @@
+import type { AtlasManifest, AtlasScreen } from "../../src/scripts/manifest.ts";
 import { deflateSync } from 'node:zlib';
 
 /** Synthetic captures test browser behavior, not the native rendering pipeline. */
-export function fixture() {
+export function fixture(): AtlasManifest {
     const profiles = ['light', 'dark'].map(colorScheme => ({ id: `phone-${colorScheme}`, title: `Phone ${colorScheme}`, device: 'phone', orientation: 'portrait', colorScheme, dynamicType: 'large', contrast: 'standard', layoutDirection: 'left-to-right', legibilityWeight: 'regular', snapshotType: 'standard' }));
-    const screens = Array.from({ length: 24 }, (_, index) => ({
+    const screens: AtlasScreen[] = Array.from({ length: 24 }, (_, index) => ({
         id: `screen-${index + 1}`, title: `Screen ${index + 1}`, groupID: index < 12 ? 'first' : 'second', groupOrder: index < 12 ? 0 : 1, screenOrder: index,
         viewport: { kind: 'device' }, navigationContainer: 'stack',
         frame: { x: 50 + index % 6 * 240, y: 80 + Math.floor(index / 6) * 520, width: 210, height: 480 },
@@ -21,13 +22,13 @@ export function fixture() {
     };
 }
 
-export function capturePNG(dark) {
+export function capturePNG(dark: boolean) {
     const width = 402, height = 2600;
     const pixels = Buffer.alloc((width * 3 + 1) * height);
     for (let y = 0; y < height; y++) pixels.fill(dark ? 30 + (y % 60) : 190 + (y % 60), y * (width * 3 + 1) + 1, (y + 1) * (width * 3 + 1));
     const header = Buffer.alloc(13);
     header.writeUInt32BE(width, 0); header.writeUInt32BE(height, 4); header[8] = 8; header[9] = 2;
-    const chunk = (type, payload) => {
+    const chunk = (type: string, payload: Buffer) => {
         const data = Buffer.concat([Buffer.from(type), payload]);
         let crc = 0xffffffff;
         for (const byte of data) { crc ^= byte; for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0); }
