@@ -9,9 +9,40 @@ struct RegionAppearanceCatalogTests {
         #expect(RegionAppearanceCatalog.colors == RegionColorToken.allCases)
     }
 
-    @Test func idDerivedDefaultsUseExpandedColors() throws {
-        let texas = try #require(Region(rawValue: "us-TX"))
-        #expect(RegionAppearanceCatalog.defaultAppearance(for: texas).color == .charcoal)
+    @Test func idDerivedDefaultsHaveStableAssignments() throws {
+        // Fixed expectations also catch accidentally using Swift's randomized
+        // hash. NV, CO, and FL collided under the former character-sum fallback.
+        let expected: [Region: RegionColorToken] = try [
+            #require(Region(rawValue: "us-NV")): .orange,
+            #require(Region(rawValue: "us-OR")): .charcoal,
+            #require(Region(rawValue: "us-CO")): .purple,
+            #require(Region(rawValue: "us-FL")): .teal,
+            #require(Region(rawValue: "us-TX")): .brown,
+            #require(Region(rawValue: "us-WA")): .mint,
+        ]
+        for (region, color) in expected {
+            #expect(RegionAppearanceCatalog.defaultAppearance(for: region).color == color)
+        }
+    }
+
+    @Test func catalogDefaultsSpanTheSelectablePalette() {
+        let colors = Region.allCases.map {
+            RegionAppearanceCatalog.defaultAppearance(for: $0).color
+        }
+        #expect(Set(colors) == Set(RegionAppearanceCatalog.colors))
+    }
+
+    @Test func bespokeDefaultsKeepTheirEstablishedColors() {
+        let expected: [Region: RegionColorToken] = [
+            .california: .orange,
+            .newYork: .indigo,
+            .canada: .red,
+            .europeanUnion: .blue,
+            .other: .teal,
+        ]
+        for (region, color) in expected {
+            #expect(RegionAppearanceCatalog.defaultAppearance(for: region).color == color)
+        }
     }
 
     @Test func lightSwatchesUseDarkSelectionGlyphs() {

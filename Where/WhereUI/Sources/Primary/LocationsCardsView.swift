@@ -17,7 +17,7 @@ struct LocationsCardsView: View {
     @Environment(\.regionStyles) private var regionStyles
 
     var body: some View {
-        let presentedCards = cardPresentation.presented(report.ranking.primary)
+        let presentedCards = cardPresentation.presented(report.locationRegions)
 
         // Keep the flight notice immediately below navigation. Without a notice,
         // a short card list retains its centered presentation.
@@ -90,16 +90,6 @@ struct LocationsCardsView: View {
                     }
                 }
 
-                // Keep Elsewhere with the recorded regions, before Estimated Time.
-                if !report.ranking.secondary.isEmpty {
-                    NavigationLink {
-                        ElsewhereView(report: report)
-                    } label: {
-                        ElsewhereSummaryCard(regions: report.ranking.secondary.map(\.region))
-                    }
-                    .buttonStyle(stylesheet.elsewhereCard.buttonStyle)
-                }
-
                 LocationsEstimatePanel(report: report, planningAction: planningAction)
             }
             .padding()
@@ -116,7 +106,7 @@ struct LocationsCardsView: View {
         // Count, order, flourish, persistence, and haptic all share this one
         // visibility-aware delayed reconciliation.
         .reconcilesLocationCards(
-            current: report.ranking.primary,
+            current: report.locationRegions,
             year: report.selectedYear,
             isVisible: isCardSurfaceUncovered,
             presentation: cardPresentation,

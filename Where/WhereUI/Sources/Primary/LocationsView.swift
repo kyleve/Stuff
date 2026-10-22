@@ -6,12 +6,11 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Locations tab: the regions you spend the most days in for the selected year,
-/// shown as prominent passport cards, followed by Elsewhere (when there are
-/// secondary regions) and Estimated Time, plus toolbar actions
-/// for planned stays and any data issues that need resolution.
+/// Locations tab: configured primary regions with recorded days in the selected
+/// year, ranked by day count, plus planning and data-resolution actions.
 struct LocationsView: View {
     let report: YearReportModel
+    var openElsewhere: (() -> Void)?
 
     @State private var showingResolution = false
     @State private var planningDestination: PlannedStaysDestination?
@@ -35,8 +34,9 @@ struct LocationsView: View {
             && planningDestination == nil
     }
 
-    init(report: YearReportModel) {
+    init(report: YearReportModel, openElsewhere: (() -> Void)? = nil) {
         self.report = report
+        self.openElsewhere = openElsewhere
         _cardPresentation = State(initialValue: LocationCardsPresentationModel(
             preferences: report.preferences,
             year: report.selectedYear,
@@ -96,10 +96,18 @@ struct LocationsView: View {
     private var screen: some View {
         switch report.loadState {
             case .loading where report.report == nil, .failed:
-                LocationsStateView(report: report, planningAction: openPlanning)
+                LocationsStateView(
+                    report: report,
+                    planningAction: openPlanning,
+                    openElsewhere: openElsewhere,
+                )
             case .idle, .loaded, .loading:
-                if report.ranking.primary.isEmpty {
-                    LocationsStateView(report: report, planningAction: openPlanning)
+                if report.locationRegions.isEmpty {
+                    LocationsStateView(
+                        report: report,
+                        planningAction: openPlanning,
+                        openElsewhere: openElsewhere,
+                    )
                 } else {
                     LocationsCardsView(
                         report: report,
@@ -233,7 +241,10 @@ private struct ResolveToolbarLabel: View {
                 measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
-                LocationsView(report: PreviewSupport.elsewhereOnlyYearReportModel())
+                LocationsView(
+                    report: PreviewSupport.elsewhereOnlyYearReportModel(),
+                    openElsewhere: {},
+                )
             }
             whereSnapshot(
                 name: "ElsewhereWithHome",
@@ -242,7 +253,7 @@ private struct ResolveToolbarLabel: View {
             ) {
                 let report = PreviewSupport.elsewhereOnlyYearReportModel()
                 report.forecasts.setPlanning(PlanningSnapshot(stays: [], homeRegion: .california))
-                return LocationsView(report: report)
+                return LocationsView(report: report, openElsewhere: {})
             }
             whereSnapshot(
                 name: "DotsHidden",
@@ -254,6 +265,11 @@ private struct ResolveToolbarLabel: View {
                     report: PreviewSupport.loadedYearReportModelWithLocationDotsHidden(),
                 )
             }
+            artworkSnapshot(
+                name: "ThreePrimaryRegions",
+                report: PreviewSupport.multiplePrimaryYearReportModel(),
+                configurations: .fullContentScreenDefaults,
+            )
         }
 
         private static func artworkSnapshot(
@@ -309,7 +325,6 @@ private struct ResolveToolbarLabel: View {
             LocationsView.self,
             routes: [
                 .push(to: CalendarContentView.flyoverID),
-                .push(to: ElsewhereView.flyoverID),
                 .modal(to: ResolutionView.flyoverID),
                 .modal(to: PlannedStaysView.flyoverID),
                 .modal(to: PlannedStayEditor.flyoverID),

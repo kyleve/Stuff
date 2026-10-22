@@ -43,6 +43,7 @@ private struct WhereThemeOption: View {
     let isSelected: Bool
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionOutlinePathCache) private var regionOutlinePathCache
 
     var body: some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
@@ -53,6 +54,7 @@ private struct WhereThemeOption: View {
                 year: 2026,
                 showsRecordedPoints: false,
             )
+            .environment(\.regionOutlinePathCache, regionOutlinePathCache)
             .whereBroadwayRoot(theme: theme)
             .accessibilityHidden(true)
 

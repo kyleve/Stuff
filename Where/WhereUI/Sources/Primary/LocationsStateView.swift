@@ -5,6 +5,7 @@ import SwiftUI
 struct LocationsStateView: View {
     let report: YearReportModel
     let planningAction: () -> Void
+    var openElsewhere: (() -> Void)?
 
     @Environment(\.stylesheet.spacing) private var spacing
 
@@ -12,7 +13,11 @@ struct LocationsStateView: View {
         ScrollView {
             VStack(spacing: spacing.xxLarge) {
                 LocationsFlightNotice(report: report)
-                LocationsStateContent(report: report, planningAction: planningAction)
+                LocationsStateContent(
+                    report: report,
+                    planningAction: planningAction,
+                    openElsewhere: openElsewhere,
+                )
             }
             .padding()
             .frame(maxWidth: .infinity)

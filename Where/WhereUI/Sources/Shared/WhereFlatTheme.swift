@@ -44,12 +44,12 @@ enum WhereFlatTheme {
         overrides.card.haloOpacity = 0
         overrides.card.backgroundBlendMode = .normal
 
-        overrides.elsewhere.surface = .matte(WhereStylesheet.MatteSurface(
-            fill: .init(base: base.elsewhereCard.surface.paper, tintMix: 0),
+        overrides.elsewhere.surface = WhereStylesheet.MatteSurface(
+            fill: .init(base: base.card.elsewherePaper.surface.fill.base, tintMix: 0),
             outline: outline,
             shadow: .init(color: shadow.color, radius: 8, offsetY: 3),
             pressedTintOpacity: 0.08,
-        ))
+        )
         overrides.welcome.surface = .matte(WhereStylesheet.MatteSurface(
             fill: paper,
             outline: outline,
@@ -67,7 +67,6 @@ enum WhereFlatTheme {
         overrides.welcome.liftOpacity = 0
         overrides.welcome.close.glowOpacity = 0
         overrides.welcome.close.liftOpacity = 0
-        overrides.elsewhere.shadowOpacity = 0
         overrides.privacy.surface = .matte(WhereStylesheet.MatteSurface(
             fill: .init(base: Color(red: 0.05, green: 0.125, blue: 0.25), tintMix: 0),
             outline: .init(

@@ -30,7 +30,7 @@ struct WhereStylesheetSurfaceTreatmentTests {
         let surfaces = [
             sheet.card.regular.surface,
             sheet.card.compact.surface,
-            sheet.elsewhereCard.surface.treatment,
+            sheet.card[.elsewhere].surface,
             sheet.locationWelcome.surface,
             sheet.locationWelcome.close.surface,
             sheet.privacyPassportCard.surface,

@@ -34,8 +34,9 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   mutually exclusive at our resolution). (Day-count ranking lives in
   `WhereCore`'s `Region+Ordering`, not here.)
 - **Geometry access is per-region, on demand.** `RegionAttributor(for:)` loads
-  only the passed regions' `regions/<id>.geojson` files. The app parses only the
-  tracked set. `RegionGeometryCatalog.outlines(for: Region)` caches only the
+  only the passed regions' `regions/<id>.geojson` files. Live attribution parses
+  only the tracked set. Core's injected `ElsewhereResolver` may lazily parse the
+  full catalog on its actor for read-only historical enrichment. `RegionGeometryCatalog.outlines(for: Region)` caches only the
   drawable region requested by UI artwork. Never load the whole US for one
   card. `RegionGeometrySimplifier` vends stateless, projection-aware geometry
   reduction. Rendering fidelity and render-artifact caches belong to consumers.

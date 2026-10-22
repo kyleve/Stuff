@@ -45,4 +45,22 @@ struct WhereThemeOverridesTests {
         #expect(sheet.card.compact == compact)
         #expect(sheet.card.dayCount == .reducedMotion)
     }
+
+    @Test func elsewhereSurfaceKeepsCompactGeometryAndOriginalTextTreatment() {
+        var sheet = WhereStylesheet.default
+        sheet.card.compact.padding = 17
+        let original = sheet.card[.elsewhere]
+        var surface = sheet.card.elsewherePaper.surface
+        surface.outline.width = 2
+        surface.shadow.radius = 8
+        var overrides = WhereThemeOverrides()
+        overrides.elsewhere.surface = surface
+        overrides.apply(to: &sheet)
+        let elsewhere = sheet.card[.elsewhere]
+        #expect(elsewhere.surface == .matte(surface))
+        #expect(elsewhere.padding == 17)
+        #expect(elsewhere.contentTint == original.contentTint)
+        #expect(elsewhere.showsProgress == false)
+        #expect(sheet.card.compact.paper == nil)
+    }
 }

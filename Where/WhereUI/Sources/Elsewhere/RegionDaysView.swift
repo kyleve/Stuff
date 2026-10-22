@@ -4,48 +4,36 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Drill-in from an Elsewhere card: the individual days that counted for a
-/// region this year. This is the "see where those check-ins are" view — a map
-/// of the points actually recorded in the region sits above a list of days,
-/// each tappable to correct a wrong attribution via `DayRelabelView` and
-/// labeled with the place it reverse-geocodes to.
+/// A named region's resolved visits. Cards, day lists, and map pins use the same
+/// projection; corrections receive the original day rather than the inferred name.
 struct RegionDaysView: View {
     let region: Region
     let report: YearReportModel
+    let model: ElsewhereModel
+    @State private var retrySequence = 0
 
-    /// Raw per-day coordinates for this region, loaded asynchronously from the
-    /// store. `mapPoints` drives the map pins; `coordinatesByDay` feeds each
-    /// row's representative point. Empty until loaded (and in previews/tests,
-    /// which seed no raw samples).
-    @State private var mapPoints: [RecordedMapPoint] = []
-    @State private var coordinatesByDay: [CalendarDay: [Coordinate]] = [:]
-
-    private var days: [DayPresence] {
-        report.days(in: region)
+    private struct Request: Hashable {
+        let input: ElsewhereInput?
+        let retrySequence: Int
     }
 
-    var body: some View {
-        content
-            .navigationTitle(region.localizedName)
-            .navigationBarTitleDisplayMode(.inline)
-            // Keyed on the report (not just the year) so the map reloads after a
-            // relabel changes which days count for this region.
-            .task(id: report.report) { await loadLocations() }
+    init(region: Region, report: YearReportModel, model: ElsewhereModel? = nil) {
+        self.region = region
+        self.report = report
+        self.model = model ?? report.elsewhere
     }
 
-    private func loadLocations() async {
-        // The day list is report-based (it honors manual overrides) while raw
-        // GPS coordinates are not, so a relabeled-away day could otherwise keep
-        // a stale pin on the map. Restrict pins/points to days still in the list.
-        let listedDays = Set(days.map(\.day))
-        let locations = await report.locations(in: region)
-            .filter { listedDays.contains($0.day) }
-        guard !Task.isCancelled else { return }
-        coordinatesByDay = Dictionary(
-            locations.map { ($0.day, $0.points.map(\.coordinate)) },
-            uniquingKeysWith: { first, _ in first },
-        )
-        mapPoints = locations.flatMap(\.points).map {
+    private var history: ElsewhereRegion? {
+        model.content(for: report.selectedYear)?.report.regions.first { $0.region == region }
+    }
+
+    private var failureMessage: String? {
+        if case let .failed(error) = report.loadState { return error.message }
+        return model.failure(for: report.selectedYear)?.localizedDescription
+    }
+
+    private var mapPoints: [RecordedMapPoint] {
+        (history?.locations.flatMap(\.points) ?? []).map {
             RecordedMapPoint(
                 coordinate: $0.coordinate,
                 horizontalAccuracy: $0.horizontalAccuracy,
@@ -54,71 +42,104 @@ struct RegionDaysView: View {
         }
     }
 
+    var body: some View {
+        content
+            .navigationTitle(region.localizedName)
+            .navigationBarTitleDisplayMode(.inline)
+            .task(id: Request(input: report.elsewhereInput, retrySequence: retrySequence)) {
+                if case .failed = report.loadState { await report.refresh() }
+                if let input = report.elsewhereInput { await model.refresh(input) }
+            }
+    }
+
     @ViewBuilder
     private var content: some View {
-        if days.isEmpty {
+        if let history, !history.days.isEmpty {
+            VStack(spacing: 0) {
+                if !mapPoints.isEmpty { RecordedPointsMap(points: mapPoints) }
+                List {
+                    if let failureMessage {
+                        Section {
+                            Label(
+                                failureMessage,
+                                systemSymbol: .exclamationmarkIcloud,
+                            )
+                            retryButton
+                        }
+                    }
+                    Section {
+                        ForEach(history.days, id: \.day) { day in
+                            NavigationLink {
+                                DayRelabelView(day: day, report: report)
+                            } label: {
+                                DayRow(
+                                    day: day,
+                                    coordinate: region == .other ? nil : history.locations
+                                        .first { $0.day == day.day }?
+                                        .points.first?.coordinate,
+                                    model: model,
+                                )
+                            }
+                        }
+                    } footer: {
+                        Text(String(localized: .secondaryRegionFooter))
+                    }
+                }
+                .accessibilityIdentifier("where_region_days_list")
+            }
+        } else if let failureMessage {
             ContentUnavailableView {
                 Label(
-                    String(localized: .secondaryRegionEmptyTitle),
-                    systemSymbol: .checkmarkCircle,
+                    String(localized: .commonLoadErrorTitle),
+                    systemSymbol: .exclamationmarkIcloud,
                 )
+            } description: {
+                Text(failureMessage)
+            } actions: {
+                retryButton
+            }
+        } else if model.content(for: report.selectedYear) == nil {
+            ProgressView(String(localized: .secondaryLoading))
+        } else {
+            ContentUnavailableView {
+                Label(String(localized: .secondaryRegionEmptyTitle), systemSymbol: .checkmarkCircle)
             } description: {
                 Text(String(localized: .secondaryRegionEmptyDescription))
             }
-        } else {
-            VStack(spacing: 0) {
-                if !mapPoints.isEmpty {
-                    RecordedPointsMap(points: mapPoints)
-                }
-                dayList
-            }
         }
     }
 
-    private var dayList: some View {
-        List {
-            Section {
-                ForEach(days, id: \.day) { day in
-                    NavigationLink {
-                        DayRelabelView(day: day, report: report)
-                    } label: {
-                        DayRow(day: day, coordinate: coordinatesByDay[day.day]?.first)
-                    }
-                }
-            } footer: {
-                Text(String(localized: .secondaryRegionFooter))
-            }
-        }
-        .accessibilityIdentifier("where_region_days_list")
+    private var retryButton: some View {
+        Button(String(localized: .commonRetry)) { retrySequence += 1 }
     }
 }
 
-/// One day in the region's list: the date, the place it reverse-geocodes to
-/// (when a coordinate is known), and the regions it currently counts for so
-/// the user can spot a wrong attribution at a glance.
 private struct DayRow: View {
     let day: DayPresence
     let coordinate: Coordinate?
-
-    @State private var placeName: String?
+    let model: ElsewhereModel
 
     @Environment(\.stylesheet) private var stylesheet
+
+    private var placeName: String? {
+        coordinate.flatMap { model.cachedPlaceName(for: $0) }
+    }
 
     var body: some View {
         HStack(spacing: stylesheet.spacing.large) {
             Image(systemSymbol: .calendar)
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
-
             VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-                Text(dateText)
+                Text(day.displayDate.formatted(.dateTime.weekday(.wide).month(.wide).day().year()))
                     .font(.headline)
                 if let placeName {
                     Label(placeName, systemSymbol: .mappinAndEllipse)
                         .font(.subheadline)
-                        .foregroundStyle(.primary)
                 }
-                Text(WhereFormat.secondaryRegionCurrent(regions: regionsText))
+                Text(WhereFormat
+                    .secondaryRegionCurrent(regions: Region.inCanonicalOrder(day.regions)
+                        .map(\.localizedName).joined(separator: ", ")))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -126,50 +147,41 @@ private struct DayRow: View {
         .padding(.vertical, stylesheet.spacing.xSmall)
         .task(id: coordinate) {
             guard let coordinate else { return }
-            placeName = await LocationNamer.shared.name(for: coordinate)
+            _ = await model.placeName(for: coordinate)
         }
         .accessibilityElement(children: .combine)
-    }
-
-    private var dateText: String {
-        day.displayDate.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
-    }
-
-    /// Region names joined in canonical order so the caption is stable.
-    private var regionsText: String {
-        Region.inCanonicalOrder(day.regions)
-            .map(\.localizedName)
-            .joined(separator: ", ")
     }
 }
 
 #if DEBUG
     extension RegionDaysView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "WithData", configurations: .fullContentScreenDefaults) {
+            let report = PreviewSupport.elsewhereCatalogYearReportModel()
+            let model = ElsewhereModel(
+                resolver: report.services.elsewhere,
+                namer: PreviewPlaceNamer(),
+            )
+            whereSnapshot(
+                name: "WithData",
+                configurations: .fullContentScreenDefaults,
+                onReadyToMeasure: {
+                    if let input = report.elsewhereInput { await model.refresh(input) }
+                },
+            ) {
                 NavigationStack {
-                    RegionDaysView(
-                        region: .other,
-                        report: PreviewSupport.elsewhereOnlyYearReportModel(),
-                    )
+                    RegionDaysView(region: Region(rawValue: "us-NV")!, report: report, model: model)
                 }
             }
         }
     }
 
-    #Preview {
-        RegionDaysView.snapshotPreviews
-    }
-#endif
+    #Preview { RegionDaysView.snapshotPreviews }
 
-#if DEBUG
     extension RegionDaysView: WhereFlyoverProviding {
         static let flyoverData = WhereFlyoverData.snapshots(
             RegionDaysView.self,
             title: "Region Days",
-            routes: [
-                .push(to: DayRelabelView.flyoverID),
-            ],
+            routes: [.push(to: DayRelabelView.flyoverID)],
         )
     }
 #endif

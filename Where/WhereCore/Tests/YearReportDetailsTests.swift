@@ -1,6 +1,6 @@
 import RegionKit
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 struct YearReportDetailsTests {
     @Test func retainsReportAndPrimaryRegionLocations() {
@@ -16,6 +16,7 @@ struct YearReportDetailsTests {
         ]
 
         let details = YearReportDetails(
+            primaryRegions: [.california, .newYork],
             report: report,
             primaryRegionLocations: locations,
         )

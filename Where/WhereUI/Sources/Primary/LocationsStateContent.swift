@@ -5,6 +5,7 @@ import SwiftUI
 struct LocationsStateContent: View {
     let report: YearReportModel
     let planningAction: () -> Void
+    var openElsewhere: (() -> Void)?
 
     @Environment(\.stylesheet.spacing) private var spacing
 
@@ -22,7 +23,7 @@ struct LocationsStateContent: View {
                     Text(error.message)
                 }
             case .idle, .loaded, .loading:
-                // Tracked days in non-headline regions still need the Elsewhere state.
+                // Tracked days outside configured primary regions still need the Elsewhere state.
                 if report.trackedDayCount == 0 {
                     emptyState
                 } else {
@@ -59,11 +60,9 @@ struct LocationsStateContent: View {
                 } description: {
                     Text(WhereFormat.primaryElsewhereOnlyDescription(count: report.trackedDayCount))
                 } actions: {
-                    if !report.ranking.secondary.isEmpty {
-                        NavigationLink(String(localized: .primaryElsewhereOnlyOpen)) {
-                            ElsewhereView(report: report)
-                        }
-                        .buttonStyle(.borderedProminent)
+                    if report.hasElsewhere, let openElsewhere {
+                        Button(String(localized: .primaryElsewhereOnlyOpen), action: openElsewhere)
+                            .buttonStyle(.borderedProminent)
                     }
                 }
                 LocationsEstimatePanel(report: report, planningAction: planningAction)
