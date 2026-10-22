@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Decorative glass and quiet security print beneath the Locations estimate.
 struct LocationForecastSummarySurface: View {
-    let paths: [Path]
+    let artwork: [LocationForecastArtwork.Item]
 
     @Environment(\.stylesheet) private var stylesheet
 
@@ -21,7 +21,7 @@ struct LocationForecastSummarySurface: View {
                 secondaryOpacity: style.rosetteOpacity,
             )
             RegionOutlineSecurityBorder(
-                paths: paths,
+                paths: artwork.map(\.microprint),
                 tint: style.ink,
                 cornerRadius: style.cornerRadius,
                 inset: style.border.inset,
@@ -29,6 +29,7 @@ struct LocationForecastSummarySurface: View {
                 spacing: style.border.spacing,
                 opacity: style.border.opacity,
             )
+            LocationForecastSilhouettes(artwork: artwork)
         }
         .background {
             if style.treatment.usesReflection {
@@ -65,7 +66,7 @@ struct LocationForecastSummarySurface: View {
 
 #if DEBUG
     #Preview {
-        LocationForecastSummarySurface(paths: [])
+        LocationForecastSummarySurface(artwork: [])
             .frame(height: 104)
             .padding()
             .whereBroadwayRoot()

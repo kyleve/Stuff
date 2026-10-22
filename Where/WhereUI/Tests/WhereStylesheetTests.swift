@@ -518,6 +518,17 @@ struct WhereStylesheetTests {
         let forecast = style.locationForecast
         #expect(forecast.summary.cornerRadius == 28)
         #expect(forecast.summary.padding == 22)
+        #expect(forecast.summary.artwork.widthFraction == 0.62)
+        #expect(forecast.summary.artwork.inset == 16)
+        #expect(forecast.summary.artwork.gap == 8)
+        #expect(forecast.summary.artwork.leadingOpacity == 0.18)
+        #expect(forecast.summary.artwork.silhouette == .init(
+            center: CGPoint(x: 0.5, y: 0.5),
+            extent: CGSize(width: 0.9, height: 0.9),
+            scale: 1,
+            fillOpacity: 0.11,
+            stroke: .init(opacity: 0.22, width: 0.7),
+        ))
         #expect(forecast.summary.treatment == .reflective)
         #expect(forecast.summary.usesOpaquePaper == false)
         #expect(forecast.summary.ink == Color(white: 0.36))

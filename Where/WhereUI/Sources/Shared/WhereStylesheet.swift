@@ -386,6 +386,7 @@ extension WhereStylesheet {
 
         /// The quiet glass finish used by the collapsible Locations summary.
         struct Summary: Equatable {
+            var artwork = Artwork()
             var cornerRadius: CGFloat = 28
             var padding: CGFloat = 22
             var ink = Color(white: 0.36)
@@ -411,6 +412,20 @@ extension WhereStylesheet {
                 spacing: 12,
                 opacity: 0.18,
             )
+
+            struct Artwork: Equatable {
+                var widthFraction: CGFloat = 0.62
+                var inset: CGFloat = 16
+                var gap: CGFloat = 8
+                var leadingOpacity: Double = 0.18
+                var silhouette = CardStyle.RegionShape.Artwork(
+                    center: CGPoint(x: 0.5, y: 0.5),
+                    extent: CGSize(width: 0.9, height: 0.9),
+                    scale: 1,
+                    fillOpacity: 0.11,
+                    stroke: .init(opacity: 0.22, width: 0.7),
+                )
+            }
         }
 
         struct Surface: Equatable {

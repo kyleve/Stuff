@@ -192,7 +192,7 @@ Layering, localization, preview, and testing conventions live in the feature
   `LocationForecastSummary` owns expansion; share its expanded rows and planning controls through
   `LocationForecastContent`. `LocationForecastPanel` always shows that content without collapse state.
   Calendar, Timeline, and discovery panels retain the detailed passport surface.
-- Use only `RegionRanking.primary` silhouettes in the estimate-panel microprint,
+- Use only `RegionRanking.primary` silhouettes in the estimate-panel microprint and summary watermarks,
   even when the panel shows a third forecast or a focused secondary region.
 - Give each ranked card an independent `GlassEffectContainer`. Apply ranking
   and overtake motion outside the complete link and card surface.

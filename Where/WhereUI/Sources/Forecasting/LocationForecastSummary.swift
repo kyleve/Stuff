@@ -5,12 +5,12 @@ import WhereCore
 /// Locations-only summary that owns expansion and keeps its soft surface in both states.
 struct LocationForecastSummary: View {
     let forecasts: [LocationForecast]
-    let microprintRegions: [Region]
+    let primaryRegions: [Region]
     var homeRegion: Region?
     var planningAction: (() -> Void)?
 
     @State private var isExpanded = false
-    @State private var artworkModel = RegionArtworkModel<[Region], [Path]>()
+    @State private var artworkModel = RegionArtworkModel<[Region], [LocationForecastArtwork.Item]>()
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
@@ -33,11 +33,11 @@ struct LocationForecastSummary: View {
         .padding(style.summary.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
-            LocationForecastSummarySurface(paths: artworkModel
-                .artwork(for: microprintRegions) ?? [])
+            LocationForecastSummarySurface(artwork: artworkModel
+                .artwork(for: primaryRegions) ?? [])
         }
-        .regionArtworkTask(id: microprintRegions, model: artworkModel) { cache in
-            await LocationForecastArtwork.load(regions: microprintRegions, cache: cache)
+        .regionArtworkTask(id: primaryRegions, model: artworkModel) { cache in
+            await LocationForecastArtwork.loadSummary(regions: primaryRegions, cache: cache)
         }
     }
 
@@ -69,7 +69,7 @@ struct LocationForecastSummary: View {
             reduceTransparency: Bool = false,
         ) -> SnapshotCase {
             let cache = RegionOutlinePathCache()
-            let artwork = RegionArtworkModel<[Region], [Path]>()
+            let artwork = RegionArtworkModel<[Region], [LocationForecastArtwork.Item]>()
             let report = PreviewSupport.plannedStayYearReportModel()
             let regions = report.ranking.primary.map(\.region)
             return whereThemeSnapshot(
@@ -78,18 +78,14 @@ struct LocationForecastSummary: View {
                 measurementReadiness: .immediate,
                 onReadyToSnapshot: {
                     await artwork.load(for: regions) {
-                        var paths: [Path] = []
-                        for region in regions {
-                            await paths.append(cache.path(for: region, resolution: .micro))
-                        }
-                        return paths
+                        await LocationForecastArtwork.loadSummary(regions: regions, cache: cache)
                     }
                 },
             ) {
                 let report = PreviewSupport.plannedStayYearReportModel()
                 var panel = LocationForecastSummary(
                     forecasts: report.forecasts.leadingForecasts(report: report.report),
-                    microprintRegions: regions,
+                    primaryRegions: regions,
                     homeRegion: report.forecasts.planning.homeRegion,
                     planningAction: {},
                 )

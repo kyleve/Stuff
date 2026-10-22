@@ -10,7 +10,7 @@ struct LocationsEstimatePanel: View {
         if report.showsEstimatedTimeAndPlanning, !forecasts.isEmpty {
             LocationForecastSummary(
                 forecasts: forecasts,
-                microprintRegions: report.ranking.primary.map(\.region).filter { $0 != .other },
+                primaryRegions: report.ranking.primary.map(\.region).filter { $0 != .other },
                 homeRegion: report.forecasts.planning.homeRegion,
                 planningAction: planningAction,
             )

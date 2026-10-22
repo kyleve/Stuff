@@ -517,7 +517,7 @@ Each timeline stay opens its own editor. Future intent never becomes recorded hi
 as dates pass. Appearance settings can hide estimates without removing plans or Home.
 The Estimated Time settings page also opens the planner.
 
-On Locations, the collapsible estimate uses soft glass with faint security print and a translucent black outer stroke.
+On Locations, the collapsible estimate uses soft glass with faint security print, primary-region watermarks, and a translucent black outer stroke.
 Flat appearance and Reduce Transparency use opaque paper. Calendar, Timeline, and discovery panels retain their passport-visa appearance.
 The estimate's outline sits outside the card in both Standard and Flat, blending with the surrounding background.
 `LocationForecastSummary` owns the Locations disclosure and expansion state. It shares
