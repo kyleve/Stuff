@@ -332,52 +332,90 @@ struct SampleCorrectionCoordinatorTests {
         #expect(try await store.allSamples() == trace.samples)
     }
 
-    @Test(.disabled(
-        if: ProcessInfo.processInfo.environment["WHERE_FLIGHT_VERIFICATION_CONFIG"] == nil,
-        "Supply a local flight-verification configuration to replay an external backup.",
-    ))
-    func productionArchiveCorrectionOnRequest() async throws {
-        let path = try #require(ProcessInfo.processInfo
-            .environment["WHERE_FLIGHT_VERIFICATION_CONFIG"])
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .secondsSince1970
-        let configuration = try decoder.decode(
-            FlightArchiveVerificationConfiguration.self,
-            from: Data(contentsOf: URL(fileURLWithPath: path)),
-        )
-        let backupURL = URL(fileURLWithPath: configuration.backupPath)
-        let archive = try BackupService().readArchive(at: backupURL).archive
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = try #require(TimeZone(identifier: configuration.calendarTimeZoneID))
+    @Test func recordedFlightBackupAppliesCorrectionsWithoutChangingGroundOrRawSamples(
+    ) async throws {
+        typealias F = RecordedFlightArchiveFixture
+        let archiveURL = try F.makeArchiveFile()
+        defer {
+            do {
+                try FileManager.default.removeItem(at: archiveURL.deletingLastPathComponent())
+            } catch {
+                Issue.record(error, "Could not remove the recorded flight test archive")
+            }
+        }
         let store = try SwiftDataStore.inMemory()
+        let regions = F.Regions()
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
-            attributor: RegionAttributor(for: archive.trackedRegions),
-            aggregator: DayAggregator(calendar: calendar, timeZone: calendar.timeZone),
-            now: { configuration.now },
+            attributor: regions,
+            aggregator: DayAggregator(calendar: F.calendar, timeZone: F.calendar.timeZone),
+            now: { F.now },
         )
-        _ = try await services.backup.importAndAcknowledgeBackup(
-            from: backupURL,
+        let imported = try await services.backup.importAndAcknowledgeBackup(
+            from: archiveURL,
             strategy: .replace,
         )
-        let day = CalendarDay(from: configuration.from, in: calendar)
+        #expect(imported.sampleCount == 52)
+        #expect(imported.recordingDeviceCount == 1)
+        #expect(try await Set(store.allSamples()) == Set(F.samples))
+        #expect(try await Set(store.trackedRegions()) == Set(regions.loadedRegions))
+        let before = try await services.reports.dataIssueReads(for: F.day.year)
+        #expect(before.history.samples.count == F.samples.count)
+        #expect(before.report.days.first { $0.day == F.day }?.regions
+            == [.california, .newYork, .canada])
+
         let review = try await services.corrections.review(
-            id: .flightDay(day: day),
-            year: day.year,
-            primaryRegions: archive.trackedRegions,
+            id: .flightDay(day: F.day),
+            year: F.day.year,
+            primaryRegions: regions.loadedRegions,
             driftThresholdMeters: 1000,
         )
         let proposal = try #require(review?.proposal)
-        #expect(proposal.resultingRegions == configuration.expectedResultingRegions)
+        let editedIDs = Set(proposal.edits.map(\.sampleID))
+        // These five recorded fixes cross the invented middle region with
+        // independent cruise observations on both sides of every point.
+        let overflightIDs = Set([17, 3, 26, 6, 39].map(FlightTrajectoryFixtures.sampleID))
+        #expect(overflightIDs.isSubset(of: editedIDs))
+        let departure = try #require(F.samples.first {
+            $0.id == FlightTrajectoryFixtures.sampleID(33)
+        })
+        let arrival = try #require(F.samples.first {
+            $0.id == FlightTrajectoryFixtures.sampleID(30)
+        })
+        let groundIDs = Set(F.samples.filter {
+            $0.timestamp <= departure.timestamp || $0.timestamp >= arrival.timestamp
+        }.map(\.id))
+        #expect(editedIDs.isDisjoint(with: groundIDs))
+        #expect(proposal.resultingRegions == [.california, .newYork])
         guard case .applied = try await services.corrections.apply(proposal) else {
-            Issue.record("The archive's unchanged reviewed correction must apply")
+            Issue.record("The imported recording's unchanged reviewed correction must apply")
             return
         }
-        let result = try await services.reports.yearReport(for: day.year)
-        #expect(result.days.first { $0.day == day }?.regions == configuration
-            .expectedResultingRegions)
-        #expect(try await Set(store.allSamples()) == Set(archive.samples))
+
+        let after = try await services.reports.dataIssueReads(for: F.day.year)
+        #expect(after.report.days.first { $0.day == F.day }?.regions == [.california, .newYork])
+        let overflight = after.history.samples.filter { overflightIDs.contains($0.sample.id) }
+        #expect(Set(overflight.map(\.sample.id)) == overflightIDs)
+        for point in overflight {
+            #expect(point.regions.isEmpty)
+        }
+        #expect(after.history.samples.filter { groundIDs.contains($0.sample.id) }
+            == before.history.samples.filter { groundIDs.contains($0.sample.id) })
+        #expect(try await Set(store.allSamples()) == Set(F.samples))
+        let revisions = try await store.allSampleAttributionRevisions()
+        #expect(Set(revisions.map(\.sampleID)) == editedIDs)
+        #expect(revisions.count == editedIDs.count)
+        #expect(revisions.allSatisfy { $0.replacementRegions == [] })
+        #expect(try await services.reports.manualDays(inYear: F.day.year).isEmpty)
+        let fresh = try await services.corrections.review(
+            id: .flightDay(day: F.day),
+            year: F.day.year,
+            primaryRegions: regions.loadedRegions,
+            driftThresholdMeters: 1000,
+        )
+        #expect(fresh?.proposal == nil)
+        #expect(fresh?.flight?.isPending == false)
     }
 
     @Test func changedTrackedRegionsRejectApplyBeforeLiveObserverReconciles() async throws {

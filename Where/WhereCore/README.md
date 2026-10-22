@@ -477,6 +477,16 @@ Calendar-day persistence keys use `CalendarDay.iso8601` (`YYYY-MM-DD`); diagnost
 
 ### Recorded flight fixtures
 
+The recorded corpus covers sparse displacement, legacy recordings with mixed sampling, interrupted cruise with a turning approach, and late cruise resumption.
+Each fixture retains its complete selected window, including ground travel and duplicate callbacks.
+The analyzer regressions check flight recognition, positive arrival evidence, supported days, and protection of ground points.
+They also check reordered delivery, repeated callbacks, and removal of arrival evidence.
+
+The recorded cruise regression checks live progress, stale observations, and arrival confirmation from successive callback prefixes.
+`RecordedFlightArchiveFixture` packages that complete window with replacement device metadata and fixed test regions.
+The correction regression imports this archive, applies reviewed exclusions, and checks the report and preservation of ground points and raw samples.
+These checks run in ordinary CI without a private backup or replay configuration.
+
 `FlightFixtureExporterTests.exportArchiveFixtureOnRequest` extracts GPS callbacks from a current-format backup through `BackupService`.
 It applies device-removal cutoffs and selects the half-open interval `[from, until)`.
 It retains callback order, duplicates, conflicting identities, accuracy, motion readings, and device boundaries.
@@ -517,7 +527,7 @@ Route shape, timing, accuracy, and sensor values remain recognizable characteris
    It also refuses to overwrite an existing output file.
    These checks verify transformation fidelity. They do not establish the correct flight result.
 5. Review the generated Swift array. For calendar, latitude, or date-line failures, preserve the relevant boundary in the replacement configuration.
-   Coordinate rotation does not preserve country attribution. Retain the local archive replay for checks that need the original geography.
+   Coordinate rotation does not preserve country attribution.
 6. Copy the reviewed file into `Tests/` and format it with `./swiftformat`.
    Add a named regression in `FlightTrajectoryAnalyzerTests.swift` with independently reviewed expectations.
    Assert flight count, arrival evidence, supported days, airborne identities, and protected ground points as applicable.

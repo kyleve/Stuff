@@ -2,35 +2,6 @@ import Foundation
 import RegionKit
 import WhereCore
 
-/// Optional local verification inputs. Private archives and expected identities
-/// are supplied outside the checkout and never become repository fixtures.
-struct FlightArchiveVerificationConfiguration: Decodable {
-    let backupPath: String
-    let from: Date
-    let until: Date
-    let now: Date
-    let cruiseCheckAt: Date
-    let awaitingArrivalCheckAt: Date
-    let expectedArrivalAt: Date
-    let expectedArrivalConfirmedAt: Date
-    let expectedInputSampleCount: Int
-    let expectedAirborneSampleIDs: Set<UUID>
-    let expectedPreservedSampleIDs: Set<UUID>
-    let calendarTimeZoneID: String
-    let expectedResultingRegions: Set<Region>
-}
-
-/// Opt-in sparse-flight replay keeps private archives and expected dates outside Git.
-struct SparseFlightArchiveVerificationConfiguration: Decodable {
-    let backupPath: String
-    let from: Date
-    let until: Date
-    let now: Date
-    let expectedArrivalAt: Date
-    let expectedArrivalConfirmedAt: Date
-    let expectedInputSampleCount: Int
-}
-
 /// An invented equatorial route, not exported personal location history. Its
 /// structure exercises short callbacks, a recording gap, a turning approach,
 /// and delayed arrival confirmation without retaining a real itinerary.

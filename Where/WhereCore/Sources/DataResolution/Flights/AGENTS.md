@@ -26,4 +26,5 @@ and [repository rules](../../../../../AGENTS.md) also apply.
 - Put shared inference limits in `GPSCorrectionPolicy`.
   Document evidence decisions beside the algorithm that uses them.
 
-`FlightTrajectoryAnalyzerTests` covers these boundaries with synthetic trajectories.
+`FlightTrajectoryAnalyzerTests` covers these boundaries with synthetic trajectories and transformed recorded windows.
+See the module's [recorded-fixture procedure](../../../README.md#recorded-flight-fixtures).
