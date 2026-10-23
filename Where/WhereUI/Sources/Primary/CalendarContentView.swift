@@ -143,7 +143,9 @@ struct CalendarContentView: View {
             ?? visibleMonths.last?.id
 
         return ScrollView {
-            LazyVStack(spacing: stylesheet.calendar.monthSpacing) {
+            // A year has at most twelve months; measure them all so the scroll
+            // indicator does not resize as months enter the viewport.
+            VStack(spacing: stylesheet.calendar.monthSpacing) {
                 ForEach(visibleMonths) { month in
                     VStack(spacing: stylesheet.calendar.monthSpacing) {
                         MonthGridView(
