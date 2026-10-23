@@ -48,20 +48,6 @@ extension WhereStylesheet {
         struct Outline: Equatable {
             var opacity: Double
             var width: CGFloat
-            var placement = Placement.inside
-
-            enum Placement: Equatable {
-                case inside
-                case outside
-            }
-
-            /// Expand the path before stroking inward to keep an outside outline off the fill.
-            var inset: CGFloat {
-                switch placement {
-                    case .inside: 0
-                    case .outside: -width
-                }
-            }
         }
 
         struct Shadow: Equatable {

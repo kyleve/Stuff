@@ -79,7 +79,7 @@ enum WhereFlatTheme {
         overrides.forecast.surfaceWashOpacity = 0
         overrides.forecast.summarySurface = .matte(WhereStylesheet.MatteSurface(
             fill: .init(base: base.locationForecast.summary.paper, tintMix: 0),
-            outline: .init(opacity: outline.opacity, width: outline.width, placement: .outside),
+            outline: outline,
             shadow: .init(color: shadow.color, radius: 8, offsetY: 3),
             pressedTintOpacity: 0,
         ))

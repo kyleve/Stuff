@@ -56,14 +56,6 @@ struct WhereStylesheetSurfaceTreatmentTests {
             .coreOpacity)
         #expect(sheet.locationForecast.ink.surfaceWashOpacity == 0)
         #expect(sheet.locationForecast.summary.shadowOpacity == 0)
-        if case let .matte(summary) = sheet.locationForecast.summary.treatment {
-            #expect(summary.outline.placement == .outside)
-            #expect(summary.outline.inset == -summary.outline.width)
-        }
-        if case let .matte(card) = sheet.card.regular.surface {
-            #expect(card.outline.placement == .inside)
-            #expect(card.outline.inset == 0)
-        }
         #expect(sheet.card.securityPrint.backgroundBlendMode == .normal)
         #expect(sheet.card
             .dayCount == (accessibility.isReduceMotionEnabled ? .reducedMotion : .standard))

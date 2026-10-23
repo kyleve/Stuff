@@ -246,8 +246,9 @@ worked examples.
   Resolve theme and accessibility choices in the owning `WhereStylesheet`
   component style. Views consume that style without checking the selected theme.
   Reuse `matteSurface` for Flat's opaque fills, visible strokes, and restrained
-  shadows. Use a subtle tint for pressed feedback. Exclude glass, reflections,
-  and luminous glows from Flat's view hierarchy. Observe tilt only while a
+  shadows. Keep the matte outline fully outside the clipped surface without changing
+  layout or hit bounds. Use a subtle tint for pressed feedback. Exclude glass,
+  reflections and luminous glows from Flat's view hierarchy. Observe tilt only while a
   visible surface needs sheen. Preserve artwork and informational gradients.
   Keep system chrome native and widget/snippet surfaces lightweight.
   Guard: `WhereStylesheetSurfaceTreatmentTests`.

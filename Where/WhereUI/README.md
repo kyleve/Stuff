@@ -488,9 +488,10 @@ Live tilt is observed only by the sheen overlay, so its 60 Hz updates do not
 invalidate the card's text or Canvas artwork. Observation runs only while a
 reflective surface is visible and active, with motion enabled. Standard's
 Liquid Glass supplies its border. Flat supplies an explicit printed stroke.
-The shared matte renderer owns fill, stroke, and shadow. Navigation zooms use
-the same resolved elevation. Card Designer drafts preserve the selected finish
-without changing their saved format.
+The shared matte renderer owns fill, stroke, and shadow. It draws the translucent
+outline fully outside the clipped surface, without changing layout or hit bounds.
+Navigation zooms use the same resolved elevation. Card Designer drafts preserve
+the selected finish without changing their saved format.
 
 The Locations toolbar opens **Planned stays**. Each stay has an independent identity,
 a destination, and inclusive arrival and last-day windows. Exact dates use one day
