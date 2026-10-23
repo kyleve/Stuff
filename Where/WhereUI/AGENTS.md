@@ -116,7 +116,7 @@ Layering, localization, preview, and testing conventions live in the feature
 - Expose each calendar month as one accessibility element: regional totals in the label, chronological stay spans and dated badges in the value. Preserve planning qualifiers. Guard: `CalendarMonthAccessibilityTests`.
 - Keep Calendar and Timeline as stable sibling pages in `YearView`'s native pager.
   Bind the pager and bottom picker to the same `YearMode`. Own their shared planning
-  toolbar in the pager's navigation container. Guard: `YearViewTests`.
+  toolbar in the pager's navigation container.
 - Keep calendar flight days and timeline flight events independent of review dismissal.
   Show uncertain arrival timing explicitly. Render supported travel periods separately from later ground observations.
   Split timeline stays only for presentation; preserve every region-day exactly once.

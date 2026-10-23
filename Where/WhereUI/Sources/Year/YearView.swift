@@ -149,7 +149,7 @@ private struct YearModePicker: View {
     extension YearView: SnapshotProviding {
         /// Capture the shared scrolling child and chrome directly: expanding the
         /// native pager to full content distorts its viewport and accessibility tree.
-        /// `YearViewTests` exercises paging; `PresenceTimelineList` owns timeline images.
+        /// `PresenceTimelineList` owns timeline images.
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Loaded",
