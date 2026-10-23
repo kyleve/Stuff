@@ -51,7 +51,7 @@ generating. Plain `./ide` fails fast and points at bootstrap.
 After a site lockfile change, run `mise exec -- npm ci --prefix Tools/InstallerKit/Site`.
 
 The executables in the repo root are the dev scripts. They are `ide`, `test`,
-`swiftformat`, `sf-symbols`, `sync-agents`, `profile`, `icons`, `flaky`, `simulator`,
+`swiftformat`, `sf-symbols`, `sync-agents`, `profile`, `flyover`, `icons`, `flaky`, `simulator`,
 `worktree`, `signing`, `xcstrings`, `attribution`, `shellcheck`, `codex-watchdog`, `tla-check`,
 `circleci-artifacts`, `snapshot-shards`, `loc`. Each takes `--help`. Use one of these scripts instead of
 hand-rolling its job. `./test` owns iOS tests; the native-macOS Ledger scheme is the exception
@@ -639,10 +639,11 @@ generates the project or starts a simulator.
   the applicable checks.
 - **Multi-step work lands one commit per step**, so history stays bisectable and
   can land piecewise — including pure-groundwork steps, which say so in the body.
-- **Commit completed work eagerly.** Once a coherent change is verified, commit
-  it without waiting for a separate request. Never hand back a finished task
-  with task-related changes left local, unpushed, or uncommitted. Honor an
-  explicit request to keep work uncommitted.
+- **Commit and push completed work eagerly.** Once a coherent change is
+  verified, commit it and push the current feature branch. Do not wait for a
+  separate request. Never hand back a finished task with task-related changes
+  left local, unpushed, or uncommitted. Honor an explicit request to keep work
+  local or uncommitted.
 
 ### GitHub
 
