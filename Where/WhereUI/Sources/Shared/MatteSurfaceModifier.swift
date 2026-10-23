@@ -15,7 +15,9 @@ struct MatteSurfaceModifier<SurfaceShape: InsettableShape>: ViewModifier {
                     .background(shape.fill(style.fill.color(tint: tint)))
                     .clipShape(shape)
                     .overlay {
-                        shape.strokeBorder(
+                        // Expand before stroking inward so the outline blends with the surrounding
+                        // background.
+                        shape.inset(by: -style.outline.width).strokeBorder(
                             tint.opacity(style.outline.opacity),
                             lineWidth: style.outline.width,
                         )

@@ -20,6 +20,7 @@ func captureConfiguredSnapshot(
     settle: SnapshotSettle,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
     timeoutPolicy: SnapshotSettleTimeoutPolicy,
+    backgroundColor: UIColor = .clear,
 ) async throws -> ConfiguredSnapshotCapture {
     let sizing: SnapshotSizing = switch configuration.device.size {
         case .fixed: .fixed
@@ -42,7 +43,11 @@ func captureConfiguredSnapshot(
     )
     let capture = try await SnapshotCaptureRetry.capture(
         named: name,
-        makeViewController: { makeHostingController(for: view, configuration: configuration) },
+        makeViewController: {
+            let controller = makeHostingController(for: view, configuration: configuration)
+            controller.view.backgroundColor = backgroundColor
+            return controller
+        },
         capture: { controller in
             try await renderSnapshotCapture(
                 of: controller,

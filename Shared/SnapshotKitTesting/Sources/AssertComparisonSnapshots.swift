@@ -71,6 +71,7 @@ func captureSnapshotPanels(
             settle: snapshotCase.settle,
             onReadyToSnapshot: snapshotCase.onReadyToSnapshot,
             timeoutPolicy: .fromEnvironment(),
+            backgroundColor: SnapshotImageGrid.backgroundColor,
         )
         capture.timing.emit()
         let image = capture.capture.image
