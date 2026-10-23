@@ -18,8 +18,9 @@ commands keep process and simulator orchestration in shell; `xcode_results.py`
 shares xcresult traversal, `snapshot_reports.py` shares capture reports, and
 the command-specific Python modules retain each command's distinct policy.
 `flyover_manifest.py` validates generated atlases and builds their file
-allowlists. `flyover_preview.py` pins and serves those files from a local HTTP
-server.
+allowlists. `flyover_preview.py` opens validated files without following replacement links.
+`flyover_site.py` builds the viewer and runs Astro against an isolated copy.
+Both websites share the root npm workspace and `astro_site.py` launcher.
 Filesystem-heavy Ruby generators are require-safe so their behavior can be
 exercised against temporary repositories. `SimulatorRegistry` validates exact
 runtime ownership from captured `simctl` JSON and persists private claims
@@ -61,7 +62,7 @@ owns sample selection and publication.
 Install the site dependencies before the retained installer tests or snapshot builds:
 
 ```bash
-mise exec -- npm ci --prefix Tools/InstallerKit/Site
+mise exec -- npm ci
 ```
 
 ```bash

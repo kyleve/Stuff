@@ -8,7 +8,6 @@ from typing import Any
 def write_manifest(root: Path, manifest: object) -> None:
     data = json.dumps(manifest)
     (root / "manifest.json").write_text(data)
-    (root / "manifest.js").write_text("window.FLYOVER_MANIFEST = " + data + ";\n")
 
 
 def create_flyover_artifact(root: Path) -> Path:
@@ -20,6 +19,7 @@ def create_flyover_artifact(root: Path) -> Path:
     (root / "index.html").write_text("<!doctype html>")
     (root / "assets/app.js").write_text("")
     (root / "assets/styles.css").write_text("")
+    (root / "web-assets.json").write_text(json.dumps(["assets/app.js", "assets/styles.css"]))
     write_manifest(root, flyover_manifest_fixture())
     return root
 

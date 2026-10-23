@@ -45,7 +45,6 @@ struct WhereFlyoverWebExportTests {
                 Issue.record(error)
             }
         }
-        try copyWebShell(to: output)
 
         let catalog = FlyoverCatalog(
             groups: [
@@ -236,23 +235,12 @@ struct WhereFlyoverWebExportTests {
             #expect(pixels.height == image.pixelHeight)
         }
         for path in [
-            "index.html",
             "manifest.json",
-            "manifest.js",
-            "assets/app.js",
-            "assets/styles.css",
         ] {
             #expect(FileManager.default.fileExists(
                 atPath: output.appending(path: path).path,
             ))
         }
-        let shell = try ["index.html", "assets/app.js", "assets/styles.css"]
-            .map { path in try String(contentsOf: output.appending(path: path), encoding: .utf8) }
-            .joined(separator: "\n")
-            .replacingOccurrences(of: "http://www.w3.org/2000/svg", with: "")
-        #expect(shell.contains("http://") == false)
-        #expect(shell.contains("https://") == false)
-        #expect(shell.contains("fetch(") == false)
     }
 
     private func capture(_ request: FlyoverCaptureRequest) async throws -> FlyoverCapturedImage {
@@ -273,27 +261,6 @@ struct WhereFlyoverWebExportTests {
             pixelSize: capture.pixelSize,
             scale: capture.scale,
         )
-    }
-
-    private func copyWebShell(to output: URL) throws {
-        let repository = URL(filePath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let source = repository.appending(path: "Shared/Flyover/Web")
-        let assets = output.appending(path: "assets", directoryHint: .isDirectory)
-        try FileManager.default.createDirectory(at: assets, withIntermediateDirectories: true)
-        try FileManager.default.copyItem(
-            at: source.appending(path: "index.html"),
-            to: output.appending(path: "index.html"),
-        )
-        for filename in ["app.js", "styles.css"] {
-            try FileManager.default.copyItem(
-                at: source.appending(path: "assets/\(filename)"),
-                to: assets.appending(path: filename),
-            )
-        }
     }
 }
 

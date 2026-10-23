@@ -32,7 +32,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build, format
 - **Type erase only at the heterogeneous content/control registry boundary.**
 - **Validate every stable screen and variant identifier before capture.** Use generated ordinals for image paths.
 - **Reject non-finite or non-positive fixed viewport dimensions before capture.** Guard: `FlyoverWebExporterTests`.
-- **Serve only a validated generated artifact.** Bind to loopback unless the user selects LAN access. Reject replacement links and special files without blocking (`test_flyover_preview.py`).
+- **Serve only a private copy of a validated generated artifact through Astro.** Bind to loopback unless the user selects LAN access. Reject replacement links and special files without blocking (`test_flyover_preview.py`, `test_flyover_site.py`).
+- **Use the repository's shared npm lockfile and Astro launcher.** Keep capture and publication policy outside the web project. Preserve relative hosted asset paths; direct `file://` viewing is unsupported.
 - **Load a thumbnail for every visible web screen.** Reserve full-resolution captures for the inspector and raw PNG link.
 - **Apply web residency limits only to offscreen preload candidates.**
 - **Restore all web state selections from the URL and clear transient panels on history navigation.**

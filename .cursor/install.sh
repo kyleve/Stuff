@@ -29,7 +29,7 @@ echo "==> mise install"
 mise install
 
 echo "==> install site dependencies"
-mise exec -- npm ci --prefix Tools/InstallerKit/Site
+mise exec -- npm ci
 
 # .githooks carries the Git LFS hooks beside the pre-commit formatter, and they
 # exit non-zero when git-lfs is missing — so it has to be here before Git is
