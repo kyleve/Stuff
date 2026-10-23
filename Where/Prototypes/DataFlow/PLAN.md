@@ -11,6 +11,7 @@ Keep this file as the current plan and [Research/](Research/README.md) as the su
 
 The user requested this document workflow on 2026-10-23.
 The user selected both a separate Mac window and a view inside Where.
+The user requires automatic tracing. Annotations can resolve ambiguity or add detail, but ordinary tracing cannot require them.
 Instrumentation, transport, presentation reuse, and first-flow selection remain open.
 The proposals in this plan do not record user approval of those choices.
 
@@ -23,8 +24,9 @@ The [repository research](Research/002-repository-map.md) records the evidence a
 
 The current discussion concerns explicit data tracing before UI and UX.
 The motivating example follows one GPS point from its system callback through ingestion and persistence.
-We are evaluating generated system metadata, runtime observations, and explicit asynchronous handoffs.
-See [tracing and code generation](Research/005-explicit-tracing-and-code-generation.md) for the technical options and a proposed experiment.
+We are evaluating automatic system discovery, generated runtime observations, and adapters for asynchronous handoffs.
+The [GPS tracing research](Research/005-explicit-tracing-and-code-generation.md) records the current source path and identity constraints.
+The [automatic instrumentation discussion](Research/006-automatic-instrumentation.md) replaces its annotation-led proposal and experiment.
 The [decision register](Research/003-decisions.md) holds the options and unresolved questions.
 
 ## Proposed first result
@@ -41,6 +43,7 @@ The first implementation slice remains open. Both candidates use the normal app 
 Proposed acceptance criteria:
 
 - One real action produces an inspectable flow while Where remains usable.
+- Ordinary stages appear without tracing annotations or manual observation calls. Optional declarations refine ambiguous relationships or add detail.
 - Both surfaces describe the same observed work consistently. Their layouts can differ.
 - The viewer identifies the observed input, commit, downstream work, and terminal outcomes.
 - Concurrent operations remain distinguishable. Time overlap alone creates no causal edge.
@@ -60,7 +63,7 @@ Create the actual stack after the first implementation decisions establish its d
 | Slice | Result | Evidence required to finish |
 | --- | --- | --- |
 | D0 — Planning documents | This plan, research index, initial source map, and decision register | Links resolve, findings cite source, and proposals remain explicit |
-| P1 — Observation contract and feasibility | Defined identities, stages, handoffs, outcomes, and generation strategy. A technical experiment precedes UI work | GPS-path evidence preserves identity, retries, and commit meaning. Macro feasibility is established on the selected toolchain |
+| P1 — Observation contract and feasibility | Defined identities, relationships, and automatic generation strategy. A technical experiment precedes UI work | Unannotated GPS sources produce useful runtime evidence. Build integration, coverage, semantic preservation, and maintenance cost have measured evidence |
 | P2 — First live flow | Minimum instrumentation, capture adapter, and viewer for the chosen flow | An ordinary action in the running app appears live through its selected boundaries |
 | P3 — Both surfaces and inspection | The companion surface, selection, filtering, display pause, and bounded recent history | Both viewers explain the same live operation and its recent outcome |
 | P4 — Failure and concurrency | Retry, overlap, cancellation, reset, and capture-gap behavior | Controlled scenarios preserve domain results and expose incomplete observation |
@@ -90,13 +93,18 @@ The first slice must define how capture ends or rebinds across scope replacement
 
 ## Current technical proposal
 
-Generate stage metadata and repetitive observation code from explicit declarations.
+Evaluate source transformation that generates metadata and instrumented copies for a dedicated tracing build.
+Discover ordinary stages automatically. Reserve annotations for ambiguity and extra detail.
 Use runtime records to establish actual data movement and outcomes.
-Carry correlation explicitly across streams, callbacks, queues, and persistence boundaries.
+Evaluate reusable adapters that preserve correlation across streams, callbacks, queues, and persistence boundaries.
 Evaluate Periscope's existing task-local context and event pipeline as the foundation.
-Keep a static source map separate from observed causal relationships.
+Keep candidate source connections, entity correlation, and observed transfers distinct.
+Use generated identifiers within each build and capture. Keep cross-build identity matching a separate choice.
 
-This combination is a recommendation for discussion. No macro API, context envelope, or capture implementation is selected.
+The first experiment must trace unchanged GPS source and automatically detect a newly inserted forwarding stage.
+It must expose unsupported boundaries instead of requiring hidden per-stage configuration.
+See [the revised experiment](Research/006-automatic-instrumentation.md#revised-feasibility-experiment).
+This is a recommendation for discussion. No source transformer, macro API, compiler integration, or capture implementation is selected.
 
 ## Validation approach
 
@@ -130,6 +138,7 @@ File unrelated findings in their owning `TODOs.md` and link them from research.
 - 2026-10-23: Created the planning workspace and initial source research.
 - 2026-10-23: Recorded the user's choice to support both Mac and in-app viewing.
 - 2026-10-23: Began technical exploration of explicit GPS tracing and macro/parser generation before UI and UX.
+- 2026-10-23: Recorded automatic tracing as the default requirement and revised the feasibility proposal around unannotated application source.
 - D0 review: [PR #425](https://github.com/kyleve/Stuff/pull/425), branch `codex/where-data-flow-plan`.
-- Documentation validation: 58 local links and anchors resolve. Diff checks passed. Runtime checks do not exercise this documentation change.
+- Documentation validation: 71 local links and anchors resolve. Diff checks passed. Runtime checks do not exercise this documentation change.
 - No implementation slice is complete.

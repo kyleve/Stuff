@@ -5,6 +5,11 @@ Status: technical exploration. The architecture and APIs remain proposals.
 Source revision: `6369a3b157798d8a1834d3979d567f4c6876c0b4`.
 Evidence: source inspection and official Swift documentation. No compiler experiment or live capture has run.
 
+Update, 2026-10-23: [006 — Automatic instrumentation](006-automatic-instrumentation.md) supersedes this document's default annotation approach and proposed experiment.
+The user requires automatic tracing, with optional annotations for ambiguity or detail.
+The revised proposal also uses generated identifiers within each build, replacing the proposed requirement for manually stable identifiers across renames.
+The GPS source findings and distinctions between entity identity, execution, and handoff remain relevant.
+
 ## Discussion focus
 
 The user wants to follow an individual datum through the system, with a GPS point as the concrete example.
