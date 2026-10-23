@@ -93,13 +93,8 @@ struct CalendarContentView: View {
         }
         .toolbar {
             if showsPlanningToolbar, report.showsEstimatedTimeAndPlanning {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(
-                        String(localized: .plannedStaysTitle),
-                        systemSymbol: .calendarBadgeClock,
-                    ) {
-                        planningDestination = .list
-                    }
+                PlannedStaysToolbar {
+                    planningDestination = .list
                 }
             }
         }

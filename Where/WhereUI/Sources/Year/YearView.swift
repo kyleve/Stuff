@@ -46,13 +46,8 @@ private struct YearNavigationModifier: ViewModifier {
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 if report.showsEstimatedTimeAndPlanning {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(
-                            String(localized: .plannedStaysTitle),
-                            systemSymbol: .calendarBadgeClock,
-                        ) {
-                            planningDestination = .list
-                        }
+                    PlannedStaysToolbar {
+                        planningDestination = .list
                     }
                 }
             }

@@ -128,13 +128,8 @@ struct PresenceTimelineList: View {
         }
         .toolbar {
             if showsPlanningToolbar, presentation == .full, report.showsEstimatedTimeAndPlanning {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(
-                        String(localized: .plannedStaysTitle),
-                        systemSymbol: .calendarBadgeClock,
-                    ) {
-                        planningDestination = .list
-                    }
+                PlannedStaysToolbar {
+                    planningDestination = .list
                 }
             }
         }
