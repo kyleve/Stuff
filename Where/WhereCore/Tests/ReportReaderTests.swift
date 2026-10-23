@@ -166,12 +166,12 @@ struct ReportReaderTests {
         try await store.perform {
             try await store.add(sample: first)
         }
-        let before = try await reader.yearReportDetails(for: 2026, primaryRegionCount: 2)
+        let before = try await reader.yearReportDetails(for: 2026)
 
         try await store.perform {
             try await store.add(sample: second)
         }
-        let after = try await reader.yearReportDetails(for: 2026, primaryRegionCount: 2)
+        let after = try await reader.yearReportDetails(for: 2026)
 
         #expect(after.report == before.report)
         #expect(before.primaryRegionLocations[.california]?.flatMap(\.points).count == 1)
@@ -209,12 +209,101 @@ struct ReportReaderTests {
             ))
         }
 
-        let details = try await reader.yearReportDetails(for: 2026, primaryRegionCount: 2)
+        let details = try await reader.yearReportDetails(for: 2026)
 
         #expect(details.report.days.count == 1)
         #expect(details.report.totals == [.california: 1])
         #expect(details.primaryRegionLocations[.california]?.flatMap(\.points).count == 1)
         #expect(details.primaryRegionLocations[.newYork] == nil)
+        #expect(details.elsewhereInput.history.samples.count == 1)
+        #expect(!details.elsewhereInput.hasVisits)
+    }
+
+    @Test func detailsReadConfiguredPrimaryMembershipAndAllItsLocations() async throws {
+        let (reader, store) = try Self.makeReader()
+        try await store.perform {
+            try await store.setPrimaryRegions([
+                PrimaryRegion(region: .california, appearance: nil, order: 0),
+                PrimaryRegion(region: .newYork, appearance: nil, order: 1),
+                PrimaryRegion(region: .canada, appearance: nil, order: 2),
+            ])
+            for coordinate in [
+                Coordinate(latitude: 37.7749, longitude: -122.4194),
+                Coordinate(latitude: 40.7128, longitude: -74.0060),
+                Coordinate(latitude: 49.2827, longitude: -123.1207),
+            ] {
+                try await store.add(sample: LocationSample(
+                    timestamp: WhereCoreTestSupport.iso("2026-06-01T12:00:00-07:00"),
+                    coordinate: coordinate,
+                    horizontalAccuracy: 10,
+                    source: .gpsVisit,
+                ))
+            }
+        }
+        let details = try await reader.yearReportDetails(for: 2026)
+        #expect(details.primaryRegions == [.california, .newYork, .canada])
+        #expect(Set(details.primaryRegionLocations.keys) == details.primaryRegions)
+        #expect(!details.elsewhereInput.hasVisits)
+    }
+
+    @Test func elsewhereResolutionExcludesRemovedDeviceSamples() async throws {
+        let (reader, store) = try Self.makeReader()
+        let device = RecordingDeviceID(rawValue: UUID())
+        try await store.perform {
+            try await store.add(sample: LocationSample(
+                timestamp: WhereCoreTestSupport.iso("2026-06-01T12:00:00-07:00"),
+                coordinate: ElsewhereTestSupport.vegas,
+                horizontalAccuracy: 10,
+                source: .gpsVisit,
+                recordingDeviceID: device,
+            ))
+            try await store.add(sample: LocationSample(
+                timestamp: WhereCoreTestSupport.iso("2026-06-03T12:00:00-07:00"),
+                coordinate: ElsewhereTestSupport.portland,
+                horizontalAccuracy: 10,
+                source: .gpsVisit,
+                recordingDeviceID: device,
+            ))
+            try await store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
+                id: .init(rawValue: UUID()),
+                deviceID: device,
+                removedAt: WhereCoreTestSupport.iso("2026-06-02T00:00:00-07:00"),
+                removedByDeviceID: device,
+            ))
+        }
+        let details = try await reader.yearReportDetails(for: 2026)
+        let resolved = try await ElsewhereResolver().resolve(details.elsewhereInput)
+        #expect(try resolved.regions.map(\.region) == [#require(Region(rawValue: "us-NV"))])
+        #expect(resolved.regions.first?.days.count == 1)
+        #expect(resolved.regions.first?.locations.flatMap(\.points).count == 1)
+        #expect(details.report.totals == [.other: 1])
+    }
+
+    @Test func elsewhereCoordinatesAndCorrectionsShareTheReportSnapshot() async throws {
+        let (reader, store) = try Self.makeReader()
+        let first = ElsewhereTestSupport.sample(ElsewhereTestSupport.vegas)
+        try await store.perform { try await store.add(sample: first) }
+        let before = try await reader.yearReportDetails(for: 2026)
+        try await store.perform {
+            try await store.add(sample: ElsewhereTestSupport.sample(ElsewhereTestSupport.portland))
+        }
+        let after = try await reader.yearReportDetails(for: 2026)
+        #expect(before.report == after.report)
+        #expect(before.elsewhereInput != after.elsewhereInput)
+        #expect(try await ElsewhereResolver().resolve(after.elsewhereInput).regions.count == 2)
+        #expect(try await reader.yearReport(for: 2026) == before.report)
+
+        try await store.perform {
+            try await store.addSampleAttributionRevision(SampleAttributionRevision(
+                id: .init(rawValue: UUID()),
+                sampleID: first.id,
+                updatedAt: first.timestamp,
+                replacementRegions: [],
+            ))
+        }
+        let corrected = try await reader.yearReportDetails(for: 2026)
+        let resolved = try await ElsewhereResolver().resolve(corrected.elsewhereInput)
+        #expect(try resolved.regions.map(\.region) == [#require(Region(rawValue: "us-OR"))])
     }
 
     /// The scan's one-read bundle: `report`, `.other` day coordinates, and the

@@ -93,7 +93,8 @@ Runs this repo's tests against the simulator this checkout owns, streaming
 progress as it goes. With no arguments it runs only the bundles affected by the
 working tree's changes. Every normal invocation first validates and tests the
 Bumper Bowling rules, then enforces the architecture. Unit and affected scopes
-also run the fast host-side backup-upgrader regression suite.
+also run the fast host-side backup-upgrader regression suite. Every normal
+invocation runs the fast Flyover command regression suite.
 
 Scope:
   (no arguments)    Bundles affected by the diff against origin/main, including
@@ -108,18 +109,21 @@ Scope:
   --only-file PATH  Read newline-delimited Bundle/Suite identifiers from PATH
   --base REF        Compare against REF instead of origin/main
 
-Architecture:
+Independent checks:
   --architecture-only  Run only the Bumper configuration, rule tests, and lint
   --skip-architecture  Skip Bumper checks because another CI job owns them
+  --skip-host-tests    Skip attribution, backup-upgrader, and macro tests
+                       because another CI job owns them
 
 Running:
   --no-build        Reuse the last build (test-without-building)
   --no-generate     Skip `tuist generate` (assumes the project is current)
   --build-artifacts DIR
-                    Build the selected schemes into DIR without running tests
+                    Build selected iOS schemes into DIR without running them
+                    Host checks still run unless --skip-host-tests is set
   --test-artifacts DIR
                     Run simulator tests from the manifest and .xctestrun files
-                    in DIR; the artifact producer owns host-side checks
+                    in DIR. A separate invocation owns host-side checks
   --enumerate-suites PATH
                     Write the selected artifact's Bundle/Suite identifiers
   --record MODE     Re-record snapshots: all | failed | missing | never
@@ -198,6 +202,7 @@ while [ $# -gt 0 ]; do
         --status-file) HAS_TEST_ARGUMENTS=true; shift; STATUS_FILE="${1:?--status-file requires a path}" ;;
         --architecture-only) ARCHITECTURE_ONLY=true ;;
         --skip-architecture) RUN_ARCHITECTURE=false ;;
+        --skip-host-tests) RUN_HOST_TESTS=false; HAS_TEST_ARGUMENTS=true ;;
         -h|--help) usage; exit 0 ;;
         -*) echo "error: unknown option '$1' (see ./test --help)" >&2; exit 1 ;;
         *) BUNDLES+=("$1"); SCOPE=bundles; HAS_TEST_ARGUMENTS=true ;;
@@ -253,6 +258,14 @@ if [ -n "$ENUMERATE_SUITES" ] && [ "$SCOPE" != snapshots ]; then
     echo "error: --enumerate-suites requires --snapshots" >&2
     exit 1
 fi
+if [ "$RUN_HOST_TESTS" = false ] && [ "$SCOPE" = bundles ]; then
+    for bundle in ${BUNDLES[@]+"${BUNDLES[@]}"}; do
+        if [ "$bundle" = PeriscopeMacrosTests ]; then
+            echo "error: PeriscopeMacrosTests requires host tests to be enabled" >&2
+            exit 1
+        fi
+    done
+fi
 
 run_architecture_checks() {
     export BUMPER_CACHE_DIR="${BUMPER_CACHE_DIR:-.build/bumper-cache}"
@@ -274,6 +287,10 @@ if [ "$ARCHITECTURE_ONLY" = true ]; then
 fi
 
 if [ "$RUN_HOST_TESTS" = true ]; then
+    if [ -f Shared/Flyover/Tools/Tests/flyover_test.sh ]; then
+        echo "==> Testing flyover command"
+        bash Shared/Flyover/Tools/Tests/flyover_test.sh
+    fi
     echo "==> Testing attribution generator"
     mise exec -- ruby Shared/CreditKit/Tools/Tests/generate_attribution_test.rb
 fi
@@ -310,9 +327,10 @@ snapshot_bundles() {
 
 # The backup upgrader is a host-side unit regression, not an image test. Keep it
 # in affected and unit-capable runs, but do not make a snapshot-only invocation
-# repeat work owned by the unit CI job.
+# repeat work owned by the host CI job.
 backup_upgrader_is_needed() {
     local image_bundles bundle identifier
+    [ "$RUN_HOST_TESTS" = false ] && return 1
     image_bundles="$(snapshot_bundles)"
     { [ -n "$BUILD_ARTIFACTS" ] || [ -n "$TEST_ARTIFACTS" ]; } && return 1
 
@@ -456,8 +474,8 @@ if [ -n "$ONLY_FILE" ]; then
     fi
 fi
 
-# Artifact consumers run only the prebuilt simulator suites. The artifact
-# producer owns host-side checks once before it persists the shared workspace.
+# Artifact consumers and explicit --skip-host-tests runs leave host checks to
+# a separate invocation. Normal local runs keep the selected host checks.
 if [ "$RUN_HOST_TESTS" = false ]; then
     HOST_MACROS=false
 fi
@@ -572,6 +590,12 @@ RUN_ENV=()
 [ "$REVIEW" = true ] && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_DIFF=1")
 [ -n "${SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER:-}" ] \
     && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER=$SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER")
+for flyover_name in DIRECTORY PROFILES COMMIT DIRTY BRANCH GENERATED_AT XCODE_VERSION SIMULATOR_DEVICE SIMULATOR_OS; do
+    flyover_variable="FLYOVER_EXPORT_$flyover_name"
+    if [ -n "${!flyover_variable:-}" ]; then
+        RUN_ENV+=("TEST_RUNNER_$flyover_variable=${!flyover_variable}")
+    fi
+done
 
 # SwiftPM's generated `Bundle.module` accessors honor
 # PACKAGE_RESOURCE_BUNDLE_PATH as their first lookup candidate (DEBUG-only,
@@ -726,7 +750,7 @@ if [ -n "$BUILD_ARTIFACTS" ]; then
     artifact_bytes="$(du -sk "$BUILD_ARTIFACTS/DerivedData/Build/Products" | awk '{print $1 * 1024}')"
     printf 'CI_ARTIFACT {"bytes":%s,"schemes":%s}\n' \
         "$artifact_bytes" "${#SCHEMES[@]}"
-    exit 0
+    exit "$overall_status"
 fi
 
 # Failures, reprinted with the identifier that re-runs each one.

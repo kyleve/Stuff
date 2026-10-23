@@ -1,7 +1,9 @@
 #if DEBUG
+    import BroadwayCore
     import Foundation
     import SwiftUI
     import Testing
+    import WhereCore
     @testable import WhereUI
 
     struct CardDesignerConfigurationTests {
@@ -35,6 +37,24 @@
 
             #expect(decoded == configuration)
             #expect(decoded.schemaVersion == CardDesignerConfiguration.currentSchemaVersion)
+        }
+
+        @MainActor
+        @Test func savedDraftCannotRestoreReflectionsInFlat() throws {
+            var themes = BThemes()
+            themes[WhereTheme.self] = .alternate
+            let context = BContext(traits: .system, themes: themes)
+            let base = try context.stylesheets.get(WhereStylesheet.self).card
+            var draft = CardDesignerConfiguration.standard
+            draft.regular.cornerRadius = 33
+            let resolved = draft.resolve(over: base, colorScheme: .light)
+            #expect(resolved.regular.cornerRadius == 33)
+            #expect(resolved.regular.surface == base.regular.surface)
+            #expect(resolved.compact.surface == base.compact.surface)
+            #expect(resolved.regular.contentTint == base.regular.contentTint)
+            #expect(resolved.compact.contentTint == base.compact.contentTint)
+            #expect(resolved.constellation.haloOpacity == 0)
+            #expect(resolved.securityPrint == base.securityPrint)
         }
 
         @Test(arguments: CardDesignerBlendMode.allCases)

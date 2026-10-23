@@ -11,6 +11,7 @@
         case ready = "Ready"
         case noPresence = "NoPresence"
         case completed = "Completed"
+        case uncertainArrival = "UncertainArrival"
     }
 
     extension PreviewSupport {
@@ -38,8 +39,16 @@
                 airborneSampleIDs: [],
                 groundSampleIDs: [],
                 peakSpeedKMH: 900,
-                progress: .completed(arrivedAt: earlierDate.addingTimeInterval(12 * 3600)),
+                progress: .completed(arrival: .observedGround(
+                    firstObservedAt: earlierDate.addingTimeInterval(12 * 3600),
+                    confirmedAt: earlierDate.addingTimeInterval(12 * 3600),
+                )),
                 inferredEndpoints: [],
+                supportedIntervals: [.init(
+                    start: earlierDate,
+                    end: earlierDate.addingTimeInterval(11 * 3600),
+                    kind: .observedMotion,
+                )],
             )
             report.setDataIssueScan(DataIssueScanResult(
                 revision: UUID(),
@@ -139,6 +148,11 @@
                 peakSpeedKMH: 1040,
                 progress: .awaitingArrival,
                 inferredEndpoints: [],
+                supportedIntervals: [.init(
+                    start: points[0].sample.timestamp,
+                    end: points[2].sample.timestamp,
+                    kind: .observedMotion,
+                )],
             )
             return GPSCorrectionReview(
                 id: ready.id,
@@ -171,7 +185,7 @@
             let visibleIndices: [Int] = switch state {
                 case .flightLikely, .waiting, .stale: [0, 1, 2]
                 case .noPresence: [1, 2, 3]
-                case .ready, .completed: [0, 1, 2, 3, 4]
+                case .ready, .completed, .uncertainArrival: [0, 1, 2, 3, 4]
             }
             let points = visibleIndices.map { index in
                 let region: Region = switch index {
@@ -203,9 +217,17 @@
             )
             let reviewID = DataIssueID.flightDay(day: day.day)
             let progress: FlightAssessment.Progress = switch state {
+                case .uncertainArrival: .completed(arrival: .uncertainTiming(
+                        lastSupportedTravelAt: date.addingTimeInterval(-15 * 60),
+                        firstObservedAt: date.addingTimeInterval(3 * 86400),
+                        confirmedAt: date.addingTimeInterval(3 * 86400 + 600),
+                    ))
                 case .flightLikely: .flightLikely
                 case .waiting, .stale: .awaitingArrival
-                case .ready, .noPresence, .completed: .completed(arrivedAt: date)
+                case .ready, .noPresence, .completed: .completed(arrival: .observedGround(
+                        firstObservedAt: date,
+                        confirmedAt: date,
+                    ))
             }
             let flight = FlightAssessment(
                 id: .init(
@@ -213,18 +235,25 @@
                     departureSampleID: points[0].sample.id,
                 ),
                 startedAt: date.addingTimeInterval(-5 * 60 * 60),
-                lastObservationAt: date.addingTimeInterval(state == .stale ? -2 * 60 * 60 : 0),
+                lastObservationAt: state == .uncertainArrival ? date
+                    .addingTimeInterval(3 * 86400 + 600) : date
+                    .addingTimeInterval(state == .stale ? -2 * 60 * 60 : 0),
                 lastFlightAt: date.addingTimeInterval(-15 * 60),
                 airborneSampleIDs: airborne,
                 groundSampleIDs: Set(points.map(\.sample.id)).subtracting(airborne),
                 peakSpeedKMH: 1040,
                 progress: progress,
                 inferredEndpoints: [],
+                supportedIntervals: [.init(
+                    start: date.addingTimeInterval(-5 * 60 * 60),
+                    end: date.addingTimeInterval(-15 * 60),
+                    kind: .observedMotion,
+                )],
             )
             let reviewState: GPSCorrectionReview.State = switch state {
                 case .flightLikely, .waiting, .stale:
                     .pending(flight)
-                case .ready, .noPresence:
+                case .ready, .noPresence, .uncertainArrival:
                     .ready(SampleCorrectionProposal(
                         kind: .flight,
                         day: day,
@@ -237,6 +266,7 @@
                     .completed(flight)
             }
             let pointCorrections: [FlightPointCorrection] = flight.isPending ? [] : points
+                .filter { state != .uncertainArrival || airborne.contains($0.sample.id) }
                 .map { point in
                     FlightPointCorrection(
                         sampleID: point.sample.id,

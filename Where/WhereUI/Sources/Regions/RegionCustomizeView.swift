@@ -40,8 +40,7 @@ struct RegionAppearanceEditor: View {
             }
             .padding(stylesheet.spacing.large)
         }
-        .onAppear { tilt.start() }
-        .onDisappear { tilt.stop() }
+        .observesTilt(tilt, enabled: stylesheet.card.regular.surface.usesReflection)
     }
 
     private var preview: some View {

@@ -9,6 +9,118 @@ import Testing
 /// Resolve badge count, and the store-change observer that keeps them honest.
 @MainActor
 struct YearReportModelTests {
+    @Test func locationsUsesAllVisitedConfiguredRegionsWithStableTies() {
+        let model = YearReportModel(
+            services: PreviewSupport.previewServices(),
+            details: YearReportDetails(
+                primaryRegions: [.california, .newYork, .canada, .europeanUnion],
+                report: YearReport(year: 2026, days: [], totals: [
+                    .other: 40,
+                    .canada: 10,
+                    .newYork: 8,
+                    .california: 8,
+                    .europeanUnion: 0,
+                ]),
+                primaryRegionLocations: [:],
+            ),
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
+        #expect(model.locationRegions.map(\.region) == [.canada, .california, .newYork])
+        #expect(model.locationRegions.map(\.days) == [10, 8, 8])
+        #expect(model.ranking.primary.count == 2)
+        #expect(model.hasElsewhere)
+    }
+
+    @Test func olderSameYearReadCannotUndoNewCoordinates() async throws {
+        let store = try TestStore()
+        let services = PlanningModelTestSupport.services(store: store)
+        let model = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
+        let timestamp = Self.day(2026, 6, 1)
+        try await store.perform {
+            try await store.add(sample: LocationSample(
+                timestamp: timestamp,
+                coordinate: ElsewherePreview.vegas,
+                horizontalAccuracy: 10,
+                source: .gpsVisit,
+            ))
+        }
+        await model.refresh()
+        let originalReport = model.report
+        await store.enableFirstSamplesGate()
+        let older = Task { await model.refresh() }
+        await store.awaitFirstSamplesCall()
+        try await store.perform {
+            try await store.add(sample: LocationSample(
+                timestamp: timestamp,
+                coordinate: ElsewherePreview.portland,
+                horizontalAccuracy: 10,
+                source: .gpsVisit,
+            ))
+        }
+        await model.refresh()
+        #expect(model.elsewhereInput?.history.samples.count == 2)
+        await store.releaseFirstSamplesCall()
+        await older.value
+        #expect(model.report == originalReport)
+        #expect(model.elsewhereInput?.history.samples.count == 2)
+    }
+
+    @Test func elsewhereAvailabilitySurvivesRefreshFailureAndFollowsYearAndLastVisit() async throws {
+        let store = try TestStore()
+        let services = PlanningModelTestSupport.services(store: store)
+        let model = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
+        let day = Self.cday(2026, 6, 1)
+        try await services.journal.addManualDay(
+            date: day.startOfDay(in: Self.calendar),
+            regions: [.other],
+            audit: nil,
+        )
+        await model.refresh()
+        #expect(model.hasElsewhere)
+
+        await store.enableFirstSamplesGate()
+        let refresh = Task { await model.refresh() }
+        await store.awaitFirstSamplesCall()
+        #expect(model.hasElsewhere)
+        await store.releaseFirstSamplesCall()
+        await refresh.value
+
+        await model.select(year: 2025)
+        #expect(!model.hasElsewhere)
+        await model.select(year: 2026)
+        #expect(model.hasElsewhere)
+        try await services.journal.addManualDay(
+            date: day.startOfDay(in: Self.calendar),
+            regions: [.california],
+            audit: nil,
+        )
+        await model.refresh()
+        #expect(!model.hasElsewhere)
+
+        try await services.journal.addManualDay(
+            date: day.startOfDay(in: Self.calendar),
+            regions: [.other],
+            audit: nil,
+        )
+        await model.refresh()
+        await store.failSamples()
+        await model.refresh()
+        #expect(model.hasElsewhere)
+        guard case .failed = model.loadState else {
+            Issue.record("Expected a failed report refresh")
+            return
+        }
+    }
+
     private func date(year: Int, month: Int, day: Int) -> Date {
         Calendar.current.date(
             from: DateComponents(year: year, month: month, day: day, hour: 12),
@@ -554,6 +666,11 @@ struct YearReportModelTests {
             peakSpeedKMH: flight.peakSpeedKMH,
             progress: flight.progress,
             inferredEndpoints: flight.inferredEndpoints,
+            supportedIntervals: [.init(
+                start: flight.startedAt,
+                end: flight.lastFlightAt,
+                kind: .observedMotion,
+            )],
         )
         let remote = GPSCorrectionReview(
             id: current.id,
@@ -608,6 +725,11 @@ struct YearReportModelTests {
             peakSpeedKMH: flight.peakSpeedKMH,
             progress: .awaitingArrival,
             inferredEndpoints: flight.inferredEndpoints,
+            supportedIntervals: [.init(
+                start: flight.startedAt.addingTimeInterval(-24 * 60 * 60),
+                end: flight.lastFlightAt.addingTimeInterval(-24 * 60 * 60),
+                kind: .observedMotion,
+            )],
         )
         let expired = GPSCorrectionReview(
             id: current.id,
@@ -917,6 +1039,10 @@ struct YearReportModelTests {
     }
 
     private static func details(_ report: YearReport) -> YearReportDetails {
-        YearReportDetails(report: report, primaryRegionLocations: [:])
+        YearReportDetails(
+            primaryRegions: [.california, .newYork],
+            report: report,
+            primaryRegionLocations: [:],
+        )
     }
 }

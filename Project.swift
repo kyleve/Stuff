@@ -281,6 +281,7 @@ func unitTests(
     bundleIdSuffix: String,
     productDependency: String,
     sources: ProjectDescription.SourceFilesList,
+    resources: ResourceFileElements = [],
     extraPackageProducts: [String] = [],
     environmentVariables: [String: EnvironmentVariable] = [:],
     scripts: [TargetScript] = [],
@@ -300,6 +301,7 @@ func unitTests(
         bundleId: "com.stuff.\(bundleIdSuffix).tests",
         deploymentTargets: deployment,
         sources: sources,
+        resources: resources,
         scripts: scripts,
         dependencies: dependencies,
         environmentVariables: packageResourceEnvironment
@@ -749,7 +751,8 @@ let project = Project(
             name: "WhereCoreTests",
             bundleIdSuffix: "wherecore",
             productDependency: "WhereCore",
-            sources: ["Where/WhereCore/Tests/**"],
+            sources: ["Where/WhereCore/Tests/**/*.swift"],
+            resources: [.folderReference(path: "Where/WhereCore/Tests/Fixtures/Flights")],
             extraPackageProducts: ["RegionKit"],
         ),
         // WhereUITests names LifecycleKit and SFSafeSymbols because its test sources
@@ -789,8 +792,8 @@ let project = Project(
         // module's image suite should link only what that module needs: the
         // Periscope and Inspector suites don't build against WhereUI
         // at all. Each records its references beside its own sources —
-        // swift-snapshot-testing derives the `__Snapshots__` directory from the
-        // calling file's `#filePath`, which `assertSnapshots` threads through.
+        // SnapshotKitTesting derives the suite directory from the calling
+        // file's `#filePath` and nests special trait references under `other/`.
         //
         // Separate bundles are safe here because each `.xctest` gets its own
         // `StuffTestHost` process: measured on Xcode 27 by probing

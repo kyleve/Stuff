@@ -16,11 +16,15 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **`WhereUISnapshotTests` double-embeds `SnapshotKit`, tolerated and guarded.** This product's closure plus WhereUI's own copy live in one image. The other image bundles do not link WhereUI.
 - **Guard: `WhereUISnapshotTests.SnapshotCaptureFlagProbeTests` fails loudly if the copies split.** Mechanism: PR #145.
 - **Re-export `SnapshotKit` and `SnapshotTesting`** so consumers need one import.
+- Read case subjects through SnapshotKit's `Capture` SPI. Dispatch exhaustively by case, never by panel-array emptiness.
 - **Declare the library target in [`Package.swift`](../../Package.swift).**
 
 ## Invariants an agent can't re-derive
 
-- **The rendering pipeline is one async function.** All captures (standard and accessibility) flow through `renderSnapshotImage(...)`.
+- **Use `snapshotReferenceURL` for recording, comparison, and review paths.** Keep filenames stable when the directory changes.
+- **Nest standard captures with non-default Dynamic Type, increased contrast, RTL, or bold text under the suite's `other/` directory.**
+- **Keep accessibility annotations at the selected group root, even with those traits.** Device, frame, name, and light/dark appearance do not select `other/`. Guard: `SnapshotReferenceURLTests`.
+- **The rendering pipeline is one async function.** All captures (standard and accessibility) flow through `renderSnapshotCapture(...)`; `renderSnapshotImage(...)` is its image-only wrapper.
 - **The hosted PNG API uses the same pipeline and capture lock.** It returns bytes and dimensions without comparing a reference.
 - **HTML snapshots wrap offline WebKit in the standard view pipeline.** Use its host, traits, capture lock, and pixel renderer. Await navigation, fonts, paint, and full-content height convergence from the pre-measure hook. Keep consumer HTML generation outside this module. Guards: `AssertHTMLSnapshotsTests`, `SnapshotWebPageTests`.
 - **Measure HTML height in WebKit after paint, not through the asynchronous UIKit scroll-size mirror.** Exclude its internal scroll views from generic scroll-size fallback through `SnapshotContentSizeProviding`. Guard: `SnapshotWebPageTests`.
@@ -31,6 +35,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Raised-floor accessibility captures parse twice.** Settle between passes and keep only the second render (`AccessibilitySnapshotViewControllerTests`).
 - **The umbrella also links the upstream SnapshotTesting integration that this module replaces.**
 - **The compare sees on-disk bytes.** Every capture round-trips through PNG encoding before comparison.
+- **Keep autorelease pools synchronous.** Drain settle samples, tile-rendering intermediates, capture normalization, and comparison temporaries before the next async suspension.
 - **Removing PNG encoding re-opens the wide-gamut vs. sRGB flake.** See `renderSnapshotImage`'s doc.
 - **`CILabDeltaE` is not perceptually uniform.** The ΔE tolerance is loose by design.
 - **The verdict's metric is far steeper near black than the CIE76 it approximates.**
@@ -56,7 +61,15 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **The runner fails fast, once, on setup problems.** Examples: a simulator that does not match the `SNAPSHOT_EXPECTED_*` pins, two variants sharing one reference name.
 - **Report one clear issue, never hundreds of pixel diffs.**
 - **An unsettled capture is a failure, not a silent fallback.**
+- **Assertions allow three attempts per independent capture (single view or cutsheet panel) for `settleTimedOut` and `settleStarved` only.** Create a fresh controller after each attempt completes cleanup and releases the capture lock.
+- **Keep models shared and rerun readiness hooks on retries.** Hooks must tolerate repeated execution. Preserve cancellation and report the final original error once.
+- **Keep direct image/PNG APIs single-attempt.** Compare and record only after a successful capture. Guard: `SnapshotCaptureRetryTests` and `AssertSnapshotsTests`.
+- **Report retries through `SNAPSHOT_RETRY`, never extra timing or diff lines.** Include failed-attempt time in the successful capture's one timing line. Guard: `Tools/Tests/test_test_runner.py`.
 - **Freeze endless motion behind `\.isCapturingSnapshot`.** Use deterministic readiness or `.settledAtLeast` for finite work.
+- **Compare settle samples in normalized 8-bit, premultiplied sRGB RGBA.** Allow at most one unit per channel, with no area exemption.
+- **Keep the anchor fixed through the quiet window.** A larger difference, changed dimensions, or missing sample resets the proof.
+- **Require two matching passes across at least 120 ms and preserve the case's minimum duration.** Never reuse final-reference tolerances for settling.
+- **Guards: `SnapshotPixelStabilityTests` and `SnapshotRenderingSupportTests`.** Keep the cumulative-fade and single-pixel motion guards when changing the allowance.
 - **The explicit CI multiplier may scale only maximum settle/hook ceilings.** Never scale the floor, quiet proof, cadence, or image tolerance.
 - **Guards: `SnapshotSettleTimeoutPolicyTests` and `SnapshotRenderingSupportTests`.**
 - **A settled capture is not a ready capture.** The loop proves the pixels stopped changing, not that intended content arrived.
@@ -76,7 +89,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Intrinsic/full-content cases await `onReadyToMeasure` only after the sizing probe is hosted and laid out.** Then they settle and resolve height.
 - **The hook is bounded by the effective settle ceiling unless an explicit timeout overrides it.** Scale either ceiling with the CI multiplier. Preserve thrown errors, skip failed captures, and require cancellation cooperation. Reject hooks for fixed sizing.
 - **Guards: `PreMeasureHookTests` and `SnapshotMeasurementHookTests`.**
-- **`.timedOut` requires observed motion.** Starvation is `.starved`.
+- **`.timedOut` requires observed motion beyond the settle allowance.** Starvation is `.starved`.
 - **A change-free settle loop keeps running until it can prove stability.** A starved machine can fit fewer passes than stability needs.
 - **Only a hard cap gives up as `.starved`.** That is an environment failure, not view motion.
 - **Guard: `SnapshotRenderingSupportTests`.**
@@ -139,6 +152,27 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **`CFRunLoopGetNextTimerFireDate` reports only `CFRunLoopTimer`s.** Then "is something scheduled to land in 200ms?" is unanswerable.
 - **That is why the floors exist and why they need per-case seams.**
 - **`CATransaction.addCommitHandler` is macOS-only and absent from the iOS SDK.** A commit-counting variant is not available either.
+
+## Component comparisons and reference groups
+
+- Prefer comparison sheets for theme-dependent component appearance. Keep full-screen
+  variants for critical integration or materially different screen composition.
+- Keep theme identities and ordering in the consumer. Shared snapshot code accepts
+  generic labeled panels and validated reference groups.
+- Preserve existing ungrouped filenames. Resolve grouped paths through the same
+  path resolver for recording, comparison, and review; `other/` nests inside the group.
+- Capture each panel independently with fresh fixture state through the hosted
+  pipeline, including readiness and accessibility annotation handling.
+- Set each panel host's background to `SnapshotImageGrid.backgroundColor` before rendering.
+  Keep this fixed color shared with the sheet, independent of appearance. Guard: `AssertComparisonSnapshotsTests.transparentPanelsMatchTheirSheet`.
+- Store one sheet PNG with a versioned panel map in PNG Description metadata.
+  Reject missing or invalid maps. Review the PNG before recording; preserve its metadata.
+- Share configured capture and reference recording between single views and cutsheets.
+  Collect all panel failures before composition; compose captured images without re-rendering views.
+  Store bounds and canvas dimensions as whole pixels, including at 3x scale.
+  Compare each panel at the existing tolerance; never dilute its area budget across
+  the entire sheet. Layout or membership changes must fail explicitly.
+- Count real panel captures in timing reports; do not count composition as a capture.
 
 ## Testing
 

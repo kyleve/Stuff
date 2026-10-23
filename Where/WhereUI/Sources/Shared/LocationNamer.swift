@@ -39,9 +39,7 @@ extension PlaceComponents {
 /// Failures (offline, rate-limited, mid-ocean) resolve to `nil` and aren't
 /// cached, so a later attempt can succeed. This is best-effort sugar on top of
 /// the coordinates the app already stores; nothing depends on it resolving.
-actor LocationNamer {
-    static let shared = LocationNamer()
-
+actor LocationNamer: PlaceNaming {
     /// ~0.05° (~5–6 km) buckets: fine enough to separate cities, coarse
     /// enough that a day's worth of jitter around one place hits a single
     /// cache entry (and a single geocode).

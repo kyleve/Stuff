@@ -6,8 +6,8 @@
         static let flyoverData = WhereFlyoverData.hosted(
             OpenSpansView.self,
             title: "Open Spans",
-        ) { _ in
-            OpenSpansView(system: .shared)
+        ) { world in
+            OpenSpansView(system: world.openSpansLogSystem)
         }
     }
 #endif

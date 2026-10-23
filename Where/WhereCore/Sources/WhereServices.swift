@@ -36,6 +36,8 @@ private struct DerivedDataReconciler {
 public struct WhereServices: Sendable {
     /// Pure reads: `YearReport` + location projections.
     public let reports: ReportReader
+    /// Lazy, read-only expansion of non-primary history for Elsewhere browsing.
+    public let elsewhere: ElsewhereResolver
     /// Pure reads over user-attached evidence (per-year list, per-day keys for
     /// the calendar badge, attachment bytes). Writes go through `journal`.
     public let evidence: EvidenceReader
@@ -280,6 +282,7 @@ public struct WhereServices: Sendable {
         )
         let currentRegion = CurrentRegionResolver(ingestor: ingestor, attributor: attributor)
         self.reports = reports
+        elsewhere = ElsewhereResolver()
         self.evidence = evidence
         self.reminders = reminders
         self.summary = summary

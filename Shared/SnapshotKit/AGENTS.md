@@ -7,7 +7,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 ## Scope & dependencies
 
 - **Use SwiftUI, Foundation, and UIKit only. Do not link a snapshot-comparison engine.** UI modules link SnapshotKit (including in release) to drive previews. It must never pull in `SnapshotTesting`/XCTest. The capture and comparison pipeline lives in [`SnapshotKitTesting`](../SnapshotKitTesting).
-- **Declare the library target in [`Package.swift`](../../Package.swift).** UI modules (currently `WhereUI`) consume it for previews. `SnapshotKitTesting` consumes it for the config→traits mapping. `SnapshotKitTests` covers pure logic.
+- **Declare the library target in [`Package.swift`](../../Package.swift).** UI consumers listed in that manifest use it for previews. `SnapshotKitTesting` consumes it for the config→traits mapping. `SnapshotKitTests` covers pure logic.
 
 ## Invariants an agent can't re-derive
 
@@ -46,6 +46,21 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Or await that work deterministically from `onReadyToMeasure` and use `.settled` for the probe.**
 - **Use `.immediate` only for synchronously sized fixtures.** The case's final `settle` remains independently load-bearing.
 - **A measurement hook is intrinsic/full-content-only.** Guards: `AsyncContentCaptureTests` and `LargeViewCaptureTests`.
+
+## Component comparisons and reference groups
+
+- Keep theme identities and ordering in the consumer. Accept generic labeled panels
+  and validated reference groups; never import a consumer's theme model.
+- Author independent captures with `SnapshotCase.cutsheet` and `SnapshotPanelBuilder`.
+  Keep single-view and cutsheet construction mutually exclusive. Reject empty sheets and duplicate panel identities.
+  Keep raw content and capture descriptors behind the `Capture` SPI.
+  Preview the same stored subject that the runner captures.
+- Keep panel builders lazy and require fresh fixture state on each invocation.
+  Preview panels at their normal width; allow horizontal scrolling for wide sheets.
+- Preserve reference filenames and configuration identifiers. Use structured case identity
+  so a reference group cannot collide with punctuation in a case name.
+- Keep capture, pixel geometry, reference metadata, and per-panel comparison in
+  [`SnapshotKitTesting`](../SnapshotKitTesting/AGENTS.md). Previews remain an approximation.
 
 ## Testing
 

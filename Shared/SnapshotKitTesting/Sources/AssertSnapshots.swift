@@ -1,4 +1,4 @@
-import SnapshotKit
+@_spi(Capture) import SnapshotKit
 import SnapshotTesting
 import SwiftUI
 import TestHostSupport
@@ -48,21 +48,35 @@ public func assertSnapshots(
     }
     for snapshotCase in snapshots {
         guard Task.isCancelled == false else { return }
-        await assertSnapshots(
-            of: snapshotCase.content,
-            named: snapshotCase.name,
-            configurations: snapshotCase.configurations,
-            measurementReadiness: snapshotCase.measurementReadiness,
-            onReadyToMeasure: snapshotCase.onReadyToMeasure,
-            settle: snapshotCase.settle,
-            onReadyToSnapshot: snapshotCase.onReadyToSnapshot,
-            record: record,
-            fileID: fileID,
-            file: filePath,
-            testName: testName,
-            line: line,
-            column: column,
-        )
+        switch snapshotCase.capture {
+            case .cutsheet:
+                await assertComparisonSnapshots(
+                    snapshotCase,
+                    record: record,
+                    fileID: fileID,
+                    file: filePath,
+                    testName: testName,
+                    line: line,
+                    column: column,
+                )
+            case let .single(content):
+                await assertSnapshots(
+                    of: content(),
+                    named: snapshotCase.name,
+                    configurations: snapshotCase.configurations,
+                    referenceGroup: snapshotCase.referenceGroup,
+                    measurementReadiness: snapshotCase.measurementReadiness,
+                    onReadyToMeasure: snapshotCase.onReadyToMeasure,
+                    settle: snapshotCase.settle,
+                    onReadyToSnapshot: snapshotCase.onReadyToSnapshot,
+                    record: record,
+                    fileID: fileID,
+                    file: filePath,
+                    testName: testName,
+                    line: line,
+                    column: column,
+                )
+        }
     }
 }
 
@@ -70,11 +84,14 @@ public func assertSnapshots(
 /// don't warrant a ``SnapshotProviding`` conformance. A throwing pre-measure
 /// hook aborts that capture. Its optional timeout is in seconds; nil uses the
 /// settle ceiling. The CI multiplier applies to either ceiling.
+/// Settling failures get two retries with fresh host controllers. Supplied models
+/// remain shared, and readiness hooks must tolerate running again on each attempt.
 @MainActor
 public func assertSnapshots(
     of view: some View,
     named name: String,
     configurations: [SnapshotConfiguration],
+    referenceGroup: SnapshotReferenceGroup? = nil,
     measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
     onReadyToMeasure: (@MainActor () async throws -> Void)? = nil,
     measurementHookTimeout: TimeInterval? = nil,
@@ -118,56 +135,22 @@ public func assertSnapshots(
         Issue.record(error)
         return
     }
-    // Read once per call rather than per configuration: the environment can't
-    // change mid-run, and the pixel walk is the cost worth gating, not this.
-    let isDiffReportingEnabled = SnapshotDiffReporting.isEnabledByEnvironment
 
     for configuration in configurations {
         guard Task.isCancelled == false else { return }
-        let hostingController = makeHostingController(for: view, configuration: configuration)
-        let sizing: SnapshotSizing = switch configuration.device.size {
-            case .fixed:
-                .fixed
-            case let .intrinsic(maxWidth):
-                .intrinsic(
-                    width: maxWidth ?? UIScreen.main.bounds.width,
-                    minimumHeight: 0,
-                )
-            case let .fullContent(width, minimumHeight):
-                // Same measured-height pipeline as `.intrinsic`: a `ScrollView`
-                // measured under the unbounded proposal reports its content
-                // height (guarded by `LargeViewCaptureTests`), so the capture
-                // renders the whole scrollable content.
-                .intrinsic(
-                    width: width,
-                    minimumHeight: minimumHeight ?? 0,
-                )
-            case let .fullContent2D(minimumSize):
-                .fullContent2D(minimumSize: minimumSize)
-        }
         let identifier = fullSnapshotIdentifier(caseName: name, configuration: configuration)
-        let timing = SnapshotCaptureTiming(
-            identifier: identifier,
-            isEnabled: SnapshotCaptureTiming.isEnabledByEnvironment,
-            sizing: sizing,
-            measurementReadiness: measurementReadiness,
-            captureSettle: settle,
-        )
-        let capture: SnapshotCapture
+        let capture: ConfiguredSnapshotCapture
         do {
-            capture = try await renderSnapshotCapture(
-                of: hostingController,
+            capture = try await captureConfiguredSnapshot(
+                of: view,
+                configuration: configuration,
                 named: identifier,
-                sizing: sizing,
-                safeAreaInsets: configuration.device.safeAreaInsets.uiEdgeInsets,
-                isAccessibility: configuration.snapshotType == .accessibility,
                 measurementReadiness: measurementReadiness,
                 onReadyToMeasure: onReadyToMeasure,
                 measurementHookTimeout: measurementHookTimeout,
                 settle: settle,
                 onReadyToSnapshot: onReadyToSnapshot,
-                settleTimeoutPolicy: settleTimeoutPolicy,
-                timing: timing,
+                timeoutPolicy: settleTimeoutPolicy,
             )
         } catch is CancellationError {
             return
@@ -175,39 +158,22 @@ public func assertSnapshots(
             Issue.record(error)
             continue
         }
-        // Before the verdict, so a reviewer gets the shape of the delta on the
-        // same run that reports the failure. Reads the reference from disk; the
-        // byte-equality check short-circuits when the capture is deterministic.
-        if isDiffReportingEnabled {
-            let reference = snapshotReferenceURL(
-                testFilePath: "\(filePath)",
+        await capture.timing.measure(.compare) {
+            await assertSnapshotReference(
+                .image(capture.capture.image),
+                identifier: identifier,
+                configuration: configuration,
+                referenceGroup: referenceGroup,
+                record: resolvedRecord,
+                diffTool: resolvedDiffTool,
+                fileID: fileID,
+                file: filePath,
                 testName: testName,
-                identifier: identifier,
-            )
-            SnapshotDiffReporting.report(
-                compareAgainstReference(capturedPNG: capture.pngData, referenceURL: reference),
-                identifier: identifier,
-                reference: reference,
+                line: line,
+                column: column,
             )
         }
-        timing.measure(.compare) {
-            withSnapshotTesting(record: resolvedRecord, diffTool: resolvedDiffTool) {
-                assertSnapshot(
-                    of: capture.image,
-                    as: .image(
-                        precision: defaultSnapshotPrecision,
-                        perceptualPrecision: defaultSnapshotPerceptualPrecision,
-                    ),
-                    named: identifier,
-                    fileID: fileID,
-                    file: filePath,
-                    testName: testName,
-                    line: line,
-                    column: column,
-                )
-            }
-        }
-        timing.emit()
+        capture.timing.emit()
     }
 }
 
@@ -217,7 +183,7 @@ public func assertSnapshots(
 /// plain file-URL output — the diff tool only shapes failure messages, so an
 /// unknown value degrading to the default is harmless, unlike a record-mode
 /// typo.
-private func environmentDiffTool() -> SnapshotTestingConfiguration.DiffTool? {
+func environmentDiffTool() -> SnapshotTestingConfiguration.DiffTool? {
     guard let value = ProcessInfo.processInfo.environment["SNAPSHOT_DIFF_TOOL"] else { return nil }
     switch value {
         case "ksdiff": return .ksdiff
@@ -232,7 +198,7 @@ private func environmentDiffTool() -> SnapshotTestingConfiguration.DiffTool? {
 /// unrecognized value records an issue rather than silently falling back to the
 /// suite default — a typo'd re-record run must not quietly assert instead.
 @MainActor
-private func environmentRecordMode() -> SnapshotTestingConfiguration.Record? {
+func environmentRecordMode() -> SnapshotTestingConfiguration.Record? {
     guard let value = ProcessInfo.processInfo.environment["SNAPSHOT_RECORD"] else { return nil }
     guard let record = SnapshotTestingConfiguration.Record(rawValue: value) else {
         Issue.record(

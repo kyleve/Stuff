@@ -33,12 +33,13 @@ struct FlightPointCorrectionAssessment {
             return $0.sample.id.uuidString < $1.sample.id.uuidString
         }.compactMap { entry in
             let sample = entry.sample
-            guard sample.source.isGPS, seen.insert(sample.id).inserted,
-                  !conflictingSampleIDs.contains(sample.id),
-                  completed.contains(where: { contains(sample, in: $0) }),
-                  !pending.contains(where: { contains(sample, in: $0) }) else { return nil }
             let action: FlightPointCorrection.Action = entry.regions.isEmpty
                 ? .restoreGPS : .includeInFlight
+            guard sample.source.isGPS, seen.insert(sample.id).inserted,
+                  !conflictingSampleIDs.contains(sample.id),
+                  completed.contains(where: { Self.contains(sample, in: $0, action: action) }),
+                  !pending.contains(where: { Self.contains(sample, in: $0, action: action) })
+            else { return nil }
             let replacement: Set<Region> = action == .restoreGPS
                 ? [attributor.region(at: sample.coordinate)] : []
             return FlightPointCorrection(
@@ -52,12 +53,22 @@ struct FlightPointCorrectionAssessment {
         }
     }
 
-    private func contains(_ sample: LocationSample, in flight: FlightAssessment) -> Bool {
+    /// Shared ownership bounds keep restoration-only reviews reachable without
+    /// treating their calendar days or uncorrected points as airborne evidence.
+    static func contains(
+        _ sample: LocationSample,
+        in flight: FlightAssessment,
+        action: FlightPointCorrection.Action,
+    ) -> Bool {
         let source = sample.recordingDeviceID
             .map(FlightAssessment.RecordingSource.device) ?? .legacy
-        guard source == flight.id.recordingSource else { return false }
+        guard sample.source.isGPS, source == flight.id.recordingSource else { return false }
+        if action == .includeInFlight, flight.progress.arrival?.isTimingUncertain == true,
+           !flight.airborneSampleIDs.contains(sample.id) { return false }
         let end: Date = switch flight.progress {
-            case let .completed(arrivedAt): arrivedAt
+            case let .completed(arrival): action == .includeInFlight && arrival
+            .isTimingUncertain ? flight
+            .lastSupportedTravelAt : arrival.firstGroundAt
             case .flightLikely, .awaitingArrival: flight.lastObservationAt
         }
         return sample.timestamp >= flight.startedAt && sample.timestamp <= end

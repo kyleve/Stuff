@@ -79,14 +79,16 @@ struct RegionWelcomeCard: View {
         .frame(maxWidth: welcome.maxWidth)
         .background {
             ZStack {
-                shape.fill(.clear)
-                    .glassEffect(
-                        .regular.tint(regionStyle.tint.opacity(welcome.glassTintOpacity)),
-                        in: shape,
-                    )
+                if welcome.surface.usesReflection {
+                    shape.fill(.clear)
+                        .glassEffect(
+                            .regular.tint(regionStyle.tint.opacity(welcome.glassTintOpacity)),
+                            in: shape,
+                        )
 
-                shape.fill(.background)
-                    .opacity(welcome.paperOpacity)
+                    shape.fill(.background)
+                        .opacity(welcome.paperOpacity)
+                }
 
                 ZStack {
                     SecurityPrintRosette(
@@ -132,26 +134,24 @@ struct RegionWelcomeCard: View {
             .clipShape(shape)
             .allowsHitTesting(false)
         }
+        .matteSurface(welcome.surface, tint: regionStyle.tint, in: shape)
         .overlay(alignment: .topTrailing) {
-            Button(
-                String(localized: .locationWelcomeDismiss),
-                systemSymbol: .xmark,
-                action: dismissAction,
-            )
-            .labelStyle(.iconOnly)
-            .font(.system(size: 17, weight: .semibold))
-            .frame(width: 44, height: 44)
-            .background {
-                Circle()
-                    .fill(.background)
-                    .opacity(welcome.paperOpacity)
+            Button(action: dismissAction) {
+                Label(String(localized: .locationWelcomeDismiss), systemSymbol: .xmark)
+                    .labelStyle(.iconOnly)
+                    .font(.system(size: 17, weight: .semibold))
+                    .frame(width: 44, height: 44)
+                    .contentShape(Circle())
             }
-            .buttonStyle(.plain)
-            .glassEffect(
-                .regular.tint(regionStyle.tint.opacity(welcome.close.tintOpacity))
-                    .interactive(),
-                in: Circle(),
-            )
+            .background {
+                if welcome.close.surface.usesReflection {
+                    Circle()
+                        .fill(.background)
+                        .opacity(welcome.paperOpacity)
+                }
+            }
+            .buttonStyle(welcome.close.buttonStyle(tint: regionStyle.tint))
+            .modifier(RegionWelcomeCloseSurface(style: welcome.close, tint: regionStyle.tint))
             .contentShape(Circle())
             .shadow(
                 color: regionStyle.tint.opacity(welcome.close.glow.opacity),
@@ -204,13 +204,33 @@ struct RegionWelcomeCard: View {
 }
 
 #if DEBUG
+    import SnapshotKit
+
+    extension RegionWelcomeCard: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            let cache = RegionOutlinePathCache()
+            return [whereThemeSnapshot(
+                name: "Welcome",
+                configurations: .componentDefaults,
+                measurementReadiness: .immediate,
+                onReadyToSnapshot: {
+                    _ = await cache.path(for: .newYork, resolution: .medium)
+                    _ = await cache.path(for: .newYork, resolution: .micro)
+                },
+            ) {
+                RegionWelcomeCard(
+                    presentation: .init(region: .newYork, greeting: .returnVisit),
+                    dismissAction: {},
+                    planStayAction: { _ in },
+                )
+                .padding(24)
+                .background(.background)
+                .environment(\.regionOutlinePathCache, cache)
+            }]
+        }
+    }
+
     #Preview {
-        RegionWelcomeCard(
-            presentation: .init(region: .california, greeting: .returnVisit),
-            dismissAction: {},
-            planStayAction: { _ in },
-        )
-        .padding(32)
-        .whereBroadwayRoot()
+        RegionWelcomeCard.snapshotPreviews
     }
 #endif

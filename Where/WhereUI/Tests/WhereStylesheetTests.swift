@@ -113,7 +113,7 @@ struct WhereStylesheetTests {
     }
 
     @MainActor
-    @Test func themesRetainDistinctIdentityWithEquivalentTokens() throws {
+    @Test func themesRetainDistinctIdentityAndSharedGeometry() throws {
         var standardThemes = BThemes()
         standardThemes[WhereTheme.self] = .standard
         var alternateThemes = BThemes()
@@ -126,9 +126,16 @@ struct WhereStylesheetTests {
 
         #expect(standard.theme == .standard)
         #expect(alternate.theme == .alternate)
-        var normalizedStandard = standard
-        normalizedStandard.theme = WhereTheme.alternate
-        #expect(normalizedStandard == alternate)
+        #expect(standard.card.regular.surface == .reflective)
+        #expect(alternate.card.regular.surface.usesReflection == false)
+        #expect(standard.card.regular.cornerRadius == alternate.card.regular.cornerRadius)
+        #expect(standard.card.compact.padding == alternate.card.compact.padding)
+        #expect(standard.card.regular.entryStamp == alternate.card.regular.entryStamp)
+        #expect(standard.card.dayCount == alternate.card.dayCount)
+        #expect(standard.locationCardStack == alternate.locationCardStack)
+        #expect(standard.locationsBackground == alternate.locationsBackground)
+        #expect(standard.yearModePicker == alternate.yearModePicker)
+        #expect(standard.timeline == alternate.timeline)
     }
 
     @Test func spacingScale() {
@@ -289,7 +296,7 @@ struct WhereStylesheetTests {
         #expect(card.regionNameTracking == 0)
         #expect(card.watermarkFontSize == 96)
         #expect(card.watermarkOffset == CGSize(width: 12, height: 10))
-        #expect(card.regionShape == nil)
+        #expect(card.regionShape == style.card.regular.regionShape)
         #expect(card.sheen == .init(
             intensity: 0.5,
             staticGlintIntensity: 0.5,
@@ -308,6 +315,46 @@ struct WhereStylesheetTests {
     @Test func cardVariantSubscriptSelectsTheMatchingSpec() {
         #expect(style.card[.regular] == style.card.regular)
         #expect(style.card[.compact] == style.card.compact)
+        #expect(style.card[.regular].showsProgress)
+        #expect(style.card[.compact].showsProgress)
+        let elsewhere = style.card[.elsewhere]
+        #expect(elsewhere.paper == .light)
+        #expect(elsewhere.showsProgress == false)
+        #expect(elsewhere.padding == style.card.compact.padding)
+        #expect(elsewhere.entryStamp == style.card.compact.entryStamp)
+        #expect(elsewhere.regionShape == style.card.regular.regionShape)
+        #expect(elsewhere.glow == .init(opacity: 0, radius: 0))
+        #expect(elsewhere.lift == .init(opacity: 0, radius: 0))
+    }
+
+    @MainActor
+    @Test(arguments: RegionColorToken.allCases, [BMode.light, .dark])
+    func elsewherePaperKeepsEveryRegionTextReadable(color: RegionColorToken, mode: BMode) throws {
+        var context = BContext(traits: .system)
+        context.traitOverrides.mode = mode
+        let sheet = try context.stylesheets.get(WhereStylesheet.self)
+        let paper = try #require(sheet.card[.elsewhere].paper)
+        #expect(paper == (mode == .dark ? .dark : .light))
+        #expect(paper.surface.fill.base == (mode == .dark ? Color(white: 36.0 / 255) : .white))
+        #expect(paper.surface.outline.opacity == 0.45)
+        #expect(paper.surface.outline.width == 1)
+
+        var environment = EnvironmentValues()
+        environment.colorScheme = mode == .dark ? .dark : .light
+        func luminance(_ color: Color) -> Double {
+            let resolved = color.resolve(in: environment)
+            func linear(_ channel: Float) -> Double {
+                let value = Double(channel)
+                return value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+            }
+            return 0.2126 * linear(resolved.red)
+                + 0.7152 * linear(resolved.green)
+                + 0.0722 * linear(resolved.blue)
+        }
+        let ink = luminance(paper.contentTint.apply(to: color.color))
+        let background = luminance(paper.surface.fill.base)
+        let contrast = (max(ink, background) + 0.05) / (min(ink, background) + 0.05)
+        #expect(contrast >= 4.5)
     }
 
     private func expectedEntryStamp(
@@ -469,6 +516,42 @@ struct WhereStylesheetTests {
 
     @Test func locationForecastStyle() {
         let forecast = style.locationForecast
+        #expect(forecast.summary.cornerRadius == 28)
+        #expect(forecast.summary.padding == 22)
+        #expect(forecast.summary.artwork.widthFraction == 0.62)
+        #expect(forecast.summary.artwork.inset == 16)
+        #expect(forecast.summary.artwork.gap == 8)
+        #expect(forecast.summary.artwork.leadingOpacity == 0.18)
+        #expect(forecast.summary.artwork.silhouette == .init(
+            center: CGPoint(x: 0.5, y: 0.5),
+            extent: CGSize(width: 0.9, height: 0.9),
+            scale: 1,
+            fillOpacity: 0.11,
+            stroke: .init(opacity: 0.22, width: 0.7),
+        ))
+        #expect(forecast.summary.treatment == .reflective)
+        #expect(forecast.summary.usesOpaquePaper == false)
+        #expect(forecast.summary.ink == Color(white: 0.36))
+        #expect(forecast.summary.paper == Color(white: 0.94))
+        #expect(forecast.summary.glassTintOpacity == 0.06)
+        #expect(forecast.summary.outlineColor == Color.black.opacity(0.14))
+        #expect(forecast.summary.outlineWidth == 1)
+        #expect(forecast.summary.shadowOpacity == 0.06)
+        #expect(forecast.summary.shadowRadius == 8)
+        #expect(forecast.summary.shadowOffsetY == 3)
+        #expect(forecast.summary.rosetteOpacity == 0.035)
+        #expect(forecast.summary.rosette == .init(
+            wobble: 0.04,
+            lineWidth: 0.5,
+            primaryRingSpacing: 12,
+            secondaryRingSpacing: 17,
+        ))
+        #expect(forecast.summary.border == .init(
+            inset: 7,
+            glyphSize: 7,
+            spacing: 12,
+            opacity: 0.18,
+        ))
         #expect(forecast.cornerRadius == 22)
         #expect(forecast.padding == 16)
         #expect(forecast.rowSpacing == 12)
@@ -675,41 +758,6 @@ struct WhereStylesheetTests {
             secondaryRingSpacing: 25,
         ))
         #expect(background.rosetteOpacity == 0.015)
-    }
-
-    @Test func elsewhereCardStyle() {
-        let card = style.elsewhereCard
-        #expect(card.cornerRadius == 28)
-        #expect(card.padding == 22)
-        #expect(card.minimumHeight == 104)
-        #expect(!card.stacksContent)
-        #expect(card.titleFont == .system(.title2, design: .serif, weight: .semibold))
-        #expect(card.surface.ink == Color(white: 0.36))
-        #expect(card.surface.paper == Color(white: 0.94))
-        #expect(!card.surface.usesOpaquePaper)
-        #expect(card.surface.glassTintOpacity == 0.06)
-        #expect(card.surface.shadowOpacity == 0.06)
-        #expect(card.surface.shadowRadius == 8)
-        #expect(card.surface.shadowOffsetY == 3)
-        #expect(card.surface.rosetteOpacity == 0.035)
-        #expect(card.surface.rosette == .init(
-            wobble: 0.04,
-            lineWidth: 0.5,
-            primaryRingSpacing: 12,
-            secondaryRingSpacing: 17,
-        ))
-        #expect(card.artwork.widthFraction == 0.62)
-        #expect(card.artwork.inset == 16)
-        #expect(card.artwork.gap == 8)
-        #expect(card.artwork.leadingOpacity == 0.18)
-        #expect(card.artwork.silhouette == .init(
-            center: CGPoint(x: 0.5, y: 0.5),
-            extent: CGSize(width: 0.9, height: 0.9),
-            scale: 1,
-            fillOpacity: 0.11,
-            stroke: .init(opacity: 0.22, width: 0.7),
-        ))
-        #expect(card.border == .init(inset: 7, glyphSize: 7, spacing: 12, opacity: 0.18))
     }
 
     @Test func typographyFaces() {
@@ -996,7 +1044,6 @@ struct WhereStylesheetTests {
         #expect(resolved.timeline.overview.pinsToViewport == false)
         #expect(resolved.timeline.row.stacksDayCount)
         #expect(resolved.featureDiscovery.siri.bubble.indent == 0)
-        #expect(resolved.elsewhereCard.stacksContent)
         #expect(resolved.featureDiscovery.widgets.contentWidth(in: 834) == 320)
     }
 
@@ -1011,8 +1058,6 @@ struct WhereStylesheetTests {
         #expect(resolved.card.constellation.coreOpacity == 0.92)
         #expect(resolved.privacyPassportCard.disclosure.fillOpacity == 0.16)
         #expect(resolved.locationsBackground.showsInk == false)
-        #expect(resolved.elsewhereCard.surface.usesOpaquePaper)
-        #expect(resolved.elsewhereCard.surface.shadowOpacity == 0)
     }
 
     @MainActor
@@ -1066,10 +1111,11 @@ struct WhereStylesheetTests {
         var context = BContext(traits: .system)
         context.traitOverrides.mode = .dark
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
-        #expect(resolved.locationForecast == style.locationForecast)
+        var expectedForecast = style.locationForecast
+        expectedForecast.summary.ink = Color(white: 0.78)
+        expectedForecast.summary.paper = Color(white: 0.16)
+        #expect(resolved.locationForecast == expectedForecast)
         #expect(resolved.card.securityPrint == .dark)
-        #expect(resolved.elsewhereCard.surface.ink == Color(white: 0.78))
-        #expect(resolved.elsewhereCard.surface.paper == Color(white: 0.16))
         #expect(resolved.featureDiscovery.siri.accent == Color(white: 0.42))
         #expect(resolved.card.securityPrint.backgroundBlendMode == .luminosity)
         #expect(resolved.card.securityPrint.tint(.red) == Color.red.mix(
@@ -1178,6 +1224,23 @@ struct WhereStylesheetEnvironmentTests {
         )
         try show(host) { _ in
             try waitFor { box.theme == .alternate }
+        }
+    }
+
+    @Test func themeChangesUpdateMountedSurfacesInBothDirections() throws {
+        let box = StylesheetProbeBox()
+        func content(theme: WhereTheme) -> some View {
+            StylesheetProbe(box: box).whereBroadwayRoot(theme: theme)
+        }
+        let host = UIHostingController(rootView: content(theme: .standard))
+        try show(host) { _ in
+            try waitFor { box.sheet?.card.regular.surface.usesReflection == true }
+            host.rootView = content(theme: .alternate)
+            try waitFor { box.sheet?.card.regular.surface.usesReflection == false }
+            #expect(box.sheet?.privacyPassportCard.surface.usesReflection == false)
+            host.rootView = content(theme: .standard)
+            try waitFor { box.sheet?.card.regular.surface.usesReflection == true }
+            #expect(box.sheet?.privacyPassportCard.surface.usesReflection == true)
         }
     }
 }

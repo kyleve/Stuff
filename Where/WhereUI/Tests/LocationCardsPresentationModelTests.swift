@@ -200,6 +200,21 @@ struct LocationCardsPresentationModelTests {
         #expect(model.overtakeMovement == nil)
     }
 
+    @Test func reversingThreeCardsDoesNotTriggerTheTwoCardOvertake() {
+        let model = LocationCardsPresentationModel(preferences: preferences(), year: 2026)
+        let baseline = target([item(.california, 100), item(.newYork, 99), item(.canada, 98)])
+        model.updateReconciliationTarget(baseline)
+        model.reconcile(baseline)
+
+        let current = [item(.canada, 102), item(.newYork, 101), item(.california, 100)]
+        let reconciliation = target(current)
+        model.updateReconciliationTarget(reconciliation)
+        #expect(!model.willOvertake(reconciliation))
+        #expect(model.reconcile(reconciliation) == nil)
+        #expect(model.overtakeMovement == nil)
+        #expect(model.presented(current) == current)
+    }
+
     @Test func updateReceivedWhileHiddenSynchronizesOrderQuietlyOnReturn() {
         let preferences = preferences()
         let model = LocationCardsPresentationModel(preferences: preferences, year: 2026)
