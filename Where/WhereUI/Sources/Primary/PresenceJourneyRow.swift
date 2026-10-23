@@ -26,7 +26,8 @@ struct PresenceJourneyRow: View {
         let countLayout = row.stacksDayCount
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: row.labelSpacing))
             : AnyLayout(HStackLayout(alignment: .center, spacing: row.spacing))
-        let proportionalHeight = row.baseHeight
+        let sizing = row.sizing(for: stint.dayCount)
+        let proportionalHeight = sizing.baseHeight
             + row.yearScaleHeight * CGFloat(stint.dayCount) / CGFloat(daysInYear)
         let cardShape = cardPosition.shape(cornerRadius: row.cornerRadius)
 
@@ -56,7 +57,7 @@ struct PresenceJourneyRow: View {
             }
             .frame(minHeight: proportionalHeight)
             .padding(.horizontal, row.horizontalPadding)
-            .padding(.vertical, row.verticalPadding)
+            .padding(.vertical, sizing.verticalPadding)
             .background {
                 cardShape.fill(style.tint.opacity(row.fillOpacity))
             }
