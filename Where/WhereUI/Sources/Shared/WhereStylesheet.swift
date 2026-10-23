@@ -128,6 +128,9 @@ struct WhereStylesheet: BStylesheet {
         // Pale, luminosity-only ink lifts the background security print off
         // dark glass without changing its hue or saturation on touch.
         if traits.mode == .dark {
+            calendar.overview.regionBand.opacity = 0.55
+            calendar.overview.regionBand.planned.fillOpacity = 0.24
+            calendar.overview.regionBand.planned.hatchOpacity = 0.85
             settings.iconForeground = .black
             card.securityPrint = .dark
             card.elsewherePaper = .dark
@@ -1365,6 +1368,20 @@ extension WhereStylesheet {
             var borderWidth: CGFloat = 0.5
             var currentBorderWidth: CGFloat = 1
             var unavailableForeground: Color = .secondary
+            /// Compact bands need stronger ink and distinct stripe gaps to
+            /// remain legible at a fraction of the detailed calendar's size.
+            var regionBand = RegionBand(
+                opacity: 0.4,
+                cornerRadius: 3,
+                continuationRadius: 1,
+                verticalInset: 0,
+                planned: .init(
+                    fillOpacity: 0.16,
+                    hatchOpacity: 0.7,
+                    hatchSpacing: 4,
+                    hatchLineWidth: 1,
+                ),
+            )
             var usesSpatialMotion = true
             var duration: Double = 0.25
             var shakeDistance: CGFloat = 4
@@ -1394,12 +1411,9 @@ extension WhereStylesheet {
             result.day.numberDotSpacing = 0
             result.day.dotSize = 2
             result.day.dotOverlap = 1
-            result.day.dotStrokeWidth = 0
+            result.day.dotStrokeWidth = 0.75
             result.day.contentSpacing = 0
-            result.regionBand.verticalInset = 0
-            result.regionBand.cornerRadius = 3
-            result.regionBand.continuationRadius = 1
-            result.regionBand.planned.hatchSpacing = 3
+            result.regionBand = overview.regionBand
             return result
         }
 

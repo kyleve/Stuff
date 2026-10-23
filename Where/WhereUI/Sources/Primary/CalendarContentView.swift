@@ -1034,6 +1034,17 @@ private struct DayCell: View {
                     )
                 }
             }
+            whereThemeSnapshot(
+                name: "YearOverviewPlannedStays",
+                configurations: .fullContentPhoneLightDark,
+            ) {
+                NavigationStack {
+                    CalendarContentView(
+                        report: PreviewSupport.itineraryYearReportModel(),
+                        initialMode: .overview,
+                    )
+                }
+            }
             whereSnapshot(
                 name: "YearOverviewPastYear",
                 configurations: .fullContentPhoneLightDark,
