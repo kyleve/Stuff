@@ -10,7 +10,10 @@ struct LocationForecastSummary: View {
     var planningAction: (() -> Void)?
 
     @State private var isExpanded = false
-    @State private var artworkModel = RegionArtworkModel<[Region], [LocationForecastArtwork.Item]>()
+    @State private var artworkModel = RegionArtworkModel<
+        [Region],
+        [LocationForecastArtworkLoader.Item]
+    >()
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
@@ -37,7 +40,7 @@ struct LocationForecastSummary: View {
                 .artwork(for: primaryRegions) ?? [])
         }
         .regionArtworkTask(id: primaryRegions, model: artworkModel) { cache in
-            await LocationForecastArtwork.loadSummary(regions: primaryRegions, cache: cache)
+            await LocationForecastArtworkLoader.loadSummary(regions: primaryRegions, cache: cache)
         }
     }
 
@@ -69,7 +72,7 @@ struct LocationForecastSummary: View {
             reduceTransparency: Bool = false,
         ) -> SnapshotCase {
             let cache = RegionOutlinePathCache()
-            let artwork = RegionArtworkModel<[Region], [LocationForecastArtwork.Item]>()
+            let artwork = RegionArtworkModel<[Region], [LocationForecastArtworkLoader.Item]>()
             let report = PreviewSupport.plannedStayYearReportModel()
             let regions = report.ranking.primary.map(\.region)
             return whereThemeSnapshot(
@@ -78,7 +81,10 @@ struct LocationForecastSummary: View {
                 measurementReadiness: .immediate,
                 onReadyToSnapshot: {
                     await artwork.load(for: regions) {
-                        await LocationForecastArtwork.loadSummary(regions: regions, cache: cache)
+                        await LocationForecastArtworkLoader.loadSummary(
+                            regions: regions,
+                            cache: cache,
+                        )
                     }
                 },
             ) {

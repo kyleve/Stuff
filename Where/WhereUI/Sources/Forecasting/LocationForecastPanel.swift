@@ -85,7 +85,7 @@ struct LocationForecastPanel: View {
             y: style.surface.shadowOffsetY,
         )
         .regionArtworkTask(id: microprintRegions, model: artworkModel) { cache in
-            await LocationForecastArtwork.load(regions: microprintRegions, cache: cache)
+            await LocationForecastArtworkLoader.load(regions: microprintRegions, cache: cache)
         }
     }
 }

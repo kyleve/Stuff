@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Loads the complete ordered border before publication, without partial or cancelled artwork.
 @MainActor
-enum LocationForecastArtwork {
+enum LocationForecastArtworkLoader {
     struct Item: Identifiable {
         let region: Region
         let watermark: Path

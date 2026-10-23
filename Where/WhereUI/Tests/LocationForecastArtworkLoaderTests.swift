@@ -3,11 +3,11 @@ import Testing
 @testable import WhereUI
 
 @MainActor
-struct LocationForecastArtworkTests {
+struct LocationForecastArtworkLoaderTests {
     @Test func summaryKeepsPrimaryOrderAndBothCachedResolutions() async throws {
         let cache = RegionOutlinePathCache()
         let regions: [Region] = [.newYork, .california]
-        let artwork = try #require(await LocationForecastArtwork.loadSummary(
+        let artwork = try #require(await LocationForecastArtworkLoader.loadSummary(
             regions: regions,
             cache: cache,
         ))
@@ -18,7 +18,7 @@ struct LocationForecastArtworkTests {
             #expect(item.watermark == watermark)
             #expect(item.microprint == microprint)
         }
-        let border = await LocationForecastArtwork.load(regions: regions, cache: cache)
+        let border = await LocationForecastArtworkLoader.load(regions: regions, cache: cache)
         #expect(border == artwork.map(\.microprint))
     }
 
@@ -26,7 +26,10 @@ struct LocationForecastArtworkTests {
         let cache = RegionOutlinePathCache()
         let task = Task {
             withUnsafeCurrentTask { $0?.cancel() }
-            return await LocationForecastArtwork.loadSummary(regions: [.california], cache: cache)
+            return await LocationForecastArtworkLoader.loadSummary(
+                regions: [.california],
+                cache: cache,
+            )
         }
         #expect(await task.value == nil)
     }

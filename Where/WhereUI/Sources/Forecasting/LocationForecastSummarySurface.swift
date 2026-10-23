@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Decorative glass and quiet security print beneath the Locations estimate.
 struct LocationForecastSummarySurface: View {
-    let artwork: [LocationForecastArtwork.Item]
+    let artwork: [LocationForecastArtworkLoader.Item]
 
     @Environment(\.stylesheet) private var stylesheet
 

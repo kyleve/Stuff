@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Faint primary-region silhouettes, faded toward the summary's leading text.
 struct LocationForecastSilhouettes: View {
-    let artwork: [LocationForecastArtwork.Item]
+    let artwork: [LocationForecastArtworkLoader.Item]
 
     @Environment(\.stylesheet) private var stylesheet
 
