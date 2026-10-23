@@ -1,6 +1,8 @@
 import { readSelection, selectionHash } from "./navigation";
 import { selectResidentImages } from "./image-residency";
 import { updateCaptureScroller as configureCaptureScroller } from "./capture-scroller";
+import { FrameScope } from "./frame-scope";
+import { InspectorPositionController } from "./inspector-position";
 
 export function startAtlas(manifest) {
     "use strict";
@@ -26,6 +28,8 @@ export function startAtlas(manifest) {
     const minimumManualZoom = 0.1;
     const maximumZoom = 1.5;
     let inspectorResizeObserver = null;
+    const renderFrames = new FrameScope(window);
+    const inspectorPosition = new InspectorPositionController();
     const selectedVariants = new Map(manifest.screens.map(screen => [screen.id, screen.variants[0]?.id]));
     const state = {
         view: defaultView,
@@ -488,7 +492,7 @@ export function startAtlas(manifest) {
         viewport.addEventListener("scroll", scheduleCanvasNavigationUpdate, { passive: true });
         main.append(viewport, emptyResults());
 
-        requestAnimationFrame(() => {
+        renderFrames.request(() => {
             applyZoom();
             if (state.pendingCanvasAction === "fit-initial") {
                 state.pendingCanvasAction = null;
@@ -641,7 +645,7 @@ export function startAtlas(manifest) {
             main.append(section);
         }
         main.append(emptyResults());
-        requestAnimationFrame(() => {
+        renderFrames.request(() => {
             main.scrollTop = state.list.scrollTop;
             updateListImageResidency();
         });
@@ -707,6 +711,7 @@ export function startAtlas(manifest) {
         const screenIndex = manifest.screens.findIndex(item => item.id === screen.id);
         const dialog = element("dialog", "inspector");
         dialog.id = "inspector";
+        dialog.dataset.screenId = screen.id;
         dialog.dataset.details = String(state.inspectorDetails);
         dialog.setAttribute("aria-labelledby", "inspector-title");
 
@@ -950,7 +955,7 @@ export function startAtlas(manifest) {
         state.panel = null;
         state.commandQuery = "";
         render();
-        requestAnimationFrame(() => document.getElementById(triggerID)?.focus());
+        renderFrames.request(() => document.getElementById(triggerID)?.focus());
     }
 
     function activePanel() {
@@ -1370,7 +1375,7 @@ export function startAtlas(manifest) {
         clear.addEventListener("click", () => {
             state.filters = { group: "all", extent: "all", routes: "all" };
             render();
-            requestAnimationFrame(() => document.getElementById("filter-trigger")?.focus());
+            renderFrames.request(() => document.getElementById("filter-trigger")?.focus());
         });
         empty.append(clear);
         return empty;
@@ -1777,6 +1782,8 @@ export function startAtlas(manifest) {
     }
 
     function render() {
+        inspectorPosition.capture(document.getElementById("inspector"));
+        renderFrames.cancel();
         if (!state.pendingCanvasPosition) captureViewPosition();
         if (canvasNavigationFrame !== null) {
             cancelAnimationFrame(canvasNavigationFrame);
@@ -1803,23 +1810,25 @@ export function startAtlas(manifest) {
         const inspection = inspector();
         if (inspection) {
             root.append(inspection);
-            requestAnimationFrame(() => {
+            renderFrames.request(() => {
                 inspection.showModal();
                 updateInspectorDetailsAccessibility();
                 fitInspectorImage();
                 observeInspectorSize();
+                inspectorPosition.restore(inspection);
             });
         } else {
+            inspectorPosition.reset();
             const panel = activePanel();
             if (panel) {
                 root.append(panel);
-                requestAnimationFrame(() => {
+                renderFrames.request(() => {
                     panel.showModal();
                     updateMiniMapViewport();
                 });
             }
         }
-        requestAnimationFrame(() => {
+        renderFrames.request(() => {
             updateSearchVisibility();
             if (focusKey) {
                 (visibleFocusTarget(focusKey) || visibleFocusTarget("filters-control"))?.focus();
@@ -1833,7 +1842,7 @@ export function startAtlas(manifest) {
         render();
     });
     window.addEventListener("resize", () => {
-        if (state.screen) requestAnimationFrame(() => {
+        if (state.screen) renderFrames.request(() => {
             updateInspectorDetailsAccessibility();
             fitInspectorImage();
         });

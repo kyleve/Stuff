@@ -24,6 +24,11 @@
     "ref": "8cbe9250b21658bb36f7995a0b5cddcc22c8aa2e",
     "version": "24.19.2"
   },
+  "Playwright": {
+    "repo": "microsoft/playwright",
+    "ref": "cfe490d941f992655948eee8fd4fd94e1c4234bf",
+    "version": "1.64.1"
+  },
   "ShellCheck": {
     "repo": "koalaman/shellcheck",
     "ref": "aac0823e6b58f8a499e856e93738082691cbf212",
