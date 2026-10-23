@@ -60,6 +60,71 @@ struct PresenceJourneyItemTests {
         #expect(Set(items.map(\.id)).count == items.count)
     }
 
+    @Test(arguments: ["America/Los_Angeles", "America/New_York", "UTC"])
+    func departureOnLastStayDaySeparatesCaliforniaAndNewYork(timeZone: String) throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: timeZone))
+        let start = CalendarDay(year: 2026, month: 9, day: 20)
+        let departure = CalendarDay(year: 2026, month: 10, day: 14)
+        let end = CalendarDay(year: 2026, month: 10, day: 23)
+        let days = start.days(through: end).map { day in
+            var regions: Set<Region> = []
+            if day <= departure { regions.insert(.california) }
+            if day == start || day >= departure { regions.insert(.newYork) }
+            return DayPresence(day: day, regions: regions)
+        }
+        let report = YearReport(year: 2026, days: days, totals: [:])
+        let stints = PresenceTimeline.stints(from: report, calendar: calendar)
+        let departedAt = try #require(calendar.date(
+            bySettingHour: 12,
+            minute: 0,
+            second: 0,
+            of: departure.startOfDay(in: calendar),
+        ))
+        let arrivedAt = try #require(calendar.date(byAdding: .hour, value: 6, to: departedAt))
+        let flight = FlightAssessment(
+            id: .init(recordingSource: .legacy, departureSampleID: UUID()),
+            startedAt: departedAt,
+            lastObservationAt: arrivedAt,
+            lastFlightAt: departedAt,
+            airborneSampleIDs: [],
+            groundSampleIDs: [],
+            peakSpeedKMH: 900,
+            progress: .completed(arrivedAt: arrivedAt),
+            inferredEndpoints: [],
+        )
+
+        let items = PresenceJourneyItem.items(
+            stints: stints,
+            flights: [flight],
+            year: 2026,
+            calendar: calendar,
+        )
+
+        #expect(items == [
+            .stay(RegionStint(
+                region: .newYork,
+                start: start.startOfDay(in: calendar),
+                end: start.startOfDay(in: calendar),
+                dayCount: 1,
+            )),
+            .stay(RegionStint(
+                region: .california,
+                start: start.startOfDay(in: calendar),
+                end: departure.startOfDay(in: calendar),
+                dayCount: 25,
+            )),
+            .flight(flight),
+            .stay(RegionStint(
+                region: .newYork,
+                start: departure.startOfDay(in: calendar),
+                end: end.startOfDay(in: calendar),
+                dayCount: 10,
+            )),
+        ])
+        #expect(Set(items.map(\.id)).count == items.count)
+    }
+
     @Test func flightOnlyHistoryIsChronologicalAndExcludesPendingAndOtherYears() {
         let morning = flight(day: 3, hour: 8)
         let evening = flight(day: 3, hour: 18)

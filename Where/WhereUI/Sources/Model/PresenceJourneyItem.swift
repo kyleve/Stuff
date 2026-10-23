@@ -2,7 +2,7 @@ import Foundation
 import RegionKit
 import WhereCore
 
-/// Recorded stays split at flight departure days, interleaved with historical flights.
+/// Recorded stays split at interior flight departure days, interleaved with historical flights.
 /// Splitting changes presentation only: each region-day remains in exactly one segment.
 enum PresenceJourneyItem: Identifiable, Hashable {
     enum ID: Hashable {
@@ -37,7 +37,9 @@ enum PresenceJourneyItem: Identifiable, Hashable {
         var result: [Self] = []
         for stint in stints {
             var start = stint.start
-            for boundary in boundaries where boundary > stint.start && boundary <= stint.end {
+            // The departure day can belong to both regions. Keep it with the
+            // departing stay when that stay ends here, before the flight row.
+            for boundary in boundaries where boundary > stint.start && boundary < stint.end {
                 guard let end = calendar.date(byAdding: .day, value: -1, to: boundary) else {
                     preconditionFailure("Calendar cannot find the day before a flight")
                 }

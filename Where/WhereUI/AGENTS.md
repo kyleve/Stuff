@@ -104,6 +104,7 @@ Layering, localization, preview, and testing conventions live in the feature
 - Expose each calendar month as one accessibility element: regional totals in the label, chronological stay spans and dated badges in the value. Preserve planning qualifiers. Guard: `CalendarMonthAccessibilityTests`.
 - Keep calendar flight days and timeline flight events independent of review dismissal.
   Split timeline stays only for presentation; preserve every region-day exactly once.
+  Keep a stay intact when departure falls on its final day. Guard: `PresenceJourneyItemTests`.
 - Keep the raw GPS path visible in correction reviews after samples lose attribution.
   Bound display geometry without changing the evidence or edits. Never join separate recording devices into one route.
 - Route automatic GPS fixes through Core's sample-correction coordinator. Keep
