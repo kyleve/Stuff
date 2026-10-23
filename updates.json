@@ -1,1 +1,1 @@
-{"schemaVersion":3,"apps":[]}
+{"schemaVersion":3,"apps":[{"id":"where","name":"Where Dev","bundleIdentifier":"com.stuff.where.development","channels":[{"name":"pr-426","active":false,"releases":[]}]}]}
