@@ -27,6 +27,7 @@ The motivating example follows one GPS point from its system callback through in
 We are evaluating automatic system discovery, generated runtime observations, and adapters for asynchronous handoffs.
 The [GPS tracing research](Research/005-explicit-tracing-and-code-generation.md) records the current source path and identity constraints.
 The [automatic instrumentation discussion](Research/006-automatic-instrumentation.md) replaces its annotation-led proposal and experiment.
+The [value provenance research](Research/007-value-identity-and-provenance.md) explores generated identities, shadow metadata, splits, merges, and prior art.
 The [decision register](Research/003-decisions.md) holds the options and unresolved questions.
 
 ## Proposed first result
@@ -47,6 +48,7 @@ Proposed acceptance criteria:
 - Both surfaces describe the same observed work consistently. Their layouts can differ.
 - The viewer identifies the observed input, commit, downstream work, and terminal outcomes.
 - Concurrent operations remain distinguishable. Time overlap alone creates no causal edge.
+- Inputs without domain IDs remain distinguishable. Copies, transformations, splits, and merges retain their supported provenance relationships.
 - Failed, skipped, cancelled, and incomplete work remain visible as distinct outcomes.
 - Pausing the display does not pause domain work. Capture behavior during pause is explicit.
 - The viewer shows capture gaps, connection loss, and unavailable history honestly.
@@ -100,10 +102,15 @@ Evaluate reusable adapters that preserve correlation across streams, callbacks, 
 Evaluate Periscope's existing task-local context and event pipeline as the foundation.
 Keep candidate source connections, entity correlation, and observed transfers distinct.
 Use generated identifiers within each build and capture. Keep cross-build identity matching a separate choice.
+Evaluate generated shadow handles for tracked values and a separate graph of immutable value versions and operation executions.
+Keep domain entity identity separate from value, execution, and delivery identity.
+Compare UUIDs with capture-qualified counters. Neither representation establishes ancestry without recorded relationships.
+Make tracking granularity, branch dependence, missing ancestry, and retention explicit.
 
 The first experiment must trace unchanged GPS source and automatically detect a newly inserted forwarding stage.
 It must expose unsupported boundaries instead of requiring hidden per-stage configuration.
 See [the revised experiment](Research/006-automatic-instrumentation.md#revised-feasibility-experiment).
+Its [provenance cases](Research/007-value-identity-and-provenance.md#proposed-experiment-additions) also require identity-free inputs, copies, splits, merges, mutation, and gaps.
 This is a recommendation for discussion. No source transformer, macro API, compiler integration, or capture implementation is selected.
 
 ## Validation approach
@@ -139,6 +146,7 @@ File unrelated findings in their owning `TODOs.md` and link them from research.
 - 2026-10-23: Recorded the user's choice to support both Mac and in-app viewing.
 - 2026-10-23: Began technical exploration of explicit GPS tracing and macro/parser generation before UI and UX.
 - 2026-10-23: Recorded automatic tracing as the default requirement and revised the feasibility proposal around unannotated application source.
+- 2026-10-23: Investigated generated value identities, provenance graphs, shadow propagation, and prior art for splits and merges.
 - D0 review: [PR #425](https://github.com/kyleve/Stuff/pull/425), branch `codex/where-data-flow-plan`.
-- Documentation validation: 71 local links and anchors resolve. Diff checks passed. Runtime checks do not exercise this documentation change.
+- Documentation validation: 82 local links and anchors resolve. Diff checks passed. Runtime checks do not exercise this documentation change.
 - No implementation slice is complete.

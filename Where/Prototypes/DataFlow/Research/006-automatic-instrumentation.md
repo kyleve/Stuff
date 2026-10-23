@@ -5,6 +5,9 @@ Status: user requirement recorded. Implementation techniques remain proposals.
 Source revision: `d337a97d3a8df4481196eab085a5c635a303d4fd`.
 Evidence: repository source inspection and official Swift documentation. No compiler experiment or live capture has run.
 
+Update, 2026-10-23: [007 — Value identity and provenance](007-value-identity-and-provenance.md) extends the propagation model and experiment.
+It separates value versions from entity identity and explains why function-boundary probes alone cannot establish complete information flow.
+
 ## User requirement and revised direction
 
 Tracing must work without annotations on ordinary application types, functions, or handoffs.

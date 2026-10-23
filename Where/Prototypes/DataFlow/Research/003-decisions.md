@@ -60,17 +60,18 @@ This supersedes the annotation-led working proposal in 005, not its GPS source f
 | --- | --- | --- | --- |
 | O001 | Where is the viewer? | Both a separate Mac window and an in-app view | Resolved by D003 |
 | O002 | What is the first flow? | GPS ingestion is the current technical scenario. A manual edit remains an alternative demonstration. | Implementation slice open |
-| O003 | What does the graph explain? | Individual data movement is the current focus. The depth of derived-input lineage remains open. | Direction clarified by D004 |
-| O004 | How does capture represent causality? | Compare typed relationships, task-local context, and generated handoff envelopes or correlation tables. | Research in [005](005-explicit-tracing-and-code-generation.md) and [006](006-automatic-instrumentation.md) |
+| O003 | What does the graph explain? | Follow values through copies, splits, and merges, including inputs without domain IDs. Field, element, and control-dependence precision remain open. | Extended discussion in [007](007-value-identity-and-provenance.md) |
+| O004 | How does capture represent causality? | Compare generated shadow handles, typed provenance relationships, task-local context, and generated handoff transport. | Research in [005](005-explicit-tracing-and-code-generation.md), [006](006-automatic-instrumentation.md), and [007](007-value-identity-and-provenance.md) |
 | O005 | What data appears in detail? | Counts and identities, selected values, or before/after summaries have different volume and disclosure costs. | Open |
 | O006 | What history is required? | Recent memory, durable local history, and replay have different lifecycle and storage costs. | Bounded recent history proposed |
 | O007 | Which environments are first? | Simulator, physical device, app audience, and background operation affect capture and connectivity. | Open |
 | O008 | What resource budget is acceptable? | Measure emission cost, update latency, memory growth, and display work against the chosen workload. | No numerical targets selected |
 | O009 | How do both viewers share behavior? | Shared observation semantics can support different layouts. Renderer reuse and implementation order remain choices. | Open |
 | O010 | Which technique provides useful automatic coverage? | Compare source transformation, compiler-assisted analysis, and reusable runtime adapters. Annotations provide optional detail. | Requirement resolved by D005. Feasibility open in [006](006-automatic-instrumentation.md) |
+| O011 | How are trace identities allocated? | Compare UUIDs and capture-qualified counters. Separate domain, value-version, execution, and delivery identities. | User proposals and analysis in [007](007-value-identity-and-provenance.md). Representation open. |
 
 O002 and O003 determine the first useful demonstration after the choice of both viewing surfaces.
-O004 through O010 need enough detail to bound its implementation.
+O004 through O011 need enough detail to bound its implementation.
 They do not require a design for every future flow.
 
 ## Working proposals
@@ -81,6 +82,7 @@ These proposals are not user decisions:
 - Evaluate existing Periscope interfaces before creating another capture system.
 - Define causal relationships explicitly. Label unknown relationships instead of inferring them from timing alone.
 - Generate routine instrumentation and evaluate adapters shared across call sites. Measure coverage without per-stage declarations.
+- Carry value handles through generated shadow metadata. Store immediate provenance relationships without copying all ancestors into every value.
 - Keep capture read-only with respect to domain behavior.
 - Give both surfaces consistent observation semantics. Keep topology, transport, renderer, and module ownership open until the first flow is selected.
 

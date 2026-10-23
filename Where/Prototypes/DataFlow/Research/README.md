@@ -13,10 +13,11 @@ This folder preserves the evidence, alternatives, and reasoning behind that plan
 | [004 — Both viewing surfaces](004-viewing-surfaces.md) | 2026-10-23 | User decision recorded | Separate Mac window and view inside Where |
 | [005 — Explicit tracing and code generation](005-explicit-tracing-and-code-generation.md) | 2026-10-23 | Annotation approach superseded by 006 | GPS identity, stage metadata, macro limits, and asynchronous handoffs |
 | [006 — Automatic instrumentation](006-automatic-instrumentation.md) | 2026-10-23 | User requirement recorded. Feasibility open | Automatic discovery, source transformation, reusable adapters, optional annotations, and revised experiment |
+| [007 — Value identity and provenance](007-value-identity-and-provenance.md) | 2026-10-23 | Prior art and technical proposals | Counters and UUIDs, value versions, shadow propagation, split/merge relationships, and bounded storage |
 
 ## Adding a document
 
-Use the next number and a descriptive name, such as `007-observation-contract.md`.
+Use the next number and a descriptive name, such as `008-observation-contract.md`.
 Record the date, question, status, and source revision or external sources near the start.
 Separate observed facts from proposed interpretations.
 For experiments, record the environment, procedure, result, and limits of the evidence.
