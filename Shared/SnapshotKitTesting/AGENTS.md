@@ -163,6 +163,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
   path resolver for recording, comparison, and review; `other/` nests inside the group.
 - Capture each panel independently with fresh fixture state through the hosted
   pipeline, including readiness and accessibility annotation handling.
+- Set each panel host's background to `SnapshotImageGrid.backgroundColor` before rendering.
+  Keep this fixed color shared with the sheet, independent of appearance. Guard: `AssertComparisonSnapshotsTests.transparentPanelsMatchTheirSheet`.
 - Store one sheet PNG with a versioned panel map in PNG Description metadata.
   Reject missing or invalid maps. Review the PNG before recording; preserve its metadata.
 - Share configured capture and reference recording between single views and cutsheets.

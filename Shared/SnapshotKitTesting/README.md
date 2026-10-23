@@ -302,6 +302,8 @@ its metadata when copying references; image optimizers that strip metadata inval
 cutsheet references.
 
 Single views and cutsheets share configured capture and reference recording helpers.
+Each panel's hosting view uses the sheet's fixed white background, including in dark mode.
+This fills transparent margins without changing component layout. A component's own background remains visible above it.
 Panels retain independent settling and fresh fixtures. The runner compares panels
 before assembling their captured images in a SwiftUI `Grid`. SwiftUI lays out labels
 and images; geometry observations supply the embedded panel map. The shared hosted
