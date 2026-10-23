@@ -7,6 +7,8 @@ import UIKit
 /// Geometry observations supply the panel map without a second layout algorithm.
 @MainActor
 struct SnapshotImageGrid: View {
+    static let backgroundColor = UIColor.white
+
     let panels: [SnapshotPanelCapture]
     let measurement: Measurement
     @Namespace private var coordinateSpace
@@ -40,7 +42,7 @@ struct SnapshotImageGrid: View {
         .padding(16)
         .fixedSize()
         .coordinateSpace(name: space)
-        .background(.white)
+        .background(Color(uiColor: Self.backgroundColor))
     }
 
     /// This is capture output, not view state: measuring never invalidates the grid.
