@@ -18,13 +18,29 @@ struct YearView: View {
 
     var body: some View {
         NavigationStack {
-            TabView(selection: $mode) {
-                CalendarContentView(report: report, showsPlanningToolbar: false)
-                    .tag(YearMode.calendar)
-                PresenceTimelineList(report: report, showsPlanningToolbar: false)
-                    .tag(YearMode.timeline)
+            // Measure outside the scroll view so navigation and picker safe areas
+            // bound each page, including when the picker stacks at large text sizes.
+            GeometryReader { viewport in
+                ScrollView(.horizontal) {
+                    // Keep both pages alive without nesting a page-style TabView in
+                    // the app's TabView. Each page owns its vertical scrolling.
+                    HStack(spacing: 0) {
+                        CalendarContentView(report: report, showsPlanningToolbar: false)
+                            .frame(width: viewport.size.width, height: viewport.size.height)
+                            .accessibilityHidden(mode != .calendar)
+                            .id(YearMode.calendar)
+                        PresenceTimelineList(report: report, showsPlanningToolbar: false)
+                            .frame(width: viewport.size.width, height: viewport.size.height)
+                            .accessibilityHidden(mode != .timeline)
+                            .id(YearMode.timeline)
+                    }
+                    .scrollTargetLayout()
+                }
+                .scrollTargetBehavior(.paging)
+                .defaultScrollAnchor(mode == .calendar ? .leading : .trailing, for: .initialOffset)
+                .scrollPosition(id: Binding($mode), anchor: .leading)
+                .scrollIndicators(.hidden, axes: .horizontal)
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
             .modifier(YearNavigationModifier(report: report, mode: $mode))
         }
     }

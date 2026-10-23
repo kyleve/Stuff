@@ -60,7 +60,7 @@ Demo mode hides this surface and performs no update checks.
   [`LifecycleKit`](../../Shared/LifecycleKit), rendered by
   [`LifecycleKitUI`](../../Shared/LifecycleKitUI)'s container) gated in front of
   `MainTabs`, the Liquid Glass tab bar with Locations, optional Elsewhere,
-  Your Year, and Settings. Your Year uses a native page-style `TabView` for
+  Your Year, and Settings. Your Year uses a horizontal paging `ScrollView` for
   Calendar and Timeline. Horizontal swipes and the bottom picker select the same page.
   Both pages retain their vertical scroll positions when the selected page changes.
   Elsewhere has its own navigation stack. Resolve is
