@@ -20,6 +20,7 @@ struct PresenceTimelineList: View {
 
     let report: YearReportModel
     var presentation: Presentation = .full
+    var showsPlanningToolbar: Bool = true
 
     @Environment(\.stylesheet) private var stylesheet
     @State private var planningDestination: PlannedStaysDestination?
@@ -126,7 +127,7 @@ struct PresenceTimelineList: View {
             PlannedStaysDestinationView(destination: destination, report: report)
         }
         .toolbar {
-            if presentation == .full, report.showsEstimatedTimeAndPlanning {
+            if showsPlanningToolbar, presentation == .full, report.showsEstimatedTimeAndPlanning {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(
                         String(localized: .plannedStaysTitle),

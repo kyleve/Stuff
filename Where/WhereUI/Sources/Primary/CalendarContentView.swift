@@ -17,6 +17,7 @@ struct CalendarContentView: View {
     var focusedRegion: Region?
 
     let report: YearReportModel
+    var showsPlanningToolbar: Bool = true
 
     @Environment(\.stylesheet) private var stylesheet
     @State private var monthsLoad: Result<[CalendarMonth], Error>?
@@ -91,7 +92,7 @@ struct CalendarContentView: View {
             PlannedStaysDestinationView(destination: destination, report: report)
         }
         .toolbar {
-            if report.showsEstimatedTimeAndPlanning {
+            if showsPlanningToolbar, report.showsEstimatedTimeAndPlanning {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(
                         String(localized: .plannedStaysTitle),
