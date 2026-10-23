@@ -117,4 +117,6 @@ File unrelated findings in their owning `TODOs.md` and link them from research.
 
 - 2026-10-23: Created the planning workspace and initial source research.
 - 2026-10-23: Recorded the user's choice to support both Mac and in-app viewing.
+- D0 review: [PR #425](https://github.com/kyleve/Stuff/pull/425), branch `codex/where-data-flow-plan`.
+- D0 validation: 43 local links and anchors resolve. Diff checks passed. Runtime checks do not exercise this documentation change.
 - No implementation slice is complete.
