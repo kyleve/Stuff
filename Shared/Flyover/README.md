@@ -140,12 +140,14 @@ A generated source scan would add build ordering and cache invalidation complexi
 `FlyoverWebExporter` converts a DEBUG catalog into a static QA atlas. It writes
 native PNG captures and card-size thumbnails. It also writes `manifest.json`
 and `manifest.js`. The exporter derives each thumbnail from its hosted native
-capture. It does not render the SwiftUI content again. A static viewer can read
-`manifest.js` without an HTTP server.
+capture. It does not render the SwiftUI content again. The web shell reads
+`manifest.js`, so the atlas works from `file://` and any static host. The
+browser changes images and navigation state. It does not run SwiftUI or
+serialize `FlyoverControl` actions.
 
 A thumbnail uses at most 1,024 pixels on its longest axis. A full-content
-thumbnail shows the top device viewport. The complete capture remains available
-beside its thumbnail.
+thumbnail shows the top device viewport. The inspector and raw PNG link use the
+complete capture.
 
 The exporter validates the complete plan before its first capture. The host
 provides one stable string for each typed screen ID and one capture closure.
@@ -176,9 +178,53 @@ The manifest compatibility boundary is `schemaVersion: 1`. It contains the
 application and build identity, profiles, precomputed canvas geometry, groups,
 screens, routes, and image metadata. It contains no local source or account
 paths. New image records include the optional thumbnail path and pixel size.
-Full-content sizing uses the hosted capture pipeline's limits and convergence
-rules. A sizing error stops the export. The exporter
+Older schema-1 artifacts remain readable. The web shell uses the full capture
+when thumbnail metadata is absent. Full-content sizing uses SnapshotKitTesting
+limits and convergence rules. A sizing error stops the export. The exporter
 never substitutes a viewport image.
+
+The website opens the first catalog group in canvas mode. A floating control
+dock keeps the canvas visible. The group panel and overview map move between
+groups without recalculating the graph. The canvas keeps its position when a
+state, profile, or panel changes.
+
+Canvas and list views give an active thumbnail source to every visible screen.
+The list can also preload nearby thumbnails. This preload targets six active
+images and 24 million thumbnail pixels. Visible screens override both targets.
+The inspector removes these sources while it shows one full-resolution capture.
+
+Point to or focus a card to emphasize its connected routes. The site dims
+unrelated cards and routes until the focus moves. Filters for groups, capture
+extents, and route states stay in a separate panel.
+
+Search opens a command palette. It matches group, screen, state, and connected
+route names. A result opens its screen or fits its group. List mode shows the
+same selection in grouped rows. State and profile changes update the native
+image without changing the selected screen.
+
+The inspector uses the full browser window. The image stays central while a
+drawer supplies capture data and route links. Full-content images use a
+device-width scroll area. The Fit and 100% controls change the image scale
+without changing the capture.
+
+Atlas controls, labels, and screenshots do not support browser text selection
+or image dragging. Search text, screen titles, error details, and metadata
+values remain selectable.
+
+The browser hash stores the view, inspector screen, profile, and non-default
+state selections for all screens. Reload, Back, and Forward restore these
+values without opening the inspector for a canvas or list selection.
+History navigation closes transient panels. Full-content and 100% image scroll
+areas accept keyboard focus. Their arrow keys scroll the image instead of
+changing screens. The site also supplies these keyboard controls:
+
+- Press `/` or `Command-K` to open search.
+- Press `F` to fit the complete canvas.
+- Press `0` to fit the current group.
+- Press `+` or `-` to change the canvas zoom.
+- Press an arrow key, `[` or `]`, to move between inspector screens.
+- Press `I` to show or hide the inspector details.
+- Press Escape to close the inspector.
 
 ## Testing
 
