@@ -33,13 +33,48 @@ struct PresenceJourneyItemTests {
             airborneSampleIDs: [],
             groundSampleIDs: [],
             peakSpeedKMH: 900,
-            progress: pending ? .awaitingArrival : .completed(arrivedAt: date(
-                day,
-                month: month,
-                hour: hour + 2,
+            progress: pending ? .awaitingArrival : .completed(arrival: .observedGround(
+                firstObservedAt: date(day, month: month, hour: hour + 2),
+                confirmedAt: date(day, month: month, hour: hour + 2),
             )),
             inferredEndpoints: [],
+            supportedIntervals: [.init(
+                start: date(day, month: month, hour: hour),
+                end: date(day, month: month, hour: hour + 1),
+                kind: .observedMotion,
+            )],
         )
+    }
+
+    @Test func uncertainArrivalKeepsTheFlightWithoutSplittingUnobservedDays() {
+        let original = flight(day: 3)
+        let uncertain = FlightAssessment(
+            id: original.id,
+            startedAt: original.startedAt,
+            lastObservationAt: date(7),
+            lastFlightAt: original.lastFlightAt,
+            airborneSampleIDs: [],
+            groundSampleIDs: [],
+            peakSpeedKMH: 900,
+            progress: .completed(arrival: .uncertainTiming(
+                lastSupportedTravelAt: original.lastFlightAt,
+                firstObservedAt: date(7),
+                confirmedAt: date(7, hour: 1),
+            )),
+            inferredEndpoints: [],
+            supportedIntervals: original.supportedIntervals,
+        )
+        #expect(uncertain.completedDays(in: calendar) == [CalendarDay(
+            year: 2026,
+            month: 1,
+            day: 3,
+        )])
+        #expect(PresenceJourneyItem.items(
+            stints: [],
+            flights: [uncertain],
+            year: 2026,
+            calendar: calendar,
+        ) == [.flight(uncertain)])
     }
 
     @Test func splitsOverlappingStaysWithoutChangingAnyRegionDay() {
@@ -97,8 +132,12 @@ struct PresenceJourneyItemTests {
             airborneSampleIDs: [],
             groundSampleIDs: [],
             peakSpeedKMH: 900,
-            progress: .completed(arrivedAt: arrivedAt),
+            progress: .completed(arrival: .observedGround(
+                firstObservedAt: arrivedAt,
+                confirmedAt: arrivedAt,
+            )),
             inferredEndpoints: [],
+            supportedIntervals: [.init(start: departedAt, end: arrivedAt, kind: .observedMotion)],
         )
 
         let items = PresenceJourneyItem.items(
@@ -214,6 +253,11 @@ struct PresenceJourneyItemTests {
             peakSpeedKMH: first.peakSpeedKMH,
             progress: first.progress,
             inferredEndpoints: [],
+            supportedIntervals: [.init(
+                start: first.startedAt,
+                end: first.lastFlightAt,
+                kind: .observedMotion,
+            )],
         )
         let forward = PresenceJourneyItem.items(
             stints: [],

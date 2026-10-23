@@ -186,10 +186,11 @@ a screen felt slow.
 
 ## Navigation
 
-The logged-in shell is `MainTabs`. It has **three fixed tabs**: Locations, Your
-Year, Settings. Everything else hangs off one of them. A new screen is a
-pushed destination, a sheet, or a Settings row inside that shape. A fourth
-tab is a product decision to raise before building. `MainTabs` passes the
+The logged-in shell is `MainTabs`. Its tabs are Locations, optional Elsewhere,
+Your Year, and Settings, in that order. Show Elsewhere only when the selected
+year has visits outside the configured primary set. Keep it available during
+same-year refreshes; return to Locations if its last visit disappears. New
+screens use a pushed destination, a sheet, or a Settings row inside this shape. `MainTabs` passes the
 scene-scoped `YearReportModel` by explicit init injection. The always-on
 `WhereSession` coordinator travels in the environment. Settings is a
 typed-route list (`SettingsSearch.swift`. Every switch is exhaustive). A

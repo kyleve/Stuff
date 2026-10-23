@@ -7,7 +7,7 @@ import Testing
 struct BackupSettingsSectionTests {
     @Test func hostsWithABackupModel() throws {
         let rootView = Form {
-            BackupSettingsSection(backup: PreviewSupport.backupModel())
+            BackupSettingsSection(backup: PreviewSupport.backupModel(), onExport: {})
         }
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)

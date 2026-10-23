@@ -137,7 +137,7 @@ class ProgressReporter:
     TEST_STARTED = re.compile(r"^◇\s+Test (?!run\b)(\S+?) started")
     TEST_DONE = re.compile(r"^[✔✘]\s+Test (?!run\b)(\S+?) (passed|failed) after")
     INTERESTING = re.compile(
-        r"does not match reference|^error:|Failure collecting|"
+        r"does not match reference|^error:|Failure collecting|^SNAPSHOT_RETRY |"
         r"\*\* TEST (SUCCEEDED|FAILED) \*\*"
     )
 
@@ -194,6 +194,11 @@ class ProgressReporter:
         if self.count_images and line.startswith("SNAPSHOT_TIMING "):
             self.images += 1
             self.emit()
+            return
+        if line.startswith("FLYOVER_EXPORT "):
+            self._clear_terminal()
+            print(f"    {line}", file=self.output, flush=True)
+            self.last_emit = 0.0
             return
         match = self.SUITE.match(line)
         if match:

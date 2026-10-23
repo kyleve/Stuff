@@ -1,0 +1,818 @@
+{
+  "coordinates" : "rotated",
+  "now" : 602393862,
+  "samples" : [
+    {
+      "coordinate" : {
+        "latitude" : 14.999999999999996,
+        "longitude" : -29.999999999999996
+      },
+      "horizontalAccuracy" : 6.219288953337886,
+      "id" : "00000000-0000-0000-0000-000000000012",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602251981
+    },
+    {
+      "coordinate" : {
+        "latitude" : 15.004601456850923,
+        "longitude" : -29.98611869665546
+      },
+      "horizontalAccuracy" : 39.77076637048455,
+      "id" : "00000000-0000-0000-0000-000000000051",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602252285
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.947055378371338,
+        "longitude" : -29.969941061695117
+      },
+      "horizontalAccuracy" : 21.14699855181954,
+      "id" : "00000000-0000-0000-0000-000000000008",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602252594
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.878479607972809,
+        "longitude" : -29.977778622019372
+      },
+      "horizontalAccuracy" : 2.004316481562049,
+      "id" : "00000000-0000-0000-0000-000000000045",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602252894
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.871529276659738,
+        "longitude" : -29.963044341517495
+      },
+      "horizontalAccuracy" : 104.16847629396878,
+      "id" : "00000000-0000-0000-0000-000000000038",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602253018
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.870569986306343,
+        "longitude" : -29.965233056344395
+      },
+      "horizontalAccuracy" : 50.464274631516616,
+      "id" : "00000000-0000-0000-0000-000000000049",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602253018
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.870569986306343,
+        "longitude" : -29.965233056344395
+      },
+      "horizontalAccuracy" : 50.464274631516616,
+      "id" : "00000000-0000-0000-0000-000000000027",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602253018
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.87104045938672,
+        "longitude" : -29.965439181733394
+      },
+      "horizontalAccuracy" : 19.22771084383668,
+      "id" : "00000000-0000-0000-0000-000000000048",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602253197
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.87104045938672,
+        "longitude" : -29.965439181733394
+      },
+      "horizontalAccuracy" : 19.22771084383668,
+      "id" : "00000000-0000-0000-0000-000000000030",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602253197
+    },
+    {
+      "coordinate" : {
+        "latitude" : 14.857118278441126,
+        "longitude" : -29.951094939633723
+      },
+      "horizontalAccuracy" : 64.86904772006527,
+      "id" : "00000000-0000-0000-0000-000000000001",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602259071
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.01828770432506,
+        "longitude" : 8.590824989443993
+      },
+      "horizontalAccuracy" : 1150.159121158516,
+      "id" : "00000000-0000-0000-0000-000000000043",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602277941
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.00391196281629,
+        "longitude" : 8.576478265924434
+      },
+      "horizontalAccuracy" : 1000,
+      "id" : "00000000-0000-0000-0000-000000000007",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602278269
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.00391196281629,
+        "longitude" : 8.576478265924434
+      },
+      "horizontalAccuracy" : 1000,
+      "id" : "00000000-0000-0000-0000-000000000013",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602278269
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.00345317952134,
+        "longitude" : 8.575007361834645
+      },
+      "horizontalAccuracy" : 55.4061746776524,
+      "id" : "00000000-0000-0000-0000-000000000034",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602278270
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.00747224255156,
+        "longitude" : 8.573188551713326
+      },
+      "horizontalAccuracy" : 25.79584330968255,
+      "id" : "00000000-0000-0000-0000-000000000003",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602279684
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.00680454467946,
+        "longitude" : 8.573699353851918
+      },
+      "horizontalAccuracy" : 35.47468315737931,
+      "id" : "00000000-0000-0000-0000-000000000055",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602279684
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.007380139143102,
+        "longitude" : 8.573216567596246
+      },
+      "horizontalAccuracy" : 35.57208447989186,
+      "id" : "00000000-0000-0000-0000-000000000029",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602279967
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.009339439103936,
+        "longitude" : 8.572633529237248
+      },
+      "horizontalAccuracy" : 88.64511422997433,
+      "id" : "00000000-0000-0000-0000-000000000044",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602279988
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.009665337815466,
+        "longitude" : 8.572665597051966
+      },
+      "horizontalAccuracy" : 25.696014,
+      "id" : "00000000-0000-0000-0000-000000000017",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602279988
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.012597982151487,
+        "longitude" : 8.575316207732522
+      },
+      "horizontalAccuracy" : 135.11386276992064,
+      "id" : "00000000-0000-0000-0000-000000000033",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602280484
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.010622603819762,
+        "longitude" : 8.566688904897278
+      },
+      "horizontalAccuracy" : 8.86389843898717,
+      "id" : "00000000-0000-0000-0000-000000000032",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602280785
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.021235035166917,
+        "longitude" : 8.55021176711745
+      },
+      "horizontalAccuracy" : 20.84054188397265,
+      "id" : "00000000-0000-0000-0000-000000000006",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602281093
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.055842715567376,
+        "longitude" : 8.532644468853535
+      },
+      "horizontalAccuracy" : 76.23067458616305,
+      "id" : "00000000-0000-0000-0000-000000000010",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602281319
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.055936289224775,
+        "longitude" : 8.532755624284432
+      },
+      "horizontalAccuracy" : 66.15899200482016,
+      "id" : "00000000-0000-0000-0000-000000000053",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602281319
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.05533660480666,
+        "longitude" : 8.532952223568078
+      },
+      "horizontalAccuracy" : 24.509942975561266,
+      "id" : "00000000-0000-0000-0000-000000000047",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602281397
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.053333971912707,
+        "longitude" : 8.527813011665046
+      },
+      "horizontalAccuracy" : 27.628129366472223,
+      "id" : "00000000-0000-0000-0000-000000000014",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602281913
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.070634026486537,
+        "longitude" : 8.461440962815875
+      },
+      "horizontalAccuracy" : 8.200598508936029,
+      "id" : "00000000-0000-0000-0000-000000000009",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602282214
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.077590541833825,
+        "longitude" : 8.428642675836079
+      },
+      "horizontalAccuracy" : 9.516823836111653,
+      "id" : "00000000-0000-0000-0000-000000000020",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602282515
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.0603140679768,
+        "longitude" : 8.369484127295134
+      },
+      "horizontalAccuracy" : 52.31703166166146,
+      "id" : "00000000-0000-0000-0000-000000000040",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602282991
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.060890587283744,
+        "longitude" : 8.37163717597147
+      },
+      "horizontalAccuracy" : 208.46284265876028,
+      "id" : "00000000-0000-0000-0000-000000000050",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602282991
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.060279648268466,
+        "longitude" : 8.371631140068152
+      },
+      "horizontalAccuracy" : 34.096014,
+      "id" : "00000000-0000-0000-0000-000000000025",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602282991
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.06519089735942,
+        "longitude" : 8.372601085589585
+      },
+      "horizontalAccuracy" : 133.4819059380654,
+      "id" : "00000000-0000-0000-0000-000000000026",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602283400
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.089211458149425,
+        "longitude" : 8.368971790914616
+      },
+      "horizontalAccuracy" : 1000,
+      "id" : "00000000-0000-0000-0000-000000000024",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602283700
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.089211458149425,
+        "longitude" : 8.368971790914616
+      },
+      "horizontalAccuracy" : 1000,
+      "id" : "00000000-0000-0000-0000-000000000002",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602283700
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.087088135681984,
+        "longitude" : 8.369095186233434
+      },
+      "horizontalAccuracy" : 23.650160002360536,
+      "id" : "00000000-0000-0000-0000-000000000042",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602283842
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.087784727034613,
+        "longitude" : 8.368815231090597
+      },
+      "horizontalAccuracy" : 83.35181632841598,
+      "id" : "00000000-0000-0000-0000-000000000004",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602283842
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.086236648474205,
+        "longitude" : 8.37459687467338
+      },
+      "horizontalAccuracy" : 27.46556441234187,
+      "id" : "00000000-0000-0000-0000-000000000018",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602288678
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.08710821520034,
+        "longitude" : 8.373419977660197
+      },
+      "horizontalAccuracy" : 115.16196087157806,
+      "id" : "00000000-0000-0000-0000-000000000011",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602288678
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.087211819720377,
+        "longitude" : 8.373391714676217
+      },
+      "horizontalAccuracy" : 24.835182152613914,
+      "id" : "00000000-0000-0000-0000-000000000035",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602288891
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.08994650065637,
+        "longitude" : 8.375755854705966
+      },
+      "horizontalAccuracy" : 36.43399366080372,
+      "id" : "00000000-0000-0000-0000-000000000036",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602289185
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.091011840169983,
+        "longitude" : 8.375885896393696
+      },
+      "horizontalAccuracy" : 53.04032554267304,
+      "id" : "00000000-0000-0000-0000-000000000021",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602289185
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.091859964062337,
+        "longitude" : 8.376848308195271
+      },
+      "horizontalAccuracy" : 15.656011291578189,
+      "id" : "00000000-0000-0000-0000-000000000054",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602289631
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.096285570944904,
+        "longitude" : 8.376469922473435
+      },
+      "horizontalAccuracy" : 4.744476269271388,
+      "id" : "00000000-0000-0000-0000-000000000041",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602289954
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.09631519102516,
+        "longitude" : 8.377570749551255
+      },
+      "horizontalAccuracy" : 2.9229345633005597,
+      "id" : "00000000-0000-0000-0000-000000000022",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602290065
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.09577421970222,
+        "longitude" : 8.371426360649842
+      },
+      "horizontalAccuracy" : 14.237603354966506,
+      "id" : "00000000-0000-0000-0000-000000000019",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602290493
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.0959058329566,
+        "longitude" : 8.370684963340807
+      },
+      "horizontalAccuracy" : 14.245403678597517,
+      "id" : "00000000-0000-0000-0000-000000000031",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602290493
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.0959058329566,
+        "longitude" : 8.370684963340807
+      },
+      "horizontalAccuracy" : 14.245403678597517,
+      "id" : "00000000-0000-0000-0000-000000000016",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602290493
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.095624962017098,
+        "longitude" : 8.372697198613777
+      },
+      "horizontalAccuracy" : 12.60075491178611,
+      "id" : "00000000-0000-0000-0000-000000000015",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602290631
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.09670669189429,
+        "longitude" : 8.367207091374802
+      },
+      "horizontalAccuracy" : 14.245954577599836,
+      "id" : "00000000-0000-0000-0000-000000000056",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602290788
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.096551605467265,
+        "longitude" : 8.367875946754632
+      },
+      "horizontalAccuracy" : 14.24595456027089,
+      "id" : "00000000-0000-0000-0000-000000000058",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602291049
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.096083323065148,
+        "longitude" : 8.365588357179737
+      },
+      "horizontalAccuracy" : 106.91714463866074,
+      "id" : "00000000-0000-0000-0000-000000000052",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602291112
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.09749959281437,
+        "longitude" : 8.365544379465282
+      },
+      "horizontalAccuracy" : 11.321381328875578,
+      "id" : "00000000-0000-0000-0000-000000000028",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602291112
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.09414188058636,
+        "longitude" : 8.363724596470984
+      },
+      "horizontalAccuracy" : 6.344439366866478,
+      "id" : "00000000-0000-0000-0000-000000000023",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602292051
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.089675884260764,
+        "longitude" : 8.363040994852934
+      },
+      "horizontalAccuracy" : 4.984537727061327,
+      "id" : "00000000-0000-0000-0000-000000000039",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602292385
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.088049099953775,
+        "longitude" : 8.3679649314612
+      },
+      "horizontalAccuracy" : 15.706887999098498,
+      "id" : "00000000-0000-0000-0000-000000000046",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602292792
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.088049099953775,
+        "longitude" : 8.3679649314612
+      },
+      "horizontalAccuracy" : 15.706887999098498,
+      "id" : "00000000-0000-0000-0000-000000000037",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602292792
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.088036272050363,
+        "longitude" : 8.367628192841524
+      },
+      "horizontalAccuracy" : 14.24595347037693,
+      "id" : "00000000-0000-0000-0000-000000000005",
+      "source" : {
+        "gpsSignificantChange" : {
+
+        }
+      },
+      "timestamp" : 602293008
+    },
+    {
+      "coordinate" : {
+        "latitude" : 24.086753464919934,
+        "longitude" : 8.36960181923414
+      },
+      "horizontalAccuracy" : 35.14347123343789,
+      "id" : "00000000-0000-0000-0000-000000000057",
+      "source" : {
+        "gpsVisit" : {
+
+        }
+      },
+      "timestamp" : 602293062
+    }
+  ]
+}

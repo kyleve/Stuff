@@ -31,8 +31,7 @@ struct PrivacyPassportCard: View {
             .padding(style.padding)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .onAppear { tilt.start() }
-        .onDisappear { tilt.stop() }
+        .observesTilt(tilt, enabled: style.surface.usesReflection)
     }
 }
 
@@ -47,5 +46,28 @@ struct PrivacyPassportCard: View {
                 .listRowInsets(EdgeInsets())
         }
         .whereBroadwayRoot()
+    }
+#endif
+
+#if DEBUG
+    import SnapshotKit
+
+    extension PrivacyPassportCard: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereThemeSnapshot(name: "Privacy", configurations: .componentDefaults) {
+                PrivacyPassportCard(
+                    presentation: PrivacyPassportPresentation(
+                        configuration: .defaults(isDebugBuild: false),
+                    ),
+                    disclosureInteraction: .linkToSettings,
+                )
+                .padding(24)
+                .background(.background)
+            }
+        }
+    }
+
+    #Preview("Themes") {
+        PrivacyPassportCard.snapshotPreviews
     }
 #endif

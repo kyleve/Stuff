@@ -16,6 +16,19 @@ struct RegionStyleResolverTests {
         #expect(california.tint == RegionColorToken.pink.color)
     }
 
+    @Test func pickedAppearanceWinsOverHashedColor() throws {
+        let nevada = try #require(Region(rawValue: "us-NV"))
+        let look = RegionAppearance(color: .purple, emoji: "🏜️", symbolName: .mountain2Fill)
+        let resolver = RegionStyleResolver(primaryRegions: [
+            PrimaryRegion(region: nevada, appearance: look, order: 0),
+        ])
+
+        let resolved = resolver.style(for: nevada)
+        #expect(resolved.tint == RegionColorToken.purple.color)
+        #expect(resolved.emoji == look.emoji)
+        #expect(resolved.symbol == look.symbolName.sfSymbol)
+    }
+
     @Test func unpickedRegionFallsBackToDefault() {
         let resolver = RegionStyleResolver(appearances: [:])
         let expected = RegionStyle.fallbackStyle(for: .newYork)
@@ -43,12 +56,14 @@ struct RegionStyleResolverTests {
         #expect(resolver.style(for: .california).symbol == expected.symbol)
     }
 
-    @Test func defaultAppearanceMatchesSharedCatalog() {
+    @Test(arguments: Region.allCases)
+    func defaultAppearanceMatchesSharedCatalog(region: Region) {
         // The customization pre-fill and the fallback share one source, so a
-        // region with no pick renders its catalog default.
-        let expected = RegionAppearanceCatalog.defaultAppearance(for: .california)
-        let fallback = RegionStyle.fallbackStyle(for: .california)
+        // region with no pick renders the same color on cards and map pins.
+        let expected = RegionAppearanceCatalog.defaultAppearance(for: region)
+        let fallback = RegionStyleResolver.default.style(for: region)
         #expect(fallback.emoji == expected.emoji)
         #expect(fallback.symbol == expected.symbolName.sfSymbol)
+        #expect(fallback.tint == expected.color.color)
     }
 }

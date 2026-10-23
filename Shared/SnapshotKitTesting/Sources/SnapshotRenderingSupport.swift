@@ -233,12 +233,14 @@ func settleForCapture(
 
         // Skipped entirely in `.quiescence` mode — not rendering it is the whole
         // point — so the expensive path only runs where its answer is used.
-        let sampledImage = mechanism == .quiescence ? nil : view.renderedContentSample()
-        let now = clock.now
-
-        var pixelSaysStable = false
-        if mechanism != .quiescence {
-            pixelSaysStable = pixelStability.observe(
+        var now = clock.now
+        // The normalized anchor survives in pixelStability; the UIKit sample
+        // and drawing intermediates must drain before the next suspension.
+        let pixelSaysStable = autoreleasepool {
+            let sampledImage = mechanism == .quiescence ? nil : view.renderedContentSample()
+            now = clock.now
+            guard mechanism != .quiescence else { return false }
+            return pixelStability.observe(
                 sampledImage?.cgImage,
                 at: start.duration(to: now),
             )

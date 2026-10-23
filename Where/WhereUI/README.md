@@ -16,14 +16,26 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 
 ## What you get
 
-The Elsewhere entry card uses a compact passport surface with neutral ink.
-Its count, separate background silhouettes, and microprint border share the ordered secondary regions.
-The catch-all Other region uses a background globe because it has no geographic outline.
-The card opens the existing Elsewhere list.
+Locations shows every configured primary region with recorded days.
+Elsewhere appears beside Locations when the selected year has other visits.
+Its compact cards name visited US jurisdictions, Canada, and the European Union
+from the existing catalog. Unknown visits stay under Other. Each card shows
+distinct recorded days and can show an optional place label. A multi-region
+day can appear on more than one card.
+The tab starts with the cards, over the shared region-outline background,
+without a separate heading or subheading.
+Short content is centered vertically. Longer content scrolls from the top,
+with bounce enabled only when it exceeds the viewport.
+
+Elsewhere cards open a day list and map from the same resolved snapshot. Day actions
+open the existing correction flow. These inferred names do not change calendar,
+report, or widget totals. Catalog names and counts work offline. Failed
+refreshes retain successful same-year content and offer retry.
 
 Completed flights appear in both history views. The calendar shows an airplane on each local flight day. Attachments and flights share one badge at the top-right of the day. The badge widens when both icons are present.
 Each calendar month is one accessibility element. Its label gives regional totals; its value reads chronological stay spans with dated attachment and flight cues.
-The timeline inserts a plane in a circle at departure, with the flight's date range beside the rail.
+The timeline inserts a plane in a circle at departure, with supported travel periods beside the rail.
+When arrival timing is uncertain, it labels that uncertainty and shows the later ground observation separately.
 A flight can split a displayed regional stay into segments without changing residency totals.
 A stay that began before departure and ends that day remains intact before the flight. The arrival stay follows the flight.
 Shorter visits interrupt longer displayed stays at their start day. Shared days remain counted once for each region.
@@ -50,9 +62,9 @@ Demo mode hides this surface and performs no update checks.
 - **`RootView`** — the app root: the typed launch plan (via
   [`LifecycleKit`](../../Shared/LifecycleKit), rendered by
   [`LifecycleKitUI`](../../Shared/LifecycleKitUI)'s container) gated in front of
-  `MainTabs`, the Liquid Glass tab bar over three tabs — Locations, Your Year,
-  Settings. Elsewhere is an entry card on Locations, Resolve a Locations toolbar
-  button, and the data screens (attachments, logged days, regions) sit in the
+  `MainTabs`, the Liquid Glass tab bar with Locations, optional Elsewhere,
+  Your Year, and Settings. Elsewhere has its own navigation stack. Resolve is
+  a Locations toolbar button, and the data screens (attachments, logged days, regions) sit in the
   Settings "Data" group. **Explore Features** starts with Your Places & Your Year
   and Recording & Devices. These guides explain cards, Elsewhere, calendars,
   Timeline, welcomes, automatic recording, and manual entries.
@@ -154,7 +166,8 @@ Demo mode hides this surface and performs no update checks.
   `refreshWidgetSnapshot()`). It holds no presentation state of its own.
 - **Scope-tiered models** — scene-scoped **`YearReportModel`** (the selected
   year's `YearReportDetails`, its `LoadState`, manual-day edit intents, and the shared
-  **`LocationForecastModel`** itinerary and Home-assumption mirror), plus
+  **`LocationForecastModel`** itinerary and Home-assumption mirror, and
+  **`ElsewhereModel`** catalog resolution and optional place labels), plus
   view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
   (Settings export progress and failures),
   **`RemindersSettingsModel`** (notification prefs),
@@ -175,13 +188,17 @@ Demo mode hides this surface and performs no update checks.
   services or presentation state.
   None reimplements Core rules.
 
+`DataSettingsView` owns the backup share sheet and error alert outside its `Form` sections.
+`BackupSettingsSection` shows export progress and forwards the export action to that screen.
+
 ### Flight status and GPS corrections
 
 Locations shows a quiet notice for this installation's recent flight evidence.
 The Resolve list keeps pending and completed flight reviews separate from
 its actionable issue count. Historical device labels use the latest saved name, including after device removal.
 A shared review shows recording devices, the last
-observation, flight evidence, and the exact sample edits. Apply includes only flights with supported arrival.
+observation, flight evidence, and the exact sample edits. Apply includes only flights with positive ground confirmation.
+Uncertain arrival timing permits exclusions only for independently supported airborne points.
 Completed flights remain correctable when another flight on the same day is pending.
 Each banner shows its flight's progress. Applying or dismissing the proposal retains pending flight information.
 Manual day editing stays available.
@@ -413,30 +430,71 @@ default empty resolver yields the fallback looks
 region-map viewer. The catalog also owns the selectable color/emoji/symbol
 option lists the picker shows.
 
-`WhereTheme` is the device-local presentation identity. Standard and Alternate
-currently resolve through identical Liquid Glass tokens; onboarding previews
-before commit, Appearance Settings persists immediately, and widgets and
-snippets receive the same identity through their cross-process snapshots.
+Automatic colors use a fixed FNV-1a hash of the permanent region ID across the
+selectable palette. The assignment does not depend on language, visit count, or
+card order. Cards, map pins, and customization defaults share that assignment.
+User-picked appearances and the original bespoke defaults take precedence.
 
-Regular `RegionSummaryCard`s ask the root-owned `RegionOutlinePathCache` for a
-medium SwiftUI path for the large security-print watermark and a small path for
-the seal inside the circular entry stamp. A separate micro path is repeated as
-a tangent-aligned microprint border around the card's inner perimeter. The UI
-cache derives all four resolutions from RegionKit's one cached source outline
-using its stateless simplifier. Compact cards retain the simpler symbol
-treatment. On the two large Locations cards, raw GPS fixes for the selected
-year are projected through that same geometry and reduced to a clipped,
-static constellation of glowing pinpricks. Manually logged days add no invented
-points. Settings > Appearance can hide or restore that constellation without
+`WhereTheme` is the device-local presentation identity. Standard uses Liquid
+Glass and reflective artwork. Flat uses opaque, strongly colored paper with
+printed edges and neutral drop shadows. It keeps the passport artwork and
+omits sheen, luminous glows, and GPS-dot halos. The welcome, Elsewhere, privacy,
+and estimate surfaces share this finish. System chrome stays native.
+
+Theme assembly starts with Standard defaults, resolves shared traits, then applies
+`WhereThemeOverrides`. Standard supplies empty overrides. `WhereFlatTheme` owns
+Flat's values and resolves them against the adjusted base. Its `BModeVarying`
+values keep light and dark choices together. Accessibility decisions stay explicit
+in the resolver.
+
+Overrides are `Equatable` values grouped by component. Omitted fields inherit the
+base, while explicit zero values disable effects. Application assigns only the
+specified fields. Views continue to consume complete component styles, and live
+Card Designer drafts compose over those styles.
+
+New custom components support both themes through their resolved styles.
+The [module rules](AGENTS.md) define surface treatments and required snapshot coverage.
+
+Flat adjusts region text colors for contrast against its opaque fills.
+The palette test covers every selectable region color in light and dark modes.
+
+Flat retains the persisted `alternate` raw value. Onboarding previews before
+commit. Appearance Settings persists immediately. Widgets and snippets
+receive the same identity through their cross-process snapshots. Their existing
+lightweight content and system backgrounds stay unchanged.
+
+Both `RegionSummaryCard` sizes ask the root-owned `RegionOutlinePathCache` for
+region artwork. The watermark uses a medium path, and the stamp seal uses a
+small path. A separate micro path is repeated as a tangent-aligned microprint
+border around the card's inner perimeter. The UI cache derives all four
+resolutions from RegionKit's one cached source outline using its stateless
+simplifier. Compact cards share the watermark, stamp silhouette, and border
+while retaining their smaller typography, spacing, and stamp size.
+Elsewhere uses that compact geometry on white paper, with neutral dark
+paper in dark mode. Silhouettes, stamps, and borders use the original region color
+with the shared decorative opacities. Text uses a separate contrast adjustment.
+Its cards omit annual progress bars. Compact primary specimens in theme pickers
+and galleries retain the selected Locations theme. Elsewhere uses the shared
+matte renderer in both themes. Flat supplies its outline and shadow and
+preserves the white or neutral-dark fill.
+Regions without geometry retain the symbol treatment. On both tabs, recorded
+fixes for the selected year are projected through that same geometry and
+reduced to a clipped, static constellation of glowing pinpricks. Manually logged days add no invented
+points. Elsewhere uses the same resolved coordinates as its day list and map.
+Settings > Appearance can hide or restore these dots on both tabs without
 altering the recorded data. Security-print layers use normal compositing in
-light mode. Dark mode mixes the region tint 65% toward white and uses luminosity
+light mode. On glass, dark mode mixes the region tint 65% toward white and uses luminosity
 blending, which keeps the ink legible without oversaturating it when interactive
 glass illuminates. Reduce Transparency removes the constellation halos while
 retaining the crisp centers.
 Live tilt is observed only by the sheen overlay, so its 60 Hz updates do not
-invalidate the card's text or Canvas artwork. The card adds no standalone edge
-stroke. Its containing Liquid Glass surface owns the subtle outer border so
-direct and production rendering do not diverge.
+invalidate the card's text or Canvas artwork. Observation runs only while a
+reflective surface is visible and active, with motion enabled. Standard's
+Liquid Glass supplies its border. Flat supplies an explicit printed stroke.
+The shared matte renderer owns fill, stroke, and shadow. It draws the translucent
+outline fully outside the clipped surface, without changing layout or hit bounds.
+Navigation zooms use the same resolved elevation. Card Designer drafts preserve
+the selected finish without changing their saved format.
 
 The Locations toolbar opens **Planned stays**. Each stay has an independent identity,
 a destination, and inclusive arrival and last-day windows. Exact dates use one day
@@ -463,16 +521,21 @@ Each timeline stay opens its own editor. Future intent never becomes recorded hi
 as dates pass. Appearance settings can hide estimates without removing plans or Home.
 The Estimated Time settings page also opens the planner.
 
-The shared estimate retains its passport-visa endorsement. A neutral microprint border
-repeats the two main location-card silhouettes. Solid and hatched treatments distinguish
+On Locations, the collapsible estimate uses soft glass with faint security print, primary-region watermarks, and a translucent black outer stroke.
+Flat appearance and Reduce Transparency use opaque paper. Calendar, Timeline, and discovery panels retain their passport-visa appearance.
+The estimate's outline sits outside the card in both Standard and Flat, blending with the surrounding background.
+`LocationForecastSummary` owns the Locations disclosure and expansion state. It shares
+`LocationForecastContent` (forecast rows and planning controls) with the always-expanded
+`LocationForecastPanel` used by Your Year and discovery. Neither shared content nor the detailed
+panel uses expansion state to choose its surface.
+A neutral microprint border repeats the two main location-card silhouettes. Solid and hatched treatments distinguish
 recorded totals from projected totals. The range band shows uncertainty at its outer edge.
 
-While the Locations cards are visible, a live reversal between the same two
-primary regions holds the previous counts and order through the existing reveal
+When Locations has exactly two visible primary cards, a live reversal between them holds the previous counts and order through the existing reveal
 delay. The winning card then passes above the other card and settles with the
 count morph and one haptic in the same beat. Initial loads, year changes, hidden
-updates, and a different region entering the primary pair update without the
-spatial flourish. Reduce Motion replaces the pass with a brief fade emphasis.
+updates, and changes involving more than two cards update without the spatial
+flourish. Reduce Motion replaces the pass with a brief fade emphasis.
 
 DEBUG builds include Card Designer Studio under Settings → Appearance. It
 edits a versioned, persisted draft of the regular, compact, and shared card
@@ -502,6 +565,7 @@ Screen identities derive from their view types. Each view declares its own
 registration and forward routes. Catalog tests check that each registration
 appears once. The planning routes connect Locations, Planned stays, and the
 individual stay editor.
+The catalog does not use source scanning or macros to discover navigation.
 
 Opening Flyover asynchronously builds one `WhereScope.demo` and shares its
 seeded in-memory services, preferences, and session across live frames. That
@@ -522,6 +586,19 @@ interactive viewport. Flyover's appearance, device, Dynamic Type, contrast,
 layout-direction, and bold-text choices are session-only and apply only to
 registered content.
 
+`WhereFlyoverWebExportTests` is the hosted static-export adapter. It reads the
+request supplied through test-runner environment values and otherwise returns without work. One
+`WhereFlyoverWorld` supplies every capture in an export. Its frozen date,
+in-memory store, in-memory preferences, no-op services, private logs, and
+Broadway root are the same synthetic fixtures used by native Flyover. The
+export never activates that scope or reads app data.
+
+`WhereFlyoverScreenID.exportIdentifier` maps normal screens to their reflected
+type name. Contextual screens include both reflected type names. Snapshot-backed
+variant IDs use the snapshot case name. These identifiers are stable web and
+deep-link identities; process-local `ObjectIdentifier` values never leave the
+runtime catalog.
+
 ### Artwork loading
 
 `regionArtworkTask` reads the root-injected outline cache and ties loading to the
@@ -530,10 +607,19 @@ from the latest uncancelled operation and hides artwork for mismatched display
 keys. Region cards use a separate static-artwork key to retain their outlines
 while recorded points refresh. Each surface owns its resolutions and rendering.
 
-### Locations background
+### Locations composition
+
+`LocationsView` owns navigation, sheets, the calendar transition namespace, and
+card presentation state. Its ranked content and short states render through
+separate named views, with shared flight-notice and estimate-panel components.
+These boundaries limit the SwiftUI value copies made during launch; the matching
+view-size tests guard each body against growth.
+
+### Locations and Elsewhere backgrounds
 
 The Locations root screen uses a stationary monochrome pattern of all regions
 visited in the selected year, including manually recorded visits and Elsewhere.
+Elsewhere reuses the same renderer with its resolved non-primary regions.
 The catch-all Other entry is omitted because it has no geographic outline.
 Catalog order keeps the pattern stable when card rankings change. Planned stays
 do not contribute. The shared outline cache supplies the region paths. Full-view
@@ -541,7 +627,8 @@ rosette rings sit behind staggered region outlines with a half-cell row offset. 
 regions receive a bounded size adjustment to balance their visual weight. The
 monochrome ink uses faint strokes without a shadow or blur. Appearance belongs
 to `WhereStylesheet.locationsBackground`; Reduce Transparency hides the ink.
-Empty, initial-loading, and failed screens show only the full-view rosette texture.
+Without resolved regions, the background shows only the full-view rosette texture.
+Elsewhere keeps its outlines with retained content during same-year refresh failures.
 
 ## Testing
 
@@ -571,3 +658,17 @@ for the mode values):
 ```
 
 Then review and commit the images.
+
+### Theme snapshot coverage
+
+`whereThemeSnapshot` renders a production component in every `WhereTheme`, with
+Standard first, as one labeled comparison sheet per trait configuration. Add
+component states beside their owning view. Use the broad component matrix for a
+representative state and focused light/dark cases for additional states.
+
+Use `whereSnapshot` for screen integration. Locations retains per-theme coverage;
+appearance pickers retain selection-state coverage. Avoid repeating entire screens
+for changes confined to a child component. Standard references keep existing paths,
+Flat screen references use `flat/`, and comparison sheets use `themes/`. Special
+traits nest under the group's `other/` directory. Review sheet PNGs before recording. Their embedded panel maps are part of the
+reference; preserve PNG metadata when copying them.

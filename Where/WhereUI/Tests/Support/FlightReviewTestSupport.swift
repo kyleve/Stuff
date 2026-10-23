@@ -20,6 +20,11 @@ enum FlightReviewTestSupport {
             peakSpeedKMH: 800,
             progress: .awaitingArrival,
             inferredEndpoints: [],
+            supportedIntervals: [.init(
+                start: date(hour: 12),
+                end: date(hour: 16.5),
+                kind: .observedMotion,
+            )],
         )
     }
 

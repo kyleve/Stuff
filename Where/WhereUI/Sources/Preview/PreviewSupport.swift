@@ -309,6 +309,20 @@
 
         // MARK: - Region picker / customization
 
+        /// Warms the injected cache before capture, including accessibility
+        /// reparenting. Pixel stability alone can accept the symbol fallback.
+        static func loadCardArtwork(
+            for regions: [Region],
+            cache: RegionOutlinePathCache,
+        ) async {
+            for region in regions {
+                guard !Task.isCancelled else { return }
+                _ = await cache.path(for: region, resolution: .small)
+                _ = await cache.path(for: region, resolution: .medium)
+                _ = await cache.path(for: region, resolution: .micro)
+            }
+        }
+
         /// A primary-region selection model seeded with a few US picks + looks,
         /// for the picker/customization previews and tests.
         @MainActor
@@ -382,6 +396,7 @@
             let model = YearReportModel(
                 services: previewServices(),
                 details: YearReportDetails(
+                    primaryRegions: [.california, .newYork],
                     report: YearReport(
                         year: completeReport.year,
                         days: recordedDays,
@@ -461,6 +476,7 @@
         /// in production, built synchronously for previews and image tests.
         public static func sampleYearReportDetails() -> YearReportDetails {
             YearReportDetails(
+                primaryRegions: [.california, .newYork],
                 report: sampleReport(),
                 primaryRegionLocations: sampleRegionLocations(),
             )
@@ -548,6 +564,7 @@
             YearReportModel(
                 services: previewServices(),
                 details: YearReportDetails(
+                    primaryRegions: [.california, .newYork],
                     report: YearReport(year: year, days: [], totals: [:]),
                     primaryRegionLocations: [:],
                 ),
@@ -559,7 +576,7 @@
 
         /// A report model whose only tracked days are in `.other` — there's data,
         /// but nothing ranks as "primary". Exercises the Primary tab's distinct
-        /// "nothing in your headline spots" state.
+        /// "no days in your primary regions" state.
         @MainActor
         public static func elsewhereOnlyYearReportModel() -> YearReportModel {
             var calendar = Calendar(identifier: .gregorian)
@@ -575,6 +592,7 @@
             return YearReportModel(
                 services: previewServices(),
                 details: YearReportDetails(
+                    primaryRegions: [.california, .newYork],
                     report: YearReport(year: year, days: days, totals: [.other: days.count]),
                     primaryRegionLocations: [:],
                 ),
@@ -606,6 +624,7 @@
             return YearReportModel(
                 services: previewServices(),
                 details: YearReportDetails(
+                    primaryRegions: [.california, .newYork],
                     report: YearReport(
                         year: year,
                         days: days,

@@ -281,6 +281,7 @@ func unitTests(
     bundleIdSuffix: String,
     productDependency: String,
     sources: ProjectDescription.SourceFilesList,
+    resources: ResourceFileElements = [],
     extraPackageProducts: [String] = [],
     environmentVariables: [String: EnvironmentVariable] = [:],
     scripts: [TargetScript] = [],
@@ -300,6 +301,7 @@ func unitTests(
         bundleId: "com.stuff.\(bundleIdSuffix).tests",
         deploymentTargets: deployment,
         sources: sources,
+        resources: resources,
         scripts: scripts,
         dependencies: dependencies,
         environmentVariables: packageResourceEnvironment
@@ -749,7 +751,8 @@ let project = Project(
             name: "WhereCoreTests",
             bundleIdSuffix: "wherecore",
             productDependency: "WhereCore",
-            sources: ["Where/WhereCore/Tests/**"],
+            sources: ["Where/WhereCore/Tests/**/*.swift"],
+            resources: [.folderReference(path: "Where/WhereCore/Tests/Fixtures/Flights")],
             extraPackageProducts: ["RegionKit"],
         ),
         // WhereUITests names LifecycleKit and SFSafeSymbols because its test sources

@@ -2,7 +2,7 @@ import BroadwayUI
 import RegionKit
 import SwiftUI
 
-/// Stationary, noninteractive paper texture for the root Locations viewport.
+/// Stationary, noninteractive paper texture shared by Locations and Elsewhere.
 struct LocationsBackground: View {
     let regions: [Region]
 

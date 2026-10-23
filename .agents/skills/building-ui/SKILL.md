@@ -19,6 +19,8 @@ current SwiftUI API, performance, and platform guidance.
 2. Inspect the feature's existing views, view models, reusable components,
    Broadway root, stylesheet, preview fixtures, and snapshot declarations
    before designing another path.
+   Check supported themes and their local surface rules before choosing materials.
+   For Where, follow the [theme rules](../../../Where/WhereUI/AGENTS.md).
 3. Extend an existing view with a mode or shared subview when two surfaces
    express the same concept. Keep screen-specific registration and rendering
    declarations beside the represented screen.
@@ -66,6 +68,14 @@ For a module that owns a design language:
    trait-reactive slice in `init(context:)`, starting from those defaults.
 5. Test default values, trait derivation, environment resolution, and every
    exported root path.
+
+When a module separates theme definitions from its base stylesheet:
+
+- Follow the module's documented order for base defaults, trait resolution, and theme overrides.
+- Keep theme values and theme-specific trait decisions in the definition. Keep application limited to assigning resolved fields.
+- Use `BModeVarying` for paired light/dark values, selected with the slice's explicit mode.
+- Test inheritance, explicit zero overrides, and preservation of unrelated component state.
+- For Where's concrete contract, follow the [module theme rules](../../../Where/WhereUI/AGENTS.md).
 
 Organize tokens by ownership:
 
@@ -140,7 +150,23 @@ See the WhereUI [design-system guide](../../../Where/WhereUI/README.md#design-sy
 for the fullest production example and PeriscopeTools/Flyover for smaller
 module-owned stylesheets.
 
+## Blend subtle card outlines with their surroundings
+
+- For subtle outlines that separate glass or matte cards from their background, place the
+  entire stroke outside the surface. Apply it after clipping the fill and
+  artwork so the stroke remains visible without changing layout or hit bounds.
+- Use a translucent stroke color so the surrounding background shows through.
+  For a neutral dark outline, use black with low opacity instead of solid gray.
+  Keep color, opacity, and width in the owning stylesheet; preserve required contrast.
+- In SwiftUI, `strokeBorder` draws inward and `stroke` straddles the edge.
+  To draw fully outside an insettable shape, use
+  `shape.inset(by: -width).strokeBorder(color, lineWidth: width)`.
+- Check the outline against the actual surrounding colors in each supported theme and
+  light/dark appearances. Inspect corners and clipping as well as straight edges.
+
 ## Build with Liquid Glass
+
+Apply these rules only when the resolved component style uses glass.
 
 - Put related glass effects in one nearest `GlassEffectContainer` only when
   they must blend or morph.
@@ -236,6 +262,18 @@ API reference: [Apple's custom-glass guidance](https://developer.apple.com/docum
   same source file and render `Self.snapshotPreviews` from the preview. Declare
   the matrix once and use one `FooSnapshotTests` suite/file per represented
   view.
+- Choose theme coverage from the module's `AGENTS.md`. Prefer one component
+  comparison sheet containing all supported themes for each representative state
+  and trait configuration. Build fresh fixture state per panel and preserve normal
+  component width, production behavior, and artwork readiness.
+- For generic comparison sheets, use `SnapshotCase.cutsheet { SnapshotPanel(...) { ... } }`.
+  Keep panel identities stable and choose the reference group explicitly when grouping related sheets.
+  Use a module's theme helper when it supplies that module's root and theme ordering.
+- Keep full-screen theme variants for critical integration or materially different
+  screen composition. Do not multiply screen matrices for child-surface changes.
+- Use explicit reference groups: mixed-theme sheets have a neutral group; single-theme
+  screen references use a stable consumer-owned theme group. Keep existing default
+  theme paths. Never encode a directory in a case name or localized theme label.
 - Snapshot the production branch. Use a stand-in only for externally loaded or
   wall-clock-dependent content that no settle window can stabilize, keep its
   layout identical, and encapsulate the substitution inside the shared

@@ -93,7 +93,8 @@ Runs this repo's tests against the simulator this checkout owns, streaming
 progress as it goes. With no arguments it runs only the bundles affected by the
 working tree's changes. Every normal invocation first validates and tests the
 Bumper Bowling rules, then enforces the architecture. Unit and affected scopes
-also run the fast host-side backup-upgrader regression suite.
+also run the fast host-side backup-upgrader regression suite. Every normal
+invocation runs the fast Flyover command regression suite.
 
 Scope:
   (no arguments)    Bundles affected by the diff against origin/main, including
@@ -286,6 +287,10 @@ if [ "$ARCHITECTURE_ONLY" = true ]; then
 fi
 
 if [ "$RUN_HOST_TESTS" = true ]; then
+    if [ -f Shared/Flyover/Tools/Tests/flyover_test.sh ]; then
+        echo "==> Testing flyover command"
+        bash Shared/Flyover/Tools/Tests/flyover_test.sh
+    fi
     echo "==> Testing attribution generator"
     mise exec -- ruby Shared/CreditKit/Tools/Tests/generate_attribution_test.rb
 fi
@@ -585,6 +590,12 @@ RUN_ENV=()
 [ "$REVIEW" = true ] && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_DIFF=1")
 [ -n "${SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER:-}" ] \
     && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER=$SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER")
+for flyover_name in DIRECTORY PROFILES COMMIT DIRTY BRANCH GENERATED_AT XCODE_VERSION SIMULATOR_DEVICE SIMULATOR_OS; do
+    flyover_variable="FLYOVER_EXPORT_$flyover_name"
+    if [ -n "${!flyover_variable:-}" ]; then
+        RUN_ENV+=("TEST_RUNNER_$flyover_variable=${!flyover_variable}")
+    fi
+done
 
 # SwiftPM's generated `Bundle.module` accessors honor
 # PACKAGE_RESOURCE_BUNDLE_PATH as their first lookup candidate (DEBUG-only,

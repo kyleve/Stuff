@@ -232,6 +232,15 @@ struct PresenceTimelineList: View {
                             .flightHistoryYearReportModel())
                     }
                 },
+                whereSnapshot(
+                    name: "UncertainArrival",
+                    configurations: .fullContentScreenDefaults,
+                ) {
+                    NavigationStack {
+                        PresenceTimelineList(report: PreviewSupport
+                            .flightYearReportModel(state: .uncertainArrival))
+                    }
+                },
                 whereSnapshot(name: "Itinerary", configurations: .fullContentScreenDefaults) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport.itineraryYearReportModel())
