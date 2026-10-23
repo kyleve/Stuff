@@ -47,7 +47,11 @@ The application retains cards during selection and overlay changes. Only view sw
 Group navigation updates the retained canvas and dock labels, including selections from Search and Filters.
 State and profile changes update existing previews. Inspector selection changes replace only the overlay and preserve reading position.
 The cleanup function returned by `startAtlas` removes global listeners, scheduled work, observers, and mounted DOM.
-`src/styles/styles.css` retains the viewer's responsive styles.
+`src/styles/styles.css` declares the cascade order and imports the stylesheets.
+`tokens.css` owns shared colors, dimensions, and theme values. `base.css` owns shared controls and document defaults.
+Shell, canvas, list, panel, and inspector styles live in separate files. Each file includes its responsive overrides.
+The `responsive` layer follows component styles, so device adaptations do not require stronger selectors.
+`accessibility.css` owns cross-component motion and transparency preferences. Native modal behavior keeps background controls out of keyboard navigation.
 
 The native manifest schema remains version 1. The exporter no longer writes `manifest.js`.
 Regenerate earlier artifacts before using the new preview command.
@@ -57,7 +61,9 @@ PNG capture, thumbnail generation, and geometry remain native responsibilities.
 
 Playwright loads the production Astro build with synthetic PNG captures under a nested HTTP path.
 The suite covers Chromium and WebKit at desktop, portrait, and landscape widths.
-It checks modal frame cancellation, overlapping profile and history navigation, inspector position reset, select sizing, dark action contrast, and visible-image loading.
+It checks modal lifetime and focus, overlapping profile and history navigation, inspector position reset, control sizing, dark action contrast, and visible-image loading.
 Group navigation tests cover Groups, Search, and Filters without replacing the canvas.
+It also covers selectable text, reduced motion, all capture sizing classes, and unsupported schemas.
+Mobile route targets use the shared 44-pixel minimum. Inspector focus changes must not scroll the outer dialog during drawer transitions.
 Unit tests import production modules directly. They do not evaluate extracted source strings or emulate browser history.
 These tests do not replace native capture tests.
