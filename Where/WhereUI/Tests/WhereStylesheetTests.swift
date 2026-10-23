@@ -405,6 +405,22 @@ struct WhereStylesheetTests {
 
     @Test func calendarStyle() {
         let calendar = style.calendar
+        #expect(calendar.overview.columns == 3)
+        #expect(calendar.overview.spacing == 8)
+        #expect(calendar.overview.padding == 6)
+        #expect(calendar.overview.cornerRadius == 12)
+        #expect(calendar.overview.dayHeight == 12)
+        #expect(calendar.overview.dayFontSize == 8)
+        #expect(calendar.overview.titleFontSize == 13)
+        #expect(calendar.overview.sectionSpacing == 4)
+        #expect(calendar.overview.unavailableOpacity == 0.45)
+        #expect(calendar.overview.usesSpatialMotion)
+        #expect(calendar.overview.duration == 0.25)
+        #expect(calendar.overview.shakeDistance == 4)
+        #expect(calendar.compact.month.gridSpacing == 1)
+        #expect(calendar.compact.day.minHeight == 12)
+        #expect(calendar.compact.day.numberSize == 10)
+        #expect(calendar.compact.day.dotSize == 2)
         #expect(calendar.monthSpacing == 16)
         #expect(calendar.dotSize == 6)
         #expect(calendar.regionBand.opacity == 0.16)
@@ -469,6 +485,7 @@ struct WhereStylesheetTests {
 
     @Test func locationForecastStyle() {
         let forecast = style.locationForecast
+        #expect(forecast.compact.padding == 6)
         #expect(forecast.cornerRadius == 22)
         #expect(forecast.padding == 16)
         #expect(forecast.rowSpacing == 12)
@@ -988,6 +1005,10 @@ struct WhereStylesheetTests {
         var context = BContext(traits: .system)
         context.traitOverrides.contentSizeCategory = .accessibilityLarge
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.calendar.overview.columns == 1)
+        #expect(resolved.calendar.overview.titleFontSize == 22)
+        #expect(resolved.calendar.compact.day.minHeight == 28)
+        #expect(resolved.calendar.compact.day.numberFontSize == 16)
         #expect(resolved.calendar.day.minHeight == 56)
         #expect(resolved.calendar.day.numberSize == 36)
         #expect(resolved.calendar.day.numberFontSize == 24)
@@ -1042,6 +1063,7 @@ struct WhereStylesheetTests {
         var context = BContext(traits: .system)
         context.traitOverrides.accessibility = BAccessibility(isReduceMotionEnabled: true)
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.calendar.overview.usesSpatialMotion == false)
         #expect(resolved.card.dayCount == .reducedMotion)
         #expect(resolved.locationCardStack.overtake == .reducedMotion)
         #expect(resolved.locationCardStack.overtake.minimumOpacity == 0.82)

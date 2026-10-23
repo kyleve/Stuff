@@ -307,7 +307,7 @@ struct LocationsView: View {
                 microprintRegions: primaryRegions,
                 homeRegion: report.forecasts.planning.homeRegion,
                 planningAction: { planningDestination = .list },
-                isCollapsible: true,
+                presentation: .collapsible,
             )
         }
     }

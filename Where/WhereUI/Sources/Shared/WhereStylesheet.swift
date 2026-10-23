@@ -75,6 +75,10 @@ struct WhereStylesheet: BStylesheet {
             featureDiscovery.regionStyle.layout = .stacked
             featureDiscovery.shareSheet = .accessible
             featureDiscovery.evidenceArchive = .accessible
+            calendar.overview.columns = 1
+            calendar.overview.dayHeight = 28
+            calendar.overview.dayFontSize = 16
+            calendar.overview.titleFontSize = 22
             calendar.day.minHeight = 56
             calendar.day.numberFontSize = 24
             calendar.day.numberSize = 36
@@ -114,6 +118,7 @@ struct WhereStylesheet: BStylesheet {
         // Reduce Motion stops the cards' day count rolling its digits; it
         // crossfades to the new number instead.
         if traits.accessibility.isReduceMotionEnabled {
+            calendar.overview.usesSpatialMotion = false
             launch.reveal = .crossfade
             launch.revealAnimation = motion.reducedReveal
             launch.captionAnimation = nil
@@ -367,6 +372,12 @@ extension WhereStylesheet {
     /// Passport-visa appearance for the annual estimate shared by Locations,
     /// calendars, and Estimated Time feature discovery.
     struct LocationForecastStyle: Equatable {
+        var compact = Compact()
+
+        struct Compact: Equatable {
+            var padding: CGFloat = 6
+        }
+
         var cornerRadius: CGFloat
         var padding: CGFloat
         var rowSpacing: CGFloat
@@ -1299,6 +1310,54 @@ extension WhereStylesheet {
     /// scattered generic tokens) keeps its full spec in one place and gives a
     /// future theme a single surface to reskin.
     struct CalendarStyle: Equatable {
+        var overview = Overview()
+
+        struct Overview: Equatable {
+            var columns = 3
+            var spacing: CGFloat = 8
+            var padding: CGFloat = 6
+            var cornerRadius: CGFloat = 12
+            var dayHeight: CGFloat = 12
+            var dayFontSize: CGFloat = 8
+            var titleFontSize: CGFloat = 13
+            var sectionSpacing: CGFloat = 4
+            var unavailableOpacity: Double = 0.45
+            var usesSpatialMotion = true
+            var duration: Double = 0.25
+            var shakeDistance: CGFloat = 4
+
+            var animation: Animation {
+                .easeInOut(duration: duration)
+            }
+
+            var transition: AnyTransition {
+                usesSpatialMotion ? .scale(scale: 0.94).combined(with: .opacity) : .opacity
+            }
+        }
+
+        /// Compact geometry uses the same day and stay-band renderer as month detail.
+        var compact: Self {
+            var result = self
+            result.month.sectionSpacing = overview.sectionSpacing
+            result.month.gridSpacing = 1
+            result.month.weekdayFontSize = overview.dayFontSize
+            result.month.padding = overview.padding
+            result.month.cornerRadius = overview.cornerRadius
+            result.day.minHeight = overview.dayHeight
+            result.day.numberSize = overview.dayHeight - 2
+            result.day.numberFontSize = overview.dayFontSize
+            result.day.numberDotSpacing = 0
+            result.day.dotSize = 2
+            result.day.dotOverlap = 1
+            result.day.dotStrokeWidth = 0
+            result.day.contentSpacing = 0
+            result.regionBand.verticalInset = 0
+            result.regionBand.cornerRadius = 3
+            result.regionBand.continuationRadius = 1
+            result.regionBand.planned.hatchSpacing = 3
+            return result
+        }
+
         /// Vertical spacing between month sections in the scroll.
         var monthSpacing: CGFloat
         var month: MonthStyle

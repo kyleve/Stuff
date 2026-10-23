@@ -102,6 +102,7 @@ Layering, localization, preview, and testing conventions live in the feature
   `YearReportModel` scan result. Inject that scene as the Resolve model's `ResolutionSource`. Re-key on raw evidence changes; never gate refresh
   on aggregate-report equality. Schedule presentation deadlines only in the foreground.
 - Expose each calendar month as one accessibility element: regional totals in the label, chronological stay spans and dated badges in the value. Preserve planning qualifiers. Guard: `CalendarMonthAccessibilityTests`.
+- Keep overview availability derived from the full-size calendar visibility rule in `CalendarPresentationModel`. Gray months remain actionable for rejection feedback. Guard: `CalendarPresentationModelTests`.
 - Keep calendar flight days and timeline flight events independent of review dismissal.
   Split timeline stays only for presentation; preserve every region-day exactly once.
 - Keep the raw GPS path visible in correction reviews after samples lose attribution.

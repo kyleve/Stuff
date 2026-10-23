@@ -10,7 +10,19 @@ struct LocationForecastPanel: View {
     let microprintRegions: [Region]
     var homeRegion: Region?
     var planningAction: (() -> Void)?
-    var isCollapsible = false
+    enum Presentation {
+        case full, collapsible, compact
+    }
+
+    var presentation: Presentation = .full
+
+    private var isCollapsible: Bool {
+        presentation == .collapsible
+    }
+
+    private var isCompact: Bool {
+        presentation == .compact
+    }
 
     @State private var isExpanded = false
     @State private var artworkModel = RegionArtworkModel<[Region], [Path]>()
@@ -30,7 +42,17 @@ struct LocationForecastPanel: View {
         let showsContent = !isCollapsible || isExpanded
 
         VStack(alignment: .leading, spacing: style.rowSpacing) {
-            if isCollapsible {
+            if isCompact {
+                Text(.calendarEstimateTile)
+                    .font(.caption.weight(.semibold))
+                ForEach(forecasts, id: \.region) { forecast in
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(forecast.region.localizedName)
+                        Text(WhereFormat.dayCount(forecast.estimatedTotalDays))
+                    }
+                    .font(.caption2)
+                }
+            } else if isCollapsible {
                 LocationForecastHeader(
                     elapsedDays: forecasts.first?.elapsedDays,
                     isExpanded: showsContent,
@@ -43,7 +65,7 @@ struct LocationForecastPanel: View {
                 )
             }
 
-            if showsContent {
+            if showsContent, !isCompact {
                 VStack(alignment: .leading, spacing: style.rowSpacing) {
                     ForEach(forecasts, id: \.region) { forecast in
                         LocationForecastRow(
@@ -64,7 +86,7 @@ struct LocationForecastPanel: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .padding(style.padding)
+        .padding(isCompact ? style.compact.padding : style.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             ZStack {
