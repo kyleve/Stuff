@@ -488,9 +488,10 @@ Live tilt is observed only by the sheen overlay, so its 60 Hz updates do not
 invalidate the card's text or Canvas artwork. Observation runs only while a
 reflective surface is visible and active, with motion enabled. Standard's
 Liquid Glass supplies its border. Flat supplies an explicit printed stroke.
-The shared matte renderer owns fill, stroke, and shadow. Navigation zooms use
-the same resolved elevation. Card Designer drafts preserve the selected finish
-without changing their saved format.
+The shared matte renderer owns fill, stroke, and shadow. It draws the translucent
+outline fully outside the clipped surface, without changing layout or hit bounds.
+Navigation zooms use the same resolved elevation. Card Designer drafts preserve
+the selected finish without changing their saved format.
 
 The Locations toolbar opens **Planned stays**. Each stay has an independent identity,
 a destination, and inclusive arrival and last-day windows. Exact dates use one day
@@ -517,8 +518,14 @@ Each timeline stay opens its own editor. Future intent never becomes recorded hi
 as dates pass. Appearance settings can hide estimates without removing plans or Home.
 The Estimated Time settings page also opens the planner.
 
-The shared estimate retains its passport-visa endorsement. A neutral microprint border
-repeats the two main location-card silhouettes. Solid and hatched treatments distinguish
+On Locations, the collapsible estimate uses soft glass with faint security print, primary-region watermarks, and a translucent black outer stroke.
+Flat appearance and Reduce Transparency use opaque paper. Calendar, Timeline, and discovery panels retain their passport-visa appearance.
+The estimate's outline sits outside the card in both Standard and Flat, blending with the surrounding background.
+`LocationForecastSummary` owns the Locations disclosure and expansion state. It shares
+`LocationForecastContent` (forecast rows and planning controls) with the always-expanded
+`LocationForecastPanel` used by Your Year and discovery. Neither shared content nor the detailed
+panel uses expansion state to choose its surface.
+A neutral microprint border repeats the two main location-card silhouettes. Solid and hatched treatments distinguish
 recorded totals from projected totals. The range band shows uncertainty at its outer edge.
 
 When Locations has exactly two visible primary cards, a live reversal between them holds the previous counts and order through the existing reveal

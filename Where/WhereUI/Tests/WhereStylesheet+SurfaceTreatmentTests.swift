@@ -34,6 +34,7 @@ struct WhereStylesheetSurfaceTreatmentTests {
             sheet.locationWelcome.surface,
             sheet.locationWelcome.close.surface,
             sheet.privacyPassportCard.surface,
+            sheet.locationForecast.summary.treatment,
         ]
         for surface in surfaces {
             guard case let .matte(style) = surface else {
@@ -54,11 +55,25 @@ struct WhereStylesheetSurfaceTreatmentTests {
         #expect(sheet.card.constellation.coreOpacity == WhereStylesheet.default.card.constellation
             .coreOpacity)
         #expect(sheet.locationForecast.ink.surfaceWashOpacity == 0)
+        #expect(sheet.locationForecast.summary.shadowOpacity == 0)
         #expect(sheet.card.securityPrint.backgroundBlendMode == .normal)
         #expect(sheet.card
             .dayCount == (accessibility.isReduceMotionEnabled ? .reducedMotion : .standard))
         #expect(sheet.locationWelcome
             .motion == (accessibility.isReduceMotionEnabled ? .reduced : .standard))
+    }
+
+    @Test(arguments: [BMode.light, .dark])
+    func estimateSummaryUsesPaperWithReducedTransparency(mode: BMode) throws {
+        var context = BContext(traits: .system)
+        context.traitOverrides.mode = mode
+        context.traitOverrides.accessibility = BAccessibility(isReduceTransparencyEnabled: true)
+        let sheet = try context.stylesheets.get(WhereStylesheet.self)
+        let summary = sheet.locationForecast.summary
+        #expect(summary.usesOpaquePaper)
+        #expect(summary.shadowOpacity == 0)
+        #expect(summary.paper == (mode == .light ? Color(white: 0.94) : Color(white: 0.16)))
+        #expect(sheet.locationForecast.surface == WhereStylesheet.default.locationForecast.surface)
     }
 
     @Test(arguments: [BMode.light, .dark])

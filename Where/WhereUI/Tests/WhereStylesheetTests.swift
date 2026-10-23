@@ -516,6 +516,42 @@ struct WhereStylesheetTests {
 
     @Test func locationForecastStyle() {
         let forecast = style.locationForecast
+        #expect(forecast.summary.cornerRadius == 28)
+        #expect(forecast.summary.padding == 22)
+        #expect(forecast.summary.artwork.widthFraction == 0.62)
+        #expect(forecast.summary.artwork.inset == 16)
+        #expect(forecast.summary.artwork.gap == 8)
+        #expect(forecast.summary.artwork.leadingOpacity == 0.18)
+        #expect(forecast.summary.artwork.silhouette == .init(
+            center: CGPoint(x: 0.5, y: 0.5),
+            extent: CGSize(width: 0.9, height: 0.9),
+            scale: 1,
+            fillOpacity: 0.11,
+            stroke: .init(opacity: 0.22, width: 0.7),
+        ))
+        #expect(forecast.summary.treatment == .reflective)
+        #expect(forecast.summary.usesOpaquePaper == false)
+        #expect(forecast.summary.ink == Color(white: 0.36))
+        #expect(forecast.summary.paper == Color(white: 0.94))
+        #expect(forecast.summary.glassTintOpacity == 0.06)
+        #expect(forecast.summary.outlineColor == Color.black.opacity(0.14))
+        #expect(forecast.summary.outlineWidth == 1)
+        #expect(forecast.summary.shadowOpacity == 0.06)
+        #expect(forecast.summary.shadowRadius == 8)
+        #expect(forecast.summary.shadowOffsetY == 3)
+        #expect(forecast.summary.rosetteOpacity == 0.035)
+        #expect(forecast.summary.rosette == .init(
+            wobble: 0.04,
+            lineWidth: 0.5,
+            primaryRingSpacing: 12,
+            secondaryRingSpacing: 17,
+        ))
+        #expect(forecast.summary.border == .init(
+            inset: 7,
+            glyphSize: 7,
+            spacing: 12,
+            opacity: 0.18,
+        ))
         #expect(forecast.cornerRadius == 22)
         #expect(forecast.padding == 16)
         #expect(forecast.rowSpacing == 12)
@@ -1075,7 +1111,10 @@ struct WhereStylesheetTests {
         var context = BContext(traits: .system)
         context.traitOverrides.mode = .dark
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
-        #expect(resolved.locationForecast == style.locationForecast)
+        var expectedForecast = style.locationForecast
+        expectedForecast.summary.ink = Color(white: 0.78)
+        expectedForecast.summary.paper = Color(white: 0.16)
+        #expect(resolved.locationForecast == expectedForecast)
         #expect(resolved.card.securityPrint == .dark)
         #expect(resolved.featureDiscovery.siri.accent == Color(white: 0.42))
         #expect(resolved.card.securityPrint.backgroundBlendMode == .luminosity)
