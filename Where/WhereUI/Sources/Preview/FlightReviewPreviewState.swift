@@ -14,6 +14,63 @@
     }
 
     extension PreviewSupport {
+        /// A short visit interrupts a longer stay before a shared flight day.
+        @MainActor
+        static func interruptedStayYearReportModel() -> YearReportModel {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(identifier: "America/New_York")!
+            let days = (13 ... 23).map { day in
+                var regions: Set<Region> = []
+                if day <= 20 { regions.insert(.newYork) }
+                if day == 14 { regions.insert(.other) }
+                if day >= 20 { regions.insert(.california) }
+                return DayPresence(
+                    day: CalendarDay(year: year, month: 9, day: day),
+                    regions: regions,
+                )
+            }
+            let now = CalendarDay(year: year, month: 9, day: 23).startOfDay(in: calendar)
+            let report = DayAggregator(calendar: calendar, timeZone: calendar.timeZone)
+                .report(for: year, history: [], manualDays: days)
+            let model = YearReportModel(
+                services: previewServices(),
+                details: YearReportDetails(report: report, primaryRegionLocations: [:]),
+                selectedYear: year,
+                preferences: previewPreferences(),
+                now: { now },
+            )
+            let departure = calendar.date(from: DateComponents(
+                year: year,
+                month: 9,
+                day: 20,
+                hour: 12,
+            ))!
+            let arrival = calendar.date(byAdding: .hour, value: 6, to: departure)!
+            let flight = FlightAssessment(
+                id: .init(
+                    recordingSource: .legacy,
+                    departureSampleID: UUID(uuidString: "00000000-0000-0000-0000-000000000802")!,
+                ),
+                startedAt: departure,
+                lastObservationAt: arrival,
+                lastFlightAt: departure,
+                airborneSampleIDs: [],
+                groundSampleIDs: [],
+                peakSpeedKMH: 900,
+                progress: .completed(arrivedAt: arrival),
+                inferredEndpoints: [],
+            )
+            model.forecasts.setPlanning(PlanningSnapshot(stays: [], homeRegion: nil))
+            model.setDataIssueScan(DataIssueScanResult(
+                revision: UUID(uuidString: "00000000-0000-0000-0000-000000000803")!,
+                issues: [],
+                reviews: [],
+                completedFlights: [flight],
+                nextReassessmentAt: nil,
+            ))
+            return model
+        }
+
         @MainActor
         static func flightYearReportModel(state: FlightReviewPreviewState) -> YearReportModel {
             let report = loadedYearReportModel()

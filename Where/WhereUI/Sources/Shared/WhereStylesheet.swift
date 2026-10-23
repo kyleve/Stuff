@@ -1760,6 +1760,13 @@ extension WhereStylesheet {
 
         /// Spacing and surface treatment within each journey row.
         struct Row: Equatable {
+            struct Sizing: Equatable {
+                var baseHeight: CGFloat
+                var verticalPadding: CGFloat
+            }
+
+            /// Single-day stops use their content height and less vertical padding.
+            var singleDay = Sizing(baseHeight: 0, verticalPadding: 8)
             var spacing: CGFloat
             var labelSpacing: CGFloat
             var gap: CGFloat
@@ -1778,6 +1785,13 @@ extension WhereStylesheet {
             var countFillOpacity: Double
             /// Accessibility Dynamic Type stacks the count beneath the labels.
             var stacksDayCount: Bool
+
+            func sizing(for dayCount: Int) -> Sizing {
+                dayCount == 1 ? singleDay : Sizing(
+                    baseHeight: baseHeight,
+                    verticalPadding: verticalPadding,
+                )
+            }
         }
 
         /// The future planned-stay treatment appended after recorded journey

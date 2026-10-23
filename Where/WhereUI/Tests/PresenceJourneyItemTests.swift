@@ -11,24 +11,31 @@ struct PresenceJourneyItemTests {
         return calendar
     }
 
-    private func date(_ day: Int, hour: Int = 0) -> Date {
-        calendar.date(from: DateComponents(year: 2026, month: 1, day: day, hour: hour))!
+    private func date(_ day: Int, month: Int = 1, hour: Int = 0) -> Date {
+        calendar.date(from: DateComponents(year: 2026, month: month, day: day, hour: hour))!
     }
 
-    private func flight(day: Int, hour: Int = 12, pending: Bool = false) -> FlightAssessment {
+    private func flight(
+        day: Int,
+        month: Int = 1,
+        hour: Int = 12,
+        pending: Bool = false,
+    ) -> FlightAssessment {
         FlightAssessment(
             id: .init(recordingSource: .legacy, departureSampleID: UUID()),
-            startedAt: date(day, hour: hour),
+            startedAt: date(day, month: month, hour: hour),
             lastObservationAt: date(
                 day,
+                month: month,
                 hour: hour + 2,
             ),
-            lastFlightAt: date(day, hour: hour + 1),
+            lastFlightAt: date(day, month: month, hour: hour + 1),
             airborneSampleIDs: [],
             groundSampleIDs: [],
             peakSpeedKMH: 900,
             progress: pending ? .awaitingArrival : .completed(arrivedAt: date(
                 day,
+                month: month,
                 hour: hour + 2,
             )),
             inferredEndpoints: [],
@@ -120,6 +127,55 @@ struct PresenceJourneyItemTests {
                 start: departure.startOfDay(in: calendar),
                 end: end.startOfDay(in: calendar),
                 dayCount: 10,
+            )),
+        ])
+        #expect(Set(items.map(\.id)).count == items.count)
+    }
+
+    @Test(arguments: [false, true])
+    func shorterVisitInterruptsNewYorkBeforeTheSeptember20Flight(reversed: Bool) {
+        let days = (13 ... 23).map { day in
+            var regions: Set<Region> = []
+            if day <= 20 { regions.insert(.newYork) }
+            if day == 14 { regions.insert(.other) }
+            if day >= 20 { regions.insert(.california) }
+            return DayPresence(day: CalendarDay(year: 2026, month: 9, day: day), regions: regions)
+        }
+        let report = YearReport(year: 2026, days: days, totals: [:])
+        let stints = PresenceTimeline.stints(from: report, calendar: calendar)
+        let flight = flight(day: 20, month: 9)
+        let items = PresenceJourneyItem.items(
+            stints: reversed ? stints.reversed() : stints,
+            flights: [flight],
+            year: 2026,
+            calendar: calendar,
+        )
+
+        #expect(items == [
+            .stay(RegionStint(
+                region: .newYork,
+                start: date(13, month: 9),
+                end: date(13, month: 9),
+                dayCount: 1,
+            )),
+            .stay(RegionStint(
+                region: .other,
+                start: date(14, month: 9),
+                end: date(14, month: 9),
+                dayCount: 1,
+            )),
+            .stay(RegionStint(
+                region: .newYork,
+                start: date(14, month: 9),
+                end: date(20, month: 9),
+                dayCount: 7,
+            )),
+            .flight(flight),
+            .stay(RegionStint(
+                region: .california,
+                start: date(20, month: 9),
+                end: date(23, month: 9),
+                dayCount: 4,
             )),
         ])
         #expect(Set(items.map(\.id)).count == items.count)
