@@ -261,24 +261,13 @@
         }
       }
     },
-    "calendar.estimateTile" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Estimate"
-          }
-        }
-      }
-    },
     "calendar.expandEstimate" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Show the full estimate."
+            "value" : "Open the estimate in the full-size calendar."
           }
         }
       }

@@ -185,21 +185,23 @@ struct CalendarContentView: View {
         return ScrollView {
             Group {
                 if overview {
-                    LazyVGrid(
-                        columns: Array(repeating: GridItem(
-                            .flexible(),
+                    VStack(spacing: stylesheet.calendar.monthSpacing) {
+                        LazyVGrid(
+                            columns: Array(repeating: GridItem(
+                                .flexible(),
+                                spacing: stylesheet.calendar.overview.spacing,
+                            ), count: stylesheet.calendar.overview.columns),
                             spacing: stylesheet.calendar.overview.spacing,
-                        ), count: stylesheet.calendar.overview.columns),
-                        spacing: stylesheet.calendar.overview.spacing,
-                    ) {
-                        ForEach(months) { month in
-                            overviewMonth(
-                                month,
-                                available: visibleMonths.contains(where: { $0.id == month.id }),
-                            )
-                            if showsForecast(after: month) {
-                                overviewEstimate(month)
+                        ) {
+                            ForEach(months) { month in
+                                overviewMonth(
+                                    month,
+                                    available: visibleMonths.contains(where: { $0.id == month.id }),
+                                )
                             }
+                        }
+                        if let estimateMonth {
+                            overviewEstimate(estimateMonth)
                         }
                     }
                 } else {
@@ -295,7 +297,11 @@ struct CalendarContentView: View {
         .month(monthKey(month))
     }
 
-    private func monthView(_ month: CalendarMonth, compact: Bool) -> some View {
+    private func monthView(
+        _ month: CalendarMonth,
+        compact: Bool,
+        isAvailable: Bool = true,
+    ) -> some View {
         MonthGridView(
             month: month,
             focusedRegion: focusedRegion,
@@ -304,15 +310,14 @@ struct CalendarContentView: View {
             planningSummary: report.showsEstimatedTimeAndPlanning ? report.forecasts
                 .plannedRegionSummaries(in: month) : [],
             compact: compact,
+            isAvailable: isAvailable,
         )
     }
 
     private func overviewMonth(_ month: CalendarMonth, available: Bool) -> some View {
         let destination = target(for: month)
         return Button { presentation.expand(destination) } label: {
-            monthView(month, compact: true)
-                .saturation(available ? 1 : 0)
-                .opacity(available ? 1 : stylesheet.calendar.overview.unavailableOpacity)
+            monthView(month, compact: true, isAvailable: available)
         }
         .buttonStyle(.plain)
         .accessibilityHint(available ? String(localized: .calendarExpandMonth) :
@@ -335,7 +340,6 @@ struct CalendarContentView: View {
                 forecasts: calendarForecasts,
                 microprintRegions: report.ranking.primary.map(\.region),
                 homeRegion: report.forecasts.planning.homeRegion,
-                presentation: .compact,
             )
         }
         .buttonStyle(.plain)
@@ -377,6 +381,7 @@ private struct MonthGridView: View {
     let plannedPresence: (CalendarDay) -> PlanningDayPresence?
     let planningSummary: [PlanningRegionSummary]
     var compact = false
+    var isAvailable = true
 
     @Environment(\.stylesheet) private var stylesheet
 
@@ -425,6 +430,8 @@ private struct MonthGridView: View {
                 .font(compact ? .system(size: calendar.overview.titleFontSize, weight: .semibold) :
                     .title.weight(.semibold))
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundStyle(isAvailable ? card.foreground : calendar.overview
+                    .unavailableForeground)
 
             LazyVGrid(
                 columns: Array(
@@ -452,6 +459,7 @@ private struct MonthGridView: View {
                         band: bandGeometry(at: index),
                         dateCalendar: dateCalendar,
                         compact: compact,
+                        isAvailable: isAvailable,
                     )
                 }
                 if compact {
@@ -695,6 +703,7 @@ private struct DayCell: View {
     let band: DayBandGeometry
     let dateCalendar: Calendar
     var compact = false
+    var isAvailable = true
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
@@ -891,7 +900,7 @@ private struct DayCell: View {
         } else if day.needsAttention {
             calendar.day.unresolvedNumberColor
         } else {
-            .primary
+            isAvailable ? .primary : calendar.overview.unavailableForeground
         }
     }
 }

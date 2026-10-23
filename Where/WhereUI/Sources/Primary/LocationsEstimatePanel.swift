@@ -13,7 +13,7 @@ struct LocationsEstimatePanel: View {
                 microprintRegions: report.ranking.primary.map(\.region).filter { $0 != .other },
                 homeRegion: report.forecasts.planning.homeRegion,
                 planningAction: planningAction,
-                presentation: .collapsible,
+                isCollapsible: true,
             )
         }
     }

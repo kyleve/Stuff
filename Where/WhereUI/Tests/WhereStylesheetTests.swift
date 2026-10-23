@@ -460,7 +460,9 @@ struct WhereStylesheetTests {
         #expect(calendar.overview.dayFontSize == 8)
         #expect(calendar.overview.titleFontSize == 13)
         #expect(calendar.overview.sectionSpacing == 4)
-        #expect(calendar.overview.unavailableOpacity == 0.45)
+        #expect(calendar.overview.unavailableForeground == .secondary)
+        #expect(calendar.compact.month.plain.borderWidth == 0.5)
+        #expect(calendar.compact.month.current.borderWidth == 1)
         #expect(calendar.overview.usesSpatialMotion)
         #expect(calendar.overview.duration == 0.25)
         #expect(calendar.overview.shakeDistance == 4)
@@ -532,7 +534,6 @@ struct WhereStylesheetTests {
 
     @Test func locationForecastStyle() {
         let forecast = style.locationForecast
-        #expect(forecast.compact.padding == 6)
         #expect(forecast.cornerRadius == 22)
         #expect(forecast.padding == 16)
         #expect(forecast.rowSpacing == 12)

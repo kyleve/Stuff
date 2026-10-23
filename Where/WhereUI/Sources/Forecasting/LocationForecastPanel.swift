@@ -10,19 +10,7 @@ struct LocationForecastPanel: View {
     let microprintRegions: [Region]
     var homeRegion: Region?
     var planningAction: (() -> Void)?
-    enum Presentation {
-        case full, collapsible, compact
-    }
-
-    var presentation: Presentation = .full
-
-    private var isCollapsible: Bool {
-        presentation == .collapsible
-    }
-
-    private var isCompact: Bool {
-        presentation == .compact
-    }
+    var isCollapsible = false
 
     @State private var isExpanded = false
     @State private var artworkModel = RegionArtworkModel<[Region], [Path]>()
@@ -42,17 +30,7 @@ struct LocationForecastPanel: View {
         let showsContent = !isCollapsible || isExpanded
 
         VStack(alignment: .leading, spacing: style.rowSpacing) {
-            if isCompact {
-                Text(.calendarEstimateTile)
-                    .font(.caption.weight(.semibold))
-                ForEach(forecasts, id: \.region) { forecast in
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(forecast.region.localizedName)
-                        Text(WhereFormat.dayCount(forecast.estimatedTotalDays))
-                    }
-                    .font(.caption2)
-                }
-            } else if isCollapsible {
+            if isCollapsible {
                 LocationForecastHeader(
                     elapsedDays: forecasts.first?.elapsedDays,
                     isExpanded: showsContent,
@@ -65,7 +43,7 @@ struct LocationForecastPanel: View {
                 )
             }
 
-            if showsContent, !isCompact {
+            if showsContent {
                 VStack(alignment: .leading, spacing: style.rowSpacing) {
                     ForEach(forecasts, id: \.region) { forecast in
                         LocationForecastRow(
@@ -86,7 +64,7 @@ struct LocationForecastPanel: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .padding(isCompact ? style.compact.padding : style.padding)
+        .padding(style.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             ZStack {
@@ -182,19 +160,6 @@ struct LocationForecastPanel: View {
 
     extension LocationForecastPanel: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereThemeSnapshot(name: "Compact", configurations: .componentDefaults) {
-                let report = PreviewSupport.plannedStayYearReportModel()
-                LocationForecastPanel(
-                    forecasts: report.forecasts.leadingForecasts(report: report.report),
-                    microprintRegions: report.ranking.primary.map(\.region),
-                    homeRegion: report.forecasts.planning.homeRegion,
-                    presentation: .compact,
-                )
-                .frame(width: 120)
-                .padding(24)
-                .frame(maxWidth: .infinity)
-                .background(.background)
-            }
             for collapsed in [false, true] {
                 whereThemeSnapshot(
                     name: collapsed ? "Collapsed" : "Expanded",
@@ -206,7 +171,7 @@ struct LocationForecastPanel: View {
                         microprintRegions: report.ranking.primary.map(\.region),
                         homeRegion: report.forecasts.planning.homeRegion,
                         planningAction: {},
-                        presentation: collapsed ? .collapsible : .full,
+                        isCollapsible: collapsed,
                     )
                     .padding(24)
                     .background(.background)

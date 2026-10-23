@@ -373,12 +373,6 @@ extension WhereStylesheet {
     /// Passport-visa appearance for the annual estimate shared by Locations,
     /// calendars, and Estimated Time feature discovery.
     struct LocationForecastStyle: Equatable {
-        var compact = Compact()
-
-        struct Compact: Equatable {
-            var padding: CGFloat = 6
-        }
-
         var cornerRadius: CGFloat
         var padding: CGFloat
         var rowSpacing: CGFloat
@@ -1368,7 +1362,9 @@ extension WhereStylesheet {
             var dayFontSize: CGFloat = 8
             var titleFontSize: CGFloat = 13
             var sectionSpacing: CGFloat = 4
-            var unavailableOpacity: Double = 0.45
+            var borderWidth: CGFloat = 0.5
+            var currentBorderWidth: CGFloat = 1
+            var unavailableForeground: Color = .secondary
             var usesSpatialMotion = true
             var duration: Double = 0.25
             var shakeDistance: CGFloat = 4
@@ -1390,6 +1386,8 @@ extension WhereStylesheet {
             result.month.weekdayFontSize = overview.dayFontSize
             result.month.padding = overview.padding
             result.month.cornerRadius = overview.cornerRadius
+            result.month.plain.borderWidth = overview.borderWidth
+            result.month.current.borderWidth = overview.currentBorderWidth
             result.day.minHeight = overview.dayHeight
             result.day.numberSize = overview.dayHeight - 2
             result.day.numberFontSize = overview.dayFontSize
