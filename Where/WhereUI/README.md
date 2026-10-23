@@ -118,11 +118,16 @@ Demo mode hides this surface and performs no update checks.
   and next-launch Inspector/demo controls. The demo sheet selects which Resolve
   issue categories appear in a one-shot, in-memory launch. Forced crashes cover Swift traps, Objective-C
   exceptions, abort signals, and invalid memory access so crash reporters can be
-  checked end to end. The global launcher's accordion only updates
+  checked end to end. The global launcher's next-launch controls only update
   `WhereDeveloperLaunchController`. The current regular runtime continues until the
   developer relaunches. The Logs destination is always present. Before its
   durable store is ready it reports whether the open is still running,
   unavailable, or failed with the actual error.
+  **Onboarding Preview** opens the production flow in a full-screen cover with
+  a fresh in-memory model, preferences, installation identity, and store. It
+  reuses demo's scripted location and no-op system collaborators. Finishing or
+  choosing Demo dismisses the preview; Close discards it. No session starts and
+  the current app's data, theme, recording choice, and integrations stay intact.
 - **App icons** — `AppIcons.json` catalogs asset names, while the host injects
   the current audience's primary asset at `RootView`. The picker maps that one
   asset to UIKit's `nil` primary-icon value and treats every other catalogued

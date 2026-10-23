@@ -131,10 +131,11 @@ a screen felt slow.
   user finishes choosing a world.
 - **At most one scope is active and log-routing at a time.** Logging out — a
   reset, or leaving a demo — releases and tears down the scope. Logging back in
-  builds a fresh one. Flyover is the narrow exception to "one open world". It
-  may retain one separately built, in-memory demo scope beside the active app
-  scope. It never activates or log-routes it. It never opens a second copy of
-  the real store. Guards:
+  builds a fresh one. Flyover and the DEBUG onboarding preview may retain
+  separately built, in-memory scopes beside the active app scope. Neither
+  replaces the active app scope or opens a second copy of the real store.
+  Flyover never activates or log-routes its scope; onboarding uses a separate
+  model and logging system and never starts a session. Guards:
   `WhereResetTests.loggingOutReleasesTheScopeBeforeTheNextLoginOpensOne`.
   `WhereFlyoverWorldTests.buildsASeededSiblingWithoutActivatingIt`.
 - **The onboarding gate declares `modes: .all`,** not the `.foreground`
