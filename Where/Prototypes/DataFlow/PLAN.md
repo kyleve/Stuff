@@ -21,7 +21,10 @@ Its store change stream carries no causal identity.
 Its span tree uses time containment, which does not establish data lineage.
 The [repository research](Research/002-repository-map.md) records the evidence and its limits.
 
-The immediate discussion is what one useful trace must explain and how both viewing surfaces share its meaning.
+The current discussion concerns explicit data tracing before UI and UX.
+The motivating example follows one GPS point from its system callback through ingestion and persistence.
+We are evaluating generated system metadata, runtime observations, and explicit asynchronous handoffs.
+See [tracing and code generation](Research/005-explicit-tracing-and-code-generation.md) for the technical options and a proposed experiment.
 The [decision register](Research/003-decisions.md) holds the options and unresolved questions.
 
 ## Proposed first result
@@ -31,10 +34,9 @@ Both a separate Mac window and an in-app view must support this goal.
 Selecting one operation reveals its observed stages, outcomes, and links to the affected data.
 The viewer distinguishes recorded relationships from incomplete or inferred relationships.
 
-The initial candidate is a manual day edit through its store commit, derived outputs, and report refresh.
-This action is repeatable and does not depend on passive GPS delivery.
-GPS ingestion is a second candidate, especially for retries and the location outbox.
-Both candidates use the normal app services.
+GPS ingestion is the current technical design scenario, including its stream boundary, recording gate, transaction, and retries.
+A manual day edit remains a repeatable alternative for the first demonstration.
+The first implementation slice remains open. Both candidates use the normal app services.
 
 Proposed acceptance criteria:
 
@@ -58,7 +60,7 @@ Create the actual stack after the first implementation decisions establish its d
 | Slice | Result | Evidence required to finish |
 | --- | --- | --- |
 | D0 — Planning documents | This plan, research index, initial source map, and decision register | Links resolve, findings cite source, and proposals remain explicit |
-| P1 — Observation contract | Defined stages, operation/data identities, causal links, outcomes, capture lifecycle, and owning modules | One chosen flow can be described without inventing causality |
+| P1 — Observation contract and feasibility | Defined identities, stages, handoffs, outcomes, and generation strategy. A technical experiment precedes UI work | GPS-path evidence preserves identity, retries, and commit meaning. Macro feasibility is established on the selected toolchain |
 | P2 — First live flow | Minimum instrumentation, capture adapter, and viewer for the chosen flow | An ordinary action in the running app appears live through its selected boundaries |
 | P3 — Both surfaces and inspection | The companion surface, selection, filtering, display pause, and bounded recent history | Both viewers explain the same live operation and its recent outcome |
 | P4 — Failure and concurrency | Retry, overlap, cancellation, reset, and capture-gap behavior | Controlled scenarios preserve domain results and expose incomplete observation |
@@ -85,6 +87,16 @@ These existing contracts constrain the prototype. They do not select its archite
 Observation must not open another domain store or become a required step for committing user data.
 Any proposal to change a contract needs its own rationale, tests, and owning documentation.
 The first slice must define how capture ends or rebinds across scope replacement.
+
+## Current technical proposal
+
+Generate stage metadata and repetitive observation code from explicit declarations.
+Use runtime records to establish actual data movement and outcomes.
+Carry correlation explicitly across streams, callbacks, queues, and persistence boundaries.
+Evaluate Periscope's existing task-local context and event pipeline as the foundation.
+Keep a static source map separate from observed causal relationships.
+
+This combination is a recommendation for discussion. No macro API, context envelope, or capture implementation is selected.
 
 ## Validation approach
 
@@ -117,6 +129,7 @@ File unrelated findings in their owning `TODOs.md` and link them from research.
 
 - 2026-10-23: Created the planning workspace and initial source research.
 - 2026-10-23: Recorded the user's choice to support both Mac and in-app viewing.
+- 2026-10-23: Began technical exploration of explicit GPS tracing and macro/parser generation before UI and UX.
 - D0 review: [PR #425](https://github.com/kyleve/Stuff/pull/425), branch `codex/where-data-flow-plan`.
-- D0 validation: 43 local links and anchors resolve. Diff checks passed. Runtime checks do not exercise this documentation change.
+- Documentation validation: 58 local links and anchors resolve. Diff checks passed. Runtime checks do not exercise this documentation change.
 - No implementation slice is complete.

@@ -11,10 +11,11 @@ This folder preserves the evidence, alternatives, and reasoning behind that plan
 | [002 — Repository map](002-repository-map.md) | 2026-10-23 | Source inspection | Existing flow boundaries, observability, and limits |
 | [003 — Decisions](003-decisions.md) | 2026-10-23 | Open | Current choices, proposals, and decision history |
 | [004 — Both viewing surfaces](004-viewing-surfaces.md) | 2026-10-23 | User decision recorded | Separate Mac window and view inside Where |
+| [005 — Explicit tracing and code generation](005-explicit-tracing-and-code-generation.md) | 2026-10-23 | Technical exploration | GPS identity, stage metadata, macro limits, asynchronous handoffs, and proposed experiment |
 
 ## Adding a document
 
-Use the next number and a descriptive name, such as `005-first-flow-discussion.md`.
+Use the next number and a descriptive name, such as `006-observation-contract.md`.
 Record the date, question, status, and source revision or external sources near the start.
 Separate observed facts from proposed interpretations.
 For experiments, record the environment, procedure, result, and limits of the evidence.
