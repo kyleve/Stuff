@@ -19,6 +19,8 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) and the group [`../AGENTS.md`](.
 
 - **Scale authored geometry with `BScaledDimension` during slicing.** Pass the slice's content-size category explicitly.
 
+- Select `BModeVarying` values with the slice's explicit mode. Keep product theme definitions in consumer modules.
+
 ## Testing
 
 Run `BroadwayCoreTests` in `StuffTestHost` (`./test BroadwayCoreTests`).

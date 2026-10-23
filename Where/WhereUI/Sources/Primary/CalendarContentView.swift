@@ -3,7 +3,7 @@ import RegionKit
 import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
-import WhereCore
+@_spi(Testing) import WhereCore
 
 /// A scrollable year calendar: one month grid per month, with colored dots for
 /// each region present on a day, and a per-month footer tallying the days spent
@@ -969,6 +969,7 @@ private struct DayCell: View {
                 let future = YearReportModel(
                     services: base.services,
                     details: YearReportDetails(
+                        primaryRegions: [.california, .newYork],
                         report: YearReport(year: year, days: [], totals: [:]),
                         primaryRegionLocations: [:],
                     ),
@@ -1028,6 +1029,7 @@ private struct DayCell: View {
                 let past = YearReportModel(
                     services: base.services,
                     details: YearReportDetails(
+                        primaryRegions: [.california, .newYork],
                         report: PreviewSupport.sampleReport(),
                         primaryRegionLocations: [:],
                     ),

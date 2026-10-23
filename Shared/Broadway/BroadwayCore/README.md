@@ -17,6 +17,15 @@ system font metrics and an explicit Broadway content-size category. Use it durin
 stylesheet slicing. `BContentSizeCategory.uiContentSizeCategory` provides the
 reverse of `BContentSizeCategory.from(_:)` for UIKit consumers.
 
+`BModeVarying<Value>` stores light and dark values without reading ambient traits.
+Its read-only subscript selects a value from an explicit `BMode` during slicing.
+It conditionally conforms to `Equatable`, `Hashable`, and `Sendable` when its value does.
+
+```swift
+let opacity = BModeVarying(light: 0.14, dark: 0.3)
+let resolvedOpacity = opacity[context.traits.mode]
+```
+
 ## How it works
 
 `BContext` holds a `BStylesheets` cache that is rebuilt whenever `baseTraits`, `traitOverrides`, or `themes` change (via `didSet`).

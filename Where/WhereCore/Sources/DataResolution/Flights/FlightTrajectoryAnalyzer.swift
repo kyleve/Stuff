@@ -4,29 +4,30 @@ import Foundation
 /// thresholds are product policy, not measurements of a particular user's trip.
 /// Short-interval fixes retain their identities but do not break motion baselines.
 public struct FlightTrajectoryAnalyzer: Sendable {
-    private typealias Policy = GPSCorrectionPolicy.Trajectory
+    private typealias Trajectory = GPSCorrectionPolicy.Trajectory
 
     private struct Leg {
         let seconds: TimeInterval
         let distance: Double
         let lowerSpeed: Double
         let upperSpeed: Double
+        let supportsCorrection: Bool
 
         var isCore: Bool {
             // Every cruise leg must clear the minimum after subtracting positional
             // uncertainty. Averaging the run could hide a slow or contradictory leg.
-            qualifies(minimumSpeed: Policy.minimumCruiseSpeedKMH)
+            qualifies(minimumSpeed: Trajectory.minimumCruiseSpeedKMH)
         }
 
         var isTransition: Bool {
-            qualifies(minimumSpeed: Policy.minimumTransitionSpeedKMH)
+            qualifies(minimumSpeed: Trajectory.minimumTransitionSpeedKMH)
         }
 
         private func qualifies(minimumSpeed: Double) -> Bool {
-            seconds >= Policy.minimumAnchorInterval
-                && seconds <= Policy.maximumLegInterval
+            supportsCorrection && seconds >= Trajectory.minimumAnchorInterval
+                && seconds <= Trajectory.maximumLegInterval
                 && lowerSpeed >= minimumSpeed
-                && upperSpeed <= Policy.maximumPlausibleSpeedKMH
+                && upperSpeed <= Trajectory.maximumPlausibleSpeedKMH
         }
     }
 
@@ -35,15 +36,40 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         let offset: Int
     }
 
-    private struct Core {
-        let start: Int
-        let end: Int
+    /// Confirmed ground dwell can share the next departure anchor. Pending
+    /// observations stop earlier when that trip owns a corroborating fix.
+    private struct NextFlightBoundary {
+        let arrivalConfirmationLimit: AnchorIndex
+        let observationStart: AnchorIndex
     }
 
-    private struct Ground {
-        let start: Int
-        let confirmation: Int
+    private enum Segment {
+        case cruise(Range<Int>)
+        case displacement(FlightDisplacementInference.Window)
+
+        var start: Int {
+            switch self {
+                case let .cruise(legs): legs.lowerBound
+                case let .displacement(window): window.legs.lowerBound
+            }
+        }
+
+        var end: Int {
+            switch self {
+                case let .cruise(legs): legs.upperBound
+                case let .displacement(window): window.legs.upperBound
+            }
+        }
+
+        var isCruise: Bool {
+            switch self {
+                case .cruise: true
+                case .displacement: false
+            }
+        }
     }
+
+    private typealias Episode = FlightGroundInference.Episode
 
     public init() {}
 
@@ -77,7 +103,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         for sample in usable {
             if let last = anchors.last,
                sample.timestamp.timeIntervalSince(last.timestamp)
-               < Policy.minimumAnchorInterval
+               < Trajectory.minimumAnchorInterval
             { continue }
             anchors.append(sample)
         }
@@ -85,37 +111,62 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         // Each leg connects anchor i to i + 1. Cores require sustained, directed
         // progress; isolated jumps, reversals, and implausible speeds remain unknown.
         let legs = zip(anchors, anchors.dropFirst()).map { Self.leg(from: $0, to: $1) }
-        let cores = Self.cores(anchors: anchors, legs: legs)
-        guard !cores.isEmpty else { return [] }
-        let grounds = Self.grounds(anchors: anchors, legs: legs, observations: usable)
-        // Nearby cruise cores share a review until observed ground dwell separates
+        let cruise = Self.cruiseSegments(anchors: anchors, legs: legs)
+        // Sparse displacement can establish a trip without supplying observed cruise
+        // legs. Merge both evidence kinds before arrival and trip ownership are resolved.
+        let grounds = FlightGroundInference.episodes(anchors: anchors, observations: usable)
+        let displacement = FlightDisplacementInference.windows(
+            anchors: anchors,
+            observations: usable,
+            grounds: grounds.map { $0.start ... $0.confirmation },
+            cruise: cruise.map { $0.start ..< $0.end },
+        ).map(Segment.displacement)
+        let segments = (cruise + displacement).sorted {
+            if $0.start != $1.start { return $0.start < $1.start }
+            return $0.end > $1.end
+        }
+        guard !segments.isEmpty else { return [] }
+        // Nearby cruise segments share a review until observed ground dwell separates
         // them. Unsupported gaps inside a review still do not become airborne evidence.
-        var groups: [[Core]] = []
-        for core in cores {
-            if let previous = groups.last?.last,
-               anchors[core.start].timestamp.timeIntervalSince(anchors[previous.end].timestamp)
-               <= Policy.maximumLegInterval,
+        var groups: [[Segment]] = []
+        for segment in segments {
+            if let previous = groups.last?.max(by: { $0.end < $1.end }),
+               anchors[segment.start].timestamp.timeIntervalSince(anchors[previous.end].timestamp)
+               <= Trajectory.maximumLegInterval,
                !grounds.contains(where: {
-                   $0.start >= previous.end && $0.confirmation <= core.start
+                   $0.start >= previous.end && $0.confirmation <= segment.start
                })
             {
-                groups[groups.count - 1].append(core)
+                groups[groups.count - 1].append(segment)
             } else {
-                groups.append([core])
+                groups.append([segment])
             }
         }
         return groups.indices.compactMap { index in
-            assessment(
-                cores: groups[index],
+            let next: NextFlightBoundary
+            if index + 1 < groups.count {
+                let segment = groups[index + 1][0]
+                let observationStart = Self.observationStart(
+                    for: segment,
+                    anchors: anchors,
+                    legs: legs,
+                )
+                next = NextFlightBoundary(
+                    arrivalConfirmationLimit: segment.isCruise
+                        ? observationStart : AnchorIndex(offset: segment.start),
+                    observationStart: observationStart,
+                )
+            } else {
+                let end = AnchorIndex(offset: anchors.endIndex)
+                next = NextFlightBoundary(arrivalConfirmationLimit: end, observationStart: end)
+            }
+            return assessment(
+                segments: groups[index],
                 anchors: anchors,
                 legs: legs,
                 usable: usable,
                 grounds: grounds,
-                nextStart: index + 1 < groups.count ? Self.transitionStart(
-                    for: groups[index + 1][0],
-                    anchors: anchors,
-                    legs: legs,
-                ) : AnchorIndex(offset: anchors.endIndex),
+                next: next,
                 deviceID: deviceID,
                 now: now,
             )
@@ -123,53 +174,56 @@ public struct FlightTrajectoryAnalyzer: Sendable {
     }
 
     private func assessment(
-        cores: [Core],
+        segments: [Segment],
         anchors: [LocationSample],
         legs: [Leg],
         usable: [LocationSample],
-        grounds: [Ground],
-        nextStart: AnchorIndex,
+        grounds: [Episode],
+        next: NextFlightBoundary,
         deviceID: RecordingDeviceID?,
         now: Date,
     ) -> FlightAssessment? {
-        // zip creates anchors.count - 1 legs; cores and grounds only emit anchor
-        // indices reached through those legs. Grouping preserves core order, and
-        // the next group's transition starts after this group's last core. Check
+        // zip creates anchors.count - 1 legs; segments and grounds only emit anchor
+        // indices reached through those legs. Grouping preserves segment order, and
+        // the next group's transition starts after this group's last segment. Check
         // that correspondence here before any private array index is used.
-        guard let first = cores.first,
-              let last = cores.last,
+        guard let first = segments.first,
+              let last = segments.max(by: { $0.end < $1.end }),
               anchors.count >= 3,
               legs.count == anchors.count - 1,
-              cores.allSatisfy({
+              segments.allSatisfy({
                   anchors.indices.contains($0.start) && anchors.indices.contains($0.end)
-                      && $0.end - $0.start >= 2
+                      && $0.end - $0.start >= ($0.isCruise ? 2 : 1)
               }),
-              zip(cores, cores.dropFirst()).allSatisfy({ $0.end <= $1.start }),
-              nextStart.offset >= last.end, nextStart.offset <= anchors.count,
+              next.observationStart.offset >= last.end,
+              next.arrivalConfirmationLimit.offset >= next.observationStart.offset,
+              next.arrivalConfirmationLimit.offset <= anchors.count,
               grounds.allSatisfy({
                   anchors.indices.contains($0.start) && anchors.indices.contains($0.confirmation)
                       && $0.confirmation - $0.start >= 2
               })
         else {
             assertionFailure(
-                "Flight assessment requires ordered cores and matching anchor/leg indices",
+                "Flight assessment requires ordered segments and matching anchor/leg indices",
             )
             return nil
         }
-        let arrival = grounds.first { $0.start >= last.end && $0.confirmation <= nextStart.offset }
+        let arrival = grounds.first {
+            $0.start >= last.end && $0.confirmation <= next.arrivalConfirmationLimit.offset
+        }
         let departure = grounds.last { $0.confirmation <= first.start }
-        // Extend each cruise core only through bounded, plausible takeoff/approach
+        // Extend each cruise segment only through bounded, plausible takeoff/approach
         // legs. Arrival and the next departure bound ownership of these observations.
         var supportedLegs: Set<Int> = []
-        for core in cores {
-            let before = Self.transitionStart(for: core, anchors: anchors, legs: legs)
-            supportedLegs.formUnion(before.offset ..< core.end)
-            var after = core.end
-            let limit = arrival?.start ?? nextStart.offset - 1
+        for segment in segments where segment.isCruise {
+            let before = Self.observationStart(for: segment, anchors: anchors, legs: legs)
+            supportedLegs.formUnion(before.offset ..< segment.end)
+            var after = segment.end
+            let limit = arrival?.start ?? next.observationStart.offset - 1
             while after < limit,
                   legs[after].isTransition,
-                  anchors[after + 1].timestamp.timeIntervalSince(anchors[core.end].timestamp)
-                  <= Policy.maximumTransitionDuration
+                  anchors[after + 1].timestamp.timeIntervalSince(anchors[segment.end].timestamp)
+                  <= Trajectory.maximumTransitionDuration
             {
                 supportedLegs.insert(after)
                 after += 1
@@ -181,23 +235,26 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             usable.filter {
                 $0.timestamp >= anchors[ground.start].timestamp
                     && $0.timestamp <= anchors[ground.confirmation].timestamp
-                    && Self.fitsGround($0, origin: anchors[ground.start])
+                    && $0.horizontalAccuracy <= GPSCorrectionPolicy.maximumHorizontalAccuracyMeters
             }.map(\.id)
         })
-        // Every accepted core supplies at least two legs. Absence is a broken
-        // inference invariant, never a measured speed of zero.
-        guard let startIndex = supportedLegs.min(),
-              let lastLegIndex = supportedLegs.max(),
-              let peakSpeedKMH = supportedLegs.map({
-                  GPSCorrectionPolicy.kilometersPerHour(
-                      fromMetersPerSecond: legs[$0].distance / legs[$0].seconds,
-                  )
-              }).max()
-        else {
-            assertionFailure("A flight requires supported motion legs")
+        // Displacement contributes a trip interval and average speed, but never
+        // enters supportedLegs or the automatic airborne-point correction set.
+        let startIndex = min(first.start, supportedLegs.min() ?? first.start)
+        let endIndex = max(last.end, supportedLegs.max().map { $0 + 1 } ?? last.end)
+        let observedSpeeds = supportedLegs.map {
+            GPSCorrectionPolicy.kilometersPerHour(
+                fromMetersPerSecond: legs[$0].distance / legs[$0].seconds,
+            )
+        }
+        let displacementSpeeds = segments.filter { !$0.isCruise }.map { segment in
+            let leg = Self.leg(from: anchors[segment.start], to: anchors[segment.end])
+            return leg.distance / leg.seconds * 3.6
+        }
+        guard let peakSpeedKMH = (observedSpeeds + displacementSpeeds).max() else {
+            assertionFailure("A flight requires observed motion or corroborated displacement")
             return nil
         }
-        let endIndex = lastLegIndex + 1
         let earliest = anchors[startIndex]
         let latest = anchors[endIndex]
         var airborneIDs: Set<UUID> = []
@@ -228,19 +285,21 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             }
         }
         var inferredEndpoints: [FlightEndpointInference] = []
-        for core in cores where !supportedLegs.contains(core.start - 1) {
-            let endpoint = anchors[core.start]
+        for segment in segments
+            where segment.isCruise && !supportedLegs.contains(segment.start - 1)
+        {
+            let endpoint = anchors[segment.start]
             let observations = usable.filter { Self.isSameObservation($0, as: endpoint) }
             guard observations.allSatisfy({ !groundIDs.contains($0.id) }),
                   let reason = FlightEndpointInference.reason(
-                      cruise: Array(anchors[core.start ... core.end]),
-                      previous: core.start > 0 ? anchors[core.start - 1] : nil,
+                      cruise: Array(anchors[segment.start ... segment.end]),
+                      previous: segment.start > 0 ? anchors[segment.start - 1] : nil,
                       endpointObservations: observations,
                   ) else { continue }
             for sample in observations where Self.fitsMotion(
                 sample,
                 from: endpoint,
-                to: anchors[core.start + 1],
+                to: anchors[segment.start + 1],
             ) {
                 if airborneIDs.insert(sample.id).inserted {
                     inferredEndpoints.append(.init(sampleID: sample.id, reason: reason))
@@ -249,8 +308,8 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         }
         let observationLimit = if let arrival {
             anchors[arrival.confirmation].timestamp
-        } else if nextStart.offset < anchors.count {
-            anchors[nextStart.offset].timestamp
+        } else if next.observationStart.offset < anchors.count {
+            anchors[next.observationStart.offset].timestamp
         } else {
             now
         }
@@ -258,15 +317,15 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         // takeoff transition. It cannot extend an older unresolved review.
         let lastObservation = usable.last {
             $0.timestamp <= observationLimit
-                && (arrival != nil || nextStart.offset == anchors.count
-                    || $0.timestamp < anchors[nextStart.offset].timestamp)
+                && (arrival != nil || next.observationStart.offset == anchors.count
+                    || $0.timestamp < anchors[next.observationStart.offset].timestamp)
         } ?? latest
         let trailingMotionIsPlausible = anchors.last(where: {
             $0.timestamp <= lastObservation.timestamp
         }).map { Self.isPlausible(lastObservation, relativeTo: $0) } ?? false
         let observationStillCruising = trailingMotionIsPlausible
             && (anchors.last(where: {
-                lastObservation.timestamp.timeIntervalSince($0.timestamp) >= Policy
+                lastObservation.timestamp.timeIntervalSince($0.timestamp) >= Trajectory
                     .minimumAnchorInterval
             }).map { Self.leg(from: $0, to: lastObservation).isCore } ?? false)
         let lastFlightAt = observationStillCruising
@@ -274,7 +333,17 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         // Arrival wins immediately when the observed dwell confirms it. Freshness
         // only changes the live-flight label when arrival evidence is still missing.
         let progress: FlightAssessment.Progress = if let arrival {
-            .completed(arrivedAt: anchors[arrival.start].timestamp)
+            .completed(arrival: anchors[arrival.start].timestamp.timeIntervalSince(latest.timestamp)
+                > GPSCorrectionPolicy.Ground.maximumArrivalEvidenceGap
+                ? .uncertainTiming(
+                    lastSupportedTravelAt: latest.timestamp,
+                    firstObservedAt: anchors[arrival.start].timestamp,
+                    confirmedAt: anchors[arrival.confirmation].timestamp,
+                )
+                : .observedGround(
+                    firstObservedAt: anchors[arrival.start].timestamp,
+                    confirmedAt: anchors[arrival.confirmation].timestamp,
+                ))
         } else if observationStillCruising,
                   now.timeIntervalSince(lastFlightAt) < GPSCorrectionPolicy.Presentation
                   .liveFlightFreshnessInterval
@@ -296,27 +365,45 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             peakSpeedKMH: peakSpeedKMH,
             progress: progress,
             inferredEndpoints: inferredEndpoints,
+            supportedIntervals: supportedLegs.sorted().map {
+                .init(
+                    start: anchors[$0].timestamp,
+                    end: anchors[$0 + 1].timestamp,
+                    kind: .observedMotion,
+                )
+            } + segments.filter { !$0.isCruise }.map {
+                .init(
+                    start: anchors[$0.start].timestamp,
+                    end: anchors[$0.end].timestamp,
+                    kind: .displacement,
+                )
+            },
         )
     }
 
-    private static func transitionStart(
-        for core: Core,
+    private static func observationStart(
+        for segment: Segment,
         anchors: [LocationSample],
         legs: [Leg],
     ) -> AnchorIndex {
-        var start = core.start
+        var start = segment.start
+        // A sparse trip owns its preceding corroborating fix too. That observation
+        // must not extend an earlier pending flight across a long recording break.
+        if case let .displacement(window) = segment {
+            return AnchorIndex(offset: window.previous)
+        }
         while start > 0,
               legs[start - 1].isTransition,
-              anchors[core.start].timestamp.timeIntervalSince(anchors[start - 1].timestamp)
-              <= Policy.maximumTransitionDuration
+              anchors[segment.start].timestamp.timeIntervalSince(anchors[start - 1].timestamp)
+              <= Trajectory.maximumTransitionDuration
         {
             start -= 1
         }
         return AnchorIndex(offset: start)
     }
 
-    private static func cores(anchors: [LocationSample], legs: [Leg]) -> [Core] {
-        var result: [Core] = []
+    private static func cruiseSegments(anchors: [LocationSample], legs: [Leg]) -> [Segment] {
+        var result: [Segment] = []
         var index = 0
         while index < legs.count {
             guard legs[index].isCore else { index += 1; continue }
@@ -330,62 +417,11 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             let progress = anchors[start].coordinate.distance(to: anchors[index].coordinate)
             // Two legs provide three anchors. Require duration and net displacement
             // as well as per-leg speed so a short burst or out-and-back jump cannot qualify.
-            if index - start >= 2, seconds >= Policy.minimumCruiseDuration,
+            if index - start >= 2, seconds >= Trajectory.minimumCruiseDuration,
                path > 0,
-               progress / path >= Policy.minimumDirectProgressRatio
+               progress / path >= Trajectory.minimumDirectProgressRatio
             {
-                result.append(Core(start: start, end: index))
-            }
-        }
-        return result
-    }
-
-    private static func grounds(
-        anchors: [LocationSample],
-        legs: [Leg],
-        observations: [LocationSample],
-    ) -> [Ground] {
-        // Preserve dense contradictory callbacks as evidence. Bucketing once
-        // keeps each bounded ground-window check local to its own observations.
-        var observationsByLeg = [[LocationSample]](repeating: [], count: legs.count)
-        var legIndex = 0
-        for sample in observations {
-            while legIndex + 1 < legs.count, sample.timestamp > anchors[legIndex + 1].timestamp {
-                legIndex += 1
-            }
-            if sample.timestamp <= anchors[legIndex + 1].timestamp {
-                observationsByLeg[legIndex].append(sample)
-                if legIndex + 1 < legs.count,
-                   sample.timestamp == anchors[legIndex + 1].timestamp
-                {
-                    observationsByLeg[legIndex + 1].append(sample)
-                }
-            }
-        }
-        // Confirm arrival from at least three compatible anchors spanning the dwell
-        // minimum. The window and gap caps prevent silence from filling missing evidence;
-        // all intervening callbacks must fit the same ground cluster.
-        var result: [Ground] = []
-        for start in anchors.indices where fitsGround(anchors[start], origin: anchors[start]) {
-            var end = start + 1
-            while end < anchors.count,
-                  anchors[end].timestamp.timeIntervalSince(anchors[start].timestamp)
-                  <= Policy.maximumGroundWindow,
-                  legs[end - 1].seconds <= Policy.maximumGroundGap,
-                  legs[end - 1].upperSpeed <= Policy.maximumGroundSpeedKMH,
-                  fitsGround(anchors[end], origin: anchors[start]),
-                  observationsByLeg[end - 1].allSatisfy({
-                      fitsGround($0, origin: anchors[start])
-                  })
-            {
-                if end - start >= 2,
-                   anchors[end].timestamp.timeIntervalSince(anchors[start].timestamp)
-                   >= Policy.minimumGroundDuration
-                {
-                    result.append(Ground(start: start, confirmation: end))
-                    break
-                }
-                end += 1
+                result.append(.cruise(start ..< index))
             }
         }
         return result
@@ -396,20 +432,9 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         as endpoint: LocationSample,
     ) -> Bool {
         abs(sample.timestamp.timeIntervalSince(endpoint.timestamp))
-            < Policy.sameObservationInterval
+            < Trajectory.sameObservationInterval
             && sample.coordinate.distance(to: endpoint.coordinate)
             <= sample.horizontalAccuracy + endpoint.horizontalAccuracy
-    }
-
-    private static func fitsGround(_ sample: LocationSample, origin: LocationSample) -> Bool {
-        if let speed = sample.motion?.speed,
-           GPSCorrectionPolicy.kilometersPerHour(
-               fromMetersPerSecond: speed.metersPerSecond + speed.accuracyMetersPerSecond,
-           ) > Policy.maximumGroundSpeedKMH
-        { return false }
-        return sample.coordinate.distance(to: origin.coordinate)
-            + sample.horizontalAccuracy + origin.horizontalAccuracy <= Policy
-            .groundRadiusMeters
     }
 
     private static func fitsMotion(
@@ -417,7 +442,8 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         from before: LocationSample,
         to after: LocationSample,
     ) -> Bool {
-        isPlausible(sample, relativeTo: before) && isPlausible(sample, relativeTo: after)
+        sample.horizontalAccuracy <= GPSCorrectionPolicy.maximumHorizontalAccuracyMeters
+            && isPlausible(sample, relativeTo: before) && isPlausible(sample, relativeTo: after)
     }
 
     private static func isPlausible(
@@ -427,12 +453,12 @@ public struct FlightTrajectoryAnalyzer: Sendable {
         let seconds = abs(sample.timestamp.timeIntervalSince(endpoint.timestamp))
         let distance = sample.coordinate.distance(to: endpoint.coordinate)
         let uncertainty = sample.horizontalAccuracy + endpoint.horizontalAccuracy
-        if seconds < Policy.sameObservationInterval {
+        if seconds < Trajectory.sameObservationInterval {
             return distance <= uncertainty
         }
         return GPSCorrectionPolicy.kilometersPerHour(
             fromMetersPerSecond: max(0, distance - uncertainty) / seconds,
-        ) <= Policy.maximumPlausibleSpeedKMH
+        ) <= Trajectory.maximumPlausibleSpeedKMH
     }
 
     private static func leg(from before: LocationSample, to after: LocationSample) -> Leg {
@@ -448,6 +474,9 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             upperSpeed: GPSCorrectionPolicy.kilometersPerHour(
                 fromMetersPerSecond: (distance + uncertainty) / seconds,
             ),
+            supportsCorrection: before.horizontalAccuracy <= GPSCorrectionPolicy
+                .maximumHorizontalAccuracyMeters
+                && after.horizontalAccuracy <= GPSCorrectionPolicy.maximumHorizontalAccuracyMeters,
         )
     }
 
@@ -457,7 +486,7 @@ public struct FlightTrajectoryAnalyzer: Sendable {
             && (-90 ... 90).contains(sample.coordinate.latitude)
             && (-180 ... 180).contains(sample.coordinate.longitude)
             && sample.horizontalAccuracy.isFinite
-            && (0 ... GPSCorrectionPolicy.maximumHorizontalAccuracyMeters)
+            && (0 ... GPSCorrectionPolicy.Displacement.maximumHorizontalAccuracyMeters)
             .contains(sample.horizontalAccuracy)
     }
 }

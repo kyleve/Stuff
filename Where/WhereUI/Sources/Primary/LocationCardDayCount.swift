@@ -17,7 +17,9 @@ struct LocationCardDayCount: View {
                 .foregroundStyle(tint)
             Text(WhereFormat.dayUnit(days))
                 .font(card.dayUnitTypography.font)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(card.paper == nil
+                    ? AnyShapeStyle(.secondary)
+                    : AnyShapeStyle(tint))
         }
     }
 }

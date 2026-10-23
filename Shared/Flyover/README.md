@@ -135,6 +135,97 @@ Then keep their central catalog limited to grouping and assembly.
 Swift macros cannot discover all conformers or navigation destinations across a module.
 A generated source scan would add build ordering and cache invalidation complexity.
 
+## Static web export
+
+`FlyoverWebExporter` converts a DEBUG catalog into a static QA atlas. It writes
+native PNG captures and card-size thumbnails. It also writes `manifest.json`
+and `manifest.js`. The exporter derives each thumbnail from its hosted native
+capture. It does not render the SwiftUI content again. The web shell reads
+`manifest.js`, so the atlas works from `file://` and any static host. The
+browser changes images and navigation state. It does not run SwiftUI or
+serialize `FlyoverControl` actions.
+
+A thumbnail uses at most 1,024 pixels on its longest axis. A full-content
+thumbnail shows the top device viewport. The inspector and raw PNG link use the
+complete capture.
+
+The exporter validates the complete plan before its first capture. The host
+provides one stable string for each typed screen ID and one capture closure.
+Stable IDs must be nonempty and unique. Variant IDs must also be nonempty and
+unique within a screen. Image paths use generated ordinals, never these IDs.
+Fixed viewports must have finite, positive dimensions. Invalid dimensions fail
+before the exporter resets a screen, builds content, or captures an image.
+
+Hosted variants have a `FlyoverExportPolicy` with a fixed viewport by default.
+Snapshot-backed variants inherit their settle, readiness, and hook behavior.
+Their frame matrix must resolve to one capture extent: fixed, intrinsic,
+full-content, or two-axis full-content. A mixed matrix has no resolved policy.
+The app must supply an explicit policy before export.
+
+Profiles are additive and keep request order. No profile matrix is generated.
+The built-in IDs are:
+
+- `phone-light`, `phone-dark`, `tablet-light`, and `phone-landscape`
+- `phone-small`, `phone-xxxl`, and `phone-ax3`
+- `phone-contrast`, `phone-rtl`, `phone-bold`, and `phone-voiceover`
+
+The first profile is the initial web selection. An empty profile list becomes
+`phone-light` followed by `phone-dark`. Fixed Flyover viewports keep their size
+while profile traits still apply. Tablet and landscape profiles also apply an
+explicit interface idiom and size classes to adaptive content.
+
+The manifest compatibility boundary is `schemaVersion: 1`. It contains the
+application and build identity, profiles, precomputed canvas geometry, groups,
+screens, routes, and image metadata. It contains no local source or account
+paths. New image records include the optional thumbnail path and pixel size.
+Older schema-1 artifacts remain readable. The web shell uses the full capture
+when thumbnail metadata is absent. Full-content sizing uses SnapshotKitTesting
+limits and convergence rules. A sizing error stops the export. The exporter
+never substitutes a viewport image.
+
+The website opens the first catalog group in canvas mode. A floating control
+dock keeps the canvas visible. The group panel and overview map move between
+groups without recalculating the graph. The canvas keeps its position when a
+state, profile, or panel changes.
+
+Canvas and list views give an active thumbnail source to every visible screen.
+The list can also preload nearby thumbnails. This preload targets six active
+images and 24 million thumbnail pixels. Visible screens override both targets.
+The inspector removes these sources while it shows one full-resolution capture.
+
+Point to or focus a card to emphasize its connected routes. The site dims
+unrelated cards and routes until the focus moves. Filters for groups, capture
+extents, and route states stay in a separate panel.
+
+Search opens a command palette. It matches group, screen, state, and connected
+route names. A result opens its screen or fits its group. List mode shows the
+same selection in grouped rows. State and profile changes update the native
+image without changing the selected screen.
+
+The inspector uses the full browser window. The image stays central while a
+drawer supplies capture data and route links. Full-content images use a
+device-width scroll area. The Fit and 100% controls change the image scale
+without changing the capture.
+
+Atlas controls, labels, and screenshots do not support browser text selection
+or image dragging. Search text, screen titles, error details, and metadata
+values remain selectable.
+
+The browser hash stores the view, inspector screen, profile, and non-default
+state selections for all screens. Reload, Back, and Forward restore these
+values without opening the inspector for a canvas or list selection.
+History navigation closes transient panels. Full-content and 100% image scroll
+areas accept keyboard focus. Their arrow keys scroll the image instead of
+changing screens. The site also supplies these keyboard controls:
+
+- Press `/` or `Command-K` to open search.
+- Press `F` to fit the complete canvas.
+- Press `0` to fit the current group.
+- Press `+` or `-` to change the canvas zoom.
+- Press an arrow key, `[` or `]`, to move between inspector screens.
+- Press `I` to show or hide the inspector details.
+- Press Escape to close the inspector.
+
 ## Testing
 
 Run unit coverage with:
@@ -150,3 +241,11 @@ This keeps every horizontally shelved group visible at the same readable initial
 ```sh
 ./test --snapshots
 ```
+
+## Snapshot case adapters
+
+`FlyoverVariant.snapshots(id:snapshotCase:)` returns one lazy variant for a single-view
+snapshot case, or one variant per cutsheet panel. Single-view IDs remain unchanged.
+Cutsheet variants append their stable panel identity to the supplied ID. Panel
+reordering therefore preserves variant identity. The adapter never hosts the entire
+comparison sheet as one interactive screen.

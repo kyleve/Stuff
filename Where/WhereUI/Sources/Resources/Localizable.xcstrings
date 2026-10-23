@@ -3907,6 +3907,17 @@
         }
       }
     },
+    "flight.status.groundObserved" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ground observed: %@"
+          }
+        }
+      }
+    },
     "flight.status.lastObservation" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3980,6 +3991,28 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Ready to review"
+          }
+        }
+      }
+    },
+    "flight.status.uncertain.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ground observations confirm this flight ended. The arrival time is unknown. Only points supported as airborne can be corrected."
+          }
+        }
+      }
+    },
+    "flight.status.uncertain.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrival time uncertain"
           }
         }
       }
@@ -4476,30 +4509,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Welcome back to %@"
-          }
-        }
-      }
-    },
-    "locations.elsewhere.subtitle" : {
-      "comment" : "Subtitle on the Locations tab's Elsewhere entry card: region count.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld region"
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld regions"
-                }
-              }
-            }
           }
         }
       }
@@ -5879,13 +5888,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld day logged this year, but none in a headline spot yet."
+                  "value" : "%lld day logged this year, but none in your primary regions."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld days logged this year, but none in a headline spot yet."
+                  "value" : "%lld days logged this year, but none in your primary regions."
                 }
               }
             }
@@ -5894,7 +5903,7 @@
       }
     },
     "primary.elsewhereOnly.open" : {
-      "comment" : "Button on the Locations elsewhere-only state that opens the Elsewhere list.",
+      "comment" : "Button on Locations that selects the Elsewhere tab.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -5911,7 +5920,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nothing in your headline spots"
+            "value" : "No days in your primary regions"
           }
         }
       }
@@ -5922,7 +5931,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Turn on tracking or add a day in Settings and your top spots will land here."
+            "value" : "Turn on tracking or add a day in Settings to see your primary regions here."
           }
         }
       }
@@ -6929,24 +6938,13 @@
         }
       }
     },
-    "secondary.caption.passingThrough" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Just passing through"
-          }
-        }
-      }
-    },
     "secondary.empty.description" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Spend a day outside your top spots — or log a trip in Settings — and it'll appear here."
+            "value" : "Visits outside your primary regions appear here. You can also log a trip in Settings."
           }
         }
       }
@@ -6958,17 +6956,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nowhere else logged"
-          }
-        }
-      }
-    },
-    "secondary.header" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Everywhere else you turned up in %@."
           }
         }
       }
@@ -7035,17 +7022,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Map of where you were"
-          }
-        }
-      }
-    },
-    "secondary.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Elsewhere"
           }
         }
       }
@@ -7411,7 +7387,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Show recorded GPS locations as glowing dots on the maps in Locations."
+            "value" : "Show recorded GPS locations as dots on the maps in Locations."
           }
         }
       }
@@ -9283,7 +9259,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Locations shows your leading regions. Tap a card for its calendar, or open Elsewhere to see the remaining regions. A travel day can count in more than one region."
+            "value" : "Locations shows your selected primary regions. Elsewhere has a card for each other region you visited, with recorded days and a map to explore."
           }
         }
       }
@@ -11276,6 +11252,18 @@
         }
       }
     },
+    "tab.elsewhere" : {
+      "comment" : "Tab for recorded visits outside the configured primary regions.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elsewhere"
+          }
+        }
+      }
+    },
     "tab.locations" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -11327,7 +11315,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A second theme, currently matching Standard."
+            "value" : "Strong colors, matte surfaces, and subtle depth."
           }
         }
       }
@@ -11338,7 +11326,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Alternate"
+            "value" : "Flat"
           }
         }
       }

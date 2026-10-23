@@ -207,9 +207,11 @@ actor TestStore: WhereStore {
         if shouldFailSamples { throw SampleReadFailure() }
         if gateFirstSamplesCall, !firstSamplesSeen {
             firstSamplesSeen = true
+            let samples = try await backing.samples(in: interval)
             arrival?.resume()
             arrival = nil
             await withCheckedContinuation { gate = $0 }
+            return samples
         }
         return try await backing.samples(in: interval)
     }

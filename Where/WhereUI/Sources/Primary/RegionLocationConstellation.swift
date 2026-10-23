@@ -30,14 +30,16 @@ struct RegionLocationConstellation: View {
             let coreTint = tint.mix(with: .white, by: style.coreWhiteMix, in: .perceptual)
 
             for point in points {
-                projectedContext.fill(
-                    circle(center: point.position, radius: outerHaloRadius),
-                    with: .color(tint.opacity(style.haloOpacity * 0.28)),
-                )
-                projectedContext.fill(
-                    circle(center: point.position, radius: innerHaloRadius),
-                    with: .color(tint.opacity(style.haloOpacity)),
-                )
+                if style.haloOpacity > 0 {
+                    projectedContext.fill(
+                        circle(center: point.position, radius: outerHaloRadius),
+                        with: .color(tint.opacity(style.haloOpacity * 0.28)),
+                    )
+                    projectedContext.fill(
+                        circle(center: point.position, radius: innerHaloRadius),
+                        with: .color(tint.opacity(style.haloOpacity)),
+                    )
+                }
                 projectedContext.fill(
                     circle(center: point.position, radius: coreRadius),
                     with: .color(coreTint.opacity(style.coreOpacity)),

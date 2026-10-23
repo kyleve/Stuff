@@ -8,6 +8,43 @@ import WhereCore
 
 @MainActor
 struct MainTabsTests {
+    @Test func elsewhereTabAppearsForAVisitAndFallsBackAfterItsRemoval() async throws {
+        let session = PreviewSupport.loadedSession()
+        session.preferences.showsLocationWelcome = false
+        let root = MainTabs(
+            session: session,
+            initialDetails: nil,
+            selectedYear: PreviewSupport.year,
+        )
+        .environment(session)
+        .environment(PreviewSupport.loadedModel())
+        .environment(\.scenePhase, .active)
+        .whereBroadwayRoot()
+        try await show(UIHostingController(rootView: root)) { host in
+            try await waitForUpdateScene { findTabController(in: host)?.tabs.count == 3 }
+            let tabs = try #require(findTabController(in: host))
+            let date = PreviewSupport.referenceNow
+            try await session.services.journal.addManualDay(
+                date: date,
+                regions: [.other],
+                audit: nil,
+            )
+            try await waitForUpdateScene { tabs.tabs.count == 4 }
+            #expect(tabs.tabs.map(\.title) == ["Locations", "Elsewhere", "Your Year", "Settings"])
+            tabs.selectedIndex = 1
+            if let selected = tabs.selectedViewController {
+                tabs.delegate?.tabBarController?(tabs, didSelect: selected)
+            }
+            try await session.services.journal.addManualDay(
+                date: date,
+                regions: [.california],
+                audit: nil,
+            )
+            try await waitForUpdateScene { tabs.tabs.count == 3 && tabs.selectedIndex == 0 }
+            #expect(tabs.tabs.map(\.title) == ["Locations", "Your Year", "Settings"])
+        }
+    }
+
     @Test func checksWhenTheSceneEntersAndReturnsToTheForeground() async throws {
         let session = PreviewSupport.loadedSession()
         session.preferences.showsLocationWelcome = false

@@ -246,6 +246,9 @@ anything here: it is what showed that `drainInFlightAnimations` was burning a
 flat second on every image, and that the settle *floor* rather than its render
 passes is what the remaining time buys.
 
+Synchronous autorelease pools bound settle samples, tile rendering, capture normalization, and reference comparison.
+The capture pool returns only the normalized image and PNG bytes. Pools never span an `await`.
+
 `SNAPSHOT_SETTLE` selects the stability mechanism (`pixel`, `quiescence`,
 `both`). see [`AGENTS.md`](AGENTS.md) for why `pixel` is the only safe default.
 
@@ -254,6 +257,23 @@ readiness-hook ceilings from 1× through 4×. It does not change minimum floors,
 the quiet-window proof, render cadence, or image tolerances, so stable captures
 finish at the same point. Local runs leave it unset (1×). snapshot CI explicitly
 uses 2×. `./test` forwards it into the hosted test process.
+
+## Retries after settling failures
+
+`assertSnapshots` allows three attempts per independent capture when settling
+times out or cannot prove stability on a slow runner. Each cutsheet panel has its
+own attempt budget. Each retry starts after capture
+cleanup, with a fresh host controller and the same timeout budget. Measurement,
+readiness hooks, and final capture run again. Supplied views and external model
+objects remain shared. Readiness hooks must tolerate repeated execution.
+
+After three settling failures, the runner records the final error. Cancellation
+stops immediately. Other rendering errors and reference mismatches fail without
+retries. Direct image and PNG capture APIs remain single-attempt operations.
+
+`SNAPSHOT_RETRY` lines identify failed attempts and successful recovery. `./test`
+shows these lines without adding to test or image counts. A successful capture
+emits one timing line that includes time spent on failed attempts.
 
 ## Requirements
 
@@ -264,3 +284,37 @@ uses 2×. `./test` forwards it into the hosted test process.
 - Timezone-pinned: references bake wall-clock dates/times into pixels, so the
   snapshot scheme pins `TZ` (and the runner verifies it via
   `SNAPSHOT_EXPECTED_TIMEZONE`) — see `testScheme` in `Project.swift`.
+
+## Component comparison sheets
+
+Use `SnapshotCase.cutsheet(name:configurations:panels:)` to capture the same
+component state across consumer-defined appearances. Each `SnapshotPanel` has a
+stable typed identity, a display label, and a lazy content builder. Build fresh
+fixture state inside that builder. Each configuration produces one two-column
+sheet with unscaled, independently hosted panels. Additional panels wrap to new rows.
+
+The consumer chooses the reference group; Where's theme helper selects `themes`.
+The runner stores one PNG with a versioned panel map in its Description metadata.
+Each panel uses the ordinary image comparator and its own pixel budget. The complete
+sheet also guards headings and spacing. Membership, labels, dimensions, and missing
+or malformed metadata fail explicitly. Review the PNG before recording. Preserve
+its metadata when copying references; image optimizers that strip metadata invalidate
+cutsheet references.
+
+Single views and cutsheets share configured capture and reference recording helpers.
+Panels retain independent settling and fresh fixtures. The runner compares panels
+before assembling their captured images in a SwiftUI `Grid`. SwiftUI lays out labels
+and images; geometry observations supply the embedded panel map. The shared hosted
+renderer captures the grid. The original component views run only for their independent
+captures. All failing panels appear in the verdict, subject to the existing recording policy.
+
+Ordinary cases accept an optional `SnapshotReferenceGroup`. The default keeps
+existing paths. Groups are stable lowercase slugs owned by the consumer; they do
+not change configuration identifiers. Special traits use `other/` inside the group.
+Use component sheets for appearance coverage and keep screen variants for critical
+integration or materially different composition. Preview sheets approximate layout;
+the hosted test capture remains authoritative.
+
+The runner reads SnapshotKit's `Capture` SPI and switches exhaustively between
+single-view and cutsheet captures. Panel collections are validated before capture.
+No empty-array fallback selects the single-view path.

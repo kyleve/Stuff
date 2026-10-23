@@ -4,6 +4,34 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct DataIssueScannerTests {
+    @Test func sparseFlightPublishesHistoryWithoutChangingPresenceOrOfferingAutomaticExclusions(
+    ) async throws {
+        let store = try SwiftDataStore.inMemory()
+        let samples = FlightTrajectoryFixtures.sparseFlight()
+        let now = FlightTrajectoryFixtures.date(minutes: 285)
+        try await store.perform {
+            for sample in samples {
+                try await store.add(sample: sample)
+            }
+        }
+        let scanner = makeReviewScanner(store: store, now: { now })
+        let scan = try await scanner.scan(
+            year: 2026,
+            primaryRegions: SampleCorrectionTestSupport.attribution.loadedRegions,
+            driftThresholdMeters: 1000,
+            force: true,
+        )
+        #expect(scan.completedFlights.count == 1)
+        #expect(scan.issues.isEmpty)
+        let review = try #require(scan.reviews.first)
+        #expect(review.proposal == nil)
+        #expect(review.flights == scan.completedFlights)
+        #expect(Set(review.points.map(\.sample.id)) == Set(samples.map(\.id)))
+        #expect(scan.completedFlights[0].completedDays(in: SampleCorrectionTestSupport.calendar)
+            == [CalendarDay(from: now, in: SampleCorrectionTestSupport.calendar)])
+        #expect(try await Set(store.allSamples()) == Set(samples))
+    }
+
     private static var calendar: Calendar {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = TimeZone(identifier: "America/Los_Angeles")!
@@ -492,7 +520,10 @@ struct DataIssueScannerTests {
         #expect(!hasPendingReview)
         #expect(completed.reviews.allSatisfy {
             $0.flight?
-                .progress == .completed(arrivedAt: FlightTrajectoryFixtures.date(minutes: 5768))
+                .progress == .completed(arrival: .observedGround(
+                    firstObservedAt: FlightTrajectoryFixtures.date(minutes: 5768),
+                    confirmedAt: FlightTrajectoryFixtures.date(minutes: 5778),
+                ))
         })
         #expect(Set(completed.issues.map(\.id)) == [unrelatedID, .flightDay(day: arrivalDay)])
         let proposal = try #require(completed.reviews.first { $0.day.day == arrivalDay }?.proposal)

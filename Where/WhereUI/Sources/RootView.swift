@@ -12,7 +12,7 @@ import SwiftUI
 #endif
 
 /// The app's root: the launch plan gated in front of `MainTabs`, the Liquid
-/// Glass tab bar over three tabs (Locations, Your Year, Settings).
+/// Glass tab bar for Locations, optional Elsewhere, Your Year, and Settings.
 ///
 /// `LifecycleContainer` renders the splash / onboarding UI while the
 /// `LifecycleRunner` runs, then the `TabView` (the real "logged-in" UI — the

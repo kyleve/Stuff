@@ -22,33 +22,33 @@ public struct FlightEndpointInference: Hashable, Sendable {
         previous: LocationSample?,
         endpointObservations: [LocationSample],
     ) -> Reason? {
-        typealias Policy = GPSCorrectionPolicy.Trajectory
+        typealias Trajectory = GPSCorrectionPolicy.Trajectory
         guard let first = cruise.first, let last = cruise.last else { return nil }
-        let speeds = endpointObservations.compactMap { sample -> LocationMotion.Speed? in
-            guard let speed = sample.motion?.speed,
-                  speed.metersPerSecond.isFinite, speed.metersPerSecond >= 0,
-                  speed.accuracyMetersPerSecond.isFinite, speed.accuracyMetersPerSecond >= 0
-            else { return nil }
-            return speed
-        }
+        let speeds = endpointObservations.compactMap(validSpeed)
         // A reliable slow reading contradicts an already-airborne endpoint, even
         // when the next few minutes include a genuine takeoff.
         guard !speeds.contains(where: {
             ($0.metersPerSecond + $0.accuracyMetersPerSecond) * 3.6
-                < Policy.minimumCruiseSpeedKMH
+                < Trajectory.minimumCruiseSpeedKMH
         }) else { return nil }
-        if let speed = speeds.first(where: {
+        // Recognition-quality callbacks can veto, but only correction-quality
+        // observations can grant new exclusion authority.
+        let correctionSpeeds = endpointObservations.filter {
+            $0.horizontalAccuracy <= GPSCorrectionPolicy.maximumHorizontalAccuracyMeters
+        }.compactMap(validSpeed)
+        if let speed = correctionSpeeds.first(where: {
             ($0.metersPerSecond - $0.accuracyMetersPerSecond) * 3.6
-                >= Policy.minimumCruiseSpeedKMH
+                >= Trajectory.minimumCruiseSpeedKMH
                 && ($0.metersPerSecond + $0.accuracyMetersPerSecond) * 3.6
-                <= Policy.maximumPlausibleSpeedKMH
+                <= Trajectory.maximumPlausibleSpeedKMH
         }) {
             return .recordedSpeed(lowerBoundKMH:
                 (speed.metersPerSecond - speed.accuracyMetersPerSecond) * 3.6)
         }
         guard let previous,
+              previous.horizontalAccuracy <= GPSCorrectionPolicy.maximumHorizontalAccuracyMeters,
               last.timestamp.timeIntervalSince(first.timestamp)
-              >= Policy.minimumResumedCruiseDuration else { return nil }
+              >= Trajectory.minimumResumedCruiseDuration else { return nil }
         let seconds = first.timestamp.timeIntervalSince(previous.timestamp)
         let distance = previous.coordinate.distance(to: first.coordinate)
         let uncertainty = previous.horizontalAccuracy + first.horizontalAccuracy
@@ -60,12 +60,20 @@ public struct FlightEndpointInference: Hashable, Sendable {
         // Preserve the two-hour observed-leg cap. Only a bounded long gap with
         // flight-speed displacement and continuing directed cruise corroborates
         // this first fix. No absent points or earlier endpoints are corrected.
-        guard seconds > Policy.maximumLegInterval,
-              seconds <= Policy.maximumCorroboratingGap,
-              lower >= Policy.minimumCruiseSpeedKMH,
-              upper <= Policy.maximumPlausibleSpeedKMH,
+        guard seconds > Trajectory.maximumLegInterval,
+              seconds <= Trajectory.maximumCorroboratingGap,
+              lower >= Trajectory.minimumCruiseSpeedKMH,
+              upper <= Trajectory.maximumPlausibleSpeedKMH,
               previous.coordinate.distance(to: last.coordinate) / (distance + cruiseDistance)
-              >= Policy.minimumDirectProgressRatio else { return nil }
+              >= Trajectory.minimumDirectProgressRatio else { return nil }
         return .recordingGap(duration: seconds, averageSpeedKMH: distance / seconds * 3.6)
+    }
+
+    private static func validSpeed(_ sample: LocationSample) -> LocationMotion.Speed? {
+        guard let speed = sample.motion?.speed,
+              speed.metersPerSecond.isFinite, speed.metersPerSecond >= 0,
+              speed.accuracyMetersPerSecond.isFinite, speed.accuracyMetersPerSecond >= 0
+        else { return nil }
+        return speed
     }
 }

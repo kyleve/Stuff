@@ -50,7 +50,9 @@ struct FlightStatusBanner: View {
             switch flight.progress {
                 case .flightLikely: return String(localized: .flightStatusLikelyTitle)
                 case .awaitingArrival: return String(localized: .flightStatusWaitingTitle)
-                case .completed: break
+                case let .completed(arrival):
+                    if arrival
+                        .isTimingUncertain { return String(localized: .flightStatusUncertainTitle) }
             }
         }
         return switch review.state {
@@ -65,7 +67,12 @@ struct FlightStatusBanner: View {
             switch flight.progress {
                 case .flightLikely: return String(localized: .flightStatusLikelyDescription)
                 case .awaitingArrival: return String(localized: .flightStatusWaitingDescription)
-                case .completed: break
+                case let .completed(arrival):
+                    if arrival
+                        .isTimingUncertain
+                    {
+                        return String(localized: .flightStatusUncertainDescription)
+                    }
             }
         }
         return switch review.state {
