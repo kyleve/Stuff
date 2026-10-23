@@ -31,6 +31,27 @@ struct WhereStylesheetTests {
 
     private let style = WhereStylesheet.default
 
+    @Test func onboardingDefaults() {
+        #expect(style.onboarding.pageIndicatorClearance == 44)
+        #expect(style.onboarding.maxWidth == 720)
+        #expect(style.onboarding.padding == 24)
+        #expect(style.onboarding.contentSpacing == 28)
+        #expect(style.onboarding.cornerRadius == 28)
+        #expect(style.onboarding.usesOpaqueSurfaces == false)
+        #expect(style.onboarding.showsArtwork)
+        #expect(style.onboarding.rosette.wobble == 5)
+        #expect(style.onboarding.rosette.lineWidth == 0.5)
+        #expect(style.onboarding.outline.center == CGPoint(x: 0.8, y: 0.3))
+        #expect(style.onboarding.outline.extent == CGSize(width: 0.85, height: 0.7))
+        #expect(style.onboarding.outline.scale == 1)
+        #expect(style.onboarding.outline.fillOpacity == 0)
+        #expect(style.onboarding.outline.stroke?.opacity == 0.06)
+        #expect(style.onboarding.outline.stroke?.width == 1)
+        #expect(style.onboarding.rosetteOpacity == 0.045)
+        #expect(style.onboarding.rosette.primaryRingSpacing == 22)
+        #expect(style.onboarding.rosette.secondaryRingSpacing == 31)
+    }
+
     @Test func yearModePickerDefaultsToInline() {
         #expect(style.yearModePicker.layout == .inline)
     }
@@ -1000,6 +1021,8 @@ struct WhereStylesheetTests {
         var context = BContext(traits: .system)
         context.traitOverrides.contentSizeCategory = .accessibilityLarge
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.onboarding.contentSpacing == 20)
+        #expect(resolved.onboarding.phone.width == resolved.onboarding.maxWidth)
         #expect(resolved.calendar.day.minHeight == 56)
         #expect(resolved.calendar.day.numberSize == 36)
         #expect(resolved.calendar.day.numberFontSize == 24)
@@ -1021,6 +1044,9 @@ struct WhereStylesheetTests {
         #expect(resolved.card.constellation.haloOpacity == 0)
         #expect(resolved.card.constellation.coreOpacity == 0.92)
         #expect(resolved.privacyPassportCard.disclosure.fillOpacity == 0.16)
+        #expect(resolved.onboarding.usesOpaqueSurfaces)
+        #expect(resolved.onboarding.showsArtwork == false)
+        #expect(resolved.onboarding.footer.backgroundOpacity == 1)
         #expect(resolved.locationsBackground.showsInk == false)
     }
 

@@ -30,6 +30,7 @@ public struct OnboardingView: View {
     @Environment(WhereModel.self) private var model
     @Environment(\.stylesheet) private var stylesheet
     @State private var flow: OnboardingFlowModel
+    @MotionIsStatic private var motionIsStatic
 
     private var deviceKind: RecordingDeviceKind {
         flow.installationContext.currentDevice.kind
@@ -65,6 +66,12 @@ public struct OnboardingView: View {
         ))
     }
 
+    #if DEBUG
+        private init(flow: OnboardingFlowModel) {
+            _flow = State(initialValue: flow)
+        }
+    #endif
+
     private let pages = OnboardingPage.all
 
     public var body: some View {
@@ -83,17 +90,8 @@ public struct OnboardingView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            LinearGradient(
-                colors: [
-                    stylesheet.palette.onboarding.backgroundTop,
-                    stylesheet.palette.onboarding.backgroundBottom,
-                ],
-                startPoint: .top,
-                endPoint: .bottom,
-            )
-            .ignoresSafeArea(),
-        )
+        .background(OnboardingBackground(regions: flow.selection.hasSelection
+                ? flow.selection.selectedRegions : [.california, .newYork]))
         .animation(stylesheet.motion.reducedReveal, value: flow.phase)
         .onDisappear { flow.discardPendingRestore() }
         // Log View Mode: reveal an inspect badge for onboarding events (region
@@ -125,20 +123,22 @@ public struct OnboardingView: View {
     }
 
     private var introPages: some View {
-        VStack(spacing: stylesheet.spacing.xxxLarge) {
+        VStack(spacing: stylesheet.spacing.medium) {
             TabView(selection: $flow.page) {
                 ForEach(pages.indices, id: \.self) { index in
+                    // Keep headings below the native pager's top edge treatment.
                     pageView(pages[index])
+                        .padding(.top, stylesheet.onboarding.padding)
+                        .padding(.bottom, stylesheet.onboarding.pageIndicatorClearance)
                         .tag(index)
                         .padding(.horizontal, stylesheet.spacing.xxxLarge)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .always))
-
-            introFooter
-                .padding(.horizontal, stylesheet.spacing.xxxLarge)
-                .padding(.bottom, stylesheet.spacing.xxxLarge)
+            .indexViewStyle(.page(backgroundDisplayMode: .always))
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) { introFooter }
+        .scrollEdgeEffectHidden()
         .fileImporter(
             isPresented: $flow.showImporter,
             allowedContentTypes: [.zip],
@@ -176,58 +176,52 @@ public struct OnboardingView: View {
     }
 
     private func pageView(_ page: OnboardingPage) -> some View {
-        VStack(spacing: stylesheet.spacing.xxxLarge) {
-            Spacer(minLength: 0)
-            Image(systemSymbol: page.symbol)
-                .font(stylesheet.typography.onboardingIcon)
-                .foregroundStyle(Color.accentColor)
-                .accessibilityHidden(true)
-            VStack(spacing: stylesheet.spacing.large) {
-                Text(page.title)
-                    .font(.largeTitle.bold())
-                    .multilineTextAlignment(.center)
-                Text(page.description)
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            Spacer(minLength: 0)
-        }
+        OnboardingIntroPage(page: page, privacy: model.diagnosticReporting.effectiveConfiguration)
     }
 
     private var introFooter: some View {
-        VStack(spacing: stylesheet.spacing.medium) {
-            Button {
-                withAnimation { flow.advanceIntro(pageCount: pages.count) }
-            } label: {
-                Text(String(localized: .onboardingContinue))
-                    .frame(maxWidth: .infinity)
+        OnboardingFooter {
+            OnboardingAction(title: .onboardingContinue) {
+                withAnimation(stylesheet.motion.reducedReveal) {
+                    flow.advanceIntro(pageCount: pages.count)
+                }
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
 
-            // Returning users can skip the manual setup by restoring a backup;
-            // the restore's progress replaces the intro with the loading view.
-            Button(String(localized: .onboardingRestoreBackup)) { flow.showImporter = true }
-                .controlSize(.large)
-
-            // And anyone can look around first, without handing over a
-            // location permission or leaving anything on their device.
-            Button(String(localized: .onboardingTryDemo)) { flow.enterDemoMode(using: model) }
-                .controlSize(.large)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: stylesheet.spacing.medium) {
+                    introSecondaryActions.fixedSize(horizontal: true, vertical: false)
+                }
+                VStack(spacing: stylesheet.spacing.medium) { introSecondaryActions }
+            }
+            .font(.subheadline)
         }
         .disabled(flow.intro.isBuildingDemo)
+    }
+
+    @ViewBuilder
+    private var introSecondaryActions: some View {
+        OnboardingAction(title: .onboardingRestoreBackup, prominence: .secondary) {
+            flow.showImporter = true
+        }
+        OnboardingAction(title: .onboardingTryDemo, prominence: .secondary) {
+            flow.enterDemoMode(using: model)
+        }
     }
 
     // MARK: - Pick regions
 
     private var pickRegions: some View {
         NavigationStack {
-            RegionPickerView(model: flow.selection)
-                .navigationTitle(String(localized: .onboardingRegionsTitle))
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button(String(localized: .onboardingNext)) { flow.phase = .customize }
+            RegionPickerView(model: flow.selection, presentation: .onboarding)
+                .frame(maxWidth: stylesheet.onboarding.maxWidth)
+                .frame(maxWidth: .infinity)
+                .scrollContentBackground(.hidden)
+                .background(OnboardingBackground(regions: flow.selection.hasSelection
+                        ? flow.selection.selectedRegions : [.california, .newYork]))
+                .navigationTitle(String(localized: .onboardingRegionsHeading))
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    OnboardingFooter {
+                        OnboardingAction(title: .onboardingNext) { flow.phase = .customize }
                             .disabled(!flow.selection.hasSelection)
                     }
                 }
@@ -242,6 +236,7 @@ public struct OnboardingView: View {
                 model: flow.selection,
                 onBack: { flow.phase = .pickRegions },
                 onFinish: { flow.phase = .location },
+                presentation: .onboarding,
             )
         }
     }
@@ -253,26 +248,38 @@ public struct OnboardingView: View {
             ScrollView {
                 VStack(spacing: stylesheet.spacing.xxxLarge) {
                     Spacer(minLength: 0)
+                    OnboardingHeader(
+                        title: String(localized: recordingTitle),
+                        detail: String(localized: .onboardingRecordingDescription),
+                    )
                     Image(systemSymbol: deviceKind.systemSymbol)
                         .font(stylesheet.typography.onboardingIcon)
                         .foregroundStyle(Color.accentColor)
+                        .padding(stylesheet.onboarding.padding)
+                        .background {
+                            if stylesheet.onboarding.usesOpaqueSurfaces {
+                                Circle().fill(Color(uiColor: .secondarySystemGroupedBackground))
+                            } else {
+                                Circle().fill(.regularMaterial)
+                            }
+                        }
                         .accessibilityHidden(true)
-                    VStack(spacing: stylesheet.spacing.large) {
-                        Text(recordingTitle)
-                            .font(.largeTitle.bold())
-                            .multilineTextAlignment(.center)
-                        Text(String(localized: .onboardingRecordingDescription))
-                            .font(.body)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
                     Spacer(minLength: 0)
 
                     VStack(spacing: stylesheet.spacing.large) {
                         VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
                             switch flow.deviceDiscovery {
                                 case .idle, .loading:
-                                    ProgressView(String(localized: .onboardingRecordingChecking))
+                                    if motionIsStatic {
+                                        Label(
+                                            String(localized: .onboardingRecordingChecking),
+                                            systemSymbol: .icloud,
+                                        )
+                                    } else {
+                                        ProgressView(
+                                            String(localized: .onboardingRecordingChecking),
+                                        )
+                                    }
                                 case let .ready(recommendation):
                                     if recommendation.recentRecordingDevice != nil {
                                         Label(
@@ -293,26 +300,27 @@ public struct OnboardingView: View {
                                 .foregroundStyle(.secondary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-
-                        Button {
-                            // Request Always-location only after the user confirms an
-                            // enabled choice; the launch's reconcile step picks up
-                            // whatever the system grants.
-                            flow.finish(using: model)
-                        } label: {
-                            Text(String(localized: .onboardingContinue))
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
+                        .padding(stylesheet.onboarding.padding)
+                        .background(
+                            Color(uiColor: .secondarySystemGroupedBackground),
+                            in: .rect(cornerRadius: stylesheet.onboarding.cornerRadius),
+                        )
                     }
                     .disabled(flow.isFinishing || flow.deviceDiscovery == .loading)
                 }
                 .padding(.horizontal, stylesheet.spacing.xxxLarge)
                 .padding(.bottom, stylesheet.spacing.xxxLarge)
-                .frame(maxWidth: .infinity, minHeight: geometry.size.height)
+                .frame(maxWidth: stylesheet.onboarding.maxWidth, minHeight: geometry.size.height)
+                .frame(maxWidth: .infinity)
             }
             .scrollBounceBehavior(.basedOnSize)
+            .scrollEdgeEffectHidden()
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            OnboardingFooter {
+                OnboardingAction(title: .onboardingContinue) { flow.finish(using: model) }
+                    .disabled(flow.isFinishing || flow.deviceDiscovery == .loading)
+            }
         }
         .task { await flow.discoverRecordingDevices(using: model) }
     }
@@ -411,27 +419,24 @@ final class OnboardingIntroState {
 /// One page of the onboarding intro. A plain value (not a view) so the page
 /// list reads declaratively and stays easy to reorder.
 struct OnboardingPage: Identifiable {
-    let id: String
-    let symbol: SFSymbol
+    enum ID: Hashable { case welcome, automatic, privacy }
+    let id: ID
     let title: String
     let description: String
 
     static let all: [OnboardingPage] = [
         OnboardingPage(
-            id: "welcome",
-            symbol: .globeAmericasFill,
+            id: .welcome,
             title: String(localized: .onboardingWelcomeTitle),
             description: String(localized: .onboardingWelcomeDescription),
         ),
         OnboardingPage(
-            id: "automatic",
-            symbol: .locationFillViewfinder,
+            id: .automatic,
             title: String(localized: .onboardingAutomaticTitle),
             description: String(localized: .onboardingAutomaticDescription),
         ),
         OnboardingPage(
-            id: "privacy",
-            symbol: .lockShieldFill,
+            id: .privacy,
             title: String(localized: .onboardingPrivacyTitle),
             description: String(localized: .onboardingPrivacyDescription),
         ),
@@ -442,7 +447,7 @@ struct OnboardingPage: Identifiable {
     extension OnboardingView: SnapshotProviding {
         public static var snapshots: [SnapshotCase] {
             [
-                whereSnapshot(name: "Default", configurations: .screenDefaults) {
+                onboardingSnapshot(name: "Default", configurations: .screenDefaults) {
                     // `onboardingModel()` (not `loadedModel()`) so `hasOnboarded`
                     // is false and the capture lands on the intro flow.phase.
                     OnboardingView(
@@ -454,11 +459,67 @@ struct OnboardingPage: Identifiable {
                     )
                     .environment(PreviewSupport.onboardingModel())
                 },
-                whereSnapshot(
+                onboardingSnapshot(
+                    name: "ReduceTransparency",
+                    configurations: .phoneLightDark,
+                    reduceTransparency: true,
+                ) {
+                    OnboardingView(
+                        gate: LifecycleGateHandle(
+                            id: LaunchStepID.onboarding,
+                            reason: .userForeground,
+                        ),
+                        installationContext: .testing,
+                    )
+                    .environment(PreviewSupport.onboardingModel())
+                },
+                phaseSnapshot(name: "Automatic", phase: .intro, page: 1),
+                phaseSnapshot(name: "Privacy", phase: .intro, page: 2),
+                phaseSnapshot(name: "Regions", phase: .pickRegions),
+                phaseSnapshot(name: "Customize", phase: .customize),
+                phaseSnapshot(
+                    name: "RecordingOff",
+                    phase: .location,
+                    discovery: .ready(RecordingOnboardingRecommendation(
+                        isEnabled: false,
+                        recentRecordingDevice: nil,
+                    )),
+                ),
+                phaseSnapshot(
+                    name: "RecordingElsewhere",
+                    phase: .location,
+                    discovery: .ready(RecordingOnboardingRecommendation(
+                        isEnabled: false,
+                        recentRecordingDevice: RecordingDevice(
+                            id: RecordingDeviceID(
+                                rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000008")!,
+                            ),
+                            systemName: "iPhone",
+                            nickname: nil,
+                            kind: .phone,
+                            registeredAt: InstallationRecordingContext.testing
+                                .registeredAt,
+                            lastSeenAt: InstallationRecordingContext.testing.registeredAt,
+                            removedAt: nil,
+                            status: .recording,
+                        ),
+                    )),
+                ),
+                phaseSnapshot(name: "RecordingLoading", phase: .location, discovery: .loading),
+                phaseSnapshot(
+                    name: "RecordingFailure",
+                    phase: .location,
+                    discovery: .failed(String(localized: .settingsDevicesLoadFailed)),
+                ),
+                onboardingSnapshot(
                     name: "PhoneRecordingChoice",
-                    configurations: SnapshotConfiguration.combinations(devices: [.iPhone]) + [
-                        SnapshotConfiguration(dynamicType: .accessibility5, device: .iPhone),
-                    ],
+                    configurations: SnapshotConfiguration
+                        .combinations(devices: [.iPhoneFullContent]) + [
+                            SnapshotConfiguration(
+                                dynamicType: .accessibility5,
+                                device: .iPhoneFullContent,
+                            ),
+                        ],
                 ) {
                     OnboardingView(
                         gate: LifecycleGateHandle(
@@ -470,9 +531,9 @@ struct OnboardingPage: Identifiable {
                     )
                     .environment(PreviewSupport.onboardingModel())
                 },
-                whereSnapshot(
+                onboardingSnapshot(
                     name: "TabletRecordingChoice",
-                    configurations: SnapshotConfiguration.combinations(devices: [.iPad]),
+                    configurations: SnapshotConfiguration.combinations(devices: [.iPadFullContent]),
                 ) {
                     OnboardingView(
                         gate: LifecycleGateHandle(
@@ -498,6 +559,48 @@ struct OnboardingPage: Identifiable {
                     .environment(PreviewSupport.onboardingModel())
                 },
             ]
+        }
+    }
+
+    extension OnboardingView {
+        fileprivate static func phaseSnapshot(
+            name: String,
+            phase: OnboardingFlowModel.Phase,
+            page: Int = 0,
+            discovery: OnboardingFlowModel.DeviceDiscovery = .idle,
+        ) -> SnapshotCase {
+            let configurations: [SnapshotConfiguration] = switch phase {
+                case .intro:
+                    .phoneLightDark
+                case .pickRegions, .customize:
+                    .fullContentPhoneLightDark + [
+                        SnapshotConfiguration(device: .iPadFullContent),
+                        SnapshotConfiguration(
+                            dynamicType: .accessibility5,
+                            device: .iPhoneFullContent,
+                        ),
+                    ]
+                case .theme, .location:
+                    .fullContentPhoneLightDark
+            }
+            return onboardingSnapshot(name: name, configurations: configurations) {
+                let flow = OnboardingFlowModel(
+                    gate: LifecycleGateHandle(id: LaunchStepID.onboarding, reason: .userForeground),
+                    installationContext: .testing,
+                    startsAtRecordingChoice: false,
+                    initialTheme: .standard,
+                )
+                flow.phase = phase
+                flow.page = page
+                flow.deviceDiscovery = discovery
+                if case let .ready(recommendation) = discovery {
+                    flow.recordingEnabled = recommendation.isEnabled
+                }
+                if phase == .customize {
+                    flow.selection = PreviewSupport.primaryRegionSelectionModel()
+                }
+                return OnboardingView(flow: flow).environment(PreviewSupport.onboardingModel())
+            }
         }
     }
 

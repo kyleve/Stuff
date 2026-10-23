@@ -118,11 +118,16 @@ Demo mode hides this surface and performs no update checks.
   and next-launch Inspector/demo controls. The demo sheet selects which Resolve
   issue categories appear in a one-shot, in-memory launch. Forced crashes cover Swift traps, Objective-C
   exceptions, abort signals, and invalid memory access so crash reporters can be
-  checked end to end. The global launcher's accordion only updates
+  checked end to end. The global launcher's next-launch controls only update
   `WhereDeveloperLaunchController`. The current regular runtime continues until the
   developer relaunches. The Logs destination is always present. Before its
   durable store is ready it reports whether the open is still running,
   unavailable, or failed with the actual error.
+  **Onboarding Preview** opens the production flow in a full-screen cover with
+  a fresh in-memory model, preferences, installation identity, and store. It
+  reuses demo's scripted location and no-op system collaborators. Finishing or
+  choosing Demo dismisses the preview; Close discards it. No session starts and
+  the current app's data, theme, recording choice, and integrations stay intact.
 - **App icons** — `AppIcons.json` catalogs asset names, while the host injects
   the current audience's primary asset at `RootView`. The picker maps that one
   asset to UIKit's `nil` primary-icon value and treats every other catalogued
@@ -241,11 +246,17 @@ journal intent.
   Welcome cards must be enabled, and the device must confidently resolve a
   tracked region with recording active.
 
+- **Onboarding presentation** uses `WhereStylesheet.onboarding` for shared headings,
+  actions, and passport backgrounds. Every setup step anchors its primary and
+  secondary actions in a shared safe-area footer. Read-only region cards and a
+  year ribbon sit in minimal device frames with labeled sample history. The privacy passport uses process-effective diagnostics.
+  Artwork uses the root-injected region cache; illustrations do not open a store.
+  The picker and customization editor retain their Settings presentation.
 - **`OnboardingView` / `OnboardingFlowModel`** — the rendered first-run flow and its view-scoped
   observable coordinator, registered for the launch's
   `OnboardingGate` and handed its `LifecycleGateHandle`. The gate follows the
   side-effect-free demo preflight and precedes every world-building step, so
-  there is no session behind it: a paged intro,
+  there is no session behind it: a paged intro and theme selection,
   then picking up to five primary US regions (map or searchable list) and
   giving each a look, then verifying this installation's automatic-recording
   choice. The final page opens the real store in a dormant state to inspect recent synced advisory

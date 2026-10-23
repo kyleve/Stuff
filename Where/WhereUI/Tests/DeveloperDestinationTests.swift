@@ -10,6 +10,7 @@
                         .tool(.logs),
                         .tool(.openSpans),
                         .flyover,
+                        .onboarding,
                         .tool(.regionMap),
                         .tool(.crashTesting),
                     ],
