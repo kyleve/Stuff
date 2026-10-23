@@ -123,11 +123,7 @@ struct LocationForecastPanel: View {
                 measurementReadiness: .immediate,
                 onReadyToSnapshot: {
                     await artwork.load(for: regions) {
-                        var paths: [Path] = []
-                        for region in regions {
-                            await paths.append(cache.path(for: region, resolution: .micro))
-                        }
-                        return paths
+                        await LocationForecastArtworkLoader.load(regions: regions, cache: cache)
                     }
                 },
             ) {

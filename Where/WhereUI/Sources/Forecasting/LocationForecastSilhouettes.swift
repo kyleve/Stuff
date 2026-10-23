@@ -20,10 +20,8 @@ struct LocationForecastSilhouettes: View {
                 gap: style.gap,
             )
             ZStack(alignment: .topLeading) {
-                ForEach(artwork) { item in
-                    if let index = artwork.firstIndex(where: { $0.region == item.region }),
-                       frames.indices.contains(index)
-                    {
+                ForEach(artwork.enumerated(), id: \.element.id) { index, item in
+                    if frames.indices.contains(index) {
                         let frame = frames[index]
                         RegionOutlineArtwork(
                             path: item.watermark,
