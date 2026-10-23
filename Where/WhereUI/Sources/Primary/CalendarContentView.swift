@@ -26,14 +26,20 @@ struct CalendarContentView: View {
     @State private var viewportSize = CGSize.zero
     @AccessibilityFocusState private var focusedTarget: CalendarPresentationModel.Target?
 
+    /// A nil persistence key keeps zoom session-only, including in previews.
     init(
         focusedRegion: Region? = nil,
         report: YearReportModel,
         initialMode: CalendarPresentationModel.Mode = .detail,
+        persistenceKey: CalendarZoomKey? = nil,
     ) {
         self.focusedRegion = focusedRegion
         self.report = report
-        _presentation = State(initialValue: CalendarPresentationModel(mode: initialMode))
+        _presentation = State(initialValue: CalendarPresentationModel(
+            mode: initialMode,
+            preferences: report.preferences,
+            persistenceKey: persistenceKey,
+        ))
     }
 
     @State private var scrollPosition = ScrollPosition(idType: CalendarPresentationModel.Target

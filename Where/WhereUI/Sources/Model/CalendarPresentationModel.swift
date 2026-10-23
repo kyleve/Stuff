@@ -26,7 +26,13 @@ final class CalendarPresentationModel {
     private static let overviewThreshold: CGFloat = 0.8
     private static let detailThreshold: CGFloat = 1.2
 
-    private(set) var mode: Mode
+    private(set) var mode: Mode {
+        didSet {
+            guard oldValue != mode, let persistenceKey else { return }
+            preferences.setCalendarOverview(mode == .overview, forKey: persistenceKey)
+        }
+    }
+
     private(set) var target: Target?
     private(set) var year: Int?
     private(set) var availableMonths: Set<CalendarDay> = []
@@ -34,8 +40,14 @@ final class CalendarPresentationModel {
     private(set) var rejectedTarget: Target?
     private(set) var rejectionCount = 0
 
-    init(mode: Mode) {
-        self.mode = mode
+    private let preferences: WherePreferences
+    private let persistenceKey: CalendarZoomKey?
+
+    init(mode: Mode, preferences: WherePreferences, persistenceKey: CalendarZoomKey?) {
+        self.preferences = preferences
+        self.persistenceKey = persistenceKey
+        self.mode = persistenceKey.flatMap { preferences.calendarOverview(forKey: $0) }
+            .map { $0 ? .overview : .detail } ?? mode
     }
 
     func reconcile(

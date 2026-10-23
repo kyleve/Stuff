@@ -175,6 +175,7 @@ internal shape.
 - **Location-card history is non-authoritative preference state.** Keep its
   snapshots year-keyed by stable `Region` id. Clear them through
   `WherePreferences.reset()`. Current report totals remain the source of truth.
+- Keep calendar zoom choices device-local and outside backup archives. Use stable `CalendarZoomKey` namespaces and clear all of them through `WherePreferences.reset()`. Guards: `CalendarZoomKeyTests`, `WherePreferencesTests`.
 - Keep welcome history in one encoded preference. Distinguish missing history from an explicit reset with no saved region.
   Keep it outside backup archives. Guard: `WherePreferencesTests`.
 - **Keep diagnostic reporting intent in one encoded composite preference.** Keep crash,

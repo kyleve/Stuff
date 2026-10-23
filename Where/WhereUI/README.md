@@ -34,7 +34,9 @@ refreshes retain successful same-year content and offer retry.
 
 Completed flights appear in both history views. The calendar shows an airplane on each local flight day. Attachments and flights share one badge at the top-right of the day. The badge widens when both icons are present.
 Each calendar month is one accessibility element. Its label gives regional totals; its value reads chronological stay spans with dated attachment and flight cues.
-The calendar opens at full size. Pinch inward or tap Show Year to see all twelve months in a three-column overview.
+The calendar initially opens at full size. It remembers the last zoom level separately for Your Year and each region through `WherePreferences`.
+`CalendarContentView` accepts an optional `CalendarZoomKey`; `nil` keeps zoom in memory without reading or writing preferences.
+Pinch inward or tap Show Year to see all twelve months in a three-column overview.
 Tap an available month or pinch outward over it to return to full size. The full-size estimate panel sits below the overview grid. Tapping it opens its position in the detailed calendar.
 Gray month titles and day numbers mark months unavailable in the full-size view. Their region and projection colors remain visible. Activating one gives a light haptic and a brief shake.
 Future months included by planning remain available. Accessibility text sizes use one column; Reduce Motion replaces the shake with an outline pulse.
