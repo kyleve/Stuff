@@ -38,6 +38,57 @@ def empty():
 
 
 class InstallerUpdateFeedTests(unittest.TestCase):
+    def test_deployment_before_first_publication_reads_an_empty_catalog_without_writing(self):
+        transport = Mock(return_value=None)
+        feed = GitHubUpdateFeed(REPO, "fixture-token", transport)
+        self.assertEqual(feed.load_for_deployment(), empty())
+        requests = [call.args[0] for call in transport.call_args_list]
+        self.assertEqual([request.method for request in requests], ["GET", "GET"])
+        self.assertEqual([request.full_url for request in requests], [
+            f"https://api.github.com/repos/{REPO}/contents/updates.json?ref=installer-update-feed",
+            f"https://api.github.com/repos/{REPO}/git/ref/heads/installer-update-feed",
+        ])
+        self.assertTrue(all(call.kwargs["allow_missing"] for call in transport.call_args_list))
+
+    def test_deployment_preserves_the_published_catalog_without_writing(self):
+        published = app_catalog()
+        published["apps"] += app_catalog("example", "Example Dev", "com.example.development")["apps"]
+        published["apps"][0]["channels"][1]["active"] = False
+        transport = Mock(return_value={"sha": "revision", "encoding": "base64",
+                                      "content": base64.b64encode(json.dumps(published).encode()).decode()})
+        feed = GitHubUpdateFeed(REPO, "fixture-token", transport)
+        self.assertEqual(feed.load_for_deployment(), published)
+        transport.assert_called_once()
+        self.assertEqual(transport.call_args.args[0].method, "GET")
+
+    def test_deployment_does_not_replace_a_missing_file_on_an_existing_branch_with_empty_catalog(self):
+        transport = Mock(side_effect=[None, {"object": {"sha": SHA}}])
+        feed = GitHubUpdateFeed(REPO, "fixture-token", transport)
+        with self.assertRaisesRegex(ValueError, "updates.json is missing from installer-update-feed"):
+            feed.load_for_deployment()
+        self.assertTrue(all(call.args[0].method == "GET" for call in transport.call_args_list))
+
+    def test_deployment_propagates_catalog_and_branch_read_failures(self):
+        for code in (401, 403, 429, 500):
+            for missing_catalog in (False, True):
+                with self.subTest(code=code, missing_catalog=missing_catalog):
+                    failure = ValueError(f"api.github.com: HTTP {code}")
+                    transport = Mock(side_effect=([None] if missing_catalog else []) + [failure])
+                    feed = GitHubUpdateFeed(REPO, "fixture-token", transport)
+                    with self.assertRaisesRegex(ValueError, f"HTTP {code}"):
+                        feed.load_for_deployment()
+                    self.assertTrue(all(call.args[0].method == "GET" for call in transport.call_args_list))
+
+    def test_deployment_rejects_malformed_or_unsupported_catalogs(self):
+        for content in (b"not json", b'{"schemaVersion":2,"apps":[]}'):
+            with self.subTest(content=content):
+                transport = Mock(return_value={"sha": "revision", "encoding": "base64",
+                                              "content": base64.b64encode(content).decode()})
+                feed = GitHubUpdateFeed(REPO, "fixture-token", transport)
+                with self.assertRaises(ValueError):
+                    feed.load_for_deployment()
+                transport.assert_called_once()
+
     def test_publication_preserves_other_channels_and_bounds_history(self):
         catalog = apply_change(empty(), APP, "main", release(1, channel="main"))
         for run in range(1, 105):
