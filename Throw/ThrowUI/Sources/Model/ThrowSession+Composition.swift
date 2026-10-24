@@ -1,5 +1,6 @@
 import CreditKit
 import Foundation
+import InstallerKit
 #if DEBUG
     @_spi(Testing) import ThrowCore
 #else
@@ -12,6 +13,7 @@ extension ThrowSession {
         let dateProvider = SystemDateProvider()
         let cloudTransport = URLSessionHTTPTransport.makeCloud()
         let localTransport = URLSessionHTTPTransport.makeLocal()
+        let updatePreferences = UserDefaultsThrowUpdatePreferencesStore(userDefaults: .standard)
         let credentialStore = KeychainAircraftCredentialStore(
             service: "com.stuff.throw",
             accountPrefix: "aircraft-source",
@@ -76,9 +78,24 @@ extension ThrowSession {
             rotationClock: SystemProjectionRotationClock(),
             softwareCreditsState: softwareCreditsLoadResolution.state,
             durableLoggingStarter: durableLogging,
+            updates: makeUpdates(preferences: updatePreferences),
             initiallyHasForegroundControllerScene: false,
             initialLaunchState: .loading,
         )
+    }
+
+    private static func makeUpdates(
+        preferences: any UpdatePreferencesStoring,
+    ) -> UpdateModel? {
+        guard let infoDictionary = Bundle.main.infoDictionary?.compactMapValues({ $0 as? String }),
+              let installed = InstalledBuild(infoDictionary: infoDictionary)
+        else { return nil }
+        return UpdateModel(service: UpdateService(
+            installed: installed,
+            preferences: preferences,
+            client: UpdateClient(session: URLSession(configuration: .ephemeral)),
+            now: Date.init,
+        ))
     }
 }
 
@@ -524,8 +541,15 @@ extension ThrowSession {
             return session
         }
 
-        static func healthyDashboardSnapshotFixture() -> ThrowSession {
-            let session = fixture()
+        static func healthyDashboardSnapshotFixture(
+            updates: UpdateModel? = nil,
+        ) -> ThrowSession {
+            let session = makeFixture(
+                setupCompleted: true,
+                quiet: false,
+                transport: FixtureHTTPTransport(),
+                updatesOverride: updates,
+            )
             prepareDashboardSnapshot(session)
             session.feedHealth = .healthy(
                 lastUpdate: session.dateProvider.now(),
@@ -714,6 +738,7 @@ extension ThrowSession {
             airAndSpacePreferencesOverride: AirAndSpacePreferences? = nil,
             softwareCreditsStateOverride: SoftwareCreditsLoadState? = nil,
             rotationClockOverride: (any ProjectionRotationClock)? = nil,
+            updatesOverride: UpdateModel? = nil,
         ) -> ThrowSession {
             do {
                 let now = Date(timeIntervalSince1970: 1_787_594_400)
@@ -843,6 +868,7 @@ extension ThrowSession {
                     rotationClock: rotationClockOverride ?? SystemProjectionRotationClock(),
                     softwareCreditsState: softwareCreditsStateOverride ?? .loaded([]),
                     durableLoggingStarter: durableLoggingStarterOverride,
+                    updates: updatesOverride,
                     initiallyHasForegroundControllerScene: true,
                     initialLaunchState: initialLaunchStateOverride ?? .loaded(setupState),
                 )

@@ -267,6 +267,7 @@ let package = Package(
         .target(
             name: "ThrowCore",
             dependencies: [
+                .target(name: "InstallerKit"),
                 .target(name: "PeriscopeCore"),
                 .product(name: "SwiftProtobuf", package: "swift-protobuf"),
                 .product(name: "ZIPFoundation", package: "ZIPFoundation"),
@@ -282,6 +283,8 @@ let package = Package(
                 .target(name: "BroadwayCore"),
                 .target(name: "BroadwayUI"),
                 .target(name: "CreditKit"),
+                .target(name: "InstallerKit"),
+                .target(name: "InstallerKitUI"),
                 .target(name: "SnapshotKit"),
                 .target(name: "ThrowCore"),
                 .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),

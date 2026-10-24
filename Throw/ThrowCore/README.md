@@ -8,8 +8,8 @@ immutable frames for the UI.
 ## Install
 
 Use the `ThrowCore` product from the repository's root Swift package. The
-module imports Foundation, CoreLocation, Security, and PeriscopeCore; it does
-not depend on SwiftUI, UIKit, WhereCore, or RegionKit.
+module imports Foundation, CoreLocation, InstallerKit, Security, and
+PeriscopeCore. It does not depend on SwiftUI, UIKit, WhereCore, or RegionKit.
 
 ## Public shape
 
@@ -28,6 +28,7 @@ important boundaries are:
   boundary used by presentation code;
 - HTTP, preference, credential, location, and clock protocols, with live and
   deterministic in-memory implementations;
+- `UserDefaultsThrowUpdatePreferencesStore`, which stores InstallerKit cache data;
 - the polling coordinator, prediction, quiet scheduler, and pure projection
   engine.
 

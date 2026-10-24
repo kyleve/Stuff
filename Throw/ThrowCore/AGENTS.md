@@ -6,7 +6,7 @@ location, and scheduling; see [`README.md`](README.md). Read the root
 
 ## Scope and dependencies
 
-- Import Foundation, CoreLocation, Security, and PeriscopeCore only. Never
+- Import Foundation, CoreLocation, InstallerKit, Security, and PeriscopeCore only. Never
   import SwiftUI, UIKit, WhereCore, RegionKit, or LifecycleKit.
 - Keep provider DTOs internal. Public source, layer, preference, and
   credential boundaries stay provider-neutral and typed.
@@ -57,6 +57,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   separate observation collection and keyed motion lookup.
 - Store only the RapidAPI key in device-only Keychain storage. Persist no live
   aircraft data or credential in preferences.
+- Store InstallerKit cache data in its own UserDefaults value. Remove an invalid
+  cache value after Throw reports it.
 - Represent setup as `ThrowSetupState`. A configured setup carries its validated
   source, confirmed location, and projection mode as required values.
 - Keep projection functions deterministic and independent of SwiftUI layout.

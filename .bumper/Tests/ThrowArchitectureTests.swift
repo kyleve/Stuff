@@ -39,6 +39,28 @@ struct ThrowArchitectureTests {
         #expect(report.violations.isEmpty)
     }
 
+    @Test func updaterDependenciesPass() throws {
+        let report = try bumper.evaluate(
+            RepositoryInput(
+                architecture: bumper.architecture,
+                files: [
+                    SourceInput(
+                        path: "Throw/ThrowCore/Sources/UpdateStore.swift",
+                        component: ComponentID(ThrowComponent.throwCore.rawValue),
+                        source: "import InstallerKit\nstruct UpdateStore {}",
+                    ),
+                    SourceInput(
+                        path: "Throw/ThrowUI/Sources/UpdatesView.swift",
+                        component: ComponentID(ThrowComponent.throwUI.rawValue),
+                        source: "import InstallerKit\nimport InstallerKitUI\nstruct UpdatesView {}",
+                    ),
+                ],
+            ),
+        )
+
+        #expect(report.violations.isEmpty)
+    }
+
     @Test func coreCannotImportUIFrameworks() throws {
         let report = try bumper.evaluate(
             RepositoryInput(

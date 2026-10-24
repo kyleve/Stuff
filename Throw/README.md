@@ -48,7 +48,7 @@ The branch must contain Throw; main builds skip Throw until its source lands.
 
 The archive uses optimized Debug and retains Throw's existing app identity and data.
 Local builds record channel `local`; CI supplies its channel, run, and attempt before signing.
-This integration supports website installation. Throw does not yet contain an in-app update screen.
+This integration supports website installation. Stamped builds show App Updates in Throw Settings.
 
 The guaranteed physical-output path is a powered USB-C-to-HDMI connection.
 AirPlay through Apple TV is supported by the system; if it mirrors instead of

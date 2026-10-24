@@ -121,6 +121,7 @@ final class ThrowRuntime: ThrowApplicationRuntime {
     private var activeOutputs: [ProjectionOutputID: ProjectionOutput] = [:]
     private var previousIdleTimerState: Bool?
     private var foregroundControllerScenes: Set<ControllerSceneID> = []
+    private var updateRefreshTask: Task<Void, Never>?
     private var backgroundPreferenceFlush = BackgroundPreferenceFlushState.idle(
         nextID: BackgroundPreferenceFlushID(rawValue: 0),
     )
@@ -133,6 +134,14 @@ final class ThrowRuntime: ThrowApplicationRuntime {
                 case .idle:
                     nil
             }
+        }
+
+        var updateRefreshTaskForTesting: Task<Void, Never>? {
+            updateRefreshTask
+        }
+
+        var hasUpdateRefreshTaskForTesting: Bool {
+            updateRefreshTask != nil
         }
     #endif
 
@@ -189,7 +198,9 @@ final class ThrowRuntime: ThrowApplicationRuntime {
         session.controllerForegroundPresenceDidChange(hasForegroundController)
         if hasForegroundController {
             cancelBackgroundPreferenceFlush()
+            startUpdateRefresh()
         } else {
+            cancelUpdateRefresh()
             startBackgroundPreferenceFlush()
         }
     }
@@ -233,6 +244,19 @@ final class ThrowRuntime: ThrowApplicationRuntime {
             self?.completeBackgroundPreferenceFlush(id: id)
         }
         backgroundPreferenceFlush = .active(id: id, lease: lease, task: task)
+    }
+
+    private func startUpdateRefresh() {
+        updateRefreshTask?.cancel()
+        let session = session
+        updateRefreshTask = Task(name: "Throw refresh app updates") {
+            await session.refreshAppUpdates()
+        }
+    }
+
+    private func cancelUpdateRefresh() {
+        updateRefreshTask?.cancel()
+        updateRefreshTask = nil
     }
 
     private func cancelBackgroundPreferenceFlush() {

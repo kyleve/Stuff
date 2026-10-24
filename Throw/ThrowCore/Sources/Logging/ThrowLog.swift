@@ -4,6 +4,29 @@ import PeriscopeCore
 @LogScope("Throw")
 public enum ThrowRootLog {}
 
+@LogScope("ThrowUpdatePreferences")
+enum ThrowUpdatePreferencesLog {
+    @LogEvent("cache-rejected", level: .warning, version: 1)
+    struct CacheRejected {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+
+        var message: String {
+            "Discarded invalid update cache: \(error.description)"
+        }
+    }
+
+    @LogEvent("cache-write-failed", level: .warning, version: 1)
+    struct CacheWriteFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+
+        var message: String {
+            "Failed to write update cache: \(error.description)"
+        }
+    }
+}
+
 /// Semantic process-session outcomes used at Throw's injected logging boundary.
 public enum ThrowSessionLogEvent: Equatable, Sendable {
     /// The dependency boundary that prevented Throw from becoming operational.

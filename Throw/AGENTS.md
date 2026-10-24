@@ -9,14 +9,17 @@ formatting, and repository-wide conventions.
 The dependency direction is **ThrowCore → ThrowUI → Throw app**. Put domain
 values, projection, sources, polling, persistence seams, and schedules in
 ThrowCore. Put observable presentation state and SwiftUI/UIKit presentation in
-ThrowUI. Keep the app target a scene and composition shell. Never import
-WhereCore, RegionKit, or LifecycleKit into this feature.
+ThrowUI. ThrowCore can use InstallerKit for update storage. ThrowUI can use
+InstallerKit and InstallerKitUI. Keep the app target a scene and composition
+shell. Never import WhereCore, RegionKit, or LifecycleKit into this feature.
 
 ## Invariants
 
 - Construct `ThrowRuntime` only in `ThrowRuntime.swift`. Construct the live
   `ThrowSession` and its live dependencies only in `ThrowSession+Composition.swift`.
   Inject those objects into every scene.
+- Construct one InstallerKit model in the live session composition. Start update
+  checks from the app runtime's aggregate controller-foreground transition.
 - Start one retained cold-launch task from the process runtime. Gate every root
   on the session's exhaustive launch state.
 - Keep the View catalog compile-time. Use `ProjectionExperience` in code and

@@ -1,3 +1,4 @@
+import InstallerKit
 import Observation
 import SwiftUI
 import ThrowCore
@@ -417,6 +418,7 @@ public final class ThrowSession {
     let layerCatalog: LayerCatalog
     let projectionWorker: ProjectionFrameWorker
     let durableLoggingStarter: (any ThrowDurableLoggingStarting)?
+    let updates: UpdateModel?
 
     var sessionFailureLogger: any ThrowSessionFailureLogging {
         if let durableLoggingStarter {
@@ -537,6 +539,8 @@ public final class ThrowSession {
             waitForProjectionFadeOutForTesting: (@MainActor @Sendable () async -> Void)?
         @ObservationIgnored @_spi(Testing) public var
             preferenceFlushDidRegisterForTesting: (@MainActor @Sendable () -> Void)?
+        @ObservationIgnored @_spi(Testing) public var
+            beforeAppUpdateRefreshForTesting: (@MainActor @Sendable () -> Void)?
     #endif
 
     init(
@@ -560,6 +564,7 @@ public final class ThrowSession {
         rotationClock: any ProjectionRotationClock,
         softwareCreditsState: SoftwareCreditsLoadState,
         durableLoggingStarter: (any ThrowDurableLoggingStarting)?,
+        updates: UpdateModel?,
         initiallyHasForegroundControllerScene: Bool,
         initialLaunchState: ThrowSessionLaunchState,
     ) {
@@ -625,6 +630,7 @@ public final class ThrowSession {
         )
         self.softwareCreditsState = softwareCreditsState
         self.durableLoggingStarter = durableLoggingStarter
+        self.updates = updates
         locationHealth = Self.locationHealth(
             for: preferences.confirmedLocation,
             now: dateProvider.now(),
@@ -635,6 +641,14 @@ public final class ThrowSession {
 
     public var hasProjectionOutputDemand: Bool {
         projectionOutputCount > 0
+    }
+
+    /// Refreshes the process-owned update model when the app host is eligible.
+    public func refreshAppUpdates() async {
+        #if DEBUG
+            beforeAppUpdateRefreshForTesting?()
+        #endif
+        await updates?.refresh(force: false)
     }
 
     func postLaunchFailures(

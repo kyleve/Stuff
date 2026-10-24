@@ -165,6 +165,39 @@ struct ThrowRuntimeTests {
         #expect(idleTimer.assignedStates == [true, false])
     }
 
+    @Test func aggregateForegroundPresenceDrivesUpdateRefreshEligibility() async throws {
+        let session = ThrowSession.fixture()
+        let runtime = ThrowRuntime(
+            session: session,
+            idleTimerController: IdleTimerControllerSpy(isIdleTimerDisabled: false),
+            backgroundExecutionLeaser: BackgroundExecutionLeaserSpy(),
+        )
+        let firstController = ControllerSceneID(rawValue: "update-first")
+        let secondController = ControllerSceneID(rawValue: "update-second")
+        var refreshCount = 0
+        session.beforeAppUpdateRefreshForTesting = {
+            refreshCount += 1
+        }
+
+        runtime.controllerScene(firstController, didReceive: .willEnterForeground)
+        let firstRefreshTask = try #require(runtime.updateRefreshTaskForTesting)
+        await firstRefreshTask.value
+        #expect(refreshCount == 1)
+
+        runtime.controllerScene(secondController, didReceive: .willEnterForeground)
+        #expect(refreshCount == 1)
+        runtime.controllerScene(firstController, didReceive: .didEnterBackground)
+        #expect(runtime.hasUpdateRefreshTaskForTesting)
+
+        runtime.controllerScene(secondController, didReceive: .didEnterBackground)
+        #expect(runtime.hasUpdateRefreshTaskForTesting == false)
+
+        runtime.controllerScene(firstController, didReceive: .willEnterForeground)
+        let secondRefreshTask = try #require(runtime.updateRefreshTaskForTesting)
+        await secondRefreshTask.value
+        #expect(refreshCount == 2)
+    }
+
     @Test func finalControllerBackgroundEndsItsPersistenceLeaseAfterFlush() async throws {
         let session = ThrowSession.fixture()
         let leaser = BackgroundExecutionLeaserSpy()

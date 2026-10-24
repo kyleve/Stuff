@@ -78,6 +78,10 @@ once. Previews and tests use the fixture path in that same file.
 Source and observer-location projections are getter-only. Session commands
 persist and invalidate these values before they publish a replacement.
 
+The same composition boundary creates one InstallerKit model for a stamped build.
+The app runtime refreshes this model when the first controller enters the foreground.
+Throw Settings presents the model through InstallerKitUI.
+
 The coordinator issues one `ProjectionActivationLease` for each View activation.
 The lease carries both the View identity and its monotonic generation through
 activation, deactivation, prepared-frame, and visible-count work. The runtime

@@ -8,6 +8,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
 
 - Import ThrowCore and presentation dependencies only. Keep source adapters,
   persistence, projection math, polling, and credential access in ThrowCore.
+- Receive InstallerKit storage from ThrowCore. Construct one `UpdateModel` in
+  `ThrowSession+Composition.swift`, and render it with InstallerKitUI.
 - Use `AircraftSourceOperationServing` for source tests and usage reports.
   Never refer to a concrete provider source or decoder.
 - Keep tested source candidates in `ValidatedAircraftSourceDraft`. Construct it
@@ -41,6 +43,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   projection surfaces only from its loaded cases.
 - Accept aggregate controller foreground presence from the app runtime. Do not
   observe application or UIKit scene lifecycle independently in ThrowUI.
+- Refresh InstallerKit only when the app runtime reports a foreground controller.
 - Keep aircraft behavior in the one injected `AirAndSpaceRuntime`. Keep
   selection, prewarming, and rotation in `ProjectionExperienceCoordinator`.
 - Carry the coordinator-issued `ProjectionActivationLease` through activate and

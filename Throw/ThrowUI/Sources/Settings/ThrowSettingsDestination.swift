@@ -12,5 +12,6 @@ enum ThrowSettingsDestination: Hashable {
     case projectionIntensity
     case labels
     case quiet
+    case updates
     case about
 }
