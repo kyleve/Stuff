@@ -25,24 +25,24 @@ A failed deletion can leave signing credentials on that job's isolated runner un
 
 ## Add an app
 
-1. Add the app to [`.github/installer-apps.json`](../../.github/installer-apps.json).
+After the shared Apple account and CI setup, each app has five setup phases.
+The in-app update page is optional and can be added separately.
+
+1. **Register the app.** Add it to [`.github/installer-apps.json`](../../.github/installer-apps.json).
    Use a stable lowercase app ID and a unique Development bundle identifier.
    Declare its IPA app path, signed app and extension paths, and required Info.plist values.
    The trusted controller uses this registration to validate the exported IPA.
-   To add artwork, set `site.subtitle` and `site.icon` in that registration.
-   Use a repository-relative PNG path. Optionally add `site.darkIcon` for dark appearance.
-   The Pages job copies these assets from trusted `main`; it does not read artwork from the PR.
-   Apps without artwork use their first letter. A registered file that is missing fails the site build.
-2. Link [InstallerKit](../../Shared/InstallerKit/README.md) and implement `UpdatePreferencesStoring` with device-local storage.
-   Construct one `UpdateService` and `UpdateModel` at the composition root.
-   Gate permitted audiences, tests, demo mode, and foreground requests in the host.
-   Bind the Settings badge to `needsAttention`.
-   Link [InstallerKitUI](../../Shared/InstallerKitUI/README.md) and present `AppUpdatesView(model:branding:)` in the app's navigation stack.
-   Supply an `AppUpdateBranding` with the localized name, subtitle, and an optional icon from the app's asset bundle.
-   Custom presentations can render `state` and use the validated `installURL` directly.
-3. Call `bash "$SRCROOT/Tools/InstallerKit/stamp-installer-info.sh"` in a post-build phase before signing.
+   Register its scheme, configuration, product, targets, and profile override keys in `.github/installer-signing-apps.json`.
+   The product must match the registered app bundle name.
+   For apps that exist only on a PR branch, set `sourceDirectory` to their top-level source directory.
+   The controller skips publication when that directory is absent from the selected commit. Retirement still runs.
+   For artwork, set `site.subtitle` and `site.icon`; optionally add `site.darkIcon`.
+   Use repository-relative PNG paths that already exist on trusted `main`.
+   Apps without artwork use their first letter. Missing registered artwork fails the site build.
+2. **Integrate the app target.** Add ad hoc profile overrides for each signed target in `Project.swift`.
+   Call `bash "$SRCROOT/Tools/InstallerKit/stamp-installer-info.sh"` in a post-build phase before signing.
    Disable dependency analysis and user-script sandboxing for that phase.
-   Pass these build settings through the archive command:
+   Configure these build settings:
 
    | Build setting | Source |
    | --- | --- |
@@ -53,31 +53,63 @@ A failed deletion can leave signing credentials on that job's isolated runner un
    | `INSTALLER_ATTEMPT` | Archive job's `GITHUB_RUN_ATTEMPT` |
    | `INSTALLER_FEED_URL` | Shared catalog URL |
 
-   Set the Development target's defaults for app ID, repository URL, and feed URL, with `INSTALLER_CHANNEL = local`.
-   The CI archive command overrides those defaults with the publication metadata above.
-   Local builds need no run or attempt; they can browse remote builds without automatic update badges.
-   Keep local binaries out of the public catalog. Users return to Local through Xcode or the app's Mac installer.
-   The script reads the commit and clean status from Git. Missing values become `unknown`.
+   Set Development defaults for app ID, repository URL, and feed URL, with `INSTALLER_CHANNEL = local`.
+   The CI archive command overrides those defaults with publication metadata.
+   Local builds need no run or attempt. They can browse remote builds without automatic update badges.
+   Keep local binaries out of the public catalog. Return to Local through Xcode or the app's Mac installer.
+   The stamp reads the commit and clean status from Git. Missing values become `unknown`.
    `InstalledBuild` also reads the actual `CFBundleIdentifier` from the signed bundle.
-4. Register the app in `.github/installer-signing-apps.json` with its scheme, configuration, product name, targets, and profile override keys.
-   The product must match the app bundle name in `.github/installer-apps.json`.
-   The shared workflow derives the IPA filename from this trusted signing descriptor.
-   It validates the signed app identity before uploading a transport artifact named `app.ipa`.
-   Each app has a separate GitHub artifact and concurrency group.
-   No app-specific workflow or CircleCI job is required.
-5. Merge the registration and shared controller into `main` before enabling distribution.
-   For apps that exist only on a PR branch, set `sourceDirectory` to their top-level source directory.
-   The controller skips publication when that directory is absent from the selected commit. Retirement still runs.
-   Keep site artwork unset until the artwork exists on trusted `main`.
-6. Configure signing and registered devices for the app through `./signing refresh --app <id>`.
-   Use `--source <checkout>` when the app exists only in another checkout.
-   The shared CircleCI context retains the name `where-distribution-signing`; its account credentials support all registered apps.
-   Keep its project and config-source restrictions. No context rename or new credentials are needed for another app on the same team.
-7. Set `<APP_ID>_DISTRIBUTION_ENABLED` to `true` in GitHub repository variables.
-   Uppercase the app ID and replace hyphens with underscores.
-   For Throw, use `THROW_DISTRIBUTION_ENABLED`; Where keeps `WHERE_DISTRIBUTION_ENABLED`.
-   Add `installable` to a same-repository PR to publish every enabled app present on that branch.
-   Verify each app's install page, signed identity, and physical-device installation.
+3. **Merge the configuration.** Merge both registrations and the shared controller into `main`.
+   The app source can remain on its PR branch if the registration declares `sourceDirectory`.
+   The source selected for signing must contain the target integration from phase 2.
+4. **Prepare signing and enable distribution.** Run `./signing setup --app <id>` as described below.
+   This refreshes signing profiles, then sets the app's GitHub enable variable.
+5. **Publish and verify.** Add `installable` to a same-repository PR, or run **App Dev Distribution** for `main`.
+   The label publishes every enabled app present on that branch.
+   Verify each app's install page, signed identity, and installation on a registered physical device.
+
+No app-specific workflow or CircleCI job is required.
+The shared workflow derives the IPA filename from the trusted signing descriptor.
+It validates the signed app identity before uploading a transport artifact named `app.ipa`.
+Each app has a separate GitHub artifact and concurrency group.
+
+### Automated signing setup
+
+Use the shared [Apple account and signing setup](../../Where/DISTRIBUTION.md#one-time-setup) first.
+Authenticate `gh` with repository-variable write access. Configure the source checkout's Apple Developer team.
+Supply `INSTALLER_API_KEY_PATH` and `MATCH_PASSWORD` through your existing credential setup.
+The shared CircleCI context retains the name `where-distribution-signing`.
+Keep its project and config-source restrictions. Another app on the same team needs no new context or account credentials.
+
+Preview setup, then apply it:
+
+```bash
+./signing setup --app throw --source /path/to/Throw-checkout --dry-run
+./signing setup --app throw --source /path/to/Throw-checkout
+```
+
+Omit `--source` to use the current controller checkout.
+Setup checks that both app registrations match `main` before it refreshes signing.
+It delegates profile preparation to `./signing refresh`, using the controller's locked Fastlane dependencies.
+It checks `main` again after refresh, then sets `<APP_ID>_DISTRIBUTION_ENABLED=true` in the controller's GitHub repository.
+The variable uses uppercase app IDs with hyphens replaced by underscores.
+Throw uses `THROW_DISTRIBUTION_ENABLED`; Where keeps `WHERE_DISTRIBUTION_ENABLED`.
+
+A failed refresh or changed registration leaves the enable variable unchanged.
+If enabling fails after refresh, the command reports that signing completed. Correct GitHub access and rerun setup.
+The dry run checks registration and prints the plan. It does not validate Apple credentials, build integration, or device installation.
+Setup does not merge code, register devices, label PRs, dispatch builds, or install apps.
+Use `./signing register-device` to add devices and `./signing refresh` for profile maintenance without changing enablement.
+
+### Optional in-app updates
+
+Link [InstallerKit](../../Shared/InstallerKit/README.md) and implement `UpdatePreferencesStoring` with device-local storage.
+Construct one `UpdateService` and `UpdateModel` at the composition root.
+Gate permitted audiences, tests, demo mode, and foreground requests in the host.
+Bind the Settings badge to `needsAttention`.
+Link [InstallerKitUI](../../Shared/InstallerKitUI/README.md) and present `AppUpdatesView(model:branding:)` in the app's navigation stack.
+Supply an `AppUpdateBranding` with the localized name, subtitle, and an optional icon from the app's asset bundle.
+Custom presentations can render `state` and use the validated `installURL` directly.
 
 **App Dev Distribution** retains the `where-distribution.yml` entry-point path for existing Actions event policies.
 It selects enabled registrations from trusted `main` and calls `installer-distribute-app.yml` on `main` for each app.
