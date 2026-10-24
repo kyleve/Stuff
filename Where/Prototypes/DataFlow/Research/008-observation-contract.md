@@ -1,26 +1,29 @@
-# Proposed observation contract
+# Initial observation contract
 
 Date: 2026-10-23.
-Status: recommendation for the next design discussion. The user has not selected these precision and coverage choices.
+Status: initial contract accepted in D007. Worked examples and implementation evidence remain pending.
 Source revision: `f151996c8618afaf553164b0afb5fc690c023cb6`.
 Evidence: synthesis of the accepted direction and prior research. The example below is illustrative and has not been instrumented.
 
-## The next design question
+Acceptance note, 2026-10-23: the user accepted this starting contract after its proposal as the next design decision.
+[D007](003-decisions.md#d007--adopt-the-initial-observation-contract) records the decision and remaining precision choices.
+
+## What the contract defines
 
 Define what a value node represents and what each relationship promises.
 This contract gives the automatic propagation experiment an expected result independent of its implementation technique.
 It also determines which questions the eventual viewer can answer accurately.
 
 [D006](003-decisions.md#d006--use-generated-provenance-handles-and-a-separate-graph) selects generated handles and a separate graph.
-It leaves tracking granularity and the precise meaning of observed influence open.
+It left tracking granularity and the precise meaning of observed influence open. D007 selects the initial scope below.
 Those choices affect the generator's obligations more directly than UUIDs versus counters or the storage engine.
 
-## Recommended starting granularity
+## Accepted starting granularity
 
 Track whole values and individual collection elements within the configured capture scope.
 Apply automatic rules across supported code in that scope, without declarations for each stage or datum.
 
-| Subject | Proposed meaning |
+| Subject | Initial meaning |
 | --- | --- |
 | Whole value | One tracked scalar or application value version, such as a date or GPS sample. |
 | Collection element | An element retains its provenance through supported selection, ordering, copying, and delivery. |
@@ -43,7 +46,7 @@ An aggregate-level dependency must not appear to prove which individual fields c
 | Persistence boundary | The observed adapter distinguishes staging, save completion, and operation outcome. | A method's name or successful return proves an unobserved durable write or cloud upload. |
 
 The [PROV data model](https://www.w3.org/TR/prov-dm/#term-Derivation) also distinguishes participation in an activity from established derivation.
-This draft uses that distinction without selecting PROV as the wire format.
+This contract uses that distinction without selecting PROV as the wire format.
 
 Copies can retain a value handle while generating new execution and delivery records.
 Mutation creates a new version. A retry creates another execution of work with its applicable input versions.
@@ -61,7 +64,7 @@ if shifted > cutoff {
 }
 ```
 
-The proposed expected observations are:
+For supported execution, the expected observations are:
 
 - The supported date-adjustment rule links the new `shifted` version to `inputDate` and `offset`.
 - The comparison records its input versions and Boolean result.
@@ -90,9 +93,9 @@ Unsupported code, uninstrumented boundaries, lost events, evicted history, and p
 Missing edges do not establish independence.
 Diagnostics and coverage metadata describe these limits without requiring application annotations.
 
-## Concrete output of this design step
+## Next design checkpoint
 
-Agree a short contract and a small set of examples with expected records.
+Specify a small set of worked examples with expected records under the accepted contract.
 Keep the logical records independent of their eventual Swift API, identifier encoding, or transport format.
 
 | Example | Required distinction |
@@ -107,4 +110,4 @@ Keep the logical records independent of their eventual Swift API, identifier enc
 These examples become the oracle for the [propagation experiment](007-value-identity-and-provenance.md#proposed-experiment-additions).
 Expected records can be authored in tests. Application tracing still needs automatic generation.
 The next implementation experiment evaluates whether source transformation can preserve this contract on the selected cases.
-This draft does not resolve O003 or select a general solution for all Swift constructs.
+D007 resolves the initial scope of O003. It does not select a general solution for all Swift constructs.

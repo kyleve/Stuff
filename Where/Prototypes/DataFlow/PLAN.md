@@ -1,6 +1,6 @@
 # Where live data flow prototype
 
-Status: provenance direction selected. Feasibility work and implementation have not started.
+Status: provenance direction and initial observation contract selected. Feasibility work and implementation have not started.
 Updated: 2026-10-23.
 
 ## Goal
@@ -13,6 +13,7 @@ The user requested this document workflow on 2026-10-23.
 The user selected both a separate Mac window and a view inside Where.
 The user requires automatic tracing. Annotations can resolve ambiguity or add detail, but ordinary tracing cannot require them.
 The user selected generated provenance handles and a separate graph of immutable value versions and executions.
+The initial observation contract tracks whole values and collection elements, with distinct derivation, participation, and branch relationships.
 The generation mechanism, identity encoding, transport, presentation reuse, and first-flow selection remain open.
 
 ## Current position
@@ -28,8 +29,8 @@ We are evaluating automatic system discovery, generated runtime observations, an
 The [GPS tracing research](Research/005-explicit-tracing-and-code-generation.md) records the current source path and identity constraints.
 The [automatic instrumentation discussion](Research/006-automatic-instrumentation.md) replaces its annotation-led proposal and experiment.
 The [value provenance research](Research/007-value-identity-and-provenance.md) explores generated identities, shadow metadata, splits, merges, and prior art.
-The [proposed observation contract](Research/008-observation-contract.md) recommends tracking granularity and relationship meaning as the next design decision.
-The [decision register](Research/003-decisions.md#d006--use-generated-provenance-handles-and-a-separate-graph) records the accepted direction and unresolved questions.
+The [initial observation contract](Research/008-observation-contract.md) defines the accepted tracking granularity, relationship meanings, and evidence limits.
+The [decision register](Research/003-decisions.md#d007--adopt-the-initial-observation-contract) records the accepted direction and unresolved questions.
 
 ## Proposed first result
 
@@ -66,7 +67,7 @@ Create the actual stack after the first implementation decisions establish its d
 | Slice | Result | Evidence required to finish |
 | --- | --- | --- |
 | D0 — Planning documents | This plan, research index, initial source map, and decision register | Links resolve, findings cite source, and proposals remain explicit |
-| P1 — Observation contract and feasibility | Define the selected provenance model and prove automatic propagation before UI work | Unannotated value fixtures establish propagation rules, then GPS sources produce useful runtime evidence. Build integration, coverage, semantics, and cost have measured evidence |
+| P1 — Observation contract and feasibility | Specify expected records under the accepted contract and prove automatic propagation before UI work | Unannotated value fixtures establish propagation rules, then GPS sources produce useful runtime evidence. Build integration, coverage, semantics, and cost have measured evidence |
 | P2 — First live flow | Minimum instrumentation, capture adapter, and viewer for the chosen flow | An ordinary action in the running app appears live through its selected boundaries |
 | P3 — Both surfaces and inspection | The companion surface, selection, filtering, display pause, and bounded recent history | Both viewers explain the same live operation and its recent outcome |
 | P4 — Failure and concurrency | Retry, overlap, cancellation, reset, and capture-gap behavior | Controlled scenarios preserve domain results and expose incomplete observation |
@@ -108,19 +109,22 @@ Make missing ancestry and retention explicit.
 
 This direction is accepted in D006. Concrete generation, capture, and storage implementations remain open.
 UUIDs and capture-qualified counters remain candidate identity encodings.
-Tracking granularity and branch dependence also need concrete scope and evidence.
+The initial observation contract is accepted in D007.
+Track whole values and individual collection elements. Keep supported derivation distinct from invocation participation and local branch influence.
+Record unknown relationships and unavailable evidence explicitly.
+Complete nested-field lineage and implicit influence through arbitrary control flow remain open.
 
 ## Next technical checkpoint
 
-First settle the [observation contract](Research/008-observation-contract.md): value granularity, relationship meaning, evidence, and missing information.
-The current recommendation starts with whole values, collection elements, supported derivations, and explicit branch decisions.
-Complete field-level and implicit control-flow provenance remain open choices.
-The contract draft is a proposal, not an additional accepted decision.
+Specify worked examples and their expected logical records under the [accepted observation contract](Research/008-observation-contract.md).
+Start with equal independent dates, copying, transformation, and conditional persistence.
+Extend the examples to collection operations, mutation, retries, repeated delivery, and opaque boundaries.
+These examples must distinguish supported relationships from missing or unavailable information before the propagation implementation is selected.
 
-P1 starts with a small automatic propagation experiment and a text capture consumer.
+P1 uses those examples for a small automatic propagation experiment and a text capture consumer.
 The following checkpoints define the proposed order within that slice:
 
-1. Define value, execution, delivery, and relationship records with explicit evidence and unavailable-history states.
+1. Specify expected value, execution, delivery, and relationship records for the examples, including evidence and unavailable-history states.
 2. Generate propagation for unannotated Swift fixtures with equal independent dates, copies, transformations, splits, merges, and captures.
 3. Apply the supported rules to the GPS path, including stream delivery, retries, staged writes, and save completion.
 
@@ -174,6 +178,7 @@ File unrelated findings in their owning `TODOs.md` and link them from research.
 - 2026-10-23: Investigated generated value identities, provenance graphs, shadow propagation, and prior art for splits and merges.
 - 2026-10-23: User accepted generated provenance handles and a separate graph of value versions and executions as the starting direction.
 - 2026-10-23: Proposed the observation contract as the next design decision, with examples that distinguish derivation, participation, and branch influence.
+- 2026-10-23: User accepted the initial observation contract. Worked examples and their expected records are the next design checkpoint.
 - D0 review: [PR #425](https://github.com/kyleve/Stuff/pull/425), branch `codex/where-data-flow-plan`.
-- Documentation validation: 87 local links and anchors resolve. Diff checks passed. Runtime checks do not exercise this documentation change.
+- Documentation validation: 88 local links and anchors resolve. Diff checks passed. Runtime checks do not exercise this documentation change.
 - No implementation slice is complete.
