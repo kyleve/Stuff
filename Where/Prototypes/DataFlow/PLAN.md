@@ -1,6 +1,6 @@
 # Where live data flow prototype
 
-Status: initial research and discussion. Implementation has not started.
+Status: provenance direction selected. Feasibility work and implementation have not started.
 Updated: 2026-10-23.
 
 ## Goal
@@ -12,8 +12,8 @@ Keep this file as the current plan and [Research/](Research/README.md) as the su
 The user requested this document workflow on 2026-10-23.
 The user selected both a separate Mac window and a view inside Where.
 The user requires automatic tracing. Annotations can resolve ambiguity or add detail, but ordinary tracing cannot require them.
-Instrumentation, transport, presentation reuse, and first-flow selection remain open.
-The proposals in this plan do not record user approval of those choices.
+The user selected generated provenance handles and a separate graph of immutable value versions and executions.
+The generation mechanism, identity encoding, transport, presentation reuse, and first-flow selection remain open.
 
 ## Current position
 
@@ -28,7 +28,7 @@ We are evaluating automatic system discovery, generated runtime observations, an
 The [GPS tracing research](Research/005-explicit-tracing-and-code-generation.md) records the current source path and identity constraints.
 The [automatic instrumentation discussion](Research/006-automatic-instrumentation.md) replaces its annotation-led proposal and experiment.
 The [value provenance research](Research/007-value-identity-and-provenance.md) explores generated identities, shadow metadata, splits, merges, and prior art.
-The [decision register](Research/003-decisions.md) holds the options and unresolved questions.
+The [decision register](Research/003-decisions.md#d006--use-generated-provenance-handles-and-a-separate-graph) records the accepted direction and unresolved questions.
 
 ## Proposed first result
 
@@ -65,7 +65,7 @@ Create the actual stack after the first implementation decisions establish its d
 | Slice | Result | Evidence required to finish |
 | --- | --- | --- |
 | D0 — Planning documents | This plan, research index, initial source map, and decision register | Links resolve, findings cite source, and proposals remain explicit |
-| P1 — Observation contract and feasibility | Defined identities, relationships, and automatic generation strategy. A technical experiment precedes UI work | Unannotated GPS sources produce useful runtime evidence. Build integration, coverage, semantic preservation, and maintenance cost have measured evidence |
+| P1 — Observation contract and feasibility | Define the selected provenance model and prove automatic propagation before UI work | Unannotated value fixtures establish propagation rules, then GPS sources produce useful runtime evidence. Build integration, coverage, semantics, and cost have measured evidence |
 | P2 — First live flow | Minimum instrumentation, capture adapter, and viewer for the chosen flow | An ordinary action in the running app appears live through its selected boundaries |
 | P3 — Both surfaces and inspection | The companion surface, selection, filtering, display pause, and bounded recent history | Both viewers explain the same live operation and its recent outcome |
 | P4 — Failure and concurrency | Retry, overlap, cancellation, reset, and capture-gap behavior | Controlled scenarios preserve domain results and expose incomplete observation |
@@ -93,25 +93,44 @@ Observation must not open another domain store or become a required step for com
 Any proposal to change a contract needs its own rationale, tests, and owning documentation.
 The first slice must define how capture ends or rebinds across scope replacement.
 
-## Current technical proposal
+## Selected technical direction
+
+Use generated provenance handles for tracked values and a separate graph of immutable value versions and operation executions.
+Keep domain entity identity separate from value, execution, and delivery identity.
+Preserve a value handle through copies and forwarding. Record transformations as new versions with supported input relationships.
+Represent splits and merges through explicit relationships. Keep repeated executions and deliveries distinct.
+Carry small handles with values and retain ancestry in the graph.
+Generate routine propagation without requiring annotations. Optional annotations resolve ambiguity or add detail.
+Use runtime records to establish actual data movement and outcomes.
+Keep candidate source connections, entity correlation, and observed transfers distinct.
+Make missing ancestry and retention explicit.
+
+This direction is accepted in D006. Concrete generation, capture, and storage implementations remain open.
+UUIDs and capture-qualified counters remain candidate identity encodings.
+Tracking granularity and branch dependence also need concrete scope and evidence.
+
+## Next technical checkpoint
+
+P1 starts with a small automatic propagation experiment and a text capture consumer.
+The following checkpoints define the proposed order within that slice:
+
+1. Define value, execution, delivery, and relationship records with explicit evidence and unavailable-history states.
+2. Generate propagation for unannotated Swift fixtures with equal independent dates, copies, transformations, splits, merges, and captures.
+3. Apply the supported rules to the GPS path, including stream delivery, retries, staged writes, and save completion.
+
+The experiment must preserve tested domain results and expose unsupported constructs.
+A new forwarding function must appear after regeneration without another tracing declaration or stage configuration entry.
+Build integration, coverage, active metadata, event volume, retention, and runtime cost need measured evidence.
 
 Evaluate source transformation that generates metadata and instrumented copies for a dedicated tracing build.
-Discover ordinary stages automatically. Reserve annotations for ambiguity and extra detail.
-Use runtime records to establish actual data movement and outcomes.
+If source transformation cannot preserve the selected semantics, evaluate compiler-assisted instrumentation.
 Evaluate reusable adapters that preserve correlation across streams, callbacks, queues, and persistence boundaries.
 Evaluate Periscope's existing task-local context and event pipeline as the foundation.
-Keep candidate source connections, entity correlation, and observed transfers distinct.
 Use generated identifiers within each build and capture. Keep cross-build identity matching a separate choice.
-Evaluate generated shadow handles for tracked values and a separate graph of immutable value versions and operation executions.
-Keep domain entity identity separate from value, execution, and delivery identity.
-Compare UUIDs with capture-qualified counters. Neither representation establishes ancestry without recorded relationships.
-Make tracking granularity, branch dependence, missing ancestry, and retention explicit.
 
-The first experiment must trace unchanged GPS source and automatically detect a newly inserted forwarding stage.
-It must expose unsupported boundaries instead of requiring hidden per-stage configuration.
 See [the revised experiment](Research/006-automatic-instrumentation.md#revised-feasibility-experiment).
-Its [provenance cases](Research/007-value-identity-and-provenance.md#proposed-experiment-additions) also require identity-free inputs, copies, splits, merges, mutation, and gaps.
-This is a recommendation for discussion. No source transformer, macro API, compiler integration, or capture implementation is selected.
+Its [provenance cases](Research/007-value-identity-and-provenance.md#proposed-experiment-additions) include mutation, repeated delivery, control dependence, and gaps.
+Those cases define the coverage to assess. Their implementation and successful validation remain pending.
 
 ## Validation approach
 
@@ -147,6 +166,7 @@ File unrelated findings in their owning `TODOs.md` and link them from research.
 - 2026-10-23: Began technical exploration of explicit GPS tracing and macro/parser generation before UI and UX.
 - 2026-10-23: Recorded automatic tracing as the default requirement and revised the feasibility proposal around unannotated application source.
 - 2026-10-23: Investigated generated value identities, provenance graphs, shadow propagation, and prior art for splits and merges.
+- 2026-10-23: User accepted generated provenance handles and a separate graph of value versions and executions as the starting direction.
 - D0 review: [PR #425](https://github.com/kyleve/Stuff/pull/425), branch `codex/where-data-flow-plan`.
-- Documentation validation: 82 local links and anchors resolve. Diff checks passed. Runtime checks do not exercise this documentation change.
+- Documentation validation: 83 local links and anchors resolve. Diff checks passed. Runtime checks do not exercise this documentation change.
 - No implementation slice is complete.

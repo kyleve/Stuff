@@ -9,11 +9,11 @@ This folder preserves the evidence, alternatives, and reasoning behind that plan
 | --- | --- | --- | --- |
 | [001 — Initial brief](001-initial-brief.md) | 2026-10-23 | User intent recorded. Scope open | Goal, document workflow, and candidate debugging questions |
 | [002 — Repository map](002-repository-map.md) | 2026-10-23 | Source inspection | Existing flow boundaries, observability, and limits |
-| [003 — Decisions](003-decisions.md) | 2026-10-23 | Open | Current choices, proposals, and decision history |
+| [003 — Decisions](003-decisions.md) | 2026-10-23 | Core direction selected. Implementation questions open | Current choices, proposals, and decision history |
 | [004 — Both viewing surfaces](004-viewing-surfaces.md) | 2026-10-23 | User decision recorded | Separate Mac window and view inside Where |
 | [005 — Explicit tracing and code generation](005-explicit-tracing-and-code-generation.md) | 2026-10-23 | Annotation approach superseded by 006 | GPS identity, stage metadata, macro limits, and asynchronous handoffs |
 | [006 — Automatic instrumentation](006-automatic-instrumentation.md) | 2026-10-23 | User requirement recorded. Feasibility open | Automatic discovery, source transformation, reusable adapters, optional annotations, and revised experiment |
-| [007 — Value identity and provenance](007-value-identity-and-provenance.md) | 2026-10-23 | Prior art and technical proposals | Counters and UUIDs, value versions, shadow propagation, split/merge relationships, and bounded storage |
+| [007 — Value identity and provenance](007-value-identity-and-provenance.md) | 2026-10-23 | Direction accepted by D006. Feasibility open | Counters and UUIDs, value versions, shadow propagation, split/merge relationships, and bounded storage |
 
 ## Adding a document
 

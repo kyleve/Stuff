@@ -5,6 +5,11 @@ Status: technical discussion and prior-art research. Identity representation and
 Source revision: `c3f8e7ce7f43a92e92df0632516b566b59abaa9d`.
 Evidence: existing source research and primary external sources. No instrumentation experiment or live capture has run.
 
+Acceptance update, 2026-10-23: the user selected generated provenance handles and a separate value-version and execution graph as the starting direction.
+[D006](003-decisions.md#d006--use-generated-provenance-handles-and-a-separate-graph) records the decision.
+UUIDs versus counters and concrete propagation, storage, and transport implementations remain open.
+The discussion below preserves the proposal and supporting research. Acceptance does not establish experimental validation.
+
 ## Discussion focus
 
 The user asks how to trace values without suitable domain identities and follow information through copies, splits, and merges.
