@@ -13,7 +13,7 @@ from urllib.request import Request
 import zipfile
 
 from Tools.InstallerKit.github_api import API_VERSION, request_json
-from Tools.InstallerKit.installer_apps import load_app
+from Tools.InstallerKit.installer_apps import load_app, archive_product
 from Tools.InstallerKit.installer_distribution import Publication, is_current, validate_ipa
 from Tools.InstallerKit.installer_installation import manifest_url
 from Tools.InstallerKit.installer_update_feed import build_id
@@ -37,7 +37,7 @@ class ArchiveRequest:
             raise ValueError("Invalid GitHub repository")
         if not re.fullmatch(r"[0-9a-f]{40}", self.sha):
             raise ValueError("An exact source commit is required")
-        load_app(self.app_id)
+        archive_product(self.app_id)
         manifest_url(self.feed_url, self.app_id, self.channel, build_id(self.run, self.attempt))
 
     @property
@@ -47,7 +47,7 @@ class ArchiveRequest:
 
     @property
     def parameters(self):
-        return {"installer_archive": "true", "installer_sha": self.sha,
+        return {"installer_archive": "true", "installer_app": self.app_id, "installer_sha": self.sha,
                 "installer_channel": self.channel, "installer_run": self.run,
                 "installer_attempt": self.attempt, "installer_feed_url": self.feed_url}
 
@@ -62,6 +62,15 @@ class ArchiveRequest:
         for key, value in expected.items():
             if info.get(key) != value:
                 raise ValueError(f"IPA {key} does not match the archive request")
+
+
+def stage(request, output):
+    """Validate the selected product before exposing a stable transport filename."""
+    product = archive_product(request.app_id)
+    source = output / "export" / f"{product}.ipa"
+    request.validate_ipa(source)
+    # Exclusive creation keeps retries from replacing another archive's bytes.
+    os.link(source, output / "app.ipa")
 
 
 def public_github_fetch(path):
@@ -92,7 +101,7 @@ def prepare(request, source, fetch=public_github_fetch, run=subprocess.run):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("prepare", "validate"))
+    parser.add_argument("command", choices=("prepare", "validate", "stage"))
     parser.add_argument("path", type=Path)
     args = parser.parse_args(argv)
     try:
@@ -101,6 +110,8 @@ def main(argv=None):
             "INSTALLER_RUN", "INSTALLER_ATTEMPT", "INSTALLER_FEED_URL")))
         if args.command == "prepare":
             prepare(request, args.path)
+        elif args.command == "stage":
+            stage(request, args.path)
         else:
             request.validate_ipa(args.path)
     except subprocess.CalledProcessError as error:

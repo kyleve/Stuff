@@ -173,6 +173,17 @@ def finish(plan: Plan, repository: str, ipa: Optional[Path], fetch, service, ide
                                "bundleVersion": version, "buildDetails": details})
 
 
+def source_available(app, plan, repository, fetch):
+    """A registered app may exist only on an installable branch before its first merge."""
+    if not isinstance(plan, Publication) or app.source_directory is None:
+        return True
+    tree = fetch(f"repos/{repository}/git/trees/{plan.sha}")
+    if tree.get("truncated") is not False or not isinstance(tree.get("tree"), list):
+        raise ValueError("Could not determine app source availability")
+    return any(item.get("path") == app.source_directory and item.get("type") == "tree"
+               for item in tree["tree"])
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("plan", "finish"))
@@ -195,6 +206,9 @@ def main(argv=None):
                            args.repository, args.ref, args.sha)
         if args.command == "plan":
             if not is_current(plan, args.repository, github_fetch):
+                plan = None
+            if not source_available(app, plan, args.repository, github_fetch):
+                print(f"Skipping {app.id}: source directory is absent at the selected commit.", file=sys.stderr)
                 plan = None
             action = "publish" if isinstance(plan, Publication) else "retire" if plan else "skip"
             output = (f"action={action}\nsha={plan.sha if isinstance(plan, Publication) else ''}\n"

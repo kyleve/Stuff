@@ -19,6 +19,8 @@ Guards: `signing_workflow_test.rb`, `signing_state_test.rb`, and `test_signing_p
 ## Publication
 
 - Load app identities from the trusted controller's `.github/installer-apps.json`.
+  Derive the archive product from the matching trusted signing descriptor; pass the app ID through every CI handoff.
+  Keep workflow artifacts and concurrency groups scoped by app. Never infer the app from a PR title or IPA filename.
   Namespace release tags, manifest paths, catalog mutations, and channel pages by app ID.
   An app ID cannot change its bundle identifier. Preserve other apps and channels on writes.
 - Run signed archives on the shared CircleCI macOS executor. Keep its config and control checkout on `main`.

@@ -119,7 +119,7 @@ The provisioning profile inside the IPA includes those device identifiers.
    If Pages uses a custom domain, set `INSTALLER_FEED_URL` to its HTTPS catalog URL before building.
 9. Create the repository label `installable` if it does not exist.
    Merge the integration into `main`, then set `WHERE_DISTRIBUTION_ENABLED` to `true`.
-   Run **Where Dev Distribution** manually on `main` to publish the first build.
+   Run **App Dev Distribution** manually on `main` to publish the first build.
    Open its install link on a registered phone and verify launch, widgets, and sharing.
    Add `installable` to an open PR, then push again to verify that its page updates.
 

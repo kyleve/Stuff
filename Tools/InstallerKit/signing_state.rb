@@ -14,7 +14,7 @@ module InstallerSigning
     def initialize(path, runner_root, profile_root, security)
       @path = File.expand_path(path)
       root = File.expand_path(runner_root)
-      raise 'Signing directory must be a direct child of RUNNER_TEMP' unless File.dirname(@path) == root && File.basename(@path).start_with?('where-signing-')
+      raise 'Signing directory must be a direct child of RUNNER_TEMP' unless File.dirname(@path) == root && File.basename(@path).start_with?('installer-signing-')
       @profiles = profile_root
       @security = security
     end
@@ -96,11 +96,11 @@ module InstallerSigning
   end
 
   def self.state_command(argv, environment)
-    raise 'Usage: .github/where-signing.sh prepare|cleanup' unless argv.length == 1 && %w[prepare cleanup].include?(argv.first)
+    raise 'Usage: .github/installer-signing.sh prepare|cleanup' unless argv.length == 1 && %w[prepare cleanup].include?(argv.first)
     raise 'Temporary signing is restricted to CircleCI isolated runners' unless environment['CIRCLECI'] == 'true'
     security = method(:run_security)
     profiles = File.expand_path('~/Library/Developer/Xcode/UserData/Provisioning Profiles')
-    state = State.new(environment.fetch('WHERE_SIGNING_DIR'), environment.fetch('RUNNER_TEMP'), profiles, security)
+    state = State.new(environment.fetch('INSTALLER_SIGNING_DIR'), environment.fetch('RUNNER_TEMP'), profiles, security)
     if argv.first == 'prepare'
       raise 'MATCH_PASSWORD is required' if environment.fetch('MATCH_PASSWORD', '').empty?
       state.prepare(environment.fetch('MATCH_DEPLOY_KEY'))

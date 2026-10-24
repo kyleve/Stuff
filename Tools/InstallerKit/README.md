@@ -59,19 +59,30 @@ A failed deletion can leave signing credentials on that job's isolated runner un
    Keep local binaries out of the public catalog. Users return to Local through Xcode or the app's Mac installer.
    The script reads the commit and clean status from Git. Missing values become `unknown`.
    `InstalledBuild` also reads the actual `CFBundleIdentifier` from the signed bundle.
-4. Add an app-specific distribution workflow using [Where's wrapper](../../.github/workflows/where-distribution.yml) as the template.
-   Change its app ID, archive command, signing context, artifact path, enable variable, and concurrency prefix.
-   Retain the trusted-main plan and publisher jobs, archive credential restrictions, and cleanup step.
-   The current CircleCI archive job supports Where. Add an explicit registered job before enabling another app.
-   Keep CircleCI configuration and control scripts on `main`. Use the existing pinned macOS executor.
-   Keep the CircleCI API token on the GitHub controller. Store signing secrets only in the restricted CircleCI context.
-   From the repository root, use `python3 -m Tools.InstallerKit.installer_distribution plan --app <id>` and the matching `finish` command.
-   Pass the successful receipt to `installer_update_feed.py`.
-   Keep the archive attempt output when retrying only the publisher.
-   Publish preparing status before archiving, and failed status when archiving or publication fails, as Where's workflow does.
-5. Merge the registration, workflow, and app integration into `main` before enabling the app's workflow.
-   Configure signing and registered devices for that app. Publish a main build and verify installation on a physical device.
-   Then add `installable` to a same-repository PR and verify its build and update flow.
+4. Register the app in `.github/installer-signing-apps.json` with its scheme, configuration, product name, targets, and profile override keys.
+   The product must match the app bundle name in `.github/installer-apps.json`.
+   The shared workflow derives the IPA filename from this trusted signing descriptor.
+   It validates the signed app identity before uploading a transport artifact named `app.ipa`.
+   Each app has a separate GitHub artifact and concurrency group.
+   No app-specific workflow or CircleCI job is required.
+5. Merge the registration and shared controller into `main` before enabling distribution.
+   For apps that exist only on a PR branch, set `sourceDirectory` to their top-level source directory.
+   The controller skips publication when that directory is absent from the selected commit. Retirement still runs.
+   Keep site artwork unset until the artwork exists on trusted `main`.
+6. Configure signing and registered devices for the app through `./signing refresh --app <id>`.
+   Use `--source <checkout>` when the app exists only in another checkout.
+   The shared CircleCI context retains the name `where-distribution-signing`; its account credentials support all registered apps.
+   Keep its project and config-source restrictions. No context rename or new credentials are needed for another app on the same team.
+7. Set `<APP_ID>_DISTRIBUTION_ENABLED` to `true` in GitHub repository variables.
+   Uppercase the app ID and replace hyphens with underscores.
+   For Throw, use `THROW_DISTRIBUTION_ENABLED`; Where keeps `WHERE_DISTRIBUTION_ENABLED`.
+   Add `installable` to a same-repository PR to publish every enabled app present on that branch.
+   Verify each app's install page, signed identity, and physical-device installation.
+
+**App Dev Distribution** retains the `where-distribution.yml` entry-point path for existing Actions event policies.
+It selects enabled registrations from trusted `main` and calls `installer-distribute-app.yml` on `main` for each app.
+The CircleCI API token stays on the GitHub controller. Signing secrets stay in the restricted CircleCI context.
+The selected source supplies build code, but never the signing descriptor, Fastfile, Gemfile, or controller.
 
 [Where's setup guide](../../Where/DISTRIBUTION.md) lists its signing secrets and device checks.
 New apps reuse publication and update logic. They do not need another site or a copy of the Swift engine.
@@ -145,7 +156,7 @@ Title edits appear with the next publication. Historical releases keep their rec
 The native Other Builds list uses this text without changing the channel's identity or install destination.
 
 Schema 3 replaces the unreleased Where-only catalog. No schema 2 deployment or installed-client migration is supported.
-Enable distribution only after the matching app and controller changes are on `main`.
+Enable distribution after the controller registration is on `main` and the selected app source includes signing overrides and the installer stamp.
 
 ## Validation
 

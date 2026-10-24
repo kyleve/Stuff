@@ -1,0 +1,182 @@
+name: Distribute registered app
+
+on:
+  workflow_call:
+    inputs:
+      app:
+        required: true
+        type: string
+    secrets:
+      INSTALLER_CIRCLECI_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: installer-distribution-${{ inputs.app }}-${{ github.event.pull_request.number || 'main' }}
+  cancel-in-progress: false
+
+env:
+  MISE_NO_HOOKS: '1'
+  PYTHONDONTWRITEBYTECODE: '1'
+  INSTALLER_APP_ID: ${{ inputs.app }}
+  INSTALLER_REPOSITORY_URL: https://github.com/${{ github.repository }}
+  INSTALLER_FEED_URL: ${{ vars.INSTALLER_FEED_URL || format('https://{0}.github.io/{1}/updates.json', github.repository_owner, github.event.repository.name) }}
+
+jobs:
+  plan:
+    name: Check installable build
+    if: >-
+      (github.event_name != 'pull_request_target' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      action: ${{ steps.plan.outputs.action }}
+      sha: ${{ steps.plan.outputs.sha }}
+      channel: ${{ steps.plan.outputs.channel }}
+    steps:
+      # The published workflow uses main's control scripts. PR code is only
+      # checked out on CircleCI after the installable-label gate.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Select current distribution channel
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python3 -m Tools.InstallerKit.installer_distribution plan --app "$INSTALLER_APP_ID"
+          --event "$GITHUB_EVENT_PATH" --event-name "$GITHUB_EVENT_NAME"
+          --repository "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" --sha "$GITHUB_SHA"
+          --output "$GITHUB_OUTPUT"
+
+  archive:
+    permissions:
+      contents: write
+      pull-requests: read
+      actions: write
+    needs: plan
+    if: needs.plan.outputs.action == 'publish'
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    outputs:
+      attempt: ${{ steps.archive-metadata.outputs.attempt }}
+    steps:
+      # This runner holds the CircleCI token but never runs PR code.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Publish preparing state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ needs.plan.outputs.sha }}
+          INSTALLER_CHANNEL: ${{ needs.plan.outputs.channel }}
+        run: >-
+          python3 -m Tools.InstallerKit.installer_update_feed
+          --status preparing --app "$INSTALLER_APP_ID" --channel "$INSTALLER_CHANNEL" --sha "$SOURCE_SHA"
+          --run "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT"
+          --repository "$GITHUB_REPOSITORY" --feed-url "$INSTALLER_FEED_URL"
+
+      - name: Archive on CircleCI and validate the returned IPA
+        env:
+          CIRCLECI_TOKEN: ${{ secrets.INSTALLER_CIRCLECI_TOKEN }}
+          CIRCLECI_PROJECT: ${{ vars.INSTALLER_CIRCLECI_PROJECT }}
+          CIRCLECI_PIPELINE: ${{ vars.INSTALLER_CIRCLECI_PIPELINE }}
+          SOURCE_SHA: ${{ needs.plan.outputs.sha }}
+          INSTALLER_CHANNEL: ${{ needs.plan.outputs.channel }}
+        run: >-
+          python3 -m Tools.InstallerKit.circleci_distribution
+          --project "$CIRCLECI_PROJECT" --definition "$CIRCLECI_PIPELINE"
+          --repository "$GITHUB_REPOSITORY" --app "$INSTALLER_APP_ID"
+          --sha "$SOURCE_SHA" --channel "$INSTALLER_CHANNEL"
+          --run "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT"
+          --feed-url "$INSTALLER_FEED_URL"
+          --output "$RUNNER_TEMP/installer-archive/app.ipa"
+      - name: Record archive attempt
+        id: archive-metadata
+        run: echo "attempt=$GITHUB_RUN_ATTEMPT" >>"$GITHUB_OUTPUT"
+      - name: Upload signed build for publication
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ inputs.app }}-ipa
+          path: ${{ runner.temp }}/installer-archive/app.ipa
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    permissions:
+      contents: write
+      pull-requests: read
+      actions: write
+    needs: [plan, archive]
+    if: >-
+      always() && needs.plan.result == 'success' &&
+      (needs.plan.outputs.action == 'retire' ||
+       (needs.plan.outputs.action == 'publish' && needs.archive.result == 'success'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        if: needs.plan.outputs.action == 'publish'
+        with:
+          name: installer-${{ inputs.app }}-ipa
+          path: build
+      - name: Publish or retire the current channel
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARCHIVE_ATTEMPT: ${{ needs.archive.outputs.attempt }}
+        run: >-
+          python3 -m Tools.InstallerKit.installer_distribution finish --app "$INSTALLER_APP_ID"
+          --event "$GITHUB_EVENT_PATH" --event-name "$GITHUB_EVENT_NAME"
+          --repository "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" --sha "$GITHUB_SHA"
+          --ipa build/app.ipa --output "$GITHUB_STEP_SUMMARY"
+          --receipt "$RUNNER_TEMP/installer-publication.json"
+          --run "$GITHUB_RUN_ID" --attempt "$ARCHIVE_ATTEMPT"
+          --feed-url "$INSTALLER_FEED_URL"
+      - name: Publish update catalog and request Pages deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python3 -m Tools.InstallerKit.installer_update_feed
+          --receipt "$RUNNER_TEMP/installer-publication.json"
+          --repository "$GITHUB_REPOSITORY"
+          --feed-url "$INSTALLER_FEED_URL"
+
+  publication-failed:
+    name: Report unpublished build
+    permissions:
+      contents: write
+      pull-requests: read
+      actions: write
+    needs: [plan, archive, publish]
+    if: >-
+      always() && needs.plan.outputs.action == 'publish' &&
+      (needs.archive.result != 'success' || needs.publish.result != 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Publish failed state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ needs.plan.outputs.sha }}
+          INSTALLER_CHANNEL: ${{ needs.plan.outputs.channel }}
+          BUILD_ATTEMPT: ${{ needs.archive.outputs.attempt || github.run_attempt }}
+        run: >-
+          python3 -m Tools.InstallerKit.installer_update_feed
+          --status failed --app "$INSTALLER_APP_ID" --channel "$INSTALLER_CHANNEL" --sha "$SOURCE_SHA"
+          --run "$GITHUB_RUN_ID" --attempt "$BUILD_ATTEMPT"
+          --repository "$GITHUB_REPOSITORY" --feed-url "$INSTALLER_FEED_URL"
