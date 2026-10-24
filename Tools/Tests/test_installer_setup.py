@@ -24,11 +24,14 @@ class InstallerSetupTests(unittest.TestCase):
         self.root = Path(temporary.name).resolve() / 'checkout with spaces ü'
         for name in ('signing', 'Tools/repository.rb', 'Tools/repository.py',
                      'Tools/InstallerKit/signing_command.rb', 'Tools/InstallerKit/installer_setup.py',
-                     'Tools/InstallerKit/installer_apps.py', '.github/installer-apps.json',
+                     'Tools/InstallerKit/installer_apps.py', 'Tools/InstallerKit/installer_setup_credentials.py',
+                     'Tools/InstallerKit/installer_setup_pr.py', '.github/installer-apps.json',
                      '.github/installer-signing-apps.json'):
             destination = self.root / name
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / name, destination)
+        for module in (ROOT / 'Tools/InstallerKit').glob('*.py'):
+            shutil.copy2(module, self.root / 'Tools/InstallerKit' / module.name)
         (self.root / '.git').mkdir()
         (self.root / 'ide').touch()
         self.source = self.root / 'source checkout ü'
@@ -39,7 +42,10 @@ class InstallerSetupTests(unittest.TestCase):
         (self.bin / 'python3').symlink_to(sys.executable)
         self.log = self.root / 'calls.jsonl'
         # No inherited credentials, developer tools, or real remote commands.
-        self.env = {'PATH': f'{self.bin}:/usr/bin:/bin', 'LOG': str(self.log),
+        key = self.root / 'fixture-api-key.json'
+        key.write_text(json.dumps({'key_id': 'test-key', 'issuer_id': 'test-issuer', 'key': 'test-private-key'}))
+        self.env = {'INSTALLER_API_KEY_PATH': str(key), 'MATCH_PASSWORD': 'test-password',
+                    'HOME': str(self.root), 'PATH': f'{self.bin}:/usr/bin:/bin', 'LOG': str(self.log),
                     'FIXTURE_ROOT': str(self.root), 'GH_REPO': 'wrong/repository'}
         self.write_executable('gh', r'''
 import base64, json, os, pathlib, sys
@@ -57,6 +63,31 @@ elif os.environ.get('FAIL_READ'):
     sys.exit(43)
 elif args[:2] == ['repo', 'view']:
     print('owner/repository')
+elif args[:2] == ['workflow', 'run'] or args[:2] == ['pr', 'edit']:
+    if os.environ.get('FAIL_PUBLICATION'):
+        print('sensitive subprocess diagnostic', file=sys.stderr)
+        sys.exit(49)
+    (root / 'publication').write_text(json.dumps(args))
+elif '/pulls/' in args[1]:
+    sha = 'b' * 40
+    if os.environ.get('CHANGE_PR_AFTER_REFRESH') and (root / 'refreshed').exists():
+        sha = 'c' * 40
+    if os.environ.get('CHANGE_PR_AFTER_CHECKOUT') and (root / 'checkout-created').exists():
+        sha = 'c' * 40
+    labels = [] if os.environ.get('UNLABELED') else [{'name': 'installable'}]
+    if os.environ.get('LABEL_SEQUENCE'):
+        counter = root / 'pr-read-count'
+        count = int(counter.read_text()) if counter.exists() else 0
+        counter.write_text(str(count + 1))
+        sequence = os.environ['LABEL_SEQUENCE'].split(',')
+        labels = [{'name': 'installable'}] if sequence[min(count, len(sequence) - 1)] == 'present' else []
+    value = {'state': 'closed' if os.environ.get('CLOSED') else 'open',
+             'mergeable': False if os.environ.get('CONFLICT') else True,
+             'head': {'sha': sha, 'repo': {'full_name': 'fork/repo' if os.environ.get('FORK') else 'owner/repository'}},
+             'base': {'repo': {'full_name': 'owner/repository'}}, 'labels': labels}
+    print(json.dumps(value))
+elif '/git/trees/' in args[1]:
+    print(json.dumps({'truncated': False, 'tree': [] if os.environ.get('NO_SOURCE') else [{'path': 'Throw', 'type': 'tree'}]}))
 elif args[1].endswith('/commits/main'):
     print('a' * 40)
 else:
@@ -73,12 +104,30 @@ else:
             value.pop('throw', None)
     print(base64.b64encode(json.dumps(value).encode()).decode())
 ''')
+        self.write_executable('git', r'''
+import json, os, pathlib, sys
+root = pathlib.Path(os.environ['FIXTURE_ROOT'])
+args = sys.argv[1:]
+with open(os.environ['LOG'], 'a') as log:
+    log.write(json.dumps({'tool': 'git', 'args': args}) + '\n')
+if os.environ.get('FAIL_GIT'):
+    sys.exit(46)
+if args[0] == 'clone':
+    source = pathlib.Path(args[-1])
+    source.mkdir()
+    (source / 'ide').touch()
+    (root / 'checkout-created').write_text(str(source))
+if 'rev-parse' in args:
+    print(('c' if os.environ.get('WRONG_SHA') else 'b') * 40)
+''')
         self.write_executable('mise', r'''
 import json, os, pathlib, sys
 args = sys.argv[1:]
 root = pathlib.Path(os.environ['FIXTURE_ROOT'])
 with open(os.environ['LOG'], 'a') as log:
     log.write(json.dumps({'tool': 'mise', 'args': args, 'gemfile': os.environ.get('BUNDLE_GEMFILE')}) + '\n')
+if args == ['install'] and os.environ.get('FAIL_INSTALL'):
+    sys.exit(45)
 if 'refresh' in args:
     if os.environ.get('FAIL_REFRESH'):
         sys.exit(42)
@@ -112,7 +161,10 @@ if 'refresh' in args:
     def test_invalid_arguments_and_ci_precede_tools(self):
         cases = [('setup', '--app', 'missing'), ('setup', '--app', 'throw', '--source', '/missing'),
                  ('setup', '--app', 'throw', '--output', '/tmp/out'),
-                 ('refresh', '--app', 'throw', '--dry-run')]
+                 ('refresh', '--app', 'throw', '--dry-run'),
+                 ('setup', '--app', 'throw', '--pr', '0'),
+                 ('setup', '--app', 'throw', '--pr', '295', '--source', str(self.source)),
+                 ('refresh', '--app', 'throw', '--pr', '295')]
         for args in cases:
             with self.subTest(args=args):
                 result = self.command(*args)
@@ -217,3 +269,101 @@ if 'refresh' in args:
         with patch.dict(os.environ, {'CIRCLECI': 'true'}, clear=True), self.assertRaisesRegex(SetupFailure, 'local only'):
             setup(self.root, 'throw', self.source, False,
                   run=lambda *args, **kwargs: self.fail('Must reject CI before processes'))
+
+    def test_pr_dry_run_needs_no_credentials_and_only_reads(self):
+        result = self.command('setup', '--app', 'throw', '--pr', '295', '--dry-run',
+                              overrides={'MATCH_PASSWORD': '', 'INSTALLER_API_KEY_PATH': '/missing'})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('PR #295', result.stdout)
+        self.assertIn('all enabled apps', result.stdout)
+        self.assert_no_mutations()
+        self.assertFalse((self.root / 'checkout-created').exists())
+
+    def test_ineligible_prs_never_prepare_or_enable(self):
+        for flag in ('FORK', 'CLOSED', 'CONFLICT', 'NO_SOURCE'):
+            with self.subTest(flag=flag):
+                result = self.command('setup', '--app', 'throw', '--pr', '295', overrides={flag: 'true'})
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assert_no_mutations()
+                self.assertFalse((self.root / 'checkout-created').exists())
+
+    def test_pr_success_cleans_checkout_and_dispatches_without_removing_label(self):
+        result = self.command('setup', '--app', 'throw', '--pr', '295')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('Requested PR #295 publication', result.stdout)
+        source = Path((self.root / 'checkout-created').read_text())
+        self.assertFalse(source.parent.exists())
+        refreshed = json.loads((self.root / 'refreshed').read_text())
+        self.assertIn(f'source:{source}', refreshed)
+        publication = json.loads((self.root / 'publication').read_text())
+        self.assertEqual(publication, ['workflow', 'run', 'installer-distribution.yml', '--repo',
+                                      'owner/repository', '--ref', 'main', '-f', 'pull_request=295'])
+        self.assertFalse(any('--remove-label' in call['args'] for call in self.calls()))
+        self.assertNotIn('test-password', result.stdout + result.stderr + self.log.read_text())
+
+    def test_unlabeled_pr_gets_one_label_event_and_no_dispatch(self):
+        result = self.command('setup', '--app', 'throw', '--pr', '295', overrides={'UNLABELED': 'true'})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        publication = json.loads((self.root / 'publication').read_text())
+        self.assertEqual(publication, ['pr', 'edit', '295', '--repo', 'owner/repository', '--add-label', 'installable'])
+
+    def test_pr_preparation_failures_clean_up_without_enabling(self):
+        for flag, status in (('FAIL_GIT', 46), ('WRONG_SHA', 1), ('FAIL_INSTALL', 45),
+                             ('CHANGE_PR_AFTER_CHECKOUT', 1), ('FAIL_REFRESH', 42)):
+            with self.subTest(flag=flag):
+                result = self.command('setup', '--app', 'throw', '--pr', '295', overrides={flag: 'true'})
+                self.assertEqual(result.returncode, status, result.stderr)
+                self.assertFalse((self.root / 'enabled').exists())
+                self.assertFalse((self.root / 'publication').exists())
+                marker = self.root / 'checkout-created'
+                if marker.exists():
+                    self.assertFalse(Path(marker.read_text()).parent.exists())
+                    marker.unlink()
+
+    def test_changed_pr_after_refresh_never_enables_or_dispatches(self):
+        result = self.command('setup', '--app', 'throw', '--pr', '295', overrides={'CHANGE_PR_AFTER_REFRESH': 'true'})
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn('enable variable was not changed', result.stderr)
+        self.assertTrue((self.root / 'refreshed').exists())
+        self.assertFalse((self.root / 'enabled').exists())
+        self.assertFalse((self.root / 'publication').exists())
+
+    def test_dispatch_failure_reports_enablement_and_preserves_status(self):
+        result = self.command('setup', '--app', 'throw', '--pr', '295', overrides={'FAIL_PUBLICATION': 'true'})
+        self.assertEqual(result.returncode, 49, result.stderr)
+        self.assertIn('distribution is enabled, but publication was not confirmed', result.stderr)
+        self.assertTrue((self.root / 'enabled').exists())
+        self.assertNotIn('sensitive', result.stderr)
+        self.assertFalse(Path((self.root / 'checkout-created').read_text()).parent.exists())
+
+    def test_label_observed_during_setup_cannot_be_restored_after_removal(self):
+        for sequence, enabled in (('absent,present,absent', False),
+                                  ('absent,absent,present,absent', True)):
+            with self.subTest(sequence=sequence):
+                result = self.command('setup', '--app', 'throw', '--pr', '295',
+                                      overrides={'LABEL_SEQUENCE': sequence})
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertTrue((self.root / 'refreshed').exists())
+                self.assertEqual((self.root / 'enabled').exists(), enabled)
+                self.assertFalse((self.root / 'publication').exists())
+                self.assertFalse(any(call['args'][:2] in (['pr', 'edit'], ['workflow', 'run'])
+                                     for call in self.calls()))
+                self.assertFalse(Path((self.root / 'checkout-created').read_text()).parent.exists())
+                self.assertIn('publication was not confirmed' if enabled else 'enable variable was not changed',
+                              result.stderr)
+                (self.root / 'pr-read-count').unlink()
+
+    def test_label_added_during_setup_uses_dispatch_when_it_remains_present(self):
+        result = self.command('setup', '--app', 'throw', '--pr', '295',
+                              overrides={'LABEL_SEQUENCE': 'absent,present,present,present'})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        publication = json.loads((self.root / 'publication').read_text())
+        self.assertEqual(publication[:2], ['workflow', 'run'])
+        self.assertFalse(any(call['args'][:2] == ['pr', 'edit'] for call in self.calls()))
+
+    def test_missing_noninteractive_password_stops_before_mutations(self):
+        result = self.command('setup', '--app', 'throw', '--pr', '295', overrides={'MATCH_PASSWORD': ''})
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn('hidden prompt', result.stderr)
+        self.assert_no_mutations()
+        self.assertFalse((self.root / 'checkout-created').exists())

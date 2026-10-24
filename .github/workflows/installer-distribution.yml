@@ -6,6 +6,12 @@ on:
   pull_request_target:
     types: [opened, reopened, synchronize, labeled, unlabeled, closed]
   workflow_dispatch:
+    inputs:
+      pull_request:
+        description: 'Installable PR number; leave empty to publish main'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
