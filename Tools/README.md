@@ -31,6 +31,8 @@ catalogs and captured command output rather than tracked assets, devices, or
 `repository.repository_root` (Python) and `Repository.root` in `repository.rb` (Ruby) find a tool's checkout through its nearest `.git` directory or worktree file.
 Use it for checkout-relative resources instead of fixed parent-directory counts.
 `./signing` calls the shared Fastlane workflow for local maintenance and read-only archives.
+`./signing setup --app <id>` checks merged registrations, refreshes profiles, and enables the app's distribution variable.
+Use `--dry-run` to check registration without changing signing assets or GitHub variables.
 `Where/archive` is its Where-specific convenience wrapper.
 `Gemfile.lock` pins Fastlane and its transitive dependencies, isolated in ignored `vendor/bundle/`. Run `./ide --install --no-open` to install them.
 [`InstallerKit/`](InstallerKit/README.md) owns shared app registration, publication, build stamping, and install-site generation.

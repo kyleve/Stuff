@@ -10,6 +10,9 @@ parameters:
     type: enum
     enum: ["false", "true"]
     default: "false"
+  installer_app:
+    type: string
+    default: ""
   installer_sha:
     type: string
     default: ""
@@ -291,13 +294,13 @@ commands:
           destination: << parameters.artifact_name >>/diagnostics
 
 jobs:
-  archive-where:
+  archive-app:
     executor: m4-pro-medium
     environment:
       PYTHONDONTWRITEBYTECODE: "1"
       RUNNER_TEMP: /tmp/installer-archive
-      WHERE_SIGNING_DIR: /tmp/installer-archive/where-signing-material
-      INSTALLER_APP_ID: where
+      INSTALLER_SIGNING_DIR: /tmp/installer-archive/installer-signing-material
+      INSTALLER_APP_ID: << pipeline.parameters.installer_app >>
       INSTALLER_REPOSITORY: << pipeline.config.repository.name >>
       INSTALLER_REPOSITORY_URL: https://github.com/<< pipeline.config.repository.name >>
       INSTALLER_BUILD_SHA: << pipeline.parameters.installer_sha >>
@@ -329,22 +332,22 @@ jobs:
             (cd "$RUNNER_TEMP/source" && mise trust .mise.toml && mise install)
       - run:
           name: Install temporary signing material
-          command: bash .github/where-signing.sh prepare
+          command: bash .github/installer-signing.sh prepare
       - run:
-          name: Archive and export Where Dev
+          name: Archive and export selected app
           no_output_timeout: 45m
           command: |
-            ./signing archive --app where --source "$RUNNER_TEMP/source" --output "$RUNNER_TEMP/output"
+            ./signing archive --app "$INSTALLER_APP_ID" --source "$RUNNER_TEMP/source" --output "$RUNNER_TEMP/output"
       - run:
           name: Validate the signed archive against the request
-          command: python3 -m Tools.InstallerKit.circleci_archive validate "$RUNNER_TEMP/output/export/Where.ipa"
+          command: python3 -m Tools.InstallerKit.circleci_archive stage "$RUNNER_TEMP/output"
       - run:
           name: Remove temporary signing material
           when: always
-          command: bash .github/where-signing.sh cleanup
+          command: bash .github/installer-signing.sh cleanup
       - store_artifacts:
-          path: /tmp/installer-archive/output/export/Where.ipa
-          destination: installer/Where.ipa
+          path: /tmp/installer-archive/output/app.ipa
+          destination: installer/app.ipa
 
   build-ios-tests:
     executor: m4-pro-large
@@ -531,6 +534,6 @@ workflows:
       pipeline.git.branch == "main" and
       pipeline.config.ref == "refs/heads/main"
     jobs:
-      - archive-where:
-          name: Archive Where Dev
+      - archive-app:
+          name: Archive App
           context: where-distribution-signing
