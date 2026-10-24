@@ -1,0 +1,22 @@
+{
+  "archiveVersion": 1,
+  "source": "OurAirports",
+  "revision": "7d6886315f6c249b3818930030871d9329cc3445",
+  "homepageURL": "https://ourairports.com/data/",
+  "license": "Public domain",
+  "expectedOutput": {
+    "airportCount": 49545,
+    "runwayCount": 14262,
+    "sha256": "c295c1289c0b8df8a5e4e9c49fdd2541b543d4cd8edd756f2bead9f0c9b22659"
+  },
+  "inputs": {
+    "airports": {
+      "file": "airports.csv",
+      "sha256": "4e56f700c184c586fe26d897082d176829840574c360ace0e38590f7e69489fa"
+    },
+    "runways": {
+      "file": "runways.csv",
+      "sha256": "582a52288d2a83a6f6de6a89b0355f5e9149bf057dd3d7769b95a10f8e01ff4f"
+    }
+  }
+}

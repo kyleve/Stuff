@@ -1,0 +1,187 @@
+{
+  "source": "pluscal",
+  "module": "ProjectionActivation.tla",
+  "cases": [
+    {
+      "name": "broken-identity-teardown",
+      "config": "BrokenIdentityTeardown.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoStaleTeardownOfNewerLease is violated."
+    },
+    {
+      "name": "pre-fix-stopped-lease",
+      "config": "PreFixStoppedLease.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant CorrectAtQuiescence is violated."
+    },
+    {
+      "name": "pre-fix-runtime-tombstone",
+      "config": "PreFixRuntimeTombstone.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant PermitSafety is violated."
+    },
+    {
+      "name": "pre-fix-context-retained-lease",
+      "config": "PreFixContextRetainedLease.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant FreshContextAtQuiescence is violated."
+    },
+    {
+      "name": "pre-fix-polling-retires-lease",
+      "config": "PreFixPollingRetiresLease.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant CorrectAtQuiescence is violated."
+    },
+    {
+      "name": "pre-fix-no-demand-tombstone",
+      "config": "PreFixNoDemandTombstone.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant PermitSafety is violated."
+    },
+    {
+      "name": "permit-gap-reachability",
+      "config": "PermitGapReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant PermitGapNotReached is violated."
+    },
+    {
+      "name": "permit-teardown-reachability",
+      "config": "PermitTeardownReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant PendingPermitTeardownNotReached is violated."
+    },
+    {
+      "name": "direct-lease-sync-reachability",
+      "config": "DirectLeaseSyncReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant DirectLeaseSyncNotReached is violated."
+    },
+    {
+      "name": "stale-teardown-reachability",
+      "config": "RaceReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant StaleTeardownCommandNotReached is violated."
+    },
+    {
+      "name": "physical-poller-reachability",
+      "config": "PhysicalReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant PhysicalPollerNotReached is violated."
+    },
+    {
+      "name": "runtime-tombstone-reachability",
+      "config": "RuntimeTombstoneReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NewerRuntimeTeardownNotReached is violated."
+    },
+    {
+      "name": "physical-drain-reachability",
+      "config": "DrainReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant PhysicalDrainNotReached is violated."
+    },
+    {
+      "name": "two-scene-reachability",
+      "config": "TwoSceneReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant TwoForegroundScenesNotReached is violated."
+    },
+    {
+      "name": "quiet-reachability",
+      "config": "QuietReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant QuietBlockNotReached is violated."
+    },
+    {
+      "name": "calibration-reachability",
+      "config": "CalibrationReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant CalibrationBlockNotReached is violated."
+    },
+    {
+      "name": "context-gate-reachability",
+      "config": "ContextGateReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant ContextGateNotReached is violated."
+    },
+    {
+      "name": "context-renewal-reachability",
+      "config": "ContextRenewalReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant ContextRenewalNotReached is violated."
+    },
+    {
+      "name": "gated-successor-sync-reachability",
+      "config": "GatedSuccessorSyncReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant GatedSuccessorSyncNotReached is violated."
+    },
+    {
+      "name": "old-activation-after-successor-reachability",
+      "config": "OldActivationAfterSuccessorReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant OldActivationAfterSuccessorNotReached is violated."
+    },
+    {
+      "name": "old-activation-while-gated-reachability",
+      "config": "OldActivationWhileGatedReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant OldActivationWhileGatedAfterSuccessorNotReached is violated."
+    },
+    {
+      "name": "delayed-runtime-teardown-reachability",
+      "config": "DelayedRuntimeTeardownReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant DelayedRuntimeTeardownAfterSuccessorNotReached is violated."
+    },
+    {
+      "name": "context-poller-reachability",
+      "config": "ContextPollerReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant ContextPollerNotReached is violated."
+    },
+    {
+      "name": "physical-suspension-reachability",
+      "config": "PhysicalSuspensionReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant PhysicalSuspensionNotReached is violated."
+    },
+    {
+      "name": "same-lease-resume-reachability",
+      "config": "SameLeaseResumeReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant SameLeaseResumeNotReached is violated."
+    },
+    {
+      "name": "demand-overtake-reachability",
+      "config": "DemandOvertakeReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant DemandOvertakeNotReached is violated."
+    },
+    {
+      "name": "current-race",
+      "config": "CurrentRace.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-two-scenes",
+      "config": "CurrentTwoScenes.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-context-renewal",
+      "config": "CurrentContextRenewal.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-physical-suspension",
+      "config": "CurrentPhysicalSuspension.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-context-and-suspension",
+      "config": "CurrentContextAndSuspension.cfg",
+      "expect": "pass"
+    }
+  ]
+}

@@ -1,0 +1,243 @@
+import Foundation
+
+/// Number of billed FR24 live-position requests required for one Throw poll.
+public enum Flightradar24RequestMultiplicity: Int, Equatable, Sendable {
+    case single = 1
+    case antimeridian = 2
+
+    public static func livePosition(
+        for query: AircraftQuery,
+    ) throws -> Flightradar24RequestMultiplicity {
+        let plan = try CloudAircraftQuery.plan(for: query)
+        return PositionBoundsPlan(
+            center: plan.coarseCenter,
+            radius: plan.transmittedRadius,
+        ).multiplicity
+    }
+}
+
+/// A live-position query is either one valid bounds request or the two valid
+/// hemisphere requests needed when its bounds cross the antimeridian.
+enum Flightradar24PositionRequestPlan {
+    case single(HTTPRequest)
+    case antimeridian(
+        westernHemisphere: HTTPRequest,
+        easternHemisphere: HTTPRequest,
+    )
+}
+
+/// Constructs authenticated FR24 requests while keeping geographic bounds valid.
+struct Flightradar24RequestFactory {
+    private let baseURL: URL
+    private let credential: AircraftCredential
+
+    init(baseURL: URL, credential: AircraftCredential) {
+        self.baseURL = baseURL
+        self.credential = credential
+    }
+
+    func livePositionPlan(
+        for query: AircraftQuery,
+    ) throws -> Flightradar24PositionRequestPlan {
+        let plan = try CloudAircraftQuery.plan(for: query)
+        return try positionPlan(
+            center: plan.coarseCenter,
+            radius: plan.transmittedRadius,
+        )
+    }
+
+    func positionPlan(
+        for query: AircraftQuery,
+        radius: NauticalMiles,
+    ) throws -> Flightradar24PositionRequestPlan {
+        let plan = try CloudAircraftQuery.plan(for: query)
+        return try positionPlan(center: plan.coarseCenter, radius: radius)
+    }
+
+    private func positionPlan(
+        center: GeoCoordinate,
+        radius: NauticalMiles,
+    ) throws -> Flightradar24PositionRequestPlan {
+        try positionRequestPlan(for: PositionBoundsPlan(
+            center: center,
+            radius: radius,
+        ))
+    }
+
+    func usageRequest(period: Flightradar24UsagePeriod) throws -> HTTPRequest {
+        var components = URLComponents(
+            url: baseURL.appending(path: "usage"),
+            resolvingAgainstBaseURL: false,
+        )
+        components?.queryItems = [URLQueryItem(name: "period", value: period.rawValue)]
+        guard let url = components?.url else { throw AircraftSourceFailure.invalidConfiguration }
+        return request(url: url)
+    }
+
+    private func positionRequest(bounds: PositionBounds) throws -> HTTPRequest {
+        var components = URLComponents(
+            url: baseURL.appending(path: "live/flight-positions/full"),
+            resolvingAgainstBaseURL: false,
+        )
+        components?.queryItems = [URLQueryItem(name: "bounds", value: bounds.queryValue)]
+        guard let url = components?.url else { throw AircraftSourceFailure.invalidConfiguration }
+        return request(url: url)
+    }
+
+    private func request(url: URL) -> HTTPRequest {
+        HTTPRequest(
+            method: .get,
+            url: url,
+            headers: [
+                .accept: "application/json",
+                .acceptVersion: "v1",
+                .authorization: "Bearer \(credential.authenticationHeaderValue)",
+            ],
+            timeoutSeconds: 8,
+        )
+    }
+
+    private func positionRequestPlan(
+        for boundsPlan: PositionBoundsPlan,
+    ) throws -> Flightradar24PositionRequestPlan {
+        switch boundsPlan {
+            case let .single(bounds):
+                try .single(positionRequest(bounds: bounds))
+            case let .antimeridian(westernHemisphere, easternHemisphere):
+                try .antimeridian(
+                    westernHemisphere: positionRequest(bounds: westernHemisphere),
+                    easternHemisphere: positionRequest(bounds: easternHemisphere),
+                )
+        }
+    }
+}
+
+private enum PositionBoundsPlan {
+    private static let earthMeanRadiusNauticalMiles = 6_371_008.8 / 1852
+
+    case single(PositionBounds)
+    case antimeridian(
+        westernHemisphere: PositionBounds,
+        easternHemisphere: PositionBounds,
+    )
+
+    init(center: GeoCoordinate, radius: NauticalMiles) {
+        let centerLatitude = center.latitude * .pi / 180
+        let angularRadius = min(.pi, radius.value / Self.earthMeanRadiusNauticalMiles)
+        let northLatitude = min(.pi / 2, centerLatitude + angularRadius)
+        let southLatitude = max(-.pi / 2, centerLatitude - angularRadius)
+        let north = northLatitude * 180 / .pi
+        let south = southLatitude * 180 / .pi
+        let reachesPole = centerLatitude + angularRadius >= .pi / 2 ||
+            centerLatitude - angularRadius <= -.pi / 2
+        guard reachesPole == false else {
+            self = .single(PositionBounds(
+                north: north,
+                south: south,
+                west: -180,
+                east: 180,
+            ))
+            return
+        }
+
+        let longitudeRatio = min(
+            1,
+            max(0, sin(angularRadius) / cos(centerLatitude)),
+        )
+        let longitudeSpan = asin(longitudeRatio) * 180 / .pi
+
+        let rawWest = center.longitude - longitudeSpan
+        let rawEast = center.longitude + longitudeSpan
+        if rawWest < -180 {
+            self = .antimeridian(
+                westernHemisphere: PositionBounds(
+                    north: north,
+                    south: south,
+                    west: -180,
+                    east: rawEast,
+                ),
+                easternHemisphere: PositionBounds(
+                    north: north,
+                    south: south,
+                    west: rawWest + 360,
+                    east: 180,
+                ),
+            )
+        } else if rawEast > 180 {
+            self = .antimeridian(
+                westernHemisphere: PositionBounds(
+                    north: north,
+                    south: south,
+                    west: -180,
+                    east: rawEast - 360,
+                ),
+                easternHemisphere: PositionBounds(
+                    north: north,
+                    south: south,
+                    west: rawWest,
+                    east: 180,
+                ),
+            )
+        } else {
+            self = .single(PositionBounds(
+                north: north,
+                south: south,
+                west: rawWest,
+                east: rawEast,
+            ))
+        }
+    }
+
+    var multiplicity: Flightradar24RequestMultiplicity {
+        switch self {
+            case .single: .single
+            case .antimeridian: .antimeridian
+        }
+    }
+}
+
+private struct PositionBounds {
+    let north: Double
+    let south: Double
+    let west: Double
+    let east: Double
+
+    init(north: Double, south: Double, west: Double, east: Double) {
+        precondition((-90 ... 90).contains(north))
+        precondition((-90 ... 90).contains(south))
+        precondition((-180 ... 180).contains(west))
+        precondition((-180 ... 180).contains(east))
+        precondition(north >= south)
+        precondition(east >= west)
+        self.north = north
+        self.south = south
+        self.west = west
+        self.east = east
+    }
+
+    var queryValue: String {
+        [
+            Self.formatUpperBound(north),
+            Self.formatLowerBound(south),
+            Self.formatLowerBound(west),
+            Self.formatUpperBound(east),
+        ].joined(separator: ",")
+    }
+
+    private static func formatUpperBound(_ value: Double) -> String {
+        format(ceil(value * 1000) / 1000)
+    }
+
+    private static func formatLowerBound(_ value: Double) -> String {
+        format(floor(value * 1000) / 1000)
+    }
+
+    private static func format(_ value: Double) -> String {
+        let normalized = value == 0 ? 0 : value
+        return String(
+            format: "%.3f",
+            locale: Locale(identifier: "en_US_POSIX"),
+            normalized,
+        )
+    }
+}

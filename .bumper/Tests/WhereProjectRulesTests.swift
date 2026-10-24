@@ -123,13 +123,13 @@ struct WhereProjectRulesTests {
     }
 
     @Test
-    func `Log event types stay in logging directories`() throws {
+    func `Log event types stay in Where logging directories`() throws {
         let appAllowed = try evaluate(
             path: "Where/Where/Sources/Logging/WhereAppLog.swift",
             component: .app,
             source: "enum WhereAppLog {}",
         )
-        let allowed = try evaluate(
+        let uiAllowed = try evaluate(
             path: "Where/WhereUI/Sources/Logging/ScreenLog.swift",
             component: .whereUI,
             source: "enum ScreenLog {}",
@@ -141,9 +141,15 @@ struct WhereProjectRulesTests {
             component: .whereUI,
             source: "enum ScreenLog {}",
         )
+        let unrelatedMain = try evaluate(
+            path: "Ledger/LedgerCore/Sources/LedgerLog.swift",
+            component: .ledgerCore,
+            source: "enum LedgerLog {}",
+        )
 
         #expect(appAllowed.violations.isEmpty)
-        #expect(allowed.violations.isEmpty)
+        #expect(uiAllowed.violations.isEmpty)
+        #expect(unrelatedMain.violations.isEmpty)
         let violation = try #require(rejected.violations.first)
         #expect(rejected.violations.count == 1)
         #expect(violation.rule.id == "where.logging_type_ownership")

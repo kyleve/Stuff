@@ -16,6 +16,7 @@ class PublicCommandContractTest < Minitest::Test
     icons
     Where/install
     Where/archive
+    Throw/install
     Ledger/install
     tla-check
     ide
