@@ -307,3 +307,46 @@ class InstallerDistributionTests(unittest.TestCase):
             self.assertEqual(output.read_text(), 'action=skip\nsha=\nchannel=\n')
             self.assertEqual(stdout.getvalue(), output.read_text())
             self.assertIn('Skipping throw', stderr.getvalue())
+
+    def test_manual_pr_dispatch_uses_live_head_and_keeps_opt_in(self):
+        from Tools.InstallerKit.installer_distribution import event_plan
+        event = {'repository': {'full_name': REPO}, 'inputs': {'pull_request': '42'}}
+        fetch = Mock(return_value=pr_event()['pull_request'])
+        self.assertEqual(event_plan('workflow_dispatch', event, REPO, 'refs/heads/main', 'b' * 40, fetch), Publication(SHA, 42))
+        fetch.assert_called_once_with(f'repos/{REPO}/pulls/42')
+        for pr in (pr_event(labeled=False), pr_event(fork=True), pr_event(state='closed')):
+            with self.subTest(pr=pr), self.assertRaisesRegex(ValueError, 'labeled installable'):
+                event_plan('workflow_dispatch', event, REPO, 'refs/heads/main', 'b' * 40,
+                           Mock(return_value=pr['pull_request']))
+
+    def test_manual_pr_dispatch_rejects_invalid_numbers_and_untrusted_refs(self):
+        from Tools.InstallerKit.installer_distribution import event_plan
+        for number in ('0', '-1', '01', '1/../../', 0, 42, True, False, None, '42\n'):
+            event = {'repository': {'full_name': REPO}, 'inputs': {'pull_request': number}}
+            with self.subTest(number=number), self.assertRaises(ValueError):
+                event_plan('workflow_dispatch', event, REPO, 'refs/heads/main', SHA,
+                           Mock(side_effect=AssertionError('No API request expected')))
+        event = {'repository': {'full_name': REPO}, 'inputs': {'pull_request': '42'}}
+        fetch = Mock(side_effect=AssertionError('No API request expected'))
+        self.assertIsNone(event_plan('workflow_dispatch', event, REPO, 'refs/heads/feature', SHA, fetch))
+        event['repository']['full_name'] = 'other/Stuff'
+        self.assertIsNone(event_plan('workflow_dispatch', event, REPO, 'refs/heads/main', SHA, fetch))
+
+    def test_manual_dispatch_without_pr_retains_main_behavior(self):
+        from Tools.InstallerKit.installer_distribution import event_plan
+        fetch = Mock(side_effect=AssertionError('No PR lookup expected'))
+        for inputs in ({}, {'pull_request': ''}):
+            event = {'repository': {'full_name': REPO}, 'inputs': inputs}
+            self.assertEqual(event_plan('workflow_dispatch', event, REPO, 'refs/heads/main', SHA, fetch),
+                             Publication(SHA, None))
+
+    def test_manual_pr_dispatch_command_emits_pr_channel_instead_of_main(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            event = Path(temporary) / 'event.json'
+            event.write_text(json.dumps({'repository': {'full_name': REPO}, 'inputs': {'pull_request': '42'}}))
+            with patch('Tools.InstallerKit.installer_distribution.github_fetch', return_value=pr_event()['pull_request']), \
+                    redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
+                result = main(['plan', '--app', 'where', '--event', str(event), '--event-name', 'workflow_dispatch',
+                               '--repository', REPO, '--ref', 'refs/heads/main', '--sha', 'b' * 40])
+                self.assertEqual(result, 0, stderr.getvalue())
+                self.assertIn(f'action=publish\nsha={SHA}\nchannel=pr-42\n', stdout.getvalue())

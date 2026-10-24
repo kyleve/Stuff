@@ -173,6 +173,23 @@ def finish(plan: Plan, repository: str, ipa: Optional[Path], fetch, service, ide
                                "bundleVersion": version, "buildDetails": details})
 
 
+def event_plan(event_name, event, repository, ref, sha, fetch):
+    """Manual PR requests resolve live source while retaining the installable-label gate."""
+    number = (event.get("inputs") or {}).get("pull_request", "") if event_name == "workflow_dispatch" else ""
+    if number == "":
+        return select_plan(event_name, event, repository, ref, sha)
+    if not isinstance(number, str) or not re.fullmatch(r"[1-9][0-9]*", number):
+        raise ValueError("Manual PR number must be a positive integer")
+    # Validate repository/ref before using a user-supplied number in an API request.
+    if select_plan(event_name, event, repository, ref, sha) is None:
+        return None
+    pr = fetch(f"repos/{repository}/pulls/{number}")
+    if not eligible(pr, repository):
+        raise ValueError("Manual PR publication requires an open same-repository PR labeled installable")
+    return select_plan("pull_request_target", {"repository": event["repository"], "number": int(number),
+                                               "action": "synchronize", "pull_request": pr}, repository, ref, sha)
+
+
 def source_available(app, plan, repository, fetch):
     """A registered app may exist only on an installable branch before its first merge."""
     if not isinstance(plan, Publication) or app.source_directory is None:
@@ -202,8 +219,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         app = load_app(args.app)
-        plan = select_plan(args.event_name, json.loads(args.event.read_text()),
-                           args.repository, args.ref, args.sha)
+        plan = event_plan(args.event_name, json.loads(args.event.read_text()),
+                          args.repository, args.ref, args.sha, github_fetch)
         if args.command == "plan":
             if not is_current(plan, args.repository, github_fetch):
                 plan = None

@@ -15,7 +15,7 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: installer-distribution-${{ inputs.app }}-${{ github.event.pull_request.number || 'main' }}
+  group: installer-distribution-${{ inputs.app }}-${{ github.event.pull_request.number || github.event.inputs.pull_request || 'main' }}
   cancel-in-progress: false
 
 env:
