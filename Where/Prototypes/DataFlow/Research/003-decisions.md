@@ -76,8 +76,8 @@ This decision selects the starting architecture. It does not establish feasibili
 | --- | --- | --- | --- |
 | O001 | Where is the viewer? | Both a separate Mac window and an in-app view | Resolved by D003 |
 | O002 | What is the first flow? | GPS ingestion is the current technical scenario. A manual edit remains an alternative demonstration. | Implementation slice open |
-| O003 | What does the graph explain? | Follow values through copies, splits, and merges, including inputs without domain IDs. Field, element, and control-dependence precision remain open. | Extended discussion in [007](007-value-identity-and-provenance.md) |
-| O004 | How does capture represent causality? | Generated provenance handles refer to a separate value-version and execution graph. Concrete handoff propagation remains open. | Core representation resolved by D006. Mechanisms explored in [006](006-automatic-instrumentation.md) and [007](007-value-identity-and-provenance.md) |
+| O003 | What does the graph explain? | Follow values through copies, splits, and merges. Whole values and collection elements are proposed first. Field and control-dependence precision remain open. | Next design decision. Draft contract in [008](008-observation-contract.md) |
+| O004 | How does capture represent causality? | Generated handles refer to a separate value-version and execution graph. Concrete propagation and evidence semantics remain open. | Core representation resolved by D006. Proposed relationship meanings in [008](008-observation-contract.md) |
 | O005 | What data appears in detail? | Counts and identities, selected values, or before/after summaries have different volume and disclosure costs. | Open |
 | O006 | What history is required? | Recent memory, durable local history, and replay have different lifecycle and storage costs. | Bounded recent history proposed |
 | O007 | Which environments are first? | Simulator, physical device, app audience, and background operation affect capture and connectivity. | Open |
@@ -95,6 +95,7 @@ They do not require a design for every future flow.
 These proposals are not user decisions:
 
 - Start with one repeatable action and complete its live observation before adding broad coverage.
+- Agree the observation contract and expected example records before selecting the propagation implementation.
 - Evaluate existing Periscope interfaces before creating another capture system.
 - Define causal relationships explicitly. Label unknown relationships instead of inferring them from timing alone.
 - Generate routine instrumentation and evaluate adapters shared across call sites. Measure coverage without per-stage declarations.

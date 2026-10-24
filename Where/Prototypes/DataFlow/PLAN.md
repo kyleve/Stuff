@@ -28,6 +28,7 @@ We are evaluating automatic system discovery, generated runtime observations, an
 The [GPS tracing research](Research/005-explicit-tracing-and-code-generation.md) records the current source path and identity constraints.
 The [automatic instrumentation discussion](Research/006-automatic-instrumentation.md) replaces its annotation-led proposal and experiment.
 The [value provenance research](Research/007-value-identity-and-provenance.md) explores generated identities, shadow metadata, splits, merges, and prior art.
+The [proposed observation contract](Research/008-observation-contract.md) recommends tracking granularity and relationship meaning as the next design decision.
 The [decision register](Research/003-decisions.md#d006--use-generated-provenance-handles-and-a-separate-graph) records the accepted direction and unresolved questions.
 
 ## Proposed first result
@@ -111,6 +112,11 @@ Tracking granularity and branch dependence also need concrete scope and evidence
 
 ## Next technical checkpoint
 
+First settle the [observation contract](Research/008-observation-contract.md): value granularity, relationship meaning, evidence, and missing information.
+The current recommendation starts with whole values, collection elements, supported derivations, and explicit branch decisions.
+Complete field-level and implicit control-flow provenance remain open choices.
+The contract draft is a proposal, not an additional accepted decision.
+
 P1 starts with a small automatic propagation experiment and a text capture consumer.
 The following checkpoints define the proposed order within that slice:
 
@@ -167,6 +173,7 @@ File unrelated findings in their owning `TODOs.md` and link them from research.
 - 2026-10-23: Recorded automatic tracing as the default requirement and revised the feasibility proposal around unannotated application source.
 - 2026-10-23: Investigated generated value identities, provenance graphs, shadow propagation, and prior art for splits and merges.
 - 2026-10-23: User accepted generated provenance handles and a separate graph of value versions and executions as the starting direction.
+- 2026-10-23: Proposed the observation contract as the next design decision, with examples that distinguish derivation, participation, and branch influence.
 - D0 review: [PR #425](https://github.com/kyleve/Stuff/pull/425), branch `codex/where-data-flow-plan`.
-- Documentation validation: 83 local links and anchors resolve. Diff checks passed. Runtime checks do not exercise this documentation change.
+- Documentation validation: 87 local links and anchors resolve. Diff checks passed. Runtime checks do not exercise this documentation change.
 - No implementation slice is complete.
