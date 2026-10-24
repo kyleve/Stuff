@@ -267,6 +267,7 @@ Configured local Development builds can browse remote builds. Reinstall through 
 All registered iOS apps share one catalog and install site. Main builds appear on
 the homepage, and each app has its own PR pages. Read [the installer guide](Tools/InstallerKit/README.md)
 when adding an app. `./signing setup --app <id>` prepares signing and enables a registered app after its configuration merges.
+Add `--pr <number>` to prepare its PR source and request publication. Use `--dry-run` to preview setup.
 `InstallerKitTests` and `InstallerKitUITests` run in `Stuff-iOS-Tests`.
 `InstallerKitUISnapshotTests` runs in `StuffSnapshotTests`. Read
 [`Where/DISTRIBUTION.md`](Where/DISTRIBUTION.md) for signing and account setup;

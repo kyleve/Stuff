@@ -15,7 +15,7 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: installer-distribution-${{ inputs.app }}-${{ github.event.pull_request.number || 'main' }}
+  group: installer-distribution-${{ inputs.app }}-${{ github.event.pull_request.number || github.event.inputs.pull_request || 'main' }}
   cancel-in-progress: false
 
 env:
@@ -135,10 +135,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           ARCHIVE_ATTEMPT: ${{ needs.archive.outputs.attempt }}
+          SOURCE_SHA: ${{ needs.plan.outputs.sha }}
         run: >-
           python3 -m Tools.InstallerKit.installer_distribution finish --app "$INSTALLER_APP_ID"
           --event "$GITHUB_EVENT_PATH" --event-name "$GITHUB_EVENT_NAME"
           --repository "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" --sha "$GITHUB_SHA"
+          --source-sha "$SOURCE_SHA"
           --ipa build/app.ipa --output "$GITHUB_STEP_SUMMARY"
           --receipt "$RUNNER_TEMP/installer-publication.json"
           --run "$GITHUB_RUN_ID" --attempt "$ARCHIVE_ATTEMPT"

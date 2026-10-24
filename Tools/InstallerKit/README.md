@@ -71,6 +71,7 @@ The in-app update page is optional and can be added separately.
 4. **Prepare signing and enable distribution.** Run `./signing setup --app <id>` as described below.
    This refreshes signing profiles, then sets the app's GitHub enable variable.
 5. **Publish and verify.** Add `installable` to a same-repository PR, or run **App Dev Distribution** for `main`.
+   Setup with `--pr <number>` also requests PR publication.
    The label publishes every enabled app present on that branch.
    Verify each app's install page, signed identity, and installation on a registered physical device.
 
@@ -88,19 +89,41 @@ Match fails if a required bundle identifier does not exist on the selected team.
 Check that the team has registered each test device before profile creation.
 Xcode can [register connected devices automatically](https://developer.apple.com/help/account/devices/register-a-single-device/).
 Alternatively, use `./signing register-device --app <id> --name <name> --udid <udid>` after the App IDs exist.
-Authenticate `gh` with repository-variable write access. Configure the source checkout's Apple Developer team.
-Supply `INSTALLER_API_KEY_PATH` and `MATCH_PASSWORD` through your existing credential setup.
+Authenticate `gh` with repository-variable write access. PR setup also needs label and Actions write access.
+Configure the controller checkout's Apple Developer team with `./ide --team-id TEAM --no-open`.
+Install its locked dependencies with `./ide --install --no-open`.
+Setup reads the Team API-key JSON from `INSTALLER_API_KEY_PATH`, or defaults to `~/.config/stuff/signing/app-store-connect.json`.
+If `MATCH_PASSWORD` is absent, setup prompts for the existing signing repository password in a terminal without echo.
+For noninteractive use, supply `MATCH_PASSWORD` through your existing credential setup. Setup does not store the password.
 The shared CircleCI context retains the name `where-distribution-signing`.
 Keep its project and config-source restrictions. Another app on the same team needs no new context or account credentials.
 
-Preview setup, then apply it:
+For an app on a PR, preview setup, then apply it:
+
+```bash
+./signing setup --app throw --pr 295 --dry-run
+./signing setup --app throw --pr 295
+```
+
+PR setup requires an open, conflict-free PR from the controller's repository.
+It checks the registered source directory, prepares a temporary checkout at the exact head, and installs its pinned tools.
+This executes the selected PR's tool configuration and build scripts locally.
+The command removes the temporary checkout on success or failure. Your existing checkouts remain unchanged.
+After signing and enablement succeed, it adds `installable` or requests another build when that label already exists.
+It never removes the label. Publication includes every enabled app present on the PR, not only the selected app.
+The command requests publication and returns. Check **App Dev Distribution** and **App Install Site** before installing.
+The PR dispatch input must exist on `main` before this command can rebuild an already labeled PR.
+
+For an existing source checkout, use:
 
 ```bash
 ./signing setup --app throw --source /path/to/Throw-checkout --dry-run
 ./signing setup --app throw --source /path/to/Throw-checkout
 ```
 
-Omit `--source` to use the current controller checkout.
+Omit both `--source` and `--pr` to use the current controller checkout.
+Without `--pr`, setup prepares profiles and enables distribution; it does not request publication.
+Do not combine `--source` and `--pr`.
 Setup checks that both app registrations match `main` before it refreshes signing.
 It delegates profile preparation to `./signing refresh`, using the controller's locked Fastlane dependencies.
 It checks `main` again after refresh, then sets `<APP_ID>_DISTRIBUTION_ENABLED=true` in the controller's GitHub repository.
@@ -108,9 +131,14 @@ The variable uses uppercase app IDs with hyphens replaced by underscores.
 Throw uses `THROW_DISTRIBUTION_ENABLED`; Where keeps `WHERE_DISTRIBUTION_ENABLED`.
 
 A failed refresh or changed registration leaves the enable variable unchanged.
+PR setup also checks the head, state, label, and mergeability again before refresh, enablement, and publication.
+If these checks fail, setup stops and reports the completed steps.
 If enabling fails after refresh, the command reports that signing completed. Correct GitHub access and rerun setup.
-The dry run checks registration and prints the plan. It does not validate Apple credentials, build integration, or device installation.
-Setup does not merge code, register devices, label PRs, dispatch builds, or install apps.
+If publication fails after enablement, signing and enablement remain complete. Check the PR and Actions before another request.
+The dry run checks registration and PR eligibility, then prints the plan.
+It does not prompt for credentials, create a checkout, install tools, change signing assets, or modify GitHub state.
+It does not validate Apple credentials, build integration, or device installation.
+Setup does not merge code, register devices, or install apps.
 Use `./signing register-device` to add devices and `./signing refresh` for profile maintenance without changing enablement.
 After adding a device, refresh the profiles and publish a new build to include it.
 Existing IPAs retain their embedded profiles and device lists.
@@ -166,6 +194,17 @@ CircleCI archives the selected commit, while GitHub publishes the returned IPA.
 The handoff verifies the successful pipeline, job, artifact path, and signed build identity.
 The label trusts branch build code with the signing identity. A temporary keychain does not isolate secrets from that code.
 Conflicts fail the installable build before signing. Removing the label or closing the PR still retires its channels.
+
+To rebuild an already labeled PR, run:
+
+```bash
+gh workflow run installer-distribution.yml --ref main -f pull_request=295
+```
+
+Manual PR requests use the live head and retain the same eligibility checks and per-app concurrency groups.
+Planning selects the source commit once. Publication validates the IPA against that commit.
+If the PR advances or loses eligibility, publication skips the build.
+Leave `pull_request` empty to publish `main`.
 
 Serialize each app's channel mutations. Recheck the live head, label, state, and mergeability before publication.
 A failed build preserves the previous successful build. Retirement removes install manifests but retains history.
