@@ -75,6 +75,12 @@ elif '/pulls/' in args[1]:
     if os.environ.get('CHANGE_PR_AFTER_CHECKOUT') and (root / 'checkout-created').exists():
         sha = 'c' * 40
     labels = [] if os.environ.get('UNLABELED') else [{'name': 'installable'}]
+    if os.environ.get('LABEL_SEQUENCE'):
+        counter = root / 'pr-read-count'
+        count = int(counter.read_text()) if counter.exists() else 0
+        counter.write_text(str(count + 1))
+        sequence = os.environ['LABEL_SEQUENCE'].split(',')
+        labels = [{'name': 'installable'}] if sequence[min(count, len(sequence) - 1)] == 'present' else []
     value = {'state': 'closed' if os.environ.get('CLOSED') else 'open',
              'mergeable': False if os.environ.get('CONFLICT') else True,
              'head': {'sha': sha, 'repo': {'full_name': 'fork/repo' if os.environ.get('FORK') else 'owner/repository'}},
@@ -329,6 +335,31 @@ if 'refresh' in args:
         self.assertTrue((self.root / 'enabled').exists())
         self.assertNotIn('sensitive', result.stderr)
         self.assertFalse(Path((self.root / 'checkout-created').read_text()).parent.exists())
+
+    def test_label_observed_during_setup_cannot_be_restored_after_removal(self):
+        for sequence, enabled in (('absent,present,absent', False),
+                                  ('absent,absent,present,absent', True)):
+            with self.subTest(sequence=sequence):
+                result = self.command('setup', '--app', 'throw', '--pr', '295',
+                                      overrides={'LABEL_SEQUENCE': sequence})
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertTrue((self.root / 'refreshed').exists())
+                self.assertEqual((self.root / 'enabled').exists(), enabled)
+                self.assertFalse((self.root / 'publication').exists())
+                self.assertFalse(any(call['args'][:2] in (['pr', 'edit'], ['workflow', 'run'])
+                                     for call in self.calls()))
+                self.assertFalse(Path((self.root / 'checkout-created').read_text()).parent.exists())
+                self.assertIn('publication was not confirmed' if enabled else 'enable variable was not changed',
+                              result.stderr)
+                (self.root / 'pr-read-count').unlink()
+
+    def test_label_added_during_setup_uses_dispatch_when_it_remains_present(self):
+        result = self.command('setup', '--app', 'throw', '--pr', '295',
+                              overrides={'LABEL_SEQUENCE': 'absent,present,present,present'})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        publication = json.loads((self.root / 'publication').read_text())
+        self.assertEqual(publication[:2], ['workflow', 'run'])
+        self.assertFalse(any(call['args'][:2] == ['pr', 'edit'] for call in self.calls()))
 
     def test_missing_noninteractive_password_stops_before_mutations(self):
         result = self.command('setup', '--app', 'throw', '--pr', '295', overrides={'MATCH_PASSWORD': ''})

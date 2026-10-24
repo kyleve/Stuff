@@ -98,14 +98,14 @@ def setup(root, app_id, source, dry_run, run=subprocess.run, report=print, *, pr
         report(f"Preparing PR #{pr.number} source and tools.")
     with checkout(root, pr, command) if pr else nullcontext(source) as source:
         if pr:
-            recheck_pull_request(pr, command)
+            pr = recheck_pull_request(pr, command)
         refreshed = run([str(root / "signing"), "refresh", "--app", app_id, "--source", str(source)], cwd=root, env=credentials)
         if refreshed.returncode:
             raise SetupFailure("Signing refresh failed. The distribution enable variable was not changed.", refreshed.returncode)
         try:
             check_main(root, repository, app_id, registration, signing, run)
             if pr:
-                recheck_pull_request(pr, command)
+                pr = recheck_pull_request(pr, command)
         except (SetupFailure, ValueError, TypeError, KeyError, OSError) as error:
             detail = f" {error}" if isinstance(error, SetupFailure) else ""
             raise SetupFailure("Signing refreshed, but the registration or PR could not be verified again. The enable variable was not changed." + detail,

@@ -11,6 +11,7 @@ Shared signing policy lives in `signing_profiles.py`; `signing_workflow.rb` orch
 `.github/installer-signing-apps.json` in the trusted checkout selects schemes and targets. Derive bundle IDs from generated build settings.
 Setup must match both app registrations on `main` before and after profile refresh. Enable distribution only after both checks and refresh succeed.
 PR setup must validate the open same-repository head and mergeability before refresh, enablement, and publication. Preserve concurrent label removal.
+Carry each successful PR check into the next check so later removal of an observed label stops setup.
 Own temporary PR checkouts through failure cleanup. Never remove an existing `installable` label to request another build.
 Keep setup dry runs free of prompts, checkout/tool installation, signing, and GitHub mutations. Guard: `test_installer_setup.py`.
 Read missing passwords through a hidden terminal prompt; refuse echoed input and never persist the password.
