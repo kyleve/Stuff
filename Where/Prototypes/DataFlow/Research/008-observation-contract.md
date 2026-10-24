@@ -1,12 +1,15 @@
 # Initial observation contract
 
 Date: 2026-10-23.
-Status: initial contract accepted in D007. Worked examples and implementation evidence remain pending.
+Status: initial contract accepted in D007. The first worked example is proposed in 009. Implementation evidence remains pending.
 Source revision: `f151996c8618afaf553164b0afb5fc690c023cb6`.
 Evidence: synthesis of the accepted direction and prior research. The example below is illustrative and has not been instrumented.
 
 Acceptance note, 2026-10-23: the user accepted this starting contract after its proposal as the next design decision.
 [D007](003-decisions.md#d007--adopt-the-initial-observation-contract) records the decision and remaining precision choices.
+
+Extension note, 2026-10-24: [009](009-worked-date-trace.md) proposes logical records for the date example and variants that expose incorrect relationships.
+The remaining example families still need concrete records.
 
 ## What the contract defines
 
@@ -100,8 +103,8 @@ Keep the logical records independent of their eventual Swift API, identifier enc
 
 | Example | Required distinction |
 | --- | --- |
-| Equal independent dates, then copying one date | Independent roots versus repeated uses of one version. |
-| Date adjustment and conditional persistence | Value derivation versus branch influence and persistence outcome. |
+| [Equal independent dates, then copying one date](009-worked-date-trace.md) | Independent roots versus repeated uses of one version. First proposed records available. |
+| [Date adjustment and conditional persistence](009-worked-date-trace.md#expected-trace-for-the-taken-branch) | Value derivation versus branch influence and persistence outcome. First proposed records available. |
 | Batch filtering, reordering, and merging | Element identity, membership, rejected inputs, and contributing inputs. |
 | Mutation and retry | New value version versus another execution. |
 | Repeated asynchronous delivery | Same value versus separate transfer occurrences. |

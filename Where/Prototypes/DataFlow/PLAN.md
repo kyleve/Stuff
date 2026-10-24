@@ -1,7 +1,7 @@
 # Where live data flow prototype
 
-Status: provenance direction and initial observation contract selected. Feasibility work and implementation have not started.
-Updated: 2026-10-23.
+Status: provenance direction and initial observation contract selected. The first worked trace is proposed. Instrumentation experiments and implementation remain pending.
+Updated: 2026-10-24.
 
 ## Goal
 
@@ -30,6 +30,7 @@ The [GPS tracing research](Research/005-explicit-tracing-and-code-generation.md)
 The [automatic instrumentation discussion](Research/006-automatic-instrumentation.md) replaces its annotation-led proposal and experiment.
 The [value provenance research](Research/007-value-identity-and-provenance.md) explores generated identities, shadow metadata, splits, merges, and prior art.
 The [initial observation contract](Research/008-observation-contract.md) defines the accepted tracking granularity, relationship meanings, and evidence limits.
+The [worked date trace](Research/009-worked-date-trace.md) proposes concrete records for equal inputs, copies, transformation, branch control, and persistence outcomes.
 The [decision register](Research/003-decisions.md#d007--adopt-the-initial-observation-contract) records the accepted direction and unresolved questions.
 
 ## Proposed first result
@@ -116,9 +117,10 @@ Complete nested-field lineage and implicit influence through arbitrary control f
 
 ## Next technical checkpoint
 
-Specify worked examples and their expected logical records under the [accepted observation contract](Research/008-observation-contract.md).
-Start with equal independent dates, copying, transformation, and conditional persistence.
-Extend the examples to collection operations, mutation, retries, repeated delivery, and opaque boundaries.
+Review the proposed logical records in the [worked date trace](Research/009-worked-date-trace.md).
+It distinguishes value identity from binding occurrences, observed input origins, local branch control, and persistence evidence.
+The next example extends these distinctions to collection operations, repeated elements, and a merge.
+Mutation, retries, repeated delivery, and wider opaque boundaries remain additional cases under the [accepted observation contract](Research/008-observation-contract.md).
 These examples must distinguish supported relationships from missing or unavailable information before the propagation implementation is selected.
 
 P1 uses those examples for a small automatic propagation experiment and a text capture consumer.
@@ -144,7 +146,8 @@ Those cases define the coverage to assess. Their implementation and successful v
 
 ## Validation approach
 
-The initial research is source inspection only. No app run, capture, benchmark, or runtime test has occurred.
+Research combines source inspection, prior art, and proposed logical traces.
+No app run, capture, benchmark, or runtime test occurred during this design work.
 The documentation change needs link, diff, and wording checks.
 
 Implementation validation will cover event meaning, causal links, capture lifetime, and bounded retention.
@@ -179,6 +182,7 @@ File unrelated findings in their owning `TODOs.md` and link them from research.
 - 2026-10-23: User accepted generated provenance handles and a separate graph of value versions and executions as the starting direction.
 - 2026-10-23: Proposed the observation contract as the next design decision, with examples that distinguish derivation, participation, and branch influence.
 - 2026-10-23: User accepted the initial observation contract. Worked examples and their expected records are the next design checkpoint.
+- 2026-10-24: Added a proposed date trace with explicit logical records and variants for aliases, equal results, branches, errors, and missing evidence.
 - D0 review: [PR #425](https://github.com/kyleve/Stuff/pull/425), branch `codex/where-data-flow-plan`.
-- Documentation validation: 88 local links and anchors resolve. Diff checks passed. Runtime checks do not exercise this documentation change.
+- Documentation validation: 101 local links and anchors resolve. Diff checks passed. Runtime checks do not exercise this documentation change.
 - No implementation slice is complete.

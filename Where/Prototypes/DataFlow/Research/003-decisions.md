@@ -1,6 +1,6 @@
 # Decision register
 
-Updated: 2026-10-23.
+Updated: 2026-10-24.
 Status: document workflow, viewing surfaces, automatic tracing, provenance direction, and initial observation contract established. Concrete implementation choices open.
 
 ## Recorded decisions
@@ -97,7 +97,7 @@ No compiler experiment or runtime capture has validated the contract yet.
 | O001 | Where is the viewer? | Both a separate Mac window and an in-app view | Resolved by D003 |
 | O002 | What is the first flow? | GPS ingestion is the current technical scenario. A manual edit remains an alternative demonstration. | Implementation slice open |
 | O003 | What does the graph explain? | Start with whole values, collection elements, supported derivation, participation, and local branch influence. Complete field and implicit control-flow provenance remain open. | Initial scope resolved by D007. Contract in [008](008-observation-contract.md) |
-| O004 | How does capture represent causality? | Generated handles refer to a separate value-version and execution graph. Relationship meaning and evidence remain distinct. Propagation mechanics and measured coverage remain open. | Core representation resolved by D006. Initial observation contract resolved by D007 |
+| O004 | How does capture represent causality? | Generated handles refer to a separate value-version and execution graph. Relationship meaning and evidence remain distinct. Propagation mechanics and measured coverage remain open. | D006 and D007 establish the starting model. [009](009-worked-date-trace.md) proposes concrete logical records |
 | O005 | What data appears in detail? | Counts and identities, selected values, or before/after summaries have different volume and disclosure costs. | Open |
 | O006 | What history is required? | Recent memory, durable local history, and replay have different lifecycle and storage costs. | Bounded recent history proposed |
 | O007 | Which environments are first? | Simulator, physical device, app audience, and background operation affect capture and connectivity. | Open |
@@ -116,6 +116,7 @@ These proposals are not user decisions:
 
 - Start with one repeatable action and complete its live observation before adding broad coverage.
 - Specify expected example records under the accepted observation contract before selecting the propagation implementation.
+- Use the [worked date trace](009-worked-date-trace.md) to assess separate value handles, binding occurrences, input origins, and persistence evidence.
 - Evaluate existing Periscope interfaces before creating another capture system.
 - Define causal relationships explicitly. Label unknown relationships instead of inferring them from timing alone.
 - Generate routine instrumentation and evaluate adapters shared across call sites. Measure coverage without per-stage declarations.
