@@ -7,6 +7,17 @@ import UIKit
 
 @MainActor
 struct AppUpdatesViewTests {
+    @Test func pullRefreshFetchesDespiteCachedResult() async throws {
+        let fixture = UpdatePageRefreshFixture()
+        let host = UIHostingController(rootView: AppUpdatesView(
+            model: fixture.model,
+            branding: InstallerPreview.branding,
+        ))
+        try await show(host) { _ in
+            try await fixture.checkRefresh(in: host)
+        }
+    }
+
     @Test func navigationReentryChecksThroughTheSameModelAndHonorsItsCache() throws {
         let preferences = UpdatePagePreferences()
         let client = UpdatePageClient(catalog: InstallerPreview.catalog(.available))

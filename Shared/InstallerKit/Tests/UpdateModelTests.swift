@@ -51,7 +51,7 @@ struct UpdateModelTests {
         #expect(model.isChecking)
         #expect(client.fetchCount == 2)
         if fails {
-            client.resume(0, error: .offline)
+            client.resume(0, error: UpdateModelClient.Failure.offline)
         } else {
             client.resume(0, catalog: F.catalog([2, 1]))
         }
@@ -86,6 +86,38 @@ struct UpdateModelTests {
         await second.value
         client.resume(0, catalog: F.catalog([1]))
         await first.value
+        #expect(model.needsAttention)
+        #expect(!model.isChecking)
+    }
+
+    @Test(.timeLimit(.minutes(1)), arguments: [false, true])
+    func cancelledTransportPreservesStateAndAllowsRetry(hasPrevious: Bool) async {
+        let client = UpdateModelClient(F.catalog([1]))
+        let preferences = MemoryUpdatePreferences()
+        let service = makeService(preferences, client: client)
+        let model = UpdateModel(service: service)
+        if hasPrevious { await model.refresh(force: true) }
+        let previous = model.state.snapshot
+        let cached = preferences.installerUpdates.cached
+        client.held = true
+        let refresh = Task { await model.refresh(force: true) }
+        await client.waitForRequests(1)
+        client.resume(0, error: URLError(.cancelled))
+        await refresh.value
+
+        #expect(!refresh.isCancelled)
+        #expect(!model.isChecking)
+        switch model.state {
+            case .idle: #expect(!hasPrevious)
+            case let .loaded(snapshot): #expect(snapshot == previous)
+            case .checking, .failed: Issue.record("Cancellation must restore the previous state")
+        }
+        #expect(service.cached == previous)
+        #expect(preferences.installerUpdates.cached == cached)
+
+        client.held = false
+        client.result = .success(F.catalog([2, 1]))
+        await model.refresh(force: true)
         #expect(model.needsAttention)
         #expect(!model.isChecking)
     }

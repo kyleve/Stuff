@@ -24,6 +24,7 @@ The page seeds its own Broadway root and supplies a navigation title.
 Place it in the host's navigation stack. Hosts retain audience, demo, and foreground gates.
 
 The page checks on appearance, supports pull-to-refresh, and offers a manual check.
+Manual checks use a page-owned task, so checking-state redraws cannot cancel the request. Leaving the page cancels that task.
 InstallerKit owns throttling, cancellation, cache persistence, and release selection.
 Failed checks show the cause and a diagnostic code, such as **HTTP 404** for a missing feed.
 Network failures explain offline, timeout, DNS, connection, and certificate errors with their original codes.
