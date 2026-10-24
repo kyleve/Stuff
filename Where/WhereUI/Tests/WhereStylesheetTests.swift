@@ -527,11 +527,11 @@ struct WhereStylesheetTests {
         #expect(month.stacksFooter == false)
         #expect(month.padding == 16)
         #expect(month.cornerRadius == 28)
-        #expect(month.plain.fill == Color.primary.opacity(0.03))
+        #expect(month.plain.fill == .clear)
         #expect(month.plain.border == Color.primary.opacity(0.12))
         #expect(month.plain.borderWidth == 2)
         #expect(month.plain.foreground == .primary)
-        #expect(month.current.fill == Color.accentColor.opacity(0.08))
+        #expect(month.current.fill == .clear)
         #expect(month.current.border == Color.accentColor.opacity(0.7))
         #expect(month.current.borderWidth == 3)
         #expect(month.current.foreground == Color.primary.mix(
@@ -1121,6 +1121,10 @@ struct WhereStylesheetTests {
         #expect(band.planned.hatchLineWidth == 1)
         #expect(calendar.compact.day.dotStrokeWidth > 0)
         #expect(calendar.regionBand == style.calendar.regionBand)
+        #expect(calendar.month.plain.fill == .clear)
+        #expect(calendar.month.current.fill == .clear)
+        #expect(calendar.compact.month.plain.fill == .clear)
+        #expect(calendar.compact.month.current.fill == .clear)
     }
 
     @MainActor

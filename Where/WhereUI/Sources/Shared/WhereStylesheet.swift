@@ -1439,9 +1439,9 @@ extension WhereStylesheet {
             var weekdayFontSize: CGFloat
             var padding: CGFloat
             var cornerRadius: CGFloat
-            /// Card treatment for a past month — the plain wash + rim.
+            /// Card treatment for a past month — a quiet outline.
             var plain: Card
-            /// Card treatment for the current month — a bluer accent wash and a
+            /// Card treatment for the current month — accent text and a
             /// heavier accent border so it stands out from the plain months.
             var current: Card
             /// Extra space below the footer's divider, so the tally rows don't
@@ -1461,9 +1461,9 @@ extension WhereStylesheet {
             /// the current one. The grid picks a `Card` and reads both from it,
             /// rather than ternary-ing each property against `isCurrentMonth`.
             struct Card: Equatable {
-                /// Wash behind the month, so each reads as its own card.
+                /// Clear by default so the enclosing screen shows through.
                 var fill: Color
-                /// Border around the card (a touch darker than `fill`).
+                /// Border around the month card.
                 var border: Color
                 var borderWidth: CGFloat
                 /// Base foreground inherited by the month's neutral primary and
@@ -1562,13 +1562,13 @@ extension WhereStylesheet {
                 padding: 16,
                 cornerRadius: 28,
                 plain: MonthStyle.Card(
-                    fill: Color.primary.opacity(0.03),
+                    fill: .clear,
                     border: Color.primary.opacity(0.12),
                     borderWidth: 2,
                     foreground: .primary,
                 ),
                 current: MonthStyle.Card(
-                    fill: Color.accentColor.opacity(0.08),
+                    fill: .clear,
                     border: Color.accentColor.opacity(0.7),
                     borderWidth: 3,
                     foreground: Color.primary.mix(

@@ -516,14 +516,15 @@ private struct MonthGridView: View {
         .padding(calendar.month.padding)
         .foregroundStyle(card.foreground)
         .background {
-            // Past months use the plain card; the current one gets the accent
-            // card (bluer wash, text, and heavier border).
+            // Transparent month cards share the screen background. The current
+            // month stands out through its accent text and heavier border.
             cardShape
                 .fill(card.fill)
                 .overlay {
                     cardShape.strokeBorder(card.border, lineWidth: card.borderWidth)
                 }
         }
+        .contentShape(cardShape)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(monthAccessibility.label)
         .accessibilityValue(monthAccessibility.value)
