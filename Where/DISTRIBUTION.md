@@ -3,7 +3,7 @@
 [InstallerKit](../Shared/InstallerKit/README.md) supplies the shared update engine.
 The [installer guide](../Tools/InstallerKit/README.md) covers adding apps to the common site.
 GitHub Releases hosts signed IPAs. GitHub Pages hosts the install site, OTA manifests, and update catalog.
-The [distribution workflow](../.github/workflows/where-distribution.yml) publishes these channels:
+The [distribution workflow](../.github/workflows/installer-distribution.yml) publishes these channels:
 
 | Channel | Trigger | Availability |
 | --- | --- | --- |
@@ -110,7 +110,7 @@ The provisioning profile inside the IPA includes those device identifiers.
    GitHub's Linux controller uses it without checking out or running PR code.
    See [CircleCI's trigger API](https://circleci.com/docs/api/v2/index.html#operation/triggerPipelineRun).
 7. In GitHub Settings → Actions → Policies, allow this workflow's `push`, `workflow_dispatch`, and `pull_request_target` events.
-   Scope the event policy to `.github/workflows/where-distribution.yml`.
+   Scope the event policy to `.github/workflows/installer-distribution.yml`.
    GitHub's default policy can block `pull_request_target` in public repositories.
    See [workflow execution policies](https://docs.github.com/en/actions/how-tos/administer/control-workflow-execution).
 8. In GitHub Settings → Pages, select **GitHub Actions** as the publishing source.

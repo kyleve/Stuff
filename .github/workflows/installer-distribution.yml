@@ -1,4 +1,3 @@
-# Retain this entry-point path for the repository's existing Actions event policy.
 name: App Dev Distribution
 
 on:

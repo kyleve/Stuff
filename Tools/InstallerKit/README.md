@@ -125,7 +125,7 @@ Link [InstallerKitUI](../../Shared/InstallerKitUI/README.md) and present `AppUpd
 Supply an `AppUpdateBranding` with the localized name, subtitle, and an optional icon from the app's asset bundle.
 Custom presentations can render `state` and use the validated `installURL` directly.
 
-**App Dev Distribution** retains the `where-distribution.yml` entry-point path for existing Actions event policies.
+**App Dev Distribution** uses the shared `installer-distribution.yml` entry point.
 It selects enabled registrations from trusted `main` and calls `installer-distribute-app.yml` on `main` for each app.
 The CircleCI API token stays on the GitHub controller. Signing secrets stay in the restricted CircleCI context.
 The selected source supplies build code, but never the signing descriptor, Fastfile, Gemfile, or controller.

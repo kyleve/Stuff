@@ -257,7 +257,7 @@ configured once via `./ide --team-id` (see
 resolves the exact physical device without generating, building, installing,
 or launching.
 For remote installs, [`./Where/archive`](Where/archive) exports a signed Where
-Development IPA. The opt-in [GitHub distribution workflow](.github/workflows/where-distribution.yml)
+Development IPA. The opt-in [GitHub distribution workflow](.github/workflows/installer-distribution.yml)
 publishes enabled registered apps on `main` and PRs labeled `installable` through a controller from `main`.
 The app registry selects identities; the signing registry selects schemes, products, and targets.
 [`InstallerKit`](Shared/InstallerKit/README.md) owns the reusable update engine.
@@ -770,6 +770,6 @@ skip pushes to `main` or manual CircleCI full-gate runs. See the
 [`running-tests`](.agents/skills/running-tests/SKILL.md) skill for simulator
 setup and the full validation recipe.
 
-The separate [app distribution workflow](.github/workflows/where-distribution.yml)
+The separate [app distribution workflow](.github/workflows/installer-distribution.yml)
 requests signed device archives on CircleCI and publishes them through GitHub Releases and Pages when enabled.
 Its `installable` label is independent of the test workflows' `NO-CI` title marker.
