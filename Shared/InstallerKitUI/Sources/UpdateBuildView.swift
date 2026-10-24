@@ -49,7 +49,11 @@ struct UpdateBuildView: View {
                     installed: model.installed,
                     scope: .previousBuild,
                 )
-                UpdateBuildInformation(release: build.release, installed: model.installed)
+                UpdateBuildInformation(
+                    channel: selection.channel,
+                    release: build.release,
+                    installed: model.installed,
+                )
             } else {
                 UpdateCard(title: .installerBuildUnavailable) {
                     Text(.installerBuildUnavailableMessage)

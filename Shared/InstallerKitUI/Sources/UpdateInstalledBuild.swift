@@ -13,6 +13,7 @@ struct UpdateInstalledBuild: View {
             }
             switch model.installed.source {
                 case let .published(publication):
+                    UpdatePullRequestLink(channel: publication.channel, installed: model.installed)
                     UpdateDetailRow(title: .installerWorkflowRun) {
                         Text(verbatim: String(publication.build.run))
                     }

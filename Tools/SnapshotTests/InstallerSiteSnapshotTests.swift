@@ -37,6 +37,11 @@ struct InstallerSiteSnapshotTests {
             case empty = "Empty"
             case unavailableHistory = "UnavailableHistory"
             case missingDetails = "MissingDetails"
+            case preparing = "Preparing"
+            case preparingApp = "PreparingApp"
+            case failed = "Failed"
+            case rebuilding = "Rebuilding"
+            case unpublished = "Unpublished"
         }
 
         let name: Name

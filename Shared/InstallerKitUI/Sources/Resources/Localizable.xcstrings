@@ -716,6 +716,17 @@
         }
       }
     },
+    "installer.openPullRequest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View this pull request on GitHub."
+          }
+        }
+      }
+    },
     "installer.otherBuilds" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -734,6 +745,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Published"
+          }
+        }
+      }
+    },
+    "installer.pullRequest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pull request"
           }
         }
       }

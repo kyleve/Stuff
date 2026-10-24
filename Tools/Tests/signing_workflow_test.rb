@@ -121,7 +121,7 @@ class SigningWorkflowTest < Minitest::Test
 
   def test_ci_archive_keeps_certificate_renewal_disabled
     ENV['CIRCLECI'] = 'true'
-    ENV['WHERE_SIGNING_DIR'] = @root
+    ENV['INSTALLER_SIGNING_DIR'] = @root
     File.write(File.join(@root, 'owned-by-installer-signing'), '')
     File.write(File.join(@root, 'keychain-password'), 'test-only-password')
     @workflow.archive
@@ -221,4 +221,15 @@ class SigningWorkflowTest < Minitest::Test
                                   'mise', 'exec', '--', 'bundle', 'exec', 'ruby', '-e', script, options, chdir: ROOT)
     assert status.success?, stdout
   end
+  def test_throw_uses_its_registered_scheme_product_and_stamp
+    workflow = InstallerSigning::Workflow.new(@actions, @options.merge(app: 'throw'))
+    options = workflow.build_options(@output, '/fixture/ExportOptions.plist')
+    assert_equal 'Throw', options.fetch(:scheme)
+    assert_equal 'Debug', options.fetch(:configuration)
+    assert_equal 'Throw.ipa', options.fetch(:output_name)
+    assert_equal File.join(@output, 'Throw.xcarchive'), options.fetch(:archive_path)
+    assert_includes Shellwords.split(options.fetch(:xcargs)), 'INSTALLER_APP_ID=throw'
+    refute_includes Shellwords.split(options.fetch(:xcargs)), 'INSTALLER_APP_ID=where'
+  end
+
 end

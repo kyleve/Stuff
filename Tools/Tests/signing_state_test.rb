@@ -6,7 +6,7 @@ require_relative '../InstallerKit/signing_state'
 class SigningStateTest < Minitest::Test
   def setup
     @root = Dir.mktmpdir('signing state ü')
-    @path = File.join(@root, 'where-signing-job')
+    @path = File.join(@root, 'installer-signing-job')
     @profiles = File.join(@root, 'Provisioning Profiles')
     @calls = []
     @fail = nil
@@ -105,7 +105,7 @@ class SigningStateTest < Minitest::Test
 
   def test_second_job_cannot_claim_the_first_jobs_directory
     @state.prepare('key')
-    other = InstallerSigning::State.new(File.join(@root, 'where-signing-other'), @root, @profiles, ->(*) { raise 'must not call security' })
+    other = InstallerSigning::State.new(File.join(@root, 'installer-signing-other'), @root, @profiles, ->(*) { raise 'must not call security' })
     assert_raises(RuntimeError) { other.prepare('other key') }
     other.cleanup
     assert File.exist?(File.join(@profiles, InstallerSigning::State::MARKER))

@@ -9,6 +9,7 @@ import BuildInformation from '../../../components/BuildInformation.astro';
 import InstallHelp from '../../../components/InstallHelp.astro';
 import EmptyState from '../../../components/EmptyState.astro';
 import Symbol from '../../../components/Symbol.astro';
+import BuildProgress from '../../../components/BuildProgress.astro';
 export function getStaticPaths() {
   return site.apps.flatMap(app => app.channels.map(channel => ({ params: { app: app.id, channel: channel.name }, props: { app, channel } })));
 }
@@ -20,6 +21,7 @@ const { app, channel } = Astro.props;
   <AppHero app={app} channel={channel.state === 'active' ? channel : undefined} label={channelLabel(channel)}/>
   {channel.state === 'active' ? (
     <>
+      {channel.buildStatus && <BuildProgress status={channel.buildStatus} hasPublishedBuild={true}/>}
       <section class="detail-panel" aria-label="Build summary">
         <QuickFacts release={channel.release} expanded={true}/>
         <section class="section">
@@ -31,10 +33,12 @@ const { app, channel } = Astro.props;
       <BuildInformation app={app} channel={channel}/>
       <InstallHelp/>
     </>
+  ) : channel.state === 'preparing' || channel.state === 'failed' ? (
+    <BuildProgress status={channel} hasPublishedBuild={false}/>
   ) : (
     <EmptyState
-      title="Channel retired"
-      message={channel.name === 'main'
+      title={channel.state === 'unpublished' ? 'No build yet' : 'Channel retired'}
+      message={channel.state === 'unpublished' ? 'No published build is available for this channel yet.' : channel.name === 'main'
         ? 'This build channel is no longer available.'
         : 'This PR is closed or no longer labeled installable. Historical releases remain on GitHub.'}
     >

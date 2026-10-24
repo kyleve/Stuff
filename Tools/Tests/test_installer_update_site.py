@@ -103,6 +103,8 @@ class InstallerUpdateSiteTests(unittest.TestCase):
         self.assertIn("&lt;script&gt;", detail)
         self.assertIn("itms-services://?action=download-manifest", detail)
         self.assertIn("manifests%2Fwhere%2Fpr-42%2F2-1.plist", detail)
+        self.assertIn(f'<dt>Pull request</dt><dd><a href="https://github.com/{REPO}/pull/42">#42</a></dd>', detail)
+        self.assertNotIn(b"<dt>Pull request</dt>", files["apps/where/main/index.html"])
         for run in (1, 2):
             item = plistlib.loads(files[f"manifests/where/pr-42/{run}-1.plist"])["items"][0]
             self.assertEqual(item["assets"][0]["url"], asset_url(REPO, "where", "pr-42", {"run": run, "attempt": 1}))

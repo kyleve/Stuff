@@ -3,11 +3,34 @@
     "scheme": "Where Development",
     "configuration": "Debug",
     "product": "Where",
-    "required_settings": {"WHERE_AUDIENCE": "development"},
+    "required_settings": {
+      "WHERE_AUDIENCE": "development"
+    },
     "targets": [
-      {"name": "Where", "environment_key": "TUIST_WHERE_ADHOC_APP_PROFILE"},
-      {"name": "WhereWidgets", "environment_key": "TUIST_WHERE_ADHOC_WIDGET_PROFILE"},
-      {"name": "WhereShareExtension", "environment_key": "TUIST_WHERE_ADHOC_SHARE_PROFILE"}
+      {
+        "name": "Where",
+        "environment_key": "TUIST_WHERE_ADHOC_APP_PROFILE"
+      },
+      {
+        "name": "WhereWidgets",
+        "environment_key": "TUIST_WHERE_ADHOC_WIDGET_PROFILE"
+      },
+      {
+        "name": "WhereShareExtension",
+        "environment_key": "TUIST_WHERE_ADHOC_SHARE_PROFILE"
+      }
+    ]
+  },
+  "throw": {
+    "scheme": "Throw",
+    "configuration": "Debug",
+    "product": "Throw",
+    "required_settings": {},
+    "targets": [
+      {
+        "name": "Throw",
+        "environment_key": "TUIST_THROW_ADHOC_APP_PROFILE"
+      }
     ]
   }
 }

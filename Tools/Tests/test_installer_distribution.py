@@ -276,3 +276,34 @@ class InstallerDistributionTests(unittest.TestCase):
                 self.assertEqual(main(args), 0)
                 self.assertFalse(receipt.exists())
                 service.assert_not_called()
+
+    def test_missing_app_source_skips_build_but_never_suppresses_retirement(self):
+        from Tools.InstallerKit.installer_apps import load_app
+        from Tools.InstallerKit.installer_distribution import source_available, Retirement
+        app = load_app('throw')
+        fetch = Mock(return_value={'truncated': False, 'tree': [{'path': 'Where', 'type': 'tree'}]})
+        self.assertFalse(source_available(app, Publication(SHA, 42), REPO, fetch))
+        fetch.return_value['tree'].append({'path': 'Throw', 'type': 'tree'})
+        self.assertTrue(source_available(app, Publication(SHA, 42), REPO, fetch))
+        fetch.reset_mock()
+        self.assertTrue(source_available(app, Retirement(42), REPO, fetch))
+        fetch.assert_not_called()
+        fetch.return_value = {'truncated': True, 'tree': []}
+        with self.assertRaises(ValueError):
+            source_available(app, Publication(SHA, 42), REPO, fetch)
+
+    def test_cli_skips_absent_app_before_emitting_archive_work(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            event = Path(temporary) / 'event.json'
+            event.write_text(json.dumps(pr_event()))
+            output = Path(temporary) / 'output'
+            with patch('Tools.InstallerKit.installer_distribution.github_fetch', side_effect=[
+                    pr_event()['pull_request'], {'truncated': False, 'tree': []}]), \
+                    redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
+                result = main(['plan', '--app', 'throw', '--event', str(event),
+                               '--event-name', 'pull_request_target', '--repository', REPO,
+                               '--ref', 'refs/heads/main', '--sha', 'b' * 40, '--output', str(output)])
+            self.assertEqual(result, 0)
+            self.assertEqual(output.read_text(), 'action=skip\nsha=\nchannel=\n')
+            self.assertEqual(stdout.getvalue(), output.read_text())
+            self.assertIn('Skipping throw', stderr.getvalue())
