@@ -65,6 +65,7 @@ The feed URL supplies the deployment base path. Custom domains can use `/`.
 `src/layouts/SiteLayout.astro` supplies the shared document and stylesheet.
 `src/data.ts` describes the private presentation input from Python.
 The public update schema remains in the Python publication tools and InstallerKit.
+PR build information includes an explicit **Pull request** link to GitHub, including for older releases without title metadata.
 
 `../installer_site_data.py` validates identities and releases, then prepares assets and manifests.
 `../installer_update_site.py` runs Astro with that input and stages the complete deployment.

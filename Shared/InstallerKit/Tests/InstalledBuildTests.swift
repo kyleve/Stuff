@@ -94,5 +94,13 @@ struct InstalledBuildTests {
         #expect(installed.appID.rawValue == "another-app")
         #expect(installed.commitURL(for: publication.revision).absoluteString ==
             "https://github.com/another/Apps/commit/" + publication.revision.rawValue)
+        #expect(installed.pullRequestURL(for: publication.channel)?.absoluteString ==
+            "https://github.com/another/Apps/pull/42")
+        let otherChannel = try #require(InstalledBuild.Channel(rawValue: "pr-417"))
+        #expect(installed.pullRequestURL(for: otherChannel)?.absoluteString ==
+            "https://github.com/another/Apps/pull/417")
+        #expect(installed.pullRequestURL(for: .main) == nil)
+        #expect(UpdateFixtures.localInstalled().pullRequestURL(for: otherChannel)?
+            .lastPathComponent == "417")
     }
 }

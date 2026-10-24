@@ -181,4 +181,12 @@ public struct InstalledBuild: Sendable, Equatable {
     public func commitURL(for revision: Revision) -> URL {
         repositoryURL.appending(path: "commit").appending(path: revision.rawValue)
     }
+
+    /// Links a selected PR channel through the signed repository, independent of the installed
+    /// channel.
+    public func pullRequestURL(for channel: Channel) -> URL? {
+        guard channel != .main else { return nil }
+        return repositoryURL.appending(path: "pull")
+            .appending(path: String(channel.rawValue.dropFirst(3)))
+    }
 }

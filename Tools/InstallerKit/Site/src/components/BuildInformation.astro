@@ -9,6 +9,7 @@ const source = github + (channel.name === 'main' ? '/tree/main' : '/pull/' + cha
 ---
 <section class="information"><h2>Information</h2><dl>
   <div><dt>Channel</dt><dd><a href={source}>{channelLabel(channel)}</a></dd></div>
+  {channel.name !== 'main' && <div><dt>Pull request</dt><dd><a href={source}>#{channel.name.slice(3)}</a></dd></div>}
   <div><dt>Published</dt><dd><PublishedDate date={release.publishedAt} includeYear={true}/> at {release.publishedAt.slice(11, 16)} UTC</dd></div>
   <div><dt>Build</dt><dd>{release.bundleVersion}</dd></div>
   <div><dt>Workflow run</dt><dd><a href={github + '/actions/runs/' + release.id.run + '/attempts/' + release.id.attempt}>{release.id.run} · Attempt {release.id.attempt}</a></dd></div>

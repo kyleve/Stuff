@@ -112,6 +112,7 @@ public struct UpdateCatalog: Codable, Sendable, Equatable {
     }
 
     public struct Update: Sendable, Equatable {
+        public let channel: InstalledBuild.Channel
         public let release: Release
         public let changes: Changes
     }
@@ -227,24 +228,32 @@ public struct UpdateCatalog: Codable, Sendable, Equatable {
         guard let baseline = channel.releases
             .firstIndex(where: { $0.id == publication.build && $0.sha == publication.revision })
         else {
-            return .available(Update(release: latest, changes: .unavailable))
+            return .available(Update(channel: channel.name, release: latest, changes: .unavailable))
         }
         let incoming = channel.releases.prefix(baseline)
         if incoming.contains(where: { $0.baseSHA == nil }) {
-            return .available(Update(release: latest, changes: .unavailable))
+            return .available(Update(channel: channel.name, release: latest, changes: .unavailable))
         }
         if incoming.contains(where: \.historyChanged) {
-            return .available(Update(release: latest, changes: .rewritten))
+            return .available(Update(channel: channel.name, release: latest, changes: .rewritten))
         }
         var prior = publication.revision
         for release in incoming.reversed() {
             guard release.baseSHA == prior else {
-                return .available(Update(release: latest, changes: .unavailable))
+                return .available(Update(
+                    channel: channel.name,
+                    release: latest,
+                    changes: .unavailable,
+                ))
             }
             prior = release.sha
         }
         var seen = Set<InstalledBuild.Revision>()
         let commits = incoming.flatMap(\.commits).filter { seen.insert($0.sha).inserted }
-        return .available(Update(release: latest, changes: .commits(commits)))
+        return .available(Update(
+            channel: channel.name,
+            release: latest,
+            changes: .commits(commits),
+        ))
     }
 }

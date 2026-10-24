@@ -34,6 +34,8 @@ The service treats `URLError.cancelled` as cancellation, even when the calling S
 Cancellation restores the previous model state and preserves the cached catalog and check date. A later manual check can retry immediately.
 Other transport, decoding, and catalog validation errors keep their original types. The UI owns localized failure text.
 Use a release's `installURL` for installation and `installed.commitURL(for:)` for commit links.
+Use `installed.pullRequestURL(for:)` with the displayed build's typed channel for its GitHub PR link. Main returns no PR link.
+An available `Update` carries its channel alongside the release and changes.
 
 Each service snapshot also exposes `browser`, an `UpdateBuildBrowser` for the installed app.
 It lists active channels with main first, then PRs by their latest build. Channels include retained build history.

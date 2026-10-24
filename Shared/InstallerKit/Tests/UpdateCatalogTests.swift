@@ -76,6 +76,7 @@ struct UpdateCatalogTests {
             Issue.record("Expected an available build"); return
         }
         #expect(update.release.buildDetails == details)
+        #expect(update.channel == F.installed().publication?.channel)
         #expect(decoded == catalog)
     }
 
@@ -156,6 +157,7 @@ struct UpdateCatalogTests {
 
     @Test func unknownBaselineDoesNotClaimCompleteNotes() {
         #expect(F.catalog([3, 2]).availability(for: F.installed()) == .available(.init(
+            channel: F.channel,
             release: F.release(3),
             changes: .unavailable,
         )))
@@ -167,6 +169,7 @@ struct UpdateCatalogTests {
             .init(name: F.channel, active: true, releases: [rewritten, F.release(2), F.release(1)]),
         ])
         #expect(catalog.availability(for: F.installed()) == .available(.init(
+            channel: F.channel,
             release: rewritten,
             changes: .rewritten,
         )))
@@ -189,6 +192,7 @@ struct UpdateCatalogTests {
             .init(name: F.channel, active: true, releases: [latest, F.release(1)]),
         ])
         #expect(catalog.availability(for: F.installed()) == .available(.init(
+            channel: F.channel,
             release: latest,
             changes: .unavailable,
         )))
@@ -196,6 +200,7 @@ struct UpdateCatalogTests {
 
     @Test func missingLinkIsNotShownAsComplete() {
         #expect(F.catalog([3, 1]).availability(for: F.installed()) == .available(.init(
+            channel: F.channel,
             release: F.release(3),
             changes: .unavailable,
         )))

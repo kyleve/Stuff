@@ -18,6 +18,7 @@ The [repository rules](../../AGENTS.md) apply.
 - Order releases by run and attempt. Never order commit hashes or marketing versions.
   Show complete notes only when every retained predecessor connects to the installed revision.
 - Keep signed build details and recorded PR titles optional for older feeds. Validate present metadata before caching or presenting it. PR titles are display text, never channel identity.
+- Carry the selected channel in available updates. Build PR links from that typed channel and the signed repository, never from optional titles or installation URLs.
 - Cache reuse must not supersede a network request. Cancelled or superseded reads
   must not replace the last successful catalog or model state. Treat `URLError.cancelled`
   as cancellation even when the calling Swift task remains active. Guard: `UpdateModelTests.cancelledTransportPreservesStateAndAllowsRetry`.
