@@ -168,6 +168,30 @@ private func whereHostSettings(
     )
 }
 
+/// Local builds use automatic signing. CI supplies an explicit ad hoc profile for Debug archives.
+private func throwHostSettings() -> Settings {
+    let profile = Environment.throwAdhocAppProfile.getString(default: "")
+    return .settings(
+        base: [
+            "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "",
+            "ENABLE_USER_SCRIPT_SANDBOXING": "NO",
+            "INSTALLER_APP_ID": "throw",
+            "INSTALLER_REPOSITORY_URL": "https://github.com/kyleve/Stuff",
+            "INSTALLER_FEED_URL": "https://kyleve.github.io/Stuff/updates.json",
+            "INSTALLER_CHANNEL": "local",
+        ],
+        configurations: whereAudiences.map { audience in
+            var settings: SettingsDictionary = [:]
+            if case .debug = audience.variant, !profile.isEmpty {
+                settings["CODE_SIGN_STYLE[sdk=iphoneos*]"] = "Manual"
+                settings["CODE_SIGN_IDENTITY[sdk=iphoneos*]"] = "Apple Distribution"
+                settings["PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]"] = .string(profile)
+            }
+            return audience.configuration(settings: settings)
+        },
+    )
+}
+
 /// Base build settings applied to every Tuist-generated target.
 ///
 /// `STRING_CATALOG_GENERATE_SYMBOLS` turns on Xcode's type-safe String Catalog
@@ -413,12 +437,17 @@ let project = Project(
             ]),
             sources: ["Throw/Throw/Sources/**"],
             resources: ["Throw/Throw/Resources/**"],
+            scripts: [
+                .post(
+                    script: "bash \"$SRCROOT/Tools/InstallerKit/stamp-installer-info.sh\"",
+                    name: "Stamp installer identity",
+                    basedOnDependencyAnalysis: false,
+                ),
+            ],
             dependencies: [
                 .package(product: "ThrowUI"),
             ],
-            settings: .settings(base: [
-                "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "",
-            ]),
+            settings: throwHostSettings(),
         ),
         .target(
             name: "Where",

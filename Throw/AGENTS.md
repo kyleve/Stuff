@@ -57,6 +57,10 @@ WhereCore, RegionKit, or LifecycleKit into this feature.
 iPhone or iPad. It is macOS-only. Configure the signing team once with
 `./ide --team-id <id>`. Run `./Throw/install --help` for all options.
 
+Remote installs use the shared [installer controller](../Tools/InstallerKit/README.md).
+Keep Throw's scheme, bundle ID, installer stamp, and optional ad hoc profile override in `Project.swift`.
+Apply `TUIST_THROW_ADHOC_APP_PROFILE` only to Debug device builds; local and simulator builds retain automatic signing.
+
 ## Testing
 
 Use `./test ThrowCoreTests`, `./test ThrowUITests`, and `./test ThrowTests` for

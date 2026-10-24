@@ -39,6 +39,17 @@ Run `./Throw/install --dry-run` to resolve the device without generating,
 building, installing, or launching. Run `./Throw/install --help` for all
 options.
 
+Remote device builds use the shared [installer pipeline](../Tools/InstallerKit/README.md) with app ID `throw` and bundle ID `com.stuff.throw`.
+The controller registration in [PR #432](https://github.com/kyleve/Stuff/pull/432) must reach `main` first.
+Create Throw's ad hoc profile with `./signing refresh --app throw --source <Throw checkout>` from that controller checkout.
+Set `THROW_DISTRIBUTION_ENABLED=true` after signing assets are ready.
+The `installable` label then publishes Throw from eligible PRs to `/Stuff/apps/throw/pr-<number>/`.
+The branch must contain Throw; main builds skip Throw until its source lands.
+
+The archive uses optimized Debug and retains Throw's existing app identity and data.
+Local builds record channel `local`; CI supplies its channel, run, and attempt before signing.
+This integration supports website installation. Throw does not yet contain an in-app update screen.
+
 The guaranteed physical-output path is a powered USB-C-to-HDMI connection.
 AirPlay through Apple TV is supported by the system; if it mirrors instead of
 creating a distinct external scene, use Throw's explicit full-screen output.
