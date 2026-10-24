@@ -13,7 +13,7 @@ from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 
 from Tools.InstallerKit.installer_apps import load_app
-from Tools.InstallerKit.installer_update_feed import GitHubUpdateFeed, apply_change, changes_since, main, publish_receipt
+from Tools.InstallerKit.installer_update_feed import BuildStatus, GitHubUpdateFeed, apply_change, changes_since, main, publish_receipt, publish_status
 from Fixtures.where_distribution_fixtures import SHA
 from Fixtures.installer_update_fixtures import catalog as app_catalog
 from Tools.InstallerKit.installer_installation import manifest_url
@@ -38,6 +38,90 @@ def empty():
 
 
 class InstallerUpdateFeedTests(unittest.TestCase):
+    def test_progress_preserves_releases_and_cannot_regress_a_newer_attempt(self):
+        previous = apply_change(empty(), APP, "main", release(1, channel="main"))
+        preparing = BuildStatus("preparing", {"run": 2, "attempt": 1}, SHA)
+        catalog = apply_change(previous, APP, "pr-42", preparing)
+        channel = catalog["apps"][0]["channels"][1]
+        self.assertFalse(channel["active"])
+        self.assertEqual(channel["releases"], [])
+        self.assertEqual(channel["buildStatus"], preparing.metadata())
+        self.assertEqual(catalog["apps"][0]["channels"][0], previous["apps"][0]["channels"][0])
+        failed = apply_change(catalog, APP, "pr-42", BuildStatus("failed", preparing.identifier, SHA))
+        self.assertEqual(apply_change(failed, APP, "pr-42", preparing), failed)
+        retry = BuildStatus("preparing", {"run": 2, "attempt": 2}, SHA)
+        retrying = apply_change(failed, APP, "pr-42", retry)
+        self.assertEqual(apply_change(retrying, APP, "pr-42", BuildStatus("failed", preparing.identifier, SHA)), retrying)
+        published = apply_change(retrying, APP, "pr-42", release(2, attempt=2))
+        self.assertNotIn("buildStatus", published["apps"][0]["channels"][1])
+        self.assertEqual(apply_change(published, APP, "pr-42", BuildStatus("failed", retry.identifier, SHA)), published)
+        rebuilding = apply_change(published, APP, "pr-42", BuildStatus("preparing", {"run": 3, "attempt": 1}, SHA))
+        self.assertTrue(rebuilding["apps"][0]["channels"][1]["active"])
+        self.assertEqual(rebuilding["apps"][0]["channels"][1]["releases"], [release(2, attempt=2)])
+        retired = apply_change(rebuilding, APP, "pr-42", None)
+        self.assertFalse(retired["apps"][0]["channels"][1]["active"])
+        self.assertNotIn("buildStatus", retired["apps"][0]["channels"][1])
+        self.assertEqual(catalog["apps"][0]["channels"][1]["buildStatus"], preparing.metadata())
+
+    def test_publishing_an_older_success_preserves_newer_build_progress(self):
+        preparing = BuildStatus("preparing", {"run": 3, "attempt": 1}, SHA)
+        catalog = apply_change(empty(), APP, "pr-42", preparing)
+        published = apply_change(catalog, APP, "pr-42", release(2))
+        self.assertTrue(published["apps"][0]["channels"][0]["active"])
+        self.assertEqual(published["apps"][0]["channels"][0]["buildStatus"], preparing.metadata())
+
+    def test_stale_progress_cannot_revive_closed_unlabeled_or_changed_prs(self):
+        pr = {"state": "open", "labels": [{"name": "installable"}],
+              "head": {"sha": SHA, "repo": {"full_name": REPO}}, "base": {"repo": {"full_name": REPO}}}
+        invalid = [{**pr, "state": "closed"}, {**pr, "labels": []},
+                   {**pr, "head": {**pr["head"], "sha": "b" * 40}},
+                   {**pr, "head": {**pr["head"], "repo": {"full_name": "other/Stuff"}}}]
+        for value in invalid:
+            feed = Mock(repository=REPO)
+            feed.save.side_effect = lambda app, channel, change, current: current()
+            publish_status("where", "pr-42", BuildStatus("preparing", {"run": 2, "attempt": 1}, SHA), feed, lambda _: value)
+            feed.deploy.assert_not_called()
+
+    def test_status_command_publishes_progress_without_advertising_an_install(self):
+        saved = []
+        requests = []
+        def transport(request, allow_missing=False):
+            requests.append(request)
+            if "/git/ref/" in request.full_url:
+                return {"object": {"sha": SHA}}
+            if request.method == "GET":
+                return {"sha": str(len(saved)), "encoding": "base64",
+                        "content": base64.b64encode(json.dumps(saved[-1]).encode()).decode()} if saved else None
+            if request.method == "PUT":
+                saved.append(json.loads(base64.b64decode(json.loads(request.data)["content"])))
+            return {}
+        feed = GitHubUpdateFeed(REPO, "fixture-token", transport)
+        for state in ("preparing", "failed"):
+            args = ["--status", state, "--app", "where", "--channel", "main", "--sha", SHA,
+                    "--run", "2", "--attempt", "1", "--repository", REPO, "--feed-url", FEED_URL]
+            with patch("Tools.InstallerKit.installer_update_feed.GitHubUpdateFeed", return_value=feed), \
+                    patch("Tools.InstallerKit.installer_distribution.github_fetch", return_value={"object": {"sha": SHA}}), \
+                    redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
+                self.assertEqual(main(args), 0)
+            self.assertEqual(stdout.getvalue(), "")
+            self.assertEqual(stderr.getvalue(), "")
+            channel = saved[-1]["apps"][0]["channels"][0]
+            self.assertEqual(channel["buildStatus"]["state"], state)
+            self.assertFalse(channel["active"])
+            self.assertEqual(channel["releases"], [])
+            self.assertTrue(requests[-1].full_url.endswith("installer-pages.yml/dispatches"))
+
+    def test_invalid_progress_fails_before_feed_mutation(self):
+        for state, identifier, sha in (("ready", {"run": 1, "attempt": 1}, SHA),
+                                       ("preparing", {"run": True, "attempt": 1}, SHA),
+                                       ("preparing", {"run": 1, "attempt": 0}, SHA),
+                                       ("preparing", {"run": 1, "attempt": 1}, "not-a-sha")):
+            feed = Mock(repository=REPO)
+            with self.assertRaises(ValueError):
+                publish_status("where", "pr-42", BuildStatus(state, identifier, sha), feed, Mock())
+            feed.save.assert_not_called()
+            feed.deploy.assert_not_called()
+
     def test_publication_preserves_other_channels_and_bounds_history(self):
         catalog = apply_change(empty(), APP, "main", release(1, channel="main"))
         for run in range(1, 105):
@@ -105,10 +189,12 @@ class InstallerUpdateFeedTests(unittest.TestCase):
             return {}
         feed = GitHubUpdateFeed("fixture/Stuff", "fixture-token", transport)
         current = Mock(return_value=True)
-        self.assertTrue(feed.save(APP, "pr-42", lambda _: release(2), current))
+        progress = BuildStatus("preparing", {"run": 2, "attempt": 1}, SHA)
+        self.assertTrue(feed.save(APP, "pr-42", lambda _: progress, current))
         self.assertEqual([app["id"] for app in writes[-1]["apps"]], ["example", "where"])
         self.assertEqual(writes[-1]["apps"][0], catalogs[1]["apps"][0])
         self.assertEqual(writes[-1]["apps"][1]["channels"][0]["name"], "pr-42")
+        self.assertEqual(writes[-1]["apps"][1]["channels"][0]["buildStatus"], progress.metadata())
         self.assertEqual(current.call_count, 2)
 
     def test_stale_receipt_never_changes_catalog_or_deploys(self):
