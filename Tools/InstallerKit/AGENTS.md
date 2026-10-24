@@ -38,6 +38,7 @@ Guards: `signing_workflow_test.rb`, `signing_state_test.rb`, and `test_signing_p
 - Show only main installs on the homepage. Put PR builds under their app's page.
   Load site artwork from registered paths in the trusted checkout and publish it with the site.
   Read build details from the signed IPA; keep missing historical details explicit.
+  Record optional PR titles from live GitHub metadata at feed publication, never from build receipts. Keep historical titles unchanged.
   Guards: `test_installer_distribution.py`, `test_installer_update_feed.py`,
   `test_installer_update_site.py`, and `test_github_releases.py`.
 

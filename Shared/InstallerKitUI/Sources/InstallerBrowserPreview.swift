@@ -105,6 +105,7 @@
                         historyChanged: release.historyChanged,
                         commits: release.commits,
                         buildDetails: release.buildDetails,
+                        pullRequestTitle: release.pullRequestTitle,
                     )
                 }
                 let older = InstallerPreview.release(
@@ -115,6 +116,7 @@
                     historyChanged: false,
                     commits: [],
                     buildDetails: releases[2].buildDetails,
+                    pullRequestTitle: nil,
                 )
                 return UpdateCatalog.Channel(
                     name: channel.name,
@@ -130,6 +132,7 @@
                 historyChanged: false,
                 commits: [.init(sha: otherRevision, subject: "Explore a new timeline layout")],
                 buildDetails: source.apps[0].channels[0].releases[0].buildDetails,
+                pullRequestTitle: "Explore a new timeline layout with clearer daily summaries",
             )
             return InstallerPreview.catalog(channels: channels + [.init(
                 name: otherChannel,

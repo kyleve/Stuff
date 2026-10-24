@@ -65,6 +65,7 @@ The feed URL supplies the deployment base path. Custom domains can use `/`.
 `src/layouts/SiteLayout.astro` supplies the shared document and stylesheet.
 `src/data.ts` describes the private presentation input from Python.
 The public update schema remains in the Python publication tools and InstallerKit.
+PR build information includes an explicit **Pull request** link to GitHub, including for older releases without title metadata.
 
 PR pages and the app's PR list show preparing or failed builds with a link to their workflow attempt.
 A preparing first build has no install action. During a rebuild, the previous successful release remains installable.
