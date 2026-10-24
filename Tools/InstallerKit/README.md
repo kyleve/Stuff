@@ -28,7 +28,13 @@ A failed deletion can leave signing credentials on that job's isolated runner un
 After the shared Apple account and CI setup, each app has five setup phases.
 The in-app update page is optional and can be added separately.
 
-1. **Register the app.** Add it to [`.github/installer-apps.json`](../../.github/installer-apps.json).
+1. **Register the app.** Check that the distribution team has an explicit Apple App ID for the host and each extension.
+   Match each identifier to its target's bundle identifier in `Project.swift`.
+   Check the capabilities and required App Group or iCloud container associations against the target's entitlements.
+   Xcode automatic signing can create these registrations. Reuse matching registrations; do not create duplicates.
+   If an identifier or capability is missing, configure it in Xcode or [Apple Developer](https://developer.apple.com/help/account/identifiers/register-an-app-id/).
+   A local install alone does not prove that every explicit identifier exists; development signing can use a wildcard App ID.
+   Add the app to [`.github/installer-apps.json`](../../.github/installer-apps.json).
    Use a stable lowercase app ID and a unique Development bundle identifier.
    Declare its IPA app path, signed app and extension paths, and required Info.plist values.
    The trusted controller uses this registration to validate the exported IPA.
@@ -76,6 +82,12 @@ Each app has a separate GitHub artifact and concurrency group.
 ### Automated signing setup
 
 Use the shared [Apple account and signing setup](../../Where/DISTRIBUTION.md#one-time-setup) first.
+Complete phase 1 for each new app, even when the team already distributes other apps.
+`./signing setup` creates or refreshes certificates and profiles through Match. It does not create Apple App IDs or configure capabilities.
+Match fails if a required bundle identifier does not exist on the selected team.
+Check that the team has registered each test device before profile creation.
+Xcode can [register connected devices automatically](https://developer.apple.com/help/account/devices/register-a-single-device/).
+Alternatively, use `./signing register-device --app <id> --name <name> --udid <udid>` after the App IDs exist.
 Authenticate `gh` with repository-variable write access. Configure the source checkout's Apple Developer team.
 Supply `INSTALLER_API_KEY_PATH` and `MATCH_PASSWORD` through your existing credential setup.
 The shared CircleCI context retains the name `where-distribution-signing`.
@@ -100,6 +112,8 @@ If enabling fails after refresh, the command reports that signing completed. Cor
 The dry run checks registration and prints the plan. It does not validate Apple credentials, build integration, or device installation.
 Setup does not merge code, register devices, label PRs, dispatch builds, or install apps.
 Use `./signing register-device` to add devices and `./signing refresh` for profile maintenance without changing enablement.
+After adding a device, refresh the profiles and publish a new build to include it.
+Existing IPAs retain their embedded profiles and device lists.
 
 ### Optional in-app updates
 
