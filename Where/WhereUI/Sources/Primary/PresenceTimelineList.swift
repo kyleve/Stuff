@@ -216,6 +216,12 @@ struct PresenceTimelineList: View {
     extension PresenceTimelineList: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             [
+                whereSnapshot(name: "InterruptedStay", configurations: .fullContentScreenDefaults) {
+                    NavigationStack {
+                        PresenceTimelineList(report: PreviewSupport
+                            .interruptedStayYearReportModel())
+                    }
+                },
                 whereSnapshot(name: "Flights", configurations: .fullContentScreenDefaults) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport

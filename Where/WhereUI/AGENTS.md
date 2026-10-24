@@ -120,6 +120,8 @@ Layering, localization, preview, and testing conventions live in the feature
 - Keep calendar flight days and timeline flight events independent of review dismissal.
   Show uncertain arrival timing explicitly. Render supported travel periods separately from later ground observations.
   Split timeline stays only for presentation; preserve every region-day exactly once.
+  Keep a stay intact when departure falls on its final day. Guard: `PresenceJourneyItemTests`.
+  Split longer displayed stays at another visit's interior start day. Keep shared days in each region exactly once.
 - Keep the raw GPS path visible in correction reviews after samples lose attribution.
   Bound display geometry without changing the evidence or edits. Never join separate recording devices into one route.
 - Route automatic GPS fixes through Core's sample-correction coordinator. Keep

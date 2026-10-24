@@ -34,6 +34,8 @@ class GitHubReleasesTests(unittest.TestCase):
         self.assertEqual(writes[1].host, "uploads.github.com")
         self.assertEqual(writes[1].data, self.ipa.read_bytes())
         self.assertFalse(self.server.release["draft"])
+        self.assertEqual(self.server.requests[-1].method, "GET")
+        self.assertIn("/assets?", self.server.requests[-1].full_url)
 
     def test_retry_reuses_verified_draft_or_published_asset_without_overwriting(self):
         self.publish()
@@ -52,13 +54,49 @@ class GitHubReleasesTests(unittest.TestCase):
 
     def test_unverified_asset_never_publishes(self):
         for changes in ({"digest": "sha256:wrong"}, {"state": "starter"}, {"size": 0},
-                        {"browser_download_url": "https://evil.example/Where.ipa"}):
+                        {"id": None}, {"id": True}, {"id": 0},
+                        {"browser_download_url": "https://evil.example/Where.ipa"},
+                        {"browser_download_url": "https://github.com/other/Stuff/releases/download/untagged-draft/app.ipa"},
+                        {"browser_download_url": "https://github.com/fixture/Stuff/releases/download/untagged-draft/other.ipa"}):
             with self.subTest(changes=changes):
                 self.server = ReleaseServer(asset_changes=changes)
                 self.publisher = GitHubReleases("fixture/Stuff", "fixture-token", self.server)
                 with self.assertRaisesRegex(ValueError, "verification failed"):
                     self.publish()
                 self.assertFalse(any(request.method == "PATCH" for request in self.server.requests))
+
+    def test_interrupted_publication_reuses_uploaded_draft_with_temporary_url(self):
+        self.server.fail_publish = True
+        with self.assertRaisesRegex(ValueError, "publication interrupted"):
+            self.publish()
+        self.assertTrue(self.server.release["draft"])
+        self.assertIn("/untagged-", self.server.assets[0]["browser_download_url"])
+        self.server.fail_publish = False
+        self.server.requests.clear()
+        self.publish()
+        self.assertEqual([request.method for request in self.server.requests if request.method != "GET"], ["PATCH"])
+        self.assertFalse(self.server.release["draft"])
+
+    def test_published_asset_is_verified_again_before_returning_install_url(self):
+        for changes in ({"digest": "sha256:wrong"}, {"size": 0}, {"state": "starter"},
+                        {"browser_download_url": "https://github.com/fixture/Stuff/releases/download/untagged-draft/app.ipa"},
+                        {"browser_download_url": "https://evil.example/app.ipa"}):
+            with self.subTest(changes=changes):
+                self.server = ReleaseServer()
+                self.server.published_asset_changes = changes
+                self.publisher = GitHubReleases("fixture/Stuff", "fixture-token", self.server)
+                with self.assertRaises(ValueError):
+                    self.publish()
+                self.assertFalse(self.server.release["draft"])
+                self.server.requests.clear()
+                with self.assertRaises(ValueError):
+                    self.publish()
+                self.assertTrue(all(request.method == "GET" for request in self.server.requests))
+
+    def test_publication_cannot_replace_the_verified_asset(self):
+        self.server.published_asset_changes = {"id": 789}
+        with self.assertRaisesRegex(ValueError, "identity changed"):
+            self.publish()
 
     def test_failed_upload_can_resume_but_never_reports_success(self):
         self.server.fail_upload = True
