@@ -452,6 +452,37 @@ struct WhereStylesheetTests {
 
     @Test func calendarStyle() {
         let calendar = style.calendar
+        #expect(calendar.overview.columns == 3)
+        #expect(calendar.overview.spacing == 8)
+        #expect(calendar.overview.padding == 6)
+        #expect(calendar.overview.cornerRadius == 12)
+        #expect(calendar.overview.dayHeight == 12)
+        #expect(calendar.overview.dayFontSize == 8)
+        #expect(calendar.overview.titleFontSize == 13)
+        #expect(calendar.overview.sectionSpacing == 4)
+        #expect(calendar.overview.unavailableForeground == .secondary)
+        #expect(calendar.compact.month.plain.borderWidth == 0.5)
+        #expect(calendar.compact.month.current.borderWidth == 1)
+        #expect(calendar.overview.usesSpatialMotion)
+        #expect(calendar.overview.duration == 0.25)
+        #expect(calendar.overview.shakeDistance == 4)
+        #expect(calendar.compact.month.gridSpacing == 1)
+        #expect(calendar.compact.day.minHeight == 12)
+        #expect(calendar.compact.day.numberSize == 10)
+        #expect(calendar.compact.day.dotSize == 2)
+        #expect(calendar.compact.day.dotStrokeWidth == 0.75)
+        #expect(calendar.compact.regionBand == .init(
+            opacity: 0.4,
+            cornerRadius: 3,
+            continuationRadius: 1,
+            verticalInset: 0,
+            planned: .init(
+                fillOpacity: 0.16,
+                hatchOpacity: 0.7,
+                hatchSpacing: 4,
+                hatchLineWidth: 1,
+            ),
+        ))
         #expect(calendar.monthSpacing == 16)
         #expect(calendar.dotSize == 6)
         #expect(calendar.regionBand.opacity == 0.16)
@@ -496,11 +527,11 @@ struct WhereStylesheetTests {
         #expect(month.stacksFooter == false)
         #expect(month.padding == 16)
         #expect(month.cornerRadius == 28)
-        #expect(month.plain.fill == Color.primary.opacity(0.03))
+        #expect(month.plain.fill == .clear)
         #expect(month.plain.border == Color.primary.opacity(0.12))
         #expect(month.plain.borderWidth == 2)
         #expect(month.plain.foreground == .primary)
-        #expect(month.current.fill == Color.accentColor.opacity(0.08))
+        #expect(month.current.fill == .clear)
         #expect(month.current.border == Color.accentColor.opacity(0.7))
         #expect(month.current.borderWidth == 3)
         #expect(month.current.foreground == Color.primary.mix(
@@ -1041,6 +1072,10 @@ struct WhereStylesheetTests {
         var context = BContext(traits: .system)
         context.traitOverrides.contentSizeCategory = .accessibilityLarge
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.calendar.overview.columns == 1)
+        #expect(resolved.calendar.overview.titleFontSize == 22)
+        #expect(resolved.calendar.compact.day.minHeight == 28)
+        #expect(resolved.calendar.compact.day.numberFontSize == 16)
         #expect(resolved.calendar.day.minHeight == 56)
         #expect(resolved.calendar.day.numberSize == 36)
         #expect(resolved.calendar.day.numberFontSize == 24)
@@ -1092,6 +1127,7 @@ struct WhereStylesheetTests {
         var context = BContext(traits: .system)
         context.traitOverrides.accessibility = BAccessibility(isReduceMotionEnabled: true)
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.calendar.overview.usesSpatialMotion == false)
         #expect(resolved.card.dayCount == .reducedMotion)
         #expect(resolved.locationCardStack.overtake == .reducedMotion)
         #expect(resolved.locationCardStack.overtake.minimumOpacity == 0.82)
@@ -1109,6 +1145,27 @@ struct WhereStylesheetTests {
         #expect(resolved.locationWelcome.motion.scrimAnimation == .easeInOut(duration: 0.16))
         #expect(resolved.developerOverlay.menu.motion == .reduced)
         #expect(resolved.developerOverlay.menu.motion.usesSpatialMotion == false)
+    }
+
+    @MainActor
+    @Test(arguments: [BMode.light, .dark], WhereTheme.allCases)
+    func calendarOverviewInkRemainsDistinctFromDetail(mode: BMode, theme: WhereTheme) throws {
+        var context = BContext(traits: .system)
+        context.traitOverrides.mode = mode
+        context.themes[WhereTheme.self] = theme
+        let calendar = try context.stylesheets.get(WhereStylesheet.self).calendar
+        let band = calendar.compact.regionBand
+        #expect(band.opacity == (mode == .dark ? 0.55 : 0.4))
+        #expect(band.planned.fillOpacity == (mode == .dark ? 0.24 : 0.16))
+        #expect(band.planned.hatchOpacity == (mode == .dark ? 0.85 : 0.7))
+        #expect(band.planned.hatchSpacing == 4)
+        #expect(band.planned.hatchLineWidth == 1)
+        #expect(calendar.compact.day.dotStrokeWidth > 0)
+        #expect(calendar.regionBand == style.calendar.regionBand)
+        #expect(calendar.month.plain.fill == .clear)
+        #expect(calendar.month.current.fill == .clear)
+        #expect(calendar.compact.month.plain.fill == .clear)
+        #expect(calendar.compact.month.current.fill == .clear)
     }
 
     @MainActor

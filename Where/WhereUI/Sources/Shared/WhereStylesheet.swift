@@ -74,6 +74,10 @@ struct WhereStylesheet: BStylesheet {
             featureDiscovery.regionStyle.layout = .stacked
             featureDiscovery.shareSheet = .accessible
             featureDiscovery.evidenceArchive = .accessible
+            calendar.overview.columns = 1
+            calendar.overview.dayHeight = 28
+            calendar.overview.dayFontSize = 16
+            calendar.overview.titleFontSize = 22
             calendar.day.minHeight = 56
             calendar.day.numberFontSize = 24
             calendar.day.numberSize = 36
@@ -112,6 +116,7 @@ struct WhereStylesheet: BStylesheet {
         // Reduce Motion stops the cards' day count rolling its digits; it
         // crossfades to the new number instead.
         if traits.accessibility.isReduceMotionEnabled {
+            calendar.overview.usesSpatialMotion = false
             launch.reveal = .crossfade
             launch.revealAnimation = motion.reducedReveal
             launch.captionAnimation = nil
@@ -125,6 +130,9 @@ struct WhereStylesheet: BStylesheet {
         // Pale, luminosity-only ink lifts the background security print off
         // dark glass without changing its hue or saturation on touch.
         if traits.mode == .dark {
+            calendar.overview.regionBand.opacity = 0.55
+            calendar.overview.regionBand.planned.fillOpacity = 0.24
+            calendar.overview.regionBand.planned.hatchOpacity = 0.85
             locationForecast.summary.ink = Color(white: 0.78)
             locationForecast.summary.paper = Color(white: 0.16)
             settings.iconForeground = .black
@@ -1395,6 +1403,69 @@ extension WhereStylesheet {
     /// scattered generic tokens) keeps its full spec in one place and gives a
     /// future theme a single surface to reskin.
     struct CalendarStyle: Equatable {
+        var overview = Overview()
+
+        struct Overview: Equatable {
+            var columns = 3
+            var spacing: CGFloat = 8
+            var padding: CGFloat = 6
+            var cornerRadius: CGFloat = 12
+            var dayHeight: CGFloat = 12
+            var dayFontSize: CGFloat = 8
+            var titleFontSize: CGFloat = 13
+            var sectionSpacing: CGFloat = 4
+            var borderWidth: CGFloat = 0.5
+            var currentBorderWidth: CGFloat = 1
+            var unavailableForeground: Color = .secondary
+            /// Compact bands need stronger ink and distinct stripe gaps to
+            /// remain legible at a fraction of the detailed calendar's size.
+            var regionBand = RegionBand(
+                opacity: 0.4,
+                cornerRadius: 3,
+                continuationRadius: 1,
+                verticalInset: 0,
+                planned: .init(
+                    fillOpacity: 0.16,
+                    hatchOpacity: 0.7,
+                    hatchSpacing: 4,
+                    hatchLineWidth: 1,
+                ),
+            )
+            var usesSpatialMotion = true
+            var duration: Double = 0.25
+            var shakeDistance: CGFloat = 4
+
+            var animation: Animation {
+                .easeInOut(duration: duration)
+            }
+
+            var transition: AnyTransition {
+                usesSpatialMotion ? .scale(scale: 0.94).combined(with: .opacity) : .opacity
+            }
+        }
+
+        /// Compact geometry uses the same day and stay-band renderer as month detail.
+        var compact: Self {
+            var result = self
+            result.month.sectionSpacing = overview.sectionSpacing
+            result.month.gridSpacing = 1
+            result.month.weekdayFontSize = overview.dayFontSize
+            result.month.padding = overview.padding
+            result.month.cornerRadius = overview.cornerRadius
+            result.month.plain.borderWidth = overview.borderWidth
+            result.month.current.borderWidth = overview.currentBorderWidth
+            result.day.minHeight = overview.dayHeight
+            result.day.numberSize = overview.dayHeight - 2
+            result.day.numberFontSize = overview.dayFontSize
+            result.day.numberDotSpacing = 0
+            result.day.dotSize = 2
+            result.day.dotOverlap = 1
+            result.day.dotStrokeWidth = 0.75
+            result.day.contentSpacing = 0
+            result.regionBand = overview.regionBand
+            return result
+        }
+
         /// Vertical spacing between month sections in the scroll.
         var monthSpacing: CGFloat
         var month: MonthStyle
@@ -1417,9 +1488,9 @@ extension WhereStylesheet {
             var weekdayFontSize: CGFloat
             var padding: CGFloat
             var cornerRadius: CGFloat
-            /// Card treatment for a past month — the plain wash + rim.
+            /// Card treatment for a past month — a quiet outline.
             var plain: Card
-            /// Card treatment for the current month — a bluer accent wash and a
+            /// Card treatment for the current month — accent text and a
             /// heavier accent border so it stands out from the plain months.
             var current: Card
             /// Extra space below the footer's divider, so the tally rows don't
@@ -1439,9 +1510,9 @@ extension WhereStylesheet {
             /// the current one. The grid picks a `Card` and reads both from it,
             /// rather than ternary-ing each property against `isCurrentMonth`.
             struct Card: Equatable {
-                /// Wash behind the month, so each reads as its own card.
+                /// Clear by default so the enclosing screen shows through.
                 var fill: Color
-                /// Border around the card (a touch darker than `fill`).
+                /// Border around the month card.
                 var border: Color
                 var borderWidth: CGFloat
                 /// Base foreground inherited by the month's neutral primary and
@@ -1540,13 +1611,13 @@ extension WhereStylesheet {
                 padding: 16,
                 cornerRadius: 28,
                 plain: MonthStyle.Card(
-                    fill: Color.primary.opacity(0.03),
+                    fill: .clear,
                     border: Color.primary.opacity(0.12),
                     borderWidth: 2,
                     foreground: .primary,
                 ),
                 current: MonthStyle.Card(
-                    fill: Color.accentColor.opacity(0.08),
+                    fill: .clear,
                     border: Color.accentColor.opacity(0.7),
                     borderWidth: 3,
                     foreground: Color.primary.mix(

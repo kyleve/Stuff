@@ -151,6 +151,43 @@ struct WherePreferencesTests {
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == counts2026)
     }
 
+    @Test func calendarZoomChoicesRoundTripIndependentlyAndReset() {
+        let store = InMemoryKeyValueStore()
+        let preferences = WherePreferences(store: store)
+        let custom = CalendarZoomKey(rawValue: "travel-planner")
+        #expect(preferences.calendarOverview(forKey: .year) == nil)
+
+        preferences.setCalendarOverview(true, forKey: .year)
+        preferences.setCalendarOverview(false, forKey: .region(.california))
+        preferences.setCalendarOverview(true, forKey: .region(.newYork))
+        preferences.setCalendarOverview(false, forKey: custom)
+
+        let restored = WherePreferences(store: store)
+        #expect(restored.calendarOverview(forKey: .year) == true)
+        #expect(restored.calendarOverview(forKey: .region(.california)) == false)
+        #expect(restored.calendarOverview(forKey: .region(.newYork)) == true)
+        #expect(restored.calendarOverview(forKey: custom) == false)
+        #expect(restored.calendarOverview(forKey: .region(.europeanUnion)) == nil)
+
+        restored.reset()
+        #expect(preferences.calendarOverview(forKey: .year) == nil)
+        #expect(preferences.calendarOverview(forKey: .region(.california)) == nil)
+        #expect(preferences.calendarOverview(forKey: .region(.newYork)) == nil)
+        #expect(preferences.calendarOverview(forKey: custom) == nil)
+    }
+
+    @Test func invalidCalendarZoomEntryDoesNotHideOtherCalendars() {
+        let store = InMemoryKeyValueStore()
+        store.set(["year": "invalid", "region.us-CA": true], forKey: "where.calendarOverview")
+        let preferences = WherePreferences(store: store)
+        #expect(preferences.calendarOverview(forKey: .year) == nil)
+        #expect(preferences.calendarOverview(forKey: .region(.california)) == true)
+
+        preferences.setCalendarOverview(false, forKey: .year)
+        #expect(preferences.calendarOverview(forKey: .year) == false)
+        #expect(preferences.calendarOverview(forKey: .region(.california)) == true)
+    }
+
     @Test(arguments: [Region.newYork, nil])
     func locationWelcomeHistoryRoundTripsAndClears(region: Region?) {
         let store = InMemoryKeyValueStore()
