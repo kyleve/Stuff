@@ -184,6 +184,7 @@ Publication does not wait for the separate test workflows.
 
 Each archive gets a distinct prerelease: `installer-where-<channel>-<run>-<attempt>`.
 The publisher uploads `app.ipa` to a draft, validates its SHA-256 digest and size, then publishes it.
+GitHub gives draft assets temporary URLs. After publication, the publisher verifies the same asset and its final tag URL before catalog publication.
 A retry reuses a matching release and asset. It never overwrites a published IPA.
 If an upload or verification fails, inspect the draft before retrying.
 The release does not become GitHub's latest stable release.

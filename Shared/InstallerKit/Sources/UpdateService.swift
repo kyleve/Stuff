@@ -83,7 +83,8 @@ public final class UpdateService {
             )
         } catch {
             guard !Task.isCancelled, sequence == refreshSequence,
-                  !(error is CancellationError)
+                  !(error is CancellationError),
+                  (error as? URLError)?.code != .cancelled
             else {
                 throw CancellationError()
             }

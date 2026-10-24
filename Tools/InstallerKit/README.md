@@ -125,6 +125,8 @@ Historical GitHub assets remain available. Retirement cannot revoke an installed
 
 Release tags use `installer-<app-id>-<channel>-<run>-<attempt>` and contain one `app.ipa` asset.
 The publisher verifies the uploaded asset's URL, size, and SHA-256 digest before publishing its draft.
+Draft assets can use a temporary `untagged-…` URL under the same repository.
+After publication, the publisher verifies the same asset's identity, size, digest, and final tag URL before returning its install URL.
 Retries reuse matching assets. Published bytes are never replaced.
 Tags anchor to trusted `main`; the release notes and signed stamp identify the actual source commit.
 

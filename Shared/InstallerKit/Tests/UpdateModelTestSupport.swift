@@ -37,7 +37,7 @@ final class UpdateModelClient: UpdateFetching {
         continuations[index].resume(returning: catalog)
     }
 
-    func resume(_ index: Int, error: Failure) {
+    func resume(_ index: Int, error: any Error) {
         continuations[index].resume(throwing: error)
     }
 }

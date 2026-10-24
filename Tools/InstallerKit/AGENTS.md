@@ -30,7 +30,9 @@ Guards: `signing_workflow_test.rb`, `signing_state_test.rb`, and `test_signing_p
   absence of merge conflicts before signing or publishing. Recheck the live SHA and label
   before publishing or retiring. Serialize mutations per app and channel.
 - Advertise updates only after GitHub publishes the verified IPA. Never overwrite a
-  published asset. Deploy the catalog and exact-build manifests together.
+  published asset. Accept temporary draft asset URLs only under the expected repository.
+  Verify the same asset's identity, size, digest, and canonical URL after publication before returning its install URL.
+  Deploy the catalog and exact-build manifests together.
   Retired channels must not publish install manifests. Retain their commit history.
 - Deploy the site independently of archive enablement and signing configuration.
   If the publication branch is absent, serve an empty schema-3 catalog.

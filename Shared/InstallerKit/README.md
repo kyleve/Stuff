@@ -30,7 +30,9 @@ Use `force: true` for a manual check. Bind badges to `needsAttention` and render
 Failure state retains both the original error and the last successful snapshot.
 `UpdateClient.FetchError.httpStatus` carries the server's HTTP status code.
 Other response failures distinguish unexpected server locations, non-HTTP responses, and oversized feeds.
-Transport, decoding, and catalog validation errors keep their original types. The UI owns localized failure text.
+The service treats `URLError.cancelled` as cancellation, even when the calling Swift task remains active.
+Cancellation restores the previous model state and preserves the cached catalog and check date. A later manual check can retry immediately.
+Other transport, decoding, and catalog validation errors keep their original types. The UI owns localized failure text.
 Use a release's `installURL` for installation and `installed.commitURL(for:)` for commit links.
 
 Each service snapshot also exposes `browser`, an `UpdateBuildBrowser` for the installed app.

@@ -106,11 +106,27 @@ class GitHubReleases:
             asset = self.request("POST", f"/releases/{release_id}/assets?name=app.ipa", binary=contents)
         else:
             raise ValueError("Published release has no IPA; refusing to modify it")
-        if (asset.get("name") != "app.ipa" or asset.get("state") != "uploaded" or asset.get("size") != size
-                or asset.get("digest") != digest or asset.get("browser_download_url") != expected_url):
-            raise ValueError("Release IPA verification failed; inspect the draft before retrying")
+        self._verify_asset(asset, size, digest, expected_url, draft=release.get("draft") is True)
         if release.get("draft") is True:
+            asset_id = asset["id"]
             release = self.request("PATCH", f"/releases/{release_id}", {"draft": False, "make_latest": "false"})
+            # GitHub assigns drafts an untagged URL. Read the asset again after
+            # publication before advertising the canonical installation URL.
+            assets = self.request("GET", f"/releases/{release_id}/assets?per_page=100")
+            if len(assets) != 1 or assets[0].get("id") != asset_id:
+                raise ValueError("Published release IPA identity changed")
+            self._verify_asset(assets[0], size, digest, expected_url, draft=False)
         if release.get("draft") is not False:
             raise ValueError("GitHub did not publish the release")
         return expected_url
+
+    def _verify_asset(self, asset, size, digest, expected_url, *, draft):
+        url = asset.get("browser_download_url")
+        draft_url = (draft and isinstance(url, str) and re.fullmatch(
+            re.escape(f"https://github.com/{self.repository}/releases/download/")
+            + r"untagged-[A-Za-z0-9-]+/app\.ipa", url))
+        if (type(asset.get("id")) is not int or asset["id"] < 1
+                or asset.get("name") != "app.ipa" or asset.get("state") != "uploaded"
+                or asset.get("size") != size or asset.get("digest") != digest
+                or not (url == expected_url or draft_url)):
+            raise ValueError("Release IPA verification failed; inspect the release before retrying")
