@@ -63,5 +63,15 @@ def site_scenarios():
     legacy["apps"][0]["channels"] = legacy["apps"][0]["channels"][1:]
     for release in legacy["apps"][0]["channels"][0]["releases"]:
         del release["buildDetails"]
+    preparing = deepcopy(full)
+    preparing["apps"][0]["channels"][1].update({"active": False, "releases": [],
+        "buildStatus": {"state": "preparing", "id": {"run": 3, "attempt": 1}, "sha": "3" * 40}})
+    failed = deepcopy(preparing)
+    failed["apps"][0]["channels"][1]["buildStatus"]["state"] = "failed"
+    rebuilding = deepcopy(full)
+    rebuilding["apps"][0]["channels"][1]["buildStatus"] = deepcopy(preparing["apps"][0]["channels"][1]["buildStatus"])
+    unpublished = deepcopy(preparing)
+    del unpublished["apps"][0]["channels"][1]["buildStatus"]
     return {"full": full, "unavailable-history": unavailable, "retired": retired,
-            "empty": {"schemaVersion": 3, "apps": []}, "missing-details": legacy}
+            "empty": {"schemaVersion": 3, "apps": []}, "missing-details": legacy,
+            "preparing": preparing, "failed": failed, "rebuilding": rebuilding, "unpublished": unpublished}

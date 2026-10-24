@@ -1,17 +1,21 @@
 ---
-import { channelURL, channelLabel, type App, type ActiveChannel } from '../data';
+import { channelURL, channelLabel, type App, type ActiveChannel, type ProgressChannel } from '../data';
 import InstallButton from './InstallButton.astro';
 import PublishedDate from './PublishedDate.astro';
 import Symbol from './Symbol.astro';
-interface Props { app: App; channel: ActiveChannel }
+interface Props { app: App; channel: ActiveChannel | ProgressChannel }
 const { app, channel } = Astro.props;
-const release = channel.release;
-const version = release.buildDetails ? 'Version ' + release.buildDetails.version : 'Build ' + release.bundleVersion;
+const release = channel.state === 'active' ? channel.release : undefined;
+const version = release?.buildDetails ? 'Version ' + release.buildDetails.version : 'Build ' + release?.bundleVersion;
 ---
 <article class="channel-row">
   <div>
     <h3><a href={channelURL(app, channel)}>{channelLabel(channel)} <Symbol name="arrow" size={14}/></a></h3>
-    <p>{version} · <PublishedDate date={release.publishedAt} includeYear={true}/></p>
+    {release ? <p>{version} · <PublishedDate date={release.publishedAt} includeYear={true}/></p> :
+      <p>{channel.state === 'preparing' ? 'Preparing build' : 'Build not published'}</p>}
+    {channel.state === 'active' && channel.buildStatus &&
+      <p>{channel.buildStatus.state === 'preparing' ? 'New build preparing' : 'Latest build not published'}</p>}
   </div>
-  <InstallButton app={app} channel={channel}/>
+  {channel.state === 'active' ? <InstallButton app={app} channel={channel}/> :
+    <a class="text-link" href={channel.runURL}>View build progress <Symbol name="arrow" size={14}/></a>}
 </article>

@@ -68,6 +68,7 @@ A failed deletion can leave signing credentials on that job's isolated runner un
    From the repository root, use `python3 -m Tools.InstallerKit.installer_distribution plan --app <id>` and the matching `finish` command.
    Pass the successful receipt to `installer_update_feed.py`.
    Keep the archive attempt output when retrying only the publisher.
+   Publish preparing status before archiving, and failed status when archiving or publication fails, as Where's workflow does.
 5. Merge the registration, workflow, and app integration into `main` before enabling the app's workflow.
    Configure signing and registered devices for that app. Publish a main build and verify installation on a physical device.
    Then add `installable` to a same-repository PR and verify its build and update flow.
@@ -112,6 +113,16 @@ Conflicts fail the installable build before signing. Removing the label or closi
 Serialize each app's channel mutations. Recheck the live head, label, state, and mergeability before publication.
 A failed build preserves the previous successful build. Retirement removes install manifests but retains history.
 Historical GitHub assets remain available. Retirement cannot revoke an installed IPA or cached manifest.
+
+Before archiving, the controller records optional channel `buildStatus` metadata and requests a Pages deployment.
+It contains `state` (`preparing` or `failed`), the run/attempt `id`, and the source `sha`.
+Status writes recheck the live head and PR eligibility. They cannot grant installability or replace a newer attempt's status.
+The previous published release remains installable while a replacement builds or fails.
+Successful publication clears matching or older progress. Retirement clears progress and disables installs.
+An inactive channel without releases or progress shows **No build yet**, rather than claiming a build was retired.
+Status pages link to the exact workflow attempt. Refresh after its Pages deployment to see the new state.
+If the status job or Pages deployment cannot finish, the previously deployed page remains visible.
+Existing native clients ignore this optional metadata and continue to use `active` and retained releases.
 
 Release tags use `installer-<app-id>-<channel>-<run>-<attempt>` and contain one `app.ipa` asset.
 The publisher verifies the uploaded asset's URL, size, and SHA-256 digest before publishing its draft.

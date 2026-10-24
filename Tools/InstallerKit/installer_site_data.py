@@ -85,15 +85,23 @@ def prepare_site(catalog, repository, feed_url, registered_apps=None):
         channels = []
         for channel in app["channels"]:
             validate_channel(app, channel, repository, feed_url, files)
+            status = channel.get("buildStatus")
+            progress = ({"state": status["state"],
+                         "runURL": f'https://github.com/{repository}/actions/runs/{status["id"]["run"]}/attempts/{status["id"]["attempt"]}'}
+                        if status else None)
             if channel["active"]:
                 release = channel["releases"][0]
                 for commit in release["commits"]:
                     if not re.fullmatch(r"[0-9a-f]{40}", commit["sha"]) or not isinstance(commit["subject"], str):
                         raise ValueError("Invalid commit in release notes")
                 channels.append({"name": channel["name"], "state": "active", "release": release,
-                                 "installURL": install_url(release["manifestURL"])})
+                                 "installURL": install_url(release["manifestURL"]),
+                                 **({"buildStatus": progress} if progress else {})})
+            elif progress:
+                channels.append({"name": channel["name"], **progress})
             else:
-                channels.append({"name": channel["name"], "state": "retired"})
+                channels.append({"name": channel["name"],
+                                 "state": "retired" if channel["releases"] else "unpublished"})
         apps.append({"id": app["id"], "name": app["name"], "bundleIdentifier": app["bundleIdentifier"],
                      "presentation": artwork, "channels": channels})
     return PreparedSite({"siteURL": root, "basePath": base_path, "repository": repository, "apps": apps}, files)

@@ -29,7 +29,7 @@ Select another fixture or port:
 mise exec -- npm run dev --prefix Tools/InstallerKit/Site -- --fixture retired --port 4322
 ```
 
-Available fixtures are `full`, `retired`, `empty`, `unavailable-history`, and `missing-details`.
+Available fixtures are `full`, `retired`, `empty`, `unavailable-history`, `missing-details`, `preparing`, `failed`, `rebuilding`, and `unpublished`.
 These catalogs also supply the WebKit snapshots.
 
 Build and serve the production output locally:
@@ -65,6 +65,11 @@ The feed URL supplies the deployment base path. Custom domains can use `/`.
 `src/layouts/SiteLayout.astro` supplies the shared document and stylesheet.
 `src/data.ts` describes the private presentation input from Python.
 The public update schema remains in the Python publication tools and InstallerKit.
+
+PR pages and the app's PR list show preparing or failed builds with a link to their workflow attempt.
+A preparing first build has no install action. During a rebuild, the previous successful release remains installable.
+Inactive channels with no published history or progress show **No build yet**. Previously published retired channels keep their retirement page.
+Pages are static: refresh after deployment to see changed status or a newly published build.
 
 `../installer_site_data.py` validates identities and releases, then prepares assets and manifests.
 `../installer_update_site.py` runs Astro with that input and stages the complete deployment.
