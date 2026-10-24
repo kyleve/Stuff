@@ -190,6 +190,37 @@ struct ThrowProjectRulesTests {
         #expect(osLogRejected.violations.map(\.rule.id) == ["throw.logging_facade"])
     }
 
+    @Test func loggingTypesStayInThrowLoggingDirectories() throws {
+        let allowed = try evaluate(
+            path: "Throw/ThrowCore/Sources/Logging/ThrowLog.swift",
+            component: .throwCore,
+            source: "enum ThrowLog {}",
+        )
+        let rejectedPath: RelativeFilePath =
+            "Throw/ThrowUI/Sources/Model/RogueLog.swift"
+        let rejected = try evaluate(
+            path: rejectedPath,
+            component: .throwUI,
+            source: "enum RogueLog {}",
+        )
+        let unrelatedMain = try RuleTestHarness(throwProjectRules).evaluate(
+            VirtualRepository {
+                VirtualSourceFile.swift(
+                    "Ledger/LedgerCore/Sources/LedgerLog.swift",
+                    component: WhereComponent.ledgerCore,
+                    source: "enum LedgerLog {}",
+                )
+            },
+        )
+
+        #expect(allowed.violations.isEmpty)
+        #expect(unrelatedMain.violations.isEmpty)
+        let violation = try #require(rejected.violations.first)
+        #expect(rejected.violations.count == 1)
+        #expect(violation.rule.id == "throw.logging_type_ownership")
+        #expect(violation.path == rejectedPath)
+    }
+
     @Test func providerImplementationsStayInCore() throws {
         let allowed = try evaluate(
             path: "Throw/ThrowCore/Sources/SourceService.swift",

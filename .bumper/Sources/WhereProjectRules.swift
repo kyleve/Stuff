@@ -39,6 +39,15 @@ private let whereServicesConstructionScope = RuleScope
     .component(WhereComponent.whereCore)
     .union(.files(["Where/WhereUI/Sources/Preview/PreviewSupport.swift"]))
 
+private let whereLoggingScope = RuleScope
+    .under("Where/RegionKit/Sources/Logging")
+    .union(.under("Where/Where/Sources/Logging"))
+    .union(.under("Where/WhereCore/Sources/Logging"))
+    .union(.under("Where/WhereUI/Sources/Logging"))
+    .union(.under("Where/WhereIntents/Sources/Logging"))
+    .union(.under("Where/WhereWidgets/Sources/Logging"))
+    .union(.under("Where/WhereShareExtension/Sources/Logging"))
+
 private let productionStoreOpeningPaths: Set<RelativeFilePath> = [
     "Where/WhereUI/Sources/Launch/WhereLaunch.swift",
     "Where/WhereShareExtension/Sources/ShareEvidenceModel.swift",

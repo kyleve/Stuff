@@ -54,10 +54,16 @@ struct ThrowSessionLoggingTests {
         await system.flush()
 
         let storedFailures = try await store.events(matching: LogQuery()).filter {
-            try $0.decode(ThrowSessionLogEvent.self) == .coldLaunchFailed(boundary: .preferences)
+            $0.eventName == "ThrowSession.cold-launch-failed"
         }
         let storedFailure = try #require(storedFailures.first)
         #expect(storedFailures.count == 1)
+        let eventPayload = try JSONDecoder().decode(JSONValue.self, from: storedFailure.payload)
+        guard case let .object(eventFields) = eventPayload else {
+            Issue.record("The cold-launch event must store a keyed payload")
+            return
+        }
+        #expect(eventFields["boundary"] == .string("preferences"))
         let attachments = try await store.attachments(forEvent: storedFailure.id)
         let attachment = try #require(attachments.first)
         #expect(attachments.count == 1)

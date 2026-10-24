@@ -206,26 +206,7 @@ struct AircraftPollingCoordinatorTests {
             schemaDrift.discardedRecords.missingPositionRecordCount ==
                 diagnostics.missingPositionRecordCount,
         )
-        let fields = event.remoteFields
-        #expect(fields.map(\.key.rawValue) == [
-            "kind",
-            "source",
-            "malformed_record_count",
-            "missing_position_record_count",
-        ])
-        guard case let .category(kind) = fields[0].value,
-              case let .category(source) = fields[1].value,
-              case let .count(malformedCount) = fields[2].value,
-              case let .count(missingPositionCount) = fields[3].value
-        else {
-            Issue.record("Expected closed categories and record counts.")
-            await coordinator.deactivate()
-            return
-        }
-        #expect(kind.rawValue == "partial-schema-drift")
-        #expect(source.rawValue == "adsb-lol")
-        #expect(malformedCount == 2)
-        #expect(missingPositionCount == 3)
+        #expect(event.source == .adsbLol)
         await coordinator.deactivate()
     }
 
@@ -262,11 +243,6 @@ struct AircraftPollingCoordinatorTests {
         #expect(fallback.level == .warning)
         #expect(fallback.source == .readsb)
         #expect(fallbackEvent.failureCategory == .transportOffline)
-        #expect(fallback.remoteFields.map(\.key.rawValue) == [
-            "kind",
-            "source",
-            "failure_category",
-        ])
         await coordinator.deactivate()
     }
 
@@ -295,7 +271,6 @@ struct AircraftPollingCoordinatorTests {
         #expect(failureEvent.source == .readsb)
         #expect(failureEvent.failureCategory == .transportLocalNetworkDenied)
         #expect(failureEvent.httpStatus == nil)
-        #expect(failure.remoteFields.isEmpty)
         await coordinator.deactivate()
     }
 
@@ -335,7 +310,6 @@ struct AircraftPollingCoordinatorTests {
         #expect(retryEvent.backoffSeconds == 10)
         for event in [requestFailed, retryScheduled] {
             #expect(event.message.contains(errorSentinel) == false)
-            #expect(event.remoteMessage.contains(errorSentinel) == false)
             #expect(String(describing: event).contains(errorSentinel) == false)
             #expect(String(reflecting: event).contains(errorSentinel) == false)
         }

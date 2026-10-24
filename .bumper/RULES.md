@@ -32,7 +32,7 @@ Repair a violation with the macro authoring API. Do not add a file exception. Mu
 
 | Throw component | Allowed Throw dependencies | Framework capabilities |
 | --- | --- | --- |
-| `ThrowCore` | none | Foundation |
+| `ThrowCore` | none (PeriscopeCore for logs) | Foundation |
 | `ThrowUI` | `ThrowCore` | Foundation, SwiftUI, UIKit |
 | `Throw` app | `ThrowUI` | Foundation, SwiftUI, UIKit |
 
@@ -177,8 +177,8 @@ Where production sources. Production logging uses the typed `WhereLog` or
 output calls in Throw production sources. Production logging uses typed
 `ThrowLog` events.
 
-This complements `repository.logging_type_ownership`, which controls where the
-typed event declarations live.
+This complements the app-specific logging-type ownership rules, which control
+where the typed event declarations live.
 
 ## Preview coverage
 
@@ -193,9 +193,10 @@ WhereIntents and WhereWidgets explicitly forbid direct `BroadwayCore` and
 
 ## Logging vocabulary ownership
 
-`repository.logging_type_ownership` keeps every nominal type ending in `Log`
-under a Where or Throw module's `Sources/Logging` directory. This keeps typed
-Periscope event vocabulary separate from collaborators.
+`where.logging_type_ownership` and `throw.logging_type_ownership` keep every
+nominal type ending in `Log` under the corresponding app module's
+`Sources/Logging` directory. The rules do not impose that convention on shared
+modules or other applications.
 
 Repair a violation by moving the logging type into the owning module's Logging
 directory. Delete or reshape the rule if the repository deliberately adopts a

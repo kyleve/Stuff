@@ -24,7 +24,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
 - Preserve the counts through filters and wrappers. Aggregate them when snapshots merge.
 - Log partial schema drift at warning level without provider record values.
 - Represent each polling log event as one closed case with its required payload.
-- Keep the flat version-three polling event wire vocabulary stable.
+- Map each polling case exhaustively to its concrete `AircraftPollingLog` event.
+  Preserve the generated event IDs and explicit field classifications.
 - Keep one structured poll task. Cancel and drain before replacement, and
   reject responses from an old generation.
 - Publish polling as inactive or as active state with a coordinator-minted

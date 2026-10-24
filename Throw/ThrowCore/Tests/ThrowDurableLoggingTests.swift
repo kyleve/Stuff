@@ -25,17 +25,19 @@ struct ThrowDurableLoggingTests {
 
         let loggingSession = try await starter.start()
         await system.flush()
-        #expect(sessionEvents(in: system) == [.durableLoggingReady])
+        #expect(sessionEventNames(in: system) == [ThrowSessionLog.DurableLoggingReady.eventName])
 
         await loggingSession.pruneHistory()
         await system.flush()
-        #expect(sessionEvents(in: system) == [
-            .durableLoggingReady,
-            .durableLoggingHistoryPruned(
-                expiredEventCount: 0,
-                overflowEventCount: 0,
-            ),
+        #expect(sessionEventNames(in: system) == [
+            ThrowSessionLog.DurableLoggingReady.eventName,
+            ThrowSessionLog.DurableLoggingHistoryPruned.eventName,
         ])
+        let pruned = try #require(
+            system.recentRecords().last?.event as? ThrowSessionLog.DurableLoggingHistoryPruned,
+        )
+        #expect(pruned.expiredEventCount == 0)
+        #expect(pruned.overflowEventCount == 0)
     }
 
     @Test func deferredCreditsFailureReachesTheAttachedStore() async throws {
@@ -59,8 +61,11 @@ struct ThrowDurableLoggingTests {
 
         let storedEvents = try await store.events(matching: LogQuery())
         let storedEvent = try #require(storedEvents.first {
-            (try? $0.decode(ThrowSessionLogEvent.self)) == .softwareCreditsLoadFailed
+            $0.eventName == ThrowSessionLog.SoftwareCreditsLoadFailed.eventName
         })
+        let storedFailure = try storedEvent.decode(ThrowSessionLog.SoftwareCreditsLoadFailed.self)
+        #expect(storedFailure.error.domain == "com.stuff.throw.attribution-test")
+        #expect(storedFailure.error.code == 42)
         #expect(try await store.attachments(forEvent: storedEvent.id) == [failure.attachment])
     }
 
@@ -86,19 +91,23 @@ struct ThrowDurableLoggingTests {
 
         let records = try await store.events(matching: LogQuery())
         let launchRecords = records.filter {
-            (try? $0.decode(ThrowSessionLogEvent.self)) == .coldLaunchFailed(
-                boundary: .preferences,
-            )
+            $0.eventName == ThrowSessionLog.ColdLaunchFailed.eventName
         }
         let operationRecords = records.filter {
-            (try? $0.decode(ThrowSessionLogEvent.self)) == .postLaunchOperationFailed(
-                operation: .preferencePersistence,
-            )
+            $0.eventName == ThrowSessionLog.PostLaunchOperationFailed.eventName
         }
         let launchRecord = try #require(launchRecords.first)
         let operationRecord = try #require(operationRecords.first)
         #expect(launchRecords.count == 1)
         #expect(operationRecords.count == 1)
+        #expect(
+            try launchRecord.decode(ThrowSessionLog.ColdLaunchFailed.self).boundary ==
+                .preferences,
+        )
+        #expect(
+            try operationRecord.decode(ThrowSessionLog.PostLaunchOperationFailed.self)
+                .operation == .preferencePersistence,
+        )
         let launchAttachments = try await store.attachments(forEvent: launchRecord.id)
         let operationAttachments = try await store.attachments(forEvent: operationRecord.id)
         let launchAttachment = try #require(launchAttachments.first)
@@ -146,8 +155,13 @@ struct ThrowDurableLoggingTests {
 
         let records = await sink.records()
         let record = try #require(records.first {
-            $0.event as? ThrowSessionLogEvent == .softwareCreditsLoadFailed
+            $0.event is ThrowSessionLog.SoftwareCreditsLoadFailed
         })
+        let recordedFailure = try #require(
+            record.event as? ThrowSessionLog.SoftwareCreditsLoadFailed,
+        )
+        #expect(recordedFailure.error.domain == "com.stuff.throw.attribution-test")
+        #expect(recordedFailure.error.code == 42)
         #expect(record.attachments == [failure.attachment])
     }
 
@@ -174,10 +188,12 @@ struct ThrowDurableLoggingTests {
         await system.flush()
 
         let failures = await sink.records().filter {
-            $0.event as? ThrowSessionLogEvent == .coldLaunchFailed(boundary: .preferences)
+            $0.event is ThrowSessionLog.ColdLaunchFailed
         }
         let failure = try #require(failures.first)
+        let failureEvent = try #require(failure.event as? ThrowSessionLog.ColdLaunchFailed)
         #expect(failures.count == 1)
+        #expect(failureEvent.boundary == .preferences)
         let attachment = try #require(failure.attachments.first)
         #expect(failure.attachments.count == 1)
         #expect(attachment.name == "launch-error")
@@ -189,8 +205,8 @@ struct ThrowDurableLoggingTests {
         #expect(payload == expectedPayload)
     }
 
-    private func sessionEvents(in system: Periscope) -> [ThrowSessionLogEvent] {
-        system.recentRecords().compactMap { $0.event as? ThrowSessionLogEvent }
+    private func sessionEventNames(in system: Periscope) -> [String] {
+        system.recentRecords().map { type(of: $0.event).eventName }
     }
 
     private func errorPayload(in attachment: LogAttachment) throws -> [String: String] {

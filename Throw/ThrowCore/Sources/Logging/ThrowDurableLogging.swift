@@ -19,7 +19,7 @@ public final class PeriscopeThrowDurableLoggingStarter: ThrowDurableLoggingStart
     private let softwareCreditsLoadFailure: ThrowSoftwareCreditsLoadFailure?
     private let now: @Sendable () -> Date
     private let preAttachmentRecorder: ThrowPreAttachmentSessionLogRecorder
-    private let logger: Log<ThrowSessionLogEvent>
+    private let logger: Log<ThrowSessionLog>
 
     public convenience init(softwareCreditsLoadFailure: ThrowSoftwareCreditsLoadFailure?) {
         self.init(
@@ -81,14 +81,14 @@ public final class PeriscopeThrowDurableLoggingStarter: ThrowDurableLoggingStart
         self.now = now
         let recorder = ThrowPreAttachmentSessionLogRecorder(system: system)
         preAttachmentRecorder = recorder
-        logger = Log<ThrowRootLogEvent>(recorder: recorder)(ThrowSessionLogEvent.self)
+        logger = Log<ThrowRootLog>(recorder: recorder)(ThrowSessionLog.self)
     }
 
     public func start() async throws -> any ThrowDurableLoggingSession {
         do {
             let store = try await makeStore()
             await preAttachmentRecorder.attach(store)
-            logger { .durableLoggingReady }
+            logger.durableLoggingReady()
             recordSoftwareCreditsLoadFailureIfNeeded()
             return PeriscopeThrowDurableLoggingSession(
                 store: store,
@@ -98,9 +98,10 @@ public final class PeriscopeThrowDurableLoggingStarter: ThrowDurableLoggingStart
         } catch {
             preAttachmentRecorder.storeOpenFailed()
             recordSoftwareCreditsLoadFailureIfNeeded()
-            logger(attachments: [.error(error, name: "open-error")]) {
-                .durableLoggingUnavailable(description: String(describing: error))
-            }
+            logger.durableLoggingUnavailable(
+                error: .restricted(.errorDetails, error),
+                attachments: [.error(error, name: "open-error")],
+            )
             throw error
         }
     }
@@ -254,12 +255,12 @@ private actor PeriscopeThrowDurableLoggingSession: ThrowDurableLoggingSession {
 
     private let store: PeriscopeStore
     private let now: @Sendable () -> Date
-    private let logger: Log<ThrowSessionLogEvent>
+    private let logger: Log<ThrowSessionLog>
 
     init(
         store: PeriscopeStore,
         now: @escaping @Sendable () -> Date,
-        logger: Log<ThrowSessionLogEvent>,
+        logger: Log<ThrowSessionLog>,
     ) {
         self.store = store
         self.now = now
@@ -273,18 +274,15 @@ private actor PeriscopeThrowDurableLoggingSession: ThrowDurableLoggingSession {
             let overflow = try await store.pruneEvents(
                 keepingNewest: Self.retainedEventLimit,
             )
-            logger {
-                .durableLoggingHistoryPruned(
-                    expiredEventCount: expired,
-                    overflowEventCount: overflow,
-                )
-            }
+            logger.durableLoggingHistoryPruned(
+                expiredEventCount: .shared(.count, expired),
+                overflowEventCount: .shared(.count, overflow),
+            )
         } catch {
-            logger(attachments: [.error(error, name: "prune-error")]) {
-                .durableLoggingHistoryPruneFailed(
-                    description: String(describing: error),
-                )
-            }
+            logger.durableLoggingHistoryPruneFailed(
+                error: .restricted(.errorDetails, error),
+                attachments: [.error(error, name: "prune-error")],
+            )
         }
     }
 }

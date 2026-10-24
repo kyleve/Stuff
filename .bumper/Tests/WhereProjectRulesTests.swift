@@ -123,6 +123,40 @@ struct WhereProjectRulesTests {
     }
 
     @Test
+    func `Log event types stay in Where logging directories`() throws {
+        let appAllowed = try evaluate(
+            path: "Where/Where/Sources/Logging/WhereAppLog.swift",
+            component: .app,
+            source: "enum WhereAppLog {}",
+        )
+        let uiAllowed = try evaluate(
+            path: "Where/WhereUI/Sources/Logging/ScreenLog.swift",
+            component: .whereUI,
+            source: "enum ScreenLog {}",
+        )
+        let rejectedPath: RelativeFilePath =
+            "Where/WhereUI/Sources/Model/ScreenLog.swift"
+        let rejected = try evaluate(
+            path: rejectedPath,
+            component: .whereUI,
+            source: "enum ScreenLog {}",
+        )
+        let unrelatedMain = try evaluate(
+            path: "Ledger/LedgerCore/Sources/LedgerLog.swift",
+            component: .ledgerCore,
+            source: "enum LedgerLog {}",
+        )
+
+        #expect(appAllowed.violations.isEmpty)
+        #expect(uiAllowed.violations.isEmpty)
+        #expect(unrelatedMain.violations.isEmpty)
+        let violation = try #require(rejected.violations.first)
+        #expect(rejected.violations.count == 1)
+        #expect(violation.rule.id == "where.logging_type_ownership")
+        #expect(violation.path == rejectedPath)
+    }
+
+    @Test
     func `Where uses explicit Gregorian calendars`() throws {
         let intentsAllowed = try evaluate(
             path: "Where/WhereIntents/Sources/CalendarUse.swift",

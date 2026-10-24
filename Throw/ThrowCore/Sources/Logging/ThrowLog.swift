@@ -1,15 +1,11 @@
 import PeriscopeCore
 
-public struct ThrowRootLogEvent: LogEvent {
-    public static let eventName = "Throw"
+/// Root namespace for Throw's log scope tree.
+@LogScope("Throw")
+public enum ThrowRootLog {}
 
-    public var message: String {
-        ""
-    }
-}
-
-/// Process-session events for launch and durable diagnostics availability.
-public enum ThrowSessionLogEvent: LogEvent, Equatable {
+/// Semantic process-session outcomes used at Throw's injected logging boundary.
+public enum ThrowSessionLogEvent: Equatable, Sendable {
     /// The dependency boundary that prevented Throw from becoming operational.
     public enum ColdLaunchBoundary: String, CaseIterable, Codable, Equatable, Sendable {
         case preferences
@@ -37,8 +33,6 @@ public enum ThrowSessionLogEvent: LogEvent, Equatable {
     case coldLaunchFailed(boundary: ColdLaunchBoundary)
     case softwareCreditsLoadFailed
     case postLaunchOperationFailed(operation: PostLaunchOperation)
-
-    public static let eventName = "ThrowSession"
 
     public var level: LogLevel {
         switch self {
@@ -70,64 +64,9 @@ public enum ThrowSessionLogEvent: LogEvent, Equatable {
                 "Post-launch operation failed at the \(operation.rawValue) boundary"
         }
     }
-
-    public var remoteMessage: String {
-        switch self {
-            case .durableLoggingReady:
-                "Durable logging is ready"
-            case .durableLoggingUnavailable:
-                "Durable logging is unavailable"
-            case .durableLoggingHistoryPruned:
-                "Durable log history was pruned"
-            case .durableLoggingHistoryPruneFailed:
-                "Failed to prune durable log history"
-            case .coldLaunchFailed:
-                "Cold launch failed"
-            case .softwareCreditsLoadFailed:
-                "Software credits failed to load"
-            case .postLaunchOperationFailed:
-                "Post-launch operation failed"
-        }
-    }
-
-    public var remoteFields: [RemoteLogField] {
-        switch self {
-            case let .durableLoggingHistoryPruned(expiredEventCount, overflowEventCount):
-                [
-                    RemoteLogField(
-                        key: RemoteLogFieldKey("expired_event_count"),
-                        value: .count(expiredEventCount),
-                    ),
-                    RemoteLogField(
-                        key: RemoteLogFieldKey("overflow_event_count"),
-                        value: .count(overflowEventCount),
-                    ),
-                ]
-            case let .coldLaunchFailed(boundary):
-                [
-                    RemoteLogField(
-                        key: RemoteLogFieldKey("boundary"),
-                        value: .category(RemoteLogCategory(boundary)),
-                    ),
-                ]
-            case let .postLaunchOperationFailed(operation):
-                [
-                    RemoteLogField(
-                        key: RemoteLogFieldKey("operation"),
-                        value: .category(RemoteLogCategory(operation)),
-                    ),
-                ]
-            case .durableLoggingReady, .durableLoggingUnavailable,
-                 .durableLoggingHistoryPruneFailed, .softwareCreditsLoadFailed:
-                []
-        }
-    }
 }
 
 public enum AircraftPollingLogEvent: Hashable, Sendable {
-    public static let eventName = "AircraftPollingLogEvent"
-    public static let eventVersion = 3
-
     public enum Kind: String, CaseIterable, Codable, Hashable, Sendable {
         case sourceActivated = "source-activated"
         case receiverMetadataFallback = "receiver-metadata-fallback"
@@ -335,243 +274,10 @@ public enum AircraftPollingLogEvent: Hashable, Sendable {
     public var message: String {
         "Aircraft polling \(kind.rawValue) for \(source.rawValue)"
     }
-
-    public var remoteMessage: String {
-        "Aircraft polling \(kind.rawValue)"
-    }
-
-    public var remoteFields: [RemoteLogField] {
-        switch self {
-            case let .partialSchemaDrift(event):
-                [
-                    .eventKind(kind),
-                    sourceRemoteField,
-                    RemoteLogField(
-                        key: RemoteLogFieldKey("malformed_record_count"),
-                        value: .count(event.discardedRecords.malformedRecordCount),
-                    ),
-                    RemoteLogField(
-                        key: RemoteLogFieldKey("missing_position_record_count"),
-                        value: .count(event.discardedRecords.missingPositionRecordCount),
-                    ),
-                ]
-            case let .receiverMetadataFallback(event):
-                [
-                    .eventKind(kind),
-                    sourceRemoteField,
-                    RemoteLogField(
-                        key: RemoteLogFieldKey("failure_category"),
-                        value: .category(RemoteLogCategory(event.failureCategory)),
-                    ),
-                ]
-            case .sourceActivated, .requestSucceeded, .requestFailed, .retryScheduled,
-                 .pollingStopped:
-                []
-        }
-    }
-
-    private var sourceRemoteField: RemoteLogField {
-        RemoteLogField(
-            key: RemoteLogFieldKey("source"),
-            value: .category(RemoteLogCategory(source)),
-        )
-    }
-}
-
-/// Keeps the flat version-three payload stable while the in-memory event uses
-/// case-specific state. Records from the polling coordinator stay decodable with
-/// the same event name, field names, and kind vocabulary.
-extension AircraftPollingLogEvent: LogEvent {
-    private enum CodingKeys: String, CodingKey {
-        case kind
-        case source
-        case requestCount
-        case durationMilliseconds
-        case httpStatus
-        case decodedAircraftCount
-        case decodingDiagnostics
-        case backoffSeconds
-        case failureCategory
-    }
-
-    public init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let kind = try container.decode(Kind.self, forKey: .kind)
-        let source = try container.decode(AircraftSourceKind.self, forKey: .source)
-        let requestCount = try container.decode(Int.self, forKey: .requestCount)
-
-        switch kind {
-            case .sourceActivated:
-                guard requestCount == 0 else {
-                    throw DecodingError.dataCorruptedError(
-                        forKey: .requestCount,
-                        in: container,
-                        debugDescription: "Source activation must precede all requests",
-                    )
-                }
-                self = .sourceActivated(SourceActivation(source: source))
-            case .receiverMetadataFallback:
-                guard source == .readsb else {
-                    throw DecodingError.dataCorruptedError(
-                        forKey: .source,
-                        in: container,
-                        debugDescription: "Receiver metadata belongs to readsb",
-                    )
-                }
-                guard requestCount == 0 else {
-                    throw DecodingError.dataCorruptedError(
-                        forKey: .requestCount,
-                        in: container,
-                        debugDescription: "Receiver metadata fallback must precede all requests",
-                    )
-                }
-                self = try .receiverMetadataFallback(
-                    ReceiverMetadataFallback(
-                        failureCategory: container.decode(
-                            FailureCategory.self,
-                            forKey: .failureCategory,
-                        ),
-                    ),
-                )
-            case .requestSucceeded:
-                self = try .requestSucceeded(
-                    RequestSuccess(
-                        source: source,
-                        requestCount: requestCount,
-                        durationMilliseconds: container.decode(
-                            Int.self,
-                            forKey: .durationMilliseconds,
-                        ),
-                        httpStatus: container.decodeIfPresent(Int.self, forKey: .httpStatus),
-                        decodedAircraftCount: container.decode(
-                            Int.self,
-                            forKey: .decodedAircraftCount,
-                        ),
-                    ),
-                )
-            case .partialSchemaDrift:
-                let diagnostics = try container.decode(
-                    AircraftSnapshotDecodingDiagnostics.self,
-                    forKey: .decodingDiagnostics,
-                )
-                guard let discardedRecords = diagnostics.discardedRecords else {
-                    throw DecodingError.dataCorruptedError(
-                        forKey: .decodingDiagnostics,
-                        in: container,
-                        debugDescription: "Partial schema drift must discard a record",
-                    )
-                }
-                self = try .partialSchemaDrift(
-                    PartialSchemaDrift(
-                        source: source,
-                        requestCount: requestCount,
-                        httpStatus: container.decodeIfPresent(Int.self, forKey: .httpStatus),
-                        decodedAircraftCount: container.decode(
-                            Int.self,
-                            forKey: .decodedAircraftCount,
-                        ),
-                        discardedRecords: discardedRecords,
-                    ),
-                )
-            case .requestFailed:
-                self = try .requestFailed(
-                    RequestFailure(
-                        source: source,
-                        requestCount: requestCount,
-                        durationMilliseconds: container.decode(
-                            Int.self,
-                            forKey: .durationMilliseconds,
-                        ),
-                        httpStatus: container.decodeIfPresent(Int.self, forKey: .httpStatus),
-                        failureCategory: container.decode(
-                            FailureCategory.self,
-                            forKey: .failureCategory,
-                        ),
-                    ),
-                )
-            case .retryScheduled:
-                self = try .retryScheduled(
-                    RetrySchedule(
-                        source: source,
-                        requestCount: requestCount,
-                        httpStatus: container.decodeIfPresent(Int.self, forKey: .httpStatus),
-                        decodedAircraftCount: container.decodeIfPresent(
-                            Int.self,
-                            forKey: .decodedAircraftCount,
-                        ),
-                        backoffSeconds: container.decode(
-                            Double.self,
-                            forKey: .backoffSeconds,
-                        ),
-                        failureCategory: container.decode(
-                            FailureCategory.self,
-                            forKey: .failureCategory,
-                        ),
-                    ),
-                )
-            case .pollingStopped:
-                self = try .pollingStopped(
-                    PollingStop(
-                        source: source,
-                        requestCount: requestCount,
-                        decodedAircraftCount: container.decodeIfPresent(
-                            Int.self,
-                            forKey: .decodedAircraftCount,
-                        ),
-                    ),
-                )
-        }
-    }
-
-    public func encode(to encoder: any Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(kind, forKey: .kind)
-        try container.encode(source, forKey: .source)
-        try container.encode(requestCount, forKey: .requestCount)
-
-        switch self {
-            case .sourceActivated:
-                break
-            case let .receiverMetadataFallback(event):
-                try container.encode(event.failureCategory, forKey: .failureCategory)
-            case let .requestSucceeded(event):
-                try container.encode(event.durationMilliseconds, forKey: .durationMilliseconds)
-                try container.encodeIfPresent(event.httpStatus, forKey: .httpStatus)
-                try container.encode(event.decodedAircraftCount, forKey: .decodedAircraftCount)
-            case let .partialSchemaDrift(event):
-                try container.encodeIfPresent(event.httpStatus, forKey: .httpStatus)
-                try container.encode(event.decodedAircraftCount, forKey: .decodedAircraftCount)
-                try container.encode(
-                    AircraftSnapshotDecodingDiagnostics(
-                        malformedRecordCount: event.discardedRecords.malformedRecordCount,
-                        missingPositionRecordCount: event.discardedRecords
-                            .missingPositionRecordCount,
-                    ),
-                    forKey: .decodingDiagnostics,
-                )
-            case let .requestFailed(event):
-                try container.encode(event.durationMilliseconds, forKey: .durationMilliseconds)
-                try container.encodeIfPresent(event.httpStatus, forKey: .httpStatus)
-                try container.encode(event.failureCategory, forKey: .failureCategory)
-            case let .retryScheduled(event):
-                try container.encodeIfPresent(event.httpStatus, forKey: .httpStatus)
-                try container.encodeIfPresent(
-                    event.decodedAircraftCount,
-                    forKey: .decodedAircraftCount,
-                )
-                try container.encode(event.backoffSeconds, forKey: .backoffSeconds)
-                try container.encode(event.failureCategory, forKey: .failureCategory)
-            case let .pollingStopped(event):
-                try container.encodeIfPresent(
-                    event.decodedAircraftCount,
-                    forKey: .decodedAircraftCount,
-                )
-        }
-    }
 }
 
 /// A redacted failure loading Throw's bundled geographic archive.
-public struct GeographyLogEvent: LogEvent {
+public struct GeographyLogEvent: Equatable, Sendable {
     public enum FailureCategory: String, CaseIterable, Codable, Hashable, Sendable {
         case resourceMissing = "resource-missing"
         case invalidArchive = "invalid-archive"
@@ -591,14 +297,10 @@ public struct GeographyLogEvent: LogEvent {
     public var message: String {
         "Bundled geography load failed: \(failureCategory.rawValue)"
     }
-
-    public var remoteMessage: String {
-        "Bundled geography load failed"
-    }
 }
 
 /// A redacted outcome from optional flight-route enrichment.
-public struct FlightRouteLogEvent: LogEvent {
+public struct FlightRouteLogEvent: Equatable, Sendable {
     public enum Outcome: String, CaseIterable, Codable, Hashable, Sendable {
         case succeeded
         case providerFailed = "provider-failed"
@@ -619,14 +321,10 @@ public struct FlightRouteLogEvent: LogEvent {
     public var message: String {
         "Flight route enrichment \(outcome.rawValue)"
     }
-
-    public var remoteMessage: String {
-        message
-    }
 }
 
 /// A privacy-safe aggregate sample of the projection motion pipeline.
-public struct ProjectionMotionLogEvent: LogEvent, Equatable {
+public struct ProjectionMotionLogEvent: Equatable, Sendable {
     public let framesPerSecond: Double
     public let aircraftCount: Int
     public let usableHorizontalMotionPercent: Double?
@@ -663,46 +361,318 @@ public struct ProjectionMotionLogEvent: LogEvent, Equatable {
     public var message: String {
         "Projection motion aggregate"
     }
+}
 
-    public var remoteMessage: String {
-        message
+@LogScope("ThrowSession")
+enum ThrowSessionLog {
+    @LogEvent("durable-logging-ready", level: .info, message: "Durable logging is ready")
+    struct DurableLoggingReady {}
+
+    @LogEvent("durable-logging-unavailable", level: .error)
+    struct DurableLoggingUnavailable {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+
+        var message: String {
+            "Durable logging is unavailable: \(error.description)"
+        }
+    }
+
+    @LogEvent("durable-logging-history-pruned", level: .info)
+    struct DurableLoggingHistoryPruned {
+        @LogField(exposure: .shareable, kind: .count)
+        var expiredEventCount: Int
+
+        @LogField(exposure: .shareable, kind: .count)
+        var overflowEventCount: Int
+
+        var message: String {
+            "Pruned \(expiredEventCount) expired log event(s) and \(overflowEventCount) event(s) past the size limit"
+        }
+    }
+
+    @LogEvent("durable-logging-history-prune-failed", level: .warning)
+    struct DurableLoggingHistoryPruneFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+
+        var message: String {
+            "Failed to prune durable log history: \(error.description)"
+        }
+    }
+
+    @LogEvent("cold-launch-failed", level: .error)
+    struct ColdLaunchFailed {
+        @LogField(exposure: .shareable, kind: .category)
+        var boundary: ThrowSessionLogEvent.ColdLaunchBoundary
+
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+
+        var message: String {
+            "Cold launch failed at the \(boundary.rawValue) boundary"
+        }
+    }
+
+    @LogEvent("software-credits-load-failed", level: .error)
+    struct SoftwareCreditsLoadFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+
+        var message: String {
+            "Software credits failed to load"
+        }
+    }
+
+    @LogEvent("post-launch-operation-failed", level: .error)
+    struct PostLaunchOperationFailed {
+        @LogField(exposure: .shareable, kind: .category)
+        var operation: ThrowSessionLogEvent.PostLaunchOperation
+
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+
+        var message: String {
+            "Post-launch operation failed at the \(operation.rawValue) boundary"
+        }
+    }
+}
+
+@LogScope("AircraftPollingLogEvent")
+public enum AircraftPollingLog {
+    @LogEvent("source-activated")
+    struct SourceActivated {
+        @LogField(exposure: .restricted, kind: .category)
+        var source: AircraftSourceKind
+
+        var message: String {
+            "Aircraft polling source-activated for \(source.rawValue)"
+        }
+    }
+
+    @LogEvent("receiver-metadata-fallback", level: .warning)
+    struct ReceiverMetadataFallback {
+        @LogField(exposure: .shareable, kind: .category)
+        var source: AircraftSourceKind
+
+        @LogField(exposure: .shareable, kind: .category)
+        var failureCategory: AircraftPollingLogEvent.FailureCategory
+
+        var message: String {
+            "Aircraft polling receiver-metadata-fallback for \(source.rawValue)"
+        }
+    }
+
+    @LogEvent("request-succeeded")
+    struct RequestSucceeded {
+        @LogField(exposure: .restricted, kind: .category)
+        var source: AircraftSourceKind
+
+        @LogField(exposure: .restricted, kind: .count)
+        var requestCount: Int
+
+        @LogField(exposure: .restricted, kind: .duration)
+        var durationMilliseconds: Int
+
+        @LogField(exposure: .restricted, kind: .technicalState)
+        var httpStatus: Int?
+
+        @LogField(exposure: .restricted, kind: .count)
+        var decodedAircraftCount: Int
+
+        var message: String {
+            "Aircraft polling request-succeeded for \(source.rawValue)"
+        }
+    }
+
+    @LogEvent("partial-schema-drift", level: .warning)
+    struct PartialSchemaDrift {
+        @LogField(exposure: .shareable, kind: .category)
+        var source: AircraftSourceKind
+
+        @LogField(exposure: .restricted, kind: .count)
+        var requestCount: Int
+
+        @LogField(exposure: .restricted, kind: .technicalState)
+        var httpStatus: Int?
+
+        @LogField(exposure: .restricted, kind: .count)
+        var decodedAircraftCount: Int
+
+        @LogField(exposure: .shareable, kind: .count)
+        var malformedRecordCount: Int
+
+        @LogField(exposure: .shareable, kind: .count)
+        var missingPositionRecordCount: Int
+
+        var message: String {
+            "Aircraft polling partial-schema-drift for \(source.rawValue)"
+        }
+    }
+
+    @LogEvent("request-failed", level: .warning)
+    struct RequestFailed {
+        @LogField(exposure: .restricted, kind: .category)
+        var source: AircraftSourceKind
+
+        @LogField(exposure: .restricted, kind: .count)
+        var requestCount: Int
+
+        @LogField(exposure: .restricted, kind: .duration)
+        var durationMilliseconds: Int
+
+        @LogField(exposure: .restricted, kind: .technicalState)
+        var httpStatus: Int?
+
+        @LogField(exposure: .restricted, kind: .category)
+        var failureCategory: AircraftPollingLogEvent.FailureCategory
+
+        var message: String {
+            "Aircraft polling request-failed for \(source.rawValue)"
+        }
+    }
+
+    @LogEvent("retry-scheduled", level: .warning)
+    struct RetryScheduled {
+        @LogField(exposure: .restricted, kind: .category)
+        var source: AircraftSourceKind
+
+        @LogField(exposure: .restricted, kind: .count)
+        var requestCount: Int
+
+        @LogField(exposure: .restricted, kind: .technicalState)
+        var httpStatus: Int?
+
+        @LogField(exposure: .restricted, kind: .count)
+        var decodedAircraftCount: Int?
+
+        @LogField(exposure: .restricted, kind: .duration)
+        var backoffSeconds: Double
+
+        @LogField(exposure: .restricted, kind: .category)
+        var failureCategory: AircraftPollingLogEvent.FailureCategory
+
+        var message: String {
+            "Aircraft polling retry-scheduled for \(source.rawValue)"
+        }
+    }
+
+    @LogEvent("polling-stopped")
+    struct PollingStopped {
+        @LogField(exposure: .restricted, kind: .category)
+        var source: AircraftSourceKind
+
+        @LogField(exposure: .restricted, kind: .count)
+        var requestCount: Int
+
+        @LogField(exposure: .restricted, kind: .count)
+        var decodedAircraftCount: Int?
+
+        var message: String {
+            "Aircraft polling polling-stopped for \(source.rawValue)"
+        }
+    }
+}
+
+@LogScope("GeographyLogEvent")
+public enum GeographyLog {
+    @LogEvent("load-failed", level: .error)
+    struct LoadFailed {
+        @LogField(exposure: .restricted, kind: .category)
+        var failureCategory: GeographyLogEvent.FailureCategory
+
+        var message: String {
+            "Bundled geography load failed: \(failureCategory.rawValue)"
+        }
+    }
+}
+
+@LogScope("FlightRouteLogEvent")
+public enum FlightRouteLog {
+    @LogEvent("enrichment-finished")
+    struct EnrichmentFinished {
+        @LogField(exposure: .shareable, kind: .category)
+        var outcome: FlightRouteLogEvent.Outcome
+
+        var level: LogLevel {
+            outcome == .succeeded ? .info : .warning
+        }
+
+        var message: String {
+            "Flight route enrichment \(outcome.rawValue)"
+        }
+    }
+}
+
+@LogScope("ProjectionMotionLogEvent")
+public enum ProjectionMotionLog {
+    @LogEvent("aggregate", level: .info, message: "Projection motion aggregate")
+    struct Aggregate {
+        @LogField(exposure: .restricted, kind: .domainValue)
+        var framesPerSecond: Double
+
+        @LogField(exposure: .restricted, kind: .count)
+        var aircraftCount: Int
+
+        @LogField(exposure: .restricted, kind: .domainValue)
+        var usableHorizontalMotionPercent: Double?
+
+        @LogField(exposure: .restricted, kind: .domainValue)
+        var positionDerivedMotionPercent: Double?
+
+        @LogField(exposure: .restricted, kind: .duration)
+        var meanSampleAgeSeconds: Double?
+
+        @LogField(exposure: .restricted, kind: .domainValue)
+        var meanProjectedSpeedPerSecond: Double?
+
+        @LogField(exposure: .restricted, kind: .domainValue)
+        var meanCorrectionDistance: Double?
+
+        @LogField(exposure: .restricted, kind: .domainValue)
+        var previousSnapshotRetainedPercent: Double?
     }
 }
 
 public enum ThrowLog {
-    public static let root = Log<ThrowRootLogEvent>(system: .shared)
-    public static let aircraft = root(AircraftPollingLogEvent.self)
-    public static let geography = root(GeographyLogEvent.self)
-    public static let flightRoutes = root(FlightRouteLogEvent.self)
-    public static let projectionMotion = root(ProjectionMotionLogEvent.self)
+    public static let root = Log<ThrowRootLog>(system: .shared)
+    public static let aircraft = root(AircraftPollingLog.self)
+    public static let geography = root(GeographyLog.self)
+    public static let flightRoutes = root(FlightRouteLog.self)
+    public static let projectionMotion = root(ProjectionMotionLog.self)
 
     static func recordColdLaunchFailure(
         at boundary: ThrowSessionLogEvent.ColdLaunchBoundary,
         error: any Error,
-        using logger: Log<ThrowSessionLogEvent>,
+        using logger: Log<ThrowSessionLog>,
     ) {
-        logger(attachments: [.error(error, name: "launch-error")]) {
-            .coldLaunchFailed(boundary: boundary)
-        }
+        logger.coldLaunchFailed(
+            boundary: .shared(.category, boundary),
+            error: .restricted(.errorDetails, error),
+            attachments: [.error(error, name: "launch-error")],
+        )
     }
 
     static func recordSoftwareCreditsLoadFailure(
         _ failure: ThrowSoftwareCreditsLoadFailure,
-        using logger: Log<ThrowSessionLogEvent>,
+        using logger: Log<ThrowSessionLog>,
     ) {
-        logger(attachments: [failure.attachment]) {
-            .softwareCreditsLoadFailed
-        }
+        logger.softwareCreditsLoadFailed(
+            error: .restricted(.errorDetails, failure.error),
+            attachments: [failure.attachment],
+        )
     }
 
     static func recordPostLaunchFailure(
         at operation: ThrowSessionLogEvent.PostLaunchOperation,
         error: any Error,
-        using logger: Log<ThrowSessionLogEvent>,
+        using logger: Log<ThrowSessionLog>,
     ) {
-        logger(attachments: [.error(error, name: "operation-error")]) {
-            .postLaunchOperationFailed(operation: operation)
-        }
+        logger.postLaunchOperationFailed(
+            operation: .shared(.category, operation),
+            error: .restricted(.errorDetails, error),
+            attachments: [.error(error, name: "operation-error")],
+        )
     }
 }
 
@@ -739,14 +709,76 @@ public protocol AircraftPollingLogging: Sendable {
 }
 
 public struct PeriscopeAircraftPollingLogger: AircraftPollingLogging {
-    private let log: Log<AircraftPollingLogEvent>
+    private let log: Log<AircraftPollingLog>
 
-    public init(log: Log<AircraftPollingLogEvent>) {
+    public init(log: Log<AircraftPollingLog>) {
         self.log = log
     }
 
     public func record(_ event: AircraftPollingLogEvent) {
-        log { event }
+        switch event {
+            case let .sourceActivated(event):
+                log.sourceActivated(
+                    source: .restricted(.category, event.source),
+                )
+            case let .receiverMetadataFallback(event):
+                log.receiverMetadataFallback(
+                    source: .shared(.category, .readsb),
+                    failureCategory: .shared(.category, event.failureCategory),
+                )
+            case let .requestSucceeded(event):
+                log.requestSucceeded(
+                    source: .restricted(.category, event.source),
+                    requestCount: .restricted(.count, event.requestCount),
+                    durationMilliseconds: .restricted(
+                        .duration,
+                        event.durationMilliseconds,
+                    ),
+                    httpStatus: .restricted(.technicalState, event.httpStatus),
+                    decodedAircraftCount: .restricted(.count, event.decodedAircraftCount),
+                )
+            case let .partialSchemaDrift(event):
+                log.partialSchemaDrift(
+                    source: .shared(.category, event.source),
+                    requestCount: .restricted(.count, event.requestCount),
+                    httpStatus: .restricted(.technicalState, event.httpStatus),
+                    decodedAircraftCount: .restricted(.count, event.decodedAircraftCount),
+                    malformedRecordCount: .shared(
+                        .count,
+                        event.discardedRecords.malformedRecordCount,
+                    ),
+                    missingPositionRecordCount: .shared(
+                        .count,
+                        event.discardedRecords.missingPositionRecordCount,
+                    ),
+                )
+            case let .requestFailed(event):
+                log.requestFailed(
+                    source: .restricted(.category, event.source),
+                    requestCount: .restricted(.count, event.requestCount),
+                    durationMilliseconds: .restricted(
+                        .duration,
+                        event.durationMilliseconds,
+                    ),
+                    httpStatus: .restricted(.technicalState, event.httpStatus),
+                    failureCategory: .restricted(.category, event.failureCategory),
+                )
+            case let .retryScheduled(event):
+                log.retryScheduled(
+                    source: .restricted(.category, event.source),
+                    requestCount: .restricted(.count, event.requestCount),
+                    httpStatus: .restricted(.technicalState, event.httpStatus),
+                    decodedAircraftCount: .restricted(.count, event.decodedAircraftCount),
+                    backoffSeconds: .restricted(.duration, event.backoffSeconds),
+                    failureCategory: .restricted(.category, event.failureCategory),
+                )
+            case let .pollingStopped(event):
+                log.pollingStopped(
+                    source: .restricted(.category, event.source),
+                    requestCount: .restricted(.count, event.requestCount),
+                    decodedAircraftCount: .restricted(.count, event.decodedAircraftCount),
+                )
+        }
     }
 }
 
@@ -761,14 +793,16 @@ public protocol GeographyLogging: Sendable {
 }
 
 public struct PeriscopeGeographyLogger: GeographyLogging {
-    private let log: Log<GeographyLogEvent>
+    private let log: Log<GeographyLog>
 
-    public init(log: Log<GeographyLogEvent>) {
+    public init(log: Log<GeographyLog>) {
         self.log = log
     }
 
     public func record(_ event: GeographyLogEvent) {
-        log { event }
+        log.loadFailed(
+            failureCategory: .restricted(.category, event.failureCategory),
+        )
     }
 }
 
@@ -783,14 +817,16 @@ public protocol FlightRouteLogging: Sendable {
 }
 
 public struct PeriscopeFlightRouteLogger: FlightRouteLogging {
-    private let log: Log<FlightRouteLogEvent>
+    private let log: Log<FlightRouteLog>
 
-    public init(log: Log<FlightRouteLogEvent>) {
+    public init(log: Log<FlightRouteLog>) {
         self.log = log
     }
 
     public func record(_ event: FlightRouteLogEvent) {
-        log { event }
+        log.enrichmentFinished(
+            outcome: .shared(.category, event.outcome),
+        )
     }
 }
 
@@ -805,14 +841,38 @@ public protocol ProjectionMotionLogging: Sendable {
 }
 
 public struct PeriscopeProjectionMotionLogger: ProjectionMotionLogging {
-    private let log: Log<ProjectionMotionLogEvent>
+    private let log: Log<ProjectionMotionLog>
 
-    public init(log: Log<ProjectionMotionLogEvent>) {
+    public init(log: Log<ProjectionMotionLog>) {
         self.log = log
     }
 
     public func record(_ event: ProjectionMotionLogEvent) {
-        log { event }
+        log.aggregate(
+            framesPerSecond: .restricted(.domainValue, event.framesPerSecond),
+            aircraftCount: .restricted(.count, event.aircraftCount),
+            usableHorizontalMotionPercent: .restricted(
+                .domainValue,
+                event.usableHorizontalMotionPercent,
+            ),
+            positionDerivedMotionPercent: .restricted(
+                .domainValue,
+                event.positionDerivedMotionPercent,
+            ),
+            meanSampleAgeSeconds: .restricted(.duration, event.meanSampleAgeSeconds),
+            meanProjectedSpeedPerSecond: .restricted(
+                .domainValue,
+                event.meanProjectedSpeedPerSecond,
+            ),
+            meanCorrectionDistance: .restricted(
+                .domainValue,
+                event.meanCorrectionDistance,
+            ),
+            previousSnapshotRetainedPercent: .restricted(
+                .domainValue,
+                event.previousSnapshotRetainedPercent,
+            ),
+        )
     }
 }
 

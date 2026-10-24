@@ -17,6 +17,11 @@ let throwProjectRules = RuleSet {
         allowed: .files([throwLayerFrameErasurePath]),
         id: "throw.layer_frame_erasure_ownership",
     )
+    Rules.singleNominalSpelling(
+        suffix: "Log",
+        owner: throwLoggingScope.union(nonThrowProductionScope),
+        id: "throw.logging_type_ownership",
+    )
     throwProjectedFrameErasureRule
     throwTypedProjectionFamiliesRule
     throwLiveDependencyCompositionRule
@@ -42,6 +47,15 @@ private let throwProductionScope = RuleScope
     .component(ThrowComponent.throwCore)
     .union(.component(ThrowComponent.throwUI))
     .union(.component(ThrowComponent.throwApp))
+
+private let nonThrowProductionScope = RuleScope { file in
+    !throwProductionScope.includes(file)
+}
+
+private let throwLoggingScope = RuleScope
+    .under("Throw/Throw/Sources/Logging")
+    .union(.under("Throw/ThrowCore/Sources/Logging"))
+    .union(.under("Throw/ThrowUI/Sources/Logging"))
 
 private let throwLiveDependencyNames: Set<String> = [
     "AircraftPollingCoordinator",

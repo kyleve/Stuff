@@ -24,6 +24,21 @@ struct ThrowArchitectureTests {
         #expect(report.violations.isEmpty)
     }
 
+    @Test func coreCanImportPeriscope() throws {
+        let report = try bumper.evaluate(
+            RepositoryInput(
+                architecture: bumper.architecture,
+                files: [SourceInput(
+                    path: "Throw/ThrowCore/Sources/Worker.swift",
+                    component: ComponentID(ThrowComponent.throwCore.rawValue),
+                    source: "import PeriscopeCore\nstruct Worker {}",
+                )],
+            ),
+        )
+
+        #expect(report.violations.isEmpty)
+    }
+
     @Test func coreCannotImportUIFrameworks() throws {
         let report = try bumper.evaluate(
             RepositoryInput(

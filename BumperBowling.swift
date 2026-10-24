@@ -17,6 +17,7 @@ enum WhereComponent: String, ComponentKey {
 }
 
 enum ThrowComponent: String, ComponentKey {
+    case periscope
     case throwCore
     case throwUI
     case throwApp
@@ -185,6 +186,7 @@ let bumper = BumperProject {
         Component(.throwCore) {
             Owns("Throw/ThrowCore/Sources")
             Modules("ThrowCore")
+            MayDependOn(.periscope)
             Applies(.throwCoreLayer)
             DoesNotUse("LifecycleKit")
         }
@@ -208,7 +210,6 @@ let bumper = BumperProject {
     Rules {
         ApplyAssertions(.whereArchitecture)
         ApplyAssertions(.throwArchitecture)
-        repositoryProjectRules
         whereProjectRules
         periscopeAuthoringRules
         throwProjectRules

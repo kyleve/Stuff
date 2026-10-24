@@ -49,8 +49,11 @@ one second and emits a separate warning event. Source activation remains
 informational.
 `AircraftPollingCadence` validates that each configured cadence is positive.
 It keeps fractional receiver cadences intact until the polling-clock boundary.
-Aircraft polling log events use case-specific payloads. Their flat version-three
-wire keys and kind values stay stable for existing Periscope records.
+Aircraft polling semantic events use case-specific payloads. Those values stay
+inside the injected logging boundary.
+`PeriscopeAircraftPollingLogger` exhaustively maps each case to a concrete
+`AircraftPollingLog` event. Generated event IDs and explicit field
+classifications define the stored and exportable payload.
 Source configuration carries no credential value or credential ID. Each paid
 provider selects its fixed Keychain slot through `AircraftCredentialID`.
 `AircraftSourceValidationDraft` is the temporary setup boundary. Only its paid
