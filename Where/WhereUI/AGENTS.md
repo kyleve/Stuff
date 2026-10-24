@@ -119,6 +119,8 @@ Layering, localization, preview, and testing conventions live in the feature
 - Keep calendar flight days and timeline flight events independent of review dismissal.
   Show uncertain arrival timing explicitly. Render supported travel periods separately from later ground observations.
   Split timeline stays only for presentation; preserve every region-day exactly once.
+  Keep a stay intact when departure falls on its final day. Guard: `PresenceJourneyItemTests`.
+  Split longer displayed stays at another visit's interior start day. Keep shared days in each region exactly once.
 - Keep the raw GPS path visible in correction reviews after samples lose attribution.
   Bound display geometry without changing the evidence or edits. Never join separate recording devices into one route.
 - Route automatic GPS fixes through Core's sample-correction coordinator. Keep
@@ -194,7 +196,11 @@ Layering, localization, preview, and testing conventions live in the feature
   and membership changes quietly.
 - Keep settled Location cards in displayed rank source order. Use each card's
   `Region` for the `ForEach` and ranking-layout identity.
-- Use only `RegionRanking.primary` silhouettes in the estimate-panel microprint,
+- Keep the collapsible Locations estimate on its summary surface in both expansion states.
+  `LocationForecastSummary` owns expansion; share its expanded rows and planning controls through
+  `LocationForecastContent`. `LocationForecastPanel` always shows that content without collapse state.
+  Calendar, Timeline, and discovery panels retain the detailed passport surface.
+- Use only `RegionRanking.primary` silhouettes in the estimate-panel microprint and summary watermarks,
   even when the panel shows a third forecast or a focused secondary region.
 - Give each ranked card an independent `GlassEffectContainer`. Apply ranking
   and overtake motion outside the complete link and card surface.
@@ -248,8 +254,9 @@ worked examples.
   Resolve theme and accessibility choices in the owning `WhereStylesheet`
   component style. Views consume that style without checking the selected theme.
   Reuse `matteSurface` for Flat's opaque fills, visible strokes, and restrained
-  shadows. Use a subtle tint for pressed feedback. Exclude glass, reflections,
-  and luminous glows from Flat's view hierarchy. Observe tilt only while a
+  shadows. Keep the matte outline fully outside the clipped surface without changing
+  layout or hit bounds. Use a subtle tint for pressed feedback. Exclude glass,
+  reflections and luminous glows from Flat's view hierarchy. Observe tilt only while a
   visible surface needs sheen. Preserve artwork and informational gradients.
   Keep system chrome native and widget/snippet surfaces lightweight.
   Guard: `WhereStylesheetSurfaceTreatmentTests`.

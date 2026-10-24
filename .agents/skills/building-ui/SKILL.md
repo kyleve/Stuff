@@ -150,6 +150,20 @@ See the WhereUI [design-system guide](../../../Where/WhereUI/README.md#design-sy
 for the fullest production example and PeriscopeTools/Flyover for smaller
 module-owned stylesheets.
 
+## Blend subtle card outlines with their surroundings
+
+- For subtle outlines that separate glass or matte cards from their background, place the
+  entire stroke outside the surface. Apply it after clipping the fill and
+  artwork so the stroke remains visible without changing layout or hit bounds.
+- Use a translucent stroke color so the surrounding background shows through.
+  For a neutral dark outline, use black with low opacity instead of solid gray.
+  Keep color, opacity, and width in the owning stylesheet; preserve required contrast.
+- In SwiftUI, `strokeBorder` draws inward and `stroke` straddles the edge.
+  To draw fully outside an insettable shape, use
+  `shape.inset(by: -width).strokeBorder(color, lineWidth: width)`.
+- Check the outline against the actual surrounding colors in each supported theme and
+  light/dark appearances. Inspect corners and clipping as well as straight edges.
+
 ## Build with Liquid Glass
 
 Apply these rules only when the resolved component style uses glass.

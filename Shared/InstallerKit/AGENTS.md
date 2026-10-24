@@ -19,7 +19,8 @@ The [repository rules](../../AGENTS.md) apply.
   Show complete notes only when every retained predecessor connects to the installed revision.
 - Keep signed build details optional for older feeds. Validate present metadata before caching or presenting it.
 - Cache reuse must not supersede a network request. Cancelled or superseded reads
-  must not replace the last successful catalog or model state.
+  must not replace the last successful catalog or model state. Treat `URLError.cancelled`
+  as cancellation even when the calling Swift task remains active. Guard: `UpdateModelTests.cancelledTransportPreservesStateAndAllowsRetry`.
 - Preserve HTTP status codes and distinguish response-policy failures. Pass transport and feed errors through to the UI reporting boundary. Guard: `UpdateClientTests`.
 
 Guards: `UpdateCatalogTests`, `UpdateServiceTests`, and `UpdateModelTests`.
