@@ -5,7 +5,7 @@ import SwiftUI
 struct UpdateBrowserPage<Content: View>: View {
     let model: UpdateModel
     @ViewBuilder let content: Content
-    @State private var manualCheck: Task<Void, Never>?
+    @State private var refresh = UpdatePageRefresh()
 
     var body: some View {
         UpdatePageLayout {
@@ -21,17 +21,13 @@ struct UpdateBrowserPage<Content: View>: View {
                     .frame(maxWidth: .infinity)
             }
             UpdateCheckButton(isChecking: model.isChecking) {
-                manualCheck?.cancel()
-                manualCheck = Task { await model.refresh(force: true) }
+                refresh.start(model: model)
             }
         }
         .navigationBarTitleDisplayMode(.inline)
         .task { await model.refresh(force: false) }
-        .refreshable { await model.refresh(force: true) }
-        .onDisappear {
-            manualCheck?.cancel()
-            manualCheck = nil
-        }
+        .refreshable { await refresh.start(model: model).value }
+        .onDisappear { refresh.cancel() }
     }
 }
 
