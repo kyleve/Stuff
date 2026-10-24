@@ -38,6 +38,7 @@ Guards: `signing_workflow_test.rb`, `signing_state_test.rb`, and `test_signing_p
   absence of merge conflicts before signing or publishing. Recheck the live SHA and label
   before publishing or retiring. Serialize mutations per app and channel.
   Manual PR dispatches must retain the label gate and share event-driven PR concurrency groups.
+  Pass the planned source SHA through archive and publication. Recheck live PR state for freshness without replacing that SHA.
 - Advertise updates only after GitHub publishes the verified IPA. Never overwrite a
   published asset. Accept temporary draft asset URLs only under the expected repository.
   Verify the same asset's identity, size, digest, and canonical URL after publication before returning its install URL.

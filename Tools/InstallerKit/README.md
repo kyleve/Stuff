@@ -202,6 +202,8 @@ gh workflow run installer-distribution.yml --ref main -f pull_request=295
 ```
 
 Manual PR requests use the live head and retain the same eligibility checks and per-app concurrency groups.
+Planning selects the source commit once. Publication validates the IPA against that commit.
+If the PR advances or loses eligibility, publication skips the build.
 Leave `pull_request` empty to publish `main`.
 
 Serialize each app's channel mutations. Recheck the live head, label, state, and mergeability before publication.

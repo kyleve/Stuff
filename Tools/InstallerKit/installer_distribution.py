@@ -173,21 +173,43 @@ def finish(plan: Plan, repository: str, ipa: Optional[Path], fetch, service, ide
                                "bundleVersion": version, "buildDetails": details})
 
 
-def event_plan(event_name, event, repository, ref, sha, fetch):
-    """Manual PR requests resolve live source while retaining the installable-label gate."""
+def manual_pr_number(event_name, event):
     number = (event.get("inputs") or {}).get("pull_request", "") if event_name == "workflow_dispatch" else ""
     if number == "":
-        return select_plan(event_name, event, repository, ref, sha)
+        return None
     if not isinstance(number, str) or not re.fullmatch(r"[1-9][0-9]*", number):
         raise ValueError("Manual PR number must be a positive integer")
+    return int(number)
+
+
+def event_plan(event_name, event, repository, ref, sha, fetch):
+    """Manual PR requests resolve live source while retaining the installable-label gate."""
+    number = manual_pr_number(event_name, event)
+    if number is None:
+        return select_plan(event_name, event, repository, ref, sha)
     # Validate repository/ref before using a user-supplied number in an API request.
     if select_plan(event_name, event, repository, ref, sha) is None:
         return None
     pr = fetch(f"repos/{repository}/pulls/{number}")
     if not eligible(pr, repository):
         raise ValueError("Manual PR publication requires an open same-repository PR labeled installable")
-    return select_plan("pull_request_target", {"repository": event["repository"], "number": int(number),
+    return select_plan("pull_request_target", {"repository": event["repository"], "number": number,
                                                "action": "synchronize", "pull_request": pr}, repository, ref, sha)
+
+
+def completion_plan(event_name, event, repository, ref, sha, source_sha):
+    """Retain the planned source; finish checks live eligibility without replacing its identity."""
+    number = manual_pr_number(event_name, event)
+    selected = select_plan(event_name, event, repository, ref, sha)
+    if number is None:
+        if isinstance(selected, Publication) and source_sha is not None and source_sha != selected.sha:
+            raise ValueError("Planned source SHA does not match the event")
+        return selected
+    if selected is None:
+        return None
+    if not isinstance(source_sha, str) or not re.fullmatch(r"[0-9a-f]{40}", source_sha):
+        raise ValueError("Manual PR completion requires the exact planned --source-sha")
+    return Publication(source_sha, number)
 
 
 def source_available(app, plan, repository, fetch):
@@ -210,6 +232,7 @@ def main(argv=None):
     parser.add_argument("--repository", required=True)
     parser.add_argument("--ref", required=True)
     parser.add_argument("--sha", required=True)
+    parser.add_argument("--source-sha", help="Source SHA emitted by plan; required for manual PR completion")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--ipa", type=Path)
     parser.add_argument("--receipt", type=Path)
@@ -217,11 +240,13 @@ def main(argv=None):
     parser.add_argument("--attempt")
     parser.add_argument("--feed-url")
     args = parser.parse_args(argv)
+    if args.command == "plan" and args.source_sha is not None:
+        parser.error("--source-sha is only valid for finish")
     try:
         app = load_app(args.app)
-        plan = event_plan(args.event_name, json.loads(args.event.read_text()),
-                          args.repository, args.ref, args.sha, github_fetch)
+        event = json.loads(args.event.read_text())
         if args.command == "plan":
+            plan = event_plan(args.event_name, event, args.repository, args.ref, args.sha, github_fetch)
             if not is_current(plan, args.repository, github_fetch):
                 plan = None
             if not source_available(app, plan, args.repository, github_fetch):
@@ -235,6 +260,7 @@ def main(argv=None):
                     destination.write(output)
             print(output, end="")
         else:
+            plan = completion_plan(args.event_name, event, args.repository, args.ref, args.sha, args.source_sha)
             identifier = None
             if args.receipt and isinstance(plan, Publication):
                 if args.ipa is None:
