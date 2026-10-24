@@ -7,6 +7,17 @@ import UIKit
 
 @MainActor
 struct UpdateBrowserViewTests {
+    @Test func pullRefreshFetchesDespiteCachedResult() async throws {
+        let fixture = UpdatePageRefreshFixture()
+        let host = UIHostingController(rootView: UpdateBrowserView(
+            model: fixture.model,
+            branding: InstallerPreview.branding,
+        ))
+        try await show(host) { _ in
+            try await fixture.checkRefresh(in: host)
+        }
+    }
+
     @Test(arguments: [false, true])
     func channelHistoryAndOlderBuildRoutesReturnAndReenterWithTheSameModel(isLocal: Bool) throws {
         let client = UpdatePageClient(catalog: InstallerBrowserPreview.catalog(.available))

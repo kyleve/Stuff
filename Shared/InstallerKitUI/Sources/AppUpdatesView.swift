@@ -44,7 +44,7 @@ private struct UpdatePage<SectionDecoration: ViewModifier>: View {
     let model: UpdateModel
     let branding: AppUpdateBranding
     let sectionDecoration: (AppUpdatesSection) -> SectionDecoration
-    @State private var manualCheck: Task<Void, Never>?
+    @State private var refresh = UpdatePageRefresh()
     @State private var isBrowsingBuilds = false
     @Environment(\.installerStylesheet) private var stylesheet
 
@@ -70,18 +70,15 @@ private struct UpdatePage<SectionDecoration: ViewModifier>: View {
                 UpdateFailureCard(error: error, hasCachedBuilds: previous != nil)
             }
             availability
-            UpdateInstalledBuild(model: model, check: checkForUpdates)
+            UpdateInstalledBuild(model: model, check: { refresh.start(model: model) })
                 .modifier(sectionDecoration(.check))
         }
         .sheet(isPresented: $isBrowsingBuilds) {
             UpdateBrowserView(model: model, branding: branding)
         }
         .task { await model.refresh(force: false) }
-        .refreshable { await model.refresh(force: true) }
-        .onDisappear {
-            manualCheck?.cancel()
-            manualCheck = nil
-        }
+        .refreshable { await refresh.start(model: model).value }
+        .onDisappear { refresh.cancel() }
     }
 
     @ViewBuilder private var installAction: some View {
@@ -125,11 +122,6 @@ private struct UpdatePage<SectionDecoration: ViewModifier>: View {
             case .local, .current, nil:
                 EmptyView()
         }
-    }
-
-    private func checkForUpdates() {
-        manualCheck?.cancel()
-        manualCheck = Task { await model.refresh(force: true) }
     }
 }
 
