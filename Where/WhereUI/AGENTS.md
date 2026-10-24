@@ -294,7 +294,9 @@ top-level screen. List its type in the appropriate catalog group. Flyover
 frames share one `WhereFlyoverWorld`. Synthetic preview models are reserved for
 states the seeded demo cannot express.
 When registrations, routes, or default variants change, run
-`WhereFlyoverViewSnapshotTests` alongside the affected screen suites.
+`WhereFlyoverCatalogTests` alongside the affected screen suites.
+Keep the full Where Flyover overview out of image snapshots. Use individual screen
+suites for content and the shared Flyover suite for the browser.
 
 Screens, widgets, and app-flow surfaces are pinned as matrixed image
 snapshots under [`SnapshotTests/`](SnapshotTests). Those build as this module's

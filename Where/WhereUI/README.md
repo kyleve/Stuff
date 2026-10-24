@@ -649,6 +649,11 @@ suite per view, so each view's references live in their own `__Snapshots__/`
 directory. They build as this module's own `WhereUISnapshotTests` bundle, which
 runs alongside the other modules' image suites in the shared
 `StuffSnapshotTests` scheme and its CI job.
+
+The full Where Flyover overview is excluded because unrelated screen changes
+invalidate its reference. Individual screen suites and the shared Flyover suite
+provide image coverage.
+
 To re-record after an intentional UI change (see the
 [SnapshotKitTesting README](../../Shared/SnapshotKitTesting/README.md#recording)
 for the mode values):
