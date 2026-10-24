@@ -3,6 +3,48 @@ import Foundation
 import Testing
 
 struct InstalledBuildTests {
+    @Test(arguments: ["1", "428", "184467440737095516160"])
+    func channelRetainsPullRequestNumberWithCompatibleWireFormat(number: String) throws {
+        let identity = try #require(InstalledBuild.Channel.PullRequestNumber(rawValue: number))
+        let channel = InstalledBuild.Channel.pullRequest(identity)
+        let wireValue = "pr-" + number
+        #expect(channel.rawValue == wireValue)
+        #expect(InstalledBuild.Channel(rawValue: wireValue) == channel)
+        let data = try JSONEncoder().encode(wireValue)
+        #expect(try JSONEncoder().encode(channel) == data)
+        #expect(try JSONDecoder().decode(InstalledBuild.Channel.self, from: data) == channel)
+        #expect(UpdateFixtures.localInstalled().pullRequestURL(for: channel)?.absoluteString ==
+            "https://github.com/fixture/Stuff/pull/" + number)
+    }
+
+    @Test func mainChannelKeepsCompatibleWireFormat() throws {
+        let data = Data(#""main""#.utf8)
+        #expect(InstalledBuild.Channel.main.rawValue == "main")
+        #expect(InstalledBuild.Channel(rawValue: "main") == .main)
+        #expect(try JSONEncoder().encode(InstalledBuild.Channel.main) == data)
+        #expect(try JSONDecoder().decode(InstalledBuild.Channel.self, from: data) == .main)
+    }
+
+    @Test(arguments: ["", "0", "01", "-1", "+1", "1.0", "42\n", "４２", "42/path"])
+    func rejectsMalformedPullRequestNumbers(number: String) throws {
+        #expect(InstalledBuild.Channel.PullRequestNumber(rawValue: number) == nil)
+        let channel = "pr-" + number
+        #expect(InstalledBuild.Channel(rawValue: channel) == nil)
+        let data = try JSONEncoder().encode(channel)
+        #expect(throws: DecodingError.self) {
+            try JSONDecoder().decode(InstalledBuild.Channel.self, from: data)
+        }
+    }
+
+    @Test(arguments: ["local", "PR-42", "pr42", "pr-", "main-42", "pr-42-extra", " main", "main\n"])
+    func rejectsMalformedChannelNames(channel: String) throws {
+        #expect(InstalledBuild.Channel(rawValue: channel) == nil)
+        let data = try JSONEncoder().encode(channel)
+        #expect(throws: DecodingError.self) {
+            try JSONDecoder().decode(InstalledBuild.Channel.self, from: data)
+        }
+    }
+
     @Test func requiresCompleteCleanPublishedStamps() {
         let stamp = UpdateFixtures.stamp()
         #expect(InstalledBuild(infoDictionary: stamp)?.publication?.channel.rawValue == "pr-42")

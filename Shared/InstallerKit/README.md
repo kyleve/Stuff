@@ -35,6 +35,8 @@ Cancellation restores the previous model state and preserves the cached catalog 
 Other transport, decoding, and catalog validation errors keep their original types. The UI owns localized failure text.
 Use a release's `installURL` for installation and `installed.commitURL(for:)` for commit links.
 Use `installed.pullRequestURL(for:)` with the displayed build's typed channel for its GitHub PR link. Main returns no PR link.
+`Channel` stores either `.main` or `.pullRequest(PullRequestNumber)`. It parses the PR number once at the wire boundary.
+Its encoded form remains `"main"` or `"pr-<number>"`, so existing feeds and signed stamps remain compatible.
 An available `Update` carries its channel alongside the release and changes.
 
 Each service snapshot also exposes `browser`, an `UpdateBuildBrowser` for the installed app.
