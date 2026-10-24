@@ -18,6 +18,8 @@ enum WhereComponent: String, ComponentKey {
 
 enum ThrowComponent: String, ComponentKey {
     case periscope
+    case installerKit
+    case installerKitUI
     case throwCore
     case throwUI
     case throwApp
@@ -186,7 +188,7 @@ let bumper = BumperProject {
         Component(.throwCore) {
             Owns("Throw/ThrowCore/Sources")
             Modules("ThrowCore")
-            MayDependOn(.periscope)
+            MayDependOn(.periscope, .installerKit)
             Applies(.throwCoreLayer)
             DoesNotUse("LifecycleKit")
         }
@@ -194,7 +196,7 @@ let bumper = BumperProject {
         Component(.throwUI) {
             Owns("Throw/ThrowUI/Sources")
             Modules("ThrowUI")
-            MayDependOn(.throwCore)
+            MayDependOn(.installerKit, .installerKitUI, .throwCore)
             Applies(.throwPresentationLayer)
             DoesNotUse("LifecycleKit")
         }

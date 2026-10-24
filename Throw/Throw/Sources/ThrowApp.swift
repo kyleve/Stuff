@@ -11,16 +11,14 @@ struct ThrowApp: App {
             RuntimeControllerView(
                 session: appDelegate.runtime.session,
                 outputDemandDidChange: appDelegate.runtime.sessionOutputDemandDidChange,
+                externalOutputConnected: appDelegate.runtime.projectionOutputConnected,
+                externalOutputDisconnected: appDelegate.runtime.projectionOutputDisconnected,
             )
             .throwBroadwayRoot()
             .background {
                 ControllerSceneBridge(
-                    appearanceDidChange: appDelegate.runtime
-                        .controllerAppearanceDidChange,
                     lifecycleDidChange: appDelegate.runtime
                         .controllerScene(_:didReceive:),
-                    registerAccessory: appDelegate.registerExternalDisplayAccessory,
-                    unregisterAccessory: appDelegate.unregisterExternalDisplayAccessory,
                 )
                 .frame(width: 0, height: 0)
                 .accessibilityHidden(true)
@@ -29,23 +27,9 @@ struct ThrowApp: App {
     }
 }
 
-/// Platform handoff from every UIKit-created scene to the process runtime.
 @MainActor
-protocol ThrowRuntimeProviding: UIApplicationDelegate {
-    var runtime: any ThrowApplicationRuntime { get }
-}
-
-@MainActor
-final class AppDelegate: NSObject, UIApplicationDelegate, ThrowRuntimeProviding {
+final class AppDelegate: NSObject, UIApplicationDelegate {
     let runtime: any ThrowApplicationRuntime
-
-    // Type-erased because Swift does not permit iOS 27-only stored-property
-    // types in an app that still deploys to iOS 26. Both UIKit values are
-    // NSObject subclasses; retaining them keeps the accessory registered.
-    private var externalDisplayAccessory: AnyObject?
-    private var externalDisplayRegistration: AnyObject?
-    private weak var externalDisplayAccessoryOwner: UIViewController?
-    private var accessoryControllers: [ObjectIdentifier: WeakControllerReference] = [:]
 
     override init() {
         runtime = ThrowRuntime.live()
@@ -56,81 +40,14 @@ final class AppDelegate: NSObject, UIApplicationDelegate, ThrowRuntimeProviding 
         self.runtime = runtime
         super.init()
     }
-
-    func registerExternalDisplayAccessory(from controller: UIViewController) {
-        guard #available(iOS 27.0, *) else { return }
-        pruneAccessoryControllers()
-        accessoryControllers[ObjectIdentifier(controller)] = WeakControllerReference(controller)
-
-        if externalDisplayAccessoryOwner == nil {
-            externalDisplayAccessory = nil
-            externalDisplayRegistration = nil
-        }
-        guard externalDisplayRegistration == nil else { return }
-        installExternalDisplayAccessory(on: controller)
-    }
-
-    func unregisterExternalDisplayAccessory(from controller: UIViewController) {
-        guard #available(iOS 27.0, *) else { return }
-        accessoryControllers[ObjectIdentifier(controller)] = nil
-        guard externalDisplayAccessoryOwner === controller else { return }
-
-        if let registration = externalDisplayRegistration as? UISceneAccessoryRegistration {
-            controller.unregisterSceneAccessory(registration)
-        }
-        externalDisplayAccessory = nil
-        externalDisplayRegistration = nil
-        externalDisplayAccessoryOwner = nil
-
-        pruneAccessoryControllers()
-        if let replacement = accessoryControllers.values.lazy.compactMap(\.controller).first {
-            installExternalDisplayAccessory(on: replacement)
-        }
-    }
-
-    @available(iOS 27.0, *)
-    private func installExternalDisplayAccessory(on controller: UIViewController) {
-        guard externalDisplayRegistration == nil else { return }
-
-        let configuration = Self.externalDisplayConfiguration()
-        let accessory = UISceneAccessory.externalNonInteractive(
-            sceneConfiguration: configuration,
-        )
-        let registration = controller.registerSceneAccessory(accessory)
-        registration.isEnabled = true
-        externalDisplayAccessory = accessory
-        externalDisplayRegistration = registration
-        externalDisplayAccessoryOwner = controller
-    }
-
-    private func pruneAccessoryControllers() {
-        accessoryControllers = accessoryControllers.filter { $0.value.controller != nil }
-    }
-
-    static func externalDisplayConfiguration() -> UISceneConfiguration {
-        let configuration = UISceneConfiguration(
-            name: "Throw External Display",
-            sessionRole: .windowExternalDisplayNonInteractive,
-        )
-        configuration.delegateClass = ExternalDisplaySceneDelegate.self
-        return configuration
-    }
 }
 
 private struct ControllerSceneBridge: UIViewControllerRepresentable {
-    let appearanceDidChange: @MainActor (UIUserInterfaceStyle) -> Void
     let lifecycleDidChange:
         @MainActor (ControllerSceneID, ControllerSceneLifecycleEvent) -> Void
-    let registerAccessory: @MainActor (UIViewController) -> Void
-    let unregisterAccessory: @MainActor (UIViewController) -> Void
 
     func makeUIViewController(context _: Context) -> ControllerSceneBridgeController {
-        ControllerSceneBridgeController(
-            appearanceDidChange: appearanceDidChange,
-            lifecycleDidChange: lifecycleDidChange,
-            registerAccessory: registerAccessory,
-            unregisterAccessory: unregisterAccessory,
-        )
+        ControllerSceneBridgeController(lifecycleDidChange: lifecycleDidChange)
     }
 
     func updateUIViewController(
@@ -149,27 +66,18 @@ private struct ControllerSceneBridge: UIViewControllerRepresentable {
 }
 
 private final class ControllerSceneBridgeController: UIViewController {
-    private let appearanceDidChange: @MainActor (UIUserInterfaceStyle) -> Void
     private let lifecycleDidChange:
         @MainActor (ControllerSceneID, ControllerSceneLifecycleEvent) -> Void
-    private let registerAccessory: @MainActor (UIViewController) -> Void
-    private let unregisterAccessory: @MainActor (UIViewController) -> Void
     private weak var observedControllerScene: UIWindowScene?
     private var observedControllerSceneID: ControllerSceneID?
 
     init(
-        appearanceDidChange: @escaping @MainActor (UIUserInterfaceStyle) -> Void,
         lifecycleDidChange: @escaping @MainActor (
             ControllerSceneID,
             ControllerSceneLifecycleEvent,
         ) -> Void,
-        registerAccessory: @escaping @MainActor (UIViewController) -> Void,
-        unregisterAccessory: @escaping @MainActor (UIViewController) -> Void,
     ) {
-        self.appearanceDidChange = appearanceDidChange
         self.lifecycleDidChange = lifecycleDidChange
-        self.registerAccessory = registerAccessory
-        self.unregisterAccessory = unregisterAccessory
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -182,27 +90,18 @@ private final class ControllerSceneBridgeController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = .clear
         view.isUserInteractionEnabled = false
-        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (
-            controller: ControllerSceneBridgeController,
-            _: UITraitCollection,
-        ) in
-            controller.reportCurrentState()
-        }
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         reportCurrentState()
-        registerAccessory(self)
     }
 
     func reportCurrentState() {
         observeControllerSceneIfNeeded()
-        appearanceDidChange(traitCollection.userInterfaceStyle)
     }
 
     func disconnect() {
-        unregisterAccessory(self)
         stopObservingControllerScene()
     }
 
@@ -278,13 +177,5 @@ private final class ControllerSceneBridgeController: UIViewController {
                 assertionFailure("Unknown controller scene activation state")
                 return .didEnterBackground
         }
-    }
-}
-
-private final class WeakControllerReference {
-    weak var controller: UIViewController?
-
-    init(_ controller: UIViewController) {
-        self.controller = controller
     }
 }

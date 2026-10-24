@@ -139,6 +139,12 @@ enum VisibleProjection: Equatable {
                     activationLease: activationLease,
                     output: output,
                 )))
+            case .transit:
+                guard case let .transit(output) = output else { return nil }
+                return .transit(Transit(content: .rendered(
+                    activationLease: activationLease,
+                    output: output,
+                )))
             #if DEBUG
                 case .testing(.transit):
                     guard case let .transit(output) = output else { return nil }

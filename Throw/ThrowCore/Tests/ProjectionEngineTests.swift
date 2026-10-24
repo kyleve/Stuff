@@ -84,13 +84,22 @@ struct ProjectionEngineTests {
 
     @Test func genericExperienceProjectionKeepsLineAndMarkLayersSeparate() throws {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
-        let viewport = try MapViewport(radius: NauticalMiles(value: 50))
+        let viewport = try TransitMapViewport(radius: NauticalMiles(value: 5))
         let geometry = try ProjectionGeometry(width: 1920, height: 1080)
         let vehicleID = try #require(TransitVehicleID(rawValue: "vehicle"))
+        let vehicleDescriptor = try TransitVehicleGlyphDescriptor(
+            routeLabel: "A",
+            color: #require(TransitColor(hex: "0039A6")),
+            confidence: .feedTracked,
+        )
+        let routeStyle = try transitRouteStyle()
         let vehicle = try ProjectionMark(
-            element: TransitVehicleMarkElement(id: vehicleID),
+            element: TransitVehicleMarkElement.vehicle(
+                id: vehicleID,
+                descriptor: vehicleDescriptor,
+            ),
             anchor: .geodetic(GeodeticAnchor(
-                coordinate: GeoCoordinate(latitude: 0.1, longitude: 0),
+                coordinate: GeoCoordinate(latitude: 0.05, longitude: 0),
                 altitude: .available(Altitude(feet: 0), quality: .geometric),
             )),
             label: nil,
@@ -105,7 +114,7 @@ struct ProjectionEngineTests {
         let networkSource = try ProjectionLayerFrame<TransitNetworkLayerKind>(
             observedAt: ThrowCoreFixture.date,
             lines: [ProjectionPolyline<TransitNetworkLineStyle>(
-                style: .route,
+                style: routeStyle,
                 detailLevel: .wide,
                 bounds: GeographicBounds(
                     southLatitude: 0,
@@ -156,8 +165,9 @@ struct ProjectionEngineTests {
             return
         }
         #expect(transit.network?.lines.id == network.lines.id)
-        #expect(transit.network?.lines.segments.first?.style == .route)
-        #expect(transit.vehicles?.marks.map(\.id.rawValue) == ["vehicle"])
+        #expect(transit.network?.lines.segments.first?.style == routeStyle)
+        #expect(transit.vehicles?.marks.map(\.id) == [.vehicle(vehicleID)])
+        #expect(transit.vehicles?.marks.first?.glyph == .transitVehicle(vehicleDescriptor))
     }
 
     @Test func rejectsStaticLineProjectionFromAnotherContext() throws {
@@ -224,7 +234,7 @@ struct ProjectionEngineTests {
 
     @Test func rejectsStaticLineProjectionFromAnotherSourceRevision() throws {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0)
-        let viewport = try MapViewport(radius: NauticalMiles(value: 50))
+        let viewport = try TransitMapViewport(radius: NauticalMiles(value: 5))
         let geometry = try ProjectionGeometry(width: 1, height: 1)
         let firstRevision = ProjectionLayerFrame<TransitNetworkLayerKind>(
             observedAt: ThrowCoreFixture.date,
@@ -333,6 +343,16 @@ struct ProjectionEngineTests {
         }
         #expect(map.flights == nil)
         #expect(frame.marks.isEmpty)
+    }
+
+    private func transitRouteStyle() throws -> TransitRouteLineStyle {
+        try TransitRouteLineStyle(
+            routeID: #require(TransitRouteID(
+                agencyID: .mtaNewYorkCityTransit,
+                rawValue: "A",
+            )),
+            color: #require(TransitColor(hex: "0039A6")),
+        )
     }
 
     @Test func mapUsesIndependentCenterAndCanProjectObserverMarker() throws {
@@ -689,6 +709,62 @@ struct ProjectionEngineTests {
         #expect(abs(segment.end.y - 0.5) < 0.000_001)
     }
 
+    @Test func neighborhoodGeographyReplacesOnlyItsBroaderStyleAtTightRadius() throws {
+        let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
+        let broaderCoastline = try geographicLine(
+            kind: .coastline,
+            detailLevel: .wide,
+            coordinates: [
+                GeoCoordinate(latitude: 0, longitude: -0.02),
+                GeoCoordinate(latitude: 0, longitude: 0.02),
+            ],
+        )
+        let neighborhoodCoastline = try geographicLine(
+            kind: .coastline,
+            detailLevel: .neighborhood,
+            coordinates: [
+                GeoCoordinate(latitude: -0.02, longitude: 0),
+                GeoCoordinate(latitude: 0.02, longitude: 0),
+            ],
+        )
+        let broaderRiver = try geographicLine(
+            kind: .river,
+            detailLevel: .wide,
+            coordinates: [
+                GeoCoordinate(latitude: 0.01, longitude: -0.02),
+                GeoCoordinate(latitude: 0.01, longitude: 0.02),
+            ],
+        )
+
+        let tightSegments = try engine.geographySegments(
+            lines: [broaderCoastline, neighborhoodCoastline, broaderRiver],
+            observer: observer,
+            viewport: .map(TransitMapViewport(radius: NauticalMiles(value: 8))),
+            calibration: .defaultValue,
+            geometry: ProjectionGeometry(width: 1, height: 1),
+        )
+        let broaderSegments = try engine.geographySegments(
+            lines: [broaderCoastline, neighborhoodCoastline, broaderRiver],
+            observer: observer,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 10))),
+            calibration: .defaultValue,
+            geometry: ProjectionGeometry(width: 1, height: 1),
+        )
+
+        #expect(tightSegments.count == 2)
+        #expect(tightSegments.count(where: { $0.kind == .coastline }) == 1)
+        #expect(tightSegments.count(where: { $0.kind == .river }) == 1)
+        #expect(broaderSegments.count == 2)
+        #expect(broaderSegments.count(where: { $0.kind == .coastline }) == 1)
+        #expect(broaderSegments.count(where: { $0.kind == .river }) == 1)
+        let tightCoastline = try #require(tightSegments.first { $0.kind == .coastline })
+        let broaderCoastlineSegment = try #require(
+            broaderSegments.first { $0.kind == .coastline },
+        )
+        #expect(abs(tightCoastline.start.x - tightCoastline.end.x) < 0.000_001)
+        #expect(abs(broaderCoastlineSegment.start.y - broaderCoastlineSegment.end.y) < 0.000_001)
+    }
+
     @Test func geographyPreservesConnectedSubpathsAndRestartsAfterAClippedGap() throws {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
         let connected = try geographicLine(
@@ -916,8 +992,8 @@ struct ProjectionEngineTests {
         }
         let typedViewport: AirAndSpaceProjectionViewport = switch viewport {
             case let .map(mapViewport):
-                .map(
-                    viewport: mapViewport,
+                try .map(
+                    viewport: MapViewport(radius: mapViewport.radius),
                     geography: geography == nil ? .hidden : .visible,
                 )
             case let .trueSky(skyViewport):
@@ -1130,7 +1206,11 @@ private func erase(_ mark: ProjectedMark<SatelliteMarkElement>) -> TestingProjec
 }
 
 private func erase(_ mark: ProjectedMark<TransitVehicleMarkElement>) -> TestingProjectedMark {
-    erase(mark, id: .transitVehicle(mark.id))
+    let id: LayerMarkID = switch mark.id {
+        case let .vehicle(vehicleID): .transitVehicle(vehicleID)
+        case let .stop(stopID): .transitStop(stopID)
+    }
+    return erase(mark, id: id)
 }
 
 private func erase(

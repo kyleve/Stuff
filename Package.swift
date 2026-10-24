@@ -49,6 +49,7 @@ let package = Package(
         .package(url: "https://github.com/cashapp/AccessibilitySnapshot", from: "0.12.0"),
         .package(url: "https://github.com/SFSafeSymbols/SFSafeSymbols", from: "7.0.0"),
         .package(url: "https://github.com/swiftlang/swift-syntax", exact: "603.0.2"),
+        .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.38.1"),
     ],
     targets: [
         .macro(
@@ -266,7 +267,10 @@ let package = Package(
         .target(
             name: "ThrowCore",
             dependencies: [
+                .target(name: "InstallerKit"),
                 .target(name: "PeriscopeCore"),
+                .product(name: "SwiftProtobuf", package: "swift-protobuf"),
+                .product(name: "ZIPFoundation", package: "ZIPFoundation"),
             ],
             path: "Throw/ThrowCore/Sources",
             resources: [
@@ -279,6 +283,8 @@ let package = Package(
                 .target(name: "BroadwayCore"),
                 .target(name: "BroadwayUI"),
                 .target(name: "CreditKit"),
+                .target(name: "InstallerKit"),
+                .target(name: "InstallerKitUI"),
                 .target(name: "SnapshotKit"),
                 .target(name: "ThrowCore"),
                 .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),

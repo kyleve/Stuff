@@ -74,7 +74,7 @@ public struct PresentedMark: Hashable, Sendable, CustomStringConvertible,
             case let .flights(mark): presentationID(mark.id)
             case let .stars(mark): .star(mark.id)
             case let .satellites(mark): .satellite(mark.id)
-            case let .transitVehicles(mark): .transitVehicle(mark.id)
+            case let .transitVehicles(mark): presentationID(mark.id)
             #if DEBUG
                 case let .testing(mark): mark.id
             #endif
@@ -351,6 +351,13 @@ func presentationID(_ id: FlightsMarkElement.ID) -> LayerMarkID {
     switch id {
         case let .aircraft(id): .aircraft(id)
         case let .airport(id): .airport(id)
+    }
+}
+
+func presentationID(_ id: TransitVehicleMarkElement.ID) -> LayerMarkID {
+    switch id {
+        case let .vehicle(id): .transitVehicle(id)
+        case let .stop(id): .transitStop(id)
     }
 }
 
@@ -759,7 +766,7 @@ public struct ProjectionFrame: Hashable, Sendable, CustomStringConvertible,
                     vehicles: updatedMarkLayer(
                         currentVehicles,
                         sourceMarks: sourceFrame.transitVehicleMarks,
-                        presentationID: LayerMarkID.transitVehicle,
+                        presentationID: presentationID,
                         fieldsByID: fieldsByID,
                         retainedTargetIDs: retainedTargetIDs,
                         appendedSourceIDs: appendedSourceIDs,
@@ -916,6 +923,40 @@ public struct ProjectionFrame: Hashable, Sendable, CustomStringConvertible,
                 generatedAt: generatedAt,
             )
             return frame.replacingTestingFixtureMarks(marks)
+        }
+
+        static func testingTransit(
+            generatedAt: Date,
+            geography: ProjectedGeography?,
+            geographyOpacity: Double,
+            network: ProjectedLineCollection<TransitNetworkLineStyle>?,
+            networkOpacity: Double,
+            vehicles: [TestingProjectedMark],
+            vehicleOpacity: Double,
+        ) -> ProjectionFrame {
+            precondition((0 ... 1).contains(geographyOpacity))
+            precondition((0 ... 1).contains(networkOpacity))
+            precondition((0 ... 1).contains(vehicleOpacity))
+            let layers = [
+                geography.map {
+                    ProjectedLayer(opacity: geographyOpacity, content: .geography($0))
+                },
+                network.map {
+                    ProjectedLayer(opacity: networkOpacity, content: .transitNetwork($0))
+                },
+                vehicles.isEmpty
+                    ? nil
+                    : ProjectedLayer(
+                        opacity: vehicleOpacity,
+                        content: .testingMarks(layerID: .transitVehicles, marks: vehicles),
+                    ),
+            ].compactMap(\.self)
+            return testing(
+                experienceID: .transit,
+                mode: .map,
+                generatedAt: generatedAt,
+                layers: layers,
+            )
         }
 
         static func testing(

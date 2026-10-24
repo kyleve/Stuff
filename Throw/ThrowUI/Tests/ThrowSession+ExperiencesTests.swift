@@ -51,7 +51,7 @@ struct ThrowSessionExperiencesTests {
         )
         session.projectionPresentationStaging = .fadingOut(
             prepared: prepared,
-            bufferedTargetUpdate: bufferedUpdate,
+            bufferedTargetUpdate: .airAndSpace(bufferedUpdate),
         )
         let preferenceProducer = try #require(
             session.beginPreferenceProducer(.experienceTransition),
@@ -71,7 +71,8 @@ struct ThrowSessionExperiencesTests {
         #expect(session.visibleProjection.request?.context.observer == observer)
         #expect(session.projectionFrame.generatedAt == Date(timeIntervalSince1970: 150))
         #expect(session.pendingAirAndSpaceFrame == bufferedFrame)
-        #expect(session.projectionPresentationStaging?.bufferedTargetUpdate?.flightsFrame ==
+        #expect(session.projectionPresentationStaging?.bufferedTargetUpdate?.airAndSpace?
+            .flightsFrame ==
             bufferedFrame.flights)
         #expect(session.projectionPresentationStaging?.preparedProjection == prepared)
     }
@@ -341,7 +342,8 @@ struct ThrowSessionExperiencesTests {
 
         _ = selectExperience
         _ = setDwellDuration
-        #expect(ProjectionExperienceCatalog.standard.runnableExperienceID(for: .transit) == nil)
+        #expect(ProjectionExperienceCatalog.standard
+            .runnableExperienceID(for: .transit) == .transit)
     }
 
     @Test func dwellChangesStayWithinTheValidatedPlaylist() {
@@ -350,6 +352,40 @@ struct ThrowSessionExperiencesTests {
         session.setExperienceDwellDuration(seconds: 300, for: .airAndSpace)
 
         #expect(session.projectionPlaylist.entry(for: .airAndSpace)?.dwellDuration.seconds == 300)
+    }
+
+    @Test func previewReportsOnlyVisibleViewSwitchPreparation() {
+        let session = ThrowSession.fixture()
+        func setCoordinator(
+            requestedExperienceID: ProjectionExperienceID?,
+            prewarmingExperienceID: ProjectionExperienceID?,
+        ) {
+            let coordinator = ProjectionExperienceCoordinatorState(
+                activeExperienceID: .airAndSpace,
+                requestedExperienceID: requestedExperienceID,
+                prewarmingExperienceID: prewarmingExperienceID,
+                isPaused: false,
+                dwellEndsAt: nil,
+                nextExperienceID: .transit,
+                healthByExperience: [:],
+                manualSelectionFailure: nil,
+            )
+            session.projectionPresentationState = .initial(
+                coordinator: coordinator,
+                preferredExperienceID: .airAndSpace,
+                mode: .map,
+                generatedAt: session.dateProvider.now(),
+            )
+        }
+
+        setCoordinator(requestedExperienceID: .transit, prewarmingExperienceID: .transit)
+        #expect(session.isExperienceSwitchPending == false)
+
+        setCoordinator(requestedExperienceID: .transit, prewarmingExperienceID: nil)
+        #expect(session.isExperienceSwitchPending)
+
+        setCoordinator(requestedExperienceID: nil, prewarmingExperienceID: nil)
+        #expect(session.isExperienceSwitchPending == false)
     }
 
     @Test func rapidPlaylistChangesConvergeOnTheNewestCoordinatorValue() async {
@@ -517,7 +553,7 @@ struct ThrowSessionExperiencesTests {
 
         #expect(session.currentSnapshot == nil)
         let bufferedSnapshot = session.projectionPresentationStaging?
-            .bufferedTargetUpdate?.snapshot
+            .bufferedTargetUpdate?.airAndSpace?.snapshot
         #expect(bufferedSnapshot == snapshot)
 
         await session.finishProjectionPresentationTransition(to: lease)
@@ -639,6 +675,13 @@ struct ThrowSessionExperiencesTests {
             activationLease: lease,
             output: output,
         ))
+    }
+}
+
+extension ProjectionPresentationRuntimeUpdate {
+    fileprivate var airAndSpace: AirAndSpaceRuntimeUpdate? {
+        guard case let .airAndSpace(update) = self else { return nil }
+        return update
     }
 }
 

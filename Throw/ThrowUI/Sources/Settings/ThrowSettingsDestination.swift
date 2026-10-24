@@ -4,6 +4,7 @@ enum ThrowSettingsDestination: Hashable {
     case airAndSpaceProjection
     case airAndSpaceLayers
     case airAndSpaceAppearance
+    case transit
     case location
     case mapCenter
     case source
@@ -11,5 +12,6 @@ enum ThrowSettingsDestination: Hashable {
     case projectionIntensity
     case labels
     case quiet
+    case updates
     case about
 }

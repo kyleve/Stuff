@@ -32,8 +32,8 @@ Repair a violation with the macro authoring API. Do not add a file exception. Mu
 
 | Throw component | Allowed Throw dependencies | Framework capabilities |
 | --- | --- | --- |
-| `ThrowCore` | none (PeriscopeCore for logs) | Foundation |
-| `ThrowUI` | `ThrowCore` | Foundation, SwiftUI, UIKit |
+| `ThrowCore` | `InstallerKit` (PeriscopeCore for logs) | Foundation |
+| `ThrowUI` | `InstallerKit`, `InstallerKitUI`, `ThrowCore` | Foundation, SwiftUI, UIKit |
 | `Throw` app | `ThrowUI` | Foundation, SwiftUI, UIKit |
 
 An import of a declared Where module outside these edges is a
@@ -63,6 +63,7 @@ may depend on it. InstallerKit cannot import Where modules or UI frameworks.
 `InstallerKit rejects app and UI dependencies` guards this boundary.
 InstallerKitUI renders the shared update screen above InstallerKit. It cannot import Where modules.
 WhereUI may depend on InstallerKitUI. The `InstallerKitUI can use the engine but rejects host dependencies` mutation test guards this seam.
+ThrowCore supplies InstallerKit storage. ThrowUI owns the model and uses InstallerKitUI for presentation.
 
 The mutation tests in `.bumper/Tests` prove that a valid downward import passes
 and that representative upward/framework imports fail with the expected rule.

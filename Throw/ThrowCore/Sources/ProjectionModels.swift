@@ -26,6 +26,7 @@ public enum LayerMarkNamespace: String, Hashable, Sendable {
     case star
     case satellite
     case transitVehicle = "transit-vehicle"
+    case transitStop = "transit-stop"
 }
 
 public struct StarID: Hashable, Sendable {
@@ -55,6 +56,17 @@ public struct TransitVehicleID: Hashable, Sendable {
     }
 }
 
+public struct TransitStopMarkID: Hashable, Sendable {
+    public let stopID: TransitStopID
+    public let context: String
+
+    public init(stopID: TransitStopID, context: String) {
+        precondition(context.isEmpty == false)
+        self.stopID = stopID
+        self.context = context
+    }
+}
+
 /// A heterogeneous identity whose namespace prevents IDs from different layer
 /// domains from colliding at the type-erasure boundary.
 public enum LayerMarkID: Hashable, Sendable, CustomStringConvertible,
@@ -65,13 +77,14 @@ public enum LayerMarkID: Hashable, Sendable, CustomStringConvertible,
     case star(StarID)
     case satellite(SatelliteID)
     case transitVehicle(TransitVehicleID)
+    case transitStop(TransitStopMarkID)
 
     public var layerID: LayerID {
         switch self {
             case .aircraft, .airport: .flights
             case .star: .stars
             case .satellite: .satellites
-            case .transitVehicle: .transitVehicles
+            case .transitVehicle, .transitStop: .transitVehicles
         }
     }
 
@@ -82,6 +95,7 @@ public enum LayerMarkID: Hashable, Sendable, CustomStringConvertible,
             case .star: .star
             case .satellite: .satellite
             case .transitVehicle: .transitVehicle
+            case .transitStop: .transitStop
         }
     }
 
@@ -92,6 +106,7 @@ public enum LayerMarkID: Hashable, Sendable, CustomStringConvertible,
             case let .star(id): id.rawValue
             case let .satellite(id): id.rawValue
             case let .transitVehicle(id): id.rawValue
+            case let .transitStop(id): "\(id.stopID.rawValue)/\(id.context)"
         }
     }
 
@@ -321,7 +336,59 @@ public enum ProjectionGlyph: Hashable, Sendable {
     case airport(AirportGlyphDescriptor)
     case star
     case satellite
-    case transitVehicle
+    case transitVehicle(TransitVehicleGlyphDescriptor)
+    case transitStop(TransitStopGlyphDescriptor)
+}
+
+public struct TransitVehicleGlyphDescriptor: Hashable, Sendable {
+    public let routeLabel: String
+    public let color: TransitColor
+    public let confidence: TransitPositionConfidence
+
+    public init(
+        routeLabel: String,
+        color: TransitColor,
+        confidence: TransitPositionConfidence,
+    ) {
+        precondition(routeLabel.isEmpty == false)
+        self.routeLabel = routeLabel
+        self.color = color
+        self.confidence = confidence
+    }
+}
+
+public struct TransitStopGlyphDescriptor: Hashable, Sendable {
+    public let color: TransitColor
+
+    public init(color: TransitColor) {
+        self.color = color
+    }
+}
+
+public struct TransitMotionPoint: Hashable, Sendable {
+    public let coordinate: GeoCoordinate
+    public let distance: Double
+
+    public init(coordinate: GeoCoordinate, distance: Double) {
+        precondition(distance.isFinite && distance >= 0)
+        self.coordinate = coordinate
+        self.distance = distance
+    }
+}
+
+public struct TransitProjectionMotion: Hashable, Sendable {
+    public let points: [TransitMotionPoint]
+    public let startsAt: Date
+    public let endsAt: Date
+
+    public init(points: [TransitMotionPoint], startsAt: Date, endsAt: Date) {
+        precondition(points.count >= 2)
+        precondition(points.map(\.distance) == points.map(\.distance).sorted())
+        precondition(endsAt > startsAt)
+        self.points = points
+        self.startsAt = startsAt
+        self.endsAt = endsAt
+    }
 }
 
 /// One mark identity and glyph family carried through semantic and projected frames.
@@ -383,16 +450,28 @@ public struct SatelliteMarkElement: Hashable, Sendable, ProjectionMarkElement {
     }
 }
 
-/// The closed element family for Transit vehicles.
-public struct TransitVehicleMarkElement: Hashable, Sendable, ProjectionMarkElement {
-    public let id: TransitVehicleID
+/// The closed element family for Transit vehicles and their referenced stops.
+public enum TransitVehicleMarkElement: Hashable, Sendable, ProjectionMarkElement {
+    public enum ID: Hashable, Sendable {
+        case vehicle(TransitVehicleID)
+        case stop(TransitStopMarkID)
+    }
 
-    public init(id: TransitVehicleID) {
-        self.id = id
+    case vehicle(id: TransitVehicleID, descriptor: TransitVehicleGlyphDescriptor)
+    case stop(id: TransitStopMarkID, descriptor: TransitStopGlyphDescriptor)
+
+    public var id: ID {
+        switch self {
+            case let .vehicle(id, _): .vehicle(id)
+            case let .stop(id, _): .stop(id)
+        }
     }
 
     public var glyph: ProjectionGlyph {
-        .transitVehicle
+        switch self {
+            case let .vehicle(_, descriptor): .transitVehicle(descriptor)
+            case let .stop(_, descriptor): .transitStop(descriptor)
+        }
     }
 }
 
@@ -495,6 +574,7 @@ public struct ProjectionVelocity: Hashable, Sendable {
 public enum MarkAvailability: Hashable, Sendable {
     case current
     case retrying(since: Date)
+    case transitRetrying(since: Date)
 }
 
 public struct MarkFreshness: Hashable, Sendable {
@@ -527,7 +607,26 @@ public struct ProjectionMark<Element: ProjectionMarkElement>: Hashable, Sendable
     public let label: ProjectionLabel?
     public let prominence: ProjectionProminence
     public let velocity: ProjectionVelocity?
+    public let transitMotion: TransitProjectionMotion?
     public let freshness: MarkFreshness
+
+    public init(
+        element: Element,
+        anchor: ProjectionAnchor,
+        label: ProjectionLabel?,
+        prominence: ProjectionProminence,
+        velocity: ProjectionVelocity?,
+        transitMotion: TransitProjectionMotion?,
+        freshness: MarkFreshness,
+    ) {
+        self.element = element
+        self.anchor = anchor
+        self.label = label
+        self.prominence = prominence
+        self.velocity = velocity
+        self.transitMotion = transitMotion
+        self.freshness = freshness
+    }
 
     public init(
         element: Element,
@@ -537,12 +636,15 @@ public struct ProjectionMark<Element: ProjectionMarkElement>: Hashable, Sendable
         velocity: ProjectionVelocity?,
         freshness: MarkFreshness,
     ) {
-        self.element = element
-        self.anchor = anchor
-        self.label = label
-        self.prominence = prominence
-        self.velocity = velocity
-        self.freshness = freshness
+        self.init(
+            element: element,
+            anchor: anchor,
+            label: label,
+            prominence: prominence,
+            velocity: velocity,
+            transitMotion: nil,
+            freshness: freshness,
+        )
     }
 
     public var id: Element.ID {
@@ -797,12 +899,16 @@ extension ProjectionLayerFrame where Layer == GeographyLayerKind {
     {
         private enum Storage: Hashable {
             case geography(GeographyLineKind)
-            case transitRoute
+            case transitRoute(TransitNetworkLineStyle)
         }
 
         private let storage: Storage
 
-        @_spi(Testing) public static let transitRoute = Self(storage: .transitRoute)
+        @_spi(Testing) public static func transitRoute(
+            _ style: TransitNetworkLineStyle,
+        ) -> Self {
+            Self(storage: .transitRoute(style))
+        }
 
         private init(storage: Storage) {
             self.storage = storage
@@ -817,6 +923,11 @@ extension ProjectionLayerFrame where Layer == GeographyLayerKind {
                 case let .geography(kind): kind
                 case .transitRoute: nil
             }
+        }
+
+        @_spi(Testing) public var transitRouteStyle: TransitNetworkLineStyle? {
+            guard case let .transitRoute(style) = storage else { return nil }
+            return style
         }
 
         public var isTransitRoute: Bool {
@@ -1440,12 +1551,12 @@ public struct AirAndSpaceProjectionInput: Hashable, Sendable {
 /// One typed Transit request for the projection engine.
 public struct TransitProjectionInput: Hashable, Sendable {
     public let frame: TransitExperienceFrame
-    public let viewport: MapViewport
+    public let viewport: TransitMapViewport
     public let geography: GeographyLayerVisibility
 
     public init(
         frame: TransitExperienceFrame,
-        viewport: MapViewport,
+        viewport: TransitMapViewport,
         geography: GeographyLayerVisibility,
     ) {
         self.frame = frame
@@ -1517,7 +1628,7 @@ struct PreparedProjectionLineLayer<Layer: ProjectionLineLayerKind>: Hashable {
 
 /// Transit input after static lines are projected for the current geometry.
 public struct PreparedTransitProjectionInput: Hashable, Sendable {
-    let viewport: MapViewport
+    let viewport: TransitMapViewport
     let geography: ProjectedLayerFrame<GeographyLayerKind>?
     let network: PreparedProjectionLineLayer<TransitNetworkLayerKind>?
     let vehicles: ProjectionLayerFrame<TransitVehiclesLayerKind>?

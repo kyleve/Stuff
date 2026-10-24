@@ -8,6 +8,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
 
 - Import ThrowCore and presentation dependencies only. Keep source adapters,
   persistence, projection math, polling, and credential access in ThrowCore.
+- Receive InstallerKit storage from ThrowCore. Construct one `UpdateModel` in
+  `ThrowSession+Composition.swift`, and render it with InstallerKitUI.
 - Use `AircraftSourceOperationServing` for source tests and usage reports.
   Never refer to a concrete provider source or decoder.
 - Keep tested source candidates in `ValidatedAircraftSourceDraft`. Construct it
@@ -16,14 +18,15 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   staged credential in one exhaustive state. Derive presentation status from it.
 - Keep settings source testing and application in one exhaustive state. Carry
   the closed draft and its generation across every suspension before publishing success.
-- Construct the live `ThrowSession`, stores, source graph, and poller only in
-  `ThrowSession+Composition.swift`. Pass that session to every controller and output scene.
+- Construct the live `ThrowSession`, stores, source graphs, pollers, and
+  runtimes only in `ThrowSession+Composition.swift`. Pass that session to every
+  controller and output scene.
 - Retain one launch task in the process session. Caller or scene cancellation
   must not cancel it.
 - Start one durable logging task with the launch. Publish opening, ready, and
   failed storage as one typed state. Keep product launch independent of it.
-- Inject one durable-logging starter into the session. Derive the session,
-  Air & Space, and projection-worker failure logger from that starter.
+- Inject one durable-logging starter into the session. Derive the session, Air
+  & Space, Transit, and projection-worker failure loggers from that starter.
 - Leave loading only after preferences and both credential states load. Treat a
   missing credential as data and a credential access error as launch failure.
 - Show localized recovery text for launch failures. Record the underlying error
@@ -40,6 +43,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   projection surfaces only from its loaded cases.
 - Accept aggregate controller foreground presence from the app runtime. Do not
   observe application or UIKit scene lifecycle independently in ThrowUI.
+- Refresh InstallerKit only when the app runtime reports a foreground controller.
 - Keep aircraft behavior in the one injected `AirAndSpaceRuntime`. Keep
   selection, prewarming, and rotation in `ProjectionExperienceCoordinator`.
 - Carry the coordinator-issued `ProjectionActivationLease` through activate and
@@ -52,6 +56,10 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   invalidation gate is active. Treat an equal inactive generation as tombstoned.
 - Store the full matching activation lease in each leased production
   projection, including a cleared placeholder. Never rebuild it from parallel fields.
+- Keep transit behavior in the one injected `TransitRuntime`. Never construct
+  an MTA source, schedule store, or polling clock outside the composition root.
+- Keep Transit Map-only. Draw routes through the generic line pipeline and
+  trains through the generic mark pipeline.
 - Invalidate superseded Air & Space lifecycle work after every suspension.
   Never let an old activation or deactivation change newer runtime state.
 - Accept polling state only for the exact Core activation token. Read the

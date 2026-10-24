@@ -2,8 +2,8 @@
 
 This target is the thin iOS shell for Throw. `ThrowRuntime.swift` is the only
 runtime construction owner. `AppDelegate` obtains exactly one live runtime.
-SwiftUI controller windows and UIKit-created external-display windows all
-receive that runtime's shared ThrowUI session.
+SwiftUI controller windows and the external-display accessory receive that
+runtime's shared ThrowUI session.
 
 Each scene composes its concrete ThrowUI root from that session. Runtime
 handoff does not erase roots to `AnyView` or construct feature services.
@@ -16,15 +16,13 @@ black until the state contains loaded setup and credential status.
 
 ## Scene paths
 
-- The iOS 26 scene manifest declares the controller and noninteractive
-  external-display roles.
+- The app requires iOS 27.
 - Each controller root binds to its exact `UIWindowScene` and forwards that
   scene's foreground, background, and disconnect notifications to the shared
   runtime under a typed persistent identity.
-- iOS 27 controller hosting registers a retained external scene accessory,
-  availability-gated at runtime.
-- `ExternalDisplaySceneDelegate` hosts `ThrowProjectionRootView` in a black
-  `UIHostingController`. The root creates `ProjectionSurface` only after launch.
+- The controller root attaches an `ExternalNonInteractiveAccessory`.
+- The accessory hosts `ThrowProjectionRootView` on an opaque-black surface.
+  The root creates `ProjectionSurface` only after launch.
 - Preview and explicit full-screen mirroring fallback remain ThrowUI flows and
   use the same surface.
 
@@ -55,5 +53,4 @@ duplicate static copy across the ThrowUI boundary.
 ## Build and test
 
 Run the shared `Throw` scheme after `./ide --no-open`. App-shell tests are in
-`ThrowTests`; domain and UI tests live with their modules. Revalidate the iOS
-27 scene-accessory calls against the GM SDK before a release build.
+`ThrowTests`. Domain and UI tests live with their modules.

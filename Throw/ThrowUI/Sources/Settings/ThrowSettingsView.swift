@@ -34,6 +34,12 @@ struct ThrowSettingsView: View {
                 NavigationLink(value: ThrowSettingsDestination.quiet) {
                     Label(String(localized: .settingsQuiet), systemSymbol: .moonStarsFill)
                 }
+                if let updates = session.updates {
+                    NavigationLink(value: ThrowSettingsDestination.updates) {
+                        Label(String(localized: .updatesTitle), systemSymbol: .arrowDownCircle)
+                    }
+                    .badge(updates.needsAttention ? 1 : 0)
+                }
                 NavigationLink(value: ThrowSettingsDestination.about) {
                     Label(String(localized: .aboutTitle), systemSymbol: .infoCircle)
                 }
@@ -52,6 +58,8 @@ struct ThrowSettingsView: View {
                     AirAndSpaceLayersSettingsView(session: session)
                 case .airAndSpaceAppearance:
                     AppearanceSettingsView(session: session)
+                case .transit:
+                    TransitSettingsView(session: session)
                 case .location:
                     LocationSettingsView(session: session)
                 case .mapCenter:
@@ -66,6 +74,10 @@ struct ThrowSettingsView: View {
                     LabelSettingsView(session: session)
                 case .quiet:
                     QuietHoursSettingsView(session: session)
+                case .updates:
+                    if let updates = session.updates {
+                        ThrowUpdatesView(model: updates)
+                    }
                 case .about:
                     ThrowAboutView(session: session)
             }

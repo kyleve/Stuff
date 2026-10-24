@@ -17,15 +17,24 @@ public protocol ProjectionLineStyle: Hashable, Sendable {}
 extension GeographyLineKind: ProjectionLineStyle {}
 
 /// The closed style family for the Transit network layer.
-public enum TransitNetworkLineStyle: Hashable, Sendable, ProjectionLineStyle {
-    case route
+public struct TransitNetworkLineStyle: Hashable, Sendable, ProjectionLineStyle {
+    public let routeID: TransitRouteID
+    public let color: TransitColor
+
+    public init(routeID: TransitRouteID, color: TransitColor) {
+        self.routeID = routeID
+        self.color = color
+    }
 }
+
+public typealias TransitRouteLineStyle = TransitNetworkLineStyle
 
 /// Controls the largest Map radius at which a geographic line can appear.
 public enum GeographyDetailLevel: String, CaseIterable, Codable, Hashable, Sendable {
     case wide
     case standard
     case local
+    case neighborhood
 
     public func includes(mapRadius: NauticalMiles) -> Bool {
         switch self {
@@ -35,6 +44,15 @@ public enum GeographyDetailLevel: String, CaseIterable, Codable, Hashable, Senda
                 mapRadius.value <= 80
             case .local:
                 mapRadius.value <= 20
+            case .neighborhood:
+                mapRadius.value <= 8
+        }
+    }
+
+    public var replacesBroaderDetail: Bool {
+        switch self {
+            case .wide, .standard, .local: false
+            case .neighborhood: true
         }
     }
 }

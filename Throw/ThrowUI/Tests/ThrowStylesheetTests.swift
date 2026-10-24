@@ -7,6 +7,18 @@ struct ThrowStylesheetTests {
         #expect(ThrowStylesheet.ProjectionStyle.standard.experienceTransition.fadeDuration == 0.4)
     }
 
+    @Test func transitMarksAndNetworkHaveBoundedProjectionStyles() {
+        let style = ThrowStylesheet.TransitStyle.standard
+
+        #expect(style.vehicleDiameter > 0)
+        #expect((0 ... 1).contains(style.vehicleRouteLuminance))
+        #expect(style.stopDiameter > 0)
+        #expect(style.stopOutlineWidth > 0)
+        #expect(style.routeLineWidth > 0)
+        #expect((0 ... 1).contains(style.routeLuminance))
+        #expect((0 ... 1).contains(style.inferredOpacityMultiplier))
+    }
+
     @Test func projectionLabelsStayVisuallySubordinateToMarks() {
         let projection = ThrowStylesheet.ProjectionStyle.standard
 
@@ -31,6 +43,13 @@ struct ThrowStylesheetTests {
         )
         #expect(projection.label.routeTracking < 0)
         #expect(projection.label.offset > 0)
+    }
+
+    @Test func transitRouteBulletsUseWhiteHelveticaBoldLabels() {
+        let transit = ThrowStylesheet.TransitStyle.standard
+
+        #expect(transit.vehicleRouteFont == .custom("Helvetica-Bold", fixedSize: 6))
+        #expect(transit.vehicleRouteLuminance == 1)
     }
 
     @Test func everyCuratedCarrierHasABoundedMutedBrandDotColor() {

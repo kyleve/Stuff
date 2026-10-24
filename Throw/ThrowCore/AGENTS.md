@@ -6,10 +6,12 @@ location, and scheduling; see [`README.md`](README.md). Read the root
 
 ## Scope and dependencies
 
-- Import Foundation, CoreLocation, Security, and PeriscopeCore only. Never
+- Import Foundation, CoreLocation, InstallerKit, Security, and PeriscopeCore only. Never
   import SwiftUI, UIKit, WhereCore, RegionKit, or LifecycleKit.
 - Keep provider DTOs internal. Public source, layer, preference, and
   credential boundaries stay provider-neutral and typed.
+- Keep GTFS schedule and realtime adapters behind `TransitScheduleSource` and
+  `TransitObservationSource`. Do not expose generated protobuf types.
 - Keep provider-specific setup and capability dispatch in
   `AircraftSourceService`. Presentation code uses its protocol only.
 - Keep source factories at composition boundaries. A source never creates a
@@ -55,18 +57,21 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   separate observation collection and keyed motion lookup.
 - Store only the RapidAPI key in device-only Keychain storage. Persist no live
   aircraft data or credential in preferences.
+- Store InstallerKit cache data in its own UserDefaults value. Remove an invalid
+  cache value after Throw reports it.
 - Represent setup as `ThrowSetupState`. A configured setup carries its validated
   source, confirmed location, and projection mode as required values.
 - Keep projection functions deterministic and independent of SwiftUI layout.
 - Represent geodetic altitude as `GeodeticAltitude`. An available altitude
   carries its value and available quality together.
+- Construct projection Map radii only from validated experience-specific viewports.
 - Keep experience and layer catalogs compile-time and free of UI values. Add no
   runtime plugin or `AnyView` boundary.
 - Keep shipped experience identities closed. Derive standard descriptors and
   presentation through exhaustive switches so a new case forces every owner to update.
 - Keep the standard experience catalog authoritative. Pass
-  `RunnableProjectionExperienceID` through playlist mutations, and keep planned
-  `ProjectionExperienceID` values at display and persistence boundaries.
+  `RunnableProjectionExperienceID` through playlist mutations. Keep
+  `ProjectionExperienceID` at display and persistence boundaries.
 - Construct semantic frames through typed layer and experience cases. Never pass
   parallel experience IDs, raw layer arrays, and modes across production boundaries.
 - Keep layer IDs, mark element families, line styles, and payload shapes closed
@@ -90,12 +95,19 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   erased layer array.
 - Erase projected frames only in ThrowUI's `ProjectionFrame.swift`. Cache static
   lines by layer identity and semantic revision.
-- Keep version-two preferences grouped by global, playlist, and experience
-  ownership. Preserve exact version-one migration and existing Keychain IDs.
+- Keep version-four preferences grouped by global, playlist, and experience
+  ownership. Preserve exact version-one, version-two, and version-three
+  migrations and existing Keychain IDs.
 - Keep global and experience preferences as validated aggregate values. Use
   their replacement methods instead of mutable scalar mirrors.
 - Represent temporary quiet wake durations as `TemporaryQuietWake`. Never pass
   a raw minute count across the session boundary.
+- Treat MTA realtime partitions as independent failure domains. Do not remove a
+  successful partition because another partition fails.
+- Keep transit run identity scoped by agency, feed partition, service date, and
+  stable run value. Do not use a route or trip ID as a vehicle identity.
+- Keep scheduled and realtime transit data separate. Persist only the static
+  schedule cache. Never persist a run, prediction, or estimated position.
 - Project Geography with the selected regional Map center and saved calibration.
   Never use Mercator placement or draw it in True Sky.
 - Keep observer and Map-center semantics separate. True Sky and local activity

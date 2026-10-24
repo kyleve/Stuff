@@ -2,6 +2,9 @@ import Foundation
 import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
+#if DEBUG
+    @_spi(Testing) import InstallerKitUI
+#endif
 
 struct ThrowDashboardView: View {
     let session: ThrowSession
@@ -226,6 +229,7 @@ struct ThrowDashboardView: View {
                     NavigationLink(value: DashboardDestination.settings) {
                         Label(String(localized: .dashboardSettings), systemSymbol: .gear)
                     }
+                    .badge(session.updates?.needsAttention == true ? 1 : 0)
                     #if DEBUG
                         NavigationLink(value: DashboardDestination.projectorLab) {
                             Label(
@@ -307,6 +311,15 @@ private struct RemainingDwellText: View {
                 settle: .immediate,
             ) {
                 snapshotView(session: .healthyDashboardSnapshotFixture())
+            }
+            SnapshotCase(
+                name: "Update Available",
+                configurations: focusedConfigurations,
+                settle: .immediate,
+            ) {
+                snapshotView(session: .healthyDashboardSnapshotFixture(
+                    updates: InstallerPreview.model(.available),
+                ))
             }
             SnapshotCase(
                 name: "Retrying With Last Good Marks",
