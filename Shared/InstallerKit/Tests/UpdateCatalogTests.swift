@@ -5,6 +5,47 @@ import Testing
 struct UpdateCatalogTests {
     private typealias F = UpdateFixtures
 
+    @Test func preservesPublishedPRTitlesThroughDecodingCachingAndBrowsing() throws {
+        let title = "Fix **refresh** & keep <older builds> working — 更新"
+        let catalog = F.withChannels([.init(
+            name: F.channel,
+            active: true,
+            releases: [F.release(2, pullRequestTitle: title), F.release(1)],
+        )])
+        let decoded = try JSONDecoder().decode(
+            UpdateCatalog.self,
+            from: JSONEncoder().encode(catalog),
+        )
+        try decoded.validate(feedURL: F.feedURL)
+        let browser = UpdateBuildBrowser(catalog: decoded, installed: F.installed())
+        #expect(browser.channel(F.channel)?.latest.pullRequestTitle == title)
+        #expect(browser.channel(F.channel)?.previousReleases.first?.pullRequestTitle == nil)
+        #expect(decoded == catalog)
+    }
+
+    @Test(arguments: ["", " \n\t"])
+    func rejectsBlankPRTitles(_ title: String) {
+        let catalog = F.withChannels([.init(
+            name: F.channel,
+            active: true,
+            releases: [F.release(1, pullRequestTitle: title)],
+        )])
+        #expect(throws: UpdateCatalog.ValidationError.self) {
+            try catalog.validate(feedURL: F.feedURL)
+        }
+    }
+
+    @Test func rejectsPRTitlesOnMain() {
+        let catalog = F.withChannels([.init(
+            name: .main,
+            active: true,
+            releases: [F.release(1, channel: "main", pullRequestTitle: "A PR title")],
+        )])
+        #expect(throws: UpdateCatalog.ValidationError.self) {
+            try catalog.validate(feedURL: F.feedURL)
+        }
+    }
+
     @Test func localBuildsNeverReceiveAutomaticUpdateOrRetirementAlerts() {
         for catalog in [F.catalog([2, 1]), F.catalog([2, 1], active: false), F.withChannels([])] {
             let availability = catalog.availability(for: F.localInstalled(status: "dirty"))
@@ -41,9 +82,11 @@ struct UpdateCatalogTests {
     @Test func olderFeedsWithoutBuildDetailsRemainReadable() throws {
         let data = try JSONEncoder().encode(F.catalog([2, 1]))
         #expect(!String(decoding: data, as: UTF8.self).contains("buildDetails"))
+        #expect(!String(decoding: data, as: UTF8.self).contains("pullRequestTitle"))
         let decoded = try JSONDecoder().decode(UpdateCatalog.self, from: data)
         try decoded.validate(feedURL: F.feedURL)
         #expect(decoded.apps[0].channels[0].releases[0].buildDetails == nil)
+        #expect(decoded.apps[0].channels[0].releases[0].pullRequestTitle == nil)
     }
 
     @Test(arguments: [
@@ -140,6 +183,7 @@ struct UpdateCatalogTests {
             historyChanged: true,
             commits: [],
             buildDetails: nil,
+            pullRequestTitle: nil,
         )
         let catalog = F.withChannels([
             .init(name: F.channel, active: true, releases: [latest, F.release(1)]),

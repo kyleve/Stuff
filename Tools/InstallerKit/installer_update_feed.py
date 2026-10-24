@@ -14,7 +14,7 @@ from urllib.error import HTTPError
 from urllib.request import Request
 
 from Tools.InstallerKit.github_api import API_VERSION, request_json
-from Tools.InstallerKit.installer_installation import validate_release
+from Tools.InstallerKit.installer_installation import validate_pull_request_title, validate_release
 from Tools.InstallerKit.installer_apps import load_app, validate_metadata
 
 
@@ -193,7 +193,12 @@ def publish_receipt(receipt, feed, fetch, feed_url, run=subprocess.run):
         validate_release({**receipt, "id": identifier}, feed.repository, app.id, channel, feed_url)
 
         def make_release(previous):
+            # Record GitHub's current display title, not untrusted receipt metadata.
+            # Each CAS retry reads it again after the existing eligibility check.
+            title = {} if number is None else {"pullRequestTitle": validate_pull_request_title(
+                fetch(f"repos/{feed.repository}/pulls/{number}")["title"])}
             return {"id": identifier, "sha": plan.sha,
+                    **title,
                     "manifestURL": receipt["manifestURL"], "ipaURL": receipt["ipaURL"],
                     "bundleVersion": receipt["bundleVersion"],
                     **({"buildDetails": receipt["buildDetails"]} if "buildDetails" in receipt else {}),

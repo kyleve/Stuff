@@ -129,6 +129,9 @@ Each channel retains 100 releases. Missing or rewritten ancestry produces explic
 New releases include `buildDetails`: marketing `version`, `minimumOSVersion`, and IPA `sizeBytes`.
 The publisher reads the versions from the signed Info.plist and measures the exported IPA before upload.
 Older releases can omit this block. Display code must keep missing details explicit.
+New PR releases also record `pullRequestTitle` from live GitHub metadata when the feed is published.
+Title edits appear with the next publication. Historical releases keep their recorded titles; older releases can omit them.
+The native Other Builds list uses this text without changing the channel's identity or install destination.
 
 Schema 3 replaces the unreleased Where-only catalog. No schema 2 deployment or installed-client migration is supported.
 Enable distribution only after the matching app and controller changes are on `main`.

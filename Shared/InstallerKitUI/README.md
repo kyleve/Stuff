@@ -40,6 +40,7 @@ The modifier applies to each complete section. No host navigation types enter th
 
 Open **Other Builds** near the top of the page. The sheet lists Main, then active PR channels for the installed app.
 The installed channel has a badge. Each channel opens its latest build.
+PR rows show the latest build's recorded PR title below its number when available. Long titles wrap with Dynamic Type.
 Choose **Install This Build** for any build other than the installed one.
 **Build History** lists retained builds, including older versions, and marks the exact installed build.
 

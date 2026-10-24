@@ -137,6 +137,7 @@
                         minimumOSVersion: "27.0",
                         sizeBytes: 48_300_000,
                     ),
+                    pullRequestTitle: nil,
                 )
             }
             let releases = [
@@ -206,6 +207,7 @@
             historyChanged: Bool,
             commits: [UpdateCatalog.Commit],
             buildDetails: UpdateCatalog.BuildDetails?,
+            pullRequestTitle: String?,
         ) -> UpdateCatalog.Release {
             UpdateCatalog.Release(
                 id: .init(run: run, attempt: 1),
@@ -218,6 +220,7 @@
                 historyChanged: historyChanged,
                 commits: commits,
                 buildDetails: buildDetails,
+                pullRequestTitle: pullRequestTitle,
             )
         }
 

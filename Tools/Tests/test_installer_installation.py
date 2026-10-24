@@ -21,12 +21,23 @@ class InstallerInstallationTests(unittest.TestCase):
         validate_release(release, "fixture/Stuff", "where", "pr-42", feed)
         original_manifest = manifest(load_app("where").metadata, release)
         release["buildDetails"] = {"version": "0.9.2", "minimumOSVersion": "27.0", "sizeBytes": 48300000}
+        release["pullRequestTitle"] = "Fix **refresh** & keep <older builds> working — 更新"
         validate_release(release, "fixture/Stuff", "where", "pr-42", feed)
         self.assertEqual(manifest(load_app("where").metadata, release), original_manifest)
         item = plistlib.loads(manifest(load_app("where").metadata, release))["items"][0]
         self.assertEqual(item["assets"], [{"kind": "software-package", "url": release["ipaURL"]}])
         self.assertEqual(item["metadata"], {"bundle-identifier": "com.stuff.where.development", "bundle-version": "2.3.4",
                                              "kind": "software", "title": "Where Dev"})
+
+    def test_invalid_titles_and_titles_on_main_are_rejected(self):
+        feed = "https://example.org/updates.json"
+        identifier = {"run": 12, "attempt": 2}
+        for channel, title in (("pr-42", ""), ("pr-42", " \n"), ("pr-42", 42), ("main", "PR title")):
+            release = {"id": identifier, "manifestURL": manifest_url(feed, "where", channel, identifier),
+                       "ipaURL": asset_url("fixture/Stuff", "where", channel, identifier), "bundleVersion": "1",
+                       "pullRequestTitle": title}
+            with self.subTest(channel=channel, title=title), self.assertRaises(ValueError):
+                validate_release(release, "fixture/Stuff", "where", channel, feed)
 
     def test_unsafe_feed_locations_and_channel_paths_are_rejected(self):
         for url in ("http://example.org/updates.json", "https://user@example.org/updates.json",

@@ -120,6 +120,33 @@ class InstallerUpdateFeedTests(unittest.TestCase):
         publish_receipt(receipt, feed, lambda _: {"object": {"sha": "b" * 40}}, FEED_URL)
         feed.deploy.assert_not_called()
 
+    def test_pr_publication_uses_live_title_and_preserves_it_through_retirement(self):
+        catalog = empty()
+        title = "Fix **refresh** & keep <older builds> working — 更新"
+        pr = {"title": title, "state": "open", "mergeable": True,
+              "labels": [{"name": "installable"}], "head": {"sha": SHA, "repo": {"full_name": REPO}},
+              "base": {"repo": {"full_name": REPO}}}
+        fetch = Mock(return_value=pr)
+        feed = Mock(repository=REPO)
+        def save(app, channel, make_release, current):
+            nonlocal catalog
+            if not current():
+                return False
+            catalog = apply_change(catalog, app, channel, make_release(None))
+            return True
+        feed.save.side_effect = save
+        receipt = {**release(2), "action": "publish", "appID": "where", "channel": "pr-42",
+                   "run": "2", "attempt": "1", "pullRequestTitle": "Stale receipt title"}
+        publish_receipt(receipt, feed, fetch, FEED_URL, run=Mock(return_value=Mock(returncode=1)))
+        published = catalog["apps"][0]["channels"][0]["releases"][0]
+        self.assertEqual(published["pullRequestTitle"], title)
+        self.assertTrue(all(call.args == (f"repos/{REPO}/pulls/42",) for call in fetch.call_args_list))
+        feed.deploy.assert_called_once()
+        pr["state"] = "closed"
+        publish_receipt({"action": "retire", "appID": "where", "channel": "pr-42"}, feed, fetch, FEED_URL)
+        self.assertFalse(catalog["apps"][0]["channels"][0]["active"])
+        self.assertEqual(catalog["apps"][0]["channels"][0]["releases"][0], published)
+
     def test_app_cannot_reuse_a_retained_bundle_identifier(self):
         catalog = apply_change(empty(), APP, "main", release(1, channel="main"))
         requests = []
@@ -167,6 +194,7 @@ class InstallerUpdateFeedTests(unittest.TestCase):
         files = render_site(saved[0], REPO, FEED_URL)
         self.assertEqual(json.loads(files["updates.json"]), saved[0])
         self.assertEqual(saved[0]["apps"][0]["channels"][0]["releases"][0]["buildDetails"], published["buildDetails"])
+        self.assertNotIn("pullRequestTitle", saved[0]["apps"][0]["channels"][0]["releases"][0])
         item = plistlib.loads(files["manifests/where/main/2-1.plist"])["items"][0]
         self.assertEqual(item["assets"][0]["url"], published["ipaURL"])
         self.assertEqual(item["metadata"]["bundle-version"], published["bundleVersion"])

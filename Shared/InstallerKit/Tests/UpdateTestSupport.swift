@@ -47,6 +47,7 @@ enum UpdateFixtures {
         channel: String = "pr-42",
         feedURL: URL = UpdateFixtures.feedURL,
         buildDetails: UpdateCatalog.BuildDetails? = nil,
+        pullRequestTitle: String? = nil,
     ) -> UpdateCatalog
         .Release
     {
@@ -60,6 +61,7 @@ enum UpdateFixtures {
             historyChanged: historyChanged,
             commits: [.init(sha: revision(run), subject: "Change \(run)")],
             buildDetails: buildDetails,
+            pullRequestTitle: pullRequestTitle,
         )
     }
 

@@ -65,6 +65,8 @@ Successful automatic checks are cached for one hour. Manual checks always fetch.
 Incoming notes span skipped releases when their commit ancestry remains connected.
 Releases can carry optional `buildDetails` from the signed IPA: version, minimum iOS version, and download size.
 The decoder accepts older releases without this block and validates present values before caching them.
+PR releases can also carry an optional `pullRequestTitle`, recorded from GitHub at publication time.
+Older releases omit the title. Channel and build identities do not depend on this display text.
 
 Publication and app registration are documented in [the installer guide](../../Tools/InstallerKit/README.md).
 The existing Where integration lives in `RegularApplicationRuntime` and `DevelopmentUpdatesView`.
