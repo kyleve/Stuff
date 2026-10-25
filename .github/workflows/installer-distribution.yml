@@ -1,0 +1,56 @@
+name: App Dev Distribution
+
+on:
+  push:
+    branches: [main]
+  pull_request_target:
+    types: [opened, reopened, synchronize, labeled, unlabeled, closed]
+  workflow_dispatch:
+    inputs:
+      pull_request:
+        description: 'Installable PR number; leave empty to publish main'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  apps:
+    name: Select enabled apps
+    if: >-
+      github.event_name != 'pull_request_target' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      apps: ${{ steps.apps.outputs.apps }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - id: apps
+        env:
+          INSTALLER_VARIABLES: ${{ toJSON(vars) }}
+        run: python3 -m Tools.InstallerKit.installer_apps --output "$GITHUB_OUTPUT"
+
+  distribute:
+    needs: apps
+    if: needs.apps.outputs.apps != '[]'
+    permissions:
+      contents: write
+      pull-requests: read
+      actions: write
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJSON(needs.apps.outputs.apps) }}
+    # Pin the reusable controller to trusted main, including for PR events.
+    uses: kyleve/Stuff/.github/workflows/installer-distribute-app.yml@main
+    with:
+      app: ${{ matrix.app }}
+    secrets:
+      INSTALLER_CIRCLECI_TOKEN: ${{ secrets.INSTALLER_CIRCLECI_TOKEN }}

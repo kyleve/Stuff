@@ -2,12 +2,14 @@ import InstallerKit
 import SwiftUI
 
 struct UpdateBuildInformation: View {
+    let channel: InstalledBuild.Channel
     let release: UpdateCatalog.Release
     let installed: InstalledBuild
     @Environment(\.installerStylesheet) private var stylesheet
 
     var body: some View {
         UpdateCard(title: .installerBuildInformation) {
+            UpdatePullRequestLink(channel: channel, installed: installed)
             UpdateDetailRow(title: .installerWorkflowRun) {
                 Link(destination: installed.repositoryURL
                     .appending(

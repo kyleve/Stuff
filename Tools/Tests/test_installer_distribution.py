@@ -218,7 +218,7 @@ class InstallerDistributionTests(unittest.TestCase):
                     self.assertEqual(main(["plan"] + arguments), 0)
                     self.assertEqual(output.read_text(), "action=retire\nsha=\nchannel=pr-42\n")
                     output.unlink()
-                    self.assertEqual(main(["finish"] + arguments), 0)
+                    self.assertEqual(main(["finish", "--source-sha", ""] + arguments), 0)
                     self.assertIn("Selected pr-42 for retirement", stdout.getvalue())
                     self.assertIn("Selected pr-42 for retirement", output.read_text())
                     self.assertEqual(stderr.getvalue(), "")
@@ -276,3 +276,156 @@ class InstallerDistributionTests(unittest.TestCase):
                 self.assertEqual(main(args), 0)
                 self.assertFalse(receipt.exists())
                 service.assert_not_called()
+
+    def test_missing_app_source_skips_build_but_never_suppresses_retirement(self):
+        from Tools.InstallerKit.installer_apps import load_app
+        from Tools.InstallerKit.installer_distribution import source_available, Retirement
+        app = load_app('throw')
+        fetch = Mock(return_value={'truncated': False, 'tree': [{'path': 'Where', 'type': 'tree'}]})
+        self.assertFalse(source_available(app, Publication(SHA, 42), REPO, fetch))
+        fetch.return_value['tree'].append({'path': 'Throw', 'type': 'tree'})
+        self.assertTrue(source_available(app, Publication(SHA, 42), REPO, fetch))
+        fetch.reset_mock()
+        self.assertTrue(source_available(app, Retirement(42), REPO, fetch))
+        fetch.assert_not_called()
+        fetch.return_value = {'truncated': True, 'tree': []}
+        with self.assertRaises(ValueError):
+            source_available(app, Publication(SHA, 42), REPO, fetch)
+
+    def test_cli_skips_absent_app_before_emitting_archive_work(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            event = Path(temporary) / 'event.json'
+            event.write_text(json.dumps(pr_event()))
+            output = Path(temporary) / 'output'
+            with patch('Tools.InstallerKit.installer_distribution.github_fetch', side_effect=[
+                    pr_event()['pull_request'], {'truncated': False, 'tree': []}]), \
+                    redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
+                result = main(['plan', '--app', 'throw', '--event', str(event),
+                               '--event-name', 'pull_request_target', '--repository', REPO,
+                               '--ref', 'refs/heads/main', '--sha', 'b' * 40, '--output', str(output)])
+            self.assertEqual(result, 0)
+            self.assertEqual(output.read_text(), 'action=skip\nsha=\nchannel=\n')
+            self.assertEqual(stdout.getvalue(), output.read_text())
+            self.assertIn('Skipping throw', stderr.getvalue())
+
+    def test_manual_pr_dispatch_uses_live_head_and_keeps_opt_in(self):
+        from Tools.InstallerKit.installer_distribution import event_plan
+        event = {'repository': {'full_name': REPO}, 'inputs': {'pull_request': '42'}}
+        fetch = Mock(return_value=pr_event()['pull_request'])
+        self.assertEqual(event_plan('workflow_dispatch', event, REPO, 'refs/heads/main', 'b' * 40, fetch), Publication(SHA, 42))
+        fetch.assert_called_once_with(f'repos/{REPO}/pulls/42')
+        for pr in (pr_event(labeled=False), pr_event(fork=True), pr_event(state='closed')):
+            with self.subTest(pr=pr), self.assertRaisesRegex(ValueError, 'labeled installable'):
+                event_plan('workflow_dispatch', event, REPO, 'refs/heads/main', 'b' * 40,
+                           Mock(return_value=pr['pull_request']))
+
+    def test_manual_pr_dispatch_rejects_invalid_numbers_and_untrusted_refs(self):
+        from Tools.InstallerKit.installer_distribution import event_plan
+        for number in ('0', '-1', '01', '1/../../', 0, 42, True, False, None, '42\n'):
+            event = {'repository': {'full_name': REPO}, 'inputs': {'pull_request': number}}
+            with self.subTest(number=number), self.assertRaises(ValueError):
+                event_plan('workflow_dispatch', event, REPO, 'refs/heads/main', SHA,
+                           Mock(side_effect=AssertionError('No API request expected')))
+        event = {'repository': {'full_name': REPO}, 'inputs': {'pull_request': '42'}}
+        fetch = Mock(side_effect=AssertionError('No API request expected'))
+        self.assertIsNone(event_plan('workflow_dispatch', event, REPO, 'refs/heads/feature', SHA, fetch))
+        event['repository']['full_name'] = 'other/Stuff'
+        self.assertIsNone(event_plan('workflow_dispatch', event, REPO, 'refs/heads/main', SHA, fetch))
+
+    def test_manual_dispatch_without_pr_retains_main_behavior(self):
+        from Tools.InstallerKit.installer_distribution import event_plan
+        fetch = Mock(side_effect=AssertionError('No PR lookup expected'))
+        for inputs in ({}, {'pull_request': ''}):
+            event = {'repository': {'full_name': REPO}, 'inputs': inputs}
+            self.assertEqual(event_plan('workflow_dispatch', event, REPO, 'refs/heads/main', SHA, fetch),
+                             Publication(SHA, None))
+
+    def test_manual_pr_dispatch_command_emits_pr_channel_instead_of_main(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            event = Path(temporary) / 'event.json'
+            event.write_text(json.dumps({'repository': {'full_name': REPO}, 'inputs': {'pull_request': '42'}}))
+            with patch('Tools.InstallerKit.installer_distribution.github_fetch', return_value=pr_event()['pull_request']), \
+                    redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
+                result = main(['plan', '--app', 'where', '--event', str(event), '--event-name', 'workflow_dispatch',
+                               '--repository', REPO, '--ref', 'refs/heads/main', '--sha', 'b' * 40])
+                self.assertEqual(result, 0, stderr.getvalue())
+                self.assertIn(f'action=publish\nsha={SHA}\nchannel=pr-42\n', stdout.getvalue())
+
+    def test_manual_pr_plan_to_completion_keeps_archive_identity_when_live_state_changes(self):
+        current = pr_event()['pull_request']
+        advanced = {**current, 'head': {**current['head'], 'sha': 'c' * 40}}
+        cases = [('unchanged', current), ('advanced', advanced),
+                 ('unlabeled', pr_event(labeled=False)['pull_request']),
+                 ('closed', pr_event(state='closed')['pull_request']),
+                 ('fork', pr_event(fork=True)['pull_request'])]
+        for name, live in cases:
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                event, ipa, receipt = root / 'event.json', root / 'app.ipa', root / 'receipt.json'
+                event.write_text(json.dumps({'repository': {'full_name': REPO}, 'inputs': {'pull_request': '42'}}))
+                common = ['--app', 'where', '--event', str(event), '--event-name', 'workflow_dispatch',
+                          '--repository', REPO, '--ref', 'refs/heads/main', '--sha', 'b' * 40]
+                with patch('Tools.InstallerKit.installer_distribution.github_fetch', return_value=current), \
+                        redirect_stdout(io.StringIO()) as planned:
+                    self.assertEqual(main(['plan'] + common), 0)
+                outputs = dict(line.split('=', 1) for line in planned.getvalue().splitlines())
+                write_ipa(ipa, {'InstallerRepositoryURL': f'https://github.com/{REPO}',
+                                'InstallerChannel': outputs['channel'], 'InstallerGitSHA': outputs['sha'],
+                                'InstallerRun': '2', 'InstallerAttempt': '1', 'InstallerFeedURL': FEED_URL})
+                args = ['finish', *common, '--source-sha', outputs['sha'], '--ipa', str(ipa),
+                        '--receipt', str(receipt), '--run', '2', '--attempt', '1', '--feed-url', FEED_URL]
+                with patch('Tools.InstallerKit.installer_distribution.github_fetch', return_value=live), \
+                        patch('Tools.InstallerKit.installer_update_feed.GitHubUpdateFeed') as feed, \
+                        patch('Tools.InstallerKit.installer_distribution.GitHubReleases') as service, \
+                        redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
+                    feed.return_value.load.return_value = ({'schemaVersion': 3, 'apps': []}, None)
+                    service.return_value.publish.return_value = IPA_URL
+                    self.assertEqual(main(args), 0, stderr.getvalue())
+                    self.assertEqual(stderr.getvalue(), '')
+                    if name == 'unchanged':
+                        service.return_value.publish.assert_called_once()
+                        result = json.loads(receipt.read_text())
+                        self.assertEqual((result['sha'], result['channel']), (SHA, 'pr-42'))
+                    else:
+                        service.return_value.publish.assert_not_called()
+                        self.assertIn('Skipped: the branch, label, or pull request state changed.', stdout.getvalue())
+                        self.assertFalse(receipt.exists())
+
+    def test_manual_pr_completion_requires_planned_sha_and_rejects_wrong_ipa(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            event, ipa, receipt = root / 'event.json', root / 'app.ipa', root / 'receipt.json'
+            event.write_text(json.dumps({'repository': {'full_name': REPO}, 'inputs': {'pull_request': '42'}}))
+            write_ipa(ipa, {'InstallerRepositoryURL': f'https://github.com/{REPO}', 'InstallerChannel': 'pr-42',
+                            'InstallerGitSHA': 'c' * 40, 'InstallerRun': '2', 'InstallerAttempt': '1',
+                            'InstallerFeedURL': FEED_URL})
+            args = ['finish', '--app', 'where', '--event', str(event), '--event-name', 'workflow_dispatch',
+                    '--repository', REPO, '--ref', 'refs/heads/main', '--sha', 'b' * 40,
+                    '--ipa', str(ipa), '--receipt', str(receipt), '--run', '2', '--attempt', '1', '--feed-url', FEED_URL]
+            for source in ([], ['--source-sha', ''], ['--source-sha', 'main'], ['--source-sha', SHA]):
+                with self.subTest(source=source), \
+                        patch('Tools.InstallerKit.installer_distribution.github_fetch') as fetch, \
+                        patch('Tools.InstallerKit.installer_update_feed.GitHubUpdateFeed') as feed, \
+                        patch('Tools.InstallerKit.installer_distribution.GitHubReleases') as service, \
+                        redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
+                    self.assertEqual(main(args + source), 1)
+                    self.assertIn('InstallerGitSHA' if source == ['--source-sha', SHA] else '--source-sha', stderr.getvalue())
+                    self.assertEqual(stdout.getvalue(), '')
+                    self.assertFalse(receipt.exists())
+                    fetch.assert_not_called()
+                    feed.assert_not_called()
+                    service.assert_not_called()
+
+    def test_completion_plan_keeps_event_identity_and_trusted_controller_gate(self):
+        from Tools.InstallerKit.installer_distribution import completion_plan
+        main_event = {'repository': {'full_name': REPO}, 'after': SHA}
+        for kind in ('push', 'workflow_dispatch'):
+            with self.subTest(kind=kind):
+                self.assertEqual(completion_plan(kind, main_event, REPO, 'refs/heads/main', SHA, SHA),
+                                 Publication(SHA, None))
+                with self.assertRaisesRegex(ValueError, 'does not match the event'):
+                    completion_plan(kind, main_event, REPO, 'refs/heads/main', SHA, 'b' * 40)
+        event = {'repository': {'full_name': REPO}, 'inputs': {'pull_request': '42'}}
+        self.assertIsNone(completion_plan('workflow_dispatch', event, REPO, 'refs/heads/feature', SHA, SHA))
+        event['repository']['full_name'] = 'other/Stuff'
+        self.assertIsNone(completion_plan('workflow_dispatch', event, REPO, 'refs/heads/main', SHA, SHA))

@@ -101,6 +101,8 @@ struct WhereStylesheet: BStylesheet {
             onboarding.usesOpaqueSurfaces = true
             onboarding.showsArtwork = false
             onboarding.footer.backgroundOpacity = 1
+            locationForecast.summary.usesOpaquePaper = true
+            locationForecast.summary.shadowOpacity = 0
             locationsBackground.showsInk = false
             card.regular.glow.radius = 0
             card.compact.glow.radius = 0
@@ -130,6 +132,8 @@ struct WhereStylesheet: BStylesheet {
         // Pale, luminosity-only ink lifts the background security print off
         // dark glass without changing its hue or saturation on touch.
         if traits.mode == .dark {
+            locationForecast.summary.ink = Color(white: 0.78)
+            locationForecast.summary.paper = Color(white: 0.16)
             settings.iconForeground = .black
             card.securityPrint = .dark
             card.elsewherePaper = .dark
@@ -385,6 +389,51 @@ extension WhereStylesheet {
         var progress: Progress
         var controls: Controls
         var ink: Ink
+        var summary = Summary()
+
+        /// The quiet glass finish used by the collapsible Locations summary.
+        struct Summary: Equatable {
+            var artwork = Artwork()
+            var cornerRadius: CGFloat = 28
+            var padding: CGFloat = 22
+            var ink = Color(white: 0.36)
+            var treatment = SurfaceTreatment.reflective
+            var paper = Color(white: 0.94)
+            var usesOpaquePaper = false
+            var glassTintOpacity: Double = 0.06
+            var outlineColor = Color.black.opacity(0.14)
+            var outlineWidth: CGFloat = 1
+            var shadowOpacity: Double = 0.06
+            var shadowRadius: CGFloat = 8
+            var shadowOffsetY: CGFloat = 3
+            var rosetteOpacity: Double = 0.035
+            var rosette = CardStyle.Rosette(
+                wobble: 0.04,
+                lineWidth: 0.5,
+                primaryRingSpacing: 12,
+                secondaryRingSpacing: 17,
+            )
+            var border = CardStyle.RegionShape.SecurityBorder(
+                inset: 7,
+                glyphSize: 7,
+                spacing: 12,
+                opacity: 0.18,
+            )
+
+            struct Artwork: Equatable {
+                var widthFraction: CGFloat = 0.62
+                var inset: CGFloat = 16
+                var gap: CGFloat = 8
+                var leadingOpacity: Double = 0.18
+                var silhouette = CardStyle.RegionShape.Artwork(
+                    center: CGPoint(x: 0.5, y: 0.5),
+                    extent: CGSize(width: 0.9, height: 0.9),
+                    scale: 1,
+                    fillOpacity: 0.11,
+                    stroke: .init(opacity: 0.22, width: 0.7),
+                )
+            }
+        }
 
         struct Surface: Equatable {
             var outlineWidth: CGFloat
@@ -1817,6 +1866,13 @@ extension WhereStylesheet {
 
         /// Spacing and surface treatment within each journey row.
         struct Row: Equatable {
+            struct Sizing: Equatable {
+                var baseHeight: CGFloat
+                var verticalPadding: CGFloat
+            }
+
+            /// Single-day stops use their content height and less vertical padding.
+            var singleDay = Sizing(baseHeight: 0, verticalPadding: 8)
             var spacing: CGFloat
             var labelSpacing: CGFloat
             var gap: CGFloat
@@ -1835,6 +1891,13 @@ extension WhereStylesheet {
             var countFillOpacity: Double
             /// Accessibility Dynamic Type stacks the count beneath the labels.
             var stacksDayCount: Bool
+
+            func sizing(for dayCount: Int) -> Sizing {
+                dayCount == 1 ? singleDay : Sizing(
+                    baseHeight: baseHeight,
+                    verticalPadding: verticalPadding,
+                )
+            }
         }
 
         /// The future planned-stay treatment appended after recorded journey

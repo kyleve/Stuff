@@ -50,6 +50,12 @@ def validate_build_details(value):
     return value
 
 
+def validate_pull_request_title(value):
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError("Pull request title must be nonempty text")
+    return value
+
+
 def validate_release(release, repository, app_id, channel, feed_url):
     expected_manifest = manifest_url(feed_url, app_id, channel, release["id"])
     if release["manifestURL"] != expected_manifest:
@@ -59,6 +65,10 @@ def validate_release(release, repository, app_id, channel, feed_url):
     validate_bundle_version(release["bundleVersion"])
     if "buildDetails" in release:
         validate_build_details(release["buildDetails"])
+    if release.get("pullRequestTitle") is not None:
+        if channel == "main":
+            raise ValueError("Main releases cannot have a pull request title")
+        validate_pull_request_title(release["pullRequestTitle"])
 
 
 def manifest(app, release):

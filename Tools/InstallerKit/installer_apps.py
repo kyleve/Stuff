@@ -1,6 +1,9 @@
 """Trusted app registrations for shared installer publication."""
 
+import argparse
 from dataclasses import dataclass
+import os
+import sys
 import json
 from pathlib import Path
 import re
@@ -57,6 +60,7 @@ class InstallerApp:
     signed_bundles: tuple
     required_info: dict
     presentation: AppPresentation
+    source_directory: Optional[str] = None
 
     @property
     def metadata(self):
@@ -84,12 +88,15 @@ def load_apps(path=REGISTRY):
         for item in signed:
             if item != bundle and not re.fullmatch(re.escape(bundle) + r"/PlugIns/[A-Za-z0-9_-]+\.appex", item):
                 raise ValueError("Invalid signed extension path")
+        source = value.get("sourceDirectory")
+        if source is not None and (not isinstance(source, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", source)):
+            raise ValueError("Source directory must be one repository-root directory")
         info = value["requiredInfo"]
         if not isinstance(info, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in info.items()):
             raise ValueError("Expected app metadata must contain string keys and values")
         apps[value["id"]] = InstallerApp(value["id"], value["name"], value["bundleIdentifier"],
                                          bundle, tuple(signed), info,
-                                         presentation(value.get("site", {"subtitle": "Development build"})))
+                                         presentation(value.get("site", {"subtitle": "Development build"})), source)
     return apps
 
 
@@ -99,3 +106,49 @@ def load_app(app_id, path=REGISTRY):
     if app_id not in apps:
         raise ValueError(f"Unregistered installer app: {app_id}")
     return apps[app_id]
+
+
+SIGNING_REGISTRY = REGISTRY.with_name("installer-signing-apps.json")
+
+
+def archive_product(app_id, apps_path=REGISTRY, signing_path=SIGNING_REGISTRY):
+    """Resolve the exported filename from trusted signing configuration."""
+    app = load_app(app_id, apps_path)
+    descriptor = json.loads(signing_path.read_text())[app_id]
+    product = descriptor["product"]
+    if not isinstance(product, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", product):
+        raise ValueError("Invalid archive product name")
+    if app.bundle_path != f"Payload/{product}.app":
+        raise ValueError("Signing product does not match the registered IPA bundle")
+    return product
+
+
+def enabled_apps(variables, apps_path=REGISTRY, signing_path=SIGNING_REGISTRY):
+    """The label opts into enabled registrations, never infers an app from PR text."""
+    selected = []
+    for app in load_apps(apps_path).values():
+        variable = f"{app.id.upper().replace('-', '_')}_DISTRIBUTION_ENABLED"
+        if variables.get(variable) == "true":
+            archive_product(app.id, apps_path, signing_path)
+            selected.append(app.id)
+    return selected
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args(argv)
+    try:
+        selected = enabled_apps(json.loads(os.environ.get("INSTALLER_VARIABLES", "{}")))
+        output = f"apps={json.dumps(selected, separators=(',', ':'))}\n"
+        with args.output.open("a") as destination:
+            destination.write(output)
+        print(output, end="")
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

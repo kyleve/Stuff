@@ -24,6 +24,7 @@ The page seeds its own Broadway root and supplies a navigation title.
 Place it in the host's navigation stack. Hosts retain audience, demo, and foreground gates.
 
 The page checks on appearance, supports pull-to-refresh, and offers a manual check.
+Manual checks use a page-owned task, so checking-state redraws cannot cancel the request. Leaving the page cancels that task.
 InstallerKit owns throttling, cancellation, cache persistence, and release selection.
 Failed checks show the cause and a diagnostic code, such as **HTTP 404** for a missing feed.
 Network failures explain offline, timeout, DNS, connection, and certificate errors with their original codes.
@@ -39,8 +40,10 @@ The modifier applies to each complete section. No host navigation types enter th
 
 Open **Other Builds** near the top of the page. The sheet lists Main, then active PR channels for the installed app.
 The installed channel has a badge. Each channel opens its latest build.
+PR rows show the latest build's recorded PR title below its number when available. Long titles wrap with Dynamic Type.
 Choose **Install This Build** for any build other than the installed one.
 **Build History** lists retained builds, including older versions, and marks the exact installed build.
+PR builds include a **Pull request** link in Build Information and the installed-build card. The link follows the displayed channel, including older and title-less builds.
 
 Browsing does not change the host's update badge or automatic update channel.
 After installation, the new app's signed identity determines its update channel.

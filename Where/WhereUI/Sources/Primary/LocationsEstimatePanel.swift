@@ -8,12 +8,11 @@ struct LocationsEstimatePanel: View {
     var body: some View {
         let forecasts = report.forecasts.leadingForecasts(report: report.report)
         if report.showsEstimatedTimeAndPlanning, !forecasts.isEmpty {
-            LocationForecastPanel(
+            LocationForecastSummary(
                 forecasts: forecasts,
-                microprintRegions: report.ranking.primary.map(\.region).filter { $0 != .other },
+                primaryRegions: report.ranking.primary.map(\.region).filter { $0 != .other },
                 homeRegion: report.forecasts.planning.homeRegion,
                 planningAction: planningAction,
-                isCollapsible: true,
             )
         }
     }

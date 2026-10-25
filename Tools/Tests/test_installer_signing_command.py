@@ -6,9 +6,9 @@ import unittest
 from Tools.repository import repository_root
 
 
-class WhereSigningCommandTests(unittest.TestCase):
+class InstallerSigningCommandTests(unittest.TestCase):
     def test_invalid_command_and_local_use_do_not_access_credentials(self):
-        command = repository_root(Path(__file__)) / '.github/where-signing.sh'
+        command = repository_root(Path(__file__)) / '.github/installer-signing.sh'
         for arguments, message in (([], 'Usage:'), (['prepare'], 'CircleCI')):
             result = subprocess.run(['/bin/bash', str(command), *arguments], cwd='/tmp',
                                     env={'PATH': '/usr/bin:/bin'}, capture_output=True, text=True)
@@ -23,7 +23,7 @@ class WhereSigningCommandTests(unittest.TestCase):
             mise.write_text('#!/bin/bash\nprintf "%s\\n" "$PWD" "$BUNDLE_GEMFILE" "$BUNDLE_PATH" "$BUNDLE_FROZEN" "$@" > "$LOG"\nexit 47\n')
             mise.chmod(0o755)
             log = directory / 'log'
-            result = subprocess.run(['/bin/bash', str(root / '.github/where-signing.sh'), 'prepare'], cwd='/tmp',
+            result = subprocess.run(['/bin/bash', str(root / '.github/installer-signing.sh'), 'prepare'], cwd='/tmp',
                                     env={'PATH': f'{directory}:/usr/bin:/bin', 'CIRCLECI': 'true',
                                          'LOG': str(log), 'BUNDLE_GEMFILE': '/wrong/Gemfile',
                                          'BUNDLE_PATH': '/wrong/bundle', 'BUNDLE_FROZEN': 'false'}, capture_output=True, text=True)
@@ -35,8 +35,8 @@ class WhereSigningCommandTests(unittest.TestCase):
     def test_cleanup_before_prepare_needs_no_runtime(self):
         root = repository_root(Path(__file__))
         with tempfile.TemporaryDirectory() as temporary:
-            result = subprocess.run(['/bin/bash', str(root / '.github/where-signing.sh'), 'cleanup'], cwd='/tmp',
+            result = subprocess.run(['/bin/bash', str(root / '.github/installer-signing.sh'), 'cleanup'], cwd='/tmp',
                                     env={'PATH': '/usr/bin:/bin', 'CIRCLECI': 'true',
-                                         'WHERE_SIGNING_DIR': str(Path(temporary) / 'absent')},
+                                         'INSTALLER_SIGNING_DIR': str(Path(temporary) / 'absent')},
                                     capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)

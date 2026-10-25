@@ -25,9 +25,11 @@ struct WhereThemeOverridesTests {
         sheet.locationWelcome.glow.opacity = 0.43
         var expected = sheet
         expected.locationWelcome.glow.opacity = 0
+        expected.locationForecast.summary.shadowOpacity = 0
 
         var overrides = WhereThemeOverrides()
         overrides.welcome.glowOpacity = 0
+        overrides.forecast.summaryShadowOpacity = 0
         overrides.apply(to: &sheet)
         #expect(sheet == expected)
     }

@@ -30,8 +30,14 @@ Use `force: true` for a manual check. Bind badges to `needsAttention` and render
 Failure state retains both the original error and the last successful snapshot.
 `UpdateClient.FetchError.httpStatus` carries the server's HTTP status code.
 Other response failures distinguish unexpected server locations, non-HTTP responses, and oversized feeds.
-Transport, decoding, and catalog validation errors keep their original types. The UI owns localized failure text.
+The service treats `URLError.cancelled` as cancellation, even when the calling Swift task remains active.
+Cancellation restores the previous model state and preserves the cached catalog and check date. A later manual check can retry immediately.
+Other transport, decoding, and catalog validation errors keep their original types. The UI owns localized failure text.
 Use a release's `installURL` for installation and `installed.commitURL(for:)` for commit links.
+Use `installed.pullRequestURL(for:)` with the displayed build's typed channel for its GitHub PR link. Main returns no PR link.
+`Channel` stores either `.main` or `.pullRequest(PullRequestNumber)`. It parses the PR number once at the wire boundary.
+Its encoded form remains `"main"` or `"pr-<number>"`, so existing feeds and signed stamps remain compatible.
+An available `Update` carries its channel alongside the release and changes.
 
 Each service snapshot also exposes `browser`, an `UpdateBuildBrowser` for the installed app.
 It lists active channels with main first, then PRs by their latest build. Channels include retained build history.
@@ -63,6 +69,8 @@ Successful automatic checks are cached for one hour. Manual checks always fetch.
 Incoming notes span skipped releases when their commit ancestry remains connected.
 Releases can carry optional `buildDetails` from the signed IPA: version, minimum iOS version, and download size.
 The decoder accepts older releases without this block and validates present values before caching them.
+PR releases can also carry an optional `pullRequestTitle`, recorded from GitHub at publication time.
+Older releases omit the title. Channel and build identities do not depend on this display text.
 
 Publication and app registration are documented in [the installer guide](../../Tools/InstallerKit/README.md).
 The existing Where integration lives in `RegularApplicationRuntime` and `DevelopmentUpdatesView`.

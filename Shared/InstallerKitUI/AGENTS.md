@@ -5,9 +5,12 @@ See [README.md](README.md) and the [repository rules](../../AGENTS.md).
 
 - Depend on InstallerKit, Broadway, SnapshotKit, and SFSafeSymbols. Never import an app module or persist update state here.
 - Receive the host's process-owned `UpdateModel` and branding. Hosts own audience, demo, foreground, and navigation eligibility.
+- Route manual checks through the page-owned `UpdatePageRefresh` task and cancel it on disappearance. SwiftUI can cancel the refresh action during a redraw. Guards: `UpdatePageRefreshTests`, `AppUpdatesViewTests`, and `UpdateBrowserViewTests`.
 - Use InstallerKit's validated install URL and complete-history result. Preserve the last successful build beside a refresh failure.
 - Derive shared failure text from the original error at this UI boundary. Show its diagnostic code; show the cached-data note only when a previous snapshot exists. Guard: `UpdateFailureDescriptionTests` and the page snapshots.
 - Resolve browser routes by typed channel/build identity against the current model snapshot. Label manual notes as the selected release's predecessor delta; never present them as a comparison with the installed build.
+- Derive PR links from the represented build's channel and the signed repository. Main builds, including a retired PR's main fallback, have no PR link.
+- Show recorded PR titles as verbatim wrapping text alongside channel numbers. Older releases without titles retain their number-only labels.
 - Show local revision status honestly and explain the Mac reinstall path. Never offer an in-app install action for a local binary that has not been published.
 - Keep shared copy in this module's string catalog and appearance in `InstallerStylesheet`. Resolve styles below the screen's Broadway root.
 - Use the section-decoration seam for host search anchors. Keep host-specific navigation and search types outside this module.

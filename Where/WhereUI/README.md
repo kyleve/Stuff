@@ -37,6 +37,9 @@ Each calendar month is one accessibility element. Its label gives regional total
 The timeline inserts a plane in a circle at departure, with supported travel periods beside the rail.
 When arrival timing is uncertain, it labels that uncertainty and shows the later ground observation separately.
 A flight can split a displayed regional stay into segments without changing residency totals.
+A stay that began before departure and ends that day remains intact before the flight. The arrival stay follows the flight.
+Shorter visits interrupt longer displayed stays at their start day. Shared days remain counted once for each region.
+One-day recorded visits use less vertical padding and grow with their text instead of reserving the minimum height of longer stays.
 These indicators have no separate action and remain visible after correction dismissal.
 
 ### App shell & view models
@@ -499,9 +502,10 @@ Live tilt is observed only by the sheen overlay, so its 60 Hz updates do not
 invalidate the card's text or Canvas artwork. Observation runs only while a
 reflective surface is visible and active, with motion enabled. Standard's
 Liquid Glass supplies its border. Flat supplies an explicit printed stroke.
-The shared matte renderer owns fill, stroke, and shadow. Navigation zooms use
-the same resolved elevation. Card Designer drafts preserve the selected finish
-without changing their saved format.
+The shared matte renderer owns fill, stroke, and shadow. It draws the translucent
+outline fully outside the clipped surface, without changing layout or hit bounds.
+Navigation zooms use the same resolved elevation. Card Designer drafts preserve
+the selected finish without changing their saved format.
 
 The Locations toolbar opens **Planned stays**. Each stay has an independent identity,
 a destination, and inclusive arrival and last-day windows. Exact dates use one day
@@ -528,8 +532,14 @@ Each timeline stay opens its own editor. Future intent never becomes recorded hi
 as dates pass. Appearance settings can hide estimates without removing plans or Home.
 The Estimated Time settings page also opens the planner.
 
-The shared estimate retains its passport-visa endorsement. A neutral microprint border
-repeats the two main location-card silhouettes. Solid and hatched treatments distinguish
+On Locations, the collapsible estimate uses soft glass with faint security print, primary-region watermarks, and a translucent black outer stroke.
+Flat appearance and Reduce Transparency use opaque paper. Calendar, Timeline, and discovery panels retain their passport-visa appearance.
+The estimate's outline sits outside the card in both Standard and Flat, blending with the surrounding background.
+`LocationForecastSummary` owns the Locations disclosure and expansion state. It shares
+`LocationForecastContent` (forecast rows and planning controls) with the always-expanded
+`LocationForecastPanel` used by Your Year and discovery. Neither shared content nor the detailed
+panel uses expansion state to choose its surface.
+A neutral microprint border repeats the two main location-card silhouettes. Solid and hatched treatments distinguish
 recorded totals from projected totals. The range band shows uncertainty at its outer edge.
 
 When Locations has exactly two visible primary cards, a live reversal between them holds the previous counts and order through the existing reveal
@@ -566,6 +576,7 @@ Screen identities derive from their view types. Each view declares its own
 registration and forward routes. Catalog tests check that each registration
 appears once. The planning routes connect Locations, Planned stays, and the
 individual stay editor.
+The catalog does not use source scanning or macros to discover navigation.
 
 Opening Flyover asynchronously builds one `WhereScope.demo` and shares its
 seeded in-memory services, preferences, and session across live frames. That
@@ -585,6 +596,19 @@ out. Selecting the inspect button opens the same screen in a full-screen
 interactive viewport. Flyover's appearance, device, Dynamic Type, contrast,
 layout-direction, and bold-text choices are session-only and apply only to
 registered content.
+
+`WhereFlyoverWebExportTests` is the hosted static-export adapter. It reads the
+request supplied through test-runner environment values and otherwise returns without work. One
+`WhereFlyoverWorld` supplies every capture in an export. Its frozen date,
+in-memory store, in-memory preferences, no-op services, private logs, and
+Broadway root are the same synthetic fixtures used by native Flyover. The
+export never activates that scope or reads app data.
+
+`WhereFlyoverScreenID.exportIdentifier` maps normal screens to their reflected
+type name. Contextual screens include both reflected type names. Snapshot-backed
+variant IDs use the snapshot case name. These identifiers are stable web and
+deep-link identities; process-local `ObjectIdentifier` values never leave the
+runtime catalog.
 
 ### Artwork loading
 
@@ -636,6 +660,11 @@ suite per view, so each view's references live in their own `__Snapshots__/`
 directory. They build as this module's own `WhereUISnapshotTests` bundle, which
 runs alongside the other modules' image suites in the shared
 `StuffSnapshotTests` scheme and its CI job.
+
+The full Where Flyover overview is excluded because unrelated screen changes
+invalidate its reference. Individual screen suites and the shared Flyover suite
+provide image coverage.
+
 To re-record after an intentional UI change (see the
 [SnapshotKitTesting README](../../Shared/SnapshotKitTesting/README.md#recording)
 for the mode values):
