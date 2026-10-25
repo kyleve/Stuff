@@ -285,6 +285,10 @@ Use the [`update-explore-features`](../../.agents/skills/update-explore-features
 
 ## Testing
 
+Hosted tests that traverse SwiftUI accessibility must link and import
+`AccessibilitySnapshotParser` so a fresh simulator initializes its accessibility
+runtime. Guard: `CalendarContentViewTests`.
+
 `WhereStylesheetTests` pins every token default and trait-aware derivation.
 `WhereStylesheetEnvironmentTests` covers the `@Environment(\.stylesheet)`
 glue and `whereBroadwayRoot()` seeding, including the WhereWidgets path.
