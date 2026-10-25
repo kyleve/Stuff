@@ -38,6 +38,8 @@ enum RecordedFlightArchiveFixture {
         let deviceID = try #require(first.recordingDeviceID)
         let regions = Regions().loadedRegions
         return try BackupService().makeArchiveFile(
+            requiredCompatibilityVersion: .initial,
+            recordingRecoveryExclusions: [],
             samples: samples,
             evidence: [],
             manualDays: [],
