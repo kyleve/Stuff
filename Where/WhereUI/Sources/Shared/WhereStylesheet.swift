@@ -1433,14 +1433,16 @@ extension WhereStylesheet {
             )
             var usesSpatialMotion = true
             var duration: Double = 0.25
+            var zoomDuration: Double = 0.4
+            var zoomBackground = Color(.systemBackground)
             var shakeDistance: CGFloat = 4
 
             var animation: Animation {
-                .easeInOut(duration: duration)
+                usesSpatialMotion ? .smooth(duration: zoomDuration) : .easeInOut(duration: duration)
             }
 
             var transition: AnyTransition {
-                usesSpatialMotion ? .scale(scale: 0.94).combined(with: .opacity) : .opacity
+                usesSpatialMotion ? .identity : .opacity
             }
         }
 

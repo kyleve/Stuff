@@ -38,6 +38,7 @@ The calendar initially opens at full size. It remembers the last zoom level sepa
 `CalendarContentView` accepts an optional `CalendarZoomKey`; `nil` keeps zoom in memory without reading or writing preferences.
 Pinch inward or tap Show Year to see all twelve months in a three-column overview.
 Tap an available month or pinch outward over it to return to full size. The full-size estimate panel sits below the overview grid. Tapping it opens its position in the detailed calendar.
+Visible months move and scale between their measured positions in each zoom level. The estimate panel moves at full size. `CalendarZoomTransitionModel` holds the outgoing tiles until the destination scroll position settles; `CalendarZoomOverlay` animates fixed-layout copies without changing the scroll layout. Reduce Motion uses a crossfade.
 Gray month titles and day numbers mark months unavailable in the full-size view. Their region and projection colors remain visible. Activating one gives a light haptic and a brief shake.
 The overview uses stronger region fills, with extra opacity in dark mode. Future plans retain diagonal stripes; possible dates retain hollow dots and dashed outlines.
 Month cards are transparent in both zoom levels, so the screen background shows through. The current month uses an accent outline and title.
