@@ -187,13 +187,8 @@ public struct OnboardingView: View {
                 }
             }
 
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: stylesheet.spacing.medium) {
-                    introSecondaryActions.fixedSize(horizontal: true, vertical: false)
-                }
-                VStack(spacing: stylesheet.spacing.medium) { introSecondaryActions }
-            }
-            .font(.subheadline)
+            introSecondaryActions
+                .font(.subheadline)
         }
         .disabled(flow.intro.isBuildingDemo)
     }
