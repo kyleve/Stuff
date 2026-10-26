@@ -11,7 +11,7 @@ advancement. The negative control permits a secondary to advance the floor.
 Production correspondence: `RecordingAuthorityProposal` supplies transition
 rules; transport compare-and-save rejects stale observations. A controller must
 stop before approval. The foundation does not yet wire that hardware step.
-`RecordingAuthorityTests` cover request invalidation and tenure replacement;
+`RecordingAuthorityTests` cover request invalidation and ownership replacement;
 `RecordingAuthorityTransportTests` cover competing claims, lost-response retry,
 and stale-owner upgrades. `RecordingAuthorityCoordinatorTests` cover missed
 history and disappearance of established authority.

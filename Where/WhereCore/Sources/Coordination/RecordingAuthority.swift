@@ -2,12 +2,13 @@ import Foundation
 
 /// The account's recording owner and shared data requirement after one committed transition.
 ///
-/// `revision` advances for every transition. `owner.tenureID` changes only when ownership changes.
+/// `revision` advances for every transition. `owner.ownershipID` changes only when ownership
+/// changes.
 /// A pending request leaves the existing owner in place until approval or forced recovery.
 /// This value describes authority, not local consent or whether GPS is currently running.
 /// The protocol walkthrough lives in WhereCore/RECORDING_AUTHORITY.md.
 public struct RecordingAuthority: Codable, Sendable, Equatable {
-    /// Stable identity for one immutable coordination event and recording tenure.
+    /// Stable identity for one immutable coordination event and recording ownership period.
     public struct EventID: Hashable, Sendable, WhereStoreURLCodable {
         public let rawValue: UUID
         public init(rawValue: UUID) {
@@ -36,13 +37,14 @@ public struct RecordingAuthority: Codable, Sendable, Equatable {
         public let eventID: EventID
     }
 
-    /// One installation's ownership grant. Each new grant has a distinct tenure ID.
+    /// One installation's ownership grant. Each new grant has a distinct `ownershipID`.
     public struct Owner: Codable, Sendable, Equatable {
         public let deviceID: RecordingDeviceID
-        public let tenureID: EventID
+        public let ownershipID: EventID
     }
 
-    /// A request to replace a specific tenure, including the requester's supported data version.
+    /// A request to replace a specific ownership period, including the requester's supported data
+    /// version.
     /// The current owner remains authorized until it commits approval after stopping capture.
     public struct Handoff: Codable, Sendable, Equatable {
         public let requestID: EventID
@@ -93,7 +95,7 @@ public enum RecordingAuthorityError: Error, Sendable, Equatable {
     case authorityDisappeared
 }
 
-/// User-selected treatment of automatic history from a forcibly replaced tenure.
+/// User-selected treatment of automatic history from a forcibly replaced ownership period.
 public enum RecordingRecoveryHistory: String, Codable, Sendable {
     case keep
     case excludeAfterReplacement = "exclude-after-replacement"
@@ -154,7 +156,7 @@ public struct RecordingAuthorityProposal: Sendable, Equatable, Codable {
         switch action {
             case .claim:
                 guard owner == nil else { throw RecordingAuthorityError.alreadyOwned }
-                owner = .init(deviceID: deviceID, tenureID: eventID)
+                owner = .init(deviceID: deviceID, ownershipID: eventID)
                 kind = .claim
                 history = nil
             case .requestHandoff:
@@ -188,7 +190,7 @@ public struct RecordingAuthorityProposal: Sendable, Equatable, Codable {
                 else {
                     throw RecordingAuthorityError.invalidHandoff
                 }
-                owner = .init(deviceID: pending.requestedBy, tenureID: eventID)
+                owner = .init(deviceID: pending.requestedBy, ownershipID: eventID)
                 handoff = nil
                 kind = .transfer
                 history = nil
@@ -196,7 +198,7 @@ public struct RecordingAuthorityProposal: Sendable, Equatable, Codable {
                 guard let previous = owner,
                       previous.deviceID != deviceID
                 else { throw RecordingAuthorityError.invalidHandoff }
-                owner = .init(deviceID: deviceID, tenureID: eventID)
+                owner = .init(deviceID: deviceID, ownershipID: eventID)
                 handoff = nil
                 kind = .recover
                 history = choice
@@ -225,7 +227,8 @@ public struct RecordingAuthorityProposal: Sendable, Equatable, Codable {
     /// Reconstructs a decoded proposal through the same initializer used by live commands.
     ///
     /// Valid endpoints alone do not establish a legal transition between them.
-    /// Reconstruction also checks the revision, tenure, pending request, and recovery choice.
+    /// Reconstruction also checks the revision, ownership period, pending request, and recovery
+    /// choice.
     /// This checks protocol shape. It does not authenticate the claimed device identity.
     public func validate() throws {
         guard let revision = result.revision else { throw RecordingAuthorityError.invalidRecord }

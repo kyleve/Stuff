@@ -18,16 +18,16 @@ The foundation alone does not start or stop GPS, change local recording consent,
 
 Suppose phone A owns recording and phone B asks to take over.
 The request leaves A as the owner.
-After A stops capture and approves the request, B becomes the owner under a new **tenure**.
-A tenure identifies one continuous ownership grant, even if the same installation owns recording again later.
+After A stops capture and approves the request, B becomes the owner under a new **ownership period**.
+`ownershipID` identifies one continuous grant, even if the same installation owns recording again later.
 
 [`RecordingAuthority`](Sources/Coordination/RecordingAuthority.swift) holds four related values:
 
 | Value | Meaning |
 | --- | --- |
 | `revision` | The sequence number and event ID of the last committed transition. Every transition advances the sequence. |
-| `owner` | The installation ID and the event ID that began its current tenure. Only claim, transfer, and recovery start a tenure. |
-| `pendingHandoff` | A request from another installation, its supported version, and the exact owner tenure it replaces. |
+| `owner` | The installation ID and the event ID that began its current ownership period. Only claim, transfer, and recovery start an ownership period. |
+| `pendingHandoff` | A request from another installation, its supported version, and the exact ownership grant it replaces. |
 | `requiredVersion` | The shared data contract. Only an explicit upgrade by the current owner raises it. |
 
 For a new account, `.initial` has no revision, owner, or request, and requires version 1.
@@ -57,7 +57,7 @@ The custom zone contains two record types:
 
 Both records store the proposal in a `payload` Bytes field.
 The event's CloudKit `creationDate` supplies the commit's `committedAt` value.
-Recovery consumers use that server time as the cutoff for the replaced tenure.
+Recovery consumers use that server time as the cutoff for the replaced ownership period.
 
 ## How a transition commits
 
@@ -129,10 +129,10 @@ The proposal initializer owns the complete rules and the resulting state.
 
 | Action | Who can request it | Result |
 | --- | --- | --- |
-| `.claim` | An installation when no owner exists | Starts its first tenure. |
-| `.requestHandoff` | A different installation when no request is pending | Records a request against the current owner's tenure. Ownership stays unchanged. |
+| `.claim` | An installation when no owner exists | Starts its first ownership period. |
+| `.requestHandoff` | A different installation when no request is pending | Records a request against the current owner's ownership period. Ownership stays unchanged. |
 | `.cancelHandoff` | The owner or requester, for the matching request ID | Removes the request. Ownership stays unchanged. |
-| `.approveHandoff` | The current owner, for the matching request ID | Transfers ownership to the requester and starts a new tenure. |
+| `.approveHandoff` | The current owner, for the matching request ID | Transfers ownership to the requester and starts a new ownership period. |
 | `.recover` | A different installation | Replaces the owner, clears any request, and records the selected history treatment. |
 | `.upgrade` | The current owner, with a higher supported version | Raises the data version and clears any handoff reviewed under the earlier contract. |
 
@@ -142,7 +142,7 @@ The recording integration owns that step and the check of local consent before c
 
 Forced recovery serves a different case: the old phone is lost or unreachable.
 It cannot stop an offline old phone immediately.
-The recovery proposal identifies the replaced tenure and records whether its later samples remain visible.
+The recovery proposal identifies the replaced ownership period and records whether its later samples remain visible.
 The commit preserves that decision for history consumers.
 The foundation stores the decision but does not apply history exclusions itself.
 
