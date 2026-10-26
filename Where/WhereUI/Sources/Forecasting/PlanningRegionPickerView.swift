@@ -82,7 +82,7 @@ struct PlanningRegionPickerView: View {
                 .loadedYearReportModel())
             whereSnapshot(
                 name: "Home",
-                configurations: .fullContentScreenDefaults,
+                configurations: .fullContentScreenRepresentative,
                 onReadyToMeasure: { await homeModel.load() },
             ) {
                 NavigationStack {

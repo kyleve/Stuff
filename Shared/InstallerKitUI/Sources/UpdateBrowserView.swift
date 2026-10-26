@@ -52,7 +52,7 @@ extension View {
                 let model = InstallerBrowserPreview.model(scenario)
                 SnapshotCase(
                     name: scenario.rawValue,
-                    configurations: scenario == .available ? .fullContentScreenDefaults :
+                    configurations: scenario == .available ? .fullContentScreenRepresentative :
                         SnapshotConfiguration.combinations(
                             devices: [.iPhoneFullContent],
                             colorSchemes: [.light, .dark],

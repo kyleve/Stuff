@@ -631,7 +631,7 @@ private struct ArcText: View {
             }
             return whereThemeSnapshot(
                 name: name + (reduceTransparency ? "ReduceTransparency" : ""),
-                configurations: reduceTransparency ? .componentLightDark : .componentDefaults,
+                configurations: reduceTransparency ? .componentLightDark : .componentRepresentative,
                 onReadyToMeasure: {
                     _ = await cache.path(for: .california, resolution: .medium)
                     _ = await cache.path(for: .california, resolution: .small)

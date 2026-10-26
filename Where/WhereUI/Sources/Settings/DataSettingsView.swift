@@ -161,7 +161,7 @@ extension DataSettingsView: SettingsSection {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Default",
-                configurations: .fullContentScreenDefaults,
+                configurations: .fullContentScreenRepresentative,
             ) {
                 NavigationStack {
                     DataSettingsView(

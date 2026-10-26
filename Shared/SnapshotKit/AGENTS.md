@@ -11,6 +11,14 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 
 ## Invariants an agent can't re-derive
 
+- **Choose coverage per distinct layout, not per domain state.** Use a
+  `*Representative` matrix for representative layouts and the matching
+  `*LightDark` preset for additional states. Add individual trait configurations
+  when that state changes wrapping, accessibility structure, contrast treatment,
+  or tablet composition. Document a repeated representative matrix at its declaration.
+- **Keep configuration selection explicit.** `SnapshotCase` and assertion APIs
+  must not supply a broad default matrix. Preserve configuration identifiers and
+  frame semantics when changing coverage. Guard: `SnapshotConfigurationTests`.
 - **`identifierParts` omit default axes.** Only non-default trait, frame, and type values appear in a config's `identifier`.
 - **Non-default values include `dark`, `xxxl`, `contrast`, `rtl`, `bold`, `accessibility`, and `iPad`.** The light/standard/default baseline stays empty.
 - **Reference-image filenames depend on this.** Treat omission rules as a wire format.
@@ -33,7 +41,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **The Broadway root wrap is a consumer concern** (`WhereUI`'s `whereSnapshot(...)`).
 - **Use full-content frames for scrollable subjects.**
 - **If a snapshot contains a `ScrollView`, `List`, `Form`, or equivalent UIKit-backed scroller, use a full-content frame preset.**
-- **That may be `.fullContentScreenDefaults`, a consumer's matching compact preset, or an explicit `.fullContent` frame.**
+- **That may be `.fullContentScreenRepresentative`, a consumer's matching compact preset, or an explicit `.fullContent` frame.**
 - **Device full-content presets keep their normal viewport height as a minimum.** They grow only when the settled content is taller.
 - **Custom full-content frames shrink-wrap unless given a minimum.**
 - **Capture the production screen including navigation, tab, sheet, search, and toolbar chrome when measurement converges.**

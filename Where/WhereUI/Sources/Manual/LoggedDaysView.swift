@@ -289,7 +289,7 @@ private struct LoggedDayRow: View {
 #if DEBUG
     extension LoggedDaysView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Loaded", configurations: .fullContentScreenDefaults) {
+            whereSnapshot(name: "Loaded", configurations: .fullContentScreenRepresentative) {
                 NavigationStack {
                     LoggedDaysView(
                         report: PreviewSupport.loadedYearReportModel(),

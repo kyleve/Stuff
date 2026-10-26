@@ -72,7 +72,7 @@ struct UpdateBuildView: View {
             for scenario in InstallerBrowserPreview.BuildScenario.allCases {
                 SnapshotCase(
                     name: scenario.rawValue,
-                    configurations: scenario == .otherChannel ? .fullContentScreenDefaults :
+                    configurations: scenario == .otherChannel ? .fullContentScreenRepresentative :
                         SnapshotConfiguration.combinations(
                             devices: [.iPhoneFullContent],
                             colorSchemes: [.light, .dark],

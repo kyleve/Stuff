@@ -141,7 +141,7 @@ private struct UpdatePage<SectionDecoration: ViewModifier>: View {
                 SnapshotCase(
                     name: scenario.rawValue,
                     configurations: scenario == .available || scenario == .local ?
-                        .fullContentScreenDefaults :
+                        .fullContentScreenRepresentative :
                         SnapshotConfiguration.combinations(
                             devices: [.iPhoneFullContent],
                             colorSchemes: [.light, .dark],

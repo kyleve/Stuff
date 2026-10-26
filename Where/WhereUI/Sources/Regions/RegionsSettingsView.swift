@@ -212,7 +212,7 @@ extension RegionsSettingsView: SettingsSection {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Overview",
-                configurations: .fullContentScreenDefaults,
+                configurations: .fullContentScreenRepresentative,
             ) {
                 RegionsSettingsView()
                     .environment(PreviewSupport.loadedSession())

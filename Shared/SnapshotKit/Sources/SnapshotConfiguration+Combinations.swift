@@ -61,34 +61,58 @@ extension SnapshotConfiguration {
 }
 
 extension [SnapshotConfiguration] {
-    /// The default matrix for a component: the light/large/standard baseline plus
+    /// The representative matrix for a component: the light/large/standard baseline plus
     /// one variant each for dark, an accessibility Dynamic Type size, increased
     /// contrast, and a VoiceOver-annotated capture — all at the component frame.
     ///
     /// Additive (not a full Cartesian product) so the image count stays
     /// proportional to the number of axes, not their product.
-    public static var componentDefaults: Self {
-        defaults(devices: [.component])
+    public static var componentRepresentative: Self {
+        representative(devices: [.component])
     }
 
-    /// The default matrix for a full screen: the same trait set as
-    /// ``componentDefaults`` across both an iPhone and an iPad frame.
-    public static var screenDefaults: Self {
-        defaults(devices: [.iPhone, .iPad])
+    /// The representative matrix for a full screen: the same trait set as
+    /// ``componentRepresentative`` across both an iPhone and an iPad frame.
+    public static var screenRepresentative: Self {
+        representative(devices: [.iPhone, .iPad])
     }
 
-    /// The default full-screen trait matrix at iPhone and iPad viewport sizes,
+    /// The representative full-screen trait matrix at iPhone and iPad viewport sizes,
     /// with each frame growing beyond its device height when settled content is
     /// taller.
-    public static var fullContentScreenDefaults: Self {
-        defaults(devices: [.iPhoneFullContent, .iPadFullContent])
+    public static var fullContentScreenRepresentative: Self {
+        representative(devices: [.iPhoneFullContent, .iPadFullContent])
     }
 
-    private static func defaults(devices: [SnapshotConfiguration.Frame]) -> Self {
+    private static func representative(devices: [SnapshotConfiguration.Frame]) -> Self {
         SnapshotConfiguration.combinations(devices: devices)
             + SnapshotConfiguration.combinations(devices: devices, colorSchemes: [.dark])
             + SnapshotConfiguration.combinations(devices: devices, dynamicTypes: [.accessibility5])
             + SnapshotConfiguration.combinations(devices: devices, contrasts: [.increased])
             + SnapshotConfiguration.combinations(devices: devices, snapshotTypes: [.accessibility])
+    }
+}
+
+extension [SnapshotConfiguration] {
+    /// Light + dark at an iPhone frame — the compact matrix for the extra
+    /// states in a multi-state screen loop (the representative state carries
+    /// the full ``screenRepresentative``).
+    public static var phoneLightDark: Self {
+        SnapshotConfiguration.combinations(devices: [.iPhone], colorSchemes: [.light, .dark])
+    }
+
+    /// Light + dark at an intrinsic-height iPhone-width frame — the compact
+    /// matrix for extra states on a full-content screen.
+    public static var fullContentPhoneLightDark: Self {
+        SnapshotConfiguration.combinations(
+            devices: [.iPhoneFullContent],
+            colorSchemes: [.light, .dark],
+        )
+    }
+
+    /// Light + dark at the component frame — the compact matrix for the extra
+    /// states in a sheet/component/widget loop.
+    public static var componentLightDark: Self {
+        SnapshotConfiguration.combinations(colorSchemes: [.light, .dark])
     }
 }

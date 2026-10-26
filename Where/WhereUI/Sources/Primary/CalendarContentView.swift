@@ -1034,7 +1034,7 @@ private struct DayCell: View {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "FlightAndEvidenceBadges",
-                configurations: .componentDefaults,
+                configurations: .componentRepresentative,
                 measurementReadiness: .immediate,
             ) {
                 HStack {
@@ -1059,7 +1059,7 @@ private struct DayCell: View {
                 .padding()
                 .background(Color(.systemBackground))
             }
-            whereSnapshot(name: "MonthAccessibility", configurations: .componentDefaults) {
+            whereSnapshot(name: "MonthAccessibility", configurations: .componentRepresentative) {
                 let calendar = Calendar(identifier: .gregorian)
                 MonthGridView(
                     month: PreviewSupport.calendarAccessibilityMonth(calendar: calendar),
@@ -1070,18 +1070,18 @@ private struct DayCell: View {
                 .padding()
                 .background(Color(.systemBackground))
             }
-            whereSnapshot(name: "Flights", configurations: .fullContentScreenDefaults) {
+            whereSnapshot(name: "Flights", configurations: .fullContentScreenRepresentative) {
                 NavigationStack {
                     CalendarContentView(report: PreviewSupport
                         .flightHistoryYearReportModel())
                 }
             }
-            whereSnapshot(name: "Itinerary", configurations: .fullContentScreenDefaults) {
+            whereSnapshot(name: "Itinerary", configurations: .fullContentScreenRepresentative) {
                 NavigationStack {
                     CalendarContentView(report: PreviewSupport.itineraryYearReportModel())
                 }
             }
-            whereSnapshot(name: "WithData", configurations: .fullContentScreenDefaults) {
+            whereSnapshot(name: "WithData", configurations: .fullContentScreenRepresentative) {
                 NavigationStack {
                     CalendarContentView(report: PreviewSupport.loadedYearReportModel())
                 }
@@ -1144,7 +1144,7 @@ private struct DayCell: View {
                     CalendarContentView(report: PreviewSupport.plannedStayYearReportModel())
                 }
             }
-            whereSnapshot(name: "YearOverview", configurations: .fullContentScreenDefaults) {
+            whereSnapshot(name: "YearOverview", configurations: .fullContentScreenRepresentative) {
                 NavigationStack {
                     CalendarContentView(
                         report: PreviewSupport.loadedYearReportModel(),

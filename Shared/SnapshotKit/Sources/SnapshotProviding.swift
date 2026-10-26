@@ -9,7 +9,7 @@ import SwiftUI
 /// ```swift
 /// extension MyBadge: SnapshotProviding {
 ///     static var snapshots: [SnapshotCase] {
-///         SnapshotCase(name: "States", configurations: .componentDefaults) {
+///         SnapshotCase(name: "States", configurations: .componentRepresentative) {
 ///             MyBadge(count: 3)
 ///         }
 ///     }

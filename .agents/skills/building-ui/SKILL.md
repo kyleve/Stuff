@@ -262,6 +262,14 @@ API reference: [Apple's custom-glass guidance](https://developer.apple.com/docum
   same source file and render `Self.snapshotPreviews` from the preview. Declare
   the matrix once and use one `FooSnapshotTests` suite/file per represented
   view.
+- Apply [SnapshotKit's coverage policy](../../../Shared/SnapshotKit/AGENTS.md#invariants-an-agent-cant-re-derive)
+  before expanding a matrix. List distinct layouts and choose representative states;
+  use compact presets for additional states instead of a representative preset in
+  every `allCases` iteration. Explain any exception beside its declaration.
+- When reducing coverage, enumerate the retained case/configuration identities,
+  remove only references no longer selected, and preserve case names used by
+  previews or Flyover. Validate retained captures with `--record never`; record
+  only new or intentionally reframed subjects separately and inspect their images.
 - Choose theme coverage from the module's `AGENTS.md`. Prefer one component
   comparison sheet containing all supported themes for each representative state
   and trait configuration. Build fresh fixture state per panel and preserve normal

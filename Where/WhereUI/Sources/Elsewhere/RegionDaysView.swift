@@ -163,7 +163,7 @@ private struct DayRow: View {
             )
             whereSnapshot(
                 name: "WithData",
-                configurations: .fullContentScreenDefaults,
+                configurations: .fullContentScreenRepresentative,
                 onReadyToMeasure: {
                     if let input = report.elsewhereInput { await model.refresh(input) }
                 },

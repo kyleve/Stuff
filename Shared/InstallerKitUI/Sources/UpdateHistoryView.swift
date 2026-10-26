@@ -51,7 +51,7 @@ struct UpdateHistoryView: View {
         static var snapshots: [SnapshotCase] {
             SnapshotCase(
                 name: "History",
-                configurations: .fullContentScreenDefaults,
+                configurations: .fullContentScreenRepresentative,
                 measurementReadiness: .sameAsCapture,
             ) {
                 InstallerBrowserPreview.navigation(

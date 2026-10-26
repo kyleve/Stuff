@@ -6,7 +6,7 @@ import Testing
 struct SnapshotCaseCutsheetTests {
     @Test func declaresPanelsWithoutBuildingTheirViews() {
         var builds = 0
-        let sheet = SnapshotCase.cutsheet(name: "Card", configurations: .componentDefaults) {
+        let sheet = SnapshotCase.cutsheet(name: "Card", configurations: .componentRepresentative) {
             SnapshotPanel(id: .init(rawValue: "standard"), label: "Standard") {
                 builds += 1
                 return Color.red

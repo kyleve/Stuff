@@ -176,7 +176,7 @@ struct PlannedStaysView: View {
             whereSnapshot(name: "Empty", configurations: .fullContentPhoneLightDark) {
                 PlannedStaysView(report: PreviewSupport.loadedYearReportModel())
             }
-            whereSnapshot(name: "Itinerary", configurations: .fullContentScreenDefaults) {
+            whereSnapshot(name: "Itinerary", configurations: .fullContentScreenRepresentative) {
                 PlannedStaysView(report: PreviewSupport.itineraryYearReportModel())
             }
             whereSnapshot(name: "PastTravelPattern", configurations: .fullContentPhoneLightDark) {

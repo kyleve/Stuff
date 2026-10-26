@@ -97,7 +97,7 @@ extension ShareEvidenceFeaturesView: SettingsSection {
 #if DEBUG
     extension ShareEvidenceFeaturesView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .fullContentScreenDefaults) {
+            whereSnapshot(name: "Default", configurations: .fullContentScreenRepresentative) {
                 ShareEvidenceFeaturesView(
                     report: PreviewSupport.loadedYearReportModel(),
                     focus: nil,

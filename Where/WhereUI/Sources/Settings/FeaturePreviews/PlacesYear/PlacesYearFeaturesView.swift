@@ -66,7 +66,7 @@ extension PlacesYearFeaturesView: SettingsSection {
             let demo = PreviewSupport.loadedYearReportModel()
             whereSnapshot(
                 name: "Loaded",
-                configurations: .fullContentScreenDefaults,
+                configurations: .fullContentScreenRepresentative,
                 onReadyToMeasure: {
                     if let input = loaded.elsewhereInput { await loaded.elsewhere.refresh(input) }
                 },

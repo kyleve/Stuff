@@ -40,9 +40,10 @@ capture + comparison pipeline lives in the sibling
   portrait, phone landscape, and tablet portrait. Each set adds a stable
   identifier token. If this value is `nil`, the capture inherits the host
   simulator traits.
-- **`combinations(...)` + presets** (`.componentDefaults`, `.screenDefaults`,
-  `.fullContentScreenDefaults`) — expand a terse declaration into the full
-  matrix.
+- **`combinations(...)` + presets** — use `.componentRepresentative`,
+  `.screenRepresentative`, or `.fullContentScreenRepresentative` for a representative
+  layout. Use `.componentLightDark`, `.phoneLightDark`, or
+  `.fullContentPhoneLightDark` for additional states of that layout.
 - **Full-content frames** (`.iPhoneFullContent`, `.iPadFullContent`, and
   `.fullContent(name:width:)`) — capture the settled intrinsic height of
   scrolling content, including UIKit-backed SwiftUI `List` and `Form`
@@ -116,7 +117,7 @@ Conform a component and preview its matrix:
 ```swift
 extension MyBadge: SnapshotProviding {
     static var snapshots: [SnapshotCase] {
-        SnapshotCase(name: "States", configurations: .componentDefaults) {
+        SnapshotCase(name: "States", configurations: .componentRepresentative) {
             VStack {
                 MyBadge(count: 1)
                 MyBadge(count: 99)
@@ -139,6 +140,14 @@ assertSnapshots(of: MyBadge.self)
 
 ## Notes
 
+- Representative component matrices contain five captures; representative screen
+  matrices contain ten across phone and tablet. The compact presets contain two.
+  Keep each distinct state, but repeat the larger matrix only when its layout or
+  accessibility structure warrants it. Add specific configurations for exceptional
+  wrapping, contrast, or tablet behavior. Comparison sheets still render every panel.
+- The former `*Defaults` presets are named `*Representative` to make that choice
+  explicit. Their configurations, ordering, and reference identifiers are unchanged.
+  The compact presets now belong to SnapshotKit and are available to every consumer.
 - Accessibility (`.accessibility`) configurations are **filtered out of the
   preview cutsheet** — Stuff keeps AccessibilitySnapshot's SwiftUI annotation
   renderer in the test-only `SnapshotKitTesting` product instead of linking it
@@ -160,7 +169,7 @@ identities, labels, ordering, and themed content:
 ```swift
 SnapshotCase.cutsheet(
     name: "Badge",
-    configurations: .componentDefaults,
+    configurations: .componentRepresentative,
     referenceGroup: .themes,
 ) {
     for appearance in appearances {

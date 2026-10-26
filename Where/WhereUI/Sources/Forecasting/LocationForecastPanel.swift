@@ -119,7 +119,7 @@ struct LocationForecastPanel: View {
             let regions = report.ranking.primary.map(\.region)
             return whereThemeSnapshot(
                 name: "Expanded",
-                configurations: .componentDefaults,
+                configurations: .componentRepresentative,
                 measurementReadiness: .immediate,
                 onReadyToSnapshot: {
                     await artwork.load(for: regions) {
