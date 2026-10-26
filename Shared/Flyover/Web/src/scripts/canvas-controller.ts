@@ -212,6 +212,7 @@ export function createCanvasController(deps: Dependencies): CanvasController {
 
     function setZoom(next: number) {
         const viewport = document.getElementById("canvas-viewport");
+        if (viewport) acceptCanvasInteraction();
         const oldZoom = deps.state.zoom;
         const center = viewport ? {
             x: (viewport.scrollLeft + viewport.clientWidth / 2) / oldZoom,
@@ -232,6 +233,7 @@ export function createCanvasController(deps: Dependencies): CanvasController {
     function fitFrame(frame: Rect, behavior: ScrollBehavior = "smooth") {
         const viewport = document.getElementById("canvas-viewport");
         if (!viewport) return;
+        acceptCanvasInteraction();
         deps.state.zoom = fittedZoom(frame, { width: viewport.clientWidth, height: viewport.clientHeight }, maximumZoom);
         applyZoom();
         const left = (frame.x + frame.width / 2) * deps.state.zoom - viewport.clientWidth / 2;
@@ -241,6 +243,13 @@ export function createCanvasController(deps: Dependencies): CanvasController {
         deps.state.canvas.scrollLeft = Math.max(0, left);
         deps.state.canvas.scrollTop = Math.max(0, top);
         deps.residency.updateCanvasImageResidency();
+    }
+
+    function acceptCanvasInteraction() {
+        // Explicit input supersedes initialization/restoration queued for a later frame.
+        deps.state.canvas.initialized = true;
+        deps.state.pendingCanvasAction = null;
+        deps.state.pendingCanvasPosition = null;
     }
 
     function fitAll(behavior: ScrollBehavior = "smooth") {

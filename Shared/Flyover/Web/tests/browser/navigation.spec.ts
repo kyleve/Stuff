@@ -80,3 +80,18 @@ test('fit all loads every visible capture and only requests local nested assets'
     await page.getByRole('button', { name: 'Canvas', exact: true }).click();
     await expect.poll(() => page.locator('.screen-card img').evaluateAll(images => images.filter(image => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0).length)).toBe(24);
 });
+
+test('an early fit all command survives deferred canvas initialization', async ({ page }) => {
+    const now = new Date('2026-01-01T00:00:00Z');
+    await page.clock.install({ time: now });
+    await page.clock.pauseAt(now);
+    await page.goto('./');
+    await expect(page.locator('.screen-card')).toHaveCount(24);
+    await page.keyboard.press('f');
+    const selectedZoom = await page.locator('#zoom-value').textContent();
+    await page.clock.runFor(100);
+    await expect(page.locator('#zoom-value')).toHaveText(selectedZoom!);
+    await expect.poll(() => page.locator('.screen-card img').evaluateAll(images =>
+        images.filter(image => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0).length
+    )).toBe(24);
+});
