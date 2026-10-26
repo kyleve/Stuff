@@ -3,6 +3,8 @@ import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 
 const probes = [
+    { name: 'Python assigned lambdas', command: 'mise', args: ['exec', '--', 'ruff', 'check', '--stdin-filename', 'Tools/probe.py', '-'],
+        source: 'callback = lambda value: value\n', rule: 'E731' },
     { name: 'Python undefined names', command: 'mise', args: ['exec', '--', 'ruff', 'check', '--stdin-filename', 'Tools/probe.py', '-'],
         source: 'print(missing_name)\n', rule: 'F821' },
     { name: 'typed promise handling', command: 'node_modules/.bin/eslint',

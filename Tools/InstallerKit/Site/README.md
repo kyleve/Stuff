@@ -2,9 +2,14 @@
 
 Astro renders the shared app library, app pages, and build details.
 Python prepares validated data, trusted artwork, install manifests, and the update catalog.
+`src/site-data.ts` validates the private presentation data before Astro renders it. Invalid fields stop the build with a field path.
+Python remains responsible for catalog identities, installation URLs, and publication policy.
 The Pages workflow deploys all files together. GitHub Releases stores the signed IPAs.
 
 ## Local development
+
+Run `mise exec -- npm run test:unit --workspace stuff-installer-site` for the presentation-data contract tests.
+These tests consume Python's retained preview scenarios and reject malformed nested values.
 
 From the repository root, install the pinned tools and site dependencies:
 

@@ -7,6 +7,7 @@
     "dev": "cd ../../.. && python3 -m Tools.InstallerKit.installer_site_preview dev",
     "build": "cd ../../.. && python3 -m Tools.InstallerKit.installer_update_site",
     "preview": "cd ../../.. && python3 -m Tools.InstallerKit.installer_site_preview preview",
-    "check": "ASTRO_TELEMETRY_DISABLED=1 astro check"
+    "check": "ASTRO_TELEMETRY_DISABLED=1 astro check",
+    "test:unit": "node --test tests/*.test.ts"
   }
 }
