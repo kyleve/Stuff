@@ -5,6 +5,23 @@ Each section connects a concrete failure mechanism to its current owner and regr
 Read the linked source and tests at the reviewed revision. The owning instructions define the rule and its exceptions.
 Keep fix history in the audit PR. Update these routes when their owner or guard moves.
 
+## Failure-pattern index
+
+Use these concrete probes when the changed behavior has the same mechanism, even in a different module.
+The linked owners and tests define the applicable contract. This index does not rank patterns by frequency.
+
+| Recognizable pattern | Review probe and evidence |
+| --- | --- |
+| A cancelled or older request publishes after a newer request | Complete the newer request first, then release the old one. Compare [UpdateModelTests.foregroundReentrySupersedesCancelledCheck](../../../../Shared/InstallerKit/Tests/UpdateModelTests.swift) and [InstallerKit's cancellation contract](../../../../Shared/InstallerKit/AGENTS.md). |
+| An early consumer creates its own resource, or retains a previous session | Exercise pre-install access and reset/relaunch. Follow the shared-store handoff and lifetime guards under [composition](#composition-and-transactions). |
+| A write updates the primary screen but leaves other readers stale | Trace the same commit through reports, widgets, reminders, and intents. Inspect the [transaction and reconciliation seams](#composition-and-transactions). |
+| Several flags or optional values encode impossible combinations | Construct the conflicting combinations, then compare the owning [state type and callers](#domain-types-and-state). |
+| A catch turns failure into empty data, or loses the original error | Fail a refresh after a successful result. Compare [UpdateModelTests.failedManualCheckKeepsLastResultAndOriginalError](../../../../Shared/InstallerKit/Tests/UpdateModelTests.swift) and the [error owner](../../../../AGENTS.md#errors-and-failure). |
+| A display value becomes a persistent identity | Follow the value through storage and restore. Check diagnostic `description`, localized names, and `Date`-based day keys against the [domain identity contract](#dates-and-persisted-data). |
+| A fixture or helper exercises a different path from production | Follow both paths to their common implementation. Check [typed previews and capture reuse](#rendering-and-fixtures), plus the affected public entry point. |
+| Recovery overwrites another owner's files or rolls back after commit | Inject failure around the commit boundary and add a competing destination. Inspect the [publication recovery guards](#tools-and-publication). |
+| A green check misses the actual defect | Feed the real failing syntax or run the required integration scope. Inspect [guard coverage and full-scheme linkage](#target-graph-and-guards). |
+
 ## Domain types and state
 
 Read the root [type rules](../../../../AGENTS.md#types-state-and-api-design), [state rules](../../../../AGENTS.md#modeling-state), and [error rules](../../../../AGENTS.md#errors-and-failure).

@@ -29,6 +29,7 @@ Separate mechanical changes from behavior changes when that separation makes the
 ## Find the concrete repository contracts
 
 Select the applicable routes from [repository checks](references/repository-checks.md).
+Scan its [failure-pattern index](references/repository-checks.md#failure-pattern-index) for mechanisms that can recur across modules.
 Read those sections and their owning instructions, including source-directory `AGENTS.md` files.
 These routes point to known failure mechanisms and current guards. They are not an exhaustive rule catalog.
 
@@ -116,6 +117,12 @@ Record the reviewed revisions, covered paths, checks, and remaining validation l
 If no actionable findings remain, say so without implying that untested paths passed.
 For implementation handoff, include the material result in the PR's Review focus and Testing sections.
 Use github-workflow's description guidance instead of creating another PR template.
+
+Retain confirmed findings even when they were fixed during the review.
+For a reusable lesson, record the trigger, failure mechanism, correction/commit, and regression evidence or remaining gap in the existing review summary.
+Link the owning rule or review check when one exists. Deduplicate human and agent reports of the same defect.
+During authorized publication, carry the concise technical lesson into the existing PR description or authorized reply so review-lessons can recover it.
+For review-only work, keep it in the run summary. Recording a lesson does not authorize a new post or sharing a private chat.
 
 After fixes or a material base change, review the complete resulting diff and affected consumers again.
 Repeat checks only where changes or unresolved evidence invalidate the earlier result.
