@@ -239,10 +239,7 @@ struct PresenceTimelineList: View {
                 },
                 whereSnapshot(
                     name: "UncertainArrival",
-                    configurations: .fullContentPhoneLightDark + [
-                        .init(dynamicType: .accessibility5, device: .iPhoneFullContent),
-                        .init(device: .iPhoneFullContent, snapshotType: .accessibility),
-                    ],
+                    configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations,
                 ) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport
@@ -297,11 +294,7 @@ struct PresenceTimelineList: View {
                 },
                 whereSnapshot(
                     name: "PlannedStay",
-                    configurations: .fullContentPhoneLightDark
-                        + SnapshotConfiguration.combinations(
-                            devices: [.iPhoneFullContent],
-                            snapshotTypes: [.accessibility],
-                        ),
+                    configurations: .fullContentPhoneLightDarkWithAnnotations,
                     measurementReadiness: .immediate,
                 ) {
                     NavigationStack {

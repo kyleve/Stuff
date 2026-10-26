@@ -18,10 +18,7 @@ struct PeriscopeViewerSnapshotTests {
         await assertSnapshots(
             of: viewer,
             named: "PeriscopeViewer",
-            configurations: SnapshotConfiguration.combinations(
-                devices: [.iPhoneFullContent],
-                colorSchemes: [.light, .dark],
-            ),
+            configurations: .fullContentPhoneLightDark,
         )
     }
 

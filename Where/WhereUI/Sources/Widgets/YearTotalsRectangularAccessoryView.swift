@@ -63,8 +63,7 @@ public struct YearTotalsRectangularAccessoryView: View {
         public static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Ranked",
-                configurations: .componentLightDark
-                    + SnapshotConfiguration.combinations(snapshotTypes: [.accessibility]),
+                configurations: .componentLightDarkWithAnnotations,
                 settle: .immediate,
             ) {
                 YearTotalsRectangularAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(

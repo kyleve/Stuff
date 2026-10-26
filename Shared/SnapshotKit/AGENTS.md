@@ -13,9 +13,11 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 
 - **Choose coverage per distinct layout, not per domain state.** Use a
   `*Representative` matrix for representative layouts and the matching
-  `*LightDark` preset for additional states. Add individual trait configurations
-  when that state changes wrapping, accessibility structure, contrast treatment,
-  or tablet composition. Document a repeated representative matrix at its declaration.
+  `*LightDark` preset for additional states. Reuse the focused `WithAX5` and
+  `WithAnnotations` presets for repeated wrapping or annotation coverage;
+  AX5 and annotations are separate captures, not a Cartesian product.
+  Add individual configurations for exceptional contrast or tablet composition.
+  Document a repeated representative matrix at its declaration.
 - **Keep configuration selection explicit.** `SnapshotCase` and assertion APIs
   must not supply a broad default matrix. Preserve configuration identifiers and
   frame semantics when changing coverage. Guard: `SnapshotConfigurationTests`.

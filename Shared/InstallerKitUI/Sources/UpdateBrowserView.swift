@@ -53,10 +53,7 @@ extension View {
                 SnapshotCase(
                     name: scenario.rawValue,
                     configurations: scenario == .available ? .fullContentScreenRepresentative :
-                        SnapshotConfiguration.combinations(
-                            devices: [.iPhoneFullContent],
-                            colorSchemes: [.light, .dark],
-                        ),
+                        .fullContentPhoneLightDark,
                     measurementReadiness: scenario.requiresRefresh ? .sameAsCapture : .immediate,
                     onReadyToMeasure: {
                         if scenario.requiresRefresh { await model.refresh(force: true) }

@@ -205,11 +205,7 @@ struct PlannedStayEditor: View {
             let staleModel = flexibleEditorModel(report: PreviewSupport.itineraryYearReportModel())
             whereSnapshot(
                 name: "DeletedWhileEditing",
-                configurations: .fullContentPhoneLightDark
-                    + SnapshotConfiguration.combinations(
-                        devices: [.iPhoneFullContent],
-                        snapshotTypes: [.accessibility],
-                    ),
+                configurations: .fullContentPhoneLightDarkWithAnnotations,
                 onReadyToMeasure: {
                     // The preview mirrors an itinerary over an empty store.
                     // Await the real rejection before measuring its error row.

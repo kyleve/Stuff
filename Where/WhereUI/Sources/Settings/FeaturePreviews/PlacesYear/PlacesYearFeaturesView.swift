@@ -66,9 +66,7 @@ extension PlacesYearFeaturesView: SettingsSection {
             let demo = PreviewSupport.loadedYearReportModel()
             whereSnapshot(
                 name: "Loaded",
-                configurations: .fullContentPhoneLightDark + [
-                    .init(dynamicType: .accessibility5, device: .iPhoneFullContent),
-                ],
+                configurations: .fullContentPhoneLightDarkWithAX5,
                 onReadyToMeasure: {
                     if let input = loaded.elsewhereInput { await loaded.elsewhere.refresh(input) }
                 },

@@ -184,11 +184,7 @@ struct PlannedStaysView: View {
             }
             whereSnapshot(
                 name: "PastExpanded",
-                configurations: .fullContentPhoneLightDark
-                    + SnapshotConfiguration.combinations(
-                        devices: [.iPhoneFullContent],
-                        snapshotTypes: [.accessibility],
-                    ),
+                configurations: .fullContentPhoneLightDarkWithAnnotations,
             ) {
                 PlannedStaysView(model: expandedPastModel())
             }

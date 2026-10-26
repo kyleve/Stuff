@@ -118,10 +118,7 @@ struct InspectorSnapshotTests {
         await assertSnapshots(
             of: rootView,
             named: "Root",
-            configurations: SnapshotConfiguration.combinations(
-                devices: [.iPhoneFullContent],
-                colorSchemes: [.light, .dark],
-            ),
+            configurations: .fullContentPhoneLightDark,
         )
     }
 

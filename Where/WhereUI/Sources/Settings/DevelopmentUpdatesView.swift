@@ -68,13 +68,12 @@ extension DevelopmentUpdatesView: SettingsSection {
     extension DevelopmentUpdatesView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             // InstallerKitUI owns the scenario matrix; these check Where branding and integration.
-            snapshot(scenario: .available, configurations: [
-                .init(device: .iPhoneFullContent),
-                .init(colorScheme: .dark, device: .iPhoneFullContent),
-                .init(dynamicType: .accessibility5, device: .iPhoneFullContent),
-                .init(device: .iPhoneFullContent, snapshotType: .accessibility),
-                .init(device: .iPadFullContent),
-            ])
+            snapshot(
+                scenario: .available,
+                configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations + [
+                    .init(device: .iPadFullContent),
+                ],
+            )
             snapshot(scenario: .local, configurations: [.init(device: .iPhoneFullContent)])
         }
 
