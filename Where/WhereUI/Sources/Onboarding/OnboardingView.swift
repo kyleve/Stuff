@@ -277,10 +277,10 @@ public struct OnboardingView: View {
                             recover: { history in Task { await role.recover(history: history) } },
                             canApprove: false,
                             choose: { recording in Task {
-                                if let confirmed = await role
+                                if case let .confirmed(choice) = await role
                                     .choose(recording: recording)
                                 {
-                                    flow.recordingEnabled = confirmed
+                                    flow.recordingEnabled = choice == .recordingRequested
                                     flow.finish(using: model)
                                 }
                             } },

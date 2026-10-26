@@ -96,14 +96,38 @@ struct RecordingDeviceRoleModelTests {
             approve: nil,
         )
         await model.refresh()
-        #expect(await model.choose(recording: true) == nil)
+        #expect(await model.choose(recording: true) == .waitingForApproval)
         #expect(selected == true)
         #expect(model.state.details?.isWaiting == true)
         #expect(model.isOwner == false)
         #expect(try await authority.observed().owner?.deviceID == other)
-        #expect(await model.choose(recording: false) == false)
+        #expect(await model.choose(recording: false) == .confirmed(.secondary))
         #expect(selected == false)
         #expect(model.state.details?.isWaiting == false)
+    }
+
+    @Test func selectionDistinguishesUnavailableFailedAndConfirmedOutcomes() async throws {
+        let bootstrap = try CompatibilityBootstrap()
+        let context = try bootstrap.installation.resolve()
+        var rejectSelection = true
+        let model = RecordingDeviceRoleModel(
+            coordination: bootstrap.recording,
+            currentDeviceID: context.currentDevice.id,
+            selectionChanged: { _ in
+                if rejectSelection { throw RecordingAuthorityError.conflict }
+            },
+            approve: nil,
+        )
+        #expect(await model.choose(recording: true) == .unavailable)
+        await model.refresh()
+        #expect(await model.choose(recording: true) == .failed)
+        // The authority claim may have succeeded before the local callback failed. Retrying
+        // must confirm the existing owner rather than requesting a second grant.
+        let claimed = try await bootstrap.recording.observed()
+        rejectSelection = false
+        await model.refresh()
+        #expect(await model.choose(recording: true) == .confirmed(.recordingRequested))
+        #expect(try await bootstrap.recording.observed() == claimed)
     }
 
     @Test func recoveryRequiresTheReviewedOwnerToRemainCurrent() async throws {

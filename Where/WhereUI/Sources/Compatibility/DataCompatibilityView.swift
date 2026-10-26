@@ -49,8 +49,8 @@ struct DataCompatibilityView: View {
                     if case let .updateRequired(version) = state {
                         Text(String(localized: .compatibilityRequiredVersion(version.rawValue)))
                     }
-                    if case let .verificationFailed(message) = state {
-                        Text(message).textSelection(.enabled)
+                    if case let .verificationFailed(failure) = state {
+                        Text(failure.error.localizedDescription).textSelection(.enabled)
                     }
                 }
             }
@@ -113,7 +113,13 @@ struct DataCompatibilityView: View {
                 ),
                 .init(
                     name: "VerificationFailed",
-                    state: .verificationFailed("The shared requirement could not be verified."),
+                    state: .verificationFailed(.init(NSError(
+                        domain: "CompatibilityPreview",
+                        code: 1,
+                        userInfo: [
+                            NSLocalizedDescriptionKey: "The shared requirement could not be verified.",
+                        ],
+                    ))),
                     updates: .noBuildsPublished,
                 ),
                 .init(

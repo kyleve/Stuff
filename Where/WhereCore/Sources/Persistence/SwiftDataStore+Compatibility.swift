@@ -10,7 +10,7 @@ extension SwiftDataStore {
                 Self.requiredVersion(in: compatibilityContext()),
             )
         } catch let error as DataCompatibilityError { throw error }
-        catch { throw DataCompatibilityError.verificationFailed(error.localizedDescription) }
+        catch { throw DataCompatibilityError.verificationFailed(.init(error)) }
     }
 
     public func validateDataAccess() throws {
@@ -29,7 +29,7 @@ extension SwiftDataStore {
                 Self.requiredVersion(in: ModelContext(modelContainer)),
                 Self.requiredVersion(in: context),
             )
-        } catch { throw DataCompatibilityError.verificationFailed(error.localizedDescription) }
+        } catch { throw DataCompatibilityError.verificationFailed(.init(error)) }
         guard supportedCompatibilityVersion >= required
         else { throw DataCompatibilityError.updateRequired(required) }
     }

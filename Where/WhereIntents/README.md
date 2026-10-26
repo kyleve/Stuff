@@ -99,7 +99,9 @@ device; these are not covered by the unit suite.
 ### Compatibility
 
 `IntentServices.setCompatibility(_:)` rejects waiting and future callers while the
-app is blocked. Clearing the installed services preserves that error. Successful
+app is blocked. Verification failures retain their original error in
+`DataCompatibilityFailure`, including failures during service installation.
+Clearing the installed services preserves that error. Successful
 verification allows a fresh service installation. The services handoff checks
 admission. A previously admitted read can finish from its data or cached Today
 snapshot after lockout. Writes still require an active scope at the transaction

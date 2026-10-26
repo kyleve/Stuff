@@ -10,7 +10,7 @@ final class RecordingDeviceRoleModel {
         let authority: RecordingAuthority
         let currentDeviceID: RecordingDeviceID
         let names: [RecordingDeviceID: String]
-        var interruptedApproval: RecordingAuthority.EventID?
+        var interruptedApproval: RecordingAuthority.RequestID?
         var isOwner: Bool {
             authority.owner?.deviceID == currentDeviceID
         }
@@ -23,7 +23,7 @@ final class RecordingDeviceRoleModel {
     struct RecoveryReview: Identifiable {
         let owner: RecordingAuthority.Owner
         let deviceName: String
-        var id: RecordingAuthority.EventID {
+        var id: RecordingAuthority.OwnershipID {
             owner.ownershipID
         }
     }
@@ -50,13 +50,13 @@ final class RecordingDeviceRoleModel {
     private let coordination: RecordingDeviceCoordination
     private let currentDeviceID: RecordingDeviceID
     private let selectionChanged: (@MainActor (Bool) async throws -> Void)?
-    private let approve: (@MainActor (RecordingAuthority.EventID) async throws -> Void)?
+    private let approve: (@MainActor (RecordingAuthority.RequestID) async throws -> Void)?
 
     init(
         coordination: RecordingDeviceCoordination,
         currentDeviceID: RecordingDeviceID,
         selectionChanged: (@MainActor (Bool) async throws -> Void)?,
-        approve: (@MainActor (RecordingAuthority.EventID) async throws -> Void)?,
+        approve: (@MainActor (RecordingAuthority.RequestID) async throws -> Void)?,
     ) {
         self.coordination = coordination
         self.currentDeviceID = currentDeviceID
@@ -95,9 +95,17 @@ final class RecordingDeviceRoleModel {
         }
     }
 
-    /// Nil means a request is waiting or failed; a value can complete first-launch selection.
-    func choose(recording: Bool) async -> Bool? {
-        guard case let .loaded(details) = state else { return nil }
+    /// Only a confirmed role can complete onboarding. Waiting, failure, and busy/loading
+    /// outcomes remain distinct even when the caller has no further action to take.
+    enum SelectionOutcome: Equatable {
+        case confirmed(RecordingInstallationControl.RoleChoice)
+        case waitingForApproval
+        case unavailable
+        case failed
+    }
+
+    func choose(recording: Bool) async -> SelectionOutcome {
+        guard case let .loaded(details) = state else { return .unavailable }
         readID = UUID()
         state = .working(details)
         do {
@@ -111,10 +119,12 @@ final class RecordingDeviceRoleModel {
             try await selectionChanged?(recording)
             state = .loaded(details)
             await loadFromStore()
-            return !recording || updated.owner?.deviceID == currentDeviceID ? recording : nil
+            if !recording { return .confirmed(.secondary) }
+            return updated.owner?.deviceID == currentDeviceID ?
+                .confirmed(.recordingRequested) : .waitingForApproval
         } catch {
             state = .failed(details, error.localizedDescription)
-            return nil
+            return .failed
         }
     }
 

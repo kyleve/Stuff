@@ -702,6 +702,8 @@ restored preferences contain completed onboarding. The installation sidecar
 stores that choice outside device backups. Role commands accept `RoleChoice`, which
 contains only secondary and recording-requested choices. Confirmation returns
 `ConfirmedInstallationContext`; boot narrows persisted settings before assembling services.
+`RecordingDeviceRoleModel.choose` returns a `SelectionOutcome`: confirmed, waiting
+for approval, unavailable, or failed. Onboarding completes only for a confirmed role.
 
 A replacement phone requests a handoff. The current recorder approves through
 `DeviceRecordingController`, which stops GPS before transferring ownership.
@@ -722,7 +724,9 @@ coordinator. `WhereScopeAssembling.prepareCompatibility()` must supply a
 `DataCompatibilityChecking` implementation. There is no missing-value path that
 marks a production bootstrap compatible. Injected fixtures explicitly supply
 `IsolatedDataCompatibility`. `DataCompatibilityGate` runs before onboarding data operations and
-normal service assembly, including headless launch. The bootstrap remains
+normal service assembly, including headless launch.
+Verification failure state retains the original error through `DataCompatibilityFailure`.
+The update screen derives diagnostic text from that error at presentation. The bootstrap remains
 available for recording-role selection and lost-phone recovery while blocked.
 An owner can cancel an interrupted handoff from this bootstrap surface, even
 when approval is unavailable. Cancellation resolves the pending command before

@@ -98,8 +98,11 @@ struct SwiftDataStoreCompatibilityTests {
         context.insert(SDDataCompatibilityRequirement())
         try context.save()
         let store = SwiftDataStore(modelContainer: container)
-        await #expect(throws: DataCompatibilityError.self) {
+        do {
             try await store.perform { try await store.add(sample: Self.sample) }
+            Issue.record("Malformed requirements must block writes.")
+        } catch let DataCompatibilityError.verificationFailed(failure) {
+            #expect(failure.error as? RecordingAuthorityError == .invalidRecord)
         }
         #expect(try await store.allSamples().isEmpty)
         #expect(try await store.recordingAuthorityCommits().isEmpty)

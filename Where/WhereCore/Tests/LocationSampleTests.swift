@@ -44,6 +44,13 @@ struct LocationSampleTests {
         let stamped = sample.recorded(under: owner)
         #expect(try JSONDecoder()
             .decode(LocationSample.self, from: JSONEncoder().encode(stamped)) == stamped)
-        #expect(stamped.recordingProvenance?.ownershipID == owner.ownershipID)
+        #expect(stamped.recordingProvenance == .owned(owner))
+        #expect(sample.recordingProvenance == .legacy(deviceID: deviceID))
+        let encoded = try #require(JSONSerialization
+            .jsonObject(with: JSONEncoder().encode(stamped)) as? [String: Any])
+        #expect(encoded["recordingOwnershipID"] as? String == owner.ownershipID.storeURL
+            .absoluteString)
+        #expect(encoded["recordingDeviceID"] as? String == deviceID.storeURL.absoluteString)
+        #expect(encoded["recordingProvenance"] == nil)
     }
 }

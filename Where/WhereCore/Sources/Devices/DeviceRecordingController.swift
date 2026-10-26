@@ -74,7 +74,7 @@ public actor DeviceRecordingController {
         configurationBroadcaster.subscribe()
     }
 
-    public func approveHandoff(requestID: RecordingAuthority.EventID) async throws {
+    public func approveHandoff(requestID: RecordingAuthority.RequestID) async throws {
         await beginExclusive()
         defer { endExclusive() }
         try requireActive()

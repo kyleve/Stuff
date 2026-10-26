@@ -336,7 +336,7 @@ sheets use `themes/`. Special trait images use `other/` inside the selected grou
 Never derive the folder from a localized label or rename a persisted theme identity.
 
 - Compose production recording coordination once in `WhereBootstrap` over its existing store, then inject it into onboarding and services. Isolated test fixtures may construct their own (`where.recording_coordination_composition`).
-- Require an explicit role choice for a new installation even when restored preferences say onboarding finished. Keep identity, consent, and pending handoffs in the backup-excluded installation sidecar.
+- Require an explicit role choice for a new installation even when restored preferences say onboarding finished. Complete role selection only for a confirmed outcome; waiting, unavailable, and failed outcomes keep onboarding open (`RecordingDeviceRoleModelTests`). Keep identity, consent, and pending handoffs in the backup-excluded installation sidecar.
 
 - Bind lost-phone recovery confirmation to the reviewed owner. Show the offline overlap and history choices before submitting (`RecordingDeviceRoleModel`).
 

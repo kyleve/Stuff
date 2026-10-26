@@ -210,6 +210,7 @@ internal shape.
 - Keep direct CloudKit coordination in `CloudKitRecordingAuthorityTransport`; never access SwiftData-managed CloudKit records there. See the [authority guide](RECORDING_AUTHORITY.md) for the protocol and reading order.
 - Decode authority through `RecordingAuthorityRecord` before entering domain APIs. Keep its wire fields stable while changing domain enums. Guards: `RecordingAuthorityRecordTests`, `CloudKitRecordingAuthorityRecordTests`.
 - Require `ConfirmedInstallationContext` for recording service construction. Persist confirmation before returning that value. Guard: `ConfirmedInstallationContextTests`, `InstallationRecordingContextStoreTests`.
+- Keep event, ownership, and request IDs distinct through domain APIs. Derive a new grant or request ID only in its creating transition; preserve the existing stored URL namespace (`RecordingAuthorityRecordTests`).
 - Bind authority transitions to the reviewed state and reuse their event ID after uncertain responses. Resolve every immutable predecessor before publishing authority. Guard: `RecordingAuthorityCoordinatorTests` / `RecordingAuthorityTransportTests`.
 - Preserve authority commits across destructive data generations; exclude operational ownership from backups. All projection writes use `WhereStore.perform`.
 
@@ -251,7 +252,7 @@ derived from the demo world must stay made of no-ops.
 - Return `PreparedHandoffApproval` only after persisting its fence. Stop and drain GPS before submitting that value. Keep uncertain approvals and their cancellations fenced across restart until a server-confirmed outcome. Reconcile terminal commands after refresh and preserve the event ID for retries (`RecordingDeviceCoordinationTests`, `RecordingAuthority` model).
 
 - Reject handoff targets with observed removal tombstones before approval and again before submission. Cancel a pending handoff before removing its target (`RecordingDeviceCoordinationTests`).
-- Keep recovery exclusions bound to the former ownership period and server commit time. Preserve raw samples and apply exclusions through `LocationHistoryReader` (`RecordingRecoveryExclusionTests`).
+- Match recovery exclusions only against owned sample provenance, bound to the former ownership period and server commit time. Preserve raw samples and apply exclusions through `LocationHistoryReader` (`RecordingRecoveryExclusionTests`).
 - Preserve authority, installation identity, local consent, and the compatibility floor across history Reset and Replace. Backups carry historical exclusions and the floor, never live ownership (`BackupCoordinatorTests`, `WhereResetTests`).
 
 - Check scope permission at transaction entry and immediately before save. Domain mutations mark the transaction through `mutationContext()`; recovery metadata uses `controlMutationContext()`. Recheck pending and committed requirements before save. Reads remain available during teardown (`where.compatibility_store_boundary`, `SwiftDataStoreCompatibilityTests`).
