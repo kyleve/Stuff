@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Review a PR, branch, or local diff for correctness, repository contracts, and validation gaps. Use for requested code reviews and the completed-diff review before publication. Use review-lessons for historical audits.
+description: Review Stuff PRs, branches, or local diffs using module contracts, existing regression tests, and relevant fix history. Use for requested reviews and the completed-diff review before publication. Use review-lessons for historical audits.
 ---
 
 # Code review
@@ -19,13 +19,38 @@ For an implementation task, use this procedure to review the completed work and 
 2. Read the complete diff and surrounding implementation before relying on the PR description or an author's conclusions.
    Inventory changed contracts, callers, stored data, execution paths, and tests.
    Then compare the inventory with the request and description.
-3. Map each material contract to its owning instruction, implementation, and existing guard.
-   Keep this map in working notes or the review report.
-   Load domain skills only for the affected work, including [building-ui](../building-ui/SKILL.md) for UI review.
+3. Build the repository-specific contract map below before evaluating the implementation.
+   Include affected consumers outside the changed module.
 
 If a review is too broad for complete inspection, identify the unreviewed areas explicitly.
 Request a smaller coherent slice or report partial coverage. Do not infer correctness from sampling.
 Separate mechanical changes from behavior changes when that separation makes the review verifiable.
+
+## Find the concrete repository contracts
+
+Select the applicable routes from [repository checks](references/repository-checks.md).
+Read those sections and their owning instructions, including source-directory `AGENTS.md` files.
+These routes point to known failure mechanisms and current guards. They are not an exhaustive rule catalog.
+
+| Changed code | Review route |
+| --- | --- |
+| Swift signatures, stored state, or preferences | [Domain types and state](references/repository-checks.md#domain-types-and-state) |
+| Launch, reset, services, intents, or store writes | [Composition and transactions](references/repository-checks.md#composition-and-transactions) |
+| Day keys, calendars, historical reads, or backups | [Dates and persisted data](references/repository-checks.md#dates-and-persisted-data) |
+| Views, models, layout, or styling | [UI structure and Broadway](references/repository-checks.md#ui-structure-and-broadway), plus [building-ui](../building-ui/SKILL.md) |
+| Package products, targets, imports, or architecture rules | [Target graph and guards](references/repository-checks.md#target-graph-and-guards) |
+| Snapshots, previews, or capture infrastructure | [Rendering and fixtures](references/repository-checks.md#rendering-and-fixtures) |
+| Events, errors, reporting, or export | [Classified logging](references/repository-checks.md#classified-logging) |
+| Root commands, files, processes, signing, or publication | [Tools and publication](references/repository-checks.md#tools-and-publication) |
+
+For each material changed contract, record the owning rule, affected implementation/caller, and relevant regression test or enforcement gap.
+Open the cited test and check what it asserts. A matching test name is not evidence of coverage.
+Use the owning module's instructions and README for areas outside these routes.
+
+For behavior changes, inspect relevant fix history for the affected implementation and guard with `git log --oneline -- <paths>` and `git show <commit>`.
+Follow a linked PR through github-workflow when the reason or final decision remains unclear.
+Check the original failure trigger against the new diff, including alternate callers.
+Treat the current owner as authoritative. An old fix is a counterexample to consider, not a rule to copy into every module.
 
 ## Establish what the checks cover
 
@@ -56,22 +81,9 @@ Start with the highest-consequence changed path. Follow its input through the fi
 Inspect callers and sibling implementations outside the diff when they depend on that contract.
 For each important path, identify a concrete scenario that can falsify the claimed behavior.
 
-Use only the applicable review questions:
-
-| Changed boundary | Evidence to inspect |
-| --- | --- |
-| Types, identity, or stored state | Root type/state rules, affected callers, valid state combinations, explicit defaults, and creation of stable identity |
-| Persistence or serialized data | Producer and consumer together, supported old data, stable keys, rename behavior, and the owning migration policy |
-| Async work or lifecycle | Ownership before and after suspension, stale completion, cancellation, retry, teardown, and re-entry through production callers |
-| Filesystem, process, or publication | Validation before mutation, partial failure, competing ownership, rollback, cleanup failure, exit status, and public-command tests |
-| Credentials or untrusted input | Trusted source of commands/configuration, input validation, diagnostic redaction, and cleanup after failure |
-| UI, navigation, or appearance | Production entry and return paths, shared components, styles, accessibility, changed images, and runtime evidence from building-ui |
-| Shared infrastructure or fixtures | Existing implementation and extension seams, consumer coverage, and whether a second path duplicates production behavior |
-
 For cross-language data, inspect the real serialized boundary or a shared wire fixture with both consumers.
-For service-backed previews, use typed fixtures through the production service/model path.
-Keep raw wire fixtures for tests of serialization and validation.
-For async races, hold the dependency at the relevant suspension and inspect superseded completion.
+For async work, trace ownership across suspension, cancellation, retry, and teardown through production callers.
+For race tests, hold the dependency at the relevant suspension and inspect superseded completion.
 For heuristics, inspect plausible counterexamples and threshold boundaries, not only the examples that motivated the change.
 
 Compare a new abstraction with the existing owner before accepting another pipeline, registry, parser, or state machine.

@@ -76,6 +76,8 @@ Avoid broad text matching for rules that require type or runtime context.
 If enforcement needs a separate product change, file it through `todo-triage` in the owning `TODOs.md`.
 Search existing backlog items before filing another one.
 Keep review history in the PR and actionable follow-ups in the backlog.
+If a lesson exposes a missing review route, update [repository checks](../code-review/references/repository-checks.md) with its trigger, owning rule, and current implementation or guard.
+Replace stale routes instead of accumulating historical examples. Keep the invariant at its existing owner and the fix history in the audit record.
 
 Do not add instructions to meet a monthly quota.
 Remove redundant guidance as part of the same correction.
