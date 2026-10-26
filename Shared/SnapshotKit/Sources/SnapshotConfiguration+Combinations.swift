@@ -115,4 +115,34 @@ extension [SnapshotConfiguration] {
     public static var componentLightDark: Self {
         SnapshotConfiguration.combinations(colorSchemes: [.light, .dark])
     }
+
+    /// Light + dark plus one light AX5 capture at the full-content phone frame.
+    /// Use when an additional state needs focused large-text wrapping coverage.
+    public static var fullContentPhoneLightDarkWithAX5: Self {
+        fullContentPhoneLightDark + [
+            .init(dynamicType: .accessibility5, device: .iPhoneFullContent),
+        ]
+    }
+
+    /// Light + dark plus one light, standard-text annotation capture at the
+    /// full-content phone frame. Annotations do not add an AX5 capture.
+    public static var fullContentPhoneLightDarkWithAnnotations: Self {
+        fullContentPhoneLightDark + [
+            .init(device: .iPhoneFullContent, snapshotType: .accessibility),
+        ]
+    }
+
+    /// Light + dark, then a light AX5 capture and a separate light, standard-text
+    /// annotation capture at the full-content phone frame: four captures total.
+    public static var fullContentPhoneLightDarkWithAX5AndAnnotations: Self {
+        fullContentPhoneLightDarkWithAX5 + [
+            .init(device: .iPhoneFullContent, snapshotType: .accessibility),
+        ]
+    }
+
+    /// Light + dark plus one light, standard-text annotation capture at the
+    /// component frame. Annotations do not add an AX5 capture.
+    public static var componentLightDarkWithAnnotations: Self {
+        componentLightDark + [.init(snapshotType: .accessibility)]
+    }
 }

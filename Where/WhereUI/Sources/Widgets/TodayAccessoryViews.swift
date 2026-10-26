@@ -78,8 +78,7 @@ public struct TodayCircularAccessoryView: View {
         public static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Regions",
-                configurations: .componentLightDark
-                    + SnapshotConfiguration.combinations(snapshotTypes: [.accessibility]),
+                configurations: .componentLightDarkWithAnnotations,
                 settle: .immediate,
             ) {
                 TodayInlineAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
@@ -100,8 +99,7 @@ public struct TodayCircularAccessoryView: View {
         public static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Regions",
-                configurations: .componentLightDark
-                    + SnapshotConfiguration.combinations(snapshotTypes: [.accessibility]),
+                configurations: .componentLightDarkWithAnnotations,
                 settle: .immediate,
             ) {
                 TodayCircularAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(

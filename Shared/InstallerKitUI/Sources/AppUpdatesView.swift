@@ -142,10 +142,7 @@ private struct UpdatePage<SectionDecoration: ViewModifier>: View {
                     name: scenario.rawValue,
                     configurations: scenario == .available || scenario == .local ?
                         .fullContentScreenRepresentative :
-                        SnapshotConfiguration.combinations(
-                            devices: [.iPhoneFullContent],
-                            colorSchemes: [.light, .dark],
-                        ),
+                        .fullContentPhoneLightDark,
                     measurementReadiness: scenario.requiresRefresh ? .sameAsCapture : .immediate,
                     onReadyToMeasure: {
                         if scenario.requiresRefresh { await model.refresh(force: true) }

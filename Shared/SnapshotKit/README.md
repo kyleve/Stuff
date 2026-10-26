@@ -44,6 +44,9 @@ capture + comparison pipeline lives in the sibling
   `.screenRepresentative`, or `.fullContentScreenRepresentative` for a representative
   layout. Use `.componentLightDark`, `.phoneLightDark`, or
   `.fullContentPhoneLightDark` for additional states of that layout.
+  Focused `WithAX5`, `WithAnnotations`, and `WithAX5AndAnnotations` variants
+  add separate light-mode captures for text wrapping and accessibility annotations;
+  see the [preset declarations](Sources/SnapshotConfiguration+Combinations.swift).
 - **Full-content frames** (`.iPhoneFullContent`, `.iPadFullContent`, and
   `.fullContent(name:width:)`) — capture the settled intrinsic height of
   scrolling content, including UIKit-backed SwiftUI `List` and `Form`
@@ -141,7 +144,9 @@ assertSnapshots(of: MyBadge.self)
 ## Notes
 
 - Representative component matrices contain five captures; representative screen
-  matrices contain ten across phone and tablet. The compact presets contain two.
+  matrices contain ten across phone and tablet. Light/dark presets contain two;
+  focused presets add one AX5 capture, one standard-text annotation capture, or
+  both (three or four total), without multiplying those axes.
   Keep each distinct state, but repeat the larger matrix only when its layout or
   accessibility structure warrants it. Add specific configurations for exceptional
   wrapping, contrast, or tablet behavior. Comparison sheets still render every panel.
