@@ -561,6 +561,9 @@ Route shape, timing, accuracy, and sensor values remain recognizable characteris
 
 ## Recording authority foundation
 
+The [recording authority guide](RECORDING_AUTHORITY.md) explains the state model,
+conditional server writes, retry outcomes, local reconciliation, and review order.
+
 `RecordingAuthorityCoordinator` reconciles a server-confirmed owner and data
 version into the existing store. This foundation does not yet change recording
 behavior. The single-recorder lifecycle is the next stack slice.

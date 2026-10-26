@@ -1,6 +1,11 @@
 import Foundation
 
-/// Server-serialized control state, independent of user-history generations.
+/// The account's recording owner and shared data requirement after one committed transition.
+///
+/// `revision` advances for every transition. `owner.tenureID` changes only when ownership changes.
+/// A pending request leaves the existing owner in place until approval or forced recovery.
+/// This value describes authority, not local consent or whether GPS is currently running.
+/// The protocol walkthrough lives in WhereCore/RECORDING_AUTHORITY.md.
 public struct RecordingAuthority: Codable, Sendable, Equatable {
     /// Stable identity for one immutable coordination event and recording tenure.
     public struct EventID: Hashable, Sendable, WhereStoreURLCodable {
@@ -25,16 +30,20 @@ public struct RecordingAuthority: Codable, Sendable, Equatable {
         }
     }
 
+    /// One position in server history. The event ID also names the immutable receipt.
     public struct Revision: Codable, Hashable, Sendable {
         public let sequence: UInt64
         public let eventID: EventID
     }
 
+    /// One installation's ownership grant. Each new grant has a distinct tenure ID.
     public struct Owner: Codable, Sendable, Equatable {
         public let deviceID: RecordingDeviceID
         public let tenureID: EventID
     }
 
+    /// A request to replace a specific tenure, including the requester's supported data version.
+    /// The current owner remains authorized until it commits approval after stopping capture.
     public struct Handoff: Codable, Sendable, Equatable {
         public let requestID: EventID
         public let requestedBy: RecordingDeviceID
@@ -90,9 +99,15 @@ public enum RecordingRecoveryHistory: String, Codable, Sendable {
     case excludeAfterReplacement = "exclude-after-replacement"
 }
 
-/// A proposed transition is bound to the complete state the caller reviewed.
-/// Approval is issued only after the old recorder has durably relinquished capture.
+/// A validated decision bound to the complete state the caller reviewed.
+///
+/// Construction derives `result` from `expected` without I/O. The transport later compares
+/// `expected` with the server head and conditionally saves the transition under its event ID.
+/// Retain this exact value across uncertain responses so a retry can find the original receipt.
+/// Approval requires the caller to durably stop capture first.
+/// This type cannot enforce hardware state.
 public struct RecordingAuthorityProposal: Sendable, Equatable, Codable {
+    /// The persisted transition category. `Action` is the caller-facing command that produces it.
     public enum Kind: String, Codable, Sendable {
         case claim
         case request
@@ -107,12 +122,16 @@ public struct RecordingAuthorityProposal: Sendable, Equatable, Codable {
     public let kind: Kind
     public let recoveryHistory: RecordingRecoveryHistory?
 
+    /// A caller's intent. Construction validates it against the reviewed authority.
     public enum Action: Sendable {
         case claim
         case requestHandoff
         case cancelHandoff(requestID: RecordingAuthority.EventID)
+        /// Transfers the grant after the current owner durably prevents further capture.
         case approveHandoff(requestID: RecordingAuthority.EventID)
+        /// Replaces an unreachable owner. An offline device can still capture.
         case recover(RecordingRecoveryHistory)
+        /// Raises the shared floor to `buildVersion`. Installation alone does not raise it.
         case upgrade
     }
 
@@ -203,12 +222,18 @@ public struct RecordingAuthorityProposal: Sendable, Equatable, Codable {
         try result.validate()
     }
 
-    /// Reconstruct decoded transitions so valid-looking states cannot bypass transition rules.
+    /// Reconstructs a decoded proposal through the same initializer used by live commands.
+    ///
+    /// Valid endpoints alone do not establish a legal transition between them.
+    /// Reconstruction also checks the revision, tenure, pending request, and recovery choice.
+    /// This checks protocol shape. It does not authenticate the claimed device identity.
     public func validate() throws {
         guard let revision = result.revision else { throw RecordingAuthorityError.invalidRecord }
         let device: RecordingDeviceID
         let action: Action
         let version: DataCompatibilityVersion
+        // The proposal stores a state transition, not the caller's full context. Use the minimum
+        // compatible version unless the request or upgrade preserves a specific version itself.
         switch kind {
             case .claim:
                 guard let owner = result.owner else { throw RecordingAuthorityError.invalidRecord }
@@ -225,6 +250,8 @@ public struct RecordingAuthorityProposal: Sendable, Equatable, Codable {
                 guard let pending = expected.pendingHandoff,
                       let owner = expected.owner
                 else { throw RecordingAuthorityError.invalidRecord }
+                // Either participant can cancel with the same result. Reconstructing as the owner
+                // validates that shape without claiming which participant submitted the command.
                 device = owner.deviceID
                 action = kind == .cancel ? .cancelHandoff(requestID: pending.requestID) :
                     .approveHandoff(requestID: pending.requestID)
@@ -253,7 +280,11 @@ public struct RecordingAuthorityProposal: Sendable, Equatable, Codable {
     }
 }
 
-/// Immutable server receipt; the timestamp defines recovery history cutoffs.
+/// Proof that one proposal committed, even if a later transition changed the current owner.
+///
+/// CloudKit supplies `committedAt` from the immutable event's creation date.
+/// Recovery uses that server time as its history cutoff.
+/// Retrying the proposal returns this same receipt and timestamp.
 public struct RecordingAuthorityCommit: Codable, Sendable, Equatable {
     public let proposal: RecordingAuthorityProposal
     public let committedAt: Date

@@ -1,6 +1,10 @@
 import Foundation
 
-/// Reconciles server receipts into the existing store without owning another container.
+/// Reconciles the server's immutable authority history into an injected store.
+///
+/// Transport writes and local projection writes are separate transactions. A server commit can
+/// succeed before reconciliation fails, so callers retain proposals until their outcomes are known.
+/// This actor does not own GPS, recording consent, refresh scheduling, or another store container.
 public actor RecordingAuthorityCoordinator {
     private let store: any WhereStore
     private let transport: any RecordingAuthorityTransport
@@ -10,13 +14,19 @@ public actor RecordingAuthorityCoordinator {
         self.transport = transport
     }
 
+    /// Reads the local receipt projection without a network request or a freshness guarantee.
     public func observed() async throws -> RecordingAuthority {
         try await store.recordingAuthority()
     }
 
+    /// Fetches the head and every predecessor before adding receipts in one local transaction.
+    /// Missing or inconsistent history throws. Existing local receipts remain, so a stale head
+    /// cannot overwrite newer authority already observed by the store.
     @discardableResult
     public func refresh() async throws -> RecordingAuthority {
         guard let head = try await transport.current() else {
+            // An absent head is valid only while local history is empty.
+            // Established authority cannot disappear and enable another initial claim.
             guard try await store.recordingAuthority() == .initial else {
                 throw RecordingAuthorityError.authorityDisappeared
             }
@@ -24,7 +34,8 @@ public actor RecordingAuthorityCoordinator {
         }
         var receipts = [head]
         var cursor = head
-        // Walk immutable parent links: a missed push must not lose a recovery exclusion.
+        // A later head can hide a recovery while this device was offline. Follow every parent to
+        // retain its history choice, and require each edge to reproduce the expected state exactly.
         while let parent = cursor.proposal.expected.revision {
             try Task.checkCancellation()
             guard let receipt = try await transport.receipt(for: parent.eventID),
@@ -43,7 +54,10 @@ public actor RecordingAuthorityCoordinator {
         return try await store.recordingAuthority()
     }
 
-    /// Callers retain the same proposal across uncertain responses; never mint a replacement ID.
+    /// Commits a proposal and refreshes local authority before returning its original receipt.
+    ///
+    /// A returned receipt can describe an older transition than the refreshed authority. A thrown
+    /// error can occur after the server committed. Retry the same proposal to resolve that outcome.
     @discardableResult
     public func submit(_ proposal: RecordingAuthorityProposal) async throws
         -> RecordingAuthorityCommit
