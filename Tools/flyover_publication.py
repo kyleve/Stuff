@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import os
 import shutil
+import signal
 import tempfile
 
 from Tools.flyover_manifest import MARKER_CONTENT
@@ -87,6 +88,23 @@ class AtlasPublication:
         # Once installed, cleanup must not roll the new atlas back.
 
     def __exit__(self, error_type, error, traceback):
+        # The first interrupt can arrive during ordinary error recovery, before
+        # the CLI handler has disabled subsequent interrupts. Defer it until
+        # both staging cleanup and backup recovery have finished.
+        previous_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT, signal.SIGTERM})
+        try:
+            self._recover(error)
+        except BaseException as recovery_error:
+            try:
+                signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+            finally:
+                # A pending interrupt must not hide retained-backup diagnostics.
+                raise recovery_error
+        else:
+            signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+        return False
+
+    def _recover(self, error):
         failures = []
         if self.staging.exists():
             try:
@@ -111,4 +129,3 @@ class AtlasPublication:
             if error is not None:
                 detail = f"{error}; {detail}"
             raise OSError(detail) from error
-        return False

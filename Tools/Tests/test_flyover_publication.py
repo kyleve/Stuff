@@ -74,6 +74,15 @@ class FlyoverPublicationTests(unittest.TestCase):
                     publication.publish()
         self.assertEqual((publication.backup_container / 'previous/old').read_text(), 'previous')
 
+    def test_pending_signal_does_not_hide_recovery_failure(self):
+        with self.assertRaisesRegex(OSError, 'capture failed; staging cleanup failed'):
+            with patch('Tools.flyover_publication.signal.pthread_sigmask',
+                       side_effect=[set(), Interrupted(signal.SIGTERM)]), \
+                 patch('Tools.flyover_publication.shutil.rmtree', side_effect=OSError('permission denied')):
+                with AtlasPublication(self.destination):
+                    raise ValueError('capture failed')
+        self.assertEqual((self.destination / 'old').read_text(), 'previous')
+
     def test_cleanup_failure_after_commit_keeps_new_atlas(self):
         with self.assertRaisesRegex(OSError, 'cleanup failed'):
             with patch('Tools.flyover_publication.shutil.rmtree', side_effect=OSError('cleanup failed')):
@@ -158,6 +167,37 @@ try:
     with interruption_handling(), patch('Tools.flyover_publication.os.rename', side_effect=interrupt):
         with AtlasPublication(destination) as publication:
             publication.publish()
+except Interrupted as error:
+    sys.exit(128 + error.number)
+''', str(self.destination), str(int(number))], capture_output=True, text=True, timeout=10)
+                self.assertEqual(result.returncode, 128 + number, result.stderr)
+                self.assertEqual((self.destination / 'old').read_text(), 'previous')
+                self.assertEqual(list(self.root.iterdir()), [self.destination])
+
+    def test_first_signal_during_recovery_does_not_skip_backup_restore(self):
+        for number in (signal.SIGINT, signal.SIGTERM):
+            with self.subTest(number=number):
+                result = subprocess.run([sys.executable, '-B', '-c', '''
+import os, shutil, signal, sys
+from pathlib import Path
+from unittest.mock import patch
+from Tools.flyover_cli import interruption_handling, Interrupted
+from Tools.flyover_publication import AtlasPublication
+destination = Path(sys.argv[1])
+rename, rmtree = os.rename, shutil.rmtree
+def fail_install(source, target):
+    if Path(source).name.startswith('.flyover-staging.'):
+        raise OSError('install failed')
+    return rename(source, target)
+def interrupt_cleanup(path):
+    os.kill(os.getpid(), int(sys.argv[2]))
+    return rmtree(path)
+try:
+    with interruption_handling():
+        with patch('Tools.flyover_publication.os.rename', side_effect=fail_install), \
+             patch('Tools.flyover_publication.shutil.rmtree', side_effect=interrupt_cleanup):
+            with AtlasPublication(destination) as publication:
+                publication.publish()
 except Interrupted as error:
     sys.exit(128 + error.number)
 ''', str(self.destination), str(int(number))], capture_output=True, text=True, timeout=10)
