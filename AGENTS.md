@@ -114,6 +114,7 @@ over a build setting Xcode didn't export.
 
 ## Formatting
 
+- **Python and web correctness:** `mise exec -- npm run lint` runs pinned Ruff, type-aware ESLint, Astro rules, and Stylelint. `npm run test:lint` proves that representative errors fail. Ruff targets Python 3.9. Keep formatting-only changes separate from behavior changes.
 - **SwiftFormat** uses [`.swiftformat`](.swiftformat). Run `./swiftformat` to
   format the tree. Run `./swiftformat --lint` to make sure that formatting is correct (as in CI).
 - **ShellCheck** is pinned in [`.mise.toml`](.mise.toml). `./shellcheck` discovers

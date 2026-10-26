@@ -8,12 +8,12 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from Tools.InstallerKit.signing_profiles import Target, prepare, read_profile, validate_settings
+from Fixtures.where_distribution_fixtures import profile, write_profiles
 
 TARGETS = (Target("Where", "TUIST_WHERE_ADHOC_APP_PROFILE"),
            Target("WhereWidgets", "TUIST_WHERE_ADHOC_WIDGET_PROFILE"),
            Target("WhereShareExtension", "TUIST_WHERE_ADHOC_SHARE_PROFILE"))
 REQUIRED = {"WHERE_AUDIENCE": "development"}
-from Fixtures.where_distribution_fixtures import profile, write_profiles
 
 
 NOW = datetime(2026, 1, 1, tzinfo=timezone.utc)

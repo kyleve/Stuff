@@ -41,5 +41,5 @@ export function selectionHash(selection: Selection, catalog: NavigationCatalog):
         values.set('screen', selection.screen);
         values.set('variant', selection.variants.get(selection.screen)!);
     }
-    return '#' + values;
+    return '#' + values.toString();
 }

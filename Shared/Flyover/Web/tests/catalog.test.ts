@@ -5,7 +5,7 @@ import { createSession } from '../src/scripts/session.ts';
 import { readManifest } from '../src/scripts/manifest.ts';
 import { fixture } from './browser/fixture.ts';
 
-test('catalog selection preserves metadata and uses thumbnail pixels when present', () => {
+void test('catalog selection preserves metadata and uses thumbnail pixels when present', () => {
     const manifest = fixture();
     const state = createSession(manifest);
     const selectedVariants = new Map<string, string>();
@@ -25,7 +25,7 @@ test('catalog selection preserves metadata and uses thumbnail pixels when presen
     assert.equal(catalog.screenImagePixels(screen), 402 * 2600);
 });
 
-test('search and filters include groups, named states, and route endpoints', () => {
+void test('search and filters include groups, named states, and route endpoints', () => {
     const manifest = fixture();
     const state = createSession(manifest);
     const catalog = createCatalog({ manifest, state, selectedVariants: new Map() });
@@ -40,7 +40,7 @@ test('search and filters include groups, named states, and route endpoints', () 
     assert.equal(catalog.visibleScreenIDs().size, 0);
 });
 
-test('fixed viewports retain dimensions across device profiles', () => {
+void test('fixed viewports retain dimensions across device profiles', () => {
     const manifest = fixture();
     const screen = manifest.screens[0];
     const state = createSession(manifest);
@@ -52,7 +52,7 @@ test('fixed viewports retain dimensions across device profiles', () => {
     assert.equal(catalog.captureViewportAspect(screen), 0.5);
 });
 
-test('unsupported wire versions fail visibly at the loader boundary', () => {
+void test('unsupported wire versions fail visibly at the loader boundary', () => {
     for (const input of [null, {}, { schemaVersion: 2 }]) assert.throws(() => readManifest(input), /schema version 1/);
     const manifest = fixture();
     assert.equal(readManifest(manifest), manifest);

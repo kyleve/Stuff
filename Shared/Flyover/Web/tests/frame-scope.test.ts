@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { FrameScope } from '../src/scripts/frame-scope.ts';
 
-test('cancel invalidates queued and already-dequeued callbacks without suppressing the next render', () => {
+void test('cancel invalidates queued and already-dequeued callbacks without suppressing the next render', () => {
     const callbacks = new Map<number, FrameRequestCallback>();
     const cancelled: number[] = [];
     let next = 0;

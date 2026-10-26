@@ -173,7 +173,7 @@ def validate_manifest(manifest: object) -> None:
                 f"manifest.screens[{index}].variants[{variant_index}].title",
                 nonempty=True,
             )
-            extent = capture_extent(
+            capture_extent(
                 variant["captureExtent"],
                 f"manifest.screens[{index}].variants[{variant_index}].captureExtent",
             )

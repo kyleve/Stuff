@@ -45,7 +45,7 @@ export interface Site {
 const path = process.env.INSTALLER_SITE_DATA;
 if (!path) throw new Error('Build through installer_update_site.py, or use npm run dev for fixture data.');
 // Python owns runtime validation. This private shape is not the public catalog schema.
-export const site: Site = JSON.parse(readFileSync(path, 'utf8'));
+export const site = JSON.parse(readFileSync(path, 'utf8')) as Site;
 
 export function appURL(app: App): string {
   return site.basePath + 'apps/' + app.id + '/';

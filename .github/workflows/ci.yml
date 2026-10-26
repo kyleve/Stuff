@@ -37,6 +37,10 @@ jobs:
           mise exec -- npm run check --workspaces --if-present
       - name: ShellCheck
         run: ./shellcheck
+      - name: Python, TypeScript, and CSS lint
+        run: |
+          mise exec -- npm run lint
+          mise exec -- npm run test:lint
       - name: Flyover browser regressions
         run: |
           mise exec -- npx playwright install chromium webkit

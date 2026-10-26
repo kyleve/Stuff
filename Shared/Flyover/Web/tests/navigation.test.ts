@@ -7,7 +7,7 @@ const catalog = {
     profiles: [{ id: 'phone-light' }, { id: 'phone-dark' }],
 };
 
-test('all state selections round trip, including delimiters and Unicode', () => {
+void test('all state selections round trip, including delimiters and Unicode', () => {
     for (const view of ['canvas', 'list'] as const) {
         for (const screen of [null, ...catalog.screens.map(item => item.id)]) {
             const selection = { view, screen, profile: 'phone-dark', variants: new Map(catalog.screens.map(item => [item.id, item.variants[1].id])) };
@@ -16,7 +16,7 @@ test('all state selections round trip, including delimiters and Unicode', () => 
     }
 });
 
-test('omitted defaults reset every state during history traversal', () => {
+void test('omitted defaults reset every state during history traversal', () => {
     const initial = readSelection('', catalog);
     const changed = { ...initial, variants: new Map(initial.variants) };
     changed.variants.set('root', catalog.screens[0].variants[1].id);
@@ -27,7 +27,7 @@ test('omitted defaults reset every state during history traversal', () => {
     assert.equal(new URLSearchParams(selectionHash(initial, catalog).slice(1)).get('state.root'), null);
 });
 
-test('unknown values resolve to catalog defaults and legacy inspector links still work', () => {
+void test('unknown values resolve to catalog defaults and legacy inspector links still work', () => {
     assert.deepEqual(readSelection('#view=bad&screen=bad&profile=bad&state.root=bad', catalog), readSelection('', catalog));
     const selection = readSelection('#screen=root&variant=' + encodeURIComponent(catalog.screens[0].variants[1].id), catalog);
     assert.equal(selection.screen, 'root');
