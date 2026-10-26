@@ -188,7 +188,7 @@ private struct ResolveToolbarLabel: View {
             artworkSnapshot(
                 name: "Itinerary",
                 report: PreviewSupport.itineraryYearReportModel(),
-                configurations: .fullContentScreenRepresentative,
+                configurations: .fullContentPhoneLightDark,
             )
             artworkSnapshot(
                 name: "Loaded",
@@ -199,8 +199,7 @@ private struct ResolveToolbarLabel: View {
                 artworkSnapshot(
                     name: "Flight-" + state.rawValue,
                     report: PreviewSupport.flightYearReportModel(state: state),
-                    configurations: state == .flightLikely
-                        ? .fullContentScreenRepresentative : .fullContentPhoneLightDark,
+                    configurations: .fullContentPhoneLightDark,
                 )
             }
             whereSnapshot(
@@ -265,10 +264,14 @@ private struct ResolveToolbarLabel: View {
                     report: PreviewSupport.loadedYearReportModelWithLocationDotsHidden(),
                 )
             }
+            // Multiple primary cards retain tablet baseline and large-type layout coverage.
             artworkSnapshot(
                 name: "ThreePrimaryRegions",
                 report: PreviewSupport.multiplePrimaryYearReportModel(),
-                configurations: .fullContentScreenRepresentative,
+                configurations: .fullContentPhoneLightDark + [
+                    .init(device: .iPadFullContent),
+                    .init(dynamicType: .accessibility5, device: .iPadFullContent),
+                ],
             )
         }
 
