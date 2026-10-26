@@ -597,7 +597,7 @@ layout-direction, and bold-text choices are session-only and apply only to
 registered content.
 
 `WhereFlyoverWebExportTests` is the hosted static-export adapter. It reads the
-request supplied through test-runner environment values and otherwise returns without work. One
+request supplied by `./flyover export` and otherwise returns without work. One
 `WhereFlyoverWorld` supplies every capture in an export. Its frozen date,
 in-memory store, in-memory preferences, no-op services, private logs, and
 Broadway root are the same synthetic fixtures used by native Flyover. The
