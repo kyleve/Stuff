@@ -1,32 +1,15 @@
-"""Validate and securely open Flyover artifacts before an Astro preview copies them."""
+"""Descriptor-based access to validated artifacts, independent of preview commands."""
 
-from __future__ import annotations
-
-import argparse
 import os
 import stat
-import sys
 from contextlib import contextmanager
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 from typing import BinaryIO, Iterator, Optional
 
-try:
-    from Tools.flyover_manifest import (
-        FlyoverArtifact,
-        FlyoverArtifactError,
-        validate_artifact,
-    )
-except ModuleNotFoundError as error:
-    if error.name != "Tools":
-        raise
-    from flyover_manifest import (
-        FlyoverArtifact,
-        FlyoverArtifactError,
-        validate_artifact,
-    )
+from Tools.flyover_manifest import FlyoverArtifact, FlyoverArtifactError
 
 
-def _open_file_beneath(root_descriptor: int, relative: str) -> BinaryIO:
+def open_file_beneath(root_descriptor: int, relative: str) -> BinaryIO:
     """Open one allowlisted regular file without following symbolic links."""
     flags = os.O_RDONLY | os.O_NOFOLLOW
     directory_flags = flags | os.O_DIRECTORY
@@ -59,7 +42,7 @@ def _open_file_beneath(root_descriptor: int, relative: str) -> BinaryIO:
 
 
 @contextmanager
-def _open_artifact_root(artifact: FlyoverArtifact) -> Iterator[int]:
+def open_artifact_root(artifact: FlyoverArtifact) -> Iterator[int]:
     """Pin the validated atlas directory while copying its allowlisted files."""
     try:
         descriptor = os.open(
@@ -77,32 +60,3 @@ def _open_artifact_root(artifact: FlyoverArtifact) -> Iterator[int]:
         yield descriptor
     finally:
         os.close(descriptor)
-
-
-def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(add_help=False)
-    subparsers = parser.add_subparsers(dest="command", required=True)
-
-    validate = subparsers.add_parser("validate", add_help=False)
-    validate.add_argument("directory", type=Path)
-    validate.add_argument("--without-marker", action="store_true")
-
-    return parser
-
-
-def main(arguments: list[str] | None = None) -> int:
-    try:
-        options = _parser().parse_args(arguments)
-        if options.command == "validate":
-            validate_artifact(
-                options.directory,
-                require_marker=not options.without_marker,
-            )
-        return 0
-    except FlyoverArtifactError as error:
-        print(f"flyover: {error}", file=sys.stderr)
-        return 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

@@ -194,6 +194,10 @@ committed, cleanup restores the previous atlas. The exit status is 130 or 143.
 
 ### Preview the export
 
+The shell launcher delegates to `Tools/flyover_cli.py`.
+`Tools/flyover_export.py` composes hosted capture and validation. `Tools/flyover_publication.py` owns the directory replacement and recovery lifecycle.
+The [tooling guide](../../Tools/README.md) describes validation boundaries and recovery limits.
+
 Serve the default export on this computer:
 
 ```sh

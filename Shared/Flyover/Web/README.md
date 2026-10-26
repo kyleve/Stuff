@@ -14,7 +14,7 @@ mise exec -- npm ci
 ./flyover dev
 mise exec -- npm run check
 bash Shared/Flyover/Tools/Tests/flyover_test.sh
-python3 -m unittest Tools.Tests.test_flyover_site Tools.Tests.test_flyover_manifest Tools.Tests.test_flyover_preview
+python3 -m unittest discover -s Tools/Tests -p 'test_flyover*.py'
 mise exec -- npx playwright install chromium webkit
 mise exec -- npm run test:browser --workspace stuff-flyover-site
 ```
@@ -32,7 +32,9 @@ The root npm workspace supplies the locked Astro, TypeScript, and Node type depe
 `Tools/astro_site.py` resolves the pinned Node runtime and isolates generated Astro state.
 `Tools/flyover_site.py` builds the shell and starts Astro dev or preview.
 `Tools/flyover_manifest.py` validates captures and the generated `web-assets.json` inventory.
-The root `flyover` command owns capture orchestration, staging, rollback, and publication.
+The root `flyover` launcher delegates to `Tools/flyover_cli.py`.
+`Tools/flyover_export.py` composes capture and validation. `Tools/flyover_publication.py` owns staging, rollback, and publication.
+`Tools/flyover_artifact_access.py` supplies secure file access independently of the server.
 
 `src/layouts/` and `src/pages/` own the document and loading state.
 `src/scripts/load-atlas.ts` owns loading and visible errors.

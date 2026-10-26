@@ -12,7 +12,7 @@ import tempfile
 
 from Tools.astro_site import astro_command, stage_workspace
 from Tools.flyover_manifest import validate_artifact
-from Tools.flyover_preview import _open_artifact_root, _open_file_beneath
+from Tools.flyover_artifact_access import open_artifact_root, open_file_beneath
 from Tools.repository import repository_root
 
 ROOT = repository_root(__file__)
@@ -51,13 +51,13 @@ def build_shell(output):
 
 def copy_artifact(artifact, output, *, captures_only):
     """Copy the validated allowlist through no-follow descriptors into a private server root."""
-    with _open_artifact_root(artifact) as descriptor:
+    with open_artifact_root(artifact) as descriptor:
         for relative in sorted(artifact.allowed_paths):
             if captures_only and relative != "manifest.json" and not relative.startswith("images/"):
                 continue
             destination = output / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
-            with _open_file_beneath(descriptor, relative) as source, destination.open("xb") as target:
+            with open_file_beneath(descriptor, relative) as source, destination.open("xb") as target:
                 shutil.copyfileobj(source, target)
 
 
