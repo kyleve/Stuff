@@ -46,6 +46,8 @@ Keep generated Astro and Vite state isolated per invocation.
 ## Flyover publication
 
 - Keep app registration in `.github/flyover-apps.json`. Keep CircleCI credentials on the GitHub controller, not the capture worker.
+- Skip shared cache restore and save for publication builds. Guard: `test_flyover_workflows.py`.
+- Report only error categories and HTTP status codes from credential-bearing CircleCI controllers. Never print arbitrary exception text, headers, or response data.
 - Publish immutable release bundles only after validation. The existing Pages workflow owns the complete site, including `/flyover/`.
 - Reject unsafe ZIP entries, wrong capture identities, dirty captures, and oversized bundles before deployment. Retain the previous release on capture failure.
 - Keep filesystem access out of the pure schema, canvas, and image validators.

@@ -1,6 +1,7 @@
 """Request a CircleCI archive and retrieve only that successful pipeline's IPA."""
 
 import argparse
+from http.client import HTTPException
 import os
 from pathlib import Path
 import sys
@@ -78,14 +79,16 @@ def main(argv=None):
         print(f"Waiting for CircleCI archive pipeline {pipeline}", flush=True)
         download_ipa(wait_for_archive(client, pipeline), args.output, request, client.token)
         print("Retrieved and validated the signed archive.")
-    except (OSError, ValueError, KeyError, TypeError, URLError, zipfile.BadZipFile) as error:
+    except (OSError, ValueError, KeyError, TypeError, HTTPException, URLError, zipfile.BadZipFile) as error:
         # URL errors can contain signed download URLs; retain details as the cause.
         if isinstance(error, HTTPError):
             message = f"CircleCI artifact download failed: HTTP {error.code}"
         elif isinstance(error, URLError):
             message = f"CircleCI request failed: {type(error.reason).__name__}"
         else:
-            message = str(error)
+            # Header validation errors embed header values in their text.
+            # Never print arbitrary exception text, arguments, or response data.
+            message = f"{type(error).__name__}; archive retrieval did not complete"
         print(f"error: {message}", file=sys.stderr)
         return 1
     return 0

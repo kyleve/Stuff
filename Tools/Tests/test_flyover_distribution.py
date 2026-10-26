@@ -1,4 +1,5 @@
 import io
+from http.client import BadStatusLine
 from pathlib import Path
 import tempfile
 import unittest
@@ -10,6 +11,28 @@ from Tools.Tests.flyover_bundle_support import SHA
 
 
 class FlyoverDistributionTests(unittest.TestCase):
+    def test_malformed_header_never_prints_token_or_traceback(self):
+        environment = {'CIRCLECI_PROJECT': 'gh/owner/repo',
+                       'CIRCLECI_PIPELINE': '11111111-1111-1111-1111-111111111111',
+                       'GITHUB_REPOSITORY': 'owner/repo', 'GITHUB_RUN_ID': '1',
+                       'GITHUB_RUN_ATTEMPT': '1', 'CIRCLECI_TOKEN': 'FAKE_ONLY\nSECOND_LINE'}
+        with patch.dict('os.environ', environment), patch('sys.stderr', new_callable=io.StringIO) as output, \
+             patch('http.client.HTTPSConnection.connect', side_effect=AssertionError('network forbidden')) as connect:
+            self.assertEqual(main(['--sha', SHA]), 1)
+        connect.assert_not_called()
+        self.assertEqual(output.getvalue(), 'flyover publication: ValueError; publication did not complete\n')
+
+    def test_error_messages_never_echo_exception_payloads(self):
+        environment = {key: 'test' for key in ('CIRCLECI_PROJECT', 'CIRCLECI_PIPELINE',
+                       'GITHUB_REPOSITORY', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT')}
+        for error in (ValueError('Authorization: secret'), BadStatusLine('secret'), OSError('secret')):
+            with self.subTest(error=type(error).__name__), patch.dict('os.environ', environment), \
+                 patch('sys.stderr', new_callable=io.StringIO) as output, \
+                 patch('Tools.flyover_distribution.publish', side_effect=error):
+                self.assertEqual(main(['--sha', SHA]), 1)
+                self.assertNotIn('secret', output.getvalue())
+                self.assertIn(type(error).__name__, output.getvalue())
+
     def test_controller_errors_do_not_log_signed_urls(self):
         environment = {key: 'test' for key in ('CIRCLECI_PROJECT', 'CIRCLECI_PIPELINE',
                        'GITHUB_REPOSITORY', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT')}

@@ -1,6 +1,7 @@
 """Request native capture on CircleCI and retain a verified release bundle."""
 
 import argparse
+from http.client import HTTPException
 from dataclasses import dataclass
 import os
 from pathlib import Path
@@ -73,14 +74,16 @@ def main(arguments=None) -> int:
     try:
         publish(os.environ['CIRCLECI_PROJECT'], os.environ['CIRCLECI_PIPELINE'], os.environ['GITHUB_REPOSITORY'],
                 args.sha, os.environ['GITHUB_RUN_ID'], os.environ['GITHUB_RUN_ATTEMPT'])
-    except (OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError, zipfile.BadZipFile) as error:
+    except (OSError, ValueError, KeyError, TypeError, HTTPException, subprocess.CalledProcessError, zipfile.BadZipFile) as error:
         # Signed artifact URLs must not appear in controller logs.
         if isinstance(error, HTTPError):
             message = f'CircleCI request failed: HTTP {error.code}'
         elif isinstance(error, URLError):
             message = f'CircleCI request failed: {type(error.reason).__name__}'
         else:
-            message = str(error)
+            # Header validation errors embed header values in their text.
+            # Never print arbitrary exception text, arguments, or response data.
+            message = f"{type(error).__name__}; publication did not complete"
         print(f'flyover publication: {message}', file=sys.stderr)
         return 1
     return 0

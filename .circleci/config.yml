@@ -111,9 +111,9 @@ commands:
 
             echo "Checkout: $(git rev-parse HEAD)"
             echo "Origin: $(git remote get-url origin)"
-            if git config --local --get-regexp 'credential|extraheader' >/tmp/git-credential-config.txt 2>/dev/null; then
-              echo "Unexpected persisted Git credential configuration:" >&2
-              sed -E 's/(authorization:).*/\1 [REDACTED]/I' /tmp/git-credential-config.txt >&2
+            if git config --local --name-only --get-regexp 'credential|extraheader' >/tmp/git-credential-config.txt 2>/dev/null; then
+              echo "Unexpected persisted Git credential configuration keys:" >&2
+              cat /tmp/git-credential-config.txt >&2
               exit 1
             fi
 
@@ -142,20 +142,26 @@ commands:
     parameters:
       test_workdir:
         type: string
+      use_caches:
+        type: boolean
+        default: true
       require_simulator:
         type: boolean
         default: true
     steps:
       - checkout_without_lfs
-      - restore_cache:
-          keys:
-            - mise-installs-v2-{{ arch }}-{{ checksum ".mise.toml" }}
-      - restore_cache:
-          keys:
-            - swiftpm-repositories-v2-{{ arch }}-{{ checksum "Package.resolved" }}
-      - restore_cache:
-          keys:
-            - swiftpm-artifacts-v2-{{ arch }}-{{ checksum "Package.resolved" }}
+      - when:
+          condition: << parameters.use_caches >>
+          steps:
+            - restore_cache:
+                keys:
+                  - mise-installs-v2-{{ arch }}-{{ checksum ".mise.toml" }}
+            - restore_cache:
+                keys:
+                  - swiftpm-repositories-v2-{{ arch }}-{{ checksum "Package.resolved" }}
+            - restore_cache:
+                keys:
+                  - swiftpm-artifacts-v2-{{ arch }}-{{ checksum "Package.resolved" }}
       - run:
           name: Install pinned tools
           command: |
@@ -167,10 +173,13 @@ commands:
       - run:
           name: Install site dependencies
           command: mise exec -- npm ci
-      - save_cache:
-          key: mise-installs-v2-{{ arch }}-{{ checksum ".mise.toml" }}
-          paths:
-            - ~/.local/share/mise/installs
+      - when:
+          condition: << parameters.use_caches >>
+          steps:
+            - save_cache:
+                key: mise-installs-v2-{{ arch }}-{{ checksum ".mise.toml" }}
+                paths:
+                  - ~/.local/share/mise/installs
       - configure_test_workdir:
           test_workdir: << parameters.test_workdir >>
       - run:
@@ -187,14 +196,17 @@ commands:
               tail -n 20 "$TEST_WORKDIR/generate.log" >&2
               exit "$status"
             fi
-      - save_cache:
-          key: swiftpm-repositories-v2-{{ arch }}-{{ checksum "Package.resolved" }}
-          paths:
-            - ~/Library/Caches/org.swift.swiftpm/repositories
-      - save_cache:
-          key: swiftpm-artifacts-v2-{{ arch }}-{{ checksum "Package.resolved" }}
-          paths:
-            - ~/Library/Caches/org.swift.swiftpm/artifacts
+      - when:
+          condition: << parameters.use_caches >>
+          steps:
+            - save_cache:
+                key: swiftpm-repositories-v2-{{ arch }}-{{ checksum "Package.resolved" }}
+                paths:
+                  - ~/Library/Caches/org.swift.swiftpm/repositories
+            - save_cache:
+                key: swiftpm-artifacts-v2-{{ arch }}-{{ checksum "Package.resolved" }}
+                paths:
+                  - ~/Library/Caches/org.swift.swiftpm/artifacts
       - validate_build_environment
       - when:
           condition: << parameters.require_simulator >>
@@ -310,6 +322,8 @@ jobs:
     steps:
       - prepare_builder:
           test_workdir: .build/flyover-ci-tests
+          # Published artifacts must not execute tools cached by PR builds.
+          use_caches: false
       - run_with_timeout:
           step_name: Capture registered Flyover apps
           seconds: 3600

@@ -24,6 +24,8 @@ The `/flyover/` index lists published, registered apps.
 
 The controller reuses the existing CircleCI project, pipeline, and token configuration for app distribution.
 No signing context is attached to the Flyover job. The native worker receives no GitHub write credential.
+Publication builds skip shared tool and SwiftPM caches. Ordinary CI builds retain those caches.
+CircleCI controller errors report categories and HTTP status codes, not exception text that can contain credentials.
 The workflow becomes active after this configuration merges into `main`.
 Use **Daily Flyover Atlases → Run workflow** for the first publication or a retry.
 If main changes before CircleCI checks out the requested commit, the controller fails without publication. Start a new run.
