@@ -38,7 +38,7 @@ struct RecordingRecoveryView: View {
 #if DEBUG
     extension RecordingRecoveryView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Recovery", configurations: .fullContentScreenDefaults) {
+            whereSnapshot(name: "Recovery", configurations: .fullContentScreenRepresentative) {
                 RecordingRecoveryView(deviceName: "Previous iPhone", confirm: { _ in })
             }
         }
