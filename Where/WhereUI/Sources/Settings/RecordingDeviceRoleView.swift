@@ -117,7 +117,8 @@ struct RecordingDeviceRoleView: View {
                 ),
                 roleSnapshot(
                     "Blocked owner cancellation",
-                    configurations: .fullContentScreenDefaults,
+                    // This recovery action needs device and trait coverage beside initial setup.
+                    configurations: .fullContentScreenRepresentative,
                     state: .loaded(.init(
                         authority: requested,
                         currentDeviceID: phone,
