@@ -354,7 +354,7 @@
 }
 
 @layer responsive {
-    @media (max-width: 760px) {
+    @media (width <= 760px) {
         .command-surface {
             width: calc(100vw - 20px);
             max-height: calc(100dvh - 32px);
@@ -384,10 +384,7 @@
         }
 
         .sheet-surface {
-            top: auto;
-            right: 8px;
-            bottom: max(8px, env(safe-area-inset-bottom));
-            left: 8px;
+            inset: auto 8px max(8px, env(safe-area-inset-bottom));
             width: auto;
             max-height: calc(100dvh - 24px);
             border-radius: 22px;
@@ -399,7 +396,7 @@
         }
     }
 
-    @media (pointer: coarse), (max-width: 760px) {
+    @media (pointer: coarse), (width <= 760px) {
         .escape-key,
         .panel-close {
             min-width: var(--touch-target-size);

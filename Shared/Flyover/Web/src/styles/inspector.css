@@ -57,11 +57,11 @@
         justify-content: space-between;
         gap: 24px;
         min-height: 64px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        border: 1px solid rgb(255 255 255 / 12%);
         border-radius: 17px;
         padding: 9px 10px 9px 17px;
-        background: rgba(31, 32, 38, 0.78);
-        box-shadow: 0 16px 50px rgba(0, 0, 0, 0.28);
+        background: rgb(31 32 38 / 78%);
+        box-shadow: 0 16px 50px rgb(0 0 0 / 28%);
         -webkit-backdrop-filter: blur(22px) saturate(140%);
         backdrop-filter: blur(22px) saturate(140%);
         transition: right 220ms ease;
@@ -107,7 +107,7 @@
     }
 
     .inspector-action:hover {
-        background: rgba(255, 255, 255, 0.1);
+        background: rgb(255 255 255 / 10%);
         color: white;
     }
 
@@ -115,7 +115,7 @@
         width: 42px;
         border-radius: 50%;
         padding: 0;
-        background: rgba(255, 255, 255, 0.09);
+        background: rgb(255 255 255 / 9%);
     }
 
     .inspection-canvas {
@@ -127,7 +127,7 @@
         place-items: center;
         overflow: hidden;
         padding: 98px 44px 116px;
-        background: radial-gradient(circle at 50% 42%, rgba(57, 62, 80, 0.3), transparent 46%),
+        background: radial-gradient(circle at 50% 42%, rgb(57 62 80 / 30%), transparent 46%),
             #090a0e;
         transition: margin-right 220ms ease;
     }
@@ -144,7 +144,7 @@
         min-height: 0;
         place-items: center;
         overflow: auto;
-        scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
+        scrollbar-color: rgb(255 255 255 / 24%) transparent;
     }
 
     .inspector-device {
@@ -153,18 +153,29 @@
         --viewport-width: 402px;
         --viewport-height: 874px;
         --aspect-ratio: 0.46;
+
         display: grid;
         flex: 0 0 auto;
         overflow: hidden;
-        border: 1px solid rgba(255, 255, 255, 0.16);
+        border: 1px solid rgb(255 255 255 / 16%);
         border-radius: 24px;
         background: #15161b;
-        box-shadow: 0 30px 100px rgba(0, 0, 0, 0.55), 0 4px 22px rgba(0, 0, 0, 0.45);
+        box-shadow: 0 30px 100px rgb(0 0 0 / 55%), 0 4px 22px rgb(0 0 0 / 45%);
     }
 
     .inspector-device img {
         display: block;
         max-width: none;
+    }
+
+    .inspector-image.actual .inspector-device,
+    .inspector-image.actual img {
+        width: auto;
+        height: auto;
+    }
+
+    .inspector-image.actual {
+        place-items: start safe center;
     }
 
     .inspector-image.fit:not(.full-content) .inspector-device {
@@ -182,18 +193,12 @@
         height: 100%;
         border-radius: 18px;
         object-fit: contain;
-        filter: drop-shadow(0 24px 48px rgba(0, 0, 0, 0.42));
+        filter: drop-shadow(0 24px 48px rgb(0 0 0 / 42%));
     }
 
-    .inspector-image.actual {
-        place-items: start safe center;
-    }
 
-    .inspector-image.actual .inspector-device,
-    .inspector-image.actual img {
-        width: auto;
-        height: auto;
-    }
+
+
 
     .inspector-image.full-content.fit .inspector-device {
         width: min(var(--point-width), 100%);
@@ -231,8 +236,8 @@
     }
 
     .image-caption .capture-badge {
-        border-color: rgba(255, 255, 255, 0.12);
-        background: rgba(31, 32, 38, 0.74);
+        border-color: rgb(255 255 255 / 12%);
+        background: rgb(31 32 38 / 74%);
     }
 
     .inspector-dock {
@@ -245,11 +250,11 @@
         gap: 6px;
         min-height: 64px;
         max-width: calc(100vw - 48px);
-        border: 1px solid rgba(255, 255, 255, 0.14);
+        border: 1px solid rgb(255 255 255 / 14%);
         border-radius: 19px;
         padding: 7px;
-        background: rgba(31, 32, 38, 0.84);
-        box-shadow: 0 22px 70px rgba(0, 0, 0, 0.42);
+        background: rgb(31 32 38 / 84%);
+        box-shadow: 0 22px 70px rgb(0 0 0 / 42%);
         transform: translateX(-50%);
         -webkit-backdrop-filter: blur(22px) saturate(140%);
         backdrop-filter: blur(22px) saturate(140%);
@@ -265,12 +270,12 @@
     }
 
     .inspector-dock .icon-button:hover {
-        background: rgba(255, 255, 255, 0.1);
+        background: rgb(255 255 255 / 10%);
         color: white;
     }
 
     .inspector-dock .dock-separator {
-        background: rgba(255, 255, 255, 0.12);
+        background: rgb(255 255 255 / 12%);
     }
 
     .inspector-field {
@@ -296,7 +301,7 @@
     }
 
     .inspector-dock .segmented-control {
-        background: rgba(255, 255, 255, 0.08);
+        background: rgb(255 255 255 / 8%);
     }
 
     .inspector-dock .segment {
@@ -305,7 +310,7 @@
     }
 
     .inspector-dock .segment[aria-pressed="true"] {
-        background: rgba(255, 255, 255, 0.15);
+        background: rgb(255 255 255 / 15%);
         box-shadow: none;
         color: white;
     }
@@ -318,10 +323,10 @@
         bottom: 0;
         width: 380px;
         overflow: auto;
-        border-left: 1px solid rgba(255, 255, 255, 0.12);
+        border-left: 1px solid rgb(255 255 255 / 12%);
         padding: 0 20px 40px;
-        background: rgba(25, 26, 31, 0.96);
-        box-shadow: -24px 0 70px rgba(0, 0, 0, 0.3);
+        background: rgb(25 26 31 / 96%);
+        box-shadow: -24px 0 70px rgb(0 0 0 / 30%);
         transform: translateX(100%);
         transition: transform 220ms ease;
         -webkit-backdrop-filter: blur(22px);
@@ -339,8 +344,8 @@
         display: grid;
         grid-template-columns: 1fr auto;
         padding: 24px 0 18px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.11);
-        background: rgba(25, 26, 31, 0.94);
+        border-bottom: 1px solid rgb(255 255 255 / 11%);
+        background: rgb(25 26 31 / 94%);
         -webkit-backdrop-filter: blur(18px);
         backdrop-filter: blur(18px);
     }
@@ -358,7 +363,7 @@
     .details-close {
         grid-row: 1 / 3;
         grid-column: 2;
-        background: rgba(255, 255, 255, 0.08);
+        background: rgb(255 255 255 / 8%);
         color: #d1d3da;
     }
 
@@ -367,7 +372,7 @@
     }
 
     .detail-section .metadata-row {
-        border-color: rgba(255, 255, 255, 0.1);
+        border-color: rgb(255 255 255 / 10%);
     }
 
     .detail-section .metadata-row dt,
@@ -384,14 +389,14 @@
     .inspector-details .route-chip {
         width: 100%;
         min-height: 42px;
-        border-color: rgba(120, 145, 255, 0.24);
-        background: rgba(120, 145, 255, 0.1);
+        border-color: rgb(120 145 255 / 24%);
+        background: rgb(120 145 255 / 10%);
         color: #9aabff;
     }
 
     .inspector-details .route-chip.modal {
-        border-color: rgba(211, 76, 230, 0.25);
-        background: rgba(211, 76, 230, 0.09);
+        border-color: rgb(211 76 230 / 25%);
+        background: rgb(211 76 230 / 9%);
         color: #e28bee;
     }
 
@@ -402,7 +407,7 @@
 }
 
 @layer responsive {
-    @media (max-width: 1050px) {
+    @media (width <= 1050px) {
         .inspector[data-details="true"] .inspection-canvas {
             margin-right: 330px;
         }
@@ -420,7 +425,7 @@
         }
     }
 
-    @media (max-width: 760px) {
+    @media (width <= 760px) {
         .inspector-header {
             top: 8px;
             right: 8px;
@@ -513,7 +518,7 @@
             z-index: 20;
             top: 72px;
             width: 100%;
-            border-top: 1px solid rgba(255, 255, 255, 0.12);
+            border-top: 1px solid rgb(255 255 255 / 12%);
             border-left: 0;
             border-radius: 24px 24px 0 0;
             transform: translateY(100%);
@@ -524,7 +529,7 @@
         }
     }
 
-    @media (pointer: coarse), (max-width: 760px) {
+    @media (pointer: coarse), (width <= 760px) {
         .details-close,
         .inspector-action,
         .inspector-dock button,
@@ -539,7 +544,7 @@
         }
     }
 
-    @media (max-height: 520px) {
+    @media (height <= 520px) {
         .inspector-header {
             top: 6px;
             right: 8px;
@@ -575,7 +580,7 @@
             z-index: 20;
             top: 58px;
             width: min(380px, 100%);
-            border-top: 1px solid rgba(255, 255, 255, 0.12);
+            border-top: 1px solid rgb(255 255 255 / 12%);
             border-left: 0;
             border-radius: 20px 20px 0 0;
             transform: translateY(100%);
@@ -586,7 +591,7 @@
         }
     }
 
-    @media (max-width: 440px) {
+    @media (width <= 440px) {
         .inspector-heading h2 {
             max-width: 105px;
         }

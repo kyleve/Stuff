@@ -1,11 +1,11 @@
 /* Device adaptations and user preferences override component rules through layers. */
 @layer theme, base, components, responsive, preferences;
 
-@import "./tokens.css";
-@import "./base.css";
-@import "./shell.css";
-@import "./canvas.css";
-@import "./list.css";
-@import "./panels.css";
-@import "./inspector.css";
-@import "./accessibility.css";
+@import url("./tokens.css");
+@import url("./base.css");
+@import url("./shell.css");
+@import url("./canvas.css");
+@import url("./list.css");
+@import url("./panels.css");
+@import url("./inspector.css");
+@import url("./accessibility.css");

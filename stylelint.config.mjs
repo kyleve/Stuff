@@ -1,18 +1,11 @@
-/** Correctness rules without a repository-wide cosmetic rewrite. */
+/** Shared standard rules for both static websites. */
 export default {
+    extends: ['stylelint-config-standard'],
     ignoreFiles: ['**/node_modules/**', '**/.build/**', '**/dist/**', '**/.astro/**'],
     rules: {
-        'at-rule-no-unknown': true,
-        'block-no-empty': true,
-        'color-no-invalid-hex': true,
-        'declaration-block-no-duplicate-properties': [true, { ignore: ['consecutive-duplicates-with-different-values'] }],
-        'declaration-block-no-shorthand-property-overrides': true,
-        'font-family-no-duplicate-names': true,
-        'keyframe-declaration-no-important': true,
-        'no-duplicate-selectors': true,
-        'property-no-unknown': true,
-        'selector-pseudo-class-no-unknown': true,
-        'selector-pseudo-element-no-unknown': true,
-        'unit-no-unknown': true,
+        // Preserve the existing Safari compatibility declarations. All other prefixes remain checked.
+        'property-no-vendor-prefix': [true, { ignoreProperties: [
+            '-webkit-user-select', '-webkit-backdrop-filter', '-webkit-text-size-adjust',
+        ] }],
     },
 };
