@@ -7,6 +7,7 @@ Read the root [AGENTS.md](../../../AGENTS.md) and
 [github-workflow](../github-workflow/SKILL.md) before changes.
 Use this procedure monthly, or after a recurring failure needs investigation.
 The weekly [todo-triage](../todo-triage/SKILL.md) pass owns backlog maintenance and module audits.
+[code-review](../code-review/SKILL.md) owns review of a current PR or completed branch.
 
 ## Establish the review window
 
@@ -39,6 +40,9 @@ The weekly [todo-triage](../todo-triage/SKILL.md) pass owns backlog maintenance 
 - Trace each candidate lesson to the final change and current source.
   Record the comment, fix, affected behavior, existing guidance, and any executable guard.
   Treat unmerged proposals and declined feedback as context, not established repository policy.
+- Separate reviewer findings and clarification questions from agent-authored review notes, images, replies, and progress markers.
+  Raw comment volume is not a defect count.
+  Inspect later corrections before counting a finding as confirmed.
 - Before classifying a missed rule, verify that the rule existed when the offending change was made.
   Use Git history for the relevant instruction and code.
   Distinguish a missing rule from a rule added after the defect.
@@ -66,6 +70,8 @@ Use the current owner of each rule before adding a new instruction.
 Read the owning module instructions before changing guidance or a guard.
 For architecture enforcement, use the existing [Bumper rules](../../../.bumper/RULES.md) and root mutation-test requirements.
 For a new guard, cover the actual failing form and a valid neighboring form.
+Check the guard's file selection, exclusions, configured severity, and CI invocation.
+Retain the production configuration in regression probes so disabling the guard makes them fail.
 Avoid broad text matching for rules that require type or runtime context.
 If enforcement needs a separate product change, file it through `todo-triage` in the owning `TODOs.md`.
 Search existing backlog items before filing another one.
@@ -96,6 +102,7 @@ In the PR body or run summary, record:
 
 - The UTC review window, source revision, and coverage status: complete or partial.
 - The PR and comment counts, with any collection limits.
+- Separate collection coverage from source verification. Name the changes examined for each selected lesson.
 - Each selected lesson, its evidence links, its owner, and the correction or reason for no change.
 - The effect of prior corrections, including limits on that conclusion.
 - The checks run and links to deferred backlog items.

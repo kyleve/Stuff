@@ -164,6 +164,8 @@ the configuration, tests the rules, and runs the lint. Keep the relevant
 the same change.
 Use the failing production syntax in the mutation fixture, including implicit
 members where applicable. State known enforcement gaps in the rule catalog.
+For graph assertions, mutate the project configuration while retaining its rule settings.
+Assert the expected diagnostic and severity, plus a valid neighboring configuration.
 
 ## Agent instructions sync
 
@@ -661,6 +663,9 @@ includes GitHub replies** on the threads you touch — not code-only fixes.
 
 Use [`review-lessons`](.agents/skills/review-lessons/SKILL.md) for the monthly
 PR-history audit or an explicit review of recurring failures.
+Use [`code-review`](.agents/skills/code-review/SKILL.md) for PR or branch reviews
+and the completed-diff review before publication. It owns review procedure and evidence.
+`github-workflow` owns publication and replies.
 
 ## Codex worktree specific instructions
 
