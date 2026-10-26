@@ -278,50 +278,30 @@ kill -"$FLYOVER_TEST_SIGNAL" "$PPID"
 RUNNER
 chmod +x "$INTERRUPT_RUNNER"
 
-INTERRUPT_BIN="$TEMP/interrupt-bin"
-mkdir -p "$INTERRUPT_BIN"
-cat >"$INTERRUPT_BIN/mv" <<'MOVE'
-#!/bin/bash
-set -euo pipefail
-/bin/mv "$@"
-if [ "$1" = "$FLYOVER_SIGNAL_DESTINATION" ]; then
-    kill -"$FLYOVER_TEST_SIGNAL" "$PPID"
-fi
-MOVE
-chmod +x "$INTERRUPT_BIN/mv"
-
+# Replacement interruption is injected at os.rename in test_flyover_publication.
 for signal_name in INT TERM; do
     expected_status=130
     [ "$signal_name" != TERM ] || expected_status=143
-    for phase in capture replacement; do
-        interrupted_parent="$TEMP/interrupted-$signal_name-$phase"
-        mkdir -p "$interrupted_parent"
-        interrupted_output="$interrupted_parent/atlas"
-        cp -R "$OUTPUT" "$interrupted_output"
-        signal_destination="$(cd "$interrupted_output" && pwd -P)"
-        signal_runner="$SUCCESS_RUNNER"
-        signal_path="$PATH"
-        if [ "$phase" = capture ]; then
-            signal_runner="$INTERRUPT_RUNNER"
-        else
-            signal_path="$INTERRUPT_BIN:$PATH"
-        fi
-        if env PATH="$signal_path" FLYOVER_CAPTURE_RUNNER="$signal_runner" \
-            FLYOVER_SUCCESS_RUNNER="$SUCCESS_RUNNER" FLYOVER_XCODE_VERSION_OVERRIDE=Tests \
-            FLYOVER_TEST_SIGNAL="$signal_name" FLYOVER_SIGNAL_DESTINATION="$signal_destination" \
-            "$ROOT/flyover" export --output "$interrupted_output" --profile phone-light \
-            >"$TEMP/stdout" 2>"$TEMP/stderr"; then
-            fail "$signal_name during $phase returned success"
-        else
-            actual_status=$?
-        fi
-        [ "$actual_status" -eq "$expected_status" ] \
-            || fail "$signal_name during $phase returned $actual_status instead of $expected_status"
-        diff -r "$OUTPUT" "$interrupted_output" \
-            || fail "$signal_name during $phase changed the previous artifact"
-        [ "$(find "$interrupted_parent" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')" = 1 ] \
-            || fail "$signal_name during $phase left staging or replacement output"
-    done
+    phase=capture
+    interrupted_parent="$TEMP/interrupted-$signal_name-$phase"
+    mkdir -p "$interrupted_parent"
+    interrupted_output="$interrupted_parent/atlas"
+    cp -R "$OUTPUT" "$interrupted_output"
+    if env FLYOVER_CAPTURE_RUNNER="$INTERRUPT_RUNNER" \
+        FLYOVER_SUCCESS_RUNNER="$SUCCESS_RUNNER" FLYOVER_XCODE_VERSION_OVERRIDE=Tests \
+        FLYOVER_TEST_SIGNAL="$signal_name" \
+        "$ROOT/flyover" export --output "$interrupted_output" --profile phone-light \
+        >"$TEMP/stdout" 2>"$TEMP/stderr"; then
+        fail "$signal_name during $phase returned success"
+    else
+        actual_status=$?
+    fi
+    [ "$actual_status" -eq "$expected_status" ] \
+        || fail "$signal_name during $phase returned $actual_status instead of $expected_status: $(< "$TEMP/stderr")"
+    diff -r "$OUTPUT" "$interrupted_output" \
+        || fail "$signal_name during $phase changed the previous artifact"
+    [ "$(find "$interrupted_parent" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')" = 1 ] \
+        || fail "$signal_name during $phase left staging or replacement output"
 done
 
 PREVIEW_ARGUMENTS="$TEMP/preview-arguments"
@@ -534,8 +514,8 @@ CLEAN_REPO="$TEMP/clean-repo"
 mkdir -p "$CLEAN_REPO/Shared/Flyover/Web/src/scripts" "$CLEAN_REPO/Shared/Flyover/Web/src/styles"
 mkdir -p "$CLEAN_REPO/Tools"
 cp "$ROOT/flyover" "$CLEAN_REPO/flyover"
-cp "$ROOT/Tools/flyover_manifest.py" "$CLEAN_REPO/Tools/flyover_manifest.py"
-cp "$ROOT/Tools/flyover_preview.py" "$CLEAN_REPO/Tools/flyover_preview.py"
+cp "$ROOT"/Tools/flyover_*.py "$CLEAN_REPO/Tools/"
+cp "$ROOT/Tools/repository.py" "$CLEAN_REPO/Tools/"
 cp "$ROOT/Shared/Flyover/Web/src/scripts/viewer.ts" "$CLEAN_REPO/Shared/Flyover/Web/src/scripts/viewer.ts"
 cp "$ROOT/Shared/Flyover/Web/src/styles/styles.css" "$CLEAN_REPO/Shared/Flyover/Web/src/styles/styles.css"
 chmod +x "$CLEAN_REPO/flyover"
@@ -553,6 +533,8 @@ python3 - "$CLEAN_REPO/site/manifest.json" <<'PY'
 import json, pathlib, sys
 dirty = json.loads(pathlib.Path(sys.argv[1]).read_text())['build']['dirty']
 if dirty:
+    import subprocess
+    subprocess.run(['git', '-C', str(pathlib.Path(sys.argv[1]).parent.parent), 'status', '--porcelain'])
     raise SystemExit('staging a clean in-repository export marked the source dirty')
 PY
 [ ! -e "$CLEAN_REPO/Tools/__pycache__" ] \

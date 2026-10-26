@@ -17,10 +17,23 @@ result reporting without requiring Java in its tests. The Xcode-facing root
 commands keep process and simulator orchestration in shell; `xcode_results.py`
 shares xcresult traversal, `snapshot_reports.py` shares capture reports, and
 the command-specific Python modules retain each command's distinct policy.
-`flyover_manifest.py` validates generated atlases and builds their file
-allowlists. `flyover_preview.py` opens validated files without following replacement links.
+`flyover_cli.py` parses the public Flyover commands and reports exit status.
+`flyover_export.py` composes build metadata, hosted capture, artifact validation, and publication.
+`flyover_publication.py` owns staging, destination checks, replacement, and recovery for one generated directory.
+`flyover_manifest.py` validates artifact files and builds their allowlists.
+The pure `flyover_schema.py`, `flyover_canvas.py`, and `flyover_images.py` validators check catalog references, geometry, and image coverage.
+`flyover_schema_values.py` supplies their primitive checks.
+`flyover_artifact_access.py` opens validated files without following replacement links.
 `flyover_site.py` builds the viewer and runs Astro against an isolated copy.
 Both websites share the root npm workspace and `astro_site.py` launcher.
+
+Flyover publication uses two directory renames, not an atomic exchange.
+Before installation, a failure restores the previous atlas only if the destination is absent.
+After installation, cleanup never removes the new atlas.
+If recovery fails or another destination appears, the command retains the backup and reports its path with the original error.
+SIGINT and SIGTERM return 130 and 143 after successful recovery. Recovery errors return 1 with diagnostics.
+SIGKILL and power loss do not guarantee automatic recovery.
+
 Filesystem-heavy Ruby generators are require-safe so their behavior can be
 exercised against temporary repositories. `SimulatorRegistry` validates exact
 runtime ownership from captured `simctl` JSON and persists private claims

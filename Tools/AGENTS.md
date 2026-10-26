@@ -43,6 +43,14 @@ Both websites share the root npm workspace and `astro_site.py` launcher.
 Keep each site's data validation and publication policy with its owning tool.
 Keep generated Astro and Vite state isolated per invocation.
 
+## Flyover publication
+
+- Keep filesystem access out of the pure schema, canvas, and image validators.
+- Keep publication and recovery in `flyover_publication.py`, not the shell launcher or Astro adapter.
+- Use `flyover_artifact_access.py` for descriptor-based access to validated preview files.
+- Preserve the previous atlas until installation succeeds. Never overwrite a competing destination during recovery.
+  Guards: `test_flyover_publication.py` and the public Flyover command tests.
+
 Shared installer tools have scoped rules in [`InstallerKit/AGENTS.md`](InstallerKit/AGENTS.md).
 
 ## Install-site snapshots

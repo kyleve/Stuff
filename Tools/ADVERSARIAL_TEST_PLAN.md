@@ -30,7 +30,7 @@ functions returned expected values.
 | `Where/install` | macOS/Xcode/device | signing and device inventory | physical device | Dry run performs no build/install/launch |
 | `Ledger/install` | macOS/Xcode | built/installed apps | `/Applications/Ledger.app` | Exact-process and transactional replacement |
 | `tla-check` | macOS/Linux-compatible tooling | manifests/specs | retained run artifacts | Pinned tools and honest pass/fail policy |
-| `flyover` | macOS/Xcode for export, Python 3 for preview | catalog, generated atlas | generated directory | Export is atomic. Preview serves only validated files |
+| `flyover` | macOS/Xcode for capture, Python 3 and Node for tooling | catalog, generated atlas | generated directory | Export retains recovery material. Preview serves only validated files |
 
 The original comparison used `main` before the retained-tooling changes.
 Those changes added `--dry-run` modes to the mutating commands.

@@ -1,28 +1,10 @@
-import importlib.util
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-try:
-    from Tools.Tests.flyover_test_support import (
-        create_flyover_artifact,
-        write_manifest,
-    )
-except ModuleNotFoundError as error:
-    if error.name != "Tools":
-        raise
-    from flyover_test_support import create_flyover_artifact, write_manifest
-
-
-MODULE_PATH = Path(__file__).resolve().parents[1] / "flyover_manifest.py"
-SPEC = importlib.util.spec_from_file_location("flyover_manifest", MODULE_PATH)
-flyover_manifest = importlib.util.module_from_spec(SPEC)
-assert SPEC.loader
-sys.modules[SPEC.name] = flyover_manifest
-SPEC.loader.exec_module(flyover_manifest)
-
+from Tools.Tests.flyover_test_support import create_flyover_artifact, write_manifest
+from Tools import flyover_manifest
 
 class FlyoverManifestTests(unittest.TestCase):
     def test_web_asset_inventory_rejects_missing_unsafe_duplicate_and_extra_files(self):
@@ -127,7 +109,7 @@ class FlyoverManifestTests(unittest.TestCase):
             ):
                 flyover_manifest.validate_artifact(root)
 
-    def test_rejects_non_object_boolean_schema_and_mismatched_script(self):
+    def test_rejects_non_object_boolean_schema_and_missing_web_asset(self):
         scenarios = (
             ([], "not a JSON object"),
             ({"schemaVersion": True, "images": []}, "schemaVersion 1"),
