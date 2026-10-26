@@ -8,6 +8,7 @@ and the [repository rules](../../../AGENTS.md).
   installation URLs, manifests, and publication policy in `../installer_site_data.py`.
 - Consume the prepared data through `src/data.ts`. Do not fetch the live catalog during rendering.
   Do not duplicate the public catalog validator in TypeScript.
+- Validate the private presentation shape with `src/site-data.ts` before rendering. Keep URL and publication policy in Python.
 - Preserve the homepage, app, and channel routes. Use the prepared base path for local links and assets.
   Keep installation links tied to the validated HTTPS manifest URL.
 - Distinguish preparing, failed, unpublished, and retired channels. Progress links must use Python's validated workflow URL; only active published releases can render install actions.

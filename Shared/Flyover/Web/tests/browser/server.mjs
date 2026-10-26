@@ -11,11 +11,12 @@ const directory = mkdtempSync(join(tmpdir(), 'flyover-browser-'));
 execFileSync('python3', ['-m', 'Tools.flyover_site', 'build', directory], { cwd: root, stdio: 'inherit' });
 writeFileSync(join(directory, 'manifest.json'), JSON.stringify(fixture()));
 const captures = new Map(['phone-light', 'phone-dark'].map(id => [id, capturePNG(id === 'phone-dark')]));
+const thumbnails = new Map(['phone-light', 'phone-dark'].map(id => [id, capturePNG(id === 'phone-dark', 134, 867)]));
 const server = createServer((request, response) => {
     const path = new URL(request.url, 'http://localhost').pathname;
     if (path.startsWith('/atlas/images/')) {
         response.setHeader('Content-Type', 'image/png');
-        response.end(captures.get(path.includes('phone-dark') ? 'phone-dark' : 'phone-light'));
+        response.end((path.endsWith('-thumbnail.png') ? thumbnails : captures).get(path.includes('phone-dark') ? 'phone-dark' : 'phone-light'));
         return;
     }
     const file = resolve(directory, decodeURIComponent(path.replace(/^\/atlas\//, '')) || 'index.html');

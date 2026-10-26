@@ -26,6 +26,7 @@ export interface AtlasRoute {
 export interface AtlasProfile {
     id: string; title: string; device: string; orientation: string; colorScheme: string;
     dynamicType: string; contrast: string; layoutDirection: string; legibilityWeight: string; snapshotType: string;
+    viewportSize?: Size | null;
 }
 export interface AtlasImage {
     screenID: string; variantID: string; profileID: string; relativePath: string;

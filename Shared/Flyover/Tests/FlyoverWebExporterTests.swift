@@ -43,6 +43,11 @@
             let data = try Data(contentsOf: directory.appending(path: "manifest.json"))
             let manifest = try JSONDecoder().decode(FlyoverWebManifest.self, from: data)
             #expect(manifest.schemaVersion == 1)
+            #expect(manifest.profiles
+                .allSatisfy {
+                    $0.viewportSize == FlyoverWebManifest
+                        .Size(FlyoverCaptureProfile.phoneLight.profileSize)
+                })
             #expect(manifest.application.id == "test-app")
             #expect(manifest.application.title == "Test </script> App")
             #expect(manifest.groups.map(\.id) == ["main"])

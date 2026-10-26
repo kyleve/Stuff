@@ -62,7 +62,7 @@ export function createFilterController(deps: Dependencies): FilterController {
 
     function updateRouteFocus() {
         const focused = deps.state.routeFocus;
-        const connected = new Map();
+        const connected = new Map<string, "upstream" | "downstream">();
         if (focused) {
             const screen = deps.catalog.screenByID.get(focused);
             for (const id of screen?.incomingRouteIDs || []) {

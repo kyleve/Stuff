@@ -4,7 +4,6 @@ import base64
 import hashlib
 import io
 import json
-import os
 from pathlib import Path
 import plistlib
 import subprocess

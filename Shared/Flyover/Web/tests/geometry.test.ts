@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { fittedZoom, initialZoom, manualZoom, rectIntersects, squaredDistance } from '../src/scripts/geometry.ts';
 
-test('fit operations show large catalogs below the manual zoom floor on mobile', () => {
+void test('fit operations show large catalogs below the manual zoom floor on mobile', () => {
     for (const width of [320, 390, 844, 1280]) {
         const size = { width: 15_000, height: 6000 };
         const fit = fittedZoom(size, { width, height: 700 }, 1.5);
@@ -16,7 +16,7 @@ test('fit operations show large catalogs below the manual zoom floor on mobile',
     assert.equal(manualZoom(-1, 1, 0.1, 1.5), 0.1);
 });
 
-test('viewport intersection excludes touching edges and distance uses canvas coordinates', () => {
+void test('viewport intersection excludes touching edges and distance uses canvas coordinates', () => {
     const visible = { left: 10, top: 10, right: 20, bottom: 20 };
     assert.equal(rectIntersects({ x: 0, y: 0, width: 10, height: 10 }, visible), false);
     assert.equal(rectIntersects({ x: 0, y: 0, width: 11, height: 11 }, visible), true);

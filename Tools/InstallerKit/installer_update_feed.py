@@ -257,7 +257,8 @@ def publish_receipt(receipt, feed, fetch, feed_url, run=subprocess.run):
                     **changes_since(previous, plan.sha, run)}
     elif receipt["action"] == "retire" and number is not None:
         plan = Retirement(number)
-        make_release = lambda _: None
+        def make_release(_):
+            return None
     else:
         raise ValueError("Invalid publication receipt")
     if feed.save(app, channel, make_release, lambda: is_current(plan, feed.repository, fetch)):

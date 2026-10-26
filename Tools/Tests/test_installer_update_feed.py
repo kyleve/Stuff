@@ -1,5 +1,4 @@
 import base64
-from copy import deepcopy
 from dataclasses import replace
 import io
 import json
@@ -210,7 +209,8 @@ class InstallerUpdateFeedTests(unittest.TestCase):
             second = git("rev-parse", "HEAD")
             git("commit", "--allow-empty", "-qm", "Third")
             third = git("rev-parse", "HEAD")
-            run = lambda args, **kwargs: subprocess.run(args, cwd=root, **kwargs)
+            def run(args, **kwargs):
+                return subprocess.run(args, cwd=root, **kwargs)
             changes = changes_since(release(1, first), third, run)
             self.assertEqual([commit["sha"] for commit in changes["commits"]], [third, second])
             self.assertFalse(changes["historyChanged"])

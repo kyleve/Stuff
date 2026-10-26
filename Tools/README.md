@@ -1,5 +1,14 @@
 # Stuff Tools
 
+## Python and web lint
+
+Run `mise install` and `mise exec -- npm ci` after a tool-pin change.
+Run `mise exec -- npm run lint` for Python, TypeScript, Astro, and CSS correctness checks.
+Run `mise exec -- npm run test:lint` to verify the lint rules against invalid fixtures.
+The checks cover repository Python and both web projects. Type-aware ESLint also checks TypeScript tests.
+Ruff targets the supported Python 3.9 command environment. Its formatter is available through `mise exec -- ruff format`.
+Formatting is an explicit operation, not part of the correctness gate. Keep formatting changes in separate commits.
+
 ## Daily Flyover publication
 
 `.github/flyover-apps.json` owns hosted capture registration. `flyover_apps.py` validates it before capture.
@@ -30,6 +39,10 @@ commands keep process and simulator orchestration in shell; `xcode_results.py`
 shares xcresult traversal, `snapshot_reports.py` shares capture reports, and
 the command-specific Python modules retain each command's distinct policy.
 `flyover_cli.py` parses the public Flyover commands and reports exit status.
+`flyover_png.py` validates PNG dimensions, chunk checksums, scanline filters, and the complete compressed stream before publication.
+It accepts native non-interlaced grayscale and RGB captures, with optional alpha, at 8 or 16 bits per channel.
+Other encodings fail explicitly. Each image is limited to 128 MiB encoded and 512 MiB expanded.
+Validation does not reconstruct colors or interpret ancillary metadata. Native captures remain unchanged.
 `flyover_export.py` composes build metadata, hosted capture, artifact validation, and publication.
 `flyover_publication.py` owns staging, destination checks, replacement, and recovery for one generated directory.
 `flyover_manifest.py` validates artifact files and builds their allowlists.

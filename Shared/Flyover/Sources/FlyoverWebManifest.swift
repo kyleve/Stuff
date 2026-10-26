@@ -30,6 +30,8 @@
             public let layoutDirection: String
             public let legibilityWeight: String
             public let snapshotType: String
+            /// Present in new exports; omitted by legacy schema-1 producers.
+            public let viewportSize: Size?
         }
 
         public struct Canvas: Codable, Sendable {

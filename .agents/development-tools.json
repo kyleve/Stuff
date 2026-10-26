@@ -1,4 +1,39 @@
 {
+  "Axe Playwright": {
+    "repo": "dequelabs/axe-core-npm",
+    "ref": "2375f7f5523a2accaeef91a3cb12e30a46e7fbea",
+    "version": "4.14.0"
+  },
+  "ESLint": {
+    "repo": "eslint/eslint",
+    "ref": "4637f9827a1ba137498eaee70957850621082815",
+    "version": "10.13.0"
+  },
+  "ESLint JavaScript Config": {
+    "repo": "eslint/eslint",
+    "ref": "84fb885d49ac810e79a9491276b4828b53d913e5",
+    "version": "10.0.1"
+  },
+  "ESLint Astro": {
+    "repo": "ota-meshi/eslint-plugin-astro",
+    "ref": "1cfdc01b0725bed3bd99cff8b5e0efefd2c47136",
+    "version": "3.2.1"
+  },
+  "Ruff": {
+    "repo": "astral-sh/ruff",
+    "ref": "30516b42ab972ffa2569e5efcfee81135da466d3",
+    "version": "0.17.2"
+  },
+  "Stylelint": {
+    "repo": "stylelint/stylelint",
+    "ref": "bc06c7cdb1413de3d8dc939b33af138ab7e59df1",
+    "version": "17.16.0"
+  },
+  "TypeScript ESLint": {
+    "repo": "typescript-eslint/typescript-eslint",
+    "ref": "4ad6b7553781fa3c93fc26642d7219d2e6624504",
+    "version": "8.72.1"
+  },
   "Astro": {
     "repo": "withastro/astro",
     "ref": "c2c43a99f4d50676456c137ff88359579f78bf5c",

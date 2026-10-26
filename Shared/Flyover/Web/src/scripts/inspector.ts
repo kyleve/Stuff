@@ -1,5 +1,6 @@
 import type { Actions } from "./actions.ts";
 import { updateCaptureScroller as configureCaptureScroller } from "./capture-scroller.ts";
+import { captureRecovery } from "./capture-recovery.ts";
 import type { Catalog } from "./catalog.ts";
 import type { Controls } from "./controls.ts";
 import { captureLabel, element, icon, iconButton, imageDimensions, metadataRow } from "./dom.ts";
@@ -88,7 +89,7 @@ export function createInspector(deps: Dependencies): Inspector {
         imageFrame.append(device);
         const caption = element("div", "image-caption");
         caption.append(element("span", "capture-badge", captureLabel(variant.captureExtent)), element("span", "", imageDimensions(metadata)));
-        canvas.append(imageFrame, caption);
+        canvas.append(imageFrame, caption, captureRecovery(fullImage, screen.title));
 
         const drawer = element("aside", "inspector-details");
         drawer.id = "inspector-details";

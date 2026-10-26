@@ -59,7 +59,19 @@ The native manifest schema remains version 1. The exporter no longer writes `man
 Regenerate earlier artifacts before using the new preview command.
 PNG capture, thumbnail generation, and geometry remain native responsibilities.
 
+New schema-1 exports include `profiles[].viewportSize` in points. The viewer uses these dimensions for device viewports.
+Legacy exports without this field retain the original phone, landscape, and tablet sizes. Fixed screen viewports still take precedence.
+`../Tests/Fixtures/manifest-v1.json` is shared by native serialization, Python validation, and TypeScript catalog tests.
+
+Failed previews identify the error in their alternative text. Open the inspector for retry and reload actions.
+Retry requests bypass the failed image URL cache. Reload preserves the selected screen and state through the URL.
+
 ## Browser regressions
+
+Run `mise exec -- npm run lint` for Python, TypeScript, Astro, and CSS correctness checks.
+`npm run test:lint` tests representative rule failures. CI runs both commands.
+Browser tests also scan primary surfaces with axe and enforce thumbnail request and decoded-pixel budgets.
+Real two-touch injection runs in Chromium portrait; WebKit still runs layout, interaction, and accessibility tests.
 
 Playwright loads the production Astro build with synthetic PNG captures under a nested HTTP path.
 The suite covers Chromium and WebKit at desktop, portrait, and landscape widths.

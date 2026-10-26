@@ -37,6 +37,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build, format
 - **Use the repository's shared npm lockfile and Astro launcher.** Keep capture and publication policy outside the web project. Preserve relative hosted asset paths; direct `file://` viewing is unsupported.
 - Register hosted export adapters in `.github/flyover-apps.json`. Keep CI capture serial and unsigned. Publish only complete, validated bundles through the shared Pages publisher.
 - **Load a thumbnail for every visible web screen.** Reserve full-resolution captures for the inspector and raw PNG link.
+- Export profile viewport dimensions from the native capture configuration. Keep schema-1 fallback sizes limited to legacy web artifacts.
 - **Apply web residency limits only to offscreen preload candidates.**
 - **Restore all web state selections from the URL and clear transient panels on history navigation.**
 - **Give the active image scroll area keyboard focus and exempt its arrow keys from screen navigation.**

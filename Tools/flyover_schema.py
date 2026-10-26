@@ -8,6 +8,7 @@ from Tools.flyover_schema_values import (
     string,
     string_list,
     integer,
+    validate_size,
     validate_rect,
     validate_geometry,
     validate_viewport,
@@ -56,6 +57,8 @@ def validate_manifest(manifest: object) -> None:
     for index, profile in enumerate(profiles):
         assert isinstance(profile, dict)
         string(profile["title"], f"manifest.profiles[{index}].title", nonempty=True)
+        if profile.get("viewportSize") is not None:
+            validate_size(profile["viewportSize"], f"manifest.profiles[{index}].viewportSize")
         for field, accepted in profile_values.items():
             value = string(profile[field], f"manifest.profiles[{index}].{field}")
             if value not in accepted:
@@ -173,7 +176,7 @@ def validate_manifest(manifest: object) -> None:
                 f"manifest.screens[{index}].variants[{variant_index}].title",
                 nonempty=True,
             )
-            extent = capture_extent(
+            capture_extent(
                 variant["captureExtent"],
                 f"manifest.screens[{index}].variants[{variant_index}].captureExtent",
             )

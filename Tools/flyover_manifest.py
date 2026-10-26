@@ -11,6 +11,7 @@ from pathlib import Path, PurePosixPath
 
 from Tools.flyover_schema import validate_manifest
 from Tools.flyover_schema_values import FlyoverArtifactError, safe_image_path
+from Tools.flyover_png import validate_png
 
 
 MARKER_CONTENT = "schemaVersion=1"
@@ -117,6 +118,7 @@ def validate_artifact(
         path = root.joinpath(*relative.parts)
         if not path.is_file():
             raise FlyoverArtifactError(f"the manifest image is missing: {relative}")
+        validate_png(path, image['pixelWidth'], image['pixelHeight'])
         asset_paths.append(relative.as_posix())
 
         if "thumbnailRelativePath" in image:
@@ -128,6 +130,7 @@ def validate_artifact(
                 raise FlyoverArtifactError(
                     f"the manifest thumbnail is missing: {thumbnail}"
                 )
+            validate_png(thumbnail_path, image['thumbnailPixelWidth'], image['thumbnailPixelHeight'])
             asset_paths.append(thumbnail.as_posix())
 
     if len(set(asset_paths)) != len(asset_paths):

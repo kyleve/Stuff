@@ -21,7 +21,7 @@ for (const entry of ['groups', 'search', 'filters'] as const) {
         await expect(page.locator('.canvas-context strong')).toHaveText('Group 2');
         await expect(page.locator('.canvas-context .context-kicker')).toHaveText('Group 2 of 2');
         await expect(page.locator('.group-trigger .button-label')).toHaveText('Group 2');
-        expect(await handle!.evaluate(node => node.isConnected && node === document.getElementById('canvas-viewport'))).toBe(true);
+        expect(await handle.evaluate(node => node.isConnected && node === document.getElementById('canvas-viewport'))).toBe(true);
         await page.getByRole('button', { name: 'Browse groups', exact: true }).click();
         await expect(page.locator('.group-button[data-group-id="second"]')).toHaveAttribute('aria-current', 'true');
         await expect(page.locator('.group-button[data-group-id="first"]')).toHaveAttribute('aria-current', 'false');
@@ -38,7 +38,7 @@ test('selection and panels preserve atlas nodes, then history restores states af
     await page.keyboard.press('Escape');
     await page.getByLabel('Capture profile', { exact: true }).selectOption('phone-dark');
     await expect(page).toHaveURL(/profile=phone-dark/);
-    expect(await handle!.evaluate(node => node.isConnected && node === document.querySelector('.screen-card[data-screen-id="screen-1"]'))).toBe(true);
+    expect(await handle.evaluate(node => node.isConnected && node === document.querySelector('.screen-card[data-screen-id="screen-1"]'))).toBe(true);
     await page.reload();
     await expect(card.locator('select')).toHaveValue('alternate');
     await page.goBack();

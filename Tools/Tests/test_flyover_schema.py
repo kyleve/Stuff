@@ -1,4 +1,6 @@
 import unittest
+import json
+from pathlib import Path
 
 from Tools.flyover_schema import validate_manifest
 from Tools.flyover_schema_values import FlyoverArtifactError
@@ -6,6 +8,18 @@ from Tools.Tests.flyover_test_support import flyover_manifest_fixture
 
 
 class FlyoverSchemaTests(unittest.TestCase):
+    def test_shared_native_wire_fixture(self):
+        path = Path(__file__).resolve().parents[2] / 'Shared/Flyover/Tests/Fixtures/manifest-v1.json'
+        validate_manifest(json.loads(path.read_text()))
+
+    def test_profile_viewport_size_is_optional_but_must_be_positive(self):
+        manifest = flyover_manifest_fixture()
+        validate_manifest(manifest)
+        for size in ({'width': 0, 'height': 874}, {'width': 402}, {'width': True, 'height': 874}):
+            manifest['profiles'][0]['viewportSize'] = size
+            with self.subTest(size=size), self.assertRaises(FlyoverArtifactError):
+                validate_manifest(manifest)
+
     def test_valid_catalog_needs_no_files(self):
         validate_manifest(flyover_manifest_fixture())
 

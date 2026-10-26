@@ -9,6 +9,7 @@ from unittest.mock import patch
 from Tools.flyover_bundle import pack_bundle
 from Tools.flyover_pages import compose, latest_release, version_images
 from Tools.Tests.flyover_bundle_support import SHA, create_bundle
+from Tools.Tests.flyover_test_support import png_fixture
 
 
 class FlyoverPagesTests(unittest.TestCase):
@@ -16,7 +17,7 @@ class FlyoverPagesTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             paths = []
-            for index, content in enumerate((b'first capture', b'next capture', b'first capture')):
+            for index, content in enumerate((png_fixture(value=0), png_fixture(value=1), png_fixture(value=0))):
                 atlas = create_bundle(root / str(index), ('where',)) / 'where'
                 manifest = json.loads((atlas / 'manifest.json').read_text())
                 original = manifest['images'][0]['relativePath']

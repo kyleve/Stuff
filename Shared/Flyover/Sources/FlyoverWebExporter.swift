@@ -612,6 +612,7 @@
                 layoutDirection: layoutDirectionName,
                 legibilityWeight: legibilityWeightName,
                 snapshotType: snapshotTypeName,
+                viewportSize: FlyoverWebManifest.Size(profileSize),
             )
         }
     }
