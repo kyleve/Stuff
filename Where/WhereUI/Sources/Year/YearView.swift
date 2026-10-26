@@ -9,58 +9,61 @@ import WhereCore
 struct YearView: View {
     let report: YearReportModel
 
+    @Environment(\.layoutDirection) private var layoutDirection
     @State private var mode: YearMode
-    @State private var scrollPosition: ScrollPosition
 
     init(report: YearReportModel, initialMode: YearMode = .calendar) {
         self.report = report
         _mode = State(initialValue: initialMode)
-        _scrollPosition = State(initialValue: ScrollPosition(
-            edge: initialMode == .calendar ? .leading : .trailing,
-        ))
     }
 
     var body: some View {
         NavigationStack {
-            // Measure outside the scroll view so navigation and picker safe areas
-            // bound each page, including when the picker stacks at large text sizes.
-            GeometryReader { viewport in
-                ScrollView(.horizontal) {
-                    // Keep both pages alive without nesting a page-style TabView in
-                    // the app's TabView. Each page owns its vertical scrolling.
-                    HStack(spacing: 0) {
-                        CalendarContentView(
-                            report: report,
-                            persistenceKey: .year,
-                            showsPlanningToolbar: false,
-                            showsZoomToolbar: mode == .calendar,
-                        )
-                        .frame(width: viewport.size.width, height: viewport.size.height)
-                        .accessibilityHidden(mode != .calendar)
-                        PresenceTimelineList(report: report, showsPlanningToolbar: false)
+            ScrollViewReader { pager in
+                // Navigation and picker safe areas bound each page's viewport.
+                GeometryReader { viewport in
+                    ScrollView(.horizontal) {
+                        // Eager siblings retain each page's state and vertical scroll view.
+                        HStack(spacing: 0) {
+                            CalendarContentView(
+                                report: report,
+                                persistenceKey: .year,
+                                showsPlanningToolbar: false,
+                                showsZoomToolbar: mode == .calendar,
+                            )
                             .frame(width: viewport.size.width, height: viewport.size.height)
-                            .accessibilityHidden(mode != .timeline)
+                            .accessibilityHidden(mode != .calendar)
+                            .id(YearMode.calendar)
+                            PresenceTimelineList(report: report, showsPlanningToolbar: false)
+                                .frame(width: viewport.size.width, height: viewport.size.height)
+                                .accessibilityHidden(mode != .timeline)
+                                .id(YearMode.timeline)
+                        }
                     }
+                    // An outer target layout suppresses Calendar's nested month targets.
+                    .scrollTargetBehavior(YearPagingScrollTargetBehavior())
+                    .defaultScrollAnchor(
+                        mode == .calendar ? .leading : .trailing,
+                        for: .initialOffset,
+                    )
+                    .onScrollPhaseChange { previous, phase, context in
+                        guard phase == .idle, previous != .animating else { return }
+                        let offset = context.geometry.contentOffset.x
+                            + context.geometry.contentInsets.leading
+                        let isFirstPage = offset < context.geometry.containerSize.width / 2
+                        let isCalendar = isFirstPage == (layoutDirection == .leftToRight)
+                        mode = isCalendar ? .calendar : .timeline
+                    }
+                    .scrollIndicators(.hidden, axes: .horizontal)
                 }
-                // The outer target layout suppresses Calendar's nested month targets.
-                // With two pages, edge positions keep their scroll targets independent.
-                .scrollTargetBehavior(YearPagingScrollTargetBehavior())
-                .scrollPosition($scrollPosition)
-                .onScrollPhaseChange { previous, phase, context in
-                    guard phase == .idle, previous != .animating else { return }
-                    let offset = context.geometry.contentOffset.x
-                        + context.geometry.contentInsets.leading
-                    mode = offset < context.geometry.containerSize.width / 2 ? .calendar : .timeline
-                }
-                .scrollIndicators(.hidden, axes: .horizontal)
+                .modifier(YearNavigationModifier(report: report, mode: Binding(
+                    get: { mode },
+                    set: { selection in
+                        mode = selection
+                        pager.scrollTo(selection, anchor: .leading)
+                    },
+                )))
             }
-            .modifier(YearNavigationModifier(report: report, mode: Binding(
-                get: { mode },
-                set: { selection in
-                    mode = selection
-                    scrollPosition.scrollTo(edge: selection == .calendar ? .leading : .trailing)
-                },
-            )))
         }
     }
 }

@@ -27,6 +27,7 @@ struct CalendarContentView: View {
     @AccessibilityFocusState private var focusedTarget: CalendarPresentationModel.Target?
     @State private var zoom = CalendarZoomTransitionModel()
     @State private var scrollOffset = CGPoint.zero
+    @State private var requestedZoomScroll: CalendarZoomTransitionModel.ID?
 
     /// A nil persistence key keeps zoom session-only, including in previews.
     init(
@@ -328,10 +329,12 @@ struct CalendarContentView: View {
                     .task(id: measured) {
                         guard !Task.isCancelled else { return }
                         zoom.updateMeasurement(measured)
-                        if case .preparing = zoom.phase,
+                        if case let .preparing(source) = zoom.phase,
+                           requestedZoomScroll != source.id,
                            let measured, measured.mode == .detail,
                            let target = presentation.target, measured.frames[target] != nil
                         {
+                            requestedZoomScroll = source.id
                             scrollPosition.scrollTo(id: target, anchor: .top)
                         }
                     }

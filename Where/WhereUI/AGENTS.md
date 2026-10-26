@@ -117,11 +117,11 @@ Layering, localization, preview, and testing conventions live in the feature
 - Keep Calendar and Timeline as stable sibling pages in `YearView`'s horizontal paging `ScrollView`.
   Bind the pager and bottom picker to the same `YearMode`. Own their shared planning
   toolbar in the pager's navigation container. Show the calendar zoom toolbar only while its page is selected.
-  Use edge positions for paging and restrict page snapping to the horizontal axis;
+  Use reader-directed page IDs without an outer target layout and restrict snapping to the horizontal axis;
   an outer target layout or inherited paging interferes with calendar zoom. Guard: `CalendarContentViewTests`.
 - Keep overview availability derived from the full-size calendar visibility rule in `CalendarPresentationModel`. Unavailable months keep their region and projection colors, and remain actionable for rejection feedback. Guard: `CalendarPresentationModelTests`.
 - Inject the calendar zoom key at each entry point. Persist mode changes through `WherePreferences`; a nil key must not read or write preferences. Guard: `CalendarPresentationModelTests`.
-- Animate calendar zoom in an overlay after the destination scroll position settles. Resolve zoom measurements and request the destination scroll in a view-owned task after layout, outside per-frame `onChange` callbacks. Keep moving geometry outside the scroll-target layout and cancel it when its viewport or report changes. Reduce Motion uses a crossfade. Guards: `CalendarZoomTransitionModelTests`, `CalendarContentViewTests`.
+- Animate calendar zoom in an overlay after the destination scroll position settles. Request the measured destination once per transition ID from a view-owned task; continue observing geometry until it settles. Keep moving geometry outside the scroll-target layout and cancel it when its viewport or report changes. Reduce Motion uses a crossfade. Guards: `CalendarZoomTransitionModelTests`, `CalendarContentViewTests`.
 - Keep calendar flight days and timeline flight events independent of review dismissal.
   Show uncertain arrival timing explicitly. Render supported travel periods separately from later ground observations.
   Split timeline stays only for presentation; preserve every region-day exactly once.
