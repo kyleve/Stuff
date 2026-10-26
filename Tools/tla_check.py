@@ -61,7 +61,9 @@ MonotonicClock = Callable[[], float]
 
 def _required_string(value: object, field: str, manifest_path: Path) -> str:
     if not isinstance(value, str) or not value:
-        raise TlaCheckError(f"error: {manifest_path}: {field} must be a non-empty string")
+        raise TlaCheckError(
+            f"error: {manifest_path}: {field} must be a non-empty string"
+        )
     return value
 
 
@@ -69,7 +71,9 @@ def load_manifest(manifest_path: Path) -> TlaManifest:
     try:
         payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
-        raise TlaCheckError(f"error: could not read {manifest_path}: {error}") from error
+        raise TlaCheckError(
+            f"error: could not read {manifest_path}: {error}"
+        ) from error
 
     if not isinstance(payload, dict):
         raise TlaCheckError(f"error: {manifest_path}: root must be an object")
@@ -87,8 +91,12 @@ def load_manifest(manifest_path: Path) -> TlaManifest:
     names: set[str] = set()
     for index, raw_case in enumerate(raw_cases):
         if not isinstance(raw_case, dict):
-            raise TlaCheckError(f"error: {manifest_path}: case {index} must be an object")
-        name = _required_string(raw_case.get("name"), f"case {index} name", manifest_path)
+            raise TlaCheckError(
+                f"error: {manifest_path}: case {index} must be an object"
+            )
+        name = _required_string(
+            raw_case.get("name"), f"case {index} name", manifest_path
+        )
         if name in names:
             raise TlaCheckError(f"error: {manifest_path}: duplicate case name {name!r}")
         names.add(name)

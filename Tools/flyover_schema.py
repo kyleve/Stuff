@@ -27,7 +27,9 @@ def validate_manifest(manifest: object) -> None:
         raise FlyoverArtifactError("manifest.json does not use schemaVersion 1")
     validate_metadata(manifest)
 
-    profiles = required_list(manifest.get("profiles"), "manifest.profiles", nonempty=True)
+    profiles = required_list(
+        manifest.get("profiles"), "manifest.profiles", nonempty=True
+    )
     profile_by_id = identified_records(
         profiles,
         "manifest.profiles",
@@ -58,7 +60,9 @@ def validate_manifest(manifest: object) -> None:
         assert isinstance(profile, dict)
         string(profile["title"], f"manifest.profiles[{index}].title", nonempty=True)
         if profile.get("viewportSize") is not None:
-            validate_size(profile["viewportSize"], f"manifest.profiles[{index}].viewportSize")
+            validate_size(
+                profile["viewportSize"], f"manifest.profiles[{index}].viewportSize"
+            )
         for field, accepted in profile_values.items():
             value = string(profile[field], f"manifest.profiles[{index}].{field}")
             if value not in accepted:
@@ -236,8 +240,6 @@ def validate_manifest(manifest: object) -> None:
     validate_images(manifest.get("images"), profile_by_id, screen_by_id, variant_by_key)
 
 
-
-
 def validate_metadata(manifest: dict[str, object]) -> None:
     application = required_object(
         manifest.get("application"),
@@ -275,7 +277,8 @@ def validate_metadata(manifest: dict[str, object]) -> None:
 
 
 def validate_group_membership(
-    groups: list[object], screen_by_id: dict[str, dict[str, object]],
+    groups: list[object],
+    screen_by_id: dict[str, dict[str, object]],
 ) -> None:
     expected_screen_ids: list[str] = []
     for group_index, group in enumerate(groups):
@@ -303,14 +306,21 @@ def validate_group_membership(
                 raise FlyoverArtifactError(
                     f"manifest.screens[{screen_id}].groupID does not match its group"
                 )
-            if screen["groupOrder"] != group_index or screen["screenOrder"] != screen_index:
+            if (
+                screen["groupOrder"] != group_index
+                or screen["screenOrder"] != screen_index
+            ):
                 raise FlyoverArtifactError(
                     f"manifest.screens[{screen_id}] has inconsistent ordering"
                 )
     if len(set(expected_screen_ids)) != len(expected_screen_ids):
-        raise FlyoverArtifactError("manifest group screen lists contain a duplicate screen")
+        raise FlyoverArtifactError(
+            "manifest group screen lists contain a duplicate screen"
+        )
     if expected_screen_ids != list(screen_by_id):
-        raise FlyoverArtifactError("manifest group screen lists do not match manifest.screens")
+        raise FlyoverArtifactError(
+            "manifest group screen lists do not match manifest.screens"
+        )
 
 
 def validate_route_membership(screens: list[object], routes: list[object]) -> None:

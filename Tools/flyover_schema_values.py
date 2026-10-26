@@ -39,7 +39,9 @@ def identified_records(
         record = required_object(value, f"{path}[{index}]", fields)
         identifier = string(record["id"], f"{path}[{index}].id", nonempty=True)
         if identifier in records:
-            raise FlyoverArtifactError(f"{path} contains a duplicate identifier: {identifier}")
+            raise FlyoverArtifactError(
+                f"{path} contains a duplicate identifier: {identifier}"
+            )
         records[identifier] = record
     return records
 
@@ -54,7 +56,10 @@ def string(value: object, path: str, *, nonempty: bool = False) -> str:
 
 def string_list(value: object, path: str, *, nonempty: bool = False) -> list[str]:
     values = required_list(value, path, nonempty=nonempty)
-    return [string(item, f"{path}[{index}]", nonempty=True) for index, item in enumerate(values)]
+    return [
+        string(item, f"{path}[{index}]", nonempty=True)
+        for index, item in enumerate(values)
+    ]
 
 
 def integer(value: object, path: str) -> int:
@@ -126,7 +131,9 @@ def validate_viewport(value: object, path: str) -> None:
     fixed_size = viewport.get("fixedSize")
     if kind == "device":
         if fixed_size is not None:
-            raise FlyoverArtifactError(f"{path}.fixedSize must be null for a device viewport")
+            raise FlyoverArtifactError(
+                f"{path}.fixedSize must be null for a device viewport"
+            )
     elif kind == "fixed":
         validate_size(fixed_size, f"{path}.fixedSize")
     else:
@@ -150,5 +157,7 @@ def safe_image_path(value: str) -> PurePosixPath:
         or relative.parts[:1] != ("images",)
         or relative.suffix.lower() != ".png"
     ):
-        raise FlyoverArtifactError(f"the manifest contains an unsafe image path: {value}")
+        raise FlyoverArtifactError(
+            f"the manifest contains an unsafe image path: {value}"
+        )
     return relative

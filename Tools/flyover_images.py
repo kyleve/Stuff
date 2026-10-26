@@ -43,12 +43,18 @@ def validate_images(
             "thumbnailPixelWidth",
             "thumbnailPixelHeight",
         )
-        present_thumbnail_fields = [field for field in thumbnail_fields if field in image]
-        if present_thumbnail_fields and len(present_thumbnail_fields) != len(thumbnail_fields):
+        present_thumbnail_fields = [
+            field for field in thumbnail_fields if field in image
+        ]
+        if present_thumbnail_fields and len(present_thumbnail_fields) != len(
+            thumbnail_fields
+        ):
             raise FlyoverArtifactError(
                 f"manifest.images[{index}] has incomplete thumbnail metadata"
             )
-        screen_id = string(image["screenID"], f"manifest.images[{index}].screenID", nonempty=True)
+        screen_id = string(
+            image["screenID"], f"manifest.images[{index}].screenID", nonempty=True
+        )
         variant_id = string(
             image["variantID"],
             f"manifest.images[{index}].variantID",
@@ -121,10 +127,14 @@ def validate_images(
             )
         for field in ("pointWidth", "pointHeight", "scale"):
             if number(image[field], f"manifest.images[{index}].{field}") <= 0:
-                raise FlyoverArtifactError(f"manifest.images[{index}].{field} is not positive")
+                raise FlyoverArtifactError(
+                    f"manifest.images[{index}].{field} is not positive"
+                )
         for field in ("pixelWidth", "pixelHeight"):
             if integer(image[field], f"manifest.images[{index}].{field}") <= 0:
-                raise FlyoverArtifactError(f"manifest.images[{index}].{field} is not positive")
+                raise FlyoverArtifactError(
+                    f"manifest.images[{index}].{field} is not positive"
+                )
 
     expected_keys = {
         (screen_id, variant_id, profile_id)

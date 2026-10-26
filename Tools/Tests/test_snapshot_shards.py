@@ -28,14 +28,18 @@ class ShardTests(unittest.TestCase):
         source = repo / "Module" / "SnapshotTests"
         source.mkdir(parents=True)
         (repo / "Project.swift").write_text(
-            '''
+            """
             unitTests(
                 name: "ModuleSnapshotTests",
                 sources: ["Module/SnapshotTests/**"],
             ),
-            '''
+            """
         )
-        for suite in ("FirstSnapshotTests", "SecondSnapshotTests", "ThirdSnapshotTests"):
+        for suite in (
+            "FirstSnapshotTests",
+            "SecondSnapshotTests",
+            "ThirdSnapshotTests",
+        ):
             (source / f"{suite}.swift").write_text(
                 f"import Testing\nstruct {suite} {{ @Test func example() {{}} }}\n"
             )
@@ -72,9 +76,7 @@ class ShardTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             repo = self.make_repo(directory)
             plan = self.make_plan()
-            plan["shards"][0]["suites"].remove(
-                "ModuleSnapshotTests/ThirdSnapshotTests"
-            )
+            plan["shards"][0]["suites"].remove("ModuleSnapshotTests/ThirdSnapshotTests")
 
             with self.assertRaisesRegex(ValueError, "omits suites"):
                 MODULE.validate_plan(plan, repo)
@@ -88,9 +90,7 @@ class ShardTests(unittest.TestCase):
                 "struct FourthSnapshotTests { @Test func example() {} }\n"
             )
 
-            inventory, partition = MODULE.execution_partition(
-                self.make_plan(), repo
-            )
+            inventory, partition = MODULE.execution_partition(self.make_plan(), repo)
 
             self.assertEqual(len(inventory), 4)
             self.assertEqual(
@@ -111,9 +111,7 @@ class ShardTests(unittest.TestCase):
             repo = self.make_repo(directory)
             _, partition = MODULE.execution_partition(self.make_plan(), repo)
 
-            selected = MODULE.selected_shard(
-                partition, shard_number=3, worker_count=3
-            )
+            selected = MODULE.selected_shard(partition, shard_number=3, worker_count=3)
 
             self.assertEqual(selected, [])
 
@@ -155,9 +153,7 @@ class ShardTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             repo = self.make_repo(directory)
             plan = self.make_plan()
-            plan["shards"][1]["suites"].append(
-                "ModuleSnapshotTests/FirstSnapshotTests"
-            )
+            plan["shards"][1]["suites"].append("ModuleSnapshotTests/FirstSnapshotTests")
 
             with self.assertRaisesRegex(ValueError, "overlap"):
                 MODULE.validate_plan(plan, repo)
@@ -166,7 +162,9 @@ class ShardTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             repo = self.make_repo(directory)
             path = repo / "Module" / "SnapshotTests" / "ThirdSnapshotTests.swift"
-            path.write_text("import Testing\nstruct RenamedTests { @Test func x() {} }\n")
+            path.write_text(
+                "import Testing\nstruct RenamedTests { @Test func x() {} }\n"
+            )
 
             with self.assertRaisesRegex(ValueError, "must declare one top-level suite"):
                 MODULE.source_inventory(repo)
@@ -268,7 +266,9 @@ class ShardTests(unittest.TestCase):
 
             candidate = MODULE.rebalance_report(self.make_plan(), repo, documents)
 
-            self.assertEqual(candidate["timings"]["ModuleSnapshotTests/FirstSnapshotTests"], 10)
+            self.assertEqual(
+                candidate["timings"]["ModuleSnapshotTests/FirstSnapshotTests"], 10
+            )
             self.assertEqual(candidate["afterSeconds"][0], 10)
             self.assertEqual(candidate["afterSeconds"][1], 8)
 
@@ -329,45 +329,68 @@ class ShardTests(unittest.TestCase):
     def test_intake_placement_alone_can_reach_target(self):
         partition = [["A"], ["B"], ["New1", "New2"]]
         weights = {"A": 10, "B": 10, "New1": 20, "New2": 20}
-        self.assertEqual(MODULE.stable_partition(partition, weights),
-                         [["A", "New1"], ["B", "New2"]])
+        self.assertEqual(
+            MODULE.stable_partition(partition, weights), [["A", "New1"], ["B", "New2"]]
+        )
 
     def test_discards_subthreshold_moves_but_keeps_intake(self):
         partition = [["A", "Small"], ["B"], ["New"]]
         weights = {"A": 97, "Small": 3, "B": 94, "New": 1}
-        self.assertEqual(MODULE.stable_partition(partition, weights),
-                         [["A", "Small"], ["B", "New"]])
+        self.assertEqual(
+            MODULE.stable_partition(partition, weights), [["A", "Small"], ["B", "New"]]
+        )
 
     def test_accepts_exactly_five_percent(self):
         partition = [["A", "Small"], ["B"], []]
         weights = {"A": 95, "Small": 5, "B": 90}
-        self.assertEqual(MODULE.stable_partition(partition, weights),
-                         [["A"], ["B", "Small"]])
+        self.assertEqual(
+            MODULE.stable_partition(partition, weights), [["A"], ["B", "Small"]]
+        )
 
     def test_zero_durations_and_one_planned_shard(self):
-        self.assertEqual(MODULE.stable_partition([["A"], ["New"]], {"A": 0, "New": 0}),
-                         [["A", "New"]])
+        self.assertEqual(
+            MODULE.stable_partition([["A"], ["New"]], {"A": 0, "New": 0}),
+            [["A", "New"]],
+        )
 
     def test_never_empties_a_planned_shard(self):
         partition = [["A"], ["B"], []]
-        self.assertEqual(MODULE.stable_partition(partition, {"A": 100, "B": 1}),
-                         partition[:-1])
+        self.assertEqual(
+            MODULE.stable_partition(partition, {"A": 100, "B": 1}), partition[:-1]
+        )
 
     def balance_cli(self, repo, plan, junit, *extra):
         return subprocess.run(
-            [str(SCRIPT.parents[1] / "snapshot-shards"), "--plan", str(plan),
-             "balance", "--repo", str(repo), "--junit", str(junit), *extra],
-            cwd=repo, capture_output=True, text=True,
+            [
+                str(SCRIPT.parents[1] / "snapshot-shards"),
+                "--plan",
+                str(plan),
+                "balance",
+                "--repo",
+                str(repo),
+                "--junit",
+                str(junit),
+                *extra,
+            ],
+            cwd=repo,
+            capture_output=True,
+            text=True,
         )
 
     def timing_fixture(self, repo, durations):
         path = repo / "timings.xml"
         root = ET.Element("testsuites")
         for suite, elapsed in zip(
-            ("FirstSnapshotTests", "SecondSnapshotTests", "ThirdSnapshotTests"), durations
+            ("FirstSnapshotTests", "SecondSnapshotTests", "ThirdSnapshotTests"),
+            durations,
         ):
-            ET.SubElement(root, "testcase", file=f"ModuleSnapshotTests/{suite}",
-                          name=suite, time=str(elapsed))
+            ET.SubElement(
+                root,
+                "testcase",
+                file=f"ModuleSnapshotTests/{suite}",
+                name=suite,
+                time=str(elapsed),
+            )
         ET.ElementTree(root).write(path, encoding="utf-8")
         return path
 
@@ -392,8 +415,12 @@ class ShardTests(unittest.TestCase):
             self.assertEqual(json.loads(written.stdout), report)
             self.assertEqual(json.loads(plan.read_text()), report["plan"])
             self.assertEqual(set(report["plan"]), {"formatVersion", "shards"})
-            self.assertTrue(all(set(shard) == {"index", "suites"}
-                                for shard in report["plan"]["shards"]))
+            self.assertTrue(
+                all(
+                    set(shard) == {"index", "suites"}
+                    for shard in report["plan"]["shards"]
+                )
+            )
             self.assertIn("Updated", written.stderr)
             result = plan.read_bytes()
             again = self.balance_cli(repo, plan, junit, "--write")
@@ -418,7 +445,10 @@ class ShardTests(unittest.TestCase):
 
     def test_cli_rejects_invalid_measurements_before_writing(self):
         for duration in ("nan", "inf", "-1", "invalid"):
-            with self.subTest(duration=duration), tempfile.TemporaryDirectory() as directory:
+            with (
+                self.subTest(duration=duration),
+                tempfile.TemporaryDirectory() as directory,
+            ):
                 repo = self.make_repo(directory)
                 plan = repo / "plan.json"
                 plan.write_text(json.dumps(self.make_plan()))
@@ -485,11 +515,16 @@ class ShardTests(unittest.TestCase):
             self.assertEqual(len(flattened), len(set(flattened)))
             self.assertEqual(set(flattened), set(suites))
             self.assertTrue(all(result))
-            moved = any(suite not in result[index]
-                        for index, shard in enumerate(partition[:-1]) for suite in shard)
+            moved = any(
+                suite not in result[index]
+                for index, shard in enumerate(partition[:-1])
+                for suite in shard
+            )
             if moved:
-                self.assertLessEqual(max(MODULE.partition_totals(result, weights)),
-                                     max(MODULE.partition_totals(partition, weights)) * 0.95 + 1e-9)
+                self.assertLessEqual(
+                    max(MODULE.partition_totals(result, weights)),
+                    max(MODULE.partition_totals(partition, weights)) * 0.95 + 1e-9,
+                )
 
     def test_write_failure_is_reported_as_failure(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -498,12 +533,28 @@ class ShardTests(unittest.TestCase):
             plan.write_text(json.dumps(self.make_plan()))
             original = plan.read_bytes()
             junit = self.timing_fixture(repo, [10, 5, 3])
-            argv = [str(SCRIPT), "--plan", str(plan), "balance", "--repo", str(repo),
-                    "--junit", str(junit), "--write"]
+            argv = [
+                str(SCRIPT),
+                "--plan",
+                str(plan),
+                "balance",
+                "--repo",
+                str(repo),
+                "--junit",
+                str(junit),
+                "--write",
+            ]
             stderr = io.StringIO()
-            with mock.patch.object(sys, "argv", argv), \
-                    mock.patch.object(pathlib.Path, "write_text", side_effect=OSError("injected write failure")), \
-                    contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
+            with (
+                mock.patch.object(sys, "argv", argv),
+                mock.patch.object(
+                    pathlib.Path,
+                    "write_text",
+                    side_effect=OSError("injected write failure"),
+                ),
+                contextlib.redirect_stdout(io.StringIO()),
+                contextlib.redirect_stderr(stderr),
+            ):
                 with self.assertRaises(SystemExit) as error:
                     MODULE.main()
             self.assertEqual(error.exception.code, 1)
@@ -523,7 +574,9 @@ class ShardTests(unittest.TestCase):
             repo = self.make_repo(directory)
             plan = repo / "plan.json"
             baseline = self.make_plan()
-            baseline["shards"][0]["suites"].remove("ModuleSnapshotTests/ThirdSnapshotTests")
+            baseline["shards"][0]["suites"].remove(
+                "ModuleSnapshotTests/ThirdSnapshotTests"
+            )
             plan.write_text(json.dumps(baseline))
             junit = self.timing_fixture(repo, [100, 95, 2])
             result = self.balance_cli(repo, plan, junit, "--write")

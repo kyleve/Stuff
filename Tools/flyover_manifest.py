@@ -44,7 +44,9 @@ def validate_artifact(
             f"no generated atlas exists at {root}. Run ./flyover export first."
         ) from None
     except OSError as error:
-        raise FlyoverArtifactError(f"could not inspect the atlas path {root}: {error}") from error
+        raise FlyoverArtifactError(
+            f"could not inspect the atlas path {root}: {error}"
+        ) from error
     if stat.S_ISLNK(root_status.st_mode):
         raise FlyoverArtifactError(f"the atlas directory is a symbolic link: {root}")
     if not stat.S_ISDIR(root_status.st_mode):
@@ -87,19 +89,31 @@ def validate_artifact(
     try:
         web_assets = json.loads(web_assets_path.read_bytes())
     except (OSError, ValueError) as error:
-        raise FlyoverArtifactError(f"could not read web-assets.json: {error}") from error
+        raise FlyoverArtifactError(
+            f"could not read web-assets.json: {error}"
+        ) from error
     if not isinstance(web_assets, list) or not web_assets:
         raise FlyoverArtifactError("web-assets.json must contain the built asset paths")
     for relative in web_assets:
-        if (not isinstance(relative, str) or not relative.startswith("assets/")
-                or any(part in ("", ".", "..") for part in relative.split("/"))
-                or "\\" in relative or "%" in relative or "?" in relative or "#" in relative
-                or PurePosixPath(relative).suffix not in (".js", ".css")
-                or not (root / relative).is_file()):
+        if (
+            not isinstance(relative, str)
+            or not relative.startswith("assets/")
+            or any(part in ("", ".", "..") for part in relative.split("/"))
+            or "\\" in relative
+            or "%" in relative
+            or "?" in relative
+            or "#" in relative
+            or PurePosixPath(relative).suffix not in (".js", ".css")
+            or not (root / relative).is_file()
+        ):
             raise FlyoverArtifactError(f"invalid or missing web asset: {relative}")
     if len(set(web_assets)) != len(web_assets):
         raise FlyoverArtifactError("duplicate web asset")
-    actual_web_assets = {path.relative_to(root).as_posix() for path in (root / "assets").rglob("*") if path.is_file()}
+    actual_web_assets = {
+        path.relative_to(root).as_posix()
+        for path in (root / "assets").rglob("*")
+        if path.is_file()
+    }
     if set(web_assets) != actual_web_assets:
         raise FlyoverArtifactError("web asset files do not match web-assets.json")
 
@@ -118,7 +132,7 @@ def validate_artifact(
         path = root.joinpath(*relative.parts)
         if not path.is_file():
             raise FlyoverArtifactError(f"the manifest image is missing: {relative}")
-        validate_png(path, image['pixelWidth'], image['pixelHeight'])
+        validate_png(path, image["pixelWidth"], image["pixelHeight"])
         asset_paths.append(relative.as_posix())
 
         if "thumbnailRelativePath" in image:
@@ -130,11 +144,17 @@ def validate_artifact(
                 raise FlyoverArtifactError(
                     f"the manifest thumbnail is missing: {thumbnail}"
                 )
-            validate_png(thumbnail_path, image['thumbnailPixelWidth'], image['thumbnailPixelHeight'])
+            validate_png(
+                thumbnail_path,
+                image["thumbnailPixelWidth"],
+                image["thumbnailPixelHeight"],
+            )
             asset_paths.append(thumbnail.as_posix())
 
     if len(set(asset_paths)) != len(asset_paths):
-        raise FlyoverArtifactError("manifest.json contains a duplicate image or thumbnail path")
+        raise FlyoverArtifactError(
+            "manifest.json contains a duplicate image or thumbnail path"
+        )
 
     images_directory = root / "images"
     if images_directory.is_dir():

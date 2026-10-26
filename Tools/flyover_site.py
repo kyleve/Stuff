@@ -22,9 +22,12 @@ BUILD_ROOT = SITE / ".build"
 
 def environment(workspace, public):
     stage_workspace(SITE, workspace)
-    return {**os.environ, "ASTRO_TELEMETRY_DISABLED": "1",
-            "FLYOVER_SITE_CACHE": str(workspace / "cache"),
-            "FLYOVER_SITE_PUBLIC": str(public)}
+    return {
+        **os.environ,
+        "ASTRO_TELEMETRY_DISABLED": "1",
+        "FLYOVER_SITE_CACHE": str(workspace / "cache"),
+        "FLYOVER_SITE_PUBLIC": str(public),
+    }
 
 
 def build_shell(output):
@@ -35,29 +38,51 @@ def build_shell(output):
         public = workspace / "public"
         public.mkdir()
         target = workspace / "site"
-        result = subprocess.run(astro_command(SITE, workspace, "build", "--outDir", str(target)),
-                                cwd=SITE, env=environment(workspace, public), capture_output=True, text=True)
+        result = subprocess.run(
+            astro_command(SITE, workspace, "build", "--outDir", str(target)),
+            cwd=SITE,
+            env=environment(workspace, public),
+            capture_output=True,
+            text=True,
+        )
         if result.returncode:
-            raise ValueError(f"Astro build failed (exit {result.returncode}):\n{result.stdout}{result.stderr}")
-        actual = {str(path.relative_to(target)) for path in target.rglob("*") if path.is_file()}
-        if "index.html" not in actual or any(path != "index.html" and not path.startswith("assets/") for path in actual):
+            raise ValueError(
+                f"Astro build failed (exit {result.returncode}):\n{result.stdout}{result.stderr}"
+            )
+        actual = {
+            str(path.relative_to(target))
+            for path in target.rglob("*")
+            if path.is_file()
+        }
+        if "index.html" not in actual or any(
+            path != "index.html" and not path.startswith("assets/") for path in actual
+        ):
             raise ValueError(f"Unexpected Astro assets: {sorted(actual)}")
         for relative in actual:
             destination = output / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(target / relative, destination)
-        (output / "web-assets.json").write_text(json.dumps(sorted(actual - {"index.html"})))
+        (output / "web-assets.json").write_text(
+            json.dumps(sorted(actual - {"index.html"}))
+        )
 
 
 def copy_artifact(artifact, output, *, captures_only):
     """Copy the validated allowlist through no-follow descriptors into a private server root."""
     with open_artifact_root(artifact) as descriptor:
         for relative in sorted(artifact.allowed_paths):
-            if captures_only and relative != "manifest.json" and not relative.startswith("images/"):
+            if (
+                captures_only
+                and relative != "manifest.json"
+                and not relative.startswith("images/")
+            ):
                 continue
             destination = output / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
-            with open_file_beneath(descriptor, relative) as source, destination.open("xb") as target:
+            with (
+                open_file_beneath(descriptor, relative) as source,
+                destination.open("xb") as target,
+            ):
                 shutil.copyfileobj(source, target)
 
 
@@ -70,17 +95,33 @@ def serve(mode, directory, port, lan):
         public = workspace / "public"
         public.mkdir()
         output = workspace / "site"
-        copy_artifact(artifact, public if mode == "dev" else output, captures_only=mode == "dev")
+        copy_artifact(
+            artifact, public if mode == "dev" else output, captures_only=mode == "dev"
+        )
         env = environment(workspace, public)
-        arguments = [mode, "--ignore-lock", "--port", str(port), "--outDir", str(output)]
+        arguments = [
+            mode,
+            "--ignore-lock",
+            "--port",
+            str(port),
+            "--outDir",
+            str(output),
+        ]
         if lan:
             arguments += ["--host", "0.0.0.0"]
-            print("Warning: LAN preview has no authentication or TLS. Use a trusted network.", flush=True)
+            print(
+                "Warning: LAN preview has no authentication or TLS. Use a trusted network.",
+                flush=True,
+            )
         else:
             arguments += ["--host", "127.0.0.1"]
         print(f"Flyover {mode}: {directory}", flush=True)
-        process = subprocess.Popen(astro_command(SITE, workspace, *arguments), cwd=SITE, env=env,
-                                   start_new_session=True)
+        process = subprocess.Popen(
+            astro_command(SITE, workspace, *arguments),
+            cwd=SITE,
+            env=env,
+            start_new_session=True,
+        )
         interrupted = None
 
         def interrupt(number, _frame):
@@ -88,7 +129,10 @@ def serve(mode, directory, port, lan):
             interrupted = number
             raise KeyboardInterrupt
 
-        previous = {number: signal.signal(number, interrupt) for number in (signal.SIGINT, signal.SIGTERM)}
+        previous = {
+            number: signal.signal(number, interrupt)
+            for number in (signal.SIGINT, signal.SIGTERM)
+        }
         try:
             status = process.wait()
             return status if status >= 0 else 128 - status
