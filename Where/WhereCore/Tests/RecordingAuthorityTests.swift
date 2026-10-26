@@ -17,7 +17,7 @@ struct RecordingAuthorityTests {
         #expect(state.requiredVersion == .initial)
     }
 
-    @Test func handoffRetainsFloorAndChangesTenure() throws {
+    @Test func handoffRetainsFloorAndChangesOwnership() throws {
         let fixture = RecordingAuthorityFixture()
         let claim = try fixture.proposal(.initial, .claim, device: fixture.phone)
         let request = try fixture.proposal(
@@ -33,7 +33,7 @@ struct RecordingAuthorityTests {
             device: fixture.phone,
         )
         #expect(transfer.result.owner?.deviceID == fixture.tablet)
-        #expect(transfer.result.owner?.tenureID != claim.result.owner?.tenureID)
+        #expect(transfer.result.owner?.ownershipID != claim.result.owner?.ownershipID)
         #expect(transfer.result.pendingHandoff == nil)
         #expect(transfer.result.requiredVersion == .initial)
         try transfer.validate()
@@ -56,7 +56,7 @@ struct RecordingAuthorityTests {
     }
 
     @Test(arguments: [RecordingRecoveryHistory.keep, .excludeAfterReplacement])
-    func recoveryBindsChoiceToReplacedTenure(choice: RecordingRecoveryHistory) throws {
+    func recoveryBindsChoiceToReplacedOwnership(choice: RecordingRecoveryHistory) throws {
         let fixture = RecordingAuthorityFixture()
         let claim = try fixture.proposal(.initial, .claim, device: fixture.phone)
         let recovery = try fixture.proposal(claim.result, .recover(choice), device: fixture.tablet)
