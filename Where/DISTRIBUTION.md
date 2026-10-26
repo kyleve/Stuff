@@ -30,8 +30,9 @@ Where Beta and the App Store app keep their separate identity and store.
 
 ## One-time setup
 
-The workflow stays disabled until the repository variable `WHERE_DISTRIBUTION_ENABLED` is `true`.
+The signed-build workflow stays disabled until the repository variable `WHERE_DISTRIBUTION_ENABLED` is `true`.
 Complete these steps before enabling it.
+The shared install site and empty catalog need only the [Pages configuration](../Tools/InstallerKit/README.md#shared-hosting).
 The repository must be public. Publication uses GitHub's built-in `GITHUB_TOKEN`.
 CircleCI builds the signed IPA. GitHub Actions uses a separate CircleCI API token to request and retrieve that build.
 The IPA, manifest, commit notes, and build metadata are public.
@@ -114,7 +115,8 @@ The provisioning profile inside the IPA includes those device identifiers.
    GitHub's default policy can block `pull_request_target` in public repositories.
    See [workflow execution policies](https://docs.github.com/en/actions/how-tos/administer/control-workflow-execution).
 8. In GitHub Settings → Pages, select **GitHub Actions** as the publishing source.
-   Allow `workflow_dispatch` for `.github/workflows/installer-pages.yml` in the Actions event policy.
+   Allow `push` and `workflow_dispatch` for `.github/workflows/installer-pages.yml` in the Actions event policy.
+   Run **App Install Site** manually on `main` to publish the catalog before signing is ready.
    The default feed URL is `https://kyleve.github.io/Stuff/updates.json`.
    If Pages uses a custom domain, set `INSTALLER_FEED_URL` to its HTTPS catalog URL before building.
 9. Create the repository label `installable` if it does not exist.

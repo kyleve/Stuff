@@ -1,5 +1,6 @@
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import replace
+import base64
 import hashlib
 import io
 import json
@@ -10,11 +11,12 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from Tools.InstallerKit.github_releases import asset_url
 from Tools.InstallerKit.installer_installation import manifest_url
 from Tools.InstallerKit.installer_apps import AppPresentation, load_app
+from Tools.InstallerKit.installer_update_feed import GitHubUpdateFeed
 from Tools.InstallerKit.installer_update_site import BUILD_ROOT, build_astro, main, render_site, resolve_mise, stage_input, write_site
 from Tools.repository import repository_root
 from Tools.Tests.Fixtures.installer_update_fixtures import catalog, multiple_apps, FEED_URL, REPO
@@ -93,6 +95,65 @@ class InstallerMiseResolutionTests(unittest.TestCase):
 
 
 class InstallerUpdateSiteTests(unittest.TestCase):
+    def test_published_catalog_command_builds_an_empty_site_before_first_publication(self):
+        transport = Mock(return_value=None)
+        feed = GitHubUpdateFeed(REPO, "fixture-token", transport)
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / "site"
+            with patch("Tools.InstallerKit.installer_update_site.GitHubUpdateFeed", return_value=feed), \
+                    redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
+                status = main(["--published-catalog", "--repository", REPO,
+                               "--feed-url", FEED_URL, "--output", str(output)])
+            self.assertEqual(status, 0, stderr.getvalue())
+            self.assertEqual(stderr.getvalue(), "")
+            self.assertIn("Prepared", stdout.getvalue())
+            self.assertEqual(json.loads((output / "updates.json").read_text()), {"schemaVersion": 3, "apps": []})
+            self.assertIn("No builds are available yet", (output / "index.html").read_text())
+            self.assertFalse((output / "manifests").exists())
+        self.assertTrue(all(call.args[0].method == "GET" for call in transport.call_args_list))
+
+    def test_published_catalog_command_keeps_existing_builds_and_retired_history(self):
+        value = multiple_apps()
+        value["apps"][0]["channels"][1]["active"] = False
+        value["apps"][1]["channels"].append({
+            "name": "pr-43", "active": False, "releases": [],
+            "buildStatus": {"state": "preparing", "id": {"run": 3, "attempt": 1}, "sha": "3" * 40},
+        })
+        transport = Mock(return_value={"sha": "revision", "encoding": "base64",
+                                      "content": base64.b64encode(json.dumps(value).encode()).decode()})
+        feed = GitHubUpdateFeed(REPO, "fixture-token", transport)
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / "site"
+            with patch("Tools.InstallerKit.installer_update_site.GitHubUpdateFeed", return_value=feed), \
+                    redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
+                status = main(["--published-catalog", "--repository", REPO,
+                               "--feed-url", FEED_URL, "--output", str(output)])
+            self.assertEqual(status, 0, stderr.getvalue())
+            self.assertEqual(stderr.getvalue(), "")
+            self.assertIn("Prepared", stdout.getvalue())
+            self.assertEqual(json.loads((output / "updates.json").read_text()), value)
+            self.assertFalse((output / "manifests/where/pr-42").exists())
+            self.assertFalse((output / "manifests/example/pr-43").exists())
+            for path in ("manifests/where/main/2-1.plist", "manifests/example/pr-42/2-1.plist"):
+                self.assertTrue((output / path).is_file())
+
+    def test_published_catalog_read_failure_stops_before_build_or_output(self):
+        for failure in (ValueError("api.github.com: HTTP 403"), OSError("connection lost"),
+                        ValueError("Unsupported update catalog"), ValueError("updates.json is missing")):
+            with self.subTest(failure=str(failure)), tempfile.TemporaryDirectory() as temporary:
+                output = Path(temporary) / "site"
+                with patch("Tools.InstallerKit.installer_update_site.GitHubUpdateFeed") as feed, \
+                        patch("Tools.InstallerKit.installer_update_site.render_site") as render, \
+                        redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
+                    feed.return_value.load_for_deployment.side_effect = failure
+                    status = main(["--published-catalog", "--repository", REPO,
+                                   "--feed-url", FEED_URL, "--output", str(output)])
+                self.assertEqual(status, 1)
+                self.assertEqual(stdout.getvalue(), "")
+                self.assertEqual(stderr.getvalue(), f"error: {failure}\n")
+                self.assertFalse(output.exists())
+                render.assert_not_called()
+
     def test_site_feed_and_manifests_share_exact_releases_and_escape_commit_subjects(self):
         value = catalog()
         files = render_site(value, REPO, FEED_URL)

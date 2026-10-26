@@ -265,7 +265,8 @@ The app registry selects identities; the signing registry selects schemes, produ
 Apps inject their model, branding, and optional section modifiers for host search.
 Configured local Development builds can browse remote builds. Reinstall through Xcode or the app's local installer to return to Local.
 All registered iOS apps share one catalog and install site. Main builds appear on
-the homepage, and each app has its own PR pages. Read [the installer guide](Tools/InstallerKit/README.md)
+the homepage, and each app has its own PR pages. The site deploys from `main` independently of signed builds.
+Read [the installer guide](Tools/InstallerKit/README.md)
 when adding an app. `./signing setup --app <id>` prepares signing and enables a registered app after its configuration merges.
 Add `--pr <number>` to prepare its PR source and request publication. Use `--dry-run` to preview setup.
 `InstallerKitTests` and `InstallerKitUITests` run in `Stuff-iOS-Tests`.

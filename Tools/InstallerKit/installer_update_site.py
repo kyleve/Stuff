@@ -10,6 +10,7 @@ import sys
 import tempfile
 
 from Tools.InstallerKit.installer_site_data import prepare_site
+from Tools.InstallerKit.installer_update_feed import GitHubUpdateFeed
 from Tools.repository import repository_root
 
 
@@ -100,7 +101,10 @@ def write_site(files, output):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--catalog", type=Path, required=True)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--catalog", type=Path, help="Read a local catalog")
+    source.add_argument("--published-catalog", action="store_true",
+                        help="Read the GitHub catalog, or use an empty catalog before the first publication")
     parser.add_argument("--repository", required=True)
     parser.add_argument("--feed-url", required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -108,7 +112,12 @@ def main(argv=None):
     try:
         if args.output.exists():
             raise ValueError("Pages output directory must not exist")
-        files = render_site(json.loads(args.catalog.read_text()), args.repository, args.feed_url)
+        if args.published_catalog:
+            feed = GitHubUpdateFeed(args.repository, os.environ.get("GH_TOKEN", ""))
+            catalog = feed.load_for_deployment()
+        else:
+            catalog = json.loads(args.catalog.read_text())
+        files = render_site(catalog, args.repository, args.feed_url)
         write_site(files, args.output)
         print(f"Prepared {len(files)} Pages files in {args.output}")
     except (OSError, ValueError, KeyError, TypeError) as error:
