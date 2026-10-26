@@ -176,6 +176,15 @@ class GitHubUpdateFeed:
             raise ValueError("Update catalog exceeds the GitHub Contents API size limit")
         return read_catalog(json.loads(base64.b64decode(response["content"]))), response["sha"]
 
+    def load_for_deployment(self):
+        """Use an empty catalog only before the publication branch exists."""
+        catalog, revision = self.load()
+        if revision is None:
+            branch = self.request("GET", f"git/ref/heads/{BRANCH}", allow_missing=True)
+            if branch is not None:
+                raise ValueError(f"{FILE} is missing from {BRANCH}; restore the catalog before deploying")
+        return catalog
+
     def ensure_branch(self):
         if self.request("GET", f"git/ref/heads/{BRANCH}", allow_missing=True) is not None:
             return
