@@ -1,5 +1,6 @@
 import InstallerKit
 #if DEBUG
+    import Flyover
     @_spi(Testing) import InstallerKitUI
 #else
     import InstallerKitUI
@@ -66,29 +67,62 @@ extension DevelopmentUpdatesView: SettingsSection {
 #if DEBUG
     extension DevelopmentUpdatesView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            for scenario in InstallerPreview.Scenario.allCases {
-                let model = InstallerPreview.model(scenario)
-                whereSnapshot(
-                    name: scenario.rawValue,
-                    configurations: scenario == .available ? .fullContentScreenRepresentative :
-                        .fullContentPhoneLightDark,
-                    measurementReadiness: scenario.requiresRefresh ? .sameAsCapture : .immediate,
-                    onReadyToMeasure: {
-                        if scenario.requiresRefresh { await model.refresh(force: true) }
-                    },
-                ) {
-                    NavigationStack { DevelopmentUpdatesView(model: model, focus: nil) }
+            // InstallerKitUI owns the scenario matrix; these check Where branding and integration.
+            snapshot(scenario: .available, configurations: [
+                .init(device: .iPhoneFullContent),
+                .init(colorScheme: .dark, device: .iPhoneFullContent),
+                .init(dynamicType: .accessibility5, device: .iPhoneFullContent),
+                .init(device: .iPhoneFullContent, snapshotType: .accessibility),
+                .init(device: .iPadFullContent),
+            ])
+            snapshot(scenario: .local, configurations: [.init(device: .iPhoneFullContent)])
+        }
+
+        /// Preserve all browsing states independently of the smaller recorded integration matrix.
+        enum PreviewScenarios: SnapshotProviding {
+            static var snapshots: [SnapshotCase] {
+                for scenario in InstallerPreview.Scenario.allCases {
+                    DevelopmentUpdatesView.snapshot(
+                        scenario: scenario,
+                        configurations: scenario == .available ? .fullContentScreenRepresentative :
+                            .fullContentPhoneLightDark,
+                    )
                 }
+            }
+        }
+
+        private static func snapshot(
+            scenario: InstallerPreview.Scenario,
+            configurations: [SnapshotConfiguration],
+        ) -> SnapshotCase {
+            let model = InstallerPreview.model(scenario)
+            return whereSnapshot(
+                name: scenario.rawValue,
+                configurations: configurations,
+                measurementReadiness: scenario.requiresRefresh ? .sameAsCapture : .immediate,
+                onReadyToMeasure: {
+                    if scenario.requiresRefresh { await model.refresh(force: true) }
+                },
+            ) {
+                NavigationStack { DevelopmentUpdatesView(model: model, focus: nil) }
             }
         }
     }
 
-    #Preview { DevelopmentUpdatesView.snapshotPreviews }
+    #Preview { DevelopmentUpdatesView.PreviewScenarios.snapshotPreviews }
 
     extension DevelopmentUpdatesView: WhereFlyoverProviding {
-        static let flyoverData = WhereFlyoverData.snapshots(
-            DevelopmentUpdatesView.self,
-            title: "App Updates",
-        )
+        static let flyoverData = WhereFlyoverData(DevelopmentUpdatesView.self) { id, _ in
+            FlyoverScreen(
+                id: id,
+                title: "App Updates",
+                variants: PreviewScenarios.snapshots.flatMap { snapshotCase in
+                    FlyoverVariant.snapshots(
+                        id: FlyoverVariantID(snapshotCase.name),
+                        snapshotCase: snapshotCase,
+                    )
+                },
+            )
+        }
     }
 #endif

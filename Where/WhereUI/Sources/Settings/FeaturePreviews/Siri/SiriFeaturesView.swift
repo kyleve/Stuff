@@ -54,7 +54,7 @@ extension SiriFeaturesView: SettingsSection {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Default",
-                configurations: .fullContentScreenRepresentative,
+                configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
                 SiriFeaturesView(

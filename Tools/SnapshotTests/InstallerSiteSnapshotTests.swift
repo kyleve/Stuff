@@ -13,17 +13,11 @@ struct InstallerSiteSnapshotTests {
         let pages = try JSONDecoder().decode([Page].self, from: Data(contentsOf: url))
         #expect(Set(pages.map(\.name)) == Set(Page.Name.allCases))
         #expect(pages.count == Page.Name.allCases.count)
-        let configurations: [SnapshotConfiguration] = [
-            .init(layoutTraits: .phonePortrait, device: .iPhoneFullContent),
-            .init(colorScheme: .dark, layoutTraits: .phonePortrait, device: .iPhoneFullContent),
-            .init(layoutTraits: .tabletPortrait, device: .iPadFullContent),
-            .init(colorScheme: .dark, layoutTraits: .tabletPortrait, device: .iPadFullContent),
-        ]
         for page in pages {
             try await assertHTMLSnapshots(
                 of: page.html,
                 named: page.name.rawValue,
-                configurations: configurations,
+                configurations: page.name.configurations,
             )
         }
     }
@@ -42,6 +36,36 @@ struct InstallerSiteSnapshotTests {
             case failed = "Failed"
             case rebuilding = "Rebuilding"
             case unpublished = "Unpublished"
+
+            var configurations: [SnapshotConfiguration] {
+                let phone = SnapshotConfiguration(
+                    layoutTraits: .phonePortrait,
+                    device: .iPhoneFullContent,
+                )
+                let phoneDark = SnapshotConfiguration(
+                    colorScheme: .dark,
+                    layoutTraits: .phonePortrait,
+                    device: .iPhoneFullContent,
+                )
+                let tablet = SnapshotConfiguration(
+                    layoutTraits: .tabletPortrait,
+                    device: .iPadFullContent,
+                )
+                let tabletDark = SnapshotConfiguration(
+                    colorScheme: .dark,
+                    layoutTraits: .tabletPortrait,
+                    device: .iPadFullContent,
+                )
+                // Main layouts own responsive/appearance coverage; status pages retain their unique
+                // content.
+                return switch self {
+                    case .index, .app, .channel: [phone, phoneDark, tablet, tabletDark]
+                    case .failed, .preparing: [phone, phoneDark]
+                    case .rebuilding: [phone, tablet]
+                    case .retired, .empty, .unavailableHistory, .missingDetails, .preparingApp,
+                         .unpublished: [phone]
+                }
+            }
         }
 
         let name: Name

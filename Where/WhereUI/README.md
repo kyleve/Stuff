@@ -649,12 +649,16 @@ the on-disk/CloudKit store). Internal types are reached via
 `@testable import WhereUI`.
 
 How screens *look* is pinned separately: every top-level screen, widget, and
-app-flow surface has matrixed image snapshots (light/dark, Dynamic Type,
-iPhone/iPad, contrast, right-to-left, VoiceOver annotations) in
+app-flow surface has image snapshots, with representative layouts covering
+light/dark, Dynamic Type, iPhone/iPad, contrast, and VoiceOver annotations, in
 [`SnapshotTests/`](SnapshotTests), with reference images under
 `SnapshotTests/__Snapshots__/` in Git LFS. Each view declares its matrix via a
 `SnapshotProviding` conformance **in its own source file**, shared with its
-`#Preview` cutsheet (`Self.snapshotPreviews`). There is one `FooSnapshotTests`
+`#Preview` cutsheet (`Self.snapshotPreviews`). Additional states use compact coverage
+or focused traits. Explore Features shares a representative gallery matrix with
+large-type checks on dense content. The updater wrapper records only host integration;
+its shared fixture builder still supplies all scenarios to previews and Flyover.
+There is one `FooSnapshotTests`
 suite per view, so each view's references live in their own `__Snapshots__/`
 directory. They build as this module's own `WhereUISnapshotTests` bundle, which
 runs alongside the other modules' image suites in the shared

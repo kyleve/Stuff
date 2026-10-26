@@ -312,7 +312,11 @@ job, deliberately outside `Stuff-iOS-Tests` (root
 [`AGENTS.md`](../../AGENTS.md#targets)). Declarations use the helpers in
 [`Sources/Preview/WhereSnapshot.swift`](Sources/Preview/WhereSnapshot.swift).
 Follow `building-ui` for authoring and the repo `running-tests` skill for
-recording/reviewing references.
+recording/reviewing references. Apply [SnapshotKit's coverage policy](../../Shared/SnapshotKit/AGENTS.md):
+Explore Features galleries share layout coverage; retain focused large-type checks
+for dense content. Shared InstallerKitUI owns updater scenario coverage; Where's
+wrapper owns branding and integration. Preserve all updater preview/Flyover states
+through the shared fixture builder when narrowing its recorded cases.
 
 For new or changed themed components, use `whereThemeSnapshot` for one comparison
 sheet containing every supported theme. Use representative states across light/dark

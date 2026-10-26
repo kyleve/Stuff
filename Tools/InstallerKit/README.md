@@ -166,6 +166,8 @@ New apps reuse publication and update logic. They do not need another site or a 
 [The Astro project](Site/README.md) contains the Astro templates and local preview commands.
 Python owns catalog validation and install manifests. Astro renders the pages from validated input.
 Local previews and WebKit snapshots share deterministic catalogs and the production templates.
+WebKit retains every page state at phone baseline. Index, app, and channel layouts
+cover both appearances and tablet; selected status pages add dark or tablet checks.
 
 ## Shared hosting
 
