@@ -40,10 +40,10 @@ public final class InMemoryInstallationRecordingContextStore:
 
     public func confirmInitialRecording(
         isEnabled: Bool,
-    ) throws -> InstallationRecordingContext {
-        if onboardingContext.automaticRecordingEnabled != nil { return onboardingContext }
-        onboardingContext = onboardingContext.confirmingInitialRecording(isEnabled: isEnabled)
-        return onboardingContext
+    ) throws -> ConfirmedInstallationContext {
+        let confirmed = onboardingContext.confirmingInitialRecording(isEnabled: isEnabled)
+        onboardingContext = confirmed.context
+        return confirmed
     }
 
     public func setRecordingAccount(_ binding: RecordingAccountBinding) throws {
@@ -55,7 +55,10 @@ public final class InMemoryInstallationRecordingContextStore:
     }
 
     public func setAutomaticRecordingEnabled(_ isEnabled: Bool) throws {
-        onboardingContext = onboardingContext.settingAutomaticRecordingEnabled(isEnabled, at: now())
+        onboardingContext = try onboardingContext.confirmed().settingAutomaticRecordingEnabled(
+            isEnabled,
+            at: now(),
+        ).context
     }
 
     public func rejoin() throws -> InstallationRecordingContext {

@@ -58,7 +58,7 @@ final class CompatibilityBootstrap: WhereScopeAssembling {
     }
 
     func prepareLocation() {}
-    func prepareCompatibility() async throws -> DataCompatibilityCoordinator? {
+    func prepareCompatibility() async throws -> any DataCompatibilityChecking {
         if let preparationError { throw preparationError }
         return compatibility
     }
@@ -83,7 +83,7 @@ final class CompatibilityBootstrap: WhereScopeAssembling {
         let services = try WhereServices(
             store: domain,
             locationSource: locationSource,
-            installationContext: installation.resolve(),
+            installationContext: installation.resolve().confirmed(),
             recordingAuthority: authority,
             deviceCoordination: recording,
         )

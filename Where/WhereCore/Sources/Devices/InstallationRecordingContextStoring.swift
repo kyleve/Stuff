@@ -13,7 +13,7 @@ public protocol InstallationRecordingContextStoring: AnyObject, BackupImportReco
     func resolve() throws -> InstallationRecordingContext
 
     /// Persist the first explicit local choice beside the installation identity.
-    func confirmInitialRecording(isEnabled: Bool) throws -> InstallationRecordingContext
+    func confirmInitialRecording(isEnabled: Bool) throws -> ConfirmedInstallationContext
 
     /// Persist a later Settings choice locally. The installation must already be confirmed.
     func setAutomaticRecordingEnabled(_ isEnabled: Bool) throws

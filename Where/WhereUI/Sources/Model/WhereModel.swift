@@ -261,7 +261,7 @@ public final class WhereModel {
     @discardableResult
     public func confirmInitialRecordingChoice(
         isEnabled: Bool,
-    ) throws -> InstallationRecordingContext {
+    ) throws -> ConfirmedInstallationContext {
         let context = try installationContextStore.resolve()
         if let existing = context.automaticRecordingEnabled {
             if existing !=
@@ -275,7 +275,7 @@ public final class WhereModel {
                 pendingTransition: nil,
             ))
         }
-        return try installationContextStore.resolve()
+        return try installationContextStore.resolve().confirmed()
     }
 
     /// Mark the first-run app flow complete after its scope and selections have
@@ -659,9 +659,8 @@ public final class WhereModel {
     ///
     /// Retain the bootstrap and its one store while replacing the normal service scope.
     private func logOut() async {
-        if compatibility.hasControlPlane, let scope = activeScope, scope.kind == .real {
-            await compatibility.revokeAccess()
-            await scope.services.suspendForCompatibility()
+        if let scope = activeScope, scope.kind == .real {
+            await compatibility.retireScope(scope.services)
         }
         await activeScope?.stopLogRouting()
         session = nil
@@ -696,6 +695,12 @@ public final class WhereModel {
 /// quietly open the user's on-disk SwiftData and Periscope stores from inside
 /// a test host.
 private struct InjectedServicesAssembler: WhereScopeAssembling {
+    private let compatibility = IsolatedDataCompatibility()
+
+    func prepareCompatibility() async throws -> any DataCompatibilityChecking {
+        compatibility
+    }
+
     func prepareDeviceCoordination() async throws -> RecordingDeviceCoordination? {
         services
             .deviceCoordination

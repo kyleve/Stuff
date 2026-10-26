@@ -458,7 +458,13 @@ struct WhereProjectRulesTests {
             component: .loggingTests,
             source: "func open() { _ = CompatibilityScopedStore(base: store, permit: permit) }",
         )
+        let isolated = try evaluate(
+            path: "Where/WhereCore/Sources/Compatibility/DataCompatibilityCoordinator.swift",
+            component: .whereCore,
+            source: "@_spi(Demo) public static func isolatedDomainStore() throws -> CompatibilityScopedStore { CompatibilityScopedStore(base: try SwiftDataStore.inMemory(), permit: DataAccessPermit()) }",
+        )
         #expect(allowed.violations.isEmpty)
+        #expect(isolated.violations.isEmpty)
         #expect(fixture.violations.isEmpty)
         #expect(rejected.violations.map(\.rule.id) == ["where.compatibility_scope_ownership"])
     }

@@ -100,21 +100,21 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
     }
 
     /// Persist identity/intent before the first server mutation, including on restored phones.
-    public func selectRecordingRole(_ selection: RecordingInstallationControl
-        .Selection) async throws -> RecordingAuthority
+    public func selectRecordingRole(_ choice: RecordingInstallationControl
+        .RoleChoice) async throws -> RecordingAuthority
     {
         try await authority.withAccountAccess {
-            try await self.selectRecordingRoleInAccount(selection)
+            try await self.selectRecordingRoleInAccount(choice)
         }
     }
 
-    private func selectRecordingRoleInAccount(_ selection: RecordingInstallationControl
-        .Selection) async throws -> RecordingAuthority
+    private func selectRecordingRoleInAccount(_ choice: RecordingInstallationControl
+        .RoleChoice) async throws -> RecordingAuthority
     {
         guard !isOperating else { throw RecordingAuthorityError.conflict }
         isOperating = true
         defer { finishOperation() }
-        precondition(selection != .unconfirmed)
+        let selection = choice.selection
         if try await installation.resolve().recordingControl.pendingTransition != nil {
             let state = try await retryPendingRequestImpl()
             if try await installation.resolve().recordingControl.pendingTransition != nil {
@@ -165,8 +165,9 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
         defer { finishOperation() }
         let context = try await installation.resolve()
         if let pending = context.recordingControl.pendingTransition {
-            guard pending.kind == .recover, pending.expected.owner == reviewedOwner,
-                  pending.recoveryHistory == history else { throw RecordingAuthorityError.conflict }
+            guard pending.transition == .recover(history),
+                  pending.expected.owner == reviewedOwner
+            else { throw RecordingAuthorityError.conflict }
             try await submitPersisted(pending, selection: .recordingRequested)
             return try await authority.observed()
         }
@@ -292,9 +293,8 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
     private func reconcilePendingTransition(verified state: RecordingAuthority) async throws {
         let context = try await installation.resolve()
         guard let pending = context.recordingControl.pendingTransition,
-              let proposedRevision = pending.result.revision,
               let verifiedRevision = state.revision,
-              verifiedRevision.sequence >= proposedRevision.sequence
+              verifiedRevision.sequence >= pending.result.revision.sequence
         else { return }
         try await installation.saveAccountRecordingControl(.init(
             selection: context.recordingControl.selection,
@@ -302,8 +302,26 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
         ))
     }
 
+    /// Minted only after the durable approval fence is written. The recording controller must
+    /// stop and drain capture before submitting it. Freshness is still checked at submission.
+    struct PreparedHandoffApproval {
+        fileprivate let proposal: RecordingAuthorityProposal
+        let requestID: RecordingAuthority.EventID
+        var target: RecordingAuthority.Owner {
+            proposal.result.owner
+        }
+
+        fileprivate init(
+            proposal: RecordingAuthorityProposal,
+            requestID: RecordingAuthority.EventID,
+        ) {
+            self.proposal = proposal
+            self.requestID = requestID
+        }
+    }
+
     func prepareApproval(requestID: RecordingAuthority
-        .EventID) async throws -> RecordingAuthorityProposal
+        .EventID) async throws -> PreparedHandoffApproval
     {
         try await authority.withAccountAccess {
             try await self.prepareApprovalInAccount(requestID: requestID)
@@ -311,7 +329,7 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
     }
 
     private func prepareApprovalInAccount(requestID: RecordingAuthority
-        .EventID) async throws -> RecordingAuthorityProposal
+        .EventID) async throws -> PreparedHandoffApproval
     {
         guard !isOperating else { throw RecordingAuthorityError.conflict }
         isOperating = true
@@ -321,10 +339,9 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
             guard pending.kind == .transfer,
                   pending.expected.pendingHandoff?.requestID == requestID
             else { throw RecordingAuthorityError.invalidHandoff }
-            guard let target = pending.result.owner
-            else { throw RecordingAuthorityError.invalidHandoff }
+            let target = pending.result.owner
             try await authority.requireEligibleHandoffTarget(target.deviceID)
-            return pending
+            return .init(proposal: pending, requestID: requestID)
         }
         let state = try await authority.refresh()
         let proposal = try RecordingAuthorityProposal(
@@ -334,34 +351,32 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
             buildVersion: supportedVersion,
             eventID: .init(rawValue: UUID()),
         )
-        guard let target = proposal.result.owner
-        else { throw RecordingAuthorityError.invalidHandoff }
+        let target = proposal.result.owner
         try await authority.requireEligibleHandoffTarget(target.deviceID)
         try await installation.saveAccountRecordingControl(.init(
             selection: context.recordingControl.selection,
             pendingTransition: proposal,
         ))
-        return proposal
+        return .init(proposal: proposal, requestID: requestID)
     }
 
-    func commitStoppedApproval(_ proposal: RecordingAuthorityProposal) async throws {
+    func commitStoppedApproval(_ approval: PreparedHandoffApproval) async throws {
         try await authority.withAccountAccess {
-            try await self.commitStoppedApprovalInAccount(proposal)
+            try await self.commitStoppedApprovalInAccount(approval)
         }
     }
 
     private func commitStoppedApprovalInAccount(
-        _ proposal: RecordingAuthorityProposal,
+        _ approval: PreparedHandoffApproval,
     ) async throws {
         guard !isOperating else { throw RecordingAuthorityError.conflict }
         isOperating = true
         defer { finishOperation() }
         let context = try await installation.resolve()
-        guard context.recordingControl.pendingTransition == proposal,
-              proposal.kind == .transfer else { throw RecordingAuthorityError.invalidHandoff }
-        guard let target = proposal.result.owner
+        let proposal = approval.proposal
+        guard context.recordingControl.pendingTransition == proposal
         else { throw RecordingAuthorityError.invalidHandoff }
-        try await authority.requireEligibleHandoffTarget(target.deviceID)
+        try await authority.requireEligibleHandoffTarget(approval.target.deviceID)
         try await submitPersisted(proposal, selection: context.recordingControl.selection)
     }
 
@@ -405,7 +420,7 @@ extension InstallationRecordingContextStoring {
     }
 
     fileprivate func confirmAccountRecording(isEnabled: Bool) throws
-        -> InstallationRecordingContext
+        -> ConfirmedInstallationContext
     {
         try DataAccessPermit.current?.validate()
         return try confirmInitialRecording(isEnabled: isEnabled)

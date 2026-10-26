@@ -72,7 +72,7 @@ struct WhereServicesTests {
             try await store.setTrackedRegion(true, region: .california)
         }
         let services = try await WhereServices.make(
-            store: store,
+            store: CompatibilityScopedStore(base: store, permit: DataAccessPermit()),
             locationSource: ScriptedLocationSource(),
             installationContext: .testing,
             recordingAuthority: RecordingAuthority
@@ -888,7 +888,7 @@ struct WhereServicesTests {
 
         // A restart retains ownership and consent, but the prior generation cannot repopulate
         // history.
-        let relaunched = WhereServices(
+        let relaunched = try WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(authorizationStatus: .always),
             locationOutbox: outbox,
@@ -965,10 +965,10 @@ struct WhereServicesTests {
             ))
         }
 
-        let relaunched = WhereServices(
+        let relaunched = try WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(authorizationStatus: .always),
-            installationContext: oldContext,
+            installationContext: oldContext.confirmed(),
         )
         await #expect(throws: RecordingPersistenceError.currentDeviceRemoved(oldDevice.id)) {
             try await relaunched.recording.register(authorization: .always)

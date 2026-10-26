@@ -36,11 +36,11 @@ struct DeviceRecordingControllerTests {
             recordingChoice: enabled ? .on(enabledAt: enabledAt ?? registeredAt) : .off,
             isRejoining: false,
         )
-        return (
+        return try (
             DeviceRecordingController(
                 store: store,
                 ingestor: ingestor,
-                installationContext: context,
+                installationContext: context.confirmed(),
                 authority: RecordingAuthority.ownedForTesting(by: context.currentDevice.id),
                 coordination: nil,
                 now: { Self.now },

@@ -131,12 +131,9 @@ final class OnboardingFlowModel {
         }
         isFinishing = true
         do {
-            let context = try model.confirmInitialRecordingChoice(
+            _ = try model.confirmInitialRecordingChoice(
                 isEnabled: recordingEnabled,
             )
-            guard context.automaticRecordingEnabled != nil else {
-                preconditionFailure("A confirmed installation context must carry its choice.")
-            }
         } catch {
             Self.logger.installationContextWriteFailed(error: .restricted(.errorDetails, error))
             gate.fail(error)

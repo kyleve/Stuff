@@ -25,10 +25,10 @@ struct BackupCoordinatorTests {
             coordinate: .init(latitude: 40, longitude: -100),
             horizontalAccuracy: 5,
             source: .gpsVisit,
-        ).recorded(under: #require(claim.result.owner))
+        ).recorded(under: claim.result.owner)
         try await source.store.perform { try await source.store.add(sample: sample) }
         _ = try await authority.submit(fixture.proposal(
-            claim.result,
+            claim.result.authority,
             .recover(.excludeAfterReplacement),
             device: fixture.tablet,
         ))

@@ -208,6 +208,8 @@ internal shape.
   shared flight/boundary assessment with `assessGPS`; see `DataIssueScannerLog`.
 
 - Keep direct CloudKit coordination in `CloudKitRecordingAuthorityTransport`; never access SwiftData-managed CloudKit records there. See the [authority guide](RECORDING_AUTHORITY.md) for the protocol and reading order.
+- Decode authority through `RecordingAuthorityRecord` before entering domain APIs. Keep its wire fields stable while changing domain enums. Guards: `RecordingAuthorityRecordTests`, `CloudKitRecordingAuthorityRecordTests`.
+- Require `ConfirmedInstallationContext` for recording service construction. Persist confirmation before returning that value. Guard: `ConfirmedInstallationContextTests`, `InstallationRecordingContextStoreTests`.
 - Bind authority transitions to the reviewed state and reuse their event ID after uncertain responses. Resolve every immutable predecessor before publishing authority. Guard: `RecordingAuthorityCoordinatorTests` / `RecordingAuthorityTransportTests`.
 - Preserve authority commits across destructive data generations; exclude operational ownership from backups. All projection writes use `WhereStore.perform`.
 
@@ -246,14 +248,14 @@ them from its base for the same reason it inherits the attributor. A stack
 derived from the demo world must stay made of no-ops.
 
 - Require the current server-confirmed owner and local consent for automatic GPS. Recheck ownership before persisting a callback; preserve accepted outbox entries on ownership loss.
-- Persist an approval fence before stopping GPS and committing a handoff. Keep uncertain approvals and their cancellations fenced across restart until a server-confirmed outcome. Reconcile terminal commands after refresh and preserve the event ID for retries (`RecordingDeviceCoordinationTests`, `RecordingAuthority` model).
+- Return `PreparedHandoffApproval` only after persisting its fence. Stop and drain GPS before submitting that value. Keep uncertain approvals and their cancellations fenced across restart until a server-confirmed outcome. Reconcile terminal commands after refresh and preserve the event ID for retries (`RecordingDeviceCoordinationTests`, `RecordingAuthority` model).
 
 - Reject handoff targets with observed removal tombstones before approval and again before submission. Cancel a pending handoff before removing its target (`RecordingDeviceCoordinationTests`).
 - Keep recovery exclusions bound to the former ownership period and server commit time. Preserve raw samples and apply exclusions through `LocationHistoryReader` (`RecordingRecoveryExclusionTests`).
 - Preserve authority, installation identity, local consent, and the compatibility floor across history Reset and Replace. Backups carry historical exclusions and the floor, never live ownership (`BackupCoordinatorTests`, `WhereResetTests`).
 
 - Check scope permission at transaction entry and immediately before save. Domain mutations mark the transaction through `mutationContext()`; recovery metadata uses `controlMutationContext()`. Recheck pending and committed requirements before save. Reads remain available during teardown (`where.compatibility_store_boundary`, `SwiftDataStoreCompatibilityTests`).
-- Construct production `CompatibilityScopedStore` instances only through `DataCompatibilityCoordinator`; isolated test fixtures may construct their own. Revoke a scope permanently and build a new one after recovery (`where.compatibility_scope_ownership`).
+- Construct production `CompatibilityScopedStore` instances only through `DataCompatibilityCoordinator`; isolated test fixtures may construct their own. Require the concrete scoped type in `WhereServices.make`. Demo SPI creates its own memory store. Revoke a scope permanently and build a new one after recovery (`where.compatibility_scope_ownership`).
 - Advance the global version only through the current recording owner's server-conditional transition. Retain cached compatibility only for temporary network failures; authentication failures block (`DataCompatibilityCoordinatorTests`).
 - Retire a normal scope's location source permanently on compatibility loss. Cancel one-shot work, reject late samples, and preserve consent and accepted outbox entries (`CompatibilityLocationSourceTests`).
 - Withdraw process-owned outputs during session teardown, including startup failures. Publication can finish after withdrawal (`DataCompatibilityOutputsTests`).

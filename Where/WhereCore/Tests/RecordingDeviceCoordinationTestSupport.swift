@@ -23,18 +23,17 @@ final class RecordingCoordinationInstallation: InstallationRecordingContextStori
         onboardingContext
     }
 
-    func confirmInitialRecording(isEnabled: Bool) throws -> InstallationRecordingContext {
-        if onboardingContext.automaticRecordingEnabled == nil {
-            onboardingContext = onboardingContext.confirmingInitialRecording(isEnabled: isEnabled)
-        }
-        return onboardingContext
+    func confirmInitialRecording(isEnabled: Bool) throws -> ConfirmedInstallationContext {
+        let confirmed = onboardingContext.confirmingInitialRecording(isEnabled: isEnabled)
+        onboardingContext = confirmed.context
+        return confirmed
     }
 
     func setAutomaticRecordingEnabled(_ isEnabled: Bool) throws {
-        onboardingContext = onboardingContext.settingAutomaticRecordingEnabled(
+        onboardingContext = try onboardingContext.confirmed().settingAutomaticRecordingEnabled(
             isEnabled,
             at: Date(),
-        )
+        ).context
     }
 
     func setRecordingAccount(_ binding: RecordingAccountBinding) throws {

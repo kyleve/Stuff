@@ -307,7 +307,7 @@ struct DataCompatibilityCoordinatorTests {
             installation: installation,
         )
         #expect(await coordinator.recheck() == .recordingChoiceRequired)
-        _ = try await recording.recover(replacing: #require(claim.result.owner), history: .keep)
+        _ = try await recording.recover(replacing: claim.result.owner, history: .keep)
         #expect(try await store.requiredDataCompatibilityVersion() == .initial)
         await store.setSupportedDataCompatibilityVersionForTesting(.init(rawValue: 2))
         #expect(await coordinator.recheck() == .compatible(.init(rawValue: 2)))

@@ -68,38 +68,26 @@ public struct InstallationRecordingContext: Sendable, Equatable {
         !isRejoining && currentDevice.kind.recommendsAutomaticRecording
     }
 
-    /// Return the confirmed form of a newly proposed context.
-    public func confirmingInitialRecording(isEnabled: Bool) -> InstallationRecordingContext {
-        precondition(
-            recordingChoice == .unconfirmed,
-            "An installation's initial recording choice can only be confirmed once.",
-        )
-        return InstallationRecordingContext(
+    /// Confirm a new installation, or retain its already-confirmed choice on retries.
+    public func confirmingInitialRecording(isEnabled: Bool) -> ConfirmedInstallationContext {
+        let choice: ConfirmedInstallationContext.RecordingChoice = switch recordingChoice {
+            case .unconfirmed: isEnabled ? .on(enabledAt: registeredAt) : .off
+            case .off: .off
+            case let .on(enabledAt): .on(enabledAt: enabledAt)
+        }
+        return .init(
             currentDevice: currentDevice,
             registeredAt: registeredAt,
-            recordingChoice: isEnabled ? .on(enabledAt: registeredAt) : .off,
-            isRejoining: false,
-        ).settingRecordingControl(recordingControl).settingRecordingAccount(recordingAccount)
+            recordingChoice: choice,
+            recordingControl: recordingControl,
+        ).settingRecordingAccount(recordingAccount)
     }
 
-    /// Return a copy carrying a later local Settings choice.
-    public func settingAutomaticRecordingEnabled(_ isEnabled: Bool, at date: Date) -> Self {
-        precondition(
-            recordingChoice != .unconfirmed,
-            "Automatic recording must be confirmed before Settings can change it.",
-        )
-        let updatedChoice: RecordingChoice = if isEnabled {
-            recordingEnabledAt.map(RecordingChoice.on(enabledAt:))
-                ?? .on(enabledAt: date)
-        } else {
-            .off
-        }
-        return InstallationRecordingContext(
-            currentDevice: currentDevice,
-            registeredAt: registeredAt,
-            recordingChoice: updatedChoice,
-            isRejoining: false,
-        ).settingRecordingControl(recordingControl).settingRecordingAccount(recordingAccount)
+    /// Narrow persisted state at the boot boundary. Missing confirmation is a recoverable gate.
+    public func confirmed() throws -> ConfirmedInstallationContext {
+        guard recordingChoice != .unconfirmed
+        else { throw DataCompatibilityError.recordingChoiceRequired }
+        return confirmingInitialRecording(isEnabled: false)
     }
 
     /// The throwaway identity used by demo mode. It is intentionally distinct

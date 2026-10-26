@@ -20,7 +20,7 @@ struct RecordingDeviceRoleModelTests {
         let requestID = try #require(request.result.pendingHandoff?.requestID)
         let context = try bootstrap.installation.resolve()
         let pending = try RecordingAuthorityProposal(
-            state: request.result,
+            state: request.result.authority,
             action: approval ? .approveHandoff(requestID: requestID) :
                 .cancelHandoff(requestID: requestID),
             deviceID: context.currentDevice.id,
@@ -138,7 +138,7 @@ struct RecordingDeviceRoleModelTests {
         model.reviewRecovery()
         let replacement = RecordingDeviceID(rawValue: UUID())
         _ = try await authority.submit(RecordingAuthorityProposal(
-            state: claim.result,
+            state: claim.result.authority,
             action: .recover(.keep),
             deviceID: replacement,
             buildVersion: .current,
