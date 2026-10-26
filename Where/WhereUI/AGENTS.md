@@ -114,9 +114,14 @@ Layering, localization, preview, and testing conventions live in the feature
   `YearReportModel` scan result. Inject that scene as the Resolve model's `ResolutionSource`. Re-key on raw evidence changes; never gate refresh
   on aggregate-report equality. Schedule presentation deadlines only in the foreground.
 - Expose each calendar month as one accessibility element: regional totals in the label, chronological stay spans and dated badges in the value. Preserve planning qualifiers. Guard: `CalendarMonthAccessibilityTests`.
+- Keep Calendar and Timeline as stable sibling pages in `YearView`'s horizontal paging `ScrollView`.
+  Bind the pager and bottom picker to the same `YearMode`. Own their shared planning
+  toolbar in the pager's navigation container. Show the calendar zoom toolbar only while its page is selected.
+  Use reader-directed page IDs without an outer target layout and restrict snapping to the horizontal axis;
+  an outer target layout or inherited paging interferes with calendar zoom. Guard: `CalendarContentViewTests`.
 - Keep overview availability derived from the full-size calendar visibility rule in `CalendarPresentationModel`. Unavailable months keep their region and projection colors, and remain actionable for rejection feedback. Guard: `CalendarPresentationModelTests`.
 - Inject the calendar zoom key at each entry point. Persist mode changes through `WherePreferences`; a nil key must not read or write preferences. Guard: `CalendarPresentationModelTests`.
-- Animate calendar zoom in an overlay after the destination scroll position settles. Keep moving geometry outside the scroll-target layout and cancel it when its viewport or report changes. Reduce Motion uses a crossfade. Guards: `CalendarZoomTransitionModelTests`, `CalendarContentViewTests`.
+- Animate calendar zoom in an overlay after the destination scroll position settles. Request the measured destination once per transition ID from a view-owned task; continue observing geometry until it settles. Keep moving geometry outside the scroll-target layout and cancel it when its viewport or report changes. Reduce Motion uses a crossfade. Guards: `CalendarZoomTransitionModelTests`, `CalendarContentViewTests`.
 - Keep calendar flight days and timeline flight events independent of review dismissal.
   Show uncertain arrival timing explicitly. Render supported travel periods separately from later ground observations.
   Split timeline stays only for presentation; preserve every region-day exactly once.

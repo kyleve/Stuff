@@ -17,6 +17,8 @@ struct CalendarContentView: View {
     var focusedRegion: Region?
 
     let report: YearReportModel
+    let showsPlanningToolbar: Bool
+    let showsZoomToolbar: Bool
 
     @Environment(\.stylesheet) private var stylesheet
     @State private var monthsLoad: Result<[CalendarMonth], Error>?
@@ -25,6 +27,7 @@ struct CalendarContentView: View {
     @AccessibilityFocusState private var focusedTarget: CalendarPresentationModel.Target?
     @State private var zoom = CalendarZoomTransitionModel()
     @State private var scrollOffset = CGPoint.zero
+    @State private var requestedZoomScroll: CalendarZoomTransitionModel.ID?
 
     /// A nil persistence key keeps zoom session-only, including in previews.
     init(
@@ -32,9 +35,13 @@ struct CalendarContentView: View {
         report: YearReportModel,
         initialMode: CalendarPresentationModel.Mode = .detail,
         persistenceKey: CalendarZoomKey? = nil,
+        showsPlanningToolbar: Bool = true,
+        showsZoomToolbar: Bool = true,
     ) {
         self.focusedRegion = focusedRegion
         self.report = report
+        self.showsPlanningToolbar = showsPlanningToolbar
+        self.showsZoomToolbar = showsZoomToolbar
         _presentation = State(initialValue: CalendarPresentationModel(
             mode: initialMode,
             preferences: report.preferences,
@@ -113,28 +120,25 @@ struct CalendarContentView: View {
             PlannedStaysDestinationView(destination: destination, report: report)
         }
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    changeZoom { presentation.toggle() }
-                } label: {
-                    Label(
-                        presentation
-                            .mode == .detail ? String(localized: .calendarShowYear) :
-                            String(localized: .calendarShowMonths),
-                        systemSymbol: presentation
-                            .mode == .detail ? .squareGrid3x3 : .rectangleGrid1x2,
-                    )
-                }
-                .disabled(monthsLoad == nil || zoom.phase != nil)
-            }
-            if report.showsEstimatedTimeAndPlanning {
+            if showsZoomToolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(
-                        String(localized: .plannedStaysTitle),
-                        systemSymbol: .calendarBadgeClock,
-                    ) {
-                        planningDestination = .list
+                    Button {
+                        changeZoom { presentation.toggle() }
+                    } label: {
+                        Label(
+                            presentation
+                                .mode == .detail ? String(localized: .calendarShowYear) :
+                                String(localized: .calendarShowMonths),
+                            systemSymbol: presentation
+                                .mode == .detail ? .squareGrid3x3 : .rectangleGrid1x2,
+                        )
                     }
+                    .disabled(monthsLoad == nil || zoom.phase != nil)
+                }
+            }
+            if showsPlanningToolbar, report.showsEstimatedTimeAndPlanning {
+                PlannedStaysToolbar {
+                    planningDestination = .list
                 }
             }
         }
@@ -322,12 +326,15 @@ struct CalendarContentView: View {
                     scrollOffset: scrollOffset,
                 )
                 Color.clear
-                    .onChange(of: measured, initial: true) { _, value in
-                        zoom.updateMeasurement(value)
-                        if case .preparing = zoom.phase,
-                           let value, value.mode == .detail,
-                           let target = presentation.target, value.frames[target] != nil
+                    .task(id: measured) {
+                        guard !Task.isCancelled else { return }
+                        zoom.updateMeasurement(measured)
+                        if case let .preparing(source) = zoom.phase,
+                           requestedZoomScroll != source.id,
+                           let measured, measured.mode == .detail,
+                           let target = presentation.target, measured.frames[target] != nil
                         {
+                            requestedZoomScroll = source.id
                             scrollPosition.scrollTo(id: target, anchor: .top)
                         }
                     }

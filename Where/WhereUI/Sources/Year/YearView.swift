@@ -4,14 +4,13 @@ import SwiftUI
 import WhereCore
 
 /// Your Year tab: the selected year's calendar and timeline for the same data.
-/// A floating Liquid Glass pill at the bottom (Photos-style) zooms between the
-/// calendar (month detail) and the timeline (year overview).
+/// Swipe between the calendar and timeline, or
+/// select either page with the floating Liquid Glass pill at the bottom.
 struct YearView: View {
     let report: YearReportModel
 
+    @Environment(\.layoutDirection) private var layoutDirection
     @State private var mode: YearMode
-
-    @Environment(\.stylesheet) private var stylesheet
 
     init(report: YearReportModel, initialMode: YearMode = .calendar) {
         self.report = report
@@ -20,32 +19,97 @@ struct YearView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                switch mode {
-                    case .calendar:
-                        CalendarContentView(report: report, persistenceKey: .year)
-                    case .timeline:
-                        PresenceTimelineList(report: report)
+            ScrollViewReader { pager in
+                // Navigation and picker safe areas bound each page's viewport.
+                GeometryReader { viewport in
+                    ScrollView(.horizontal) {
+                        // Eager siblings retain each page's state and vertical scroll view.
+                        HStack(spacing: 0) {
+                            CalendarContentView(
+                                report: report,
+                                persistenceKey: .year,
+                                showsPlanningToolbar: false,
+                                showsZoomToolbar: mode == .calendar,
+                            )
+                            .frame(width: viewport.size.width, height: viewport.size.height)
+                            .accessibilityHidden(mode != .calendar)
+                            .id(YearMode.calendar)
+                            PresenceTimelineList(report: report, showsPlanningToolbar: false)
+                                .frame(width: viewport.size.width, height: viewport.size.height)
+                                .accessibilityHidden(mode != .timeline)
+                                .id(YearMode.timeline)
+                        }
+                    }
+                    // An outer target layout suppresses Calendar's nested month targets.
+                    .scrollTargetBehavior(YearPagingScrollTargetBehavior())
+                    .defaultScrollAnchor(
+                        mode == .calendar ? .leading : .trailing,
+                        for: .initialOffset,
+                    )
+                    .onScrollPhaseChange { previous, phase, context in
+                        guard phase == .idle, previous != .animating else { return }
+                        let offset = context.geometry.contentOffset.x
+                            + context.geometry.contentInsets.leading
+                        let isFirstPage = offset < context.geometry.containerSize.width / 2
+                        let isCalendar = isFirstPage == (layoutDirection == .leftToRight)
+                        mode = isCalendar ? .calendar : .timeline
+                    }
+                    .scrollIndicators(.hidden, axes: .horizontal)
                 }
-            }
-            // Crossfade between the two views rather than hard-cutting.
-            .animation(.default, value: mode)
-            .navigationTitle(mode.title)
-            .navigationBarTitleDisplayMode(.inline)
-            // Keep the bar background on at all times. The calendar auto-scrolls
-            // under the bar (so its scroll-edge material is showing) while the
-            // timeline starts at the top; without pinning it, switching between
-            // them animates that material in/out — reading as a toolbar fade.
-            .toolbarBackground(.visible, for: .navigationBar)
-            .safeAreaInset(edge: .bottom, alignment: .center) {
-                YearModePicker(mode: $mode)
-                    .padding(.bottom, stylesheet.spacing.xLarge)
+                .modifier(YearNavigationModifier(report: report, mode: Binding(
+                    get: { mode },
+                    set: { selection in
+                        mode = selection
+                        pager.scrollTo(selection, anchor: .leading)
+                    },
+                )))
             }
         }
     }
 }
 
-/// The two lenses on the selected year the bottom pill zooms between.
+/// Apply page snapping only to the horizontal container, not its vertical children.
+private struct YearPagingScrollTargetBehavior: ScrollTargetBehavior {
+    func updateTarget(_ target: inout ScrollTarget, context: TargetContext) {
+        guard context.axes == .horizontal else { return }
+        var pageTarget = target
+        PagingScrollTargetBehavior().updateTarget(&pageTarget, context: context)
+        target.rect.origin.x = pageTarget.rect.origin.x
+    }
+}
+
+/// Shared navigation chrome for the pager and full-content captures of its pages.
+private struct YearNavigationModifier: ViewModifier {
+    let report: YearReportModel
+    @Binding var mode: YearMode
+
+    @Environment(\.stylesheet) private var stylesheet
+    @State private var planningDestination: PlannedStaysDestination?
+
+    func body(content: Content) -> some View {
+        content
+            .navigationTitle(mode.title)
+            .navigationBarTitleDisplayMode(.inline)
+            // Keep the material steady while paging between vertical scroll views.
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbar {
+                if report.showsEstimatedTimeAndPlanning {
+                    PlannedStaysToolbar {
+                        planningDestination = .list
+                    }
+                }
+            }
+            .sheet(item: $planningDestination) { destination in
+                PlannedStaysDestinationView(destination: destination, report: report)
+            }
+            .safeAreaInset(edge: .bottom, alignment: .center) {
+                YearModePicker(mode: $mode)
+                    .padding(.bottom, stylesheet.spacing.xLarge)
+            }
+    }
+}
+
+/// The two pages of the selected year, shared by the pager and bottom picker.
 enum YearMode: String, Hashable, CaseIterable {
     case calendar
     case timeline
@@ -126,8 +190,9 @@ private struct YearModePicker: View {
 
 #if DEBUG
     extension YearView: SnapshotProviding {
-        /// Timeline rendering is owned by `PresenceTimelineList`'s matrix; the
-        /// initializer seam is used by Flyover without duplicating that suite.
+        /// Capture the shared scrolling child and chrome directly: expanding the
+        /// native pager to full content distorts its viewport and accessibility tree.
+        /// `PresenceTimelineList` owns timeline images.
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Loaded",
@@ -135,14 +200,36 @@ private struct YearModePicker: View {
                 measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
-                YearView(report: PreviewSupport.loadedYearReportModel())
+                let report = PreviewSupport.loadedYearReportModel()
+                NavigationStack {
+                    CalendarContentView(
+                        report: report,
+                        persistenceKey: .year,
+                        showsPlanningToolbar: false,
+                    )
+                    .modifier(YearNavigationModifier(
+                        report: report,
+                        mode: .constant(.calendar),
+                    ))
+                }
             }
             whereSnapshot(
                 name: "Empty",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
-                YearView(report: PreviewSupport.emptyYearReportModel())
+                let report = PreviewSupport.emptyYearReportModel()
+                NavigationStack {
+                    CalendarContentView(
+                        report: report,
+                        persistenceKey: .year,
+                        showsPlanningToolbar: false,
+                    )
+                    .modifier(YearNavigationModifier(
+                        report: report,
+                        mode: .constant(.calendar),
+                    ))
+                }
             }
             whereSnapshot(
                 name: "RestoredOverview",
@@ -151,7 +238,17 @@ private struct YearModePicker: View {
             ) {
                 let report = PreviewSupport.loadedYearReportModel()
                 let _ = report.preferences.setCalendarOverview(true, forKey: .year)
-                YearView(report: report)
+                NavigationStack {
+                    CalendarContentView(
+                        report: report,
+                        persistenceKey: .year,
+                        showsPlanningToolbar: false,
+                    )
+                    .modifier(YearNavigationModifier(
+                        report: report,
+                        mode: .constant(.calendar),
+                    ))
+                }
             }
         }
     }

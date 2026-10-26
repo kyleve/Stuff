@@ -10,18 +10,26 @@ import WhereCore
 @MainActor
 @Suite(.serialized)
 struct CalendarContentViewTests {
-    @Test(arguments: [false, true])
-    func zoomReturnsToTheSelectedMonthAndEstimate(reduceMotion: Bool) async throws {
-        let root = NavigationStack {
-            CalendarContentView(
-                report: PreviewSupport.plannedStayYearReportModel(
-                    plannedThroughDay: CalendarDay(year: PreviewSupport.year, month: 11, day: 15),
-                ),
-                initialMode: .overview,
-            )
-            .bTraitOverrides { _, overrides in
-                overrides.accessibility = BAccessibility(isReduceMotionEnabled: reduceMotion)
+    @Test(arguments: [false, true], [false, true])
+    func zoomReturnsToTheSelectedMonthAndEstimate(
+        reduceMotion: Bool,
+        inYearTab: Bool,
+    ) async throws {
+        let report = PreviewSupport.plannedStayYearReportModel(
+            plannedThroughDay: CalendarDay(year: PreviewSupport.year, month: 11, day: 15),
+        )
+        report.preferences.setCalendarOverview(true, forKey: .year)
+        let root = Group {
+            if inYearTab {
+                YearView(report: report)
+            } else {
+                NavigationStack {
+                    CalendarContentView(report: report, initialMode: .overview)
+                }
             }
+        }
+        .bTraitOverrides { _, overrides in
+            overrides.accessibility = BAccessibility(isReduceMotionEnabled: reduceMotion)
         }
         .whereBroadwayRoot()
 
@@ -54,12 +62,30 @@ struct CalendarContentViewTests {
                         && isVisible("November", in: host.view, expanded: false)
                 }
             }
+            if inYearTab {
+                try activate(#require(button("Timeline", in: host.view)))
+                try await waitForCalendar("timeline to hide the calendar toolbar") {
+                    element("Show Months", in: host.view) == nil
+                        && !isVisible("November", in: host.view, expanded: false)
+                }
+                try activate(#require(button("Calendar", in: host.view)))
+                try await waitForCalendar("calendar overview to remain selected") {
+                    isEnabled("Show Months", in: host.view)
+                        && isVisible("November", in: host.view, expanded: false)
+                }
+            }
             try activate(#require(element("Estimated Time", in: host.view)))
             try await waitForCalendar("estimate to expand") {
                 isEnabled("Show Year", in: host.view)
                     && element("Estimated Time", in: host.view)?.accessibilityFrame
                     .intersects(host.view.convert(host.view.bounds, to: nil)) == true
             }
+        }
+    }
+
+    private func button(_ label: String, in view: UIView) -> NSObject? {
+        accessibilityObjects(in: view).first {
+            $0.accessibilityLabel == label && $0.accessibilityTraits.contains(.button)
         }
     }
 
