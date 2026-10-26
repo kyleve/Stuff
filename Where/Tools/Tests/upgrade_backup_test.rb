@@ -163,7 +163,7 @@ class UpgradeBackupTest < Minitest::Test
     assert_equal 1_700_000_100.5, upgraded.fetch("samples").first.fetch("timestamp")
   end
 
-  def test_v6_preserves_legacy_installation_without_inventing_a_ownership
+  def test_v6_preserves_legacy_installation_without_inventing_ownership
     manifest = base_manifest(6)
     manifest["samples"].first["recordingDeviceID"] = "store://recording-devices/example"
     upgraded = upgrade_manifest(manifest)

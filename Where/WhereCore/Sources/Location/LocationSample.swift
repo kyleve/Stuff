@@ -106,9 +106,9 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
     /// Installation that produced an automatic GPS sample. Nil for legacy
     /// samples and user-asserted/manual data.
     public let recordingDeviceID: RecordingDeviceID?
-    // Keep the original optional ID wire field so existing durable outboxes retain attribution.
-    // Public construction only creates an ownership period through recorded(under:), with its
-    // mandatory owner.
+    // Keep recordingDeviceID as its own optional wire field so existing outboxes retain
+    // attribution.
+    // recorded(under:) stamps ownership from its mandatory owner.
     private let recordingOwnershipID: RecordingAuthority.EventID?
     public var recordingProvenance: SampleRecordingProvenance? {
         recordingDeviceID.map { .init(deviceID: $0, ownershipID: recordingOwnershipID) }
