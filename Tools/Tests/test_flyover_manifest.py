@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from Tools.Tests.flyover_test_support import create_flyover_artifact, write_manifest
+from Tools.Tests.flyover_test_support import create_flyover_artifact, png_fixture, write_manifest
 from Tools import flyover_manifest
 
 class FlyoverManifestTests(unittest.TestCase):
@@ -189,7 +189,7 @@ class FlyoverManifestTests(unittest.TestCase):
                 "images/screen-0001/variant-0001/phone-light-thumbnail.png"
             )
             thumbnail = root / thumbnail_relative
-            thumbnail.write_bytes(b"THUMBNAIL")
+            thumbnail.write_bytes(png_fixture(300, 650))
             manifest = json.loads((root / "manifest.json").read_text())
             manifest["images"][0].update(
                 {

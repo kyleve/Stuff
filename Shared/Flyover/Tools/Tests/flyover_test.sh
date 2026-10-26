@@ -47,7 +47,7 @@ for index, profile in enumerate(profiles, 1):
     relative = f'images/screen-0001/variant-0001/{profile}.png'
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(b'PNG')
+    path.write_bytes(bytes.fromhex('89504e470d0a1a0a0000000d49484452000000030000000308000000007343ea630000000b49444154789c6360400000000c00017c4c44c20000000049454e44ae426082'))
     paths[profile] = relative
     images.append({'screenID': 'screen', 'variantID': 'default', 'profileID': profile,
                    'relativePath': relative, 'pointWidth': 1, 'pointHeight': 1,
@@ -418,7 +418,7 @@ try:
         base_url + 'images/screen-0001/variant-0001/phone-dark.png',
         timeout=5,
     ).read()
-    if image != b'PNG':
+    if not image.startswith(b'\x89PNG\r\n\x1a\n'):
         raise SystemExit('preview served unexpected image data')
 
     outside_file = pathlib.Path(directory).parent / 'outside-preview-file'
@@ -430,10 +430,10 @@ try:
     image_path.unlink()
     image_path.symlink_to(outside_file)
     # Astro serves an immutable private copy, never the replaced source.
-    assert urllib.request.urlopen(base_url + 'images/screen-0001/variant-0001/phone-dark.png').read() == b'PNG'
+    assert urllib.request.urlopen(base_url + 'images/screen-0001/variant-0001/phone-dark.png').read() == image
     image_path.unlink()
     os.mkfifo(image_path)
-    assert urllib.request.urlopen(base_url + 'images/screen-0001/variant-0001/phone-dark.png').read() == b'PNG'
+    assert urllib.request.urlopen(base_url + 'images/screen-0001/variant-0001/phone-dark.png').read() == image
 
     original_root = pathlib.Path(directory)
     moved_root = original_root.with_name(original_root.name + '-moved')
