@@ -84,7 +84,9 @@ test('fit all loads every visible capture and only requests local nested assets'
 test('an early fit all command survives deferred canvas initialization', async ({ page }) => {
     const now = new Date('2026-01-01T00:00:00Z');
     await page.clock.install({ time: now });
-    await page.clock.pauseAt(now);
+    // Installation starts a running clock. Freeze at a later instant before
+    // navigation so protocol latency cannot make the pause target past-dated.
+    await page.clock.pauseAt(new Date('2026-01-02T00:00:00Z'));
     await page.goto('./');
     await expect(page.locator('.screen-card')).toHaveCount(24);
     await page.keyboard.press('f');
