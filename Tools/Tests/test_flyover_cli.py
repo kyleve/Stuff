@@ -26,6 +26,11 @@ class FlyoverCLITests(unittest.TestCase):
                     flyover_cli.main(['export', *arguments])
                 export.assert_not_called()
 
+    def test_unknown_app_does_not_start_export(self):
+        with patch.object(flyover_cli, 'export_atlas') as export, contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(flyover_cli.main(['export', '--app', 'unknown']), 1)
+            export.assert_not_called()
+
     def test_propagates_child_failure_and_signals(self):
         for failure, status in ((subprocess.CalledProcessError(19, ['capture']), 19),
                                 (subprocess.CalledProcessError(-15, ['capture']), 143),

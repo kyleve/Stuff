@@ -48,6 +48,10 @@ jobs:
           --feed-url "$INSTALLER_FEED_URL"
           --output "$RUNNER_TEMP/installer-pages"
       - uses: actions/configure-pages@v5
+      - name: Include the latest complete Flyover atlases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -m Tools.flyover_pages --output "$RUNNER_TEMP/installer-pages"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ${{ runner.temp }}/installer-pages

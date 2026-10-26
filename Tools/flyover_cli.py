@@ -8,6 +8,7 @@ import subprocess
 import sys
 
 from Tools.flyover_export import ExportRequest, export_atlas
+from Tools.flyover_apps import load_app
 from Tools.flyover_publication import resolve_destination
 from Tools.repository import repository_root
 
@@ -46,7 +47,8 @@ def parser() -> argparse.ArgumentParser:
     export = commands.add_parser('export', allow_abbrev=False,
                                  formatter_class=argparse.RawTextHelpFormatter,
                                  epilog='Profiles: ' + ', '.join(PROFILES))
-    export.add_argument('--output', default=DEFAULT_OUTPUT, help='Generated directory (default: %(default)s)')
+    export.add_argument('--app', default='where', help='Registered app ID (default: %(default)s)')
+    export.add_argument('--output', help='Generated directory (default: .build/flyover/<app>)')
     export.add_argument('--profile', action='append', type=profile,
                         help='Repeat to add profiles; the defaults are phone-light and phone-dark.')
     for name in ('preview', 'dev'):
@@ -89,12 +91,17 @@ def main(arguments=None) -> int:
         caller = os.environ.pop('FLYOVER_CALLER_DIRECTORY', None)
         if caller is not None:
             os.chdir(caller)
-        destination = resolve_destination(options.output, workspace,
+        if options.command == 'export':
+            load_app(options.app)
+            output = options.output or f'.build/flyover/{options.app}'
+        else:
+            output = options.output
+        destination = resolve_destination(output, workspace,
                                           action='replace' if options.command == 'export' else 'serve')
         if options.command == 'export':
             profiles = tuple(dict.fromkeys(options.profile or DEFAULT_PROFILES))
             with interruption_handling():
-                export_atlas(ExportRequest(destination, profiles), workspace)
+                export_atlas(ExportRequest(destination, profiles, options.app), workspace)
             return 0
         # Retain the public preview process seam and Astro's own signal lifecycle.
         os.chdir(workspace)

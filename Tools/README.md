@@ -1,5 +1,17 @@
 # Stuff Tools
 
+## Daily Flyover publication
+
+`.github/flyover-apps.json` owns hosted capture registration. `flyover_apps.py` validates it before capture.
+`flyover_ci.py` captures all registered apps serially. `flyover_bundle.py` validates the ZIP transport and captured identities.
+`flyover_distribution.py` requests CircleCI capture and publishes a complete bundle as an immutable prerelease asset.
+`flyover_pages.py` includes the latest bundle in the existing install-site deployment.
+`circleci_pipeline.py` owns shared CircleCI transport. Installer-specific IPA policy remains in `InstallerKit`.
+
+The daily controller uses the existing `INSTALLER_CIRCLECI_PROJECT`, `INSTALLER_CIRCLECI_PIPELINE`, and `INSTALLER_CIRCLECI_TOKEN` configuration.
+The names remain compatible with the existing installation setup. Flyover does not use its signing context.
+See [Flyover publication](../Shared/Flyover/README.md#daily-web-publication) for URLs, scheduling, and recovery behavior.
+
 This directory contains importable implementations and direct tests for the
 repository's retained Python and Ruby developer tooling. Public commands stay
 at their established paths in the repository root; shell launchers own public

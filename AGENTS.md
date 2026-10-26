@@ -777,3 +777,8 @@ setup and the full validation recipe.
 The separate [app distribution workflow](.github/workflows/installer-distribution.yml)
 requests signed device archives on CircleCI and publishes them through GitHub Releases and Pages when enabled.
 Its `installable` label is independent of the test workflows' `NO-CI` title marker.
+
+The [daily Flyover workflow](.github/workflows/flyover-daily.yml) requests unsigned
+simulator captures on CircleCI. `.github/flyover-apps.json` registers each app's
+hosted test. The existing Pages publisher includes the latest validated bundle
+under `/flyover/`, alongside the install site.

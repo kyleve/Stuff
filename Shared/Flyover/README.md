@@ -10,6 +10,29 @@ The host supplies a typed catalog and must build its screen content from an isol
 Flyover never opens a store, persists preferences, or resolves app globals.
 Its chrome resolves through Broadway's trait-aware `FlyoverStylesheet`.
 
+## Daily web publication
+
+The daily workflow captures every app in [the export registry](../../.github/flyover-apps.json).
+Where is the first adapter. Add an app ID, title, and hosted test identifier to register another adapter.
+Use `./flyover export --app where` for a local export. Each app defaults to `.build/flyover/<app>`.
+
+GitHub schedules the controller at 09:23 UTC. CircleCI captures the native views serially, without signing credentials.
+The default profiles are `phone-light` and `phone-dark`.
+GitHub retains each complete bundle as a prerelease asset. Failed captures do not replace the previous bundle.
+The existing Pages workflow combines that bundle with the install site. Atlas URLs use `/flyover/<app>/` beneath the Pages base URL.
+The `/flyover/` index lists published, registered apps.
+
+The controller reuses the existing CircleCI project, pipeline, and token configuration for app distribution.
+No signing context is attached to the Flyover job. The native worker receives no GitHub write credential.
+The workflow becomes active after this configuration merges into `main`.
+Use **Daily Flyover Atlases → Run workflow** for the first publication or a retry.
+If main changes before CircleCI checks out the requested commit, the controller fails without publication. Start a new run.
+
+The transport validates app IDs, commit identity, clean-tree metadata, manifest assets, ZIP paths, and size limits.
+The Pages publisher also checks the release asset digest. A corrupt latest release fails deployment instead of silently dropping Flyover.
+Published screenshots and thumbnails use content-hashed filenames to prevent stale browser caches from mixing captures across builds.
+Old successful releases remain available for recovery. Retention cleanup is not automatic.
+
 ## Installation
 
 Add the local product to a UI target:

@@ -1,6 +1,13 @@
 version: 2.1
 
 parameters:
+  flyover_export:
+    type: enum
+    enum: ["false", "true"]
+    default: "false"
+  flyover_sha:
+    type: string
+    default: ""
   manual_full_gate:
     type: enum
     enum: ["false", "true"]
@@ -294,6 +301,25 @@ commands:
           destination: << parameters.artifact_name >>/diagnostics
 
 jobs:
+  export-flyover:
+    executor: m4-pro-medium
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      FLYOVER_SOURCE_SHA: << pipeline.parameters.flyover_sha >>
+      SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER: "2"
+    steps:
+      - prepare_builder:
+          test_workdir: .build/flyover-ci-tests
+      - run_with_timeout:
+          step_name: Capture registered Flyover apps
+          seconds: 3600
+          command: python3 -m Tools.flyover_ci --output .build/flyover-ci/atlases.zip
+      - store_artifacts:
+          path: .build/flyover-ci/atlases.zip
+          destination: flyover/atlases.zip
+      - collect_diagnostics:
+          test_workdir: .build/flyover-ci-tests
+          artifact_name: flyover
   archive-app:
     executor: m4-pro-medium
     environment:
@@ -500,6 +526,16 @@ jobs:
           include_snapshot_images: true
 
 workflows:
+  "Flyover Export":
+    when: >-
+      pipeline.parameters.flyover_export == "true" and
+      pipeline.event.name == "api" and
+      pipeline.git.branch == "main" and
+      pipeline.config.ref == "refs/heads/main"
+    jobs:
+      - export-flyover:
+          name: Export Flyover
+
   "iOS CI":
     # Prototype and exploratory PRs opt out with `NO-CI` in their title. Main
     # pushes and explicit full-gate runs remain mandatory.
