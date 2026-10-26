@@ -7,7 +7,7 @@ public enum DataCompatibilityState: Sendable, Equatable {
     case recordingChoiceRequired
     case updateRequired(DataCompatibilityVersion)
     case waitingForRecordingDevice(RecordingAuthority.Owner)
-    case verificationFailed(String)
+    case verificationFailed(DataCompatibilityFailure)
 }
 
 public enum DataCompatibilityError: Error, LocalizedError, Equatable, Sendable {
@@ -16,7 +16,7 @@ public enum DataCompatibilityError: Error, LocalizedError, Equatable, Sendable {
     case recordingChoiceRequired
     case accessRevoked
     case notReady
-    case verificationFailed(String)
+    case verificationFailed(DataCompatibilityFailure)
 }
 
 extension DataCompatibilityError {
@@ -27,7 +27,7 @@ extension DataCompatibilityError {
             case .recordingChoiceRequired: "Open Where and choose whether this device should record."
             case .accessRevoked: "This app session no longer has access to shared data."
             case .notReady: "Shared data compatibility has not been verified."
-            case let .verificationFailed(description): "Could not verify shared data compatibility: \(description)"
+            case let .verificationFailed(failure): "Could not verify shared data compatibility: \(failure.error.localizedDescription)"
         }
     }
 }
@@ -40,7 +40,7 @@ extension DataCompatibilityState {
             case .recordingChoiceRequired: .recordingChoiceRequired
             case let .updateRequired(version): .updateRequired(version)
             case .waitingForRecordingDevice: .recordingDeviceUpdateRequired
-            case let .verificationFailed(message): .verificationFailed(message)
+            case let .verificationFailed(failure): .verificationFailed(failure)
         }
     }
 }

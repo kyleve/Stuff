@@ -33,6 +33,16 @@ For a new account, `.initial` has no revision, owner, or request, and requires v
 Once ownership exists, each transition retains an owner.
 `RecordingAuthorityProposal.result` has type `RecordingAuthority.Established`, so its owner and revision are never optional.
 Use `result.authority` when passing this endpoint to an API that also accepts unclaimed state.
+The identity roles are distinct Swift types:
+
+- `EventID` identifies one immutable transition.
+- `OwnershipID` identifies the grant created by claim, transfer, or recovery.
+- `RequestID` identifies a handoff request.
+
+Creating transitions derive the new grant or request ID from their event UUID.
+All three retain the original stored URL namespace. The type distinction applies
+at API boundaries without changing CloudKit keys, backups, or queued samples.
+
 Turning off local recording consent does not release ownership.
 Installing a newer build or requesting a handoff does not raise the data version.
 

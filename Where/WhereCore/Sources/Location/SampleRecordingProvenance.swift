@@ -1,13 +1,22 @@
 import Foundation
 
-/// Installation attribution and the optional ownership ID from automatic recording.
-/// A nil `ownershipID` retains pre-contract history without inventing a recording grant.
-public struct SampleRecordingProvenance: Codable, Hashable, Sendable {
-    public let deviceID: RecordingDeviceID
-    public let ownershipID: RecordingAuthority.EventID?
+/// Automatic-sample attribution. Legacy device attribution does not imply an ownership grant.
+/// This domain value is not serialized; LocationSample retains its existing optional wire fields.
+public enum SampleRecordingProvenance: Hashable, Sendable {
+    case legacy(deviceID: RecordingDeviceID)
+    case owned(RecordingAuthority.Owner)
 
-    public init(deviceID: RecordingDeviceID, ownershipID: RecordingAuthority.EventID?) {
-        self.deviceID = deviceID
-        self.ownershipID = ownershipID
+    public var deviceID: RecordingDeviceID {
+        switch self {
+            case let .legacy(deviceID): deviceID
+            case let .owned(owner): owner.deviceID
+        }
+    }
+
+    public var ownershipID: RecordingAuthority.OwnershipID? {
+        switch self {
+            case .legacy: nil
+            case let .owned(owner): owner.ownershipID
+        }
     }
 }

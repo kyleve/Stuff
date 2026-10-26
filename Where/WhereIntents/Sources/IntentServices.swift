@@ -69,7 +69,7 @@ public actor IntentServices {
     public func install(_ services: WhereServices, theme: WhereTheme) async {
         do { try await services.validateDataAccess() }
         catch {
-            setCompatibility(.verificationFailed(error.localizedDescription))
+            setCompatibility(.verificationFailed(.init(error)))
             return
         }
         if case .blocked = availability { return }
