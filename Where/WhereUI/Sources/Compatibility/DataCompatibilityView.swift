@@ -125,8 +125,13 @@ struct DataCompatibilityView: View {
                     )),
                 ),
             ]
+            // Gate layouts vary the spinner, role choice, update links, and recovery actions.
+            // Retain device and trait coverage for each route through this blocking screen.
             return examples.map { example in
-                whereSnapshot(name: example.name, configurations: .fullContentScreenDefaults) {
+                whereSnapshot(
+                    name: example.name,
+                    configurations: .fullContentScreenRepresentative,
+                ) {
                     DataCompatibilityView(
                         state: example.state,
                         updates: example.updates,
