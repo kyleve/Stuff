@@ -6,7 +6,7 @@ public enum RecordingAuthority: Sendable, Equatable {
     case unclaimed
     case established(Established)
 
-    /// Stable identity for one immutable coordination event and recording ownership period.
+    /// Stable identity for one immutable coordination event.
     public struct EventID: Hashable, Sendable, WhereStoreURLCodable {
         public let rawValue: UUID
         public init(rawValue: UUID) {
@@ -38,14 +38,14 @@ public enum RecordingAuthority: Sendable, Equatable {
     /// One installation's ownership grant. Each new grant has a distinct `ownershipID`.
     public struct Owner: Codable, Sendable, Hashable {
         public let deviceID: RecordingDeviceID
-        public let ownershipID: EventID
+        public let ownershipID: OwnershipID
     }
 
     /// A request to replace a specific ownership period, including the requester's supported data
     /// version.
     /// The current owner remains authorized until it commits approval after stopping capture.
     public struct Handoff: Codable, Sendable, Equatable {
-        public let requestID: EventID
+        public let requestID: RequestID
         public let requestedBy: RecordingDeviceID
         public let supportedVersion: DataCompatibilityVersion
         public let replacing: Owner

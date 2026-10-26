@@ -89,7 +89,7 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
 
     private static let logger = WhereLog.root(RecordingCoordinationLog.self)
 
-    public func pendingApprovalRequestID() async throws -> RecordingAuthority.EventID? {
+    public func pendingApprovalRequestID() async throws -> RecordingAuthority.RequestID? {
         let control = try await installation.resolve().recordingControl
         guard control.isRelinquishing else { return nil }
         return control.pendingTransition?.expected.pendingHandoff?.requestID
@@ -220,13 +220,13 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
         try await submitPersisted(proposal, selection: context.recordingControl.selection)
     }
 
-    public func cancelHandoff(requestID: RecordingAuthority.EventID) async throws {
+    public func cancelHandoff(requestID: RecordingAuthority.RequestID) async throws {
         try await authority.withAccountAccess {
             try await self.cancelHandoffInAccount(requestID: requestID)
         }
     }
 
-    private func cancelHandoffInAccount(requestID: RecordingAuthority.EventID) async throws {
+    private func cancelHandoffInAccount(requestID: RecordingAuthority.RequestID) async throws {
         guard !isOperating else { throw RecordingAuthorityError.conflict }
         isOperating = true
         defer { finishOperation() }
@@ -306,22 +306,17 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
     /// stop and drain capture before submitting it. Freshness is still checked at submission.
     struct PreparedHandoffApproval {
         fileprivate let proposal: RecordingAuthorityProposal
-        let requestID: RecordingAuthority.EventID
         var target: RecordingAuthority.Owner {
             proposal.result.owner
         }
 
-        fileprivate init(
-            proposal: RecordingAuthorityProposal,
-            requestID: RecordingAuthority.EventID,
-        ) {
+        fileprivate init(proposal: RecordingAuthorityProposal) {
             self.proposal = proposal
-            self.requestID = requestID
         }
     }
 
     func prepareApproval(requestID: RecordingAuthority
-        .EventID) async throws -> PreparedHandoffApproval
+        .RequestID) async throws -> PreparedHandoffApproval
     {
         try await authority.withAccountAccess {
             try await self.prepareApprovalInAccount(requestID: requestID)
@@ -329,7 +324,7 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
     }
 
     private func prepareApprovalInAccount(requestID: RecordingAuthority
-        .EventID) async throws -> PreparedHandoffApproval
+        .RequestID) async throws -> PreparedHandoffApproval
     {
         guard !isOperating else { throw RecordingAuthorityError.conflict }
         isOperating = true
@@ -341,7 +336,7 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
             else { throw RecordingAuthorityError.invalidHandoff }
             let target = pending.result.owner
             try await authority.requireEligibleHandoffTarget(target.deviceID)
-            return .init(proposal: pending, requestID: requestID)
+            return .init(proposal: pending)
         }
         let state = try await authority.refresh()
         let proposal = try RecordingAuthorityProposal(
@@ -357,7 +352,7 @@ public actor RecordingDeviceCoordination: RecordingAuthorityReading {
             selection: context.recordingControl.selection,
             pendingTransition: proposal,
         ))
-        return .init(proposal: proposal, requestID: requestID)
+        return .init(proposal: proposal)
     }
 
     func commitStoppedApproval(_ approval: PreparedHandoffApproval) async throws {

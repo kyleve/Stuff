@@ -1,3 +1,4 @@
+import CloudKit
 import Foundation
 import Testing
 @_spi(Testing) @testable import WhereCore
@@ -352,10 +353,13 @@ struct DataCompatibilityCoordinatorTests {
         }
         #expect(try await store.requiredDataCompatibilityVersion() == .initial)
         await transport.setAvailability(.signedOut)
-        guard case .verificationFailed = await established.recheck() else {
+        let failed = await established.recheck()
+        guard case let .verificationFailed(failure) = failed else {
             Issue.record("Account failures must not authorize cached use.")
             return
         }
+        #expect((failure.error as? CKError)?.code == .notAuthenticated)
+        #expect(await established.recheckLocalHistory() == failed)
         guard case .verificationFailed = await established.recheckLocalHistory() else {
             Issue.record("Local history must not erase a known account-verification failure.")
             return

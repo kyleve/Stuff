@@ -38,8 +38,8 @@ public struct RecordingAuthorityProposal: Sendable, Equatable {
     public enum Action: Sendable {
         case claim
         case requestHandoff
-        case cancelHandoff(requestID: RecordingAuthority.EventID)
-        case approveHandoff(requestID: RecordingAuthority.EventID)
+        case cancelHandoff(requestID: RecordingAuthority.RequestID)
+        case approveHandoff(requestID: RecordingAuthority.RequestID)
         case recover(RecordingRecoveryHistory)
         case upgrade
     }
@@ -61,7 +61,7 @@ public struct RecordingAuthorityProposal: Sendable, Equatable {
         switch action {
             case .claim:
                 guard case .unclaimed = state else { throw RecordingAuthorityError.alreadyOwned }
-                owner = .init(deviceID: deviceID, ownershipID: eventID)
+                owner = .init(deviceID: deviceID, ownershipID: .init(eventID: eventID))
                 handoff = nil
                 transition = .claim
             case .requestHandoff:
@@ -70,7 +70,7 @@ public struct RecordingAuthorityProposal: Sendable, Equatable {
                 else { throw RecordingAuthorityError.invalidHandoff }
                 owner = existingOwner
                 handoff = .init(
-                    requestID: eventID,
+                    requestID: .init(eventID: eventID),
                     requestedBy: deviceID,
                     supportedVersion: buildVersion,
                     replacing: existingOwner,
@@ -89,13 +89,13 @@ public struct RecordingAuthorityProposal: Sendable, Equatable {
                 else { throw RecordingAuthorityError.ownerRequired }
                 guard let pending = state.pendingHandoff, pending.requestID == requestID
                 else { throw RecordingAuthorityError.invalidHandoff }
-                owner = .init(deviceID: pending.requestedBy, ownershipID: eventID)
+                owner = .init(deviceID: pending.requestedBy, ownershipID: .init(eventID: eventID))
                 handoff = nil
                 transition = .transfer
             case let .recover(choice):
                 guard let previous = state.owner, previous.deviceID != deviceID
                 else { throw RecordingAuthorityError.invalidHandoff }
-                owner = .init(deviceID: deviceID, ownershipID: eventID)
+                owner = .init(deviceID: deviceID, ownershipID: .init(eventID: eventID))
                 handoff = nil
                 transition = .recover(choice)
             case .upgrade:

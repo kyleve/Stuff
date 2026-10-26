@@ -20,7 +20,7 @@ public struct RecordingInstallationControl: Sendable, Equatable {
     }
 
     /// A user command cannot select the absence of a prior decision.
-    public enum RoleChoice: Sendable {
+    public enum RoleChoice: Sendable, Equatable {
         case secondary
         case recordingRequested
 
@@ -68,7 +68,7 @@ extension RecordingAuthority: RecordingAuthorityReading {
 
     @_spi(Demo) @_spi(Testing)
     public static func ownedForTesting(by deviceID: RecordingDeviceID) -> Self {
-        let ownershipID = EventID(rawValue: UUID())
+        let eventID = EventID(rawValue: UUID())
         // A claim from unclaimed authority has no external preconditions.
         do {
             return try RecordingAuthorityProposal(
@@ -76,7 +76,7 @@ extension RecordingAuthority: RecordingAuthorityReading {
                 action: .claim,
                 deviceID: deviceID,
                 buildVersion: .initial,
-                eventID: ownershipID,
+                eventID: eventID,
             ).result.authority
         } catch {
             preconditionFailure("A fresh fixture claim must be valid: \(error)")

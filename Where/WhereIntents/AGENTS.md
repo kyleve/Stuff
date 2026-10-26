@@ -91,5 +91,5 @@ outside the intent perform flow (a probe was tried and trapped). Verify it by
 invoking a Siri/Shortcuts intent on a device. Do not construct extra
 `AppDelegate`s in tests. Each `didFinishLaunching` re-registers the handoff.
 `AppDependencyManager`'s re-registration behavior is undocumented.
-- Reject parked and new intent callers while compatibility is blocked; `clear()` must preserve that block. Require a fresh installation after successful verification (`IntentServicesTests`).
+- Reject parked and new intent callers while compatibility is blocked; `clear()` must preserve that block and its original verification error. Require a fresh installation after successful verification (`IntentServicesTests`).
 - Check scope access at the services handoff. Admitted reads can finish after lockout. Writes retain the central transaction guard. Request Spotlight withdrawal during teardown (`IntentServicesTests`, `WhereIntentReaderTests`).

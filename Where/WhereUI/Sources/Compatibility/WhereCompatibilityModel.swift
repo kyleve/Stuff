@@ -51,14 +51,14 @@ public final class WhereCompatibilityModel {
         refreshOperation?.task.cancel()
         refreshOperation = nil
         // Publish a blocking state so the lifecycle drains the old world during verification.
-        state = .verificationFailed(RecordingAccountError.verificationRequired.localizedDescription)
+        state = .verificationFailed(.init(RecordingAccountError.verificationRequired))
         do {
             let coordinator = try await bootstrap.prepareCompatibility()
             self.coordinator = coordinator
             await coordinator.invalidateAccount()
             await apply(coordinator.snapshot())
         } catch {
-            await apply(.verificationFailed(error.localizedDescription))
+            await apply(.verificationFailed(.init(error)))
             Self.logger.verificationFailed(error: .restricted(.errorDetails, error))
         }
     }
@@ -91,7 +91,7 @@ public final class WhereCompatibilityModel {
                 await apply(coordinator.snapshot())
             } catch {
                 guard refreshOperation?.id == refreshID else { return }
-                await apply(.verificationFailed(error.localizedDescription))
+                await apply(.verificationFailed(.init(error)))
                 Self.logger.verificationFailed(error: .restricted(.errorDetails, error))
             }
         }

@@ -16,6 +16,21 @@ struct IntentServicesTests {
         try IntentTestSupport.services(store: SwiftDataStore.inMemory())
     }
 
+    @Test func verificationFailureSurvivesTheHandoffAndClearWithoutLosingItsCause() async throws {
+        let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
+        let pending = Task { try await handoff.current() }
+        try await waitUntil { await handoff.waiterCount == 1 }
+        let failure = DataCompatibilityFailure(NSError(domain: "VerificationTest", code: 42))
+        await handoff.setCompatibility(.verificationFailed(failure))
+        await #expect(throws: DataCompatibilityError.verificationFailed(failure)) {
+            _ = try await pending.value
+        }
+        await handoff.clear()
+        await #expect(throws: DataCompatibilityError.verificationFailed(failure)) {
+            _ = try await handoff.current()
+        }
+    }
+
     @Test func blockedLaunchRejectsParkedAndFutureIntentsUntilReinstalled() async throws {
         let handoff = IntentServices(appGroupIdentifier: appGroupIdentifier)
         let pending = Task { try await handoff.current() }
