@@ -50,6 +50,8 @@ Shared installer tools have scoped rules in [`InstallerKit/AGENTS.md`](Installer
   Do not copy generated HTML into the test sources.
 - Capture through `SnapshotKitTesting.assertHTMLSnapshots` in the shared
   `StuffSnapshotTests` scheme. Keep WebKit capture mechanics in SnapshotKitTesting.
+  Keep every page state at phone baseline; choose representative page layouts for
+  dark/tablet coverage and focused status-page variants for distinct styling or wrapping.
   Guard: [InstallerSiteSnapshotTests.swift](SnapshotTests/InstallerSiteSnapshotTests.swift).
 
 ## Validation

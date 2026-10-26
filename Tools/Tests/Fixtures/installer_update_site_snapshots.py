@@ -9,7 +9,7 @@ This module embeds CSS and artwork so WebKit needs no server or network.
 
 The output is a JSON array of {"name": ..., "html": ...} objects.
 InstallerSiteSnapshotTests.swift uses each name as a snapshot reference identifier.
-It captures each page on iPhone and iPad in light and dark appearances.
+It captures every page at phone baseline and selected layouts in dark/tablet variants.
 Keep these names stable unless the matching reference images also change.
 """
 

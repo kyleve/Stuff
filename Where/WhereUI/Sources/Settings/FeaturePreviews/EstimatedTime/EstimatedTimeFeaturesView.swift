@@ -198,7 +198,9 @@ extension EstimatedTimeFeaturesView: SettingsSection {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Live",
-                configurations: .fullContentScreenRepresentative,
+                configurations: .fullContentPhoneLightDark + [
+                    .init(dynamicType: .accessibility5, device: .iPhoneFullContent),
+                ],
                 measurementReadiness: .immediate,
             ) {
                 EstimatedTimeFeaturesView(
