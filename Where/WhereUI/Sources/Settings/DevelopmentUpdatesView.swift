@@ -70,7 +70,7 @@ extension DevelopmentUpdatesView: SettingsSection {
                 let model = InstallerPreview.model(scenario)
                 whereSnapshot(
                     name: scenario.rawValue,
-                    configurations: scenario == .available ? .fullContentScreenDefaults :
+                    configurations: scenario == .available ? .fullContentScreenRepresentative :
                         .fullContentPhoneLightDark,
                     measurementReadiness: scenario.requiresRefresh ? .sameAsCapture : .immediate,
                     onReadyToMeasure: {

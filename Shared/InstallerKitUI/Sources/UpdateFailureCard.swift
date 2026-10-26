@@ -31,7 +31,7 @@ struct UpdateFailureCard: View {
         static var snapshots: [SnapshotCase] {
             // Capture this static surface for text scaling and VoiceOver annotations.
             // Full-page fixtures also exercise the automatic refresh and cached-data state.
-            SnapshotCase(name: "MissingFeed", configurations: .componentDefaults) {
+            SnapshotCase(name: "MissingFeed", configurations: .componentRepresentative) {
                 UpdateFailureCard(
                     error: UpdateClient.FetchError.httpStatus(404),
                     hasCachedBuilds: false,
@@ -39,7 +39,7 @@ struct UpdateFailureCard: View {
                 .background(InstallerStylesheet.default.page.background)
                 .installerBroadwayRoot()
             }
-            SnapshotCase(name: "OfflineCached", configurations: .componentDefaults) {
+            SnapshotCase(name: "OfflineCached", configurations: .componentRepresentative) {
                 UpdateFailureCard(
                     error: URLError(.notConnectedToInternet),
                     hasCachedBuilds: true,

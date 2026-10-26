@@ -220,13 +220,16 @@ struct PresenceTimelineList: View {
     extension PresenceTimelineList: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             [
-                whereSnapshot(name: "InterruptedStay", configurations: .fullContentScreenDefaults) {
+                whereSnapshot(
+                    name: "InterruptedStay",
+                    configurations: .fullContentScreenRepresentative,
+                ) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport
                             .interruptedStayYearReportModel())
                     }
                 },
-                whereSnapshot(name: "Flights", configurations: .fullContentScreenDefaults) {
+                whereSnapshot(name: "Flights", configurations: .fullContentScreenRepresentative) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport
                             .flightHistoryYearReportModel())
@@ -234,28 +237,28 @@ struct PresenceTimelineList: View {
                 },
                 whereSnapshot(
                     name: "UncertainArrival",
-                    configurations: .fullContentScreenDefaults,
+                    configurations: .fullContentScreenRepresentative,
                 ) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport
                             .flightYearReportModel(state: .uncertainArrival))
                     }
                 },
-                whereSnapshot(name: "Itinerary", configurations: .fullContentScreenDefaults) {
+                whereSnapshot(name: "Itinerary", configurations: .fullContentScreenRepresentative) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport.itineraryYearReportModel())
                     }
                 },
                 whereSnapshot(
                     name: "WithData",
-                    configurations: .fullContentScreenDefaults,
+                    configurations: .fullContentScreenRepresentative,
                     measurementReadiness: .immediate,
                 ) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
                     }
                 },
-                whereSnapshot(name: "InitialBottom", configurations: .screenDefaults) {
+                whereSnapshot(name: "InitialBottom", configurations: .screenRepresentative) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
                     }

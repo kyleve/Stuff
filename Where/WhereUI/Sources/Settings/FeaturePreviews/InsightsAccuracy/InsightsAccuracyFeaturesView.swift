@@ -57,7 +57,7 @@ extension InsightsAccuracyFeaturesView: SettingsSection {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Default",
-                configurations: .fullContentScreenDefaults,
+                configurations: .fullContentScreenRepresentative,
                 measurementReadiness: .immediate,
             ) {
                 InsightsAccuracyFeaturesView(

@@ -131,7 +131,7 @@ private struct YearModePicker: View {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Loaded",
-                configurations: .fullContentScreenDefaults,
+                configurations: .fullContentScreenRepresentative,
                 measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {

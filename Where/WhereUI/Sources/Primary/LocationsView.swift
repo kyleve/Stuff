@@ -174,7 +174,7 @@ private struct ResolveToolbarLabel: View {
                 artworkSnapshot(
                     name: "\(theme.snapshotReferenceGroup!.rawValue.capitalized)Loaded",
                     report: PreviewSupport.loadedYearReportModel(),
-                    configurations: .fullContentScreenDefaults,
+                    configurations: .fullContentScreenRepresentative,
                     theme: theme,
                 )
                 artworkSnapshot(
@@ -188,19 +188,19 @@ private struct ResolveToolbarLabel: View {
             artworkSnapshot(
                 name: "Itinerary",
                 report: PreviewSupport.itineraryYearReportModel(),
-                configurations: .fullContentScreenDefaults,
+                configurations: .fullContentScreenRepresentative,
             )
             artworkSnapshot(
                 name: "Loaded",
                 report: PreviewSupport.loadedYearReportModel(),
-                configurations: .fullContentScreenDefaults,
+                configurations: .fullContentScreenRepresentative,
             )
             for state in [FlightReviewPreviewState.flightLikely, .stale, .ready, .completed] {
                 artworkSnapshot(
                     name: "Flight-" + state.rawValue,
                     report: PreviewSupport.flightYearReportModel(state: state),
                     configurations: state == .flightLikely
-                        ? .fullContentScreenDefaults : .fullContentPhoneLightDark,
+                        ? .fullContentScreenRepresentative : .fullContentPhoneLightDark,
                 )
             }
             whereSnapshot(
@@ -268,7 +268,7 @@ private struct ResolveToolbarLabel: View {
             artworkSnapshot(
                 name: "ThreePrimaryRegions",
                 report: PreviewSupport.multiplePrimaryYearReportModel(),
-                configurations: .fullContentScreenDefaults,
+                configurations: .fullContentScreenRepresentative,
             )
         }
 

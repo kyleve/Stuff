@@ -111,7 +111,7 @@ public struct TodayWidgetView: View {
         public static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "SingleRegion",
-                configurations: .componentDefaults,
+                configurations: .componentRepresentative,
                 settle: .immediate,
             ) {
                 TodayWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(

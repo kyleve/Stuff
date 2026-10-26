@@ -87,7 +87,11 @@ public struct YearTotalsWidgetView: View {
 #if DEBUG
     extension YearTotalsWidgetView: SnapshotProviding {
         public static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Ranked", configurations: .componentDefaults, settle: .immediate) {
+            whereSnapshot(
+                name: "Ranked",
+                configurations: .componentRepresentative,
+                settle: .immediate,
+            ) {
                 YearTotalsWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
                     dayRegions: [.california],
                     totals: [

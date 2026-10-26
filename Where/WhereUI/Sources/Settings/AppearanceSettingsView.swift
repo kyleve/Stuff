@@ -246,7 +246,7 @@ extension AppearanceSettingsView: SettingsSection {
             }
             whereSnapshot(
                 name: "Default",
-                configurations: .fullContentScreenDefaults,
+                configurations: .fullContentScreenRepresentative,
                 measurementReadiness: .immediate,
                 onReadyToSnapshot: {
                     await PreviewSupport.loadCardArtwork(for: [.california], cache: cache)

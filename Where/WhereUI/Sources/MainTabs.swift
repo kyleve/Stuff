@@ -247,7 +247,7 @@ struct MainTabs: View {
             )
             return whereSnapshot(
                 name: theme == .standard ? "Elsewhere" : "FlatElsewhere",
-                configurations: theme == .standard ? .fullContentScreenDefaults :
+                configurations: theme == .standard ? .fullContentScreenRepresentative :
                     .fullContentPhoneLightDark,
                 theme: theme,
                 onReadyToMeasure: {

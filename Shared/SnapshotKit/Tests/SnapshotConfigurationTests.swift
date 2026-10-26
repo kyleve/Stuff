@@ -37,17 +37,57 @@ struct SnapshotConfigurationTests {
         #expect(Set(configs.compactMap(\.layoutTraits)) == [.phonePortrait, .tabletPortrait])
     }
 
-    @Test func componentDefaultsAreAdditiveNotCartesian() {
+    @Test func componentRepresentativeAreAdditiveNotCartesian() {
         // baseline + dark + accessibility type size + increased contrast + a11y capture
-        #expect([SnapshotConfiguration].componentDefaults.count == 5)
+        #expect([SnapshotConfiguration].componentRepresentative.count == 5)
     }
 
-    @Test func screenDefaultsCoverBothDevices() {
-        #expect([SnapshotConfiguration].screenDefaults.count == 10)
+    @Test func screenRepresentativeCoverBothDevices() {
+        #expect([SnapshotConfiguration].screenRepresentative.count == 10)
     }
 
-    @Test func fullContentScreenDefaultsCoverBothDeviceWidths() {
-        let configs = [SnapshotConfiguration].fullContentScreenDefaults
+    @Test func representativePresetsPreserveReferenceIdentifiersAndOrdering() {
+        #expect([SnapshotConfiguration].componentRepresentative.map(\.identifier) == [
+            "",
+            "dark",
+            "ax5",
+            "contrast",
+            "accessibility",
+        ])
+        let screenIdentifiers = [
+            "iPhone",
+            "iPad",
+            "iPhone_dark",
+            "iPad_dark",
+            "iPhone_ax5",
+            "iPad_ax5",
+            "iPhone_contrast",
+            "iPad_contrast",
+            "iPhone_accessibility",
+            "iPad_accessibility",
+        ]
+        #expect([SnapshotConfiguration].screenRepresentative.map(\.identifier) == screenIdentifiers)
+        #expect([SnapshotConfiguration].fullContentScreenRepresentative
+            .map(\.identifier) == screenIdentifiers)
+    }
+
+    @Test func additionalStatePresetsOnlyVaryAppearanceAndPreserveSizing() {
+        #expect([SnapshotConfiguration].componentLightDark == [
+            SnapshotConfiguration(),
+            SnapshotConfiguration(colorScheme: .dark),
+        ])
+        #expect([SnapshotConfiguration].phoneLightDark == [
+            SnapshotConfiguration(device: .iPhone),
+            SnapshotConfiguration(colorScheme: .dark, device: .iPhone),
+        ])
+        #expect([SnapshotConfiguration].fullContentPhoneLightDark == [
+            SnapshotConfiguration(device: .iPhoneFullContent),
+            SnapshotConfiguration(colorScheme: .dark, device: .iPhoneFullContent),
+        ])
+    }
+
+    @Test func fullContentScreenRepresentativeCoverBothDeviceWidths() {
+        let configs = [SnapshotConfiguration].fullContentScreenRepresentative
         #expect(configs.count == 10)
         #expect(Set(configs.map(\.device.name)) == ["iPhone", "iPad"])
         #expect(configs.allSatisfy { configuration in

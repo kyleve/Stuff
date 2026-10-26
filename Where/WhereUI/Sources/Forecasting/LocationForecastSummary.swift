@@ -77,7 +77,7 @@ struct LocationForecastSummary: View {
             let regions = report.ranking.primary.map(\.region)
             return whereThemeSnapshot(
                 name: name,
-                configurations: reduceTransparency ? .componentLightDark : .componentDefaults,
+                configurations: reduceTransparency ? .componentLightDark : .componentRepresentative,
                 measurementReadiness: .immediate,
                 onReadyToSnapshot: {
                     await artwork.load(for: regions) {

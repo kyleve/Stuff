@@ -245,7 +245,7 @@ extension AboutSettingsView: SettingsSection {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Default",
-                configurations: .fullContentScreenDefaults,
+                configurations: .fullContentScreenRepresentative,
                 measurementReadiness: .immediate,
                 // The navigation bar's scroll-edge shadow adapts after the
                 // form reaches its full-content height. Wait through that

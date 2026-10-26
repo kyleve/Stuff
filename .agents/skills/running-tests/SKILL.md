@@ -85,6 +85,11 @@ rendering them. Preserve ungrouped reference paths and nest special traits insid
 explicit theme groups. Follow the framework and consumer module `AGENTS.md` for
 which cases belong in comparison sheets versus full screens.
 
+For matrix reductions, compare retained case/configuration identities with the
+remaining references. Use `--record never` for unchanged captures so a reduction
+cannot bless an unrelated visual change. Record new or intentionally reframed
+subjects in a separate focused run and inspect them before the final assertion run.
+
 Do not parallelize the image suite. Simulators on one Mac share one render
 server. That makes captures slower and flaky. See
 [`Shared/SnapshotKitTesting/AGENTS.md`](../../../Shared/SnapshotKitTesting/AGENTS.md).

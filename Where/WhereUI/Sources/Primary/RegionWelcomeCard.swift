@@ -211,7 +211,7 @@ struct RegionWelcomeCard: View {
             let cache = RegionOutlinePathCache()
             return [whereThemeSnapshot(
                 name: "Welcome",
-                configurations: .componentDefaults,
+                configurations: .componentRepresentative,
                 measurementReadiness: .immediate,
                 onReadyToSnapshot: {
                     _ = await cache.path(for: .newYork, resolution: .medium)

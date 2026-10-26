@@ -62,7 +62,7 @@ extension RecordingFeaturesView: SettingsSection {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Recording",
-                configurations: .fullContentScreenDefaults,
+                configurations: .fullContentScreenRepresentative,
                 measurementReadiness: .immediate,
             ) {
                 RecordingFeaturesView(authorizationStatus: .always, isTracking: true, focus: nil)
