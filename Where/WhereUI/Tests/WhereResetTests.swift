@@ -524,15 +524,15 @@ private final class CommittedFailingResetInstallationContextStore:
         onboardingContext
     }
 
-    func confirmInitialRecording(isEnabled _: Bool) throws -> InstallationRecordingContext {
-        onboardingContext
+    func confirmInitialRecording(isEnabled _: Bool) throws -> ConfirmedInstallationContext {
+        try onboardingContext.confirmed()
     }
 
     func setAutomaticRecordingEnabled(_ isEnabled: Bool) throws {
-        onboardingContext = onboardingContext.settingAutomaticRecordingEnabled(
+        onboardingContext = try onboardingContext.confirmed().settingAutomaticRecordingEnabled(
             isEnabled,
             at: Date(),
-        )
+        ).context
     }
 
     func rejoin() throws -> InstallationRecordingContext {

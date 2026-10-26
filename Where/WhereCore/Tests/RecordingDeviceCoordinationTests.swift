@@ -49,10 +49,10 @@ struct RecordingDeviceCoordinationTests {
         #expect(newInstallation.onboardingContext.recordingControl.selection == .recordingRequested)
 
         let source = ScriptedLocationSource(authorizationStatus: .always)
-        let services = WhereServices(
+        let services = try WhereServices(
             store: store,
             locationSource: source,
-            installationContext: oldInstallation.onboardingContext,
+            installationContext: oldInstallation.onboardingContext.confirmed(),
             recordingAuthority: old,
             deviceCoordination: old,
         )
@@ -125,7 +125,7 @@ struct RecordingDeviceCoordinationTests {
         }
         let pending = try #require(installation.onboardingContext.recordingControl
             .pendingTransition)
-        #expect(try await coordination.refreshForUse() == pending.result)
+        #expect(try await coordination.refreshForUse() == pending.result.authority)
         #expect(installation.onboardingContext.recordingControl.pendingTransition == nil)
         #expect(try await store.recordingAuthorityCommits().count == 1)
     }
@@ -150,10 +150,10 @@ struct RecordingDeviceCoordinationTests {
         let requested = try fixture.proposal(owned, .requestHandoff, device: fixture.tablet)
         _ = try await authority.submit(requested)
         let requestID = try #require(requested.result.pendingHandoff?.requestID)
-        let services = WhereServices(
+        let services = try WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(authorizationStatus: .always),
-            installationContext: installation.onboardingContext,
+            installationContext: installation.onboardingContext.confirmed(),
             recordingAuthority: coordination,
             deviceCoordination: coordination,
         )
@@ -204,10 +204,10 @@ struct RecordingDeviceCoordinationTests {
         let pending = try #require(installation.onboardingContext.recordingControl
             .pendingTransition)
         try await coordination.cancelHandoff(requestID: requestID)
-        #expect(try await authority.observed() == pending.result)
+        #expect(try await authority.observed() == pending.result.authority)
         #expect(installation.onboardingContext.recordingControl.pendingTransition == nil)
         try await transport.commitDelayedProposal()
-        #expect(try await coordination.refresh() == pending.result)
+        #expect(try await coordination.refresh() == pending.result.authority)
     }
 
     @Test @MainActor func removedTargetCannotReceiveAPendingApproval() async throws {
@@ -239,7 +239,7 @@ struct RecordingDeviceCoordinationTests {
             _ = try await coordination
                 .prepareApproval(requestID: #require(requested.result.pendingHandoff?.requestID))
         }
-        #expect(try await authority.observed() == requested.result)
+        #expect(try await authority.observed() == requested.result.authority)
         #expect(installation.onboardingContext.recordingControl.pendingTransition == nil)
     }
 
@@ -273,7 +273,7 @@ struct RecordingDeviceCoordinationTests {
         await #expect(throws: RecordingAuthorityError.invalidHandoff) {
             try await coordination.commitStoppedApproval(approval)
         }
-        #expect(try await authority.observed() == requested.result)
+        #expect(try await authority.observed() == requested.result.authority)
         #expect(try await coordination.isRelinquishing())
     }
 
@@ -298,10 +298,10 @@ struct RecordingDeviceCoordinationTests {
             installation: RecordingCoordinationInstallation(deviceID: fixture.tablet),
         )
         let requested = try await replacement.selectRecordingRole(.recordingRequested)
-        let services = WhereServices(
+        let services = try WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(authorizationStatus: .always),
-            installationContext: installation.onboardingContext,
+            installationContext: installation.onboardingContext.confirmed(),
             recordingAuthority: coordination,
             deviceCoordination: coordination,
         )
@@ -341,10 +341,10 @@ struct RecordingDeviceCoordinationTests {
             authority: authority,
             installation: installation,
         )
-        let services = WhereServices(
+        let services = try WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(authorizationStatus: .always),
-            installationContext: installation.onboardingContext,
+            installationContext: installation.onboardingContext.confirmed(),
             recordingAuthority: restarted,
             deviceCoordination: restarted,
         )
@@ -417,7 +417,7 @@ struct RecordingDeviceCoordinationTests {
         let requestID = try #require(requested.result.pendingHandoff?.requestID)
         let approval = try await coordination.prepareApproval(requestID: requestID)
         _ = try await authority.submit(fixture.proposal(
-            requested.result,
+            requested.result.authority,
             .cancelHandoff(requestID: requestID),
             device: fixture.tablet,
         ))
@@ -457,10 +457,10 @@ struct RecordingDeviceCoordinationTests {
             source: .gpsSignificantChange,
         ).recorded(by: fixture.phone)
         let outbox = ScriptedLocationOutbox([sample])
-        let services = WhereServices(
+        let services = try WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(authorizationStatus: .always),
-            installationContext: installation.onboardingContext,
+            installationContext: installation.onboardingContext.confirmed(),
             recordingAuthority: coordination,
             deviceCoordination: coordination,
             locationOutbox: outbox,

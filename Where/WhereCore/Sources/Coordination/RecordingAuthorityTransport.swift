@@ -35,17 +35,15 @@ public actor LocalRecordingAuthorityTransport: RecordingAuthorityTransport {
         var state = RecordingAuthority.initial
         for commit in commits
             .sorted(by: {
-                ($0.proposal.result.revision?.sequence ?? 0) <
-                    ($1.proposal.result.revision?.sequence ?? 0)
+                $0.proposal.result.revision.sequence <
+                    $1.proposal.result.revision.sequence
             })
         {
-            try commit.proposal.validate()
-            guard commit.proposal.expected == state,
-                  let eventID = commit.proposal.result.revision?.eventID
+            guard commit.proposal.expected == state
             else { throw RecordingAuthorityError.invalidRecord }
-            self.commits[eventID] = commit
+            self.commits[commit.proposal.result.revision.eventID] = commit
             latest = commit
-            state = commit.proposal.result
+            state = commit.proposal.result.authority
         }
     }
 
@@ -66,14 +64,12 @@ public actor LocalRecordingAuthorityTransport: RecordingAuthorityTransport {
     }
 
     public func commit(_ proposal: RecordingAuthorityProposal) throws -> RecordingAuthorityCommit {
-        try proposal.validate()
-        guard let eventID = proposal.result.revision?.eventID
-        else { throw RecordingAuthorityError.invalidRecord }
+        let eventID = proposal.result.revision.eventID
         if let commit = commits[eventID] {
             guard commit.proposal == proposal else { throw RecordingAuthorityError.conflict }
             return commit
         }
-        guard (latest?.proposal.result ?? .initial) == proposal.expected
+        guard (latest?.proposal.result.authority ?? .initial) == proposal.expected
         else { throw RecordingAuthorityError.conflict }
         let commit = RecordingAuthorityCommit(proposal: proposal, committedAt: now())
         commits[eventID] = commit

@@ -9,10 +9,8 @@ CloudKit authority records decide who owns recording.
 The local records let readers use verified history without making another server request.
 They cannot elect an owner or approve a transfer.
 
-This guide covers the authority foundation introduced in PR #345.
-That slice supplies the protocol, transports, and local commit store.
-Later slices connect it to recording, recovery, and app startup.
-The foundation alone does not start or stop GPS, change local recording consent, or block normal app use.
+This guide covers the authority protocol introduced in PR #345 and its typed domain boundaries.
+Recording, recovery, and startup consumers use this protocol through their own coordinators.
 
 ## The state in one example
 
@@ -21,7 +19,8 @@ The request leaves A as the owner.
 After A stops capture and approves the request, B becomes the owner under a new **ownership period**.
 `ownershipID` identifies one continuous grant, even if the same installation owns recording again later.
 
-[`RecordingAuthority`](Sources/Coordination/RecordingAuthority.swift) holds four related values:
+[`RecordingAuthority`](Sources/Coordination/RecordingAuthority.swift) has `.unclaimed` and `.established(Established)` cases.
+`Established` holds four related values:
 
 | Value | Meaning |
 | --- | --- |
@@ -32,6 +31,8 @@ After A stops capture and approves the request, B becomes the owner under a new 
 
 For a new account, `.initial` has no revision, owner, or request, and requires version 1.
 Once ownership exists, each transition retains an owner.
+`RecordingAuthorityProposal.result` has type `RecordingAuthority.Established`, so its owner and revision are never optional.
+Use `result.authority` when passing this endpoint to an API that also accepts unclaimed state.
 Turning off local recording consent does not release ownership.
 Installing a newer build or requesting a handoff does not raise the data version.
 
@@ -39,6 +40,7 @@ Installing a newer build or requesting a handoff does not raise the data version
 
 | Component | Responsibility |
 | --- | --- |
+| `RecordingAuthorityRecord` | Preserves the existing JSON fields and validates decoded endpoints and transitions before producing domain values. |
 | `RecordingAuthorityProposal` | Validates an action and derives its result from the complete state the caller reviewed. It performs no I/O. |
 | `RecordingAuthorityTransport` | Reads server state, finds immutable commits, and conditionally commits proposals. |
 | `CloudKitRecordingAuthorityTransport` | Implements the transport in a dedicated private CloudKit zone. |
@@ -85,7 +87,9 @@ Additional metadata belongs on the containing authority or backup record; it doe
 ## How a transition commits
 
 The caller obtains state through `refresh()` and constructs a proposal from that state.
-The proposal carries the complete `expected` state, its derived `result`, and a new event ID.
+The proposal carries the complete `expected` state, its established `result`, and a new event ID.
+Its `Transition` enum carries the history choice only for recovery.
+The stored record derives `kind` and `recoveryHistory` from that transition.
 Construction checks the domain rules but does not reserve the server state.
 
 The CloudKit transport then performs these steps:

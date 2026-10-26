@@ -102,7 +102,7 @@ public struct WhereServices: Sendable {
     /// Device-local installation identity and its explicitly confirmed first policy.
     /// Retained as one composition value so registration, sample attribution, and a derived
     /// App Intents stack cannot accidentally describe different installations.
-    let installationContext: InstallationRecordingContext
+    let installationContext: ConfirmedInstallationContext
     /// Owns the remote-import observation task for this service lifetime.
     private let remoteDataChangeReconciler: RemoteDataChangeReconciler
     /// Synchronous assembly with an explicitly-provided `attributor` (default:
@@ -121,7 +121,7 @@ public struct WhereServices: Sendable {
     public init(
         store: any WhereStore,
         locationSource: any LocationSource,
-        installationContext: InstallationRecordingContext = .testing,
+        installationContext: ConfirmedInstallationContext = .testing,
         recordingAuthority: (any RecordingAuthorityReading)? = nil,
         deviceCoordination: RecordingDeviceCoordination? = nil,
         attributor: any RegionAttributing = RegionAttributor.shared,
@@ -346,9 +346,9 @@ public struct WhereServices: Sendable {
     /// while production wiring — the app launch and the App Intents process —
     /// goes through here so both attribute against the *same* stored set.
     public static func make(
-        store: any WhereStore,
+        store: CompatibilityScopedStore,
         locationSource: any LocationSource,
-        installationContext: InstallationRecordingContext,
+        installationContext: ConfirmedInstallationContext,
         recordingAuthority: any RecordingAuthorityReading,
         deviceCoordination: RecordingDeviceCoordination?,
         aggregator: DayAggregator = DayAggregator(),

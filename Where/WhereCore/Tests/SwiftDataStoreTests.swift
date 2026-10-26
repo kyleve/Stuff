@@ -92,7 +92,7 @@ struct SwiftDataStoreTests {
                 at: Date(),
             )
         }
-        #expect(try await store.recordingAuthority() == claim.result)
+        #expect(try await store.recordingAuthority() == claim.result.authority)
         #expect(try await store.dataCompatibilityRequirements() == [requirement])
     }
 

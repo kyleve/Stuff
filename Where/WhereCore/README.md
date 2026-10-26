@@ -304,11 +304,12 @@ one it belongs to rather than to a god-object:
   Export before upgrading the app. Upgrade the archive offline, then replace-import it.
   Update every syncing installation before editing plans. Older builds use a single
   stay register and can delete independent stays in the shared store.
-- **`InstallationRecordingContext`** — the device-local installation identity,
-  explicitly confirmed local recording choice, and stable timestamp for recreating
-  its immutable device profile idempotently.
-  `InstallationRecordingContextStoring` keeps the persistence adapter outside
-  the domain value.
+- **`InstallationRecordingContext`** — the device-local identity, confirmation state,
+  and stable device-profile timestamp. `confirmInitialRecording` returns
+  `ConfirmedInstallationContext`, whose choice is Off or On with its consent date.
+  Recording services require this confirmed type. `confirmed()` throws when a
+  restored installation still needs a choice. The persistence adapter remains
+  behind `InstallationRecordingContextStoring`.
 - **`WherePreferences`** — persisted user intent (onboarding,
   reminder / summary schedules, presentation theme, and Locations-card GPS-dot,
   live-region welcome, and estimated-time/planning visibility) plus the
@@ -389,12 +390,18 @@ import WhereCore
 // attributor, so `make(...)` is the one public entry and is async. Tests and
 // previews use the synchronous `@_spi(Testing)` `init` instead (an explicit
 // attributor, default four) via `@_spi(Testing) import WhereCore`.
+// The bootstrap has already checked compatibility and created these dependencies.
 let services = try await WhereServices.make(
-    store: try SwiftDataStore.make(storage: .cloudKit(
-        appGroupIdentifier: "group.com.stuff.where"
-    )),
-    locationSource: CoreLocationSource(),
-    installationContext: installationContext, // resolved once by the app composition root
+    store: try await compatibility.openDomainStore(),
+    locationSource: locationSource,
+    installationContext: try installationContextStore.resolve().confirmed(),
+    recordingAuthority: recording,
+    deviceCoordination: recording,
+    reminderScheduler: reminderScheduler,
+    summaryScheduler: summaryScheduler,
+    issueAlertScheduler: issueAlertScheduler,
+    widgetRefresher: widgetRefresher,
+    importRecoveryPersistence: installationContextStore
 )
 
 // Read a year, aggregated with the injected calendar + region attribution.
@@ -568,6 +575,11 @@ conditional server writes, retry outcomes, local reconciliation, and review orde
 CloudKit authority records decide who owns recording. `SDRecordingAuthorityCommit`
 records what this device learned. `CloudKitRecordingAuthorityRecord` owns the
 typed head/event identities and payload coding inside the transport boundary.
+`RecordingAuthority` distinguishes `.unclaimed` from `.established(Established)`.
+An established value always has an owner and revision. Every proposal returns
+that narrower type. Its `Transition.recover` case carries the required history choice.
+`RecordingAuthorityRecord` retains the existing synthesized JSON shapes and
+validates them before constructing domain values. Domain enums are not serialized.
 
 `RecordingAuthorityCoordinator` reconciles a server-confirmed owner and data
 version into the existing store. `RecordingDeviceCoordination` owns explicit role
@@ -635,7 +647,10 @@ try await services.recording.approveHandoff(requestID: request.requestID)
 ```
 
 Approval persists an installation-local fence, stops GPS, then commits the
-reviewed server transition. Uncertain responses reuse the same event ID.
+reviewed server transition. `prepareApproval` returns a `PreparedHandoffApproval`
+only after writing the fence. `commitStoppedApproval` accepts that type and
+rechecks its durable identity and target eligibility. The controller still owns
+stopping and draining capture. Uncertain responses reuse the same event ID.
 Restart and pending cancellation honor the fence. A cancellation retry retains its event ID.
 A verified newer server revision resolves a completed or rejected pending command.
 An unchanged head retains the command because a request can still be in flight.
@@ -690,8 +705,11 @@ Recovery creates a fresh scope. Ordinary reads can finish during teardown.
 Recovery metadata remains available while the normal session is blocked.
 
 Control-plane inspection and recording coordination remain available while blocked.
-The production raw store remains at the bootstrap; services receive the scoped
-boundary. Session teardown and output cleanup use that same lifetime.
+The production raw store remains at the bootstrap. `openDomainStore()` returns
+`CompatibilityScopedStore`, and `WhereServices.make` requires that concrete type.
+Its base and permit are private. Demo composition uses the explicit
+`isolatedDomainStore()` SPI, which creates a new memory-only store. Session teardown and
+output cleanup use that same lifetime.
 
 ### Retiring a compatibility scope
 

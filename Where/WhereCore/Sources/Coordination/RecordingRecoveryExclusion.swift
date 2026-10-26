@@ -28,12 +28,15 @@ public struct RecordingRecoveryExclusion: Identifiable, Codable, Hashable, Senda
     }
 
     static func from(_ commit: RecordingAuthorityCommit) throws -> Self? {
-        guard commit.proposal.kind == .recover,
-              commit.proposal.recoveryHistory == .excludeAfterReplacement else { return nil }
-        guard let owner = commit.proposal.expected.owner,
-              let eventID = commit.proposal.result.revision?.eventID
+        guard case .recover(.excludeAfterReplacement) = commit.proposal.transition
+        else { return nil }
+        guard let owner = commit.proposal.expected.owner
         else { throw RecordingAuthorityError.invalidRecord }
-        let result = Self(id: eventID, formerOwner: owner, replacedAt: commit.committedAt)
+        let result = Self(
+            id: commit.proposal.result.revision.eventID,
+            formerOwner: owner,
+            replacedAt: commit.committedAt,
+        )
         try result.validate()
         return result
     }

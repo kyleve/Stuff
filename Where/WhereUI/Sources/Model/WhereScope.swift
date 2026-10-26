@@ -239,7 +239,7 @@ public final class WhereScope {
         // `nonisolated async` — so this call was the last main-actor stall on
         // the way into demo mode.
         let store = try await Task.detached(priority: .userInitiated) {
-            try SwiftDataStore.inMemory()
+            try DataCompatibilityCoordinator.isolatedDomainStore()
         }.value
         let services = try await WhereServices.make(
             store: store,

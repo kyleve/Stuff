@@ -864,11 +864,11 @@
         static func recordingConfigurationWarningAppModel() -> WhereModel {
             let preferences = previewPreferences()
             preferences.hasOnboarded = true
-            let context = InstallationRecordingContext(
+            let context = ConfirmedInstallationContext(
                 currentDevice: InstallationRecordingContext.testing.currentDevice,
                 registeredAt: InstallationRecordingContext.testing.registeredAt,
                 recordingChoice: .off,
-                isRejoining: false,
+                recordingControl: .initial,
             )
             let services = WhereServices(
                 store: try! SwiftDataStore.inMemory(),

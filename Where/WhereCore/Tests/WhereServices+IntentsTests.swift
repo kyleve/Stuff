@@ -11,7 +11,10 @@ import Testing
 struct WhereServicesIntentsTests {
     @Test func stackWritesThroughJournalAndReadsBackThroughReports() async throws {
         let store = try SwiftDataStore.inMemory()
-        let services = try await WhereServices.makeForIntents(store: store)
+        let services = try await WhereServices.makeForIntents(store: CompatibilityScopedStore(
+            base: store,
+            permit: DataAccessPermit(),
+        ))
 
         try await services.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-06-15T12:00:00-07:00"),
@@ -26,7 +29,10 @@ struct WhereServicesIntentsTests {
 
     @Test func stackNeverOffersALocationFix() async throws {
         let store = try SwiftDataStore.inMemory()
-        let services = try await WhereServices.makeForIntents(store: store)
+        let services = try await WhereServices.makeForIntents(store: CompatibilityScopedStore(
+            base: store,
+            permit: DataAccessPermit(),
+        ))
 
         // The idle source backs the ingestor, so a manual entry made from an
         // intent honestly records "no captured location" rather than a fix.
@@ -81,19 +87,34 @@ struct WhereServicesForIntentsSharingTests {
         #expect(try await h.store.allSamples().count == originalSamples.count + 1)
     }
 
-    @Test func sharedStackRidesTheBaseServicesStore() async throws {
+    @Test func sharedStackRetainsTheBaseStoresAccessPermit() async throws {
         let store = try SwiftDataStore.inMemory()
-        let base = try await WhereServices.makeForIntents(store: store)
+        let permit = DataAccessPermit()
+        let base = try await WhereServices.makeForIntents(store: CompatibilityScopedStore(
+            base: store,
+            permit: permit,
+        ))
 
         let shared = WhereServices.forIntents(sharingStoreOf: base)
-
-        #expect((shared.store as? SwiftDataStore) === store)
-        #expect((base.store as? SwiftDataStore) === store)
+        try await base.validateDataAccess()
+        try await shared.validateDataAccess()
+        permit.revoke()
+        await #expect(throws: DataCompatibilityError.accessRevoked) {
+            try await base.validateDataAccess()
+        }
+        await #expect(throws: DataCompatibilityError.accessRevoked) {
+            try await shared.validateDataAccess()
+        }
+        // Revocation belongs to this service scope; the bootstrap still owns a usable store.
+        try await store.validateDataAccess()
     }
 
     @Test func sharedStackStillNeverOffersALocationFix() async throws {
         let store = try SwiftDataStore.inMemory()
-        let base = try await WhereServices.makeForIntents(store: store)
+        let base = try await WhereServices.makeForIntents(store: CompatibilityScopedStore(
+            base: store,
+            permit: DataAccessPermit(),
+        ))
 
         let shared = WhereServices.forIntents(sharingStoreOf: base)
 
@@ -105,7 +126,10 @@ struct WhereServicesForIntentsSharingTests {
 
     @Test func writesThroughTheSharedStackAreVisibleToTheBase() async throws {
         let store = try SwiftDataStore.inMemory()
-        let base = try await WhereServices.makeForIntents(store: store)
+        let base = try await WhereServices.makeForIntents(store: CompatibilityScopedStore(
+            base: store,
+            permit: DataAccessPermit(),
+        ))
         let shared = WhereServices.forIntents(sharingStoreOf: base)
 
         try await shared.journal.addManualDay(
@@ -123,7 +147,10 @@ struct WhereServicesForIntentsSharingTests {
         // and scan windows can't diverge from the layer it was derived from.
         let fixed = WhereCoreTestSupport.iso("2026-03-01T09:00:00-08:00")
         let store = try SwiftDataStore.inMemory()
-        let base = try await WhereServices.makeForIntents(store: store, now: { fixed })
+        let base = try await WhereServices.makeForIntents(
+            store: CompatibilityScopedStore(base: store, permit: DataAccessPermit()),
+            now: { fixed },
+        )
 
         let shared = WhereServices.forIntents(sharingStoreOf: base)
 
