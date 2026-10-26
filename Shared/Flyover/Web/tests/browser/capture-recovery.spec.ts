@@ -33,6 +33,7 @@ test('failed preview directs reviewers to recovery and reload retains the deep l
     await expect(panel.getByRole('button', { name: 'Retry capture' })).toBeEnabled();
     const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
     expect(result.violations).toEqual([]);
+    await expect(panel).toBeInViewport({ ratio: 1 });
     await page.screenshot({ path: testInfo.outputPath('capture-recovery.png') });
     const url = page.url();
     await page.unroute('**/images/**');

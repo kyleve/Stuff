@@ -8,12 +8,17 @@
     .capture-error {
         position: absolute;
         z-index: 1;
-        max-width: min(420px, calc(100% - 32px));
+        top: 50%;
+        left: 50%;
+        width: min(420px, calc(100% - 32px));
+        max-height: calc(100% - 160px);
+        overflow: auto;
         border-radius: 16px;
         padding: 20px;
         background: var(--surface-solid);
         color: var(--text);
         box-shadow: var(--shadow-small);
+        transform: translate(-50%, -50%);
     }
 
     .capture-error p {
