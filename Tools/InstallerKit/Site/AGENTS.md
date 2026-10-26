@@ -10,6 +10,7 @@ and the [repository rules](../../../AGENTS.md).
   Do not duplicate the public catalog validator in TypeScript.
 - Preserve the homepage, app, and channel routes. Use the prepared base path for local links and assets.
   Keep installation links tied to the validated HTTPS manifest URL.
+- Distinguish preparing, failed, unpublished, and retired channels. Progress links must use Python's validated workflow URL; only active published releases can render install actions.
 - Render app names and commit subjects as escaped text. Never pass catalog text to `set:html`.
 - Build through `../installer_update_site.py`. Publish its complete output as one Pages artifact.
   Keep generated files isolated so previews and snapshot builds can run concurrently.

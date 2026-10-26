@@ -71,7 +71,7 @@ def offline_html(files, path):
 
 
 def pages():
-    """Select seven named pages from the five shared synthetic catalog states.
+    """Select representative pages from the shared synthetic catalog states.
 
     The full state covers all three navigation levels and long release notes.
     Other states cover rewritten history, retirement, an empty catalog, and
@@ -83,6 +83,10 @@ def pages():
         "retired": [("Retired", "apps/where/pr-42/index.html")],
         "empty": [("Empty", "index.html")],
         "missing-details": [("MissingDetails", "apps/example/pr-42/index.html")],
+        "preparing": [("Preparing", "apps/where/pr-42/index.html"), ("PreparingApp", "apps/where/index.html")],
+        "failed": [("Failed", "apps/where/pr-42/index.html")],
+        "rebuilding": [("Rebuilding", "apps/where/pr-42/index.html")],
+        "unpublished": [("Unpublished", "apps/where/pr-42/index.html")],
     }
     result = []
     for name, catalog in site_scenarios().items():

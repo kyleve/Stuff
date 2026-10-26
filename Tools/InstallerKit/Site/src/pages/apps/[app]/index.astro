@@ -1,5 +1,5 @@
 ---
-import { site, mainChannel, type App, type ActiveChannel } from '../../../data';
+import { site, mainChannel, type App, type ActiveChannel, type ProgressChannel } from '../../../data';
 import SiteLayout from '../../../layouts/SiteLayout.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import AppHero from '../../../components/AppHero.astro';
@@ -7,27 +7,33 @@ import BuildSummary from '../../../components/BuildSummary.astro';
 import BranchRow from '../../../components/BranchRow.astro';
 import EmptyState from '../../../components/EmptyState.astro';
 import InstallHelp from '../../../components/InstallHelp.astro';
+import BuildProgress from '../../../components/BuildProgress.astro';
 export function getStaticPaths() {
   return site.apps.map(app => ({ params: { app: app.id }, props: { app } }));
 }
 interface Props { app: App }
 const { app } = Astro.props;
 const main = mainChannel(app);
-const branches = app.channels.filter((channel): channel is ActiveChannel => channel.state === 'active' && channel.name !== 'main')
+const mainEntry = app.channels.find(channel => channel.name === 'main');
+const mainStatus = mainEntry?.state === 'active' ? mainEntry.buildStatus :
+  mainEntry?.state === 'preparing' || mainEntry?.state === 'failed' ? mainEntry : undefined;
+const branches = app.channels.filter((channel): channel is ActiveChannel | ProgressChannel =>
+  channel.name !== 'main' && (channel.state === 'active' || channel.state === 'preparing' || channel.state === 'failed'))
   .sort((a, b) => Number(b.name.slice(3)) - Number(a.name.slice(3)));
 ---
 <SiteLayout title={app.name + ' builds'}>
   <Breadcrumbs app={app}/>
   <AppHero app={app} channel={main} label="LATEST MAIN BUILD"/>
+  {mainStatus && <BuildProgress status={mainStatus} hasPublishedBuild={!!main}/>}
   {main ? (
     <BuildSummary app={app} channel={main}/>
-  ) : (
+  ) : !mainStatus && (
     <EmptyState title="No main build yet" message="The latest successful main build will appear here."/>
   )}
   <section class="section">
     <div class="section-heading">
       <h2>Pull Request Builds</h2>
-      <p>{branches.length} available</p>
+      <p>{branches.filter(channel => channel.state === 'active').length} available</p>
     </div>
     {branches.length ? (
       <div class="channel-list">{branches.map(channel => <BranchRow app={app} channel={channel}/>)}</div>

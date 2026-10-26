@@ -19,5 +19,19 @@
       "WhereConfiguration": "Debug",
       "WhereSwiftOptimizationLevel": "-O"
     }
+  },
+  {
+    "id": "throw",
+    "name": "Throw",
+    "bundleIdentifier": "com.stuff.throw",
+    "sourceDirectory": "Throw",
+    "site": {
+      "subtitle": "Live views for your external display."
+    },
+    "bundlePath": "Payload/Throw.app",
+    "signedBundles": [
+      "Payload/Throw.app"
+    ],
+    "requiredInfo": {}
   }
 ]

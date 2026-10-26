@@ -119,7 +119,7 @@ module InstallerSigning
                   renew_expired_certs: !readonly, clone_branch_directly: true }
       options[:api_key_path] = ENV.fetch('INSTALLER_API_KEY_PATH') unless readonly
       if ENV['CIRCLECI']
-        state = ENV.fetch('WHERE_SIGNING_DIR')
+        state = ENV.fetch('INSTALLER_SIGNING_DIR')
         raise 'Temporary signing state is missing' unless File.file?(File.join(state, 'owned-by-installer-signing'))
         options.merge!(keychain_name: File.join(state, 'signing.keychain-db'),
                        keychain_password: File.read(File.join(state, 'keychain-password')),

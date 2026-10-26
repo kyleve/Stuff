@@ -114,6 +114,9 @@ Layering, localization, preview, and testing conventions live in the feature
   `YearReportModel` scan result. Inject that scene as the Resolve model's `ResolutionSource`. Re-key on raw evidence changes; never gate refresh
   on aggregate-report equality. Schedule presentation deadlines only in the foreground.
 - Expose each calendar month as one accessibility element: regional totals in the label, chronological stay spans and dated badges in the value. Preserve planning qualifiers. Guard: `CalendarMonthAccessibilityTests`.
+- Keep overview availability derived from the full-size calendar visibility rule in `CalendarPresentationModel`. Unavailable months keep their region and projection colors, and remain actionable for rejection feedback. Guard: `CalendarPresentationModelTests`.
+- Inject the calendar zoom key at each entry point. Persist mode changes through `WherePreferences`; a nil key must not read or write preferences. Guard: `CalendarPresentationModelTests`.
+- Animate calendar zoom in an overlay after the destination scroll position settles. Keep moving geometry outside the scroll-target layout and cancel it when its viewport or report changes. Reduce Motion uses a crossfade. Guards: `CalendarZoomTransitionModelTests`, `CalendarContentViewTests`.
 - Keep calendar flight days and timeline flight events independent of review dismissal.
   Show uncertain arrival timing explicitly. Render supported travel periods separately from later ground observations.
   Split timeline stays only for presentation; preserve every region-day exactly once.
@@ -282,6 +285,10 @@ Use the [`update-explore-features`](../../.agents/skills/update-explore-features
 
 ## Testing
 
+Hosted tests that traverse SwiftUI accessibility must link and import
+`AccessibilitySnapshotParser` so a fresh simulator initializes its accessibility
+runtime. Guard: `CalendarContentViewTests`.
+
 `WhereStylesheetTests` pins every token default and trait-aware derivation.
 `WhereStylesheetEnvironmentTests` covers the `@Environment(\.stylesheet)`
 glue and `whereBroadwayRoot()` seeding, including the WhereWidgets path.
@@ -294,7 +301,9 @@ top-level screen. List its type in the appropriate catalog group. Flyover
 frames share one `WhereFlyoverWorld`. Synthetic preview models are reserved for
 states the seeded demo cannot express.
 When registrations, routes, or default variants change, run
-`WhereFlyoverViewSnapshotTests` alongside the affected screen suites.
+`WhereFlyoverCatalogTests` alongside the affected screen suites.
+Keep the full Where Flyover overview out of image snapshots. Use individual screen
+suites for content and the shared Flyover suite for the browser.
 
 Screens, widgets, and app-flow surfaces are pinned as matrixed image
 snapshots under [`SnapshotTests/`](SnapshotTests). Those build as this module's

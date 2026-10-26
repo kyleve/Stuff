@@ -77,3 +77,34 @@ class InstallerAppsTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 validate_app_id(value)
         self.assertEqual(validate_app_id("sample-app2"), "sample-app2")
+
+    def test_enabled_apps_are_explicit_and_export_names_come_from_signing(self):
+        from Tools.InstallerKit.installer_apps import archive_product, enabled_apps
+        self.assertEqual(enabled_apps({}), [])
+        self.assertEqual(enabled_apps({'WHERE_DISTRIBUTION_ENABLED': 'true'}), ['where'])
+        self.assertEqual(enabled_apps({'WHERE_DISTRIBUTION_ENABLED': 'true',
+                                       'THROW_DISTRIBUTION_ENABLED': 'true'}), ['where', 'throw'])
+        self.assertEqual(enabled_apps({'THROW_DISTRIBUTION_ENABLED': 'false'}), [])
+        self.assertEqual(archive_product('throw'), 'Throw')
+        with tempfile.TemporaryDirectory() as temporary:
+            signing = Path(temporary) / 'signing.json'
+            for product in ('Where', '../Throw', 'Throw\n'):
+                signing.write_text(json.dumps({'throw': {'product': product}}))
+                with self.subTest(product=product), self.assertRaises(ValueError):
+                    archive_product('throw', signing_path=signing)
+
+    def test_selection_command_outputs_multiple_apps_without_credentials(self):
+        import subprocess
+        import sys
+        from Tools.repository import repository_root
+        with tempfile.TemporaryDirectory(prefix='apps ü ') as temporary:
+            output = Path(temporary) / 'output'
+            result = subprocess.run([sys.executable, '-m', 'Tools.InstallerKit.installer_apps', '--output', str(output)],
+                                    cwd=temporary, capture_output=True, text=True, env={
+                                        'PATH': '/usr/bin:/bin', 'PYTHONPATH': str(repository_root(__file__)),
+                                        'INSTALLER_VARIABLES': json.dumps({'WHERE_DISTRIBUTION_ENABLED': 'true',
+                                                                         'THROW_DISTRIBUTION_ENABLED': 'true'})})
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stderr, '')
+            self.assertEqual(result.stdout, 'apps=["where","throw"]\n')
+            self.assertEqual(output.read_text(), result.stdout)

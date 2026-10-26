@@ -5,7 +5,7 @@ umask 077
 root="$(cd "$(dirname "$0")/.." && pwd)"
 # Usage and runner guards must also work when tool setup failed.
 if [ "$#" -ne 1 ] || { [ "$1" != prepare ] && [ "$1" != cleanup ]; }; then
-    echo 'Usage: .github/where-signing.sh prepare|cleanup' >&2
+    echo 'Usage: .github/installer-signing.sh prepare|cleanup' >&2
     exit 1
 fi
 if [ "${CIRCLECI:-}" != true ]; then
@@ -13,8 +13,8 @@ if [ "${CIRCLECI:-}" != true ]; then
     exit 1
 fi
 # No material exists when setup failed before prepare; cleanup needs no runtime.
-if [ "$1" = cleanup ] && [ -n "${WHERE_SIGNING_DIR:-}" ] &&
-    [ ! -e "$WHERE_SIGNING_DIR" ] && [ ! -L "$WHERE_SIGNING_DIR" ]; then
+if [ "$1" = cleanup ] && [ -n "${INSTALLER_SIGNING_DIR:-}" ] &&
+    [ ! -e "$INSTALLER_SIGNING_DIR" ] && [ ! -L "$INSTALLER_SIGNING_DIR" ]; then
     exit 0
 fi
 cd "$root"

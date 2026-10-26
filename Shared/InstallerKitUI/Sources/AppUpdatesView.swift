@@ -101,7 +101,11 @@ private struct UpdatePage<SectionDecoration: ViewModifier>: View {
                 UpdateBuildSummary(release: update.release)
                 UpdateChanges(changes: update.changes, installed: model.installed)
                     .modifier(sectionDecoration(.changes))
-                UpdateBuildInformation(release: update.release, installed: model.installed)
+                UpdateBuildInformation(
+                    channel: update.channel,
+                    release: update.release,
+                    installed: model.installed,
+                )
             case let .retired(main):
                 UpdateCard(title: .installerRetiredTitle) {
                     Text(main == nil ? LocalizedStringResource
@@ -111,7 +115,11 @@ private struct UpdatePage<SectionDecoration: ViewModifier>: View {
                 }
                 if let main {
                     UpdateBuildSummary(release: main, title: .installerMainBuild)
-                    UpdateBuildInformation(release: main, installed: model.installed)
+                    UpdateBuildInformation(
+                        channel: .main,
+                        release: main,
+                        installed: model.installed,
+                    )
                 }
             case .unpublished:
                 UpdateCard(title: .installerNoPublishedBuild) {

@@ -49,6 +49,8 @@ public struct UpdateCatalog: Codable, Sendable, Equatable {
         public let historyChanged: Bool
         public let commits: [Commit]
         public let buildDetails: BuildDetails?
+        /// GitHub's PR title at publication time. Older releases and main builds omit it.
+        public let pullRequestTitle: String?
 
         #if DEBUG
             @_spi(Testing)
@@ -61,6 +63,7 @@ public struct UpdateCatalog: Codable, Sendable, Equatable {
                 historyChanged: Bool,
                 commits: [Commit],
                 buildDetails: BuildDetails?,
+                pullRequestTitle: String?,
             ) {
                 self.id = id
                 self.sha = sha
@@ -70,6 +73,7 @@ public struct UpdateCatalog: Codable, Sendable, Equatable {
                 self.historyChanged = historyChanged
                 self.commits = commits
                 self.buildDetails = buildDetails
+                self.pullRequestTitle = pullRequestTitle
             }
         #endif
 
@@ -108,6 +112,7 @@ public struct UpdateCatalog: Codable, Sendable, Equatable {
     }
 
     public struct Update: Sendable, Equatable {
+        public let channel: InstalledBuild.Channel
         public let release: Release
         public let changes: Changes
     }
@@ -193,6 +198,11 @@ public struct UpdateCatalog: Codable, Sendable, Equatable {
                           release.publishedAt.timeIntervalSince1970.isFinite,
                           release.manifestURL.absoluteString == expectedManifest.absoluteString,
                           release.buildDetails?.isValid != false,
+                          release.pullRequestTitle == nil || (
+                              channel.name != .main &&
+                                  release.pullRequestTitle?
+                                  .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+                          ),
                           Set(release.commits.map(\.sha)).count == release.commits.count,
                           index == 0 || channel.releases[index - 1].id > release.id
                     else { throw ValidationError.invalidCatalog }
@@ -218,24 +228,32 @@ public struct UpdateCatalog: Codable, Sendable, Equatable {
         guard let baseline = channel.releases
             .firstIndex(where: { $0.id == publication.build && $0.sha == publication.revision })
         else {
-            return .available(Update(release: latest, changes: .unavailable))
+            return .available(Update(channel: channel.name, release: latest, changes: .unavailable))
         }
         let incoming = channel.releases.prefix(baseline)
         if incoming.contains(where: { $0.baseSHA == nil }) {
-            return .available(Update(release: latest, changes: .unavailable))
+            return .available(Update(channel: channel.name, release: latest, changes: .unavailable))
         }
         if incoming.contains(where: \.historyChanged) {
-            return .available(Update(release: latest, changes: .rewritten))
+            return .available(Update(channel: channel.name, release: latest, changes: .rewritten))
         }
         var prior = publication.revision
         for release in incoming.reversed() {
             guard release.baseSHA == prior else {
-                return .available(Update(release: latest, changes: .unavailable))
+                return .available(Update(
+                    channel: channel.name,
+                    release: latest,
+                    changes: .unavailable,
+                ))
             }
             prior = release.sha
         }
         var seen = Set<InstalledBuild.Revision>()
         let commits = incoming.flatMap(\.commits).filter { seen.insert($0.sha).inserted }
-        return .available(Update(release: latest, changes: .commits(commits)))
+        return .available(Update(
+            channel: channel.name,
+            release: latest,
+            changes: .commits(commits),
+        ))
     }
 }

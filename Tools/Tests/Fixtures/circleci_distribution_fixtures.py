@@ -35,8 +35,8 @@ class CircleCIServer:
         self.requests = []
         self.pipeline = {"id": PIPELINE, "project_slug": PROJECT, "state": "created", "errors": []}
         self.workflows = [{"id": WORKFLOW, "pipeline_id": PIPELINE, "name": "Installer Archive", "status": "success"}]
-        self.jobs = [{"name": "Archive Where Dev", "status": "success", "job_number": 7}]
-        self.artifacts = [{"path": "installer/Where.ipa", "url": ARTIFACT_URL}]
+        self.jobs = [{"name": "Archive App", "status": "success", "job_number": 7}]
+        self.artifacts = [{"path": "installer/app.ipa", "url": ARTIFACT_URL}]
 
     def __call__(self, request):
         self.requests.append(request)

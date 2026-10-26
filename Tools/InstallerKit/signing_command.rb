@@ -12,10 +12,18 @@ module InstallerSigning
     def self.run(argv)
       options = { 'source' => ROOT_DIRECTORY }
       command = argv.shift
+      dry_run = false
+      pull_request = nil
+      explicit_source = false
       parser = OptionParser.new do |p|
-        p.banner = 'Usage: ./signing refresh|register-device|archive --app APP [options]'
+        p.banner = 'Usage: ./signing setup|refresh|register-device|archive --app APP [options]'
+        p.on('--dry-run', 'Preview setup without changing signing assets or repository variables') { dry_run = true }
         p.on('--app APP', 'Registered iOS app') { |v| options['app'] = v }
-        p.on('--source DIR', 'Source checkout (defaults to this checkout)') { |v| options['source'] = File.expand_path(v) }
+        p.on('--source DIR', 'Source checkout (defaults to this checkout)') do |v|
+          options['source'] = File.expand_path(v)
+          explicit_source = true
+        end
+        p.on('--pr NUMBER', 'Setup from a PR and request publication (all enabled apps)') { |v| pull_request = v }
         p.on('--output DIR', 'New archive output directory') { |v| options['output'] = File.expand_path(v) }
         p.on('--name NAME', 'Device name for register-device') { |v| options['name'] = v }
         p.on('--udid UDID', 'Device UDID for register-device') { |v| options['udid'] = v }
@@ -27,7 +35,13 @@ module InstallerSigning
       end
       parser.parse!(argv)
       raise ArgumentError, 'Unexpected positional arguments' unless argv.empty?
-      raise ArgumentError, 'Expected refresh, register-device, or archive' unless %w[refresh register-device archive].include?(command)
+      raise ArgumentError, 'Expected setup, refresh, register-device, or archive' unless %w[setup refresh register-device archive].include?(command)
+      raise ArgumentError, '--dry-run is only valid for setup' if dry_run && command != 'setup'
+      if pull_request
+        raise ArgumentError, '--pr is only valid for setup' unless command == 'setup'
+        raise ArgumentError, '--pr and --source cannot be combined' if explicit_source
+        raise ArgumentError, '--pr must be a positive integer' unless /\A[1-9][0-9]*\z/.match?(pull_request)
+      end
       apps = JSON.parse(File.read(File.join(ROOT_DIRECTORY, '.github/installer-signing-apps.json')))
       raise ArgumentError, 'Select a registered app with --app' unless apps.key?(options['app'])
       raise ArgumentError, 'Source directory does not contain ide' unless File.file?(File.join(options['source'], 'ide'))
@@ -47,6 +61,12 @@ module InstallerSigning
         raise ArgumentError, 'Signing maintenance is local only'
       end
       Dir.chdir(ROOT_DIRECTORY) do
+        if command == 'setup'
+          arguments = ['--app', options.fetch('app')]
+          arguments += pull_request ? ['--pr', pull_request] : ['--source', options.fetch('source')]
+          arguments << '--dry-run' if dry_run
+          exec('python3', '-m', 'Tools.InstallerKit.installer_setup', *arguments)
+        end
         environment = { 'BUNDLE_GEMFILE' => File.join(ROOT_DIRECTORY, 'Gemfile'), 'BUNDLE_FROZEN' => 'true',
                         'BUNDLE_PATH' => File.join(ROOT_DIRECTORY, 'vendor/bundle'),
                         'FASTLANE_SKIP_UPDATE_CHECK' => '1', 'FASTLANE_OPT_OUT_USAGE' => '1' }

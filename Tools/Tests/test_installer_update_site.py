@@ -115,6 +115,10 @@ class InstallerUpdateSiteTests(unittest.TestCase):
     def test_published_catalog_command_keeps_existing_builds_and_retired_history(self):
         value = multiple_apps()
         value["apps"][0]["channels"][1]["active"] = False
+        value["apps"][1]["channels"].append({
+            "name": "pr-43", "active": False, "releases": [],
+            "buildStatus": {"state": "preparing", "id": {"run": 3, "attempt": 1}, "sha": "3" * 40},
+        })
         transport = Mock(return_value={"sha": "revision", "encoding": "base64",
                                       "content": base64.b64encode(json.dumps(value).encode()).decode()})
         feed = GitHubUpdateFeed(REPO, "fixture-token", transport)
@@ -129,6 +133,7 @@ class InstallerUpdateSiteTests(unittest.TestCase):
             self.assertIn("Prepared", stdout.getvalue())
             self.assertEqual(json.loads((output / "updates.json").read_text()), value)
             self.assertFalse((output / "manifests/where/pr-42").exists())
+            self.assertFalse((output / "manifests/example/pr-43").exists())
             for path in ("manifests/where/main/2-1.plist", "manifests/example/pr-42/2-1.plist"):
                 self.assertTrue((output / path).is_file())
 
@@ -159,6 +164,8 @@ class InstallerUpdateSiteTests(unittest.TestCase):
         self.assertIn("&lt;script&gt;", detail)
         self.assertIn("itms-services://?action=download-manifest", detail)
         self.assertIn("manifests%2Fwhere%2Fpr-42%2F2-1.plist", detail)
+        self.assertIn(f'<dt>Pull request</dt><dd><a href="https://github.com/{REPO}/pull/42">#42</a></dd>', detail)
+        self.assertNotIn(b"<dt>Pull request</dt>", files["apps/where/main/index.html"])
         for run in (1, 2):
             item = plistlib.loads(files[f"manifests/where/pr-42/{run}-1.plist"])["items"][0]
             self.assertEqual(item["assets"][0]["url"], asset_url(REPO, "where", "pr-42", {"run": run, "attempt": 1}))

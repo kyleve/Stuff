@@ -257,8 +257,9 @@ configured once via `./ide --team-id` (see
 resolves the exact physical device without generating, building, installing,
 or launching.
 For remote installs, [`./Where/archive`](Where/archive) exports a signed Where
-Development IPA. The opt-in [GitHub distribution workflow](.github/workflows/where-distribution.yml)
-publishes `main` and PRs labeled `installable` through a controller from `main`.
+Development IPA. The opt-in [GitHub distribution workflow](.github/workflows/installer-distribution.yml)
+publishes enabled registered apps on `main` and PRs labeled `installable` through a controller from `main`.
+The app registry selects identities; the signing registry selects schemes, products, and targets.
 [`InstallerKit`](Shared/InstallerKit/README.md) owns the reusable update engine.
 [`InstallerKitUI`](Shared/InstallerKitUI/README.md) owns its native update page.
 Apps inject their model, branding, and optional section modifiers for host search.
@@ -266,7 +267,9 @@ Configured local Development builds can browse remote builds. Reinstall through 
 All registered iOS apps share one catalog and install site. Main builds appear on
 the homepage, and each app has its own PR pages. The site deploys from `main` independently of signed builds.
 Read [the installer guide](Tools/InstallerKit/README.md)
-when adding an app. `InstallerKitTests` and `InstallerKitUITests` run in `Stuff-iOS-Tests`.
+when adding an app. `./signing setup --app <id>` prepares signing and enables a registered app after its configuration merges.
+Add `--pr <number>` to prepare its PR source and request publication. Use `--dry-run` to preview setup.
+`InstallerKitTests` and `InstallerKitUITests` run in `Stuff-iOS-Tests`.
 `InstallerKitUISnapshotTests` runs in `StuffSnapshotTests`. Read
 [`Where/DISTRIBUTION.md`](Where/DISTRIBUTION.md) for signing and account setup;
 [`Where/AGENTS.md`](Where/AGENTS.md#installing-to-a-device) owns its invariants.
@@ -769,6 +772,6 @@ skip pushes to `main` or manual CircleCI full-gate runs. See the
 [`running-tests`](.agents/skills/running-tests/SKILL.md) skill for simulator
 setup and the full validation recipe.
 
-The separate [Where Dev distribution workflow](.github/workflows/where-distribution.yml)
+The separate [app distribution workflow](.github/workflows/installer-distribution.yml)
 requests signed device archives on CircleCI and publishes them through GitHub Releases and Pages when enabled.
 Its `installable` label is independent of the test workflows' `NO-CI` title marker.

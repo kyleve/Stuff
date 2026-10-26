@@ -82,6 +82,19 @@ public final class WherePreferences: UpdatePreferencesStoring {
         set { store.set(newValue.rawValue, forKey: Keys.theme.rawValue) }
     }
 
+    /// The saved zoom choice for one calendar. Missing or invalid entries are
+    /// absent so the caller can use its initial mode. Other calendars stay independent.
+    public func calendarOverview(forKey key: CalendarZoomKey) -> Bool? {
+        let values = store.object(forKey: Keys.calendarOverview.rawValue) as? [String: Any]
+        return values?[key.rawValue] as? Bool
+    }
+
+    public func setCalendarOverview(_ overview: Bool, forKey key: CalendarZoomKey) {
+        var values = store.object(forKey: Keys.calendarOverview.rawValue) as? [String: Any] ?? [:]
+        values[key.rawValue] = overview
+        store.set(values, forKey: Keys.calendarOverview.rawValue)
+    }
+
     /// Whether annual estimates, stay planning, and their projections appear.
     /// Defaults to `true` so an existing or fresh install sees the feature until
     /// the user explicitly turns it off. The defaults key retains its original
@@ -294,6 +307,7 @@ public final class WherePreferences: UpdatePreferencesStoring {
         case showsRecordedLocationDots = "where.showsRecordedLocationDots"
         case showsLocationWelcome = "where.showsLocationWelcome"
         case theme = "where.theme"
+        case calendarOverview = "where.calendarOverview"
         case showsLocationForecastsOnLocationsTab = "where.showsLocationForecastsOnLocationsTab"
         case remindersEnabled = "where.remindersEnabled"
         case reminderHour = "where.reminderHour"

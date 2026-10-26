@@ -16,9 +16,16 @@ export interface ActiveChannel {
   state: 'active';
   release: Release;
   installURL: string;
+  buildStatus?: BuildStatus;
 }
 
-export type Channel = ActiveChannel | { name: string; state: 'retired' };
+export interface BuildStatus {
+  state: 'preparing' | 'failed';
+  runURL: string;
+}
+
+export type ProgressChannel = { name: string } & BuildStatus;
+export type Channel = ActiveChannel | ProgressChannel | { name: string; state: 'retired' | 'unpublished' };
 
 export interface App {
   id: string;

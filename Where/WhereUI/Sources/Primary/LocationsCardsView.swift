@@ -123,7 +123,7 @@ struct LocationsCardsView: View {
     /// destination: the tapped card expands into it via matched geometry, and the
     /// stack's back gesture collapses it again.
     private func calendarDestination(_ region: Region) -> some View {
-        CalendarContentView(focusedRegion: region, report: report)
+        CalendarContentView(focusedRegion: region, report: report, persistenceKey: .region(region))
             .navigationTitle(
                 WhereFormat.calendarRegionTitle(region: region, year: report.selectedYear),
             )
