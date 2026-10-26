@@ -189,7 +189,9 @@ mutation-context marker and rollback behavior.
 
 `where.compatibility_scope_ownership` permits production scoped-store construction
 only in `DataCompatibilityCoordinator`. Isolated test fixtures may construct their
-own. Guard: `compatibilityPermitsComeFromTheCoordinator`.
+own. The coordinator's demo/test SPI creates a new memory store.
+The concrete `CompatibilityScopedStore` parameter on `WhereServices.make` enforces
+service wiring at compile time. Guard: `compatibilityPermitsComeFromTheCoordinator`.
 
 ### `where.compatibility_coordination_composition`
 

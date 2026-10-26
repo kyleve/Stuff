@@ -30,7 +30,7 @@ extension WhereServices {
     /// ``make(store:locationSource:)``, hence `async throws`), so a test can
     /// seed tracked rows and observe the derived attribution.
     static func makeForIntents(
-        store: any WhereStore,
+        store: CompatibilityScopedStore,
         now: @escaping @Sendable () -> Date = { Date() },
     ) async throws -> WhereServices {
         try await make(

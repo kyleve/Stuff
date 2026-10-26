@@ -49,7 +49,10 @@ struct CloudKitRecordingAuthorityRecord {
         get throws {
             guard let payload = record["payload"] as? Data
             else { throw RecordingAuthorityError.invalidRecord }
-            let proposal = try JSONDecoder().decode(RecordingAuthorityProposal.self, from: payload)
+            let proposal = try JSONDecoder().decode(
+                RecordingAuthorityRecord.Proposal.self,
+                from: payload,
+            ).value
             try validate(proposal)
             return proposal
         }
@@ -58,7 +61,8 @@ struct CloudKitRecordingAuthorityRecord {
     /// Update the fetched object in place so its server change tag survives the conditional save.
     func setProposal(_ proposal: RecordingAuthorityProposal) throws {
         try validate(proposal)
-        record["payload"] = try JSONEncoder().encode(proposal) as CKRecordValue
+        record["payload"] = try JSONEncoder()
+            .encode(RecordingAuthorityRecord.Proposal(proposal)) as CKRecordValue
     }
 
     /// Only an immutable event has the server timestamp for a committed proposal.
@@ -71,8 +75,7 @@ struct CloudKitRecordingAuthorityRecord {
     }
 
     private func validate(_ proposal: RecordingAuthorityProposal) throws {
-        try proposal.validate()
-        if case let .event(eventID) = id, proposal.result.revision?.eventID != eventID {
+        if case let .event(eventID) = id, proposal.result.revision.eventID != eventID {
             throw RecordingAuthorityError.invalidRecord
         }
     }

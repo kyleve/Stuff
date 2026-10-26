@@ -29,8 +29,7 @@ public actor CloudKitRecordingAuthorityTransport: RecordingAuthorityTransport {
         // The head is a pointer to a committed transition, not a commit on its own. Match its
         // payload to the immutable event so the returned timestamp always belongs to that event.
         let proposal = try head.proposal
-        guard let revision = proposal.result.revision,
-              let event = try await fetch(.event(revision.eventID))
+        guard let event = try await fetch(.event(proposal.result.revision.eventID))
         else {
             throw RecordingAuthorityError.invalidRecord
         }
@@ -43,9 +42,7 @@ public actor CloudKitRecordingAuthorityTransport: RecordingAuthorityTransport {
         -> RecordingAuthorityCommit
     {
         try DataAccessPermit.current?.validate()
-        try proposal.validate()
-        guard let transitionID = proposal.result.revision?.eventID
-        else { throw RecordingAuthorityError.invalidRecord }
+        let transitionID = proposal.result.revision.eventID
         // Creating the same custom zone is idempotent; no SwiftData zone is touched.
         _ = try await database.save(CKRecordZone(zoneID: CloudKitRecordingAuthorityRecord.zoneID))
         let immutableID = CloudKitRecordingAuthorityRecord.ID.event(transitionID)
@@ -57,7 +54,7 @@ public actor CloudKitRecordingAuthorityTransport: RecordingAuthorityTransport {
             return committed
         }
         let existingHead = try await fetch(.head)
-        let currentState = try existingHead?.proposal.result ?? .initial
+        let currentState = try existingHead?.proposal.result.authority ?? .initial
         // This comparison checks the reviewed decision. The save policy below also rejects a writer
         // that changes the head after this read, using the fetched record's CloudKit change tag.
         guard currentState == proposal.expected else { throw RecordingAuthorityError.conflict }

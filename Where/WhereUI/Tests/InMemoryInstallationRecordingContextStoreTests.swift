@@ -17,7 +17,7 @@ struct InMemoryInstallationRecordingContextStoreTests {
 
         #expect(confirmed.automaticRecordingEnabled == false)
         #expect(confirmed.registeredAt == Self.registeredAt)
-        #expect(try store.resolve() == confirmed)
+        #expect(try store.resolve() == confirmed.context)
     }
 
     @Test func settingsCanChangeTheConfirmedLocalChoice() throws {

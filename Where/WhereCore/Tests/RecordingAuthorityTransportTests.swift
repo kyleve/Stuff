@@ -28,12 +28,16 @@ struct RecordingAuthorityTransportTests {
         let server = LocalRecordingAuthorityTransport(now: { Date() })
         let claim = try fixture.proposal(.initial, .claim, device: fixture.phone)
         let commit = try await server.commit(claim)
-        let recovered = try fixture.proposal(claim.result, .recover(.keep), device: fixture.tablet)
+        let recovered = try fixture.proposal(
+            claim.result.authority,
+            .recover(.keep),
+            device: fixture.tablet,
+        )
         _ = try await server.commit(recovered)
         #expect(try await server.commit(claim) == commit)
         #expect(try await server.current()?.proposal == recovered)
         let upgrade = try fixture.proposal(
-            claim.result,
+            claim.result.authority,
             .upgrade,
             device: fixture.phone,
             version: .init(rawValue: 2),

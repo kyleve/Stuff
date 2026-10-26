@@ -14,6 +14,11 @@ import WhereUI
 /// double-open the dormant-scope handoff exists to prevent.
 @MainActor
 final class ScriptedBootstrap: WhereScopeAssembling {
+    private let compatibility = IsolatedDataCompatibility()
+    func prepareCompatibility() async throws -> any DataCompatibilityChecking {
+        compatibility
+    }
+
     func prepareDeviceCoordination() async throws -> RecordingDeviceCoordination? {
         nil
     }
@@ -77,6 +82,11 @@ final class ScriptedBootstrap: WhereScopeAssembling {
 /// must surface an unopenable store rather than swallow it.
 @MainActor
 final class FailingBootstrap: WhereScopeAssembling {
+    private let compatibility = IsolatedDataCompatibility()
+    func prepareCompatibility() async throws -> any DataCompatibilityChecking {
+        compatibility
+    }
+
     func prepareDeviceCoordination() async throws -> RecordingDeviceCoordination? {
         nil
     }
@@ -103,6 +113,11 @@ final class FailingBootstrap: WhereScopeAssembling {
 /// logging presents an honest diagnostic.
 @MainActor
 final class FailingLogStoreBootstrap: WhereScopeAssembling {
+    private let compatibility = IsolatedDataCompatibility()
+    func prepareCompatibility() async throws -> any DataCompatibilityChecking {
+        compatibility
+    }
+
     func prepareDeviceCoordination() async throws -> RecordingDeviceCoordination? {
         nil
     }
@@ -138,6 +153,11 @@ final class FailingLogStoreBootstrap: WhereScopeAssembling {
 /// world it will never assemble. Trips if a login is attempted anyway.
 @MainActor
 final class UnusedBootstrap: WhereScopeAssembling {
+    private let compatibility = IsolatedDataCompatibility()
+    func prepareCompatibility() async throws -> any DataCompatibilityChecking {
+        compatibility
+    }
+
     func prepareDeviceCoordination() async throws -> RecordingDeviceCoordination? {
         nil
     }

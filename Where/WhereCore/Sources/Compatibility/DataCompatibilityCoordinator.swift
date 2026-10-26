@@ -1,7 +1,7 @@
 import Foundation
 
 /// Evaluates the global boot contract over the one store and existing recording authority.
-public actor DataCompatibilityCoordinator {
+public actor DataCompatibilityCoordinator: DataCompatibilityChecking {
     private let store: any WhereStore
     private let recording: RecordingDeviceCoordination
     private let installation: any InstallationRecordingContextStoring
@@ -142,7 +142,7 @@ public actor DataCompatibilityCoordinator {
     }
 
     /// Each normal world receives a new permit; stale worlds can never regain access.
-    public func openDomainStore() async throws -> any WhereStore {
+    public func openDomainStore() async throws -> CompatibilityScopedStore {
         let session = accountSession
         let required = try await store.requiredDataCompatibilityVersion()
         guard invalidating == nil, session == accountSession, case let .compatible(version) = state,
@@ -153,6 +153,18 @@ public actor DataCompatibilityCoordinator {
         let permit = DataAccessPermit()
         self.permit = permit
         return CompatibilityScopedStore(base: store, permit: permit)
+    }
+
+    public func retireScope(_ services: WhereServices) async {
+        revokeAccess()
+        await services.suspendForCompatibility()
+    }
+
+    /// Demo and test worlds own a new memory-only store. They cannot authorize an existing
+    /// durable store or bypass account verification for one.
+    @_spi(Demo) @_spi(Testing)
+    public static func isolatedDomainStore() throws -> CompatibilityScopedStore {
+        try CompatibilityScopedStore(base: SwiftDataStore.inMemory(), permit: DataAccessPermit())
     }
 
     private func evaluate(_ verification: Verification) async -> DataCompatibilityState {
