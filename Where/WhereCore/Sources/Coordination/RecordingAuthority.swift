@@ -30,7 +30,7 @@ public struct RecordingAuthority: Codable, Sendable, Equatable {
         }
     }
 
-    /// One position in server history. The event ID also names the immutable receipt.
+    /// One position in server history. The event ID also names the immutable commit.
     public struct Revision: Codable, Hashable, Sendable {
         public let sequence: UInt64
         public let eventID: EventID
@@ -103,7 +103,7 @@ public enum RecordingRecoveryHistory: String, Codable, Sendable {
 ///
 /// Construction derives `result` from `expected` without I/O. The transport later compares
 /// `expected` with the server head and conditionally saves the transition under its event ID.
-/// Retain this exact value across uncertain responses so a retry can find the original receipt.
+/// Retain this exact value across uncertain responses so a retry can find the original commit.
 /// Approval requires the caller to durably stop capture first.
 /// This type cannot enforce hardware state.
 public struct RecordingAuthorityProposal: Sendable, Equatable, Codable {
@@ -284,7 +284,7 @@ public struct RecordingAuthorityProposal: Sendable, Equatable, Codable {
 ///
 /// CloudKit supplies `committedAt` from the immutable event's creation date.
 /// Recovery uses that server time as its history cutoff.
-/// Retrying the proposal returns this same receipt and timestamp.
+/// Retrying the proposal returns this same commit and timestamp.
 public struct RecordingAuthorityCommit: Codable, Sendable, Equatable {
     public let proposal: RecordingAuthorityProposal
     public let committedAt: Date

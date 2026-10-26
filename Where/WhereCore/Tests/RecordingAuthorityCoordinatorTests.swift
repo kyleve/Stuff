@@ -15,8 +15,8 @@ struct RecordingAuthorityCoordinatorTests {
             device: fixture.phone,
             version: .init(rawValue: 2),
         )
-        let receipt = try await server.commit(upgrade)
-        try await store.perform { try await store.addRecordingAuthorityCommit(receipt) }
+        let commit = try await server.commit(upgrade)
+        try await store.perform { try await store.addRecordingAuthorityCommit(commit) }
         await #expect(throws: RecordingAuthorityError.invalidRecord) {
             try await store.recordingAuthority()
         }
