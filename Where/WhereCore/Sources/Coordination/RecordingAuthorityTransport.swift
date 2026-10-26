@@ -31,19 +31,19 @@ public actor LocalRecordingAuthorityTransport: RecordingAuthorityTransport {
     ) throws {
         self.now = now
         var state = RecordingAuthority.initial
-        for receipt in commits
+        for commit in commits
             .sorted(by: {
                 ($0.proposal.result.revision?.sequence ?? 0) <
                     ($1.proposal.result.revision?.sequence ?? 0)
             })
         {
-            try receipt.proposal.validate()
-            guard receipt.proposal.expected == state,
-                  let eventID = receipt.proposal.result.revision?.eventID
+            try commit.proposal.validate()
+            guard commit.proposal.expected == state,
+                  let eventID = commit.proposal.result.revision?.eventID
             else { throw RecordingAuthorityError.invalidRecord }
-            receipts[eventID] = receipt
-            latest = receipt
-            state = receipt.proposal.result
+            self.commits[eventID] = commit
+            latest = commit
+            state = commit.proposal.result
         }
     }
 

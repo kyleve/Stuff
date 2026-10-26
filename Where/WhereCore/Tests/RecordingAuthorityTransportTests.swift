@@ -7,10 +7,10 @@ struct RecordingAuthorityTransportTests {
         let fixture = RecordingAuthorityFixture()
         let server = LocalRecordingAuthorityTransport(now: { Date() })
         let claim = try fixture.proposal(.initial, .claim, device: fixture.phone)
-        let receipt = try await server.commit(claim)
-        let restarted = try LocalRecordingAuthorityTransport(restoring: [receipt], now: { Date() })
-        #expect(await restarted.current() == receipt)
-        #expect(try await restarted.commit(claim) == receipt)
+        let commit = try await server.commit(claim)
+        let restarted = try LocalRecordingAuthorityTransport(restoring: [commit], now: { Date() })
+        #expect(await restarted.current() == commit)
+        #expect(try await restarted.commit(claim) == commit)
     }
 
     @Test func competingClaimsHaveOneWinner() async throws {
