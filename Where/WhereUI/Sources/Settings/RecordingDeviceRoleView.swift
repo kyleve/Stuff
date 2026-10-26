@@ -89,7 +89,7 @@ struct RecordingDeviceRoleView: View {
             return [
                 roleSnapshot(
                     "Unclaimed",
-                    configurations: .fullContentScreenDefaults,
+                    configurations: .fullContentScreenRepresentative,
                     state: .loaded(.init(
                         authority: .initial,
                         currentDeviceID: phone,
