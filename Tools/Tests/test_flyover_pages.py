@@ -7,12 +7,41 @@ import unittest
 from unittest.mock import patch
 
 from Tools.flyover_bundle import pack_bundle
-from Tools.flyover_pages import compose, latest_release, version_images
+from Tools.flyover_pages import compose, latest_release, main, version_images
 from Tools.Tests.flyover_bundle_support import SHA, create_bundle
 from Tools.Tests.flyover_test_support import png_fixture
 
 
 class FlyoverPagesTests(unittest.TestCase):
+    def test_cli_exports_only_successfully_composed_release(self):
+        for result in (None, "flyover-atlas-10-1", ValueError("invalid bundle")):
+            with (
+                self.subTest(result=result),
+                tempfile.TemporaryDirectory() as temporary,
+                patch.dict(
+                    "os.environ",
+                    {
+                        "GITHUB_REPOSITORY": "owner/repo",
+                        "GITHUB_OUTPUT": str(Path(temporary) / "outputs"),
+                    },
+                ),
+                patch("Tools.flyover_pages.compose") as compose_mock,
+            ):
+                destination = Path(temporary) / "outputs"
+                destination.write_text("existing=value\n")
+                if isinstance(result, Exception):
+                    compose_mock.side_effect = result
+                    with self.assertRaises(ValueError):
+                        main(["--output", temporary])
+                else:
+                    compose_mock.return_value = result
+                    main(["--output", temporary])
+                compose_mock.assert_called_once_with(Path(temporary), "owner/repo")
+                expected = "existing=value\n"
+                if isinstance(result, str):
+                    expected += f"release={result}\n"
+                self.assertEqual(destination.read_text(), expected)
+
     def test_image_urls_change_with_bytes_and_match_variant_references(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -60,7 +89,7 @@ class FlyoverPagesTests(unittest.TestCase):
             with patch(
                 "Tools.flyover_pages.subprocess.check_output", return_value="[[]]"
             ):
-                compose(root, "owner/repo")
+                self.assertIsNone(compose(root, "owner/repo"))
             self.assertEqual((root / "index.html").read_text(), "installer")
             self.assertIn("No published", (root / "flyover/index.html").read_text())
 
@@ -103,7 +132,9 @@ class FlyoverPagesTests(unittest.TestCase):
                     patch("Tools.flyover_pages.subprocess.run", side_effect=download),
                 ):
                     if valid:
-                        compose(output, "owner/repo")
+                        self.assertEqual(
+                            compose(output, "owner/repo"), "flyover-atlas-10-1"
+                        )
                         self.assertTrue((output / "flyover/where/index.html").is_file())
                     else:
                         with self.assertRaisesRegex(ValueError, "digest"):

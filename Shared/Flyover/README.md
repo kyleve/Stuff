@@ -33,7 +33,10 @@ If main changes before CircleCI checks out the requested commit, the controller 
 The transport validates app IDs, commit identity, clean-tree metadata, manifest assets, ZIP paths, and size limits.
 The Pages publisher also checks the release asset digest. A corrupt latest release fails deployment instead of silently dropping Flyover.
 Published screenshots and thumbnails use content-hashed filenames to prevent stale browser caches from mixing captures across builds.
-Old successful releases remain available for recovery. Retention cleanup is not automatic.
+After a successful Pages deployment, cleanup removes Flyover releases published more than seven days ago.
+Cleanup always keeps the deployed bundle and the newest published bundle, even when they are older than seven days.
+Failed deployments do not trigger cleanup. Drafts and unrelated releases remain unchanged.
+Cleanup removes release assets permanently. Lightweight Git tags remain as provenance records.
 
 ## Installation
 

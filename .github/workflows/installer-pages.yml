@@ -25,6 +25,8 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      flyover-release: ${{ steps.flyover.outputs.release }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -49,6 +51,7 @@ jobs:
           --output "$RUNNER_TEMP/installer-pages"
       - uses: actions/configure-pages@v5
       - name: Include the latest complete Flyover atlases
+        id: flyover
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 -m Tools.flyover_pages --output "$RUNNER_TEMP/installer-pages"
@@ -58,3 +61,21 @@ jobs:
       - name: Deploy install site
         id: deployment
         uses: actions/deploy-pages@v4
+
+  retain-flyover:
+    needs: deploy
+    if: needs.deploy.outputs.flyover-release != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Retain one week and at least one Flyover bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOYED_RELEASE: ${{ needs.deploy.outputs.flyover-release }}
+        run: python3 -m Tools.flyover_retention --deployed-release "$DEPLOYED_RELEASE"
