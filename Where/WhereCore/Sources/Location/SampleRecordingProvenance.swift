@@ -1,9 +1,7 @@
 import Foundation
 
-/// Installation attribution, with an ownership period only for samples accepted under recording
-/// authority.
-/// A nil ownership period retains pre-contract history without inventing an automatic recording
-/// grant.
+/// Installation attribution and the optional ownership ID from automatic recording.
+/// A nil `ownershipID` retains pre-contract history without inventing a recording grant.
 public struct SampleRecordingProvenance: Codable, Hashable, Sendable {
     public let deviceID: RecordingDeviceID
     public let ownershipID: RecordingAuthority.EventID?
