@@ -65,11 +65,8 @@
                     && image.thumbnailPixelHeight == 1
             })
             #expect(try pngCount(in: directory) == 16)
-            let script = try String(
-                contentsOf: directory.appending(path: "manifest.js"),
-                encoding: .utf8,
-            )
-            #expect(script.hasPrefix("window.FLYOVER_MANIFEST = {"))
+            #expect(FileManager.default
+                .fileExists(atPath: directory.appending(path: "manifest.js").path) == false)
         }
 
         @Test(arguments: [

@@ -1,3 +1,9 @@
+import { readFileSync } from 'node:fs';
+import { readSelection, selectionHash } from '../../Web/src/scripts/navigation.ts';
+import { selectResidentImages } from '../../Web/src/scripts/image-residency.ts';
+import { updateCaptureScroller as configureCaptureScroller } from '../../Web/src/scripts/capture-scroller.ts';
+const print = console.log;
+const readFile = path => readFileSync(path, 'utf8');
 // Execute the application's private navigation code with browser-boundary doubles.
 // These are logic regressions, not a substitute for browser layout/accessibility tests.
 const handlers = new Map();
@@ -22,6 +28,7 @@ const document = {
     getElementById() { return null; },
     querySelector() { return null; },
 };
+globalThis.document = document;
 class HTMLInputElement {}
 class HTMLSelectElement {}
 class HTMLTextAreaElement {}
@@ -200,7 +207,8 @@ function runTests() {
     print("Flyover web navigation: " + assertions + " assertions passed");
 }
 
-const source = readFile(arguments[0]);
-const startup = "    parseHash();\n    render();\n})();";
+const source = readFile(process.argv[2]).replace(/^import .*;\n/gm, '');
+const startup = "    parseHash();\n    render();\n}";
 if (!source.includes(startup)) throw Error("Application startup boundary changed");
-eval(source.replace(startup, "(" + runTests.toString() + ")();\n})();"));
+eval(source.replace("export function startAtlas", "function startAtlas")
+    .replace(startup, "(" + runTests.toString() + ")();\n}\nstartAtlas(window.FLYOVER_MANIFEST);"));

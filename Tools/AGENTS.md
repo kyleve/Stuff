@@ -39,6 +39,10 @@ These rules also apply when changing a root command or installer that calls this
 
 ## Installer publication
 
+Both websites share the root npm workspace and `astro_site.py` launcher.
+Keep each site's data validation and publication policy with its owning tool.
+Keep generated Astro and Vite state isolated per invocation.
+
 Shared installer tools have scoped rules in [`InstallerKit/AGENTS.md`](InstallerKit/AGENTS.md).
 
 ## Install-site snapshots

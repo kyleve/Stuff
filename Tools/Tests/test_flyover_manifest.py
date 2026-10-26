@@ -25,6 +25,16 @@ SPEC.loader.exec_module(flyover_manifest)
 
 
 class FlyoverManifestTests(unittest.TestCase):
+    def test_web_asset_inventory_rejects_missing_unsafe_duplicate_and_extra_files(self):
+        for paths in ([], ["../secret.js"], ["/assets/app.js"], ["assets/../app.js"],
+                      ["assets/%2e%2e/app.js"], ["assets/missing.js"], ["assets/app.js", "assets/app.js"],
+                      ["https://example.com/app.js"], [123], ["assets/app.js"]):
+            with self.subTest(paths=paths), tempfile.TemporaryDirectory() as temporary:
+                root = create_flyover_artifact(Path(temporary))
+                (root / "web-assets.json").write_text(json.dumps(paths))
+                with self.assertRaises(flyover_manifest.FlyoverArtifactError):
+                    flyover_manifest.validate_artifact(root)
+
     def test_validates_generated_artifact_and_builds_allowlist(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = create_flyover_artifact(Path(temporary))
@@ -38,7 +48,7 @@ class FlyoverManifestTests(unittest.TestCase):
                     {
                         "index.html",
                         "manifest.json",
-                        "manifest.js",
+                        "web-assets.json",
                         "assets/app.js",
                         "assets/styles.css",
                         "images/screen-0001/variant-0001/phone-light.png",
@@ -135,10 +145,10 @@ class FlyoverManifestTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temporary:
             root = create_flyover_artifact(Path(temporary))
-            (root / "manifest.js").write_text("window.FLYOVER_MANIFEST = {};\n")
+            (root / "web-assets.json").write_text('["assets/missing.js"]')
             with self.assertRaisesRegex(
                 flyover_manifest.FlyoverArtifactError,
-                "manifest.js does not match manifest.json",
+                "invalid or missing web asset",
             ):
                 flyover_manifest.validate_artifact(root)
 
