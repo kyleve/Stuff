@@ -704,6 +704,7 @@ let project = Project(
             bundleIdSuffix: "flyover",
             productDependency: "Flyover",
             sources: ["Shared/Flyover/Tests/**"],
+            resources: ["Shared/Flyover/Tests/Fixtures/*.json"],
         ),
         unitTests(
             name: "SnapshotKitTests",

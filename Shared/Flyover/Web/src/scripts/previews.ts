@@ -25,6 +25,17 @@ export function createPreviews(deps: Dependencies): Previews {
         else image.dataset.src = source;
         image.dataset.captureExtent = deps.catalog.screenVariant(screen)?.captureExtent || "viewport";
         image.alt = screen.title + " — " + (deps.catalog.screenVariant(screen)?.title || "Default");
+        if (!fullResolution) {
+            image.addEventListener('error', () => {
+                if (!image.hasAttribute('src')) return;
+                image.dataset.loadError = 'true';
+                image.alt = `${screen.title} — Preview unavailable. Open the inspector to retry or reload.`;
+            });
+            image.addEventListener('load', () => {
+                delete image.dataset.loadError;
+                image.alt = screen.title + ' — ' + deps.catalog.screenVariant(screen).title;
+            });
+        }
         return image;
     }
 
@@ -35,6 +46,7 @@ export function createPreviews(deps: Dependencies): Previews {
             const variant = deps.catalog.screenVariant(screen);
             const image = card.querySelector("img");
             if (image) {
+                delete image.dataset.loadError;
                 image.dataset.src = deps.catalog.thumbnailPath(screen);
                 image.dataset.captureExtent = variant.captureExtent;
                 image.alt = screen.title + " — " + variant.title;

@@ -1,6 +1,29 @@
 /* Inspector styles. Responsive overrides stay beside their owning component. */
 
 @layer components {
+    .inspector img[data-load-error] {
+        visibility: hidden;
+    }
+
+    .capture-error {
+        position: absolute;
+        z-index: 1;
+        max-width: min(420px, calc(100% - 32px));
+        border-radius: 16px;
+        padding: 20px;
+        background: var(--surface-solid);
+        color: var(--text);
+        box-shadow: var(--shadow-small);
+    }
+
+    .capture-error p {
+        margin-bottom: 12px;
+    }
+
+    .capture-error button {
+        margin: 4px;
+    }
+
     .inspector {
         width: 100vw;
         max-width: none;

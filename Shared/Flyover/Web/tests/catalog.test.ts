@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
 import { createCatalog } from '../src/scripts/catalog.ts';
 import { createSession } from '../src/scripts/session.ts';
 import { readManifest } from '../src/scripts/manifest.ts';
@@ -21,6 +22,10 @@ void test('catalog selection preserves metadata and uses thumbnail pixels when p
     assert.equal(catalog.screenImagePixels(screen), 201 * 1300);
     selectedVariants.set(screen.id, 'alternate');
     state.profile = 'phone-dark';
+    const alternate = catalog.imageMetadata(screen)!;
+    delete alternate.thumbnailRelativePath;
+    delete alternate.thumbnailPixelWidth;
+    delete alternate.thumbnailPixelHeight;
     assert.equal(catalog.thumbnailPath(screen), 'images/0/alternate/phone-dark.png');
     assert.equal(catalog.screenImagePixels(screen), 402 * 2600);
 });
@@ -48,8 +53,17 @@ void test('fixed viewports retain dimensions across device profiles', () => {
     assert.deepEqual(catalog.captureViewportSize(screen), { width: 402, height: 874 });
     manifest.profiles[0].orientation = 'landscape';
     assert.deepEqual(catalog.captureViewportSize(screen), { width: 874, height: 402 });
+    manifest.profiles[0].viewportSize = { width: 999, height: 777 };
+    assert.deepEqual(catalog.captureViewportSize(screen), { width: 999, height: 777 });
     screen.viewport = { kind: 'fixed', fixedSize: { width: 100, height: 200 } };
     assert.equal(catalog.captureViewportAspect(screen), 0.5);
+});
+
+void test('shared native wire fixture drives the catalog without browser device constants', () => {
+    const manifest = readManifest(JSON.parse(readFileSync(new URL('../../Tests/Fixtures/manifest-v1.json', import.meta.url), 'utf8')));
+    const catalog = createCatalog({ manifest, state: createSession(manifest), selectedVariants: new Map() });
+    assert.deepEqual(catalog.captureViewportSize(manifest.screens[0]), manifest.profiles[0].viewportSize);
+    assert.equal(catalog.imagePath(manifest.screens[0]), manifest.images[0].relativePath);
 });
 
 void test('unsupported wire versions fail visibly at the loader boundary', () => {

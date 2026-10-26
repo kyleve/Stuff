@@ -18,12 +18,11 @@ export function fixture(): AtlasManifest {
         build: { commit: 'abc1234', dirty: false, generatedAt: '2026-10-22T12:00:00Z', xcodeVersion: 'Fixture', simulatorDevice: 'Fixture', simulatorOS: 'Fixture' }, profiles, groups, screens,
         canvas: { size: { width: 1500, height: 2200 }, initialFitSize: { width: 1500, height: 1100 }, groupFrames: groups.map(group => ({ id: group.id, frame: { x: 0, y: group.order * 1040, width: 1500, height: 1040 } })), depthBandFrames: [], screenFrames: screens.map(screen => ({ id: screen.id, frame: screen.frame })), connectors: [{ routeID: 'route-1', geometry }] },
         routes: [{ id: 'route-1', sourceScreenID: 'screen-1', destinationScreenID: 'screen-2', kind: 'push', label: 'Details', geometry }],
-        images: screens.flatMap(screen => screen.variants.flatMap(variant => profiles.map(profile => ({ screenID: screen.id, variantID: variant.id, profileID: profile.id, relativePath: variant.imagesByProfile[profile.id], pointWidth: 402, pointHeight: 2600, pixelWidth: 402, pixelHeight: 2600, scale: 1, captureExtent: 'fullContent' })))),
+        images: screens.flatMap(screen => screen.variants.flatMap(variant => profiles.map(profile => ({ screenID: screen.id, variantID: variant.id, profileID: profile.id, relativePath: variant.imagesByProfile[profile.id], thumbnailRelativePath: variant.imagesByProfile[profile.id].replace('.png', '-thumbnail.png'), thumbnailPixelWidth: 134, thumbnailPixelHeight: 867, pointWidth: 402, pointHeight: 2600, pixelWidth: 402, pixelHeight: 2600, scale: 1, captureExtent: 'fullContent' })))),
     };
 }
 
-export function capturePNG(dark: boolean) {
-    const width = 402, height = 2600;
+export function capturePNG(dark: boolean, width = 402, height = 2600) {
     const pixels = Buffer.alloc((width * 3 + 1) * height);
     for (let y = 0; y < height; y++) pixels.fill(dark ? 30 + (y % 60) : 190 + (y % 60), y * (width * 3 + 1) + 1, (y + 1) * (width * 3 + 1));
     const header = Buffer.alloc(13);

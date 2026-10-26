@@ -102,6 +102,8 @@ export function createCatalog(deps: Dependencies): Catalog {
             return screen.viewport.fixedSize;
         }
         const profile = profileByID.get(deps.state.profile);
+        if (profile?.viewportSize) return profile.viewportSize;
+        // Compatibility for schema-1 artifacts generated before numeric profile sizes.
         if (profile?.device === "tablet") return { width: 834, height: 1194 };
         if (profile?.orientation === "landscape") return { width: 874, height: 402 };
         return { width: 402, height: 874 };
