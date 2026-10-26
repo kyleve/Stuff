@@ -2950,7 +2950,8 @@ final class SDRecordingDeviceRemoval {
     }
 }
 
-/// Immutable control receipt; deliberately has no user-data generation membership.
+/// What this device learned about a committed CloudKit authority decision.
+/// This local projection cannot elect an owner and has no user-data generation membership.
 @Model
 final class SDRecordingAuthorityCommit {
     var id: UUID?

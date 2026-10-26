@@ -4,8 +4,13 @@ The recording authority identifies the device that can record automatic location
 It also holds the minimum data version that devices must support.
 One server record orders changes to both values.
 
+CloudKit authority records decide who owns recording.
+`SDRecordingAuthorityCommit` records what this device learned about those decisions.
+The local records let readers use verified history without making another server request.
+They cannot elect an owner or approve a transfer.
+
 This guide covers the authority foundation introduced in PR #345.
-That slice supplies the protocol, transports, and local receipt store.
+That slice supplies the protocol, transports, and local commit store.
 Later slices connect it to recording, recovery, and app startup.
 The foundation alone does not start or stop GPS, change local recording consent, or block normal app use.
 
@@ -35,10 +40,11 @@ Installing a newer build or requesting a handoff does not raise the data version
 | Component | Responsibility |
 | --- | --- |
 | `RecordingAuthorityProposal` | Validates an action and derives its result from the complete state the caller reviewed. It performs no I/O. |
-| `RecordingAuthorityTransport` | Reads server state, finds immutable receipts, and conditionally commits proposals. |
+| `RecordingAuthorityTransport` | Reads server state, finds immutable commits, and conditionally commits proposals. |
 | `CloudKitRecordingAuthorityTransport` | Implements the transport in a dedicated private CloudKit zone. |
+| `CloudKitRecordingAuthorityRecord` | Validates typed head/event identities and owns payload coding and server commit timestamps. |
 | `LocalRecordingAuthorityTransport` | Supplies an in-memory authority for development, demos, and tests. Its lifetime is the transport instance. |
-| `RecordingAuthorityCoordinator` | Fetches the complete receipt chain and adds it to the existing `WhereStore`. It opens no store of its own. |
+| `RecordingAuthorityCoordinator` | Fetches the complete commit chain and adds it to the existing `WhereStore`. It opens no store of its own. |
 
 The CloudKit transport uses the custom zone `WhereRecordingAuthority`.
 It never accesses the zones or records managed by SwiftData.
@@ -50,7 +56,7 @@ The custom zone contains two record types:
 - `WhereAuthorityEvent`, named by the proposal's event UUID, contains an immutable copy of that proposal.
 
 Both records store the proposal in a `payload` Bytes field.
-The event's CloudKit `creationDate` supplies the receipt's `committedAt` value.
+The event's CloudKit `creationDate` supplies the commit's `committedAt` value.
 Recovery consumers use that server time as the cutoff for the replaced tenure.
 
 ## How a transition commits
@@ -61,13 +67,13 @@ Construction checks the domain rules but does not reserve the server state.
 
 The CloudKit transport then performs these steps:
 
-1. Look for an event with the proposal's ID. If an identical proposal already committed, return its original receipt.
+1. Look for an event with the proposal's ID. If an identical proposal already committed, return its original commit.
 2. Read the head and compare its complete state with `proposal.expected`. A mismatch rejects the proposal.
 3. Save the updated head and immutable event together, with `atomically: true` and `.ifServerRecordUnchanged`.
 
 The state comparison detects a decision based on old information.
 The CloudKit change tag detects another writer between the head read and the save.
-The atomic save prevents a losing proposal from leaving a receipt that falsely reports success.
+The atomic save prevents a losing proposal from leaving a commit that falsely reports success.
 This transaction covers the two CloudKit records only.
 The local store update happens afterward.
 
@@ -83,11 +89,11 @@ sequenceDiagram
         Transport-->>Coordinator: throw
         Coordinator-->>Caller: throw
     else Receipt returned
-        Transport-->>Coordinator: immutable receipt
-        Coordinator->>Transport: current() and predecessor receipts
+        Transport-->>Coordinator: immutable commit
+        Coordinator->>Transport: current() and predecessor commits
         alt Complete history and local save succeed
-            Coordinator->>Store: perform: add receipts
-            Coordinator-->>Caller: original receipt
+            Coordinator->>Store: perform: add commits
+            Coordinator-->>Caller: original commit
         else History read or local save fails
             Coordinator-->>Caller: throw after server commit
         end
@@ -99,14 +105,14 @@ The local implementation supplies the same conflict and retry contract without a
 
 ### A retry answers a different question from a refresh
 
-A receipt answers: **Did this particular proposal commit?**
+A commit answers: **Did this particular proposal commit?**
 Current authority answers: **Who owns recording now?**
 Another transition can occur between those answers.
 
 For example, A's claim can commit, its response can be lost, and B can later recover ownership.
-A retry of the original claim returns A's original receipt without changing B's ownership.
-`submit()` refreshes the local projection after it obtains the receipt.
-Consumers read that projection instead of treating the returned receipt as the latest grant.
+A retry of the original claim returns A's original commit without changing B's ownership.
+`submit()` refreshes the local projection after it obtains the commit.
+Consumers read that projection instead of treating the returned commit as the latest grant.
 
 An error does not always mean that the server rejected the write.
 The server can commit before a network error, or local reconciliation can fail after the server returns success.
@@ -137,20 +143,20 @@ The recording integration owns that step and the check of local consent before c
 Forced recovery serves a different case: the old phone is lost or unreachable.
 It cannot stop an offline old phone immediately.
 The recovery proposal identifies the replaced tenure and records whether its later samples remain visible.
-The receipt preserves that decision for history consumers.
+The commit preserves that decision for history consumers.
 The foundation stores the decision but does not apply history exclusions itself.
 
 ## How local state catches up
 
-`observed()` reads the local receipt projection without a network request.
+`observed()` reads the local commit projection without a network request.
 It does not prove that the server state remains unchanged.
 `refresh()` reads the server head, then follows each proposal's `expected.revision.eventID` back to the initial state.
 Each predecessor's result must exactly match the next proposal's expected state.
 
-The coordinator fetches the whole chain before it writes receipts in one `WhereStore.perform` transaction.
-[`WhereStore.recordingAuthority()`](Sources/Persistence/WhereStore.swift) then replays the receipts in sequence order.
+The coordinator fetches the whole chain before it writes commits in one `WhereStore.perform` transaction.
+[`WhereStore.recordingAuthority()`](Sources/Persistence/WhereStore.swift) then replays the commits in sequence order.
 Each transition must continue the state produced by its predecessor.
-Missing predecessors, conflicting receipts, and invalid transitions throw instead of granting authority from a partial history.
+Missing predecessors, conflicting commits, and invalid transitions throw instead of granting authority from a partial history.
 
 The head alone is insufficient.
 A device that missed a recovery must still receive that recovery's history choice, even if several later transitions changed the head.
@@ -158,7 +164,7 @@ Immutable event records keep those decisions available.
 Receipts also accumulate locally, so a delayed response cannot replace newer local authority with an older head.
 
 [`SDRecordingAuthorityCommit`](Sources/Persistence/SwiftDataStore.swift) has no user-history generation field.
-History Reset and Replace retain these receipts.
+History Reset and Replace retain these commits.
 Backups omit them because restoring live ownership from an archive can revive an obsolete grant.
 An empty local history resolves to `.initial`.
 If the server head disappears after local authority exists, `refresh()` throws `authorityDisappeared`.
@@ -184,11 +190,11 @@ let proposal = try RecordingAuthorityProposal(
 )
 
 // The caller retains this proposal across an uncertain response.
-let receipt = try await authority.submit(proposal)
+let commit = try await authority.submit(proposal)
 let currentAuthority = try await authority.observed()
 ```
 
-`receipt` identifies this claim's outcome.
+`commit` identifies this claim's outcome.
 `currentAuthority` includes any later transitions observed during reconciliation.
 Neither value changes local consent or starts hardware.
 
@@ -197,7 +203,7 @@ Neither value changes local consent or starts hardware.
 The useful reading order is:
 
 1. [`RecordingAuthority.swift`](Sources/Coordination/RecordingAuthority.swift): state, transition rules, and decoded-proposal validation.
-2. [`CloudKitRecordingAuthorityTransport.swift`](Sources/Coordination/CloudKitRecordingAuthorityTransport.swift): receipt lookup, conditional save, and server timestamps.
+2. [`CloudKitRecordingAuthorityTransport.swift`](Sources/Coordination/CloudKitRecordingAuthorityTransport.swift): commit lookup, conditional save, and server timestamps.
 3. [`RecordingAuthorityCoordinator.swift`](Sources/Coordination/RecordingAuthorityCoordinator.swift): complete-history reconciliation and the server/local transaction boundary.
 4. [`RecordingAuthorityCoordinatorTests.swift`](Tests/RecordingAuthorityCoordinatorTests.swift) and [`RecordingAuthorityTransportTests.swift`](Tests/RecordingAuthorityTransportTests.swift): missing history, competing claims, and retry after a later transition.
 

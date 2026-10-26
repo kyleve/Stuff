@@ -564,6 +564,10 @@ Route shape, timing, accuracy, and sensor values remain recognizable characteris
 The [recording authority guide](RECORDING_AUTHORITY.md) explains the state model,
 conditional server writes, retry outcomes, local reconciliation, and review order.
 
+CloudKit authority records decide who owns recording. `SDRecordingAuthorityCommit`
+records what this device learned. `CloudKitRecordingAuthorityRecord` owns the
+typed head/event identities and payload coding inside the transport boundary.
+
 `RecordingAuthorityCoordinator` reconciles a server-confirmed owner and data
 version into the existing store. This foundation does not yet change recording
 behavior. The single-recorder lifecycle is the next stack slice.
@@ -580,7 +584,7 @@ try await authority.submit(claim)
 ```
 
 Keep the proposal until its outcome is known. A retry uses the same event ID;
-it returns the original immutable receipt even after later transitions. A
+it returns the original immutable commit even after later transitions. A
 conflicting proposal requires a fresh read and user review, not automatic retry.
 An approval proposal does not stop hardware: the recording controller must
 durably stop before submitting it.
@@ -596,7 +600,7 @@ remain required. `LocalRecordingAuthorityTransport` supplies development/demo
 state without networking.
 
 `refresh()` resolves the immutable predecessor chain, including recovery choices
-missed while offline, then projects receipts in one store transaction. Missing
+missed while offline, then projects commits in one store transaction. Missing
 predecessors and conflicting records throw. The projection is operational metadata:
 reset and Replace must retain it and backups must not restore its live grants.
 CloudKit account changes must invalidate a consumer's cached authority before

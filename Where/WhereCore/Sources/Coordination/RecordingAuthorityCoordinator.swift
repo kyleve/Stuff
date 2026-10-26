@@ -14,13 +14,13 @@ public actor RecordingAuthorityCoordinator {
         self.transport = transport
     }
 
-    /// Reads the local receipt projection without a network request or a freshness guarantee.
+    /// Reads the local commit projection without a network request or a freshness guarantee.
     public func observed() async throws -> RecordingAuthority {
         try await store.recordingAuthority()
     }
 
-    /// Fetches the head and every predecessor before adding receipts in one local transaction.
-    /// Missing or inconsistent history throws. Existing local receipts remain, so a stale head
+    /// Fetches the head and every predecessor before adding commits in one local transaction.
+    /// Missing or inconsistent history throws. Existing local commits remain, so a stale head
     /// cannot overwrite newer authority already observed by the store.
     @discardableResult
     public func refresh() async throws -> RecordingAuthority {
@@ -32,38 +32,38 @@ public actor RecordingAuthorityCoordinator {
             }
             return .initial
         }
-        var receipts = [head]
+        var commits = [head]
         var cursor = head
         // A later head can hide a recovery while this device was offline. Follow every parent to
         // retain its history choice, and require each edge to reproduce the expected state exactly.
         while let parent = cursor.proposal.expected.revision {
             try Task.checkCancellation()
-            guard let receipt = try await transport.receipt(for: parent.eventID),
-                  receipt.proposal.result == cursor.proposal.expected,
+            guard let commit = try await transport.fetchCommit(for: parent.eventID),
+                  commit.proposal.result == cursor.proposal.expected,
                   let sequence = cursor.proposal.result.revision?.sequence,
                   parent.sequence < sequence else { throw RecordingAuthorityError.invalidRecord }
-            receipts.append(receipt)
-            cursor = receipt
+            commits.append(commit)
+            cursor = commit
         }
-        let verified = receipts.reversed().map(\.self)
+        let verified = commits.reversed().map(\.self)
         try await store.perform {
-            for receipt in verified {
-                try await self.store.addRecordingAuthorityCommit(receipt)
+            for commit in verified {
+                try await self.store.addRecordingAuthorityCommit(commit)
             }
         }
         return try await store.recordingAuthority()
     }
 
-    /// Commits a proposal and refreshes local authority before returning its original receipt.
+    /// Commits a proposal and refreshes local authority before returning its original commit.
     ///
-    /// A returned receipt can describe an older transition than the refreshed authority. A thrown
+    /// A returned commit can describe an older transition than the refreshed authority. A thrown
     /// error can occur after the server committed. Retry the same proposal to resolve that outcome.
     @discardableResult
     public func submit(_ proposal: RecordingAuthorityProposal) async throws
         -> RecordingAuthorityCommit
     {
-        let receipt = try await transport.commit(proposal)
+        let commit = try await transport.commit(proposal)
         _ = try await refresh()
-        return receipt
+        return commit
     }
 }

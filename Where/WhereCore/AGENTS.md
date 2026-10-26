@@ -209,7 +209,7 @@ internal shape.
 
 - Keep direct CloudKit coordination in `CloudKitRecordingAuthorityTransport`; never access SwiftData-managed CloudKit records there. See the [authority guide](RECORDING_AUTHORITY.md) for the protocol and reading order.
 - Bind authority transitions to the reviewed state and reuse their event ID after uncertain responses. Resolve every immutable predecessor before publishing authority. Guard: `RecordingAuthorityCoordinatorTests` / `RecordingAuthorityTransportTests`.
-- Preserve authority receipts across destructive data generations; exclude operational ownership from backups. All projection writes use `WhereStore.perform`.
+- Preserve authority commits across destructive data generations; exclude operational ownership from backups. All projection writes use `WhereStore.perform`.
 
 ## Testing
 

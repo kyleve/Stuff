@@ -13,14 +13,14 @@ struct RecordingAuthorityTransportTests {
         #expect(try await server.current()?.proposal == phone)
     }
 
-    @Test func retryAfterLaterTransitionReturnsOriginalReceipt() async throws {
+    @Test func retryAfterLaterTransitionReturnsOriginalCommit() async throws {
         let fixture = RecordingAuthorityFixture()
         let server = LocalRecordingAuthorityTransport(now: { Date() })
         let claim = try fixture.proposal(.initial, .claim, device: fixture.phone)
-        let receipt = try await server.commit(claim)
+        let commit = try await server.commit(claim)
         let recovered = try fixture.proposal(claim.result, .recover(.keep), device: fixture.tablet)
         _ = try await server.commit(recovered)
-        #expect(try await server.commit(claim) == receipt)
+        #expect(try await server.commit(claim) == commit)
         #expect(try await server.current()?.proposal == recovered)
         let upgrade = try fixture.proposal(
             claim.result,
