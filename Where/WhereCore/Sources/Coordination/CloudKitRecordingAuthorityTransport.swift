@@ -8,6 +8,8 @@ import Foundation
 /// transition. These records are separate from every CloudKit record managed by SwiftData.
 /// CloudKit decides who owns recording; `SDRecordingAuthorityCommit` stores what this device
 /// learned.
+/// The private database requires an iCloud account. Authentication failures throw; they never
+/// imply an empty authority or select the local development transport.
 public actor CloudKitRecordingAuthorityTransport: RecordingAuthorityTransport {
     private let database: CKDatabase
 
@@ -81,7 +83,11 @@ public actor CloudKitRecordingAuthorityTransport: RecordingAuthorityTransport {
         try await fetch(.event(transitionID))?.commit
     }
 
-    /// Install once at launch; pushes only prompt a refresh of authoritative state.
+    /// Ensure the current account has the persistent subscription that prompts authority refreshes.
+    ///
+    /// CloudKit retains subscriptions across launches. Re-saving this stable ID at startup or
+    /// after an account change repairs missing setup without creating another subscription.
+    /// Do not persist a device-wide "installed" flag: the account or custom zone can change.
     public func subscribe() async throws {
         _ = try await database.save(CKRecordZone(zoneID: CloudKitRecordingAuthorityRecord.zoneID))
         let subscription = CKRecordZoneSubscription(

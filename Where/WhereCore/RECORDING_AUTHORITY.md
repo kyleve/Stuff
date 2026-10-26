@@ -59,6 +59,29 @@ Both records store the proposal in a `payload` Bytes field.
 The event's CloudKit `creationDate` supplies the commit's `committedAt` value.
 Recovery consumers use that server time as the cutoff for the replaced ownership period.
 
+### Account and subscription lifetime
+
+The production transport uses a private CloudKit database, which requires an active iCloud account.
+Authentication failures remain errors; they cannot establish that the account has no owner.
+The transport never substitutes the local development transport after a CloudKit failure.
+The app integration presents verification failure and retry when it cannot verify authority.
+Development and demo composition explicitly select the local transport.
+
+CloudKit retains a saved zone subscription across app launches for that account.
+`subscribe()` ensures setup by saving the same stable subscription ID again.
+Callers use it at startup and after an account change to repair missing setup.
+A device-wide "installed" flag could skip setup after an account change or zone deletion.
+Pushes prompt refreshes; they do not replace launch and foreground checks.
+
+See Apple's [private database requirements](https://developer.apple.com/documentation/cloudkit/ckcontainer)
+and [zone subscription lifecycle](https://developer.apple.com/documentation/cloudkit/ckrecordzonesubscription).
+
+### Data version encoding
+
+`DataCompatibilityVersion` encodes one positive integer, such as `1`.
+Its decoder rejects invalid data before calling the initializer, whose precondition detects programmer errors.
+Additional metadata belongs on the containing authority or backup record; it does not change the meaning of the ordered version number.
+
 ## How a transition commits
 
 The caller obtains state through `refresh()` and constructs a proposal from that state.
@@ -88,7 +111,7 @@ sequenceDiagram
     alt Server rejects or response is uncertain
         Transport-->>Coordinator: throw
         Coordinator-->>Caller: throw
-    else Receipt returned
+    else Commit returned
         Transport-->>Coordinator: immutable commit
         Coordinator->>Transport: current() and predecessor commits
         alt Complete history and local save succeed
@@ -161,7 +184,7 @@ Missing predecessors, conflicting commits, and invalid transitions throw instead
 The head alone is insufficient.
 A device that missed a recovery must still receive that recovery's history choice, even if several later transitions changed the head.
 Immutable event records keep those decisions available.
-Receipts also accumulate locally, so a delayed response cannot replace newer local authority with an older head.
+Commits also accumulate locally, so a delayed response cannot replace newer local authority with an older head.
 
 [`SDRecordingAuthorityCommit`](Sources/Persistence/SwiftDataStore.swift) has no user-history generation field.
 History Reset and Replace retain these commits.
