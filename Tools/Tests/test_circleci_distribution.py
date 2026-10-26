@@ -133,7 +133,7 @@ class CircleCIDistributionTests(unittest.TestCase):
                                    "--app", request.app_id, "--sha", request.sha, "--channel", request.channel,
                                    "--run", request.run, "--attempt", request.attempt, "--feed-url", request.feed_url,
                                    "--output", str(output)]), 1)
-            self.assertIn("API token", stderr.getvalue())
+            self.assertIn("ValueError; archive retrieval did not complete", stderr.getvalue())
             start.assert_not_called()
             self.assertFalse(output.exists())
 
@@ -145,3 +145,22 @@ class CircleCIDistributionTests(unittest.TestCase):
         self.assertEqual(payload['parameters']['installer_app'], 'throw')
         self.assertEqual(payload['config'], {'branch': 'main'})
         self.assertEqual(self.client.artifact(PIPELINE), ARTIFACT_URL)
+
+    def test_command_does_not_echo_transport_headers_or_response_data(self):
+        from http.client import BadStatusLine
+        request = archive_request()
+        for error in (ValueError('Authorization: secret'), BadStatusLine('secret'), OSError('secret')):
+            with self.subTest(error=type(error).__name__), tempfile.TemporaryDirectory() as temporary, \
+                 patch.dict('os.environ', {'CIRCLECI_TOKEN': 'fixture-token'}), \
+                 redirect_stderr(io.StringIO()) as stderr, \
+                 patch('Tools.InstallerKit.circleci_distribution.CircleCI.start', side_effect=error):
+                output = Path(temporary) / 'Where.ipa'
+                self.assertEqual(main(['--project', PROJECT, '--definition', DEFINITION,
+                                      '--repository', request.repository, '--app', request.app_id,
+                                      '--sha', request.sha, '--channel', request.channel,
+                                      '--run', request.run, '--attempt', request.attempt,
+                                      '--feed-url', request.feed_url, '--output', str(output)]), 1)
+                self.assertNotIn('secret', stderr.getvalue())
+                self.assertNotIn('fixture-token', stderr.getvalue())
+                self.assertIn(type(error).__name__, stderr.getvalue())
+                self.assertFalse(output.exists())

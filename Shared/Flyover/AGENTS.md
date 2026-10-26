@@ -35,6 +35,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build, format
 - **Serve only a private copy of a validated generated artifact through Astro.** Bind to loopback unless the user selects LAN access. Reject replacement links and special files without blocking (`test_flyover_artifact_access.py`, `test_flyover_site.py`).
 - Keep command policy in `Tools/flyover_cli.py`, export composition in `Tools/flyover_export.py`, and recovery in `Tools/flyover_publication.py`.
 - **Use the repository's shared npm lockfile and Astro launcher.** Keep capture and publication policy outside the web project. Preserve relative hosted asset paths; direct `file://` viewing is unsupported.
+- Register hosted export adapters in `.github/flyover-apps.json`. Keep CI capture serial and unsigned. Publish only complete, validated bundles through the shared Pages publisher.
 - **Load a thumbnail for every visible web screen.** Reserve full-resolution captures for the inspector and raw PNG link.
 - **Apply web residency limits only to offscreen preload candidates.**
 - **Restore all web state selections from the URL and clear transient panels on history navigation.**

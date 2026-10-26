@@ -9,6 +9,7 @@ import subprocess
 import time
 
 from Tools.flyover_manifest import validate_artifact
+from Tools.flyover_apps import load_app
 from Tools.flyover_publication import AtlasPublication, validate_destination
 
 
@@ -16,6 +17,7 @@ from Tools.flyover_publication import AtlasPublication, validate_destination
 class ExportRequest:
     destination: Path
     profiles: tuple[str, ...]
+    app_id: str = 'where'
 
 
 def run_capture_process(arguments: list[str], *, environment=None) -> None:
@@ -63,6 +65,7 @@ def build_environment(workspace: Path, destination: Path) -> dict[str, str]:
 
 
 def export_atlas(request: ExportRequest, workspace: Path) -> None:
+    app = load_app(request.app_id)
     validate_destination(request.destination)
     metadata = build_environment(workspace, request.destination)
     started = time.monotonic()
@@ -77,13 +80,15 @@ def export_atlas(request: ExportRequest, workspace: Path) -> None:
         print(f'==> Exporting {len(request.profiles)} profile(s) to {request.destination}', flush=True)
         run_capture_process([
             os.environ.get('FLYOVER_CAPTURE_RUNNER', str(workspace / 'test')),
-            '--only', 'WhereUISnapshotTests/WhereFlyoverWebExportTests/exportsRequestedAtlas()',
+            '--only', app.test_identifier,
         ], environment={
             **os.environ, **metadata,
             'FLYOVER_EXPORT_DIRECTORY': str(staging),
             'FLYOVER_EXPORT_PROFILES': ','.join(request.profiles),
         })
         validate_artifact(staging, require_marker=False)
+        if json.loads((staging / 'manifest.json').read_text())['application']['id'] != app.app_id:
+            raise ValueError('Captured application does not match the selected app')
         publication.publish()
     print_summary(request.destination, int(time.monotonic() - started))
 

@@ -17,6 +17,10 @@ Apps appear after their first publication or retirement receipt.
 App cards show their icon, version, download size, and publication date.
 Build pages add the minimum iOS version, source commit, workflow run, bundle ID, and release notes.
 
+The same Pages deployment includes [Flyover atlases](../../Shared/Flyover/README.md#daily-web-publication) under `/flyover/`.
+The publishers share `Tools/circleci_pipeline.py` for pipeline polling and artifact selection.
+InstallerKit retains its signed-IPA validation and publication policy. Flyover uses a separate unsigned capture workflow.
+
 ## CI cleanup failures
 
 Cleanup attempts search-list restoration, temporary keychain deletion, and owned-profile removal independently. A failure makes the job fail and retains the ownership and recovery files for a retry. It does not delete unexpected profiles or a directory whose ownership changed.

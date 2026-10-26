@@ -1,0 +1,35 @@
+name: Daily Flyover Atlases
+
+on:
+  schedule:
+    - cron: '23 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+# Only one full bundle can publish at a time. Failed captures retain the prior release.
+concurrency:
+  group: flyover-daily
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Capture on CircleCI and publish the verified bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CIRCLECI_TOKEN: ${{ secrets.INSTALLER_CIRCLECI_TOKEN }}
+          CIRCLECI_PROJECT: ${{ vars.INSTALLER_CIRCLECI_PROJECT }}
+          CIRCLECI_PIPELINE: ${{ vars.INSTALLER_CIRCLECI_PIPELINE }}
+        run: python3 -m Tools.flyover_distribution --sha "$(git rev-parse HEAD)"
