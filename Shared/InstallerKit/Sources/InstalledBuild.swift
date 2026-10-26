@@ -31,15 +31,41 @@ public struct InstalledBuild: Sendable, Equatable {
     }
 
     /// Channel names are a single string in the public feed, not a keyed object.
-    public struct Channel: RawRepresentable, Hashable, Codable, Sendable {
-        public let rawValue: String
+    public enum Channel: RawRepresentable, Hashable, Codable, Sendable {
+        /// A positive decimal GitHub PR identity, preserved without a machine-integer limit.
+        public struct PullRequestNumber: RawRepresentable, Hashable, Sendable {
+            public let rawValue: String
 
-        public static let main = Channel(rawValue: "main")!
+            public init?(rawValue: String) {
+                guard InstallerPattern.pullRequestNumber.matches(rawValue) else { return nil }
+                self.rawValue = rawValue
+            }
+        }
+
+        case main
+        case pullRequest(PullRequestNumber)
+
+        public var rawValue: String {
+            switch self {
+                case .main: "main"
+                case let .pullRequest(number): "pr-" + number.rawValue
+            }
+        }
 
         public init?(rawValue: String) {
-            guard InstallerPattern.channel.matches(rawValue)
+            if rawValue == "main" {
+                self = .main
+                return
+            }
+            let components = rawValue.split(
+                separator: "-",
+                maxSplits: 1,
+                omittingEmptySubsequences: false,
+            )
+            guard components.count == 2, components[0] == "pr",
+                  let number = PullRequestNumber(rawValue: String(components[1]))
             else { return nil }
-            self.rawValue = rawValue
+            self = .pullRequest(number)
         }
 
         public init(from decoder: any Decoder) throws {
@@ -180,5 +206,15 @@ public struct InstalledBuild: Sendable, Equatable {
 
     public func commitURL(for revision: Revision) -> URL {
         repositoryURL.appending(path: "commit").appending(path: revision.rawValue)
+    }
+
+    /// Links a selected PR channel through the signed repository, independent of the installed
+    /// channel.
+    public func pullRequestURL(for channel: Channel) -> URL? {
+        switch channel {
+            case .main: nil
+            case let .pullRequest(number):
+                repositoryURL.appending(path: "pull").appending(path: number.rawValue)
+        }
     }
 }

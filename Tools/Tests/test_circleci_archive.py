@@ -82,3 +82,45 @@ class CircleCIArchiveTests(unittest.TestCase):
             self.assertEqual(main(["prepare", "/unused"]), 1)
             self.assertIn("INSTALLER_REPOSITORY", stderr.getvalue())
             run.assert_not_called()
+
+    def test_another_app_is_propagated_and_wrong_app_archive_is_rejected(self):
+        request = replace(archive_request(), app_id='throw')
+        self.assertEqual(request.parameters['installer_app'], 'throw')
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            (output / 'export').mkdir()
+            source = output / 'export/Throw.ipa'
+            write_archive(source)
+            from Tools.InstallerKit.circleci_archive import stage
+            with self.assertRaises((KeyError, ValueError)):
+                stage(request, output)
+            self.assertFalse((output / 'app.ipa').exists())
+
+    def test_selected_product_is_validated_before_staging_and_never_overwritten(self):
+        import plistlib
+        import zipfile
+        from Tools.InstallerKit.circleci_archive import stage
+        request = replace(archive_request(), app_id='throw')
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            (output / 'export').mkdir()
+            source = output / 'export/Throw.ipa'
+            info = {'CFBundleIdentifier': 'com.stuff.throw', 'InstallerAppID': 'throw',
+                    'InstallerGitSHA': request.sha, 'InstallerGitStatus': 'clean',
+                    'InstallerRepositoryURL': f'https://github.com/{request.repository}',
+                    'InstallerChannel': request.channel, 'InstallerRun': request.run,
+                    'InstallerAttempt': request.attempt, 'InstallerFeedURL': request.feed_url}
+            with zipfile.ZipFile(source, 'w') as archive:
+                archive.writestr('Payload/Throw.app/Info.plist', plistlib.dumps(info))
+                for name in ('embedded.mobileprovision', '_CodeSignature/CodeResources'):
+                    archive.writestr(f'Payload/Throw.app/{name}', b'signed fixture')
+            environment = dict(zip(('INSTALLER_REPOSITORY', 'INSTALLER_APP_ID', 'INSTALLER_BUILD_SHA',
+                                    'INSTALLER_CHANNEL', 'INSTALLER_RUN', 'INSTALLER_ATTEMPT', 'INSTALLER_FEED_URL'),
+                                   (request.repository, request.app_id, request.sha, request.channel,
+                                    request.run, request.attempt, request.feed_url)))
+            with patch.dict('os.environ', environment, clear=True), redirect_stderr(io.StringIO()) as stderr:
+                self.assertEqual(main(['stage', str(output)]), 0, stderr.getvalue())
+                self.assertEqual(stderr.getvalue(), '')
+            self.assertEqual((output / 'app.ipa').read_bytes(), source.read_bytes())
+            with self.assertRaises(FileExistsError):
+                stage(request, output)

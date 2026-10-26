@@ -21,6 +21,11 @@ struct UpdateBuildRow: View {
                     case let .channel(channel, installed):
                         Text(verbatim: channel.rawValue.uppercased())
                             .font(style.titleFont)
+                        if let title = release.pullRequestTitle {
+                            Text(verbatim: title)
+                                .font(style.titleFont)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                         if installed { badge(.installerInstalledChannel) }
                         version.font(style.metadataFont)
                     case let .release(installed):

@@ -111,6 +111,8 @@ inbox rather than here.
 
 ## P2s (Nice to have)
 
+- fix(Tools) [quick-win]: Count parameterized Swift Testing completions — `Tools/test_runner.py:138` only accepts a test name immediately followed by `passed` or `failed`; Swift Testing emits `with 4 test cases` between them. An isolated parameterized suite can pass in the result bundle but exit with “nothing ran” (`Tools/test_runner.py:286`). Accept both completion shapes and add parser regression coverage. Reproduced with `CalendarContentViewTests`. (agent 2026-10-26)
+
 - fix(Tools) [quick-win]: Count parameterized Swift Testing completions — `Tools/test_runner.py:138` does not match `Test name(...) with 5 test cases passed after ...`. A parameterized-only suite can pass in the raw log yet fail the wrapper's empty-run guard (`:270-284`). Reproduced during the JSON fixture migration with five successful cases. Accept that completion form and add a parser regression while preserving the genuine empty-selection failure. (agent 2026-10-22)
 - perf(CI) [needs-design]: Re-evaluate caching Git LFS snapshot objects without
   fighting CircleCI's   checkout hydration — at the time of that measurement the built-in checkout

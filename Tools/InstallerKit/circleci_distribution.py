@@ -19,8 +19,8 @@ from Tools.InstallerKit.github_api import request_json
 
 
 WORKFLOW = "Installer Archive"
-JOB = "Archive Where Dev"
-ARTIFACT = "installer/Where.ipa"
+JOB = "Archive App"
+ARTIFACT = "installer/app.ipa"
 MAX_IPA_BYTES = 2_000_000_000  # GitHub Release asset limit; reject oversized handoffs.
 
 
@@ -108,8 +108,6 @@ class CircleCI:
         raise ValueError("CircleCI returned too many API pages")
 
     def start(self, definition, request):
-        if request.app_id != "where":
-            raise ValueError("The CircleCI archive job currently supports Where")
         response = self.request("POST", f"project/{self.project}/pipeline/run", {
             "definition_id": uuid(definition), "config": {"branch": "main"},
             "checkout": {"branch": "main"}, "parameters": request.parameters,

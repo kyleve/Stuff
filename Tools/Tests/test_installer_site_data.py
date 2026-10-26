@@ -2,10 +2,35 @@ from copy import deepcopy
 import unittest
 
 from Tools.InstallerKit.installer_site_data import prepare_site
-from Tools.Tests.Fixtures.installer_update_fixtures import catalog, multiple_apps, FEED_URL, REPO
+from Tools.Tests.Fixtures.installer_update_fixtures import catalog, multiple_apps, site_scenarios, FEED_URL, REPO
 
 
 class InstallerSiteDataTests(unittest.TestCase):
+    def test_preparing_and_failed_channels_link_the_exact_run_without_install_manifests(self):
+        for state in ("preparing", "failed"):
+            prepared = prepare_site(site_scenarios()[state], REPO, FEED_URL)
+            channel = next(app for app in prepared.data["apps"] if app["id"] == "where")["channels"][1]
+            self.assertEqual(channel, {"name": "pr-42", "state": state,
+                "runURL": f"https://github.com/{REPO}/actions/runs/3/attempts/1"})
+            self.assertFalse(any(path.startswith("manifests/where/pr-42/") for path in prepared.files))
+
+    def test_rebuilding_keeps_the_previous_build_installable_and_legacy_empty_is_not_retired(self):
+        prepared = prepare_site(site_scenarios()["rebuilding"], REPO, FEED_URL)
+        channel = next(app for app in prepared.data["apps"] if app["id"] == "where")["channels"][1]
+        self.assertEqual(channel["state"], "active")
+        self.assertEqual(channel["buildStatus"]["state"], "preparing")
+        self.assertIn("manifests/where/pr-42/2-1.plist", prepared.files)
+        unpublished = prepare_site(site_scenarios()["unpublished"], REPO, FEED_URL)
+        channel = next(app for app in unpublished.data["apps"] if app["id"] == "where")["channels"][1]
+        self.assertEqual(channel, {"name": "pr-42", "state": "unpublished"})
+
+    def test_progress_rejects_untrusted_run_identity_before_constructing_workflow_links(self):
+        for invalid in ("../other", 0, True):
+            value = site_scenarios()["preparing"]
+            value["apps"][0]["channels"][1]["buildStatus"]["id"]["run"] = invalid
+            with self.assertRaises(ValueError):
+                prepare_site(value, REPO, FEED_URL)
+
     def test_duplicate_out_of_order_or_empty_active_channels_fail(self):
         original = catalog()
         duplicates = deepcopy(original)

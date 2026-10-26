@@ -136,3 +136,12 @@ class CircleCIDistributionTests(unittest.TestCase):
             self.assertIn("API token", stderr.getvalue())
             start.assert_not_called()
             self.assertFalse(output.exists())
+
+    def test_second_app_uses_same_trusted_controller_with_its_own_identity(self):
+        from dataclasses import replace
+        request = replace(archive_request(), app_id='throw')
+        self.client.start(DEFINITION, request)
+        payload = json.loads(self.server.requests[0].data)
+        self.assertEqual(payload['parameters']['installer_app'], 'throw')
+        self.assertEqual(payload['config'], {'branch': 'main'})
+        self.assertEqual(self.client.artifact(PIPELINE), ARTIFACT_URL)

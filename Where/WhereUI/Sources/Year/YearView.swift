@@ -4,16 +4,20 @@ import SwiftUI
 import WhereCore
 
 /// Your Year tab: the selected year's calendar and timeline for the same data.
-/// Swipe between the calendar (month detail) and timeline (year overview), or
+/// Swipe between the calendar and timeline, or
 /// select either page with the floating Liquid Glass pill at the bottom.
 struct YearView: View {
     let report: YearReportModel
 
     @State private var mode: YearMode
+    @State private var scrollPosition: ScrollPosition
 
     init(report: YearReportModel, initialMode: YearMode = .calendar) {
         self.report = report
         _mode = State(initialValue: initialMode)
+        _scrollPosition = State(initialValue: ScrollPosition(
+            edge: initialMode == .calendar ? .leading : .trailing,
+        ))
     }
 
     var body: some View {
@@ -25,24 +29,49 @@ struct YearView: View {
                     // Keep both pages alive without nesting a page-style TabView in
                     // the app's TabView. Each page owns its vertical scrolling.
                     HStack(spacing: 0) {
-                        CalendarContentView(report: report, showsPlanningToolbar: false)
-                            .frame(width: viewport.size.width, height: viewport.size.height)
-                            .accessibilityHidden(mode != .calendar)
-                            .id(YearMode.calendar)
+                        CalendarContentView(
+                            report: report,
+                            persistenceKey: .year,
+                            showsPlanningToolbar: false,
+                            showsZoomToolbar: mode == .calendar,
+                        )
+                        .frame(width: viewport.size.width, height: viewport.size.height)
+                        .accessibilityHidden(mode != .calendar)
                         PresenceTimelineList(report: report, showsPlanningToolbar: false)
                             .frame(width: viewport.size.width, height: viewport.size.height)
                             .accessibilityHidden(mode != .timeline)
-                            .id(YearMode.timeline)
                     }
-                    .scrollTargetLayout()
                 }
-                .scrollTargetBehavior(.paging)
-                .defaultScrollAnchor(mode == .calendar ? .leading : .trailing, for: .initialOffset)
-                .scrollPosition(id: Binding($mode), anchor: .leading)
+                // The outer target layout suppresses Calendar's nested month targets.
+                // With two pages, edge positions keep their scroll targets independent.
+                .scrollTargetBehavior(YearPagingScrollTargetBehavior())
+                .scrollPosition($scrollPosition)
+                .onScrollPhaseChange { previous, phase, context in
+                    guard phase == .idle, previous != .animating else { return }
+                    let offset = context.geometry.contentOffset.x
+                        + context.geometry.contentInsets.leading
+                    mode = offset < context.geometry.containerSize.width / 2 ? .calendar : .timeline
+                }
                 .scrollIndicators(.hidden, axes: .horizontal)
             }
-            .modifier(YearNavigationModifier(report: report, mode: $mode))
+            .modifier(YearNavigationModifier(report: report, mode: Binding(
+                get: { mode },
+                set: { selection in
+                    mode = selection
+                    scrollPosition.scrollTo(edge: selection == .calendar ? .leading : .trailing)
+                },
+            )))
         }
+    }
+}
+
+/// Apply page snapping only to the horizontal container, not its vertical children.
+private struct YearPagingScrollTargetBehavior: ScrollTargetBehavior {
+    func updateTarget(_ target: inout ScrollTarget, context: TargetContext) {
+        guard context.axes == .horizontal else { return }
+        var pageTarget = target
+        PagingScrollTargetBehavior().updateTarget(&pageTarget, context: context)
+        target.rect.origin.x = pageTarget.rect.origin.x
     }
 }
 
@@ -170,11 +199,15 @@ private struct YearModePicker: View {
             ) {
                 let report = PreviewSupport.loadedYearReportModel()
                 NavigationStack {
-                    CalendarContentView(report: report, showsPlanningToolbar: false)
-                        .modifier(YearNavigationModifier(
-                            report: report,
-                            mode: .constant(.calendar),
-                        ))
+                    CalendarContentView(
+                        report: report,
+                        persistenceKey: .year,
+                        showsPlanningToolbar: false,
+                    )
+                    .modifier(YearNavigationModifier(
+                        report: report,
+                        mode: .constant(.calendar),
+                    ))
                 }
             }
             whereSnapshot(
@@ -184,11 +217,34 @@ private struct YearModePicker: View {
             ) {
                 let report = PreviewSupport.emptyYearReportModel()
                 NavigationStack {
-                    CalendarContentView(report: report, showsPlanningToolbar: false)
-                        .modifier(YearNavigationModifier(
-                            report: report,
-                            mode: .constant(.calendar),
-                        ))
+                    CalendarContentView(
+                        report: report,
+                        persistenceKey: .year,
+                        showsPlanningToolbar: false,
+                    )
+                    .modifier(YearNavigationModifier(
+                        report: report,
+                        mode: .constant(.calendar),
+                    ))
+                }
+            }
+            whereSnapshot(
+                name: "RestoredOverview",
+                configurations: .fullContentPhoneLightDark,
+                settle: .settledAtLeast(minDuration: 1.0),
+            ) {
+                let report = PreviewSupport.loadedYearReportModel()
+                let _ = report.preferences.setCalendarOverview(true, forKey: .year)
+                NavigationStack {
+                    CalendarContentView(
+                        report: report,
+                        persistenceKey: .year,
+                        showsPlanningToolbar: false,
+                    )
+                    .modifier(YearNavigationModifier(
+                        report: report,
+                        mode: .constant(.calendar),
+                    ))
                 }
             }
         }

@@ -3,6 +3,7 @@
 import argparse
 import base64
 from copy import deepcopy
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 import os
@@ -14,13 +15,38 @@ from urllib.error import HTTPError
 from urllib.request import Request
 
 from Tools.InstallerKit.github_api import API_VERSION, request_json
-from Tools.InstallerKit.installer_installation import validate_release
+from Tools.InstallerKit.installer_installation import validate_pull_request_title, validate_release
 from Tools.InstallerKit.installer_apps import load_app, validate_metadata
 
 
 BRANCH = "installer-update-feed"
 FILE = "updates.json"
 HISTORY_LIMIT = 100
+
+
+@dataclass(frozen=True)
+class BuildStatus:
+    """Progress for one distribution attempt, separate from installable releases."""
+
+    state: str
+    identifier: dict
+    sha: str
+
+    def metadata(self):
+        if self.state not in ("preparing", "failed") or not isinstance(self.sha, str) or not re.fullmatch(r"[0-9a-f]{40}", self.sha):
+            raise ValueError("Invalid distribution build status")
+        if not isinstance(self.identifier, dict) or any(
+                type(self.identifier.get(key)) is not int or self.identifier[key] < 1 for key in ("run", "attempt")):
+            raise ValueError("Invalid distribution build identity")
+        return {"state": self.state, "id": self.identifier, "sha": self.sha}
+
+    @classmethod
+    def read(cls, value):
+        if not isinstance(value, dict):
+            raise ValueError("Distribution build status must be an object")
+        status = cls(value["state"], value["id"], value["sha"])
+        status.metadata()
+        return status
 
 
 def build_id(run, attempt):
@@ -55,6 +81,9 @@ def read_catalog(value):
         names = [channel["name"] for channel in app["channels"]]
         if len(names) != len(set(names)):
             raise ValueError("Duplicate update channels")
+        for channel in app["channels"]:
+            if "buildStatus" in channel:
+                BuildStatus.read(channel["buildStatus"])
     return value
 
 
@@ -72,14 +101,27 @@ def apply_change(catalog, app, channel, release):
     if current is None:
         current = {"name": channel, "active": False, "releases": []}
         current_app["channels"].append(current)
-    if release is None:
+    status = current.get("buildStatus")
+    if isinstance(release, BuildStatus):
+        metadata = release.metadata()
+        order = build_order(release.identifier)
+        if current["releases"] and order <= build_order(current["releases"][0]["id"]):
+            return result
+        if status and (order < build_order(status["id"]) or (
+                order == build_order(status["id"]) and status["state"] == "failed")):
+            return result
+        current["buildStatus"] = metadata
+    elif release is None:
         current["active"] = False
+        current.pop("buildStatus", None)
     else:
         releases = current["releases"]
         if releases and build_order(release["id"]) <= build_order(releases[0]["id"]):
             return result
         current["active"] = True
         current["releases"] = [release] + releases[:HISTORY_LIMIT - 1]
+        if status and build_order(status["id"]) <= build_order(release["id"]):
+            current.pop("buildStatus")
     current_app["channels"].sort(key=lambda item: item["name"])
     result["apps"].sort(key=lambda item: item["id"])
     return read_catalog(result)
@@ -193,7 +235,12 @@ def publish_receipt(receipt, feed, fetch, feed_url, run=subprocess.run):
         validate_release({**receipt, "id": identifier}, feed.repository, app.id, channel, feed_url)
 
         def make_release(previous):
+            # Record GitHub's current display title, not untrusted receipt metadata.
+            # Each CAS retry reads it again after the existing eligibility check.
+            title = {} if number is None else {"pullRequestTitle": validate_pull_request_title(
+                fetch(f"repos/{feed.repository}/pulls/{number}")["title"])}
             return {"id": identifier, "sha": plan.sha,
+                    **title,
                     "manifestURL": receipt["manifestURL"], "ipaURL": receipt["ipaURL"],
                     "bundleVersion": receipt["bundleVersion"],
                     **({"buildDetails": receipt["buildDetails"]} if "buildDetails" in receipt else {}),
@@ -208,19 +255,51 @@ def publish_receipt(receipt, feed, fetch, feed_url, run=subprocess.run):
         feed.deploy()
 
 
+def publish_status(app_id, channel, status, feed, fetch):
+    """Expose progress without granting installability or weakening archive checks."""
+    from Tools.InstallerKit.installer_distribution import eligible
+
+    app = load_app(app_id)
+    status.metadata()
+    if not re.fullmatch(r"main|pr-[1-9][0-9]*", channel):
+        raise ValueError("Invalid distribution channel")
+
+    def current():
+        if channel == "main":
+            return fetch(f"repos/{feed.repository}/git/ref/heads/main")["object"]["sha"] == status.sha
+        pr = fetch(f"repos/{feed.repository}/pulls/{int(channel[3:])}")
+        return eligible(pr, feed.repository) and pr["head"]["sha"] == status.sha
+
+    if feed.save(app, channel, lambda _: status, current):
+        feed.deploy()
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--receipt", type=Path, required=True)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--receipt", type=Path)
+    mode.add_argument("--status", choices=("preparing", "failed"))
+    parser.add_argument("--app")
+    parser.add_argument("--channel")
+    parser.add_argument("--sha")
+    parser.add_argument("--run")
+    parser.add_argument("--attempt")
     parser.add_argument("--repository", required=True)
     parser.add_argument("--feed-url", required=True)
     args = parser.parse_args(argv)
+    if args.status and not all((args.app, args.channel, args.sha, args.run, args.attempt)):
+        parser.error("--status requires --app, --channel, --sha, --run, and --attempt")
     try:
         from Tools.InstallerKit.installer_distribution import github_fetch
-        if not args.receipt.exists():
+        if args.receipt and not args.receipt.exists():
             print("No publication receipt; update catalog unchanged.")
             return 0
         feed = GitHubUpdateFeed(args.repository, os.environ.get("GH_TOKEN", ""))
-        publish_receipt(json.loads(args.receipt.read_text()), feed, github_fetch, args.feed_url)
+        if args.status:
+            publish_status(args.app, args.channel, BuildStatus(args.status, build_id(args.run, args.attempt), args.sha),
+                           feed, github_fetch)
+        else:
+            publish_receipt(json.loads(args.receipt.read_text()), feed, github_fetch, args.feed_url)
     except (OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1

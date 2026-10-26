@@ -48,7 +48,8 @@ class InstallerUpdateSiteSnapshotsTests(unittest.TestCase):
 
     def test_state_matrix_contains_real_installs_retirement_and_empty_states(self):
         fixtures = {page["name"]: page["html"] for page in pages()}
-        self.assertEqual(set(fixtures), {"Index", "App", "Channel", "Retired", "Empty", "UnavailableHistory", "MissingDetails"})
+        self.assertEqual(set(fixtures), {"Index", "App", "Channel", "Retired", "Empty", "UnavailableHistory", "MissingDetails",
+                                         "Preparing", "PreparingApp", "Failed", "Rebuilding", "Unpublished"})
         self.assertIn("itms-services:", fixtures["Channel"])
         self.assertIn("Retain complete release notes", fixtures["Channel"])
         self.assertNotIn("itms-services:", fixtures["Retired"])
@@ -56,6 +57,14 @@ class InstallerUpdateSiteSnapshotsTests(unittest.TestCase):
         self.assertIn("Complete commit history is unavailable", fixtures["UnavailableHistory"])
         self.assertIn("Not recorded", fixtures["MissingDetails"])
         self.assertIn('class="app-icon placeholder"', fixtures["MissingDetails"])
+        for name in ("Preparing", "Failed", "Unpublished"):
+            self.assertNotIn("itms-services:", fixtures[name])
+            self.assertNotIn("Channel retired", fixtures[name])
+        self.assertIn("Preparing build", fixtures["Preparing"])
+        self.assertIn("Preparing build", fixtures["PreparingApp"])
+        self.assertIn("Build not published", fixtures["Failed"])
+        self.assertIn("itms-services:", fixtures["Rebuilding"])
+        self.assertIn("New build preparing", fixtures["Rebuilding"])
 
     def test_offline_fixtures_inline_exact_production_artwork_for_both_appearances(self):
         import base64
