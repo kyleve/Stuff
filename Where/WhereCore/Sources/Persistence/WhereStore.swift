@@ -260,6 +260,8 @@ public protocol WhereStore: Sendable {
 }
 
 extension WhereStore {
+    /// Resolves local authority by replaying a complete chain from the initial state.
+    /// Taking only the largest sequence would hide missing recovery decisions or divergent history.
     public func recordingAuthority() async throws -> RecordingAuthority {
         let commits = try await recordingAuthorityCommits().sorted {
             ($0.proposal.result.revision?.sequence ?? 0) <
