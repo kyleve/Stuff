@@ -23,7 +23,7 @@ struct YearView: View {
             Group {
                 switch mode {
                     case .calendar:
-                        CalendarContentView(report: report)
+                        CalendarContentView(report: report, persistenceKey: .year)
                     case .timeline:
                         PresenceTimelineList(report: report)
                 }
@@ -143,6 +143,15 @@ private struct YearModePicker: View {
                 measurementReadiness: .immediate,
             ) {
                 YearView(report: PreviewSupport.emptyYearReportModel())
+            }
+            whereSnapshot(
+                name: "RestoredOverview",
+                configurations: .fullContentPhoneLightDark,
+                settle: .settledAtLeast(minDuration: 1.0),
+            ) {
+                let report = PreviewSupport.loadedYearReportModel()
+                let _ = report.preferences.setCalendarOverview(true, forKey: .year)
+                YearView(report: report)
             }
         }
     }

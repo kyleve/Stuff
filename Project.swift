@@ -769,7 +769,9 @@ let project = Project(
             bundleIdSuffix: "whereui",
             productDependency: "WhereUI",
             sources: ["Where/WhereUI/Tests/**"],
-            extraPackageProducts: ["LifecycleKit", "SFSafeSymbols"],
+            // The parser initializes SwiftUI accessibility for hosted interaction tests,
+            // including on fresh CI simulators with no accessibility tooling attached.
+            extraPackageProducts: ["AccessibilitySnapshotParser", "LifecycleKit", "SFSafeSymbols"],
         ),
         // WhereIntents depends on WhereUI for its snippet cards, so — exactly like
         // WhereUITests above — this bundle lists no `extraPackageProducts`:

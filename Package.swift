@@ -40,9 +40,8 @@ let package = Package(
         ),
         .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
         .package(url: "https://github.com/bitdriftlabs/capture-ios.git", from: "0.23.11"),
-        // Snapshot-testing engine + accessibility parser. Consumed only by the
-        // test-only `SnapshotKitTesting` target (never a shipping app). See
-        // Shared/SnapshotKitTesting.
+        // Snapshot-testing engine + accessibility parser. Consumed only by
+        // SnapshotKitTesting and test bundles, never a shipping app.
         .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.18.0"),
         .package(url: "https://github.com/cashapp/AccessibilitySnapshot", from: "0.12.0"),
         .package(url: "https://github.com/SFSafeSymbols/SFSafeSymbols", from: "7.0.0"),
