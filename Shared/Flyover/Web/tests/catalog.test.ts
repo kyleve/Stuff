@@ -19,7 +19,7 @@ void test('catalog selection preserves metadata and uses thumbnail pixels when p
     metadata.thumbnailPixelWidth = 201;
     metadata.thumbnailPixelHeight = 1300;
     assert.equal(catalog.thumbnailPath(screen), 'thumb.png');
-    assert.equal(catalog.screenImagePixels(screen), 201 * 1300);
+    assert.equal(catalog.screenThumbnail(screen, { width: 100, height: 100 }, 1, 'contain').pixelWidth, 201);
     selectedVariants.set(screen.id, 'alternate');
     state.profile = 'phone-dark';
     const alternate = catalog.imageMetadata(screen)!;
@@ -27,7 +27,7 @@ void test('catalog selection preserves metadata and uses thumbnail pixels when p
     delete alternate.thumbnailPixelWidth;
     delete alternate.thumbnailPixelHeight;
     assert.equal(catalog.thumbnailPath(screen), 'images/0/alternate/phone-dark.png');
-    assert.equal(catalog.screenImagePixels(screen), 402 * 2600);
+    assert.equal(catalog.screenThumbnail(screen, { width: 100, height: 100 }, 1, 'contain').pixelWidth, 402);
 });
 
 void test('search and filters include groups, named states, and route endpoints', () => {

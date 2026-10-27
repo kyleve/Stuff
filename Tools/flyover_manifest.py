@@ -151,6 +151,16 @@ def validate_artifact(
             )
             asset_paths.append(thumbnail.as_posix())
 
+        for thumbnail in image.get("thumbnailVariants", []):
+            relative = safe_image_path(thumbnail["relativePath"])
+            path = root.joinpath(*relative.parts)
+            if not path.is_file():
+                raise FlyoverArtifactError(
+                    f"the manifest thumbnail is missing: {relative}"
+                )
+            validate_png(path, thumbnail["pixelWidth"], thumbnail["pixelHeight"])
+            asset_paths.append(relative.as_posix())
+
     if len(set(asset_paths)) != len(asset_paths):
         raise FlyoverArtifactError(
             "manifest.json contains a duplicate image or thumbnail path"

@@ -173,9 +173,13 @@ The browser loads `manifest.json` over HTTP. Direct `file://` viewing is not sup
 browser changes images and navigation state. It does not run SwiftUI or
 serialize `FlyoverControl` actions.
 
-A thumbnail uses at most 1,024 pixels on its longest axis. A full-content
-thumbnail shows the top device viewport. The inspector and raw PNG link use the
-complete capture.
+The exporter creates thumbnails with longest-axis limits of 128, 256, 512, and 1,024 pixels.
+Small captures omit duplicate sizes and never upscale. Every size shows the same crop.
+A full-content thumbnail shows the top device viewport. The inspector and raw PNG link use the complete capture.
+
+The viewer selects the smallest thumbnail that covers the displayed preview at the device pixel density.
+Canvas zoom, window size, state, and profile changes update this selection.
+Zooming out selects a smaller image again. The preload budget uses the selected thumbnail dimensions.
 
 The exporter validates the complete plan before its first capture. The host
 provides one stable string for each typed screen ID and one capture closure.
@@ -259,7 +263,9 @@ All site URLs are relative.
 The manifest compatibility boundary is `schemaVersion: 1`. It contains the
 application and build identity, profiles, precomputed canvas geometry, groups,
 screens, routes, and image metadata. It contains no local source or account
-paths. New image records include the optional thumbnail path and pixel size.
+paths. Image records retain the largest thumbnail path and pixel size.
+The optional `thumbnailVariants` array declares smaller copies with their paths and pixel dimensions.
+Legacy records without this array use their single thumbnail.
 Schema-1 image data remains readable. Regenerate older exports before using the new preview command.
 The generated `web-assets.json` lists Astro's emitted assets for validation and isolated previews.
 The web shell uses the full capture

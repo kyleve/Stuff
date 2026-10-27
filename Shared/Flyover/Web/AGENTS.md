@@ -7,6 +7,7 @@ Read the [project guide](README.md), [Flyover rules](../AGENTS.md), and [reposit
 - Load local JSON over HTTP. Keep all emitted asset references relative for subdirectory hosting.
 - Keep images unchanged. Astro must not optimize or resize native captures.
 - Preserve visible-image residency, URL restoration, keyboard scrolling, and modal focus behavior during module extraction.
+- Select thumbnail sizes in both zoom directions. Use layout dimensions and requested zoom before paint. Budget the selected pixels.
 - Type-check every client module and TypeScript test. Use explicit component dependencies and one application-owned session.
 - Retain atlas nodes during selection and overlay changes. Replace the active view only when its mode changes. Synchronize retained group labels after explicit navigation and viewport changes.
 - Test module exports directly. Use browser tests for DOM, history, layout, and accessibility behavior; do not extract source strings.

@@ -18,12 +18,14 @@
                 ],
             )
 
-            let thumbnail = try await FlyoverWebThumbnail.make(
+            let pyramid = try await FlyoverWebThumbnail.make(
                 from: source,
                 pointSize: CGSize(width: 2, height: 4),
                 viewportPointSize: CGSize(width: 2, height: 2),
             )
 
+            #expect(pyramid.smaller.isEmpty)
+            let thumbnail = pyramid.largest
             #expect(thumbnail.pixelSize == CGSize(width: 2, height: 2))
             let image = try decode(thumbnail.pngData)
             #expect(try pixel(in: image, x: 0, y: 0) == [255, 0, 0, 255])
@@ -37,7 +39,7 @@
                 rowColors: [RGBA(red: 42, green: 84, blue: 126, alpha: 255)],
             )
 
-            let thumbnail = try await FlyoverWebThumbnail.make(
+            let pyramid = try await FlyoverWebThumbnail.make(
                 from: source,
                 pointSize: CGSize(
                     width: FlyoverWebThumbnail.maximumPixelDimension + 1,
@@ -46,8 +48,39 @@
                 viewportPointSize: nil,
             )
 
+            let thumbnail = pyramid.largest
+            #expect(pyramid.smaller.map(\.pixelSize.width) == [128, 256, 512])
+            for smaller in pyramid.smaller {
+                let decoded = try decode(smaller.pngData)
+                #expect(decoded.width == Int(smaller.pixelSize.width))
+                #expect(decoded.height == 1)
+            }
             #expect(thumbnail.pixelSize.width == CGFloat(FlyoverWebThumbnail.maximumPixelDimension))
             #expect(thumbnail.pixelSize.height == 1)
+        }
+
+        @Test func allSizesPreserveTheTopViewportWithoutUpscaling() async throws {
+            let source = try makePNG(
+                width: 600,
+                height: 1200,
+                rowColors: Array(
+                    repeating: RGBA(red: 255, green: 0, blue: 0, alpha: 255),
+                    count: 600,
+                )
+                    + Array(repeating: RGBA(red: 0, green: 0, blue: 255, alpha: 255), count: 600),
+            )
+            let pyramid = try await FlyoverWebThumbnail.make(
+                from: source,
+                pointSize: CGSize(width: 600, height: 1200),
+                viewportPointSize: CGSize(width: 600, height: 600),
+            )
+            #expect(pyramid.largest.pixelSize == CGSize(width: 600, height: 600))
+            #expect(pyramid.smaller.map(\.pixelSize.width) == [128, 256, 512])
+            for thumbnail in pyramid.smaller + [pyramid.largest] {
+                let image = try decode(thumbnail.pngData)
+                #expect(image.width == image.height)
+                #expect(try pixel(in: image, x: 0, y: image.height - 1) == [255, 0, 0, 255])
+            }
         }
 
         @Test func rejectsInvalidPNGData() async {

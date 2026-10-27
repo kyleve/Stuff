@@ -52,6 +52,7 @@ Keep generated Astro and Vite state isolated per invocation.
 - Run release retention only after successful Pages deployment. Keep seven days, the deployed bundle, and the newest published bundle. Never delete drafts or unrelated releases.
 - Reject unsafe ZIP entries, wrong capture identities, dirty captures, and oversized bundles before deployment. Retain the previous release on capture failure.
 - Keep filesystem access out of the pure schema, canvas, and image validators.
+- Validate, allowlist, and version every declared thumbnail size. Guards: `test_flyover_images.py`, `test_flyover_manifest.py`, `test_flyover_pages.py`.
 - Keep publication and recovery in `flyover_publication.py`, not the shell launcher or Astro adapter.
 - Use `flyover_artifact_access.py` for descriptor-based access to validated preview files.
 - Preserve the previous atlas until installation succeeds. Never overwrite a competing destination during recovery.
