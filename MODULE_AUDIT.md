@@ -20,6 +20,11 @@ The two affected tooling suites passed 22 tests; SwiftFormat (0/1,405, 148
 skipped), ShellCheck, shard validation, agent sync and diff checks also passed.
 No app image suite or live user-interaction validation was repeated.
 
+**Post-audit removal (October 26, 2026):** Ledger and LedgerCore have been removed.
+Their rows and counts below describe the audited revision; the documentation links
+are pinned to that revision. Their retired backlog is preserved in the root
+[`TODOs.md`](TODOs.md#completed-issues). This note does not extend the audit cutoff.
+
 ## Method and changes since the previous audit
 
 The pass read every open area backlog, inspected cited source/test mechanisms,
@@ -183,8 +188,8 @@ static unless explicitly identified as executed.
 
 | Module | Source | Test/support | Image suite | Verified OK / bounded result |
 |---|---:|---:|---:|---|
-| [Ledger](Ledger/Ledger/README.md) | 8 | 0 | — | Native macOS app and hostless LedgerCore scheme remain separate from iOS; app has no test bundle by design. |
-| [LedgerCore](Ledger/LedgerCore/README.md) | 16 | 14 | — | Explicit refresh-generation guard and scripted API/Keychain seams retained; 14 test/support files, with the three filed namesake gaps; the logging facade now uses the freeform scope API. |
+| [Ledger](https://github.com/kyleve/Stuff/blob/2d686c95d/Ledger/Ledger/README.md) | 8 | 0 | — | Native macOS app and hostless LedgerCore scheme remain separate from iOS; app has no test bundle by design. |
+| [LedgerCore](https://github.com/kyleve/Stuff/blob/2d686c95d/Ledger/LedgerCore/README.md) | 16 | 14 | — | Explicit refresh-generation guard and scripted API/Keychain seams retained; 14 test/support files, with the three filed namesake gaps; the logging facade now uses the freeform scope API. |
 | [BroadwayCatalog](Shared/Broadway/BroadwayCatalog/README.md) | 2 | 1 | — | Catalog target is in the iOS scheme; its placeholder and empty test are still accurately filed, not counted as behavior coverage. |
 | [BroadwayCore](Shared/Broadway/BroadwayCore/README.md) | 18 | 12 | — | BScaledDimension uses explicit category metrics; category round-trip and ambient-trait independence tests are present. Cache and unchanged-value gaps remain. |
 | [BroadwayUI](Shared/Broadway/BroadwayUI/README.md) | 6 | 4 | — | Depends downward on BroadwayCore; nested-observer TODO remains at the cited source. |

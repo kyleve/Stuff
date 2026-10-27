@@ -2,7 +2,6 @@ import BumperBowlingCore
 
 enum WhereComponent: String, ComponentKey {
     case periscope
-    case ledgerCore
     case loggingTests
     case installerKit
     case installerKitUI
@@ -30,8 +29,6 @@ let bumper = BumperProject {
         "Shared/InstallerKit/Tests"
         "Shared/InstallerKitUI/Sources"
         "Shared/InstallerKitUI/Tests"
-        "Ledger/LedgerCore/Sources"
-        "Ledger/LedgerCore/Tests"
         "Where/RegionKit/Sources"
         "Where/RegionKit/Tests"
         "Where/WhereCore/Sources"
@@ -76,12 +73,6 @@ let bumper = BumperProject {
             Applies(.wherePresentationLayer)
         }
 
-        Component(.ledgerCore) {
-            Owns("Ledger/LedgerCore/Sources")
-            Modules("LedgerCore")
-            MayDependOn(.periscope)
-        }
-
         Component(.loggingTests) {
             Owns("Shared/Periscope/PeriscopeCore/Tests")
             Owns("Shared/Periscope/PeriscopeMacros/Tests")
@@ -89,7 +80,6 @@ let bumper = BumperProject {
             Owns("Shared/Periscope/PeriscopeUI/Tests")
             Owns("Shared/InstallerKit/Tests")
             Owns("Shared/InstallerKitUI/Tests")
-            Owns("Ledger/LedgerCore/Tests")
             Owns("Where/RegionKit/Tests")
             Owns("Where/WhereCore/Tests")
             Owns("Where/WhereUI/Tests")
@@ -97,7 +87,6 @@ let bumper = BumperProject {
             Owns("Where/Where/Tests")
             MayDependOn(
                 .periscope,
-                .ledgerCore,
                 .installerKit,
                 .installerKitUI,
                 .regionKit,

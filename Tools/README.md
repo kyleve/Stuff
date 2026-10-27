@@ -69,10 +69,9 @@ exercised against temporary repositories. `SimulatorRegistry` validates exact
 runtime ownership from captured `simctl` JSON and persists private claims
 atomically; its command-level tests replace `xcrun` rather than touching a
 developer's devices. `FileTransaction` supplies staged multi-path replacement
-with rollback to the icon catalogs and Ledger installer. The icon, physical
-device-selection, and app-install policies are likewise tested with temporary
-catalogs and captured command output rather than tracked assets, devices, or
-`/Applications`.
+with rollback to the icon catalogs. The icon and physical-device selection
+policies are likewise tested with temporary catalogs and captured command
+output rather than tracked assets or devices.
 
 `InstallerKit/signing_profiles.py` validates registered apps' ad hoc profiles and generates export settings.
 `repository.repository_root` (Python) and `Repository.root` in `repository.rb` (Ruby) find a tool's checkout through its nearest `.git` directory or worktree file.
