@@ -97,22 +97,10 @@ The shared homepage lists main builds. PR builds live under `/apps/<app-id>/`.
 ### Review the completed diff
 
 Before pushing reviewable work, review the complete branch diff against its PR base.
-For a stacked PR, use its parent branch as the base.
-Revisit the applicable invariants identified before implementation.
-For each material invariant, locate the evidence in the final code and relevant guard results.
-If a rule needs human judgment, inspect the affected implementation and state any validation limit.
-A statement that instructions were read is not evidence that the implementation follows them.
-
-1. Compare changed signatures and stored state with the root
-   [type rules](../../../AGENTS.md#types-state-and-api-design) and
-   [state rules](../../../AGENTS.md#modeling-state).
-   Inspect identity types, parameter defaults, coupled values, and enum subsets.
-2. Trace changed behavior through its consumers and alternate entry points.
-   Include extensions, historical reads, demo fixtures, and post-write reconciliation where applicable.
-3. Match each validation claim to the behavior exercised and the revision tested.
-   State separately what source inspection, unit tests, snapshots, and runtime interaction establish.
-4. Update the owning guidance only when the change exposes a missing invariant or obsolete instruction.
-   Keep an existing rule in one place. Do not copy a review thread into an agent file.
+Use [code-review](../code-review/SKILL.md) for scope, contract tracing, guard coverage, and findings.
+Include the material review result and remaining validation limits in the PR body.
+Update owning guidance only for a missing invariant or obsolete instruction.
+Keep each rule at its existing owner.
 
 For behavior or contract changes, compare the description with the completed diff before publication and after material revisions.
 First inventory the material changes from the diff without relying on the description.
