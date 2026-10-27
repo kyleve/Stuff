@@ -4,6 +4,7 @@
     import SnapshotKit
     import SwiftUI
     import Testing
+    import UIKit
 
     @MainActor
     struct FlyoverWebExporterTests {
@@ -72,6 +73,50 @@
             #expect(try pngCount(in: directory) == 16)
             #expect(FileManager.default
                 .fileExists(atPath: directory.appending(path: "manifest.js").path) == false)
+        }
+
+        @Test func writesEverySmallerThumbnailDeclaredInTheManifest() async throws {
+            let directory = try makeTemporaryDirectory()
+            defer {
+                do { try FileManager.default.removeItem(at: directory) }
+                catch { Issue.record(error) }
+            }
+            let exporter = FlyoverWebExporter(
+                catalog: makeCatalog(reset: {}),
+                applicationID: "test",
+                title: "Test",
+                screenIdentifier: \FlyoverTestScreen.rawValue,
+            )
+            let size = CGSize(width: 600, height: 1200)
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            let png = UIGraphicsImageRenderer(size: size, format: format).pngData { context in
+                UIColor.red.setFill()
+                context.fill(CGRect(origin: .zero, size: size))
+            }
+            let summary = try await exporter.export(
+                to: directory,
+                profiles: [.phoneLight],
+                build: build,
+            ) { _ in
+                FlyoverCapturedImage(pngData: png, pointSize: size, pixelSize: size, scale: 1)
+            }
+            let manifest = try JSONDecoder().decode(
+                FlyoverWebManifest.self,
+                from: Data(contentsOf: directory
+                    .appending(path: "manifest.json")),
+            )
+            for image in manifest.images {
+                let variants = try #require(image.thumbnailVariants)
+                #expect(variants.map { max($0.pixelWidth, $0.pixelHeight) } == [128, 256, 512])
+                for variant in variants {
+                    let data = try Data(contentsOf: directory.appending(path: variant.relativePath))
+                    let decoded = try #require(UIImage(data: data)?.cgImage)
+                    #expect(decoded.width == variant.pixelWidth)
+                    #expect(decoded.height == variant.pixelHeight)
+                }
+            }
+            #expect(try pngCount(in: directory) == summary.imageCount * 5)
         }
 
         @Test(arguments: [

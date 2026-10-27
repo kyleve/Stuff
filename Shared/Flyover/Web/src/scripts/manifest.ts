@@ -28,7 +28,9 @@ export interface AtlasProfile {
     dynamicType: string; contrast: string; layoutDirection: string; legibilityWeight: string; snapshotType: string;
     viewportSize?: Size | null;
 }
+export interface AtlasThumbnail { relativePath: string; pixelWidth: number; pixelHeight: number }
 export interface AtlasImage {
+    thumbnailVariants?: AtlasThumbnail[];
     screenID: string; variantID: string; profileID: string; relativePath: string;
     thumbnailRelativePath?: string | null; thumbnailPixelWidth?: number | null; thumbnailPixelHeight?: number | null;
     pointWidth: number; pointHeight: number; pixelWidth: number; pixelHeight: number; scale: number; captureExtent: CaptureExtent;

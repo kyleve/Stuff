@@ -58,6 +58,10 @@ The `responsive` layer follows component styles, so device adaptations do not re
 The native manifest schema remains version 1. The exporter no longer writes `manifest.js`.
 Regenerate earlier artifacts before using the new preview command.
 PNG capture, thumbnail generation, and geometry remain native responsibilities.
+New captures include optional `thumbnailVariants` alongside the existing largest thumbnail.
+`thumbnail-selection.ts` selects the smallest sufficient image from the displayed preview size, fit mode, and device pixel density.
+The controller assigns the selected source directly, so zooming out can replace a larger image.
+Legacy captures retain their single-thumbnail or full-capture fallback.
 
 New schema-1 exports include `profiles[].viewportSize` in points. The viewer uses these dimensions for device viewports.
 Legacy exports without this field retain the original phone, landscape, and tablet sizes. Fixed screen viewports still take precedence.
@@ -71,6 +75,8 @@ Retry requests bypass the failed image URL cache. Reload preserves the selected 
 Run `mise exec -- npm run lint` for Python, TypeScript, Astro, and CSS correctness checks.
 `npm run test:lint` tests representative rule failures. CI runs both commands.
 Browser tests also scan primary surfaces with axe and enforce thumbnail request and decoded-pixel budgets.
+A separate 57-screen fixture uses production-scale geometry and thumbnails at 3× pixel density.
+Its regression covers zoom increases, zoom decreases, profile changes, and inspector transitions.
 Real two-touch injection runs in Chromium portrait; WebKit still runs layout, interaction, and accessibility tests.
 
 Playwright loads the production Astro build with synthetic PNG captures under a nested HTTP path.

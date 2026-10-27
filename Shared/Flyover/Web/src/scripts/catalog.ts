@@ -1,4 +1,5 @@
-import type { AtlasGroup, AtlasImage, AtlasManifest, AtlasProfile, AtlasRoute, AtlasScreen, AtlasVariant, Size } from "./manifest.ts";
+import { selectThumbnail } from "./thumbnail-selection.ts";
+import type { AtlasGroup, AtlasImage, AtlasThumbnail, AtlasManifest, AtlasProfile, AtlasRoute, AtlasScreen, AtlasVariant, Size } from "./manifest.ts";
 import type { Session } from "./session.ts";
 
 interface Dependencies {
@@ -21,7 +22,7 @@ export interface Catalog {
     profileByID: ReadonlyMap<string, AtlasProfile>;
     searchableText: (screen: AtlasScreen) => string;
     visibleScreenIDs: () => Set<string>;
-    screenImagePixels: (screen: AtlasScreen) => number;
+    screenThumbnail: (screen: AtlasScreen, displaySize: Size, pixelRatio: number, fit: 'contain' | 'cover') => AtlasThumbnail;
 }
 
 export function createCatalog(deps: Dependencies): Catalog {
@@ -114,14 +115,9 @@ export function createCatalog(deps: Dependencies): Catalog {
         return size.width / size.height;
     }
 
-    function screenImagePixels(screen: AtlasScreen) {
-        const metadata = imageMetadata(screen);
-        if (!metadata) return 0;
-        const usesThumbnail = Boolean(metadata.thumbnailRelativePath);
-        const width = usesThumbnail ? (metadata.thumbnailPixelWidth || metadata.pixelWidth) : metadata.pixelWidth;
-        const height = usesThumbnail ? (metadata.thumbnailPixelHeight || metadata.pixelHeight) : metadata.pixelHeight;
-        return width * height;
+    function screenThumbnail(screen: AtlasScreen, displaySize: Size, pixelRatio: number, fit: 'contain' | 'cover') {
+        return selectThumbnail(imageMetadata(screen), imagePath(screen), displaySize, pixelRatio, fit);
     }
 
-    return { groupByID, screenByID, routeByID, imagePath, thumbnailPath, screenVariant, captureViewportAspect, matchesFilters, imageMetadata, captureViewportSize, profileByID, searchableText, visibleScreenIDs, screenImagePixels };
+    return { groupByID, screenByID, routeByID, imagePath, thumbnailPath, screenVariant, captureViewportAspect, matchesFilters, imageMetadata, captureViewportSize, profileByID, searchableText, visibleScreenIDs, screenThumbnail };
 }

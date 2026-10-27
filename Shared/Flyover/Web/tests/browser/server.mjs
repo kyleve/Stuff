@@ -12,10 +12,17 @@ execFileSync('python3', ['-m', 'Tools.flyover_site', 'build', directory], { cwd:
 writeFileSync(join(directory, 'manifest.json'), JSON.stringify(fixture()));
 const captures = new Map(['phone-light', 'phone-dark'].map(id => [id, capturePNG(id === 'phone-dark')]));
 const thumbnails = new Map(['phone-light', 'phone-dark'].map(id => [id, capturePNG(id === 'phone-dark', 134, 867)]));
+const largeThumbnails = new Map([128, 256, 512, 1024].map(height => [height,
+    new Map(['phone-light', 'phone-dark'].map(id => [id, capturePNG(id === 'phone-dark', Math.round(471 * height / 1024), height)]))]));
 const server = createServer((request, response) => {
     const path = new URL(request.url, 'http://localhost').pathname;
     if (path.startsWith('/atlas/images/')) {
         response.setHeader('Content-Type', 'image/png');
+        const thumbnail = /-thumbnail(?:-(128|256|512))?\.png$/.exec(path);
+        if (path.includes('/images/large/') && thumbnail) {
+            response.end(largeThumbnails.get(Number(thumbnail[1] || 1024)).get(path.includes('phone-dark') ? 'phone-dark' : 'phone-light'));
+            return;
+        }
         response.end((path.endsWith('-thumbnail.png') ? thumbnails : captures).get(path.includes('phone-dark') ? 'phone-dark' : 'phone-light'));
         return;
     }

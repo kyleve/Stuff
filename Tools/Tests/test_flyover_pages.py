@@ -68,6 +68,41 @@ class FlyoverPagesTests(unittest.TestCase):
             self.assertNotEqual(paths[0], paths[1])
             self.assertEqual(paths[0], paths[2])
 
+    def test_versions_smaller_thumbnails_and_preserves_their_dimensions(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            atlas = create_bundle(Path(temporary) / "bundle", ("where",)) / "where"
+            manifest = json.loads((atlas / "manifest.json").read_text())
+            manifest["images"][0].update(
+                thumbnailRelativePath="images/large.png",
+                thumbnailPixelWidth=512,
+                thumbnailPixelHeight=1024,
+                thumbnailVariants=[
+                    {
+                        "relativePath": "images/small.png",
+                        "pixelWidth": 64,
+                        "pixelHeight": 128,
+                    }
+                ],
+            )
+            content = png_fixture(64, 128)
+            (atlas / "images/large.png").write_bytes(png_fixture(512, 1024))
+            (atlas / "images/small.png").write_bytes(content)
+            (atlas / "manifest.json").write_text(json.dumps(manifest))
+            version_images(atlas)
+            thumbnail = json.loads((atlas / "manifest.json").read_text())["images"][0][
+                "thumbnailVariants"
+            ][0]
+            self.assertEqual(
+                thumbnail,
+                {
+                    "relativePath": f"images/small-{hashlib.sha256(content).hexdigest()}.png",
+                    "pixelWidth": 64,
+                    "pixelHeight": 128,
+                },
+            )
+            self.assertEqual((atlas / thumbnail["relativePath"]).read_bytes(), content)
+            self.assertFalse((atlas / "images/small.png").exists())
+
     def test_selects_latest_complete_run_not_latest_edited_release(self):
         releases = [
             {"tag_name": tag, "draft": draft}
