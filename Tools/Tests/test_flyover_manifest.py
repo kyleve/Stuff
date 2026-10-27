@@ -218,6 +218,40 @@ class FlyoverManifestTests(unittest.TestCase):
 
             self.assertIn(thumbnail_relative, artifact.allowed_paths)
 
+    def test_validates_and_serves_every_thumbnail_variant(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = create_flyover_artifact(Path(temporary))
+            manifest = json.loads((root / "manifest.json").read_text())
+            image = manifest["images"][0]
+            image.update(
+                thumbnailRelativePath="images/large.png",
+                thumbnailPixelWidth=512,
+                thumbnailPixelHeight=1024,
+                thumbnailVariants=[
+                    {
+                        "relativePath": "images/small.png",
+                        "pixelWidth": 64,
+                        "pixelHeight": 128,
+                    }
+                ],
+            )
+            (root / "images/large.png").write_bytes(png_fixture(512, 1024))
+            small = root / "images/small.png"
+            small.write_bytes(png_fixture(64, 128))
+            write_manifest(root, manifest)
+            self.assertIn(
+                "images/small.png",
+                flyover_manifest.validate_artifact(root).allowed_paths,
+            )
+            small.write_bytes(png_fixture(65, 128))
+            with self.assertRaises(flyover_manifest.FlyoverArtifactError):
+                flyover_manifest.validate_artifact(root)
+            small.unlink()
+            with self.assertRaisesRegex(
+                flyover_manifest.FlyoverArtifactError, "thumbnail is missing"
+            ):
+                flyover_manifest.validate_artifact(root)
+
     def test_rejects_incomplete_or_undeclared_thumbnail_assets(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = create_flyover_artifact(Path(temporary))

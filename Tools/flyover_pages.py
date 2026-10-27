@@ -23,7 +23,12 @@ def version_images(root: Path) -> None:
     manifest_path = root / "manifest.json"
     manifest = json.loads(manifest_path.read_text())
     replacements = {}
-    for image in manifest["images"]:
+    image_records = [
+        record
+        for image in manifest["images"]
+        for record in [image, *image.get("thumbnailVariants", [])]
+    ]
+    for image in image_records:
         for field in ("relativePath", "thumbnailRelativePath"):
             if field not in image:
                 continue

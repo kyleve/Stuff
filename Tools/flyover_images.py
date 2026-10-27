@@ -112,6 +112,60 @@ def validate_images(
                     raise FlyoverArtifactError(
                         f"manifest.images[{index}].{field} is not positive"
                     )
+        if "thumbnailVariants" in image:
+            variants = required_list(
+                image["thumbnailVariants"],
+                f"manifest.images[{index}].thumbnailVariants",
+            )
+            if not present_thumbnail_fields:
+                raise FlyoverArtifactError(
+                    "thumbnailVariants requires the largest thumbnail metadata"
+                )
+            previous_dimension = 0
+            for ordinal, value in enumerate(variants):
+                label = f"manifest.images[{index}].thumbnailVariants[{ordinal}]"
+                thumbnail = required_object(
+                    value, label, ("relativePath", "pixelWidth", "pixelHeight")
+                )
+                path = safe_image_path(
+                    string(
+                        thumbnail["relativePath"],
+                        label + ".relativePath",
+                        nonempty=True,
+                    )
+                ).as_posix()
+                if path in paths:
+                    raise FlyoverArtifactError(
+                        "manifest.json contains a duplicate image or thumbnail path"
+                    )
+                paths.add(path)
+                width = integer(thumbnail["pixelWidth"], label + ".pixelWidth")
+                height = integer(thumbnail["pixelHeight"], label + ".pixelHeight")
+                dimension = max(width, height)
+                if (
+                    min(width, height) <= 0
+                    or dimension <= previous_dimension
+                    or dimension
+                    >= max(image["thumbnailPixelWidth"], image["thumbnailPixelHeight"])
+                    or width > image["thumbnailPixelWidth"]
+                    or height > image["thumbnailPixelHeight"]
+                ):
+                    raise FlyoverArtifactError(
+                        label
+                        + " must have positive, increasing dimensions below the largest thumbnail"
+                    )
+                # Rounding to whole pixels may change either axis by at most one pixel.
+                if (
+                    abs(
+                        width * image["thumbnailPixelHeight"]
+                        - height * image["thumbnailPixelWidth"]
+                    )
+                    > image["thumbnailPixelWidth"] + image["thumbnailPixelHeight"]
+                ):
+                    raise FlyoverArtifactError(
+                        label + " must preserve the thumbnail aspect ratio"
+                    )
+                previous_dimension = dimension
         expected_path = variant["imagesByProfile"][profile_id]
         if relative_path != expected_path:
             raise FlyoverArtifactError(

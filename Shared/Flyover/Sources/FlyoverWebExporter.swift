@@ -130,9 +130,9 @@
                             variantIndex + 1,
                             profile.rawValue,
                         )
-                        let thumbnail: FlyoverWebThumbnail
+                        let thumbnails: FlyoverWebThumbnail.Pyramid
                         do {
-                            thumbnail = try await FlyoverWebThumbnail.make(
+                            thumbnails = try await FlyoverWebThumbnail.make(
                                 from: captured.pngData,
                                 pointSize: captured.pointSize,
                                 viewportPointSize: configuration.thumbnailViewportPointSize,
@@ -171,12 +171,38 @@
                             )
                         }
                         do {
-                            try thumbnail.pngData.write(to: thumbnailURL, options: .atomic)
+                            try thumbnails.largest.pngData.write(to: thumbnailURL, options: .atomic)
                         } catch {
                             throw FlyoverExportError.outputWriteFailed(
                                 path: thumbnailURL.path,
                                 reason: error.localizedDescription,
                             )
+                        }
+
+                        var thumbnailVariants: [FlyoverWebManifest.Thumbnail] = []
+                        for (index, thumbnail) in thumbnails.smaller.enumerated() {
+                            try Task.checkCancellation()
+                            let path = thumbnailRelativePath.replacingOccurrences(
+                                of: "-thumbnail.png",
+                                with: String(
+                                    format: "-thumbnail-%04d.png",
+                                    index + 1,
+                                ),
+                            )
+                            let url = directory.appending(path: path)
+                            do {
+                                try thumbnail.pngData.write(to: url, options: .atomic)
+                            } catch {
+                                throw FlyoverExportError.outputWriteFailed(
+                                    path: url.path,
+                                    reason: error.localizedDescription,
+                                )
+                            }
+                            thumbnailVariants.append(FlyoverWebManifest.Thumbnail(
+                                relativePath: path,
+                                pixelWidth: Int(thumbnail.pixelSize.width.rounded()),
+                                pixelHeight: Int(thumbnail.pixelSize.height.rounded()),
+                            ))
                         }
 
                         let key = VariantKey(
@@ -189,13 +215,15 @@
                             variantID: variant.id.rawValue,
                             profileID: profile.rawValue,
                             relativePath: relativePath,
+                            thumbnailVariants: thumbnailVariants,
                             thumbnailRelativePath: thumbnailRelativePath,
                             pointWidth: Double(captured.pointSize.width),
                             pointHeight: Double(captured.pointSize.height),
                             pixelWidth: Int(captured.pixelSize.width.rounded()),
                             pixelHeight: Int(captured.pixelSize.height.rounded()),
-                            thumbnailPixelWidth: Int(thumbnail.pixelSize.width.rounded()),
-                            thumbnailPixelHeight: Int(thumbnail.pixelSize.height.rounded()),
+                            thumbnailPixelWidth: Int(thumbnails.largest.pixelSize.width.rounded()),
+                            thumbnailPixelHeight: Int(thumbnails.largest.pixelSize.height
+                                .rounded()),
                             scale: Double(captured.scale),
                             captureExtent: policy.captureExtent.rawValue,
                         ))
@@ -215,7 +243,8 @@
             )
             try write(manifest: manifest, to: directory)
             let actualImageCount = try pngCount(in: imagesDirectory)
-            let expectedImageCount = images.count * 2
+            let expectedImageCount = images
+                .reduce(0) { $0 + 2 + ($1.thumbnailVariants?.count ?? 0) }
             guard actualImageCount == expectedImageCount else {
                 throw FlyoverExportError.assetCountMismatch(
                     expected: expectedImageCount,

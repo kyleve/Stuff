@@ -130,7 +130,17 @@
       "pixelWidth": 1206,
       "pixelHeight": 2622,
       "scale": 3,
-      "captureExtent": "viewport"
+      "captureExtent": "viewport",
+      "thumbnailRelativePath": "images/screen-0001/variant-0001/phone-light-thumbnail.png",
+      "thumbnailPixelWidth": 471,
+      "thumbnailPixelHeight": 1024,
+      "thumbnailVariants": [
+        {
+          "relativePath": "images/screen-0001/variant-0001/phone-light-thumbnail-0001.png",
+          "pixelWidth": 59,
+          "pixelHeight": 128
+        }
+      ]
     }
   ]
 }

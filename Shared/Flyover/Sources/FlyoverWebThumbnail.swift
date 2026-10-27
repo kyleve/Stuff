@@ -3,35 +3,60 @@
     import Foundation
     import ImageIO
 
-    /// Builds a card-sized PNG from one hosted full-resolution capture.
+    /// Builds a viewport-cropped thumbnail pyramid from one decoded native capture.
     struct FlyoverWebThumbnail {
         static let maximumPixelDimension = 1024
 
         let pngData: Data
         let pixelSize: CGSize
 
+        struct Pyramid {
+            let largest: FlyoverWebThumbnail
+            let smaller: [FlyoverWebThumbnail]
+        }
+
         @concurrent
         static func make(
             from pngData: Data,
             pointSize: CGSize,
             viewportPointSize: CGSize?,
-        ) async throws -> Self {
+        ) async throws -> Pyramid {
             try Task.checkCancellation()
-            guard let source = CGImageSourceCreateWithData(pngData as CFData, nil),
-                  let sourceImage = CGImageSourceCreateImageAtIndex(source, 0, nil)
-            else {
-                throw FlyoverWebThumbnailError.invalidPNG
-            }
+            // Drain image-processing temporaries before returning to the async exporter.
+            // Only encoded PNG bytes and dimensions escape this synchronous pool.
+            return try autoreleasepool {
+                guard let source = CGImageSourceCreateWithData(pngData as CFData, nil),
+                      let sourceImage = CGImageSourceCreateImageAtIndex(source, 0, nil)
+                else {
+                    throw FlyoverWebThumbnailError.invalidPNG
+                }
 
-            let croppedImage = try crop(
-                sourceImage,
-                pointSize: pointSize,
-                viewportPointSize: viewportPointSize,
-            )
+                let croppedImage = try crop(
+                    sourceImage,
+                    pointSize: pointSize,
+                    viewportPointSize: viewportPointSize,
+                )
+                let largest = try render(croppedImage, maximumDimension: maximumPixelDimension)
+                var smaller: [Self] = []
+                for dimension in [128, 256, 512] {
+                    // Avoid duplicate sizes and never upscale a small source.
+                    guard CGFloat(dimension) < max(
+                        largest.pixelSize.width,
+                        largest.pixelSize.height,
+                    )
+                    else { continue }
+                    try smaller.append(render(croppedImage, maximumDimension: dimension))
+                }
+                return Pyramid(largest: largest, smaller: smaller)
+            }
+        }
+
+        private static func render(_ croppedImage: CGImage, maximumDimension: Int) throws -> Self {
+            try Task.checkCancellation()
             let longestDimension = max(croppedImage.width, croppedImage.height)
             let scale = min(
                 1,
-                CGFloat(maximumPixelDimension) / CGFloat(max(longestDimension, 1)),
+                CGFloat(maximumDimension) / CGFloat(max(longestDimension, 1)),
             )
             let width = max(1, Int((CGFloat(croppedImage.width) * scale).rounded()))
             let height = max(1, Int((CGFloat(croppedImage.height) * scale).rounded()))
