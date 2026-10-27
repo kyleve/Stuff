@@ -22,6 +22,9 @@ The standard duplicate-property rule permits different CSS syntaxes, but rejects
 The daily controller uses the existing `INSTALLER_CIRCLECI_PROJECT`, `INSTALLER_CIRCLECI_PIPELINE`, and `INSTALLER_CIRCLECI_TOKEN` configuration.
 The names remain compatible with the existing installation setup. Flyover does not use its signing context.
 See [Flyover publication](../Shared/Flyover/README.md#daily-web-publication) for URLs, scheduling, and recovery behavior.
+`flyover_retention.py` removes expired release bundles after successful Pages deployment.
+It keeps seven days of releases, the deployed bundle, and the newest published bundle.
+Cleanup failures fail the workflow without rolling back the deployed site. Git tags remain unchanged.
 
 This directory contains importable implementations and direct tests for the
 repository's retained Python and Ruby developer tooling. Public commands stay

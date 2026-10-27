@@ -55,7 +55,7 @@ def latest_release(releases: list[dict]) -> dict | None:
     return max(candidates, key=lambda item: item[:2])[2] if candidates else None
 
 
-def compose(output: Path, repository: str) -> None:
+def compose(output: Path, repository: str) -> str | None:
     if not (output / "index.html").is_file() or (output / "flyover").exists():
         raise ValueError("Flyover requires a fresh, complete install-site output")
     pages = json.loads(
@@ -136,10 +136,18 @@ def compose(output: Path, repository: str) -> None:
             > 1_000_000_000
         ):
             raise ValueError("Combined Pages site exceeds the 1 GB publication budget")
+    return release["tag_name"] if release is not None else None
+
+
+def main(arguments=None) -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", required=True, type=Path)
+    args = parser.parse_args(arguments)
+    tag = compose(args.output, os.environ["GITHUB_REPOSITORY"])
+    if tag is not None and "GITHUB_OUTPUT" in os.environ:
+        with open(os.environ["GITHUB_OUTPUT"], "a") as stream:
+            stream.write(f"release={tag}\n")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", required=True, type=Path)
-    args = parser.parse_args()
-    compose(args.output, os.environ["GITHUB_REPOSITORY"])
+    main()
