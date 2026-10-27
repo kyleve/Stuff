@@ -25,27 +25,48 @@ jobs:
   # pushes still run every job.
   format:
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
-    name: Lint & Tooling Checks
+    name: Lint & Formatting
     runs-on: xcode-27
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v3
-      - name: Install site dependencies and check Astro
-        run: |
-          mise exec -- npm ci
-          mise exec -- npm run check --workspaces --if-present
-          mise exec -- npm run test:unit --workspaces --if-present
+      - name: Install web lint dependencies
+        run: mise exec -- npm ci
       - name: ShellCheck
         run: ./shellcheck
       - name: Python, TypeScript, and CSS lint
         run: |
           mise exec -- npm run lint
           mise exec -- npm run test:lint
-      - name: Flyover browser regressions
-        run: |
-          mise exec -- npx playwright install chromium webkit
-          mise exec -- npm run test:browser --workspace stuff-flyover-site
+      - run: ./swiftformat --lint
+      - name: SF Symbol lint
+        run: ./sf-symbols --lint
+      # Catalogs drift out of Xcode's serialization the moment one is written by
+      # anything but Xcode, and the cost lands on whoever next builds in the IDE
+      # (see "Formatting" in AGENTS.md). Keep this in the required
+      # Lint & Formatting job.
+      - name: String Catalog lint
+        run: ./xcstrings --lint
+      # The only thing that actually stops a stale attribution report from
+      # shipping: nothing about adding or bumping a dependency forces a re-run,
+      # and the app can't check itself (its test bundle can't read Package.swift).
+      # Offline and sub-second, so it rides along here for the same reason the
+      # catalog lint does.
+      - name: Attribution report check
+        run: ./attribution --check
+
+  test-tools:
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
+    name: Tool Tests
+    runs-on: xcode-27
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v3
+      # Site publication tests build Astro fixtures through the shared launcher.
+      - name: Install site dependencies
+        run: mise exec -- npm ci
       - name: Install locked Ruby dependencies
         run: BUNDLE_PATH=vendor/bundle BUNDLE_FROZEN=true mise exec -- bundle install
       - name: Retained tool tests
@@ -57,22 +78,34 @@ jobs:
           python3 .circleci/Tests/test_xcresult_to_junit.py
           python3 .circleci/Tests/test_test_artifacts.py
           ./snapshot-shards check
-      - run: ./swiftformat --lint
-      - name: SF Symbol lint
-        run: ./sf-symbols --lint
-      # Catalogs drift out of Xcode's serialization the moment one is written by
-      # anything but Xcode, and the cost lands on whoever next builds in the IDE
-      # (see "Formatting" in AGENTS.md). Keep this in the required
-      # Lint & Tooling Checks job.
-      - name: String Catalog lint
-        run: ./xcstrings --lint
-      # The only thing that actually stops a stale attribution report from
-      # shipping: nothing about adding or bumping a dependency forces a re-run,
-      # and the app can't check itself (its test bundle can't read Package.swift).
-      # Offline and sub-second, so it rides along here for the same reason the
-      # catalog lint does.
-      - name: Attribution report check
-        run: ./attribution --check
+
+  test-web:
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
+    name: Web Checks & Tests
+    runs-on: xcode-27
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v3
+      - name: Install site dependencies
+        run: mise exec -- npm ci
+      - name: Astro and TypeScript checks
+        run: mise exec -- npm run check --workspaces --if-present
+      - name: Web unit tests
+        run: mise exec -- npm run test:unit --workspaces --if-present
+      - name: Flyover browser regressions
+        run: |
+          mise exec -- npx playwright install chromium webkit
+          mise exec -- npm run test:browser --workspace stuff-flyover-site -- --reporter=line
+      - name: Upload browser failure diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: flyover-browser-failures
+          path: Shared/Flyover/Web/test-results
+          if-no-files-found: ignore
+          retention-days: 7
+
   architecture:
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
     name: Bumper Bowling
