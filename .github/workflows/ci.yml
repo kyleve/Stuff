@@ -96,7 +96,15 @@ jobs:
       - name: Flyover browser regressions
         run: |
           mise exec -- npx playwright install chromium webkit
-          mise exec -- npm run test:browser --workspace stuff-flyover-site
+          mise exec -- npm run test:browser --workspace stuff-flyover-site -- --reporter=line
+      - name: Upload browser failure diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: flyover-browser-failures
+          path: Shared/Flyover/Web/test-results
+          if-no-files-found: ignore
+          retention-days: 7
 
   architecture:
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}

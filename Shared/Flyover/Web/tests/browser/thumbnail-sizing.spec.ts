@@ -1,9 +1,9 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { largeFixture } from './large-fixture.ts';
 
 test.use({ deviceScaleFactor: 3 });
 
-test('production-sized atlas upgrades and downgrades thumbnails without loading native captures', async ({ page }) => {
+async function openFittedAtlas(page: Page) {
     const requests: string[] = [];
     const errors: string[] = [];
     page.on('request', request => { if (request.url().includes('/images/')) requests.push(request.url()); });
@@ -29,6 +29,12 @@ test('production-sized atlas upgrades and downgrades thumbnails without loading 
     // The former fixed thumbnails decode 27,491,328 pixels for this catalog.
     expect(fittedPixels).toBeLessThan(7_000_000);
     if (page.viewportSize()!.width <= 440) expect(fittedPixels).toBeLessThan(500_000);
+    expect(requests.every(url => /-thumbnail(?:-\d+)?\.png$/.test(url))).toBe(true);
+    return { loadedPixels, fittedPixels, requests, errors };
+}
+
+test('production-sized atlas upgrades and downgrades thumbnails across selections', async ({ page }) => {
+    const { loadedPixels, fittedPixels, requests, errors } = await openFittedAtlas(page);
     for (let index = 0; index < 8; index++) await page.keyboard.press('+');
     await expect.poll(() => page.locator('.screen-card img[src]').evaluateAll(images =>
         images.some(image => (image as HTMLImageElement).naturalHeight === 1024))).toBe(true);
@@ -43,11 +49,26 @@ test('production-sized atlas upgrades and downgrades thumbnails without loading 
     await page.locator('.screen-card select').nth(30).selectOption('alternate');
     await expect(page.locator('.screen-card img').nth(30)).toHaveAttribute('src', /alternate\/phone-dark-thumbnail/);
     await expect.poll(loadedPixels).toBe(fittedPixels);
+    expect(requests.every(url => /-thumbnail(?:-\d+)?\.png$/.test(url))).toBe(true);
+    expect(errors).toEqual([]);
+});
+
+test('inspector releases and restores production-sized atlas thumbnails', async ({ page }) => {
+    const { loadedPixels, fittedPixels, errors } = await openFittedAtlas(page);
+    await page.locator('.header-profile select').selectOption('phone-dark');
+    await page.locator('.screen-card select').nth(30).selectOption('alternate');
+    await expect(page.locator('.screen-card img').nth(30)).toHaveAttribute('src', /alternate\/phone-dark-thumbnail/);
+    await expect.poll(loadedPixels).toBe(fittedPixels);
     await page.locator('.card-image-button').nth(30).click();
     await expect(page.locator('.inspector img')).toHaveAttribute('src', /phone-dark\.png$/);
     await expect(page.locator('.screen-card img[src]')).toHaveCount(0);
     await page.getByRole('button', { name: 'Close inspector', exact: true }).click();
     await expect.poll(loadedPixels).toBe(fittedPixels);
+    expect(errors).toEqual([]);
+});
+
+test('production-sized atlas list uses thumbnails sized for cover', async ({ page }) => {
+    const { requests, errors } = await openFittedAtlas(page);
     await page.getByRole('button', { name: 'List', exact: true }).click();
     await expect.poll(() => page.locator('.list-row img[src]').count()).toBeGreaterThan(0);
     await expect.poll(() => page.locator('.list-row img[src]').evaluateAll(images =>
@@ -60,5 +81,6 @@ test('production-sized atlas upgrades and downgrades thumbnails without loading 
             images.every(image => (image as HTMLImageElement).naturalHeight === 512)
         )).toBe(true);
     }
+    expect(requests.every(url => /-thumbnail(?:-\d+)?\.png$/.test(url))).toBe(true);
     expect(errors).toEqual([]);
 });
