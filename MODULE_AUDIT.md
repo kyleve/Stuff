@@ -8,6 +8,11 @@ This report is derived from all 12 `TODOs.md` files and carries no actionable
 items. The root [`TODOs.md`](TODOs.md) owns their format and placement. It is
 true as of the header date and reviewed source, not as of later HEADs.
 
+**Post-audit removal (October 26, 2026):** This branch removes Ledger and LedgerCore.
+Their rows and counts below describe the audited revision; the documentation links
+are pinned to that revision. Their retired backlog remains in the root
+[`TODOs.md`](TODOs.md#completed-issues). This note does not extend the audit cutoff.
+
 ## Method and changes since the previous audit
 
 Every open area backlog was rechecked against current source, test mechanisms,
@@ -199,8 +204,8 @@ static unless explicitly identified as executed.
 
 | Module | Source | Test/support | Image suite | Verified OK / bounded result |
 |---|---:|---:|---:|---|
-| [Ledger](Ledger/Ledger/README.md) | 8 | 0 | — | Native macOS app and hostless LedgerCore scheme remain separate from iOS; app has no test bundle by design. |
-| [LedgerCore](Ledger/LedgerCore/README.md) | 16 | 14 | — | Refresh-generation guards and scripted API/Keychain seams are unchanged; 14 test/support files remain, with the three namesake gaps still filed. |
+| [Ledger](https://github.com/kyleve/Stuff/blob/123272e3f2361a9fa2d23879d654eede6d90b072/Ledger/Ledger/README.md) | 8 | 0 | — | Native macOS app and hostless LedgerCore scheme remain separate from iOS; app has no test bundle by design. |
+| [LedgerCore](https://github.com/kyleve/Stuff/blob/123272e3f2361a9fa2d23879d654eede6d90b072/Ledger/LedgerCore/README.md) | 16 | 14 | — | Refresh-generation guards and scripted API/Keychain seams are unchanged; 14 test/support files remain, with the three namesake gaps still filed. |
 | [BroadwayCatalog](Shared/Broadway/BroadwayCatalog/README.md) | 2 | 1 | — | Catalog target is in the iOS scheme; its placeholder and empty test are still accurately filed, not counted as behavior coverage. |
 | [BroadwayCore](Shared/Broadway/BroadwayCore/README.md) | 19 | 13 | — | BModeVarying selects authored light/dark values from an explicit mode and has namesake tests. Category metrics remain explicit; cache and unchanged-value gaps are still filed. |
 | [BroadwayUI](Shared/Broadway/BroadwayUI/README.md) | 6 | 4 | — | Depends downward on BroadwayCore; nested-observer TODO remains at the cited source. |

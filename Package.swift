@@ -13,7 +13,6 @@ let package = Package(
         .library(name: "InstallerKit", targets: ["InstallerKit"]),
         .library(name: "InstallerKitUI", targets: ["InstallerKitUI"]),
         .library(name: "CreditKit", targets: ["CreditKit"]),
-        .library(name: "LedgerCore", targets: ["LedgerCore"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
         .library(name: "LifecycleKitUI", targets: ["LifecycleKitUI"]),
         .library(name: "JournalKit", targets: ["JournalKit"]),
@@ -80,13 +79,6 @@ let package = Package(
         .target(
             name: "CreditKit",
             path: "Shared/CreditKit/Sources",
-        ),
-        .target(
-            name: "LedgerCore",
-            dependencies: [
-                .target(name: "PeriscopeCore"),
-            ],
-            path: "Ledger/LedgerCore/Sources",
         ),
         .target(
             name: "LifecycleKit",
