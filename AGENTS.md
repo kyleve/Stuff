@@ -29,7 +29,7 @@ Roughly, this file covers:
 | Ruby        | `.mise.toml` |
 | Fastlane and Ruby dependencies | `Gemfile.lock` |
 | Node.js     | `.mise.toml` |
-| Astro and TypeScript | `Tools/InstallerKit/Site/package-lock.json` |
+| Astro and TypeScript | `package-lock.json` |
 | Swift PM    | `Package.swift` (`swift-tools-version`) |
 | Bumper Bowling | `Package.swift` / `Package.resolved` |
 | Xcode snapshot renderer | `.xcode-build-version` |
@@ -48,7 +48,7 @@ Xcode project](#generating-the-xcode-project)). On a fresh machine, run `./ide
 --bootstrap` first. That command installs `mise` and the pinned tools before
 generating. Plain `./ide` fails fast and points at bootstrap.
 `./ide --bootstrap` and `./ide --install` also install the locked site and Fastlane dependencies.
-After a site lockfile change, run `mise exec -- npm ci --prefix Tools/InstallerKit/Site`.
+After a site lockfile change, run `mise exec -- npm ci`.
 
 The executables in the repo root are the dev scripts. They are `ide`, `test`,
 `swiftformat`, `sf-symbols`, `sync-agents`, `profile`, `flyover`, `icons`, `flaky`, `simulator`,
@@ -114,6 +114,8 @@ over a build setting Xcode didn't export.
 
 ## Formatting
 
+- **Python and web correctness:** `mise exec -- npm run lint` runs pinned Ruff, type-aware ESLint, Astro rules, and Stylelint. `npm run test:lint` proves that representative errors fail. Ruff targets Python 3.9. Keep formatting-only changes separate from behavior changes.
+- **Python formatting:** `mise exec -- npm run format:python` applies Ruff formatting. The shared lint command checks formatting without changing files. CSS uses the pinned standard Stylelint preset; preserve the three documented Safari property exceptions in `stylelint.config.mjs`.
 - **SwiftFormat** uses [`.swiftformat`](.swiftformat). Run `./swiftformat` to
   format the tree. Run `./swiftformat --lint` to make sure that formatting is correct (as in CI).
 - **ShellCheck** is pinned in [`.mise.toml`](.mise.toml). `./shellcheck` discovers
@@ -162,6 +164,8 @@ the configuration, tests the rules, and runs the lint. Keep the relevant
 the same change.
 Use the failing production syntax in the mutation fixture, including implicit
 members where applicable. State known enforcement gaps in the rule catalog.
+For graph assertions, mutate the project configuration while retaining its rule settings.
+Assert the expected diagnostic and severity, plus a valid neighboring configuration.
 
 ## Agent instructions sync
 
@@ -659,6 +663,9 @@ includes GitHub replies** on the threads you touch — not code-only fixes.
 
 Use [`review-lessons`](.agents/skills/review-lessons/SKILL.md) for the monthly
 PR-history audit or an explicit review of recurring failures.
+Use [`code-review`](.agents/skills/code-review/SKILL.md) for PR or branch reviews
+and the completed-diff review before publication. It owns review procedure and evidence.
+`github-workflow` owns publication and replies.
 
 ## Codex worktree specific instructions
 
@@ -717,7 +724,7 @@ external agent skills. Those skills are gitignored and absent from a bare checko
 | Check | Command |
 |-------|---------|
 | Install the pinned tools | `mise install` (skips Tuist) |
-| Install-site type check | `mise exec -- npm run check --prefix Tools/InstallerKit/Site` (install dependencies first) |
+| Website type checks | `mise exec -- npm run check --workspaces --if-present` (install dependencies first) |
 | SwiftFormat lint | `./swiftformat --lint` |
 | Shell lint | `./shellcheck` |
 | Attribution drift | `./attribution --check` |
@@ -760,8 +767,9 @@ being written off as untestable from a cloud agent.
 checks Astro, ShellCheck, the retained Python and Ruby tool suites, SwiftFormat,
 the SF Symbol lint, the String Catalog lint, attribution, CircleCI helpers, and
 the snapshot plan.
-The `test-macos` job runs the attribution, backup-upgrader, and macro tests
-before the Ledger suite. These required GitHub jobs run alongside the CircleCI builder. CircleCI
+The `test-macos` job installs the shared web dependencies before the host tests.
+It runs the Flyover, attribution, backup-upgrader, and macro tests before the Ledger suite.
+These required GitHub jobs run alongside the CircleCI builder. CircleCI
 ([`.circleci/config.yml`](.circleci/config.yml)) builds `build-ios-tests` once
 and attaches its products to `test-ios` and a five-way-sharded `snapshot` job,
 plus two build-only shards for **Where Beta** and **Where App Store**. The iOS
@@ -776,3 +784,8 @@ setup and the full validation recipe.
 The separate [app distribution workflow](.github/workflows/installer-distribution.yml)
 requests signed device archives on CircleCI and publishes them through GitHub Releases and Pages when enabled.
 Its `installable` label is independent of the test workflows' `NO-CI` title marker.
+
+The [daily Flyover workflow](.github/workflows/flyover-daily.yml) requests unsigned
+simulator captures on CircleCI. `.github/flyover-apps.json` registers each app's
+hosted test. The existing Pages publisher includes the latest validated bundle
+under `/flyover/`, alongside the install site.

@@ -24,7 +24,11 @@ import tempfile
 from urllib.parse import urlsplit
 
 from Tools.InstallerKit.installer_update_site import render_site
-from Tools.Tests.Fixtures.installer_update_fixtures import site_scenarios, FEED_URL, REPO
+from Tools.Tests.Fixtures.installer_update_fixtures import (
+    site_scenarios,
+    FEED_URL,
+    REPO,
+)
 
 
 class OfflineAssets(HTMLParser):
@@ -40,7 +44,7 @@ class OfflineAssets(HTMLParser):
         base = urlsplit(FEED_URL).path.removesuffix("updates.json")
         if not url.startswith(base):
             raise ValueError(f"Snapshot asset is outside the site: {url}")
-        return self.files[url[len(base):]]
+        return self.files[url[len(base) :]]
 
     def handle_starttag(self, tag, attributes):
         attrs = dict(attributes)
@@ -78,12 +82,19 @@ def pages():
     missing build metadata. The case names also name the LFS reference images.
     """
     cases = {
-        "full": [("Index", "index.html"), ("App", "apps/where/index.html"), ("Channel", "apps/where/pr-42/index.html")],
+        "full": [
+            ("Index", "index.html"),
+            ("App", "apps/where/index.html"),
+            ("Channel", "apps/where/pr-42/index.html"),
+        ],
         "unavailable-history": [("UnavailableHistory", "apps/where/pr-42/index.html")],
         "retired": [("Retired", "apps/where/pr-42/index.html")],
         "empty": [("Empty", "index.html")],
         "missing-details": [("MissingDetails", "apps/example/pr-42/index.html")],
-        "preparing": [("Preparing", "apps/where/pr-42/index.html"), ("PreparingApp", "apps/where/index.html")],
+        "preparing": [
+            ("Preparing", "apps/where/pr-42/index.html"),
+            ("PreparingApp", "apps/where/index.html"),
+        ],
         "failed": [("Failed", "apps/where/pr-42/index.html")],
         "rebuilding": [("Rebuilding", "apps/where/pr-42/index.html")],
         "unpublished": [("Unpublished", "apps/where/pr-42/index.html")],
@@ -92,7 +103,10 @@ def pages():
     for name, catalog in site_scenarios().items():
         # Build once per catalog, then select its relevant output paths.
         files = render_site(catalog, REPO, FEED_URL)
-        result.extend({"name": title, "html": offline_html(files, path)} for title, path in cases[name])
+        result.extend(
+            {"name": title, "html": offline_html(files, path)}
+            for title, path in cases[name]
+        )
     return result
 
 
@@ -108,7 +122,9 @@ def main(argv=None):
         args.output.parent.mkdir(parents=True, exist_ok=True)
         # A sibling temporary file stays on the same filesystem as the output.
         # os.replace makes the complete new JSON visible in one operation.
-        with tempfile.NamedTemporaryFile(dir=args.output.parent, delete=False) as destination:
+        with tempfile.NamedTemporaryFile(
+            dir=args.output.parent, delete=False
+        ) as destination:
             temporary = Path(destination.name)
             destination.write(content)
         os.replace(temporary, args.output)

@@ -1,0 +1,27 @@
+/* Cross-component user preferences override presentation without specificity escalation. */
+
+@layer preferences {
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+            scroll-behavior: auto !important;
+            animation-duration: 0.001ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.001ms !important;
+        }
+    }
+
+    @media (prefers-reduced-transparency: reduce) {
+        .app-header,
+        .bottom-dock,
+        .canvas-context,
+        .route-legend,
+        .inspector-header,
+        .inspector-dock,
+        .inspector-details {
+            -webkit-backdrop-filter: none;
+            backdrop-filter: none;
+        }
+    }
+}

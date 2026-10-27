@@ -36,7 +36,15 @@ def duration(node):
 
 def test_cases_in(result):
     completed = subprocess.run(
-        ["xcrun", "xcresulttool", "get", "test-results", "tests", "--path", str(result)],
+        [
+            "xcrun",
+            "xcresulttool",
+            "get",
+            "test-results",
+            "tests",
+            "--path",
+            str(result),
+        ],
         capture_output=True,
         check=False,
         text=True,
@@ -55,7 +63,9 @@ def test_cases_in(result):
         elif kind == "Test Suite":
             suite = name
         elif kind == "Test Case":
-            test_cases.append((bundle, suite, name, node.get("result", "Unknown"), duration(node)))
+            test_cases.append(
+                (bundle, suite, name, node.get("result", "Unknown"), duration(node))
+            )
         for child in node.get("children", []):
             walk(child, bundle, suite)
 
@@ -91,7 +101,9 @@ def write_junit(test_cases, output):
                 time=f"{elapsed:.3f}",
             )
             if result.lower() == "failed":
-                ET.SubElement(test_case, "failure", message="Failed; see the xcresult artifact")
+                ET.SubElement(
+                    test_case, "failure", message="Failed; see the xcresult artifact"
+                )
             elif result.lower() == "skipped":
                 ET.SubElement(test_case, "skipped")
 

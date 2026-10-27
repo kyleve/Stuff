@@ -7,12 +7,7 @@
     "dev": "cd ../../.. && python3 -m Tools.InstallerKit.installer_site_preview dev",
     "build": "cd ../../.. && python3 -m Tools.InstallerKit.installer_update_site",
     "preview": "cd ../../.. && python3 -m Tools.InstallerKit.installer_site_preview preview",
-    "check": "ASTRO_TELEMETRY_DISABLED=1 astro check"
-  },
-  "devDependencies": {
-    "@astrojs/check": "0.9.10",
-    "@types/node": "24.19.2",
-    "astro": "7.4.0",
-    "typescript": "6.0.3"
+    "check": "ASTRO_TELEMETRY_DISABLED=1 astro check",
+    "test:unit": "node --test tests/*.test.ts"
   }
 }

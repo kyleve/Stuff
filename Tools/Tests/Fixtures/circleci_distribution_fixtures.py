@@ -12,29 +12,59 @@ ARTIFACT_URL = "https://output.circle-artifacts.com/fixture/Where.ipa"
 
 
 def archive_request():
-    return ArchiveRequest("fixture/Stuff", "where", SHA, "pr-42", "12", "2",
-                          "https://fixture.github.io/Stuff/updates.json")
+    return ArchiveRequest(
+        "fixture/Stuff",
+        "where",
+        SHA,
+        "pr-42",
+        "12",
+        "2",
+        "https://fixture.github.io/Stuff/updates.json",
+    )
 
 
 def write_archive(path, changes=None):
     request = archive_request()
-    write_ipa(path, {"InstallerRepositoryURL": f"https://github.com/{request.repository}",
-                    "InstallerChannel": request.channel, "InstallerRun": request.run,
-                    "InstallerAttempt": request.attempt, "InstallerFeedURL": request.feed_url,
-                    **(changes or {})})
+    write_ipa(
+        path,
+        {
+            "InstallerRepositoryURL": f"https://github.com/{request.repository}",
+            "InstallerChannel": request.channel,
+            "InstallerRun": request.run,
+            "InstallerAttempt": request.attempt,
+            "InstallerFeedURL": request.feed_url,
+            **(changes or {}),
+        },
+    )
 
 
 def pull_request():
-    return {"state": "open", "labels": [{"name": "installable"}], "mergeable": True,
-            "base": {"repo": {"full_name": "fixture/Stuff"}},
-            "head": {"sha": SHA, "repo": {"full_name": "fixture/Stuff"}}}
+    return {
+        "state": "open",
+        "labels": [{"name": "installable"}],
+        "mergeable": True,
+        "base": {"repo": {"full_name": "fixture/Stuff"}},
+        "head": {"sha": SHA, "repo": {"full_name": "fixture/Stuff"}},
+    }
 
 
 class CircleCIServer:
     def __init__(self):
         self.requests = []
-        self.pipeline = {"id": PIPELINE, "project_slug": PROJECT, "state": "created", "errors": []}
-        self.workflows = [{"id": WORKFLOW, "pipeline_id": PIPELINE, "name": "Installer Archive", "status": "success"}]
+        self.pipeline = {
+            "id": PIPELINE,
+            "project_slug": PROJECT,
+            "state": "created",
+            "errors": [],
+        }
+        self.workflows = [
+            {
+                "id": WORKFLOW,
+                "pipeline_id": PIPELINE,
+                "name": "Installer Archive",
+                "status": "success",
+            }
+        ]
         self.jobs = [{"name": "Archive App", "status": "success", "job_number": 7}]
         self.artifacts = [{"path": "installer/app.ipa", "url": ARTIFACT_URL}]
 

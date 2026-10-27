@@ -43,8 +43,14 @@ documentation and executable rule in the same change.
 
 ## Graph integrity
 
-- `duplicate_ownership` keeps every source path and module in one component.
+- `duplicate_ownership` rejects equal or nested source paths owned by two components.
+- Configuration validation rejects duplicate module ownership before rule evaluation.
 - `declared_dependency_cycle` keeps the Where layer graph acyclic.
+
+`WhereArchitectureTests` mutates the real project configuration and retains its rule settings.
+It adds equal/nested RegionKit paths to WhereCore, duplicates RegionKit's module, and adds a RegionKit → WhereCore dependency.
+The unchanged graph must pass. Rule violations must have the expected ID and error severity.
+Duplicate modules must produce the expected configuration error.
 
 InstallerKit is a shared foundation component. WhereCore, WhereUI, and the app
 may depend on it. InstallerKit cannot import Where modules or UI frameworks.

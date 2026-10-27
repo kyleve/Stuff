@@ -86,6 +86,56 @@ struct SnapshotConfigurationTests {
         ])
     }
 
+    @Test func focusedPhoneAX5PresetPreservesConfigurationsAndReferenceOrder() {
+        let configurations = [SnapshotConfiguration].fullContentPhoneLightDarkWithAX5
+        #expect(configurations == [
+            SnapshotConfiguration(device: .iPhoneFullContent),
+            SnapshotConfiguration(colorScheme: .dark, device: .iPhoneFullContent),
+            SnapshotConfiguration(dynamicType: .accessibility5, device: .iPhoneFullContent),
+        ])
+        #expect(configurations.map(\.identifier) == ["iPhone", "iPhone_dark", "iPhone_ax5"])
+    }
+
+    @Test func focusedPhoneAnnotationPresetPreservesConfigurationsAndReferenceOrder() {
+        let configurations = [SnapshotConfiguration].fullContentPhoneLightDarkWithAnnotations
+        #expect(configurations == [
+            SnapshotConfiguration(device: .iPhoneFullContent),
+            SnapshotConfiguration(colorScheme: .dark, device: .iPhoneFullContent),
+            SnapshotConfiguration(device: .iPhoneFullContent, snapshotType: .accessibility),
+        ])
+        #expect(configurations.map(\.identifier) == [
+            "iPhone",
+            "iPhone_dark",
+            "iPhone_accessibility",
+        ])
+    }
+
+    @Test func focusedPhoneAX5AndAnnotationPresetKeepsTheAxesSeparate() {
+        let configurations = [SnapshotConfiguration].fullContentPhoneLightDarkWithAX5AndAnnotations
+        #expect(configurations == [
+            SnapshotConfiguration(device: .iPhoneFullContent),
+            SnapshotConfiguration(colorScheme: .dark, device: .iPhoneFullContent),
+            SnapshotConfiguration(dynamicType: .accessibility5, device: .iPhoneFullContent),
+            SnapshotConfiguration(device: .iPhoneFullContent, snapshotType: .accessibility),
+        ])
+        #expect(configurations.map(\.identifier) == [
+            "iPhone",
+            "iPhone_dark",
+            "iPhone_ax5",
+            "iPhone_accessibility",
+        ])
+    }
+
+    @Test func focusedComponentAnnotationPresetPreservesConfigurationsAndReferenceOrder() {
+        let configurations = [SnapshotConfiguration].componentLightDarkWithAnnotations
+        #expect(configurations == [
+            SnapshotConfiguration(),
+            SnapshotConfiguration(colorScheme: .dark),
+            SnapshotConfiguration(snapshotType: .accessibility),
+        ])
+        #expect(configurations.map(\.identifier) == ["", "dark", "accessibility"])
+    }
+
     @Test func fullContentScreenRepresentativeCoverBothDeviceWidths() {
         let configs = [SnapshotConfiguration].fullContentScreenRepresentative
         #expect(configs.count == 10)

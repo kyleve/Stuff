@@ -10,7 +10,9 @@ from unittest import mock
 
 
 SCRIPT = pathlib.Path(__file__).parents[1] / "test_artifacts.py"
-XCODE_BUILD = (pathlib.Path(__file__).parents[2] / ".xcode-build-version").read_text().strip()
+XCODE_BUILD = (
+    (pathlib.Path(__file__).parents[2] / ".xcode-build-version").read_text().strip()
+)
 SPEC = importlib.util.spec_from_file_location("test_artifacts", SCRIPT)
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
@@ -54,9 +56,7 @@ class ArtifactTests(unittest.TestCase):
                 "load_and_validate",
                 wraps=MODULE.load_and_validate,
             ) as validate:
-                paths = MODULE.resolved_paths(
-                    root, ["StuffSnapshotTests"], METADATA
-                )
+                paths = MODULE.resolved_paths(root, ["StuffSnapshotTests"], METADATA)
 
             self.assertEqual(
                 paths["products"],

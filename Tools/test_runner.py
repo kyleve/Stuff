@@ -2,7 +2,6 @@
 
 import argparse
 import json
-import os
 from pathlib import Path
 import re
 import subprocess
@@ -64,7 +63,9 @@ def affected_bundles(
     bundles = _bundles(declarations)
     problems = _parse_problems(bundles)
     if problems:
-        raise ValueError("could not read Project.swift reliably: " + "; ".join(problems))
+        raise ValueError(
+            "could not read Project.swift reliably: " + "; ".join(problems)
+        )
 
     selected: set[str] = set()
     changed_targets: set[str] = set()
@@ -77,8 +78,7 @@ def affected_bundles(
             (
                 name
                 for name, bundle in bundles.items()
-                if bundle["sources"]
-                and path.startswith(str(bundle["sources"]) + "/")
+                if bundle["sources"] and path.startswith(str(bundle["sources"]) + "/")
             ),
             None,
         )
@@ -168,7 +168,11 @@ class ProgressReporter:
                 if isinstance(cached, dict):
                     for key in self.expected:
                         value = cached.get(key)
-                        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+                        if (
+                            isinstance(value, int)
+                            and not isinstance(value, bool)
+                            and value >= 0
+                        ):
                             self.expected[key] = value
             except (OSError, ValueError):
                 pass
@@ -325,7 +329,7 @@ def _products_in(window: str) -> set[str]:
     dependency = re.search(r'productDependency:\s*"(\w+)"', window)
     if dependency:
         found.add(dependency.group(1))
-    extra = re.search(r'extraPackageProducts:\s*\[([^\]]*)\]', window)
+    extra = re.search(r"extraPackageProducts:\s*\[([^\]]*)\]", window)
     if extra:
         found.update(re.findall(r'"(\w+)"', extra.group(1)))
     return found

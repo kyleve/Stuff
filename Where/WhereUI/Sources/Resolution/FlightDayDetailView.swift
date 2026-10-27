@@ -244,10 +244,7 @@ struct FlightDayDetailView: View {
             switch state {
                 case .ready: .fullContentScreenRepresentative
                 case .uncertainArrival:
-                    .fullContentPhoneLightDark + [
-                        .init(dynamicType: .accessibility5, device: .iPhoneFullContent),
-                        .init(device: .iPhoneFullContent, snapshotType: .accessibility),
-                    ]
+                    .fullContentPhoneLightDarkWithAX5AndAnnotations
                 case .flightLikely, .waiting, .stale, .noPresence,
                      .completed: .fullContentPhoneLightDark
             }

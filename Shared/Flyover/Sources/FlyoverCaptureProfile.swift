@@ -134,7 +134,7 @@
             )
         }
 
-        private var profileSize: CGSize {
+        var profileSize: CGSize {
             switch self {
                 case .tabletLight:
                     CGSize(width: 834, height: 1194)

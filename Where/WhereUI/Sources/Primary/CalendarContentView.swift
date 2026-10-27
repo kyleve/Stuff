@@ -1070,13 +1070,13 @@ private struct DayCell: View {
                 .padding()
                 .background(Color(.systemBackground))
             }
-            whereSnapshot(name: "Flights", configurations: .fullContentScreenRepresentative) {
+            whereSnapshot(name: "Flights", configurations: .fullContentPhoneLightDark) {
                 NavigationStack {
                     CalendarContentView(report: PreviewSupport
                         .flightHistoryYearReportModel())
                 }
             }
-            whereSnapshot(name: "Itinerary", configurations: .fullContentScreenRepresentative) {
+            whereSnapshot(name: "Itinerary", configurations: .fullContentPhoneLightDark) {
                 NavigationStack {
                     CalendarContentView(report: PreviewSupport.itineraryYearReportModel())
                 }
@@ -1144,6 +1144,7 @@ private struct DayCell: View {
                     CalendarContentView(report: PreviewSupport.plannedStayYearReportModel())
                 }
             }
+            // Overview is a distinct layout and retains its full matrix alongside WithData.
             whereSnapshot(name: "YearOverview", configurations: .fullContentScreenRepresentative) {
                 NavigationStack {
                     CalendarContentView(

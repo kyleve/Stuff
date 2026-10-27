@@ -43,6 +43,11 @@
             let data = try Data(contentsOf: directory.appending(path: "manifest.json"))
             let manifest = try JSONDecoder().decode(FlyoverWebManifest.self, from: data)
             #expect(manifest.schemaVersion == 1)
+            #expect(manifest.profiles
+                .allSatisfy {
+                    $0.viewportSize == FlyoverWebManifest
+                        .Size(FlyoverCaptureProfile.phoneLight.profileSize)
+                })
             #expect(manifest.application.id == "test-app")
             #expect(manifest.application.title == "Test </script> App")
             #expect(manifest.groups.map(\.id) == ["main"])
@@ -65,11 +70,8 @@
                     && image.thumbnailPixelHeight == 1
             })
             #expect(try pngCount(in: directory) == 16)
-            let script = try String(
-                contentsOf: directory.appending(path: "manifest.js"),
-                encoding: .utf8,
-            )
-            #expect(script.hasPrefix("window.FLYOVER_MANIFEST = {"))
+            #expect(FileManager.default
+                .fileExists(atPath: directory.appending(path: "manifest.js").path) == false)
         }
 
         @Test(arguments: [

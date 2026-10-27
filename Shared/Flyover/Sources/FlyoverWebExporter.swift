@@ -529,13 +529,6 @@
                     to: directory.appending(path: "manifest.json"),
                     options: .atomic,
                 )
-                var script = Data("window.FLYOVER_MANIFEST = ".utf8)
-                script.append(data)
-                script.append(Data(";\n".utf8))
-                try script.write(
-                    to: directory.appending(path: "manifest.js"),
-                    options: .atomic,
-                )
             } catch {
                 throw FlyoverExportError.outputWriteFailed(
                     path: directory.path,
@@ -619,6 +612,7 @@
                 layoutDirection: layoutDirectionName,
                 legibilityWeight: legibilityWeightName,
                 snapshotType: snapshotTypeName,
+                viewportSize: FlyoverWebManifest.Size(profileSize),
             )
         }
     }

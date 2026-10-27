@@ -37,14 +37,29 @@ class GitHubReleases:
 
     def request(self, method, path, value=None, *, binary=None, allow_missing=False):
         host = "uploads.github.com" if binary is not None else "api.github.com"
-        body = binary if binary is not None else json.dumps(value).encode() if value is not None else None
-        return self.transport(Request(f"https://{host}/repos/{self.repository}{path}",
-                                      method=method, data=body, headers={
-                                          "Authorization": f"Bearer {self.token}",
-                                          "Accept": "application/vnd.github+json",
-                                          "Content-Type": "application/octet-stream" if binary is not None else "application/json",
-                                          "X-GitHub-Api-Version": API_VERSION,
-                                      }), allow_missing=allow_missing)
+        body = (
+            binary
+            if binary is not None
+            else json.dumps(value).encode()
+            if value is not None
+            else None
+        )
+        return self.transport(
+            Request(
+                f"https://{host}/repos/{self.repository}{path}",
+                method=method,
+                data=body,
+                headers={
+                    "Authorization": f"Bearer {self.token}",
+                    "Accept": "application/vnd.github+json",
+                    "Content-Type": "application/octet-stream"
+                    if binary is not None
+                    else "application/json",
+                    "X-GitHub-Api-Version": API_VERSION,
+                },
+            ),
+            allow_missing=allow_missing,
+        )
 
     def find(self, tag):
         release = self.request("GET", f"/releases/tags/{tag}", allow_missing=True)
@@ -70,15 +85,20 @@ class GitHubReleases:
         if not re.fullmatch(r"[0-9a-f]{40}", source_sha):
             raise ValueError("Invalid build commit")
         size = ipa.stat().st_size
-        if not 0 < size < 2 * 1024 ** 3:
+        if not 0 < size < 2 * 1024**3:
             raise ValueError("Release IPA must be nonempty and smaller than 2 GiB")
         contents = ipa.read_bytes()
         digest = "sha256:" + hashlib.sha256(contents).hexdigest()
         repository = self.request("GET", "")
-        if repository.get("visibility") != "public" or repository.get("private") is not False:
+        if (
+            repository.get("visibility") != "public"
+            or repository.get("private") is not False
+        ):
             raise ValueError("Direct installation requires a public release repository")
-        body = (f"{notes}\n\nSource: https://github.com/{self.repository}/commit/{source_sha}\n"
-                f"Build: {identifier['run']}.{identifier['attempt']}\nIPA SHA-256: {digest[7:]}")
+        body = (
+            f"{notes}\n\nSource: https://github.com/{self.repository}/commit/{source_sha}\n"
+            f"Build: {identifier['run']}.{identifier['attempt']}\nIPA SHA-256: {digest[7:]}"
+        )
         release = self.find(tag)
         if release is None:
             # GITHUB_TOKEN cannot tag PR commits that modify workflow files.
@@ -87,13 +107,27 @@ class GitHubReleases:
             controller_sha = self.request("GET", "/git/ref/heads/main")["object"]["sha"]
             if not re.fullmatch(r"[0-9a-f]{40}", controller_sha):
                 raise ValueError("Invalid controller commit")
-            release = self.request("POST", "/releases", {
-                "tag_name": tag, "target_commitish": controller_sha,
-                "name": f"{app_id} · {channel} · {identifier['run']}.{identifier['attempt']}",
-                "body": body, "draft": True, "prerelease": True, "make_latest": "false",
-            })
-        if release.get("tag_name") != tag or release.get("body") != body or release.get("prerelease") is not True:
-            raise ValueError("Existing release does not match this build; refusing to replace it")
+            release = self.request(
+                "POST",
+                "/releases",
+                {
+                    "tag_name": tag,
+                    "target_commitish": controller_sha,
+                    "name": f"{app_id} · {channel} · {identifier['run']}.{identifier['attempt']}",
+                    "body": body,
+                    "draft": True,
+                    "prerelease": True,
+                    "make_latest": "false",
+                },
+            )
+        if (
+            release.get("tag_name") != tag
+            or release.get("body") != body
+            or release.get("prerelease") is not True
+        ):
+            raise ValueError(
+                "Existing release does not match this build; refusing to replace it"
+            )
         release_id = release["id"]
         if type(release_id) is not int or release_id < 1:
             raise ValueError("Invalid GitHub release identity")
@@ -103,13 +137,21 @@ class GitHubReleases:
         if assets:
             asset = assets[0]
         elif release.get("draft") is True:
-            asset = self.request("POST", f"/releases/{release_id}/assets?name=app.ipa", binary=contents)
+            asset = self.request(
+                "POST", f"/releases/{release_id}/assets?name=app.ipa", binary=contents
+            )
         else:
             raise ValueError("Published release has no IPA; refusing to modify it")
-        self._verify_asset(asset, size, digest, expected_url, draft=release.get("draft") is True)
+        self._verify_asset(
+            asset, size, digest, expected_url, draft=release.get("draft") is True
+        )
         if release.get("draft") is True:
             asset_id = asset["id"]
-            release = self.request("PATCH", f"/releases/{release_id}", {"draft": False, "make_latest": "false"})
+            release = self.request(
+                "PATCH",
+                f"/releases/{release_id}",
+                {"draft": False, "make_latest": "false"},
+            )
             # GitHub assigns drafts an untagged URL. Read the asset again after
             # publication before advertising the canonical installation URL.
             assets = self.request("GET", f"/releases/{release_id}/assets?per_page=100")
@@ -122,11 +164,24 @@ class GitHubReleases:
 
     def _verify_asset(self, asset, size, digest, expected_url, *, draft):
         url = asset.get("browser_download_url")
-        draft_url = (draft and isinstance(url, str) and re.fullmatch(
-            re.escape(f"https://github.com/{self.repository}/releases/download/")
-            + r"untagged-[A-Za-z0-9-]+/app\.ipa", url))
-        if (type(asset.get("id")) is not int or asset["id"] < 1
-                or asset.get("name") != "app.ipa" or asset.get("state") != "uploaded"
-                or asset.get("size") != size or asset.get("digest") != digest
-                or not (url == expected_url or draft_url)):
-            raise ValueError("Release IPA verification failed; inspect the release before retrying")
+        draft_url = (
+            draft
+            and isinstance(url, str)
+            and re.fullmatch(
+                re.escape(f"https://github.com/{self.repository}/releases/download/")
+                + r"untagged-[A-Za-z0-9-]+/app\.ipa",
+                url,
+            )
+        )
+        if (
+            type(asset.get("id")) is not int
+            or asset["id"] < 1
+            or asset.get("name") != "app.ipa"
+            or asset.get("state") != "uploaded"
+            or asset.get("size") != size
+            or asset.get("digest") != digest
+            or not (url == expected_url or draft_url)
+        ):
+            raise ValueError(
+                "Release IPA verification failed; inspect the release before retrying"
+            )

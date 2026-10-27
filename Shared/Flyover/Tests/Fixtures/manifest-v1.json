@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "application": {
+    "id": "where",
+    "title": "Where"
+  },
+  "build": {
+    "commit": "abc123",
+    "dirty": false,
+    "generatedAt": "2026-09-07T12:00:00Z",
+    "xcodeVersion": "Xcode 27.0",
+    "simulatorDevice": "iPhone 17",
+    "simulatorOS": "27.0"
+  },
+  "profiles": [
+    {
+      "id": "phone-light",
+      "title": "Phone Light",
+      "device": "phone",
+      "orientation": "portrait",
+      "colorScheme": "light",
+      "dynamicType": "large",
+      "contrast": "standard",
+      "layoutDirection": "left-to-right",
+      "legibilityWeight": "regular",
+      "snapshotType": "standard",
+      "viewportSize": {
+        "width": 402,
+        "height": 874
+      }
+    }
+  ],
+  "canvas": {
+    "size": {
+      "width": 500,
+      "height": 700
+    },
+    "initialFitSize": {
+      "width": 500,
+      "height": 700
+    },
+    "groupFrames": [
+      {
+        "id": "group",
+        "frame": {
+          "x": 0,
+          "y": 0,
+          "width": 500,
+          "height": 700
+        }
+      }
+    ],
+    "depthBandFrames": [
+      {
+        "groupID": "group",
+        "kind": "route",
+        "depth": 0,
+        "frame": {
+          "x": 20,
+          "y": 20,
+          "width": 460,
+          "height": 660
+        }
+      }
+    ],
+    "screenFrames": [
+      {
+        "id": "screen",
+        "frame": {
+          "x": 50,
+          "y": 50,
+          "width": 300,
+          "height": 650
+        }
+      }
+    ],
+    "connectors": []
+  },
+  "groups": [
+    {
+      "id": "group",
+      "title": "Group",
+      "order": 0,
+      "rootScreenID": "screen",
+      "screenIDs": [
+        "screen"
+      ]
+    }
+  ],
+  "screens": [
+    {
+      "id": "screen",
+      "title": "Screen",
+      "groupID": "group",
+      "groupOrder": 0,
+      "screenOrder": 0,
+      "viewport": {
+        "kind": "device"
+      },
+      "navigationContainer": "stack",
+      "frame": {
+        "x": 50,
+        "y": 50,
+        "width": 300,
+        "height": 650
+      },
+      "variants": [
+        {
+          "id": "default",
+          "title": "Default",
+          "captureExtent": "viewport",
+          "imagesByProfile": {
+            "phone-light": "images/screen-0001/variant-0001/phone-light.png"
+          }
+        }
+      ],
+      "incomingRouteIDs": [],
+      "outgoingRouteIDs": []
+    }
+  ],
+  "routes": [],
+  "images": [
+    {
+      "screenID": "screen",
+      "variantID": "default",
+      "profileID": "phone-light",
+      "relativePath": "images/screen-0001/variant-0001/phone-light.png",
+      "pointWidth": 402,
+      "pointHeight": 874,
+      "pixelWidth": 1206,
+      "pixelHeight": 2622,
+      "scale": 3,
+      "captureExtent": "viewport"
+    }
+  ]
+}
