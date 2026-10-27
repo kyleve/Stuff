@@ -63,9 +63,11 @@ capture + comparison pipeline lives in the sibling
   `static var snapshots: [SnapshotCase]`.
 - **`SnapshotCase`** — a named group of configurations plus a lazy content
   builder. Declaring a matrix does not instantiate its views or models. The
-  current test runner evaluates the builder once per case and re-hosts that
-  value across configurations, so captured reference models are shared (see
-  [`TODOs.md`](TODOs.md)). It is
+  current test runner evaluates an ordinary single-view builder once per case
+  and re-hosts that value across configurations, sharing captured reference models
+  (see [`TODOs.md`](TODOs.md)). Cutsheet panel builders run per configuration
+  and must construct fresh fixtures. Settling retries reuse the supplied view and
+  captured models in either path. `SnapshotCase` is
   also a `View`, so `snapshotPreviews` can render the whole matrix as a
   scrollable cutsheet inside a `#Preview`. Its `settle` axis
   (`SnapshotSettle`) declares whether the content needs the capture pipeline's
