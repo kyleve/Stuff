@@ -26,7 +26,10 @@ class FlyoverArtifactAccessTests(unittest.TestCase):
                 os.mkfifo(image)
                 # Isolate a blocking regression so the suite can terminate it.
                 result = subprocess.run(
-                    [sys.executable, "-c", """
+                    [
+                        sys.executable,
+                        "-c",
+                        """
 import sys
 from Tools.flyover_artifact_access import open_file_beneath
 try:
@@ -34,7 +37,10 @@ try:
         raise AssertionError("preview accepted a FIFO")
 except OSError:
     pass
-""", str(descriptor), relative],
+""",
+                        str(descriptor),
+                        relative,
+                    ],
                     cwd=MODULE_PATH.parent.parent,
                     pass_fds=(descriptor,),
                     capture_output=True,

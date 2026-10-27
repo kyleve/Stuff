@@ -44,11 +44,17 @@ def validate_canvas(
         ("id", "frame"),
     )
     if set(group_frames) != set(group_by_id):
-        raise FlyoverArtifactError("manifest.canvas.groupFrames does not match manifest.groups")
+        raise FlyoverArtifactError(
+            "manifest.canvas.groupFrames does not match manifest.groups"
+        )
     if set(screen_frames) != set(screen_by_id):
-        raise FlyoverArtifactError("manifest.canvas.screenFrames does not match manifest.screens")
+        raise FlyoverArtifactError(
+            "manifest.canvas.screenFrames does not match manifest.screens"
+        )
     for identifier, record in group_frames.items():
-        validate_rect(record["frame"], f"manifest.canvas.groupFrames[{identifier}].frame")
+        validate_rect(
+            record["frame"], f"manifest.canvas.groupFrames[{identifier}].frame"
+        )
     for identifier, record in screen_frames.items():
         frame = validate_rect(
             record["frame"],
@@ -120,7 +126,9 @@ def validate_canvas(
             f"manifest.canvas.connectors[{index}].geometry",
         )
     if set(connector_by_route) != set(route_by_id):
-        raise FlyoverArtifactError("manifest.canvas.connectors does not match manifest.routes")
+        raise FlyoverArtifactError(
+            "manifest.canvas.connectors does not match manifest.routes"
+        )
     for route_id, connector in connector_by_route.items():
         if connector["geometry"] != route_by_id[route_id]["geometry"]:
             raise FlyoverArtifactError(

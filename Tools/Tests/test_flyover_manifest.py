@@ -3,14 +3,28 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from Tools.Tests.flyover_test_support import create_flyover_artifact, png_fixture, write_manifest
+from Tools.Tests.flyover_test_support import (
+    create_flyover_artifact,
+    png_fixture,
+    write_manifest,
+)
 from Tools import flyover_manifest
+
 
 class FlyoverManifestTests(unittest.TestCase):
     def test_web_asset_inventory_rejects_missing_unsafe_duplicate_and_extra_files(self):
-        for paths in ([], ["../secret.js"], ["/assets/app.js"], ["assets/../app.js"],
-                      ["assets/%2e%2e/app.js"], ["assets/missing.js"], ["assets/app.js", "assets/app.js"],
-                      ["https://example.com/app.js"], [123], ["assets/app.js"]):
+        for paths in (
+            [],
+            ["../secret.js"],
+            ["/assets/app.js"],
+            ["assets/../app.js"],
+            ["assets/%2e%2e/app.js"],
+            ["assets/missing.js"],
+            ["assets/app.js", "assets/app.js"],
+            ["https://example.com/app.js"],
+            [123],
+            ["assets/app.js"],
+        ):
             with self.subTest(paths=paths), tempfile.TemporaryDirectory() as temporary:
                 root = create_flyover_artifact(Path(temporary))
                 (root / "web-assets.json").write_text(json.dumps(paths))

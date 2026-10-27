@@ -19,11 +19,17 @@ def resolve_mise():
     data_home = Path(os.environ.get("XDG_DATA_HOME") or home / ".local/share")
     data_directory = Path(os.environ.get("MISE_DATA_DIR") or data_home / "mise")
     # mise-action installs its executable alongside the managed tools.
-    candidates = (data_directory / "bin/mise", home / ".local/bin/mise", *SYSTEM_MISE_PATHS)
+    candidates = (
+        data_directory / "bin/mise",
+        home / ".local/bin/mise",
+        *SYSTEM_MISE_PATHS,
+    )
     for candidate in candidates:
         if candidate.is_file() and os.access(candidate, os.X_OK):
             return str(candidate)
-    raise ValueError("mise is required to build static websites. Run ./ide --bootstrap --no-open.")
+    raise ValueError(
+        "mise is required to build static websites. Run ./ide --bootstrap --no-open."
+    )
 
 
 def astro_command(site, workspace, *arguments):
@@ -31,8 +37,19 @@ def astro_command(site, workspace, *arguments):
     entry = SOURCE_ROOT / "node_modules/.bin/astro"
     if not entry.is_file():
         raise ValueError("Install the web dependencies: mise exec -- npm ci")
-    return [resolve_mise(), "exec", "node", "--", "node", str(entry), *arguments,
-            "--root", str(workspace), "--config", os.path.relpath(site / "astro.config.mjs", workspace)]
+    return [
+        resolve_mise(),
+        "exec",
+        "node",
+        "--",
+        "node",
+        str(entry),
+        *arguments,
+        "--root",
+        str(workspace),
+        "--config",
+        os.path.relpath(site / "astro.config.mjs", workspace),
+    ]
 
 
 def stage_workspace(site, workspace):

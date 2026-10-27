@@ -35,8 +35,7 @@ def timing_report(
     for phase, seconds in phases.most_common():
         share = 100 * seconds / grand if grand else 0
         lines.append(
-            f"  {phase:20s} {seconds:8.2f}s {share:6.1f}% "
-            f"{seconds / len(rows):8.3f}s"
+            f"  {phase:20s} {seconds:8.2f}s {share:6.1f}% {seconds / len(rows):8.3f}s"
         )
 
     if detailed:
@@ -61,9 +60,7 @@ def timing_report(
             seconds = sum(
                 float(row["phases"].get("intrinsicMeasure", 0)) for row in selected
             )
-            lines.append(
-                f"    {seconds:8.2f}s  {readiness} ({len(selected)} captures)"
-            )
+            lines.append(f"    {seconds:8.2f}s  {readiness} ({len(selected)} captures)")
 
     passes = [int(row["settlePasses"]) for row in rows]
     lines.extend(

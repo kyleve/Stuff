@@ -36,7 +36,7 @@
         height: 34px;
         border-radius: 11px;
         background: linear-gradient(145deg, #5270f4, #2b48ca);
-        box-shadow: 0 7px 18px rgba(49, 87, 232, 0.3), inset 0 1px rgba(255, 255, 255, 0.28);
+        box-shadow: 0 7px 18px rgb(49 87 232 / 30%), inset 0 1px rgb(255 255 255 / 28%);
         color: white;
         font-size: 18px;
         font-weight: 750;
@@ -96,7 +96,7 @@
 
     .commit-label {
         color: var(--secondary);
-        font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         font-size: 11px;
     }
 
@@ -186,13 +186,13 @@
 }
 
 @layer responsive {
-    @media (max-width: 1050px) {
+    @media (width <= 1050px) {
         .fit-all .button-label {
             display: none;
         }
     }
 
-    @media (max-width: 760px) {
+    @media (width <= 760px) {
         .application {
             grid-template-rows: 56px minmax(0, 1fr);
         }
@@ -281,7 +281,7 @@
         }
     }
 
-    @media (pointer: coarse), (max-width: 760px) {
+    @media (pointer: coarse), (width <= 760px) {
         .header-profile select,
         .header-button,
         .bottom-dock button,
@@ -296,7 +296,7 @@
         }
     }
 
-    @media (max-width: 440px) {
+    @media (width <= 440px) {
         .identity-copy h1 {
             max-width: 72px;
         }

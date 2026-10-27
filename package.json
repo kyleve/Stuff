@@ -9,7 +9,9 @@
   ],
   "scripts": {
     "check": "npm run check --workspaces --if-present",
-    "lint": "npm run lint:python && npm run lint:web && npm run lint:css",
+    "lint": "npm run lint:python && npm run lint:web && npm run lint:css && npm run format:python:check",
+    "format:python": "mise exec -- ruff format .",
+    "format:python:check": "mise exec -- ruff format --check .",
     "lint:python": "mise exec -- ruff check .",
     "lint:web": "eslint Shared/Flyover/Web Tools/InstallerKit/Site Tools/Tests/*.test.mjs *.config.mjs --max-warnings 0",
     "test:lint": "node --test Tools/Tests/lint_rules.test.mjs",
@@ -25,6 +27,7 @@
     "eslint": "10.13.0",
     "eslint-plugin-astro": "3.2.1",
     "stylelint": "17.16.0",
+    "stylelint-config-standard": "40.0.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.1"
   }

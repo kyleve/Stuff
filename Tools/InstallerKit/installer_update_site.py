@@ -32,16 +32,34 @@ def stage_input(prepared, workspace):
     # Astro's generated .astro directory follows root, independently of cacheDir.
     # Isolate it so dev previews and snapshot builds can run at the same time.
     stage_workspace(ASTRO_ROOT, workspace)
-    return {**os.environ, "ASTRO_TELEMETRY_DISABLED": "1", "INSTALLER_SITE_DATA": str(data),
-            "INSTALLER_SITE_PUBLIC": str(public), "INSTALLER_SITE_WORKSPACE": str(workspace),
-            "INSTALLER_SITE_CACHE": str(workspace / "cache")}
+    return {
+        **os.environ,
+        "ASTRO_TELEMETRY_DISABLED": "1",
+        "INSTALLER_SITE_DATA": str(data),
+        "INSTALLER_SITE_PUBLIC": str(public),
+        "INSTALLER_SITE_WORKSPACE": str(workspace),
+        "INSTALLER_SITE_CACHE": str(workspace / "cache"),
+    }
 
 
 def build_astro(environment, output):
-    result = subprocess.run(site_command(ASTRO_ROOT, environment["INSTALLER_SITE_WORKSPACE"], "build", "--outDir", str(output)), cwd=ASTRO_ROOT,
-                            env=environment, capture_output=True, text=True)
+    result = subprocess.run(
+        site_command(
+            ASTRO_ROOT,
+            environment["INSTALLER_SITE_WORKSPACE"],
+            "build",
+            "--outDir",
+            str(output),
+        ),
+        cwd=ASTRO_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+    )
     if result.returncode:
-        raise ValueError(f"Astro build failed (exit {result.returncode}):\n{result.stdout}{result.stderr}")
+        raise ValueError(
+            f"Astro build failed (exit {result.returncode}):\n{result.stdout}{result.stderr}"
+        )
 
 
 def render_site(catalog, repository, feed_url, registered_apps=None):
@@ -54,14 +72,20 @@ def render_site(catalog, repository, feed_url, registered_apps=None):
         environment = stage_input(prepared, workspace)
         output = workspace / "site"
         build_astro(environment, output)
-        return {str(path.relative_to(output)): path.read_bytes() for path in output.rglob("*") if path.is_file()}
+        return {
+            str(path.relative_to(output)): path.read_bytes()
+            for path in output.rglob("*")
+            if path.is_file()
+        }
 
 
 def write_site(files, output):
     if output.exists():
         raise ValueError("Pages output directory must not exist")
     # The complete artifact is validated and staged before its single rename.
-    with tempfile.TemporaryDirectory(prefix="installer-pages-", dir=output.parent) as temporary:
+    with tempfile.TemporaryDirectory(
+        prefix="installer-pages-", dir=output.parent
+    ) as temporary:
         staging = Path(temporary) / "site"
         staging.mkdir()
         for relative, contents in files.items():
@@ -75,8 +99,11 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--catalog", type=Path, help="Read a local catalog")
-    source.add_argument("--published-catalog", action="store_true",
-                        help="Read the GitHub catalog, or use an empty catalog before the first publication")
+    source.add_argument(
+        "--published-catalog",
+        action="store_true",
+        help="Read the GitHub catalog, or use an empty catalog before the first publication",
+    )
     parser.add_argument("--repository", required=True)
     parser.add_argument("--feed-url", required=True)
     parser.add_argument("--output", type=Path, required=True)

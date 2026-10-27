@@ -55,8 +55,13 @@ def open_artifact_root(artifact: FlyoverArtifact) -> Iterator[int]:
         ) from error
     try:
         status = os.fstat(descriptor)
-        if (status.st_dev, status.st_ino) != (artifact.root_device, artifact.root_inode):
-            raise FlyoverArtifactError("the atlas directory changed during server startup")
+        if (status.st_dev, status.st_ino) != (
+            artifact.root_device,
+            artifact.root_inode,
+        ):
+            raise FlyoverArtifactError(
+                "the atlas directory changed during server startup"
+            )
         yield descriptor
     finally:
         os.close(descriptor)

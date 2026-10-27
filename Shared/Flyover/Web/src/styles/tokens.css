@@ -3,30 +3,32 @@
 @layer theme {
     :root {
         color-scheme: light dark;
+
         --accent: #3157e8;
         --accent-strong: #2444c4;
         --accent-soft: #e8edff;
         --action-background: #3157e8;
         --action-hover: #2444c4;
-        --action-text: #ffffff;
+        --action-text: #fff;
         --modal: #a12aad;
         --background: #eef0f5;
         --canvas: #e9ebf1;
-        --surface: rgba(255, 255, 255, 0.88);
-        --surface-solid: #ffffff;
+        --surface: rgb(255 255 255 / 88%);
+        --surface-solid: #fff;
         --surface-muted: #f5f6f9;
         --text: #151721;
         --secondary: #5d6270;
         --tertiary: #686d7b;
-        --line: rgba(33, 37, 48, 0.12);
-        --line-strong: rgba(33, 37, 48, 0.2);
-        --shadow-small: 0 1px 2px rgba(20, 24, 36, 0.08), 0 8px 24px rgba(20, 24, 36, 0.08);
-        --shadow-large: 0 24px 80px rgba(20, 24, 36, 0.2), 0 4px 18px rgba(20, 24, 36, 0.1);
+        --line: rgb(33 37 48 / 12%);
+        --line-strong: rgb(33 37 48 / 20%);
+        --shadow-small: 0 1px 2px rgb(20 24 36 / 8%), 0 8px 24px rgb(20 24 36 / 8%);
+        --shadow-large: 0 24px 80px rgb(20 24 36 / 20%), 0 4px 18px rgb(20 24 36 / 10%);
         --glass: blur(22px) saturate(150%);
         --radius-small: 10px;
         --radius-medium: 16px;
         --radius-large: 24px;
         --touch-target-size: 44px;
+
         font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
         font-synthesis: none;
     }
@@ -42,16 +44,16 @@
             --modal: #e28bee;
             --background: #15161a;
             --canvas: #111216;
-            --surface: rgba(38, 39, 45, 0.88);
+            --surface: rgb(38 39 45 / 88%);
             --surface-solid: #24252b;
             --surface-muted: #1c1d22;
             --text: #f4f4f7;
             --secondary: #a9acb6;
             --tertiary: #9a9eaa;
-            --line: rgba(255, 255, 255, 0.11);
-            --line-strong: rgba(255, 255, 255, 0.2);
-            --shadow-small: 0 1px 2px rgba(0, 0, 0, 0.25), 0 10px 30px rgba(0, 0, 0, 0.22);
-            --shadow-large: 0 28px 90px rgba(0, 0, 0, 0.5), 0 4px 18px rgba(0, 0, 0, 0.3);
+            --line: rgb(255 255 255 / 11%);
+            --line-strong: rgb(255 255 255 / 20%);
+            --shadow-small: 0 1px 2px rgb(0 0 0 / 25%), 0 10px 30px rgb(0 0 0 / 22%);
+            --shadow-large: 0 28px 90px rgb(0 0 0 / 50%), 0 4px 18px rgb(0 0 0 / 30%);
         }
     }
 }

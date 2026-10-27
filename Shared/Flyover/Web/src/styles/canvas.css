@@ -153,7 +153,7 @@
         border: 1px solid color-mix(in srgb, var(--line-strong) 90%, transparent);
         border-radius: 25px;
         background: var(--surface-solid);
-        box-shadow: 0 4px 10px rgba(25, 30, 44, 0.08), 0 20px 45px rgba(25, 30, 44, 0.1);
+        box-shadow: 0 4px 10px rgb(25 30 44 / 8%), 0 20px 45px rgb(25 30 44 / 10%);
         transition: border-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease, transform 180ms ease;
     }
 
@@ -161,7 +161,7 @@
     .screen-card:focus-within,
     .screen-card[data-route-relation="focus"] {
         border-color: color-mix(in srgb, var(--accent) 60%, var(--line));
-        box-shadow: 0 8px 18px rgba(25, 30, 44, 0.1), 0 28px 60px rgba(25, 30, 44, 0.16);
+        box-shadow: 0 8px 18px rgb(25 30 44 / 10%), 0 28px 60px rgb(25 30 44 / 16%);
         transform: translateY(-3px);
     }
 
@@ -369,7 +369,7 @@
 }
 
 @layer responsive {
-    @media (max-width: 760px) {
+    @media (width <= 760px) {
         .canvas-context,
         .route-legend {
             top: 12px;
@@ -385,7 +385,7 @@
         }
     }
 
-    @media (pointer: coarse), (max-width: 760px) {
+    @media (pointer: coarse), (width <= 760px) {
         .card-state-select,
         .card-inspect {
             min-width: var(--touch-target-size);
@@ -397,7 +397,7 @@
         }
     }
 
-    @media (max-width: 440px) {
+    @media (width <= 440px) {
         .route-legend {
             display: none;
         }

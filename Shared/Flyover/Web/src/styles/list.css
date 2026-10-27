@@ -178,7 +178,7 @@
 }
 
 @layer responsive {
-    @media (max-width: 1050px) {
+    @media (width <= 1050px) {
         .list-row {
             grid-template-columns: 104px minmax(170px, 1fr) 130px 44px;
         }
@@ -188,7 +188,7 @@
         }
     }
 
-    @media (max-width: 760px) {
+    @media (width <= 760px) {
         .list-view {
             padding: 34px 16px 104px;
         }
@@ -242,7 +242,7 @@
         }
     }
 
-    @media (pointer: coarse), (max-width: 760px) {
+    @media (pointer: coarse), (width <= 760px) {
         .list-state select,
         .list-inspect {
             min-width: var(--touch-target-size);

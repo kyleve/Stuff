@@ -45,6 +45,8 @@ class RepositoryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             source = Path(temporary) / "fixture.py"
             source.touch()
-            with self.assertRaisesRegex(FileNotFoundError, "Cannot find a Git checkout") as raised:
+            with self.assertRaisesRegex(
+                FileNotFoundError, "Cannot find a Git checkout"
+            ) as raised:
                 repository_root(source)
             self.assertIn(str(source), str(raised.exception))

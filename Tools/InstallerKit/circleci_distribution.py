@@ -12,7 +12,10 @@ import zipfile
 
 from Tools.InstallerKit.circleci_archive import ArchiveRequest
 from Tools.circleci_pipeline import (
-    ArtifactRedirects, artifact_url, CircleCI as PipelineClient, wait_for_archive,
+    ArtifactRedirects,
+    artifact_url,
+    CircleCI as PipelineClient,
+    wait_for_archive,
 )
 from Tools.InstallerKit.github_api import request_json
 
@@ -35,7 +38,10 @@ def download_ipa(url, destination, request, token):
         # urllib excludes unredirected headers from each redirected request.
         # CircleCI can redirect to a signed storage URL; that host gets no token.
         download.add_unredirected_header("Circle-Token", token)
-        with build_opener(ArtifactRedirects).open(download, timeout=120) as response, staged.open("wb") as output:
+        with (
+            build_opener(ArtifactRedirects).open(download, timeout=120) as response,
+            staged.open("wb") as output,
+        ):
             size = 0
             while True:
                 chunk = response.read(1024 * 1024)
@@ -54,7 +60,9 @@ class CircleCI(PipelineClient):
     """Installer-specific artifact selection over the shared transport."""
 
     def __init__(self, project, token, transport=request_json):
-        super().__init__(project, token, transport, workflow=WORKFLOW, job=JOB, artifact=ARTIFACT)
+        super().__init__(
+            project, token, transport, workflow=WORKFLOW, job=JOB, artifact=ARTIFACT
+        )
 
 
 def main(argv=None):
@@ -71,15 +79,33 @@ def main(argv=None):
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
-        request = ArchiveRequest(args.repository, args.app, args.sha, args.channel, args.run, args.attempt, args.feed_url)
+        request = ArchiveRequest(
+            args.repository,
+            args.app,
+            args.sha,
+            args.channel,
+            args.run,
+            args.attempt,
+            args.feed_url,
+        )
         if args.output.exists():
             raise ValueError("Archive destination must not exist")
         client = CircleCI(args.project, os.environ.get("CIRCLECI_TOKEN", ""))
         pipeline = client.start(args.definition, request)
         print(f"Waiting for CircleCI archive pipeline {pipeline}", flush=True)
-        download_ipa(wait_for_archive(client, pipeline), args.output, request, client.token)
+        download_ipa(
+            wait_for_archive(client, pipeline), args.output, request, client.token
+        )
         print("Retrieved and validated the signed archive.")
-    except (OSError, ValueError, KeyError, TypeError, HTTPException, URLError, zipfile.BadZipFile) as error:
+    except (
+        OSError,
+        ValueError,
+        KeyError,
+        TypeError,
+        HTTPException,
+        URLError,
+        zipfile.BadZipFile,
+    ) as error:
         # URL errors can contain signed download URLs; retain details as the cause.
         if isinstance(error, HTTPError):
             message = f"CircleCI artifact download failed: HTTP {error.code}"

@@ -41,7 +41,9 @@ class XcodeCommandFixture:
             self._copy(f"Tools/{module}")
         self._copy(".circleci/test_artifacts.py")
         self._copy(".xcode-build-version")
-        self.expected_xcode_build = (self.root / ".xcode-build-version").read_text().strip()
+        self.expected_xcode_build = (
+            (self.root / ".xcode-build-version").read_text().strip()
+        )
         (self.root / "Project.swift").write_text('name: "ExampleSnapshotTests"\n')
         self._write_executable(
             self.root / "simulator",
@@ -295,7 +297,9 @@ class XcodeCommandContractTests(unittest.TestCase):
         result = fixture.run("test", "--skip-architecture", "PeriscopeMacrosTests")
 
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
-        current = fixture.root / ".build/fixture/Products/Debug/PeriscopeMacrosTests.xctest"
+        current = (
+            fixture.root / ".build/fixture/Products/Debug/PeriscopeMacrosTests.xctest"
+        )
         self.assertIn(f"xcrun xctest {current}", fixture.command_log())
         self.assertNotIn(f"xcrun xctest {stale}", fixture.command_log())
         self.assertNotIn("xcodebuild ", fixture.command_log())
@@ -311,18 +315,24 @@ class XcodeCommandContractTests(unittest.TestCase):
         fixture = self.fixture()
 
         result = fixture.run(
-            "test", "--skip-architecture", "PeriscopeMacrosTests", MACRO_TEST_STATUS="47"
+            "test",
+            "--skip-architecture",
+            "PeriscopeMacrosTests",
+            MACRO_TEST_STATUS="47",
         )
 
         self.assertEqual(47, result.returncode, result.stdout + result.stderr)
         self.assertIn("Failed (exit 47)", result.stdout)
         self.assertIn(
-            "Host macro tests", (fixture.test_work / "PeriscopeMacrosTests.log").read_text()
+            "Host macro tests",
+            (fixture.test_work / "PeriscopeMacrosTests.log").read_text(),
         )
 
     def test_artifact_producer_can_delegate_host_checks_without_dropping_schemes(self):
         for skip_host_tests, macro_status in ((False, 0), (False, 47), (True, 0)):
-            with self.subTest(skip_host_tests=skip_host_tests, macro_status=macro_status):
+            with self.subTest(
+                skip_host_tests=skip_host_tests, macro_status=macro_status
+            ):
                 fixture = self.fixture()
                 artifacts = fixture.root / "ci test build"
                 arguments = [
@@ -342,7 +352,9 @@ class XcodeCommandContractTests(unittest.TestCase):
                     MACRO_TEST_STATUS=str(macro_status),
                 )
 
-                self.assertEqual(macro_status, result.returncode, result.stdout + result.stderr)
+                self.assertEqual(
+                    macro_status, result.returncode, result.stdout + result.stderr
+                )
                 manifest = json.loads((artifacts / "manifest.json").read_text())
                 self.assertEqual(
                     {"Stuff-iOS-Tests", "StuffSnapshotTests"}, set(manifest["schemes"])
@@ -356,7 +368,8 @@ class XcodeCommandContractTests(unittest.TestCase):
                     self.assertNotIn("xcrun xctest", fixture.command_log())
                 else:
                     self.assertIn(
-                        "swift build --product PeriscopeMacrosTests", fixture.command_log()
+                        "swift build --product PeriscopeMacrosTests",
+                        fixture.command_log(),
                     )
                     self.assertIn("xcrun xctest", fixture.command_log())
                     self.assertIn("generate_attribution_test.rb", fixture.command_log())
@@ -365,7 +378,12 @@ class XcodeCommandContractTests(unittest.TestCase):
         for skip_host_tests in (False, True):
             with self.subTest(skip_host_tests=skip_host_tests):
                 fixture = self.fixture()
-                arguments = ["--all", "--skip-architecture", "--no-generate", "--no-build"]
+                arguments = [
+                    "--all",
+                    "--skip-architecture",
+                    "--no-generate",
+                    "--no-build",
+                ]
                 if skip_host_tests:
                     arguments.append("--skip-host-tests")
 
@@ -395,17 +413,23 @@ class XcodeCommandContractTests(unittest.TestCase):
 
                 self.assertEqual(1, result.returncode)
                 self.assertIn(
-                    "PeriscopeMacrosTests requires host tests to be enabled", result.stderr
+                    "PeriscopeMacrosTests requires host tests to be enabled",
+                    result.stderr,
                 )
                 self.assertEqual("", fixture.command_log())
 
-    def test_macro_suite_rejects_missing_current_bundle_even_if_stale_bundle_exists(self):
+    def test_macro_suite_rejects_missing_current_bundle_even_if_stale_bundle_exists(
+        self,
+    ):
         fixture = self.fixture()
         stale = fixture.root / ".build/stale/Products/Debug/PeriscopeMacrosTests.xctest"
         stale.mkdir(parents=True)
 
         result = fixture.run(
-            "test", "--skip-architecture", "PeriscopeMacrosTests", MISSING_MACRO_BUNDLE="1"
+            "test",
+            "--skip-architecture",
+            "PeriscopeMacrosTests",
+            MISSING_MACRO_BUNDLE="1",
         )
 
         self.assertEqual(1, result.returncode, result.stdout + result.stderr)
@@ -668,7 +692,9 @@ exec /usr/bin/python3 "$@"
                     expected_pids = [child_pid]
                     if interruption == "interrupt":
                         expected_pids.append(grandchild_pid)
-                    self._wait_until(lambda: all(path.exists() for path in expected_pids))
+                    self._wait_until(
+                        lambda: all(path.exists() for path in expected_pids)
+                    )
                     pids = [int(path.read_text()) for path in expected_pids]
                     if interruption == "interrupt":
                         os.killpg(process.pid, signal.SIGINT)
@@ -686,7 +712,9 @@ exec /usr/bin/python3 "$@"
                         # observe SIGPIPE first when a downstream stage exits sooner.
                         self.assertIn(normalized_status, (130, 141))
                         self._wait_until(lambda: grandchild_exit.exists())
-                        self.assertEqual(str(signal.SIGINT.value), grandchild_exit.read_text())
+                        self.assertEqual(
+                            str(signal.SIGINT.value), grandchild_exit.read_text()
+                        )
                     else:
                         self.assertNotEqual(0, normalized_status)
                         self._wait_until(lambda: not self._pid_exists(pids[0]))
@@ -751,7 +779,9 @@ exec /usr/bin/python3 "$@"
             XCODE_OUTPUT="failed",
         )
 
-        self.assertEqual(0, observations.returncode, observations.stdout + observations.stderr)
+        self.assertEqual(
+            0, observations.returncode, observations.stdout + observations.stderr
+        )
         self.assertIn("1 flaky test(s) detected", observations.stdout)
         self.assertIn("CoreTests/ValueTests/works()", observations.stdout)
 
@@ -765,7 +795,9 @@ exec /usr/bin/python3 "$@"
             BUILD_STATUS="29",
         )
 
-        self.assertEqual(29, build_failure.returncode, build_failure.stdout + build_failure.stderr)
+        self.assertEqual(
+            29, build_failure.returncode, build_failure.stdout + build_failure.stderr
+        )
         self.assertIn("build failed", build_failure.stderr)
 
 
