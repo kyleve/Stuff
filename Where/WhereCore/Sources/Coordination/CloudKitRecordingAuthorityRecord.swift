@@ -11,7 +11,7 @@ struct CloudKitRecordingAuthorityRecord {
         var recordID: CKRecord.ID {
             let name: String = switch self {
                 case .head: "head"
-                case let .event(eventID): eventID.rawValue.uuidString.lowercased()
+                case let .event(eventID): eventID.rawValue.uuidString
             }
             return .init(recordName: name, zoneID: CloudKitRecordingAuthorityRecord.zoneID)
         }

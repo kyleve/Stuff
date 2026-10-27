@@ -18,7 +18,7 @@ public struct RecordingAuthority: Codable, Sendable, Equatable {
         public var storeURL: URL {
             StoreURL.url(
                 collection: "recording-authority",
-                type: rawValue.uuidString.lowercased(),
+                type: rawValue.uuidString,
                 items: [:],
             )
         }
