@@ -37,6 +37,7 @@ These routes point to known failure mechanisms and current guards. They are not 
 | --- | --- |
 | Swift signatures, stored state, or preferences | [Domain types and state](references/repository-checks.md#domain-types-and-state) |
 | Launch, reset, services, intents, or store writes | [Composition and transactions](references/repository-checks.md#composition-and-transactions) |
+| Heuristics, sensor evidence, or correction eligibility | [Inference and thresholds](references/repository-checks.md#inference-and-thresholds) |
 | Day keys, calendars, historical reads, or backups | [Dates and persisted data](references/repository-checks.md#dates-and-persisted-data) |
 | Views, models, layout, or styling | [UI structure and Broadway](references/repository-checks.md#ui-structure-and-broadway), plus [building-ui](../building-ui/SKILL.md) |
 | Package products, targets, imports, or architecture rules | [Target graph and guards](references/repository-checks.md#target-graph-and-guards) |
@@ -102,9 +103,13 @@ Do not remove a requirement merely to simplify its implementation.
 - Keep correctness findings separate from design preferences and missing validation.
   Do not invent findings or request speculative refactors to fill a review quota.
 
-When an independent review is requested, give the reviewer the scope, revisions, governing instructions, and raw artifacts.
+For implementation work that changes behavior or contracts, run one fresh subagent review before publication or human handoff when subagents are available.
+Keep purely mechanical and documentation changes proportional; they do not require a separate agent by default.
+Give the reviewer the request, scope, revisions, governing instructions, and raw artifacts.
 Let the reviewer form findings before supplying the author's suspected bugs or proposed answers.
+For broad changes, assign coherent behavior slices and name the reviewer responsible for their shared boundaries.
 Independent review still requires evidence for each finding.
+Record unavailable independent review as a validation limit. Do not treat a zero-finding result as proof that the change is correct.
 
 ## Report and close the loop
 

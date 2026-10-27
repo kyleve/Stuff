@@ -49,6 +49,16 @@ Open [SwiftDataStoreTests.readSnapshotRejectsCommitBeforeNotification](../../../
 Use the scoped [data-resolution instructions](../../../../Where/WhereCore/Sources/DataResolution/AGENTS.md) for attribution and scan changes.
 Constructor and transaction lint cannot establish the entire lifetime or reconciliation contract.
 
+## Inference and thresholds
+
+Read the scoped [flight inference contracts](../../../../Where/WhereCore/Sources/DataResolution/Flights/AGENTS.md) for flight changes.
+For another heuristic, find its policy owner and identify which evidence distinguishes a valid event from a false positive.
+
+Challenge an absolute cutoff with a shorter or sparser valid event that retains independent corroboration.
+Compare [FlightDisplacementInferenceTests](../../../../Where/WhereCore/Tests/FlightDisplacementInferenceTests.swift) and `FlightTrajectoryAnalyzerTests.shortSparseFlightUsesCalculatedSpeedAndPreservesGroundPoints` in [its source](../../../../Where/WhereCore/Tests/FlightTrajectoryAnalyzerTests.swift).
+Check positional uncertainty and elapsed time together. Reported speed, recording silence, and recognition confidence do not establish correction eligibility by themselves.
+Probe both a valid event near the boundary and a contradictory observation that must keep the result unknown.
+
 ## Dates and persisted data
 
 Read [Where dates](../../../../Where/AGENTS.md#dates), [WhereCore's storage contracts](../../../../Where/WhereCore/AGENTS.md#shape--invariants), and the root [wire-format rules](../../../../AGENTS.md#persistence-and-wire-formats).
@@ -102,6 +112,7 @@ Those tests cover capture constraints and cancellation. Source inspection establ
 For service-backed preview data, compare [InstallerPreview](../../../../Shared/InstallerKitUI/Sources/InstallerPreview.swift) and [InstallerBrowserPreview](../../../../Shared/InstallerKitUI/Sources/InstallerBrowserPreview.swift).
 They use typed Testing SPI fixtures through the production service/model path.
 Check whether JSON/dictionaries are bypassing that seam. Raw wire fixtures remain appropriate for serialization and validation tests.
+For descriptor changes, trace enumeration before requesting content. The [SnapshotKit contract](../../../../Shared/SnapshotKit/AGENTS.md) requires lazy view and model construction.
 
 ## Classified logging
 
@@ -127,3 +138,5 @@ Do not treat helper return values as proof of public exit status, output, or fil
 For secret-bearing commands, inspect captured child output as well as constructed arguments.
 The [signing state tests](../../../../Tools/Tests/signing_state_test.rb) cover diagnostic redaction and cleanup that can fail and be retried.
 Trace trusted controller state separately from selected PR source when publication credentials are involved.
+Include executable caches in that trace: identify who can populate each restored cache and whether the publication job executes its contents.
+Probe transport and argument failures with a synthetic token in the error message. Inspect captured diagnostics for disclosure, including child processes.

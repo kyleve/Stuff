@@ -45,6 +45,9 @@ The weekly [todo-triage](../todo-triage/SKILL.md) pass owns backlog maintenance 
 - Trace each candidate lesson to the final change and current source.
   Record the comment, fix, affected behavior, existing guidance, and any executable guard.
   Treat unmerged proposals and declined feedback as context, not established repository policy.
+- Check recovered opening or pre-review revisions when commits were rewritten.
+  A correction may be folded into the final PR's first commit without a separate review comment.
+  Record unavailable earlier revisions as a coverage limit.
 - Classify by content and outcome, not by author. Apply the same evidence standard to human and agent findings.
   Separate substantive findings and clarification questions from status updates, screenshots, suggested review focus, and replies without a new finding.
   Raw comment volume is not a defect count.
