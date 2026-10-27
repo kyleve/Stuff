@@ -44,8 +44,8 @@ jobs:
         run: ./sf-symbols --lint
       # Catalogs drift out of Xcode's serialization the moment one is written by
       # anything but Xcode, and the cost lands on whoever next builds in the IDE
-      # (see "Formatting" in AGENTS.md). Keep this in Lint & Formatting,
-      # covered by the required tooling gate.
+      # (see "Formatting" in AGENTS.md). Keep this in the required
+      # Lint & Formatting job.
       - name: String Catalog lint
         run: ./xcstrings --lint
       # The only thing that actually stops a stale attribution report from
@@ -97,25 +97,6 @@ jobs:
         run: |
           mise exec -- npx playwright install chromium webkit
           mise exec -- npm run test:browser --workspace stuff-flyover-site
-
-  tooling-gate:
-    # Preserve main's required status name while the work runs in separate jobs.
-    # Run after failed, cancelled, or skipped dependencies so the gate cannot pass by skipping.
-    if: ${{ always() && (github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI')) }}
-    name: Lint & Tooling Checks
-    needs: [format, test-tools, test-web]
-    runs-on: xcode-27
-    timeout-minutes: 5
-    steps:
-      - name: Require all checks to pass
-        env:
-          LINT_RESULT: ${{ needs.format.result }}
-          TOOL_RESULT: ${{ needs.test-tools.result }}
-          WEB_RESULT: ${{ needs.test-web.result }}
-        run: |
-          test "$LINT_RESULT" = success
-          test "$TOOL_RESULT" = success
-          test "$WEB_RESULT" = success
 
   architecture:
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}

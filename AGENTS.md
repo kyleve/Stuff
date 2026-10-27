@@ -758,10 +758,9 @@ being written off as untestable from a cloud agent.
 - `format` (**Lint & Formatting**) runs language linters, formatting checks, lint-rule tests, symbol and catalog checks, and attribution validation.
 - `test-tools` (**Tool Tests**) runs the Python and Ruby tool suites, CircleCI helper tests, and snapshot-plan validation.
 - `test-web` (**Web Checks & Tests**) runs Astro/TypeScript checks, web unit tests, and Flyover browser regressions.
-- `tooling-gate` preserves the required **Lint & Tooling Checks** status. It succeeds only when all three jobs succeed.
 - `architecture` (**Bumper Bowling**) and `test-macos` (**Build & Test (macOS)**) retain their separate checks.
 
-Keep the required gate synchronized with its dependent jobs. Guard: `Tools/Tests/test_ci_workflow.py`.
+Require the three split job statuses directly in main’s branch protection.
 The `test-macos` job installs the shared web dependencies before the host tests.
 It runs the Flyover, attribution, backup-upgrader, and macro tests.
 These required GitHub jobs run alongside the CircleCI builder. CircleCI
