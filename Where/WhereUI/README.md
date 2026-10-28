@@ -730,7 +730,8 @@ blocks access. It cancels and drains gate-owned work, retires any active scope,
 then drives launch back to the compatibility gate. No normal scope is needed to
 interrupt onboarding. A successful retry resumes through a fresh onboarding gate
 when onboarding is incomplete, and can be interrupted again. Otherwise, it creates new
-services over the same store; the old scope remains revoked.
+services over the same store; the old scope cannot start or commit writes.
+Session teardown owns the lockout. Previously started reads can finish.
 
 Onboarding uses `gate.perform { ... }` for finish and demo preparation. After each
 suspended dependency, it checks cancellation before activating a scope or completing
