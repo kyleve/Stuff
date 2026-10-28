@@ -733,9 +733,10 @@ service world with a new store permit.
 
 ### System outputs
 
-Session teardown stops recording and asks `DataCompatibilityOutputs` to clear
-notification schedules, badges, and widget availability. The cleanup value holds
-the process adapters and also works when startup fails before store opening.
+`WhereServices` retires scope resources. The process-owned `WhereCompatibilityModel`
+requests output cleanup through its bootstrap for both blocked startup and scope retirement.
+The bootstrap's `DataCompatibilityOutputs` clears notification schedules, badges,
+and widget availability, even before the store opens.
 Saved notification preferences remain unchanged.
 
 Cleanup does not wait for in-flight publications. Previously started notifications,
