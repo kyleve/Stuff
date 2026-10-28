@@ -206,7 +206,7 @@ struct WhereCompatibilityLifecycleTests {
         #expect(try bootstrap.installation.resolve().recordingChoice == consent)
         #expect(bootstrap.makeServicesCount == 1)
         await #expect(throws: DataCompatibilityError.accessRevoked) {
-            _ = try await oldStore.allSamples()
+            try await oldStore.perform {}
         }
     }
 
