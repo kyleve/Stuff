@@ -1,91 +1,49 @@
 import Foundation
 
-/// Serializes external publication with withdrawal for one revocable service world.
-public actor DataCompatibilityOutputs {
-    private let store: any WhereStore
-    let destinations: Destinations
-    private enum Lifetime { case active, retiring, retired }
-    private var lifetime: Lifetime = .active
-    private var isPublishing = false
-    private var waiters: [CheckedContinuation<Void, Never>] = []
-    private static let logger = WhereLog.root(DataCompatibilityLog.self)
+/// Requests output cleanup during session teardown, including failures before store opening.
+/// In-flight publications can finish afterward; withdrawal is not a publication fence.
+public struct DataCompatibilityOutputs: Sendable {
+    public let reminders: any LoggingReminderScheduling
+    public let summary: any DailySummaryScheduling
+    public let issues: any DataIssueAlertScheduling
+    public let widgets: any WidgetTimelineRefreshing
 
-    init(store: any WhereStore, destinations: Destinations) {
-        self.store = store
-        self.destinations = destinations
-    }
-
-    @discardableResult
-    func publish(_ operation: @Sendable (DataCompatibilityVersion) async throws -> Void) async
-        -> Result<Void, any Error>
-    {
-        await beginExclusive()
-        defer { endExclusive() }
-        guard lifetime == .active else {
-            Self.logger.accessBlocked(error: .restricted(
-                .errorDetails,
-                DataCompatibilityError.accessRevoked,
-            ))
-            return .failure(DataCompatibilityError.accessRevoked)
-        }
-        do {
-            try await validate()
-            try await operation(.current)
-            try await validate()
-            return .success(())
-        } catch {
-            if error is DataCompatibilityError { lifetime = .retiring }
-            Self.logger.accessBlocked(error: .restricted(.errorDetails, error))
-            await destinations.withdraw()
-            if lifetime == .retiring { lifetime = .retired }
-            return .failure(error)
-        }
-    }
-
-    func authorize(_ operation: @Sendable () async -> Bool) async -> Bool {
-        do {
-            try await validate()
-            let result = await operation()
-            try await validate()
-            return result
-        } catch {
-            Self.logger.accessBlocked(error: .restricted(.errorDetails, error))
-            await withdraw()
-            return false
-        }
-    }
-
-    func validate() async throws {
-        guard lifetime == .active else { throw DataCompatibilityError.accessRevoked }
-        try await store.validateDataAccess()
-        guard lifetime == .active else { throw DataCompatibilityError.accessRevoked }
-    }
-
-    /// Permanent retirement wins against a publication suspended inside an OS adapter.
-    public func retire() async {
-        guard lifetime != .retired else { return }
-        lifetime = .retiring
-        await beginExclusive()
-        defer { endExclusive() }
-        guard lifetime != .retired else { return }
-        await destinations.withdraw()
-        lifetime = .retired
+    public init(
+        reminders: any LoggingReminderScheduling,
+        summary: any DailySummaryScheduling,
+        issues: any DataIssueAlertScheduling,
+        widgets: any WidgetTimelineRefreshing,
+    ) {
+        self.reminders = reminders
+        self.summary = summary
+        self.issues = issues
+        self.widgets = widgets
     }
 
     public func withdraw() async {
-        await beginExclusive()
-        defer { endExclusive() }
-        guard lifetime == .active else { return }
-        await destinations.withdraw()
-    }
-
-    private func beginExclusive() async {
-        if isPublishing { await withCheckedContinuation { waiters.append($0) } }
-        else { isPublishing = true }
-    }
-
-    private func endExclusive() {
-        if waiters.isEmpty { isPublishing = false }
-        else { waiters.removeFirst().resume() }
+        do { try await widgets.publishCompatibility(.init(requiredVersion: nil)) }
+        catch {
+            WhereLog.root(DataCompatibilityLog.self).accessBlocked(error: .restricted(
+                .errorDetails,
+                error,
+            ))
+        }
+        async let clearedReminders: Void = reminders.reconcile(
+            badgeCount: 0,
+            scheduleDays: [],
+            reminderTime: .defaultEvening,
+            enabled: false,
+        )
+        async let clearedSummary: Void = summary.reconcile(
+            enabled: false,
+            time: .defaultMorning,
+            body: "",
+        )
+        async let clearedIssues: Void = issues.reconcile(
+            enabled: false,
+            time: .defaultEvening,
+            body: "",
+        )
+        _ = await (clearedReminders, clearedSummary, clearedIssues)
     }
 }

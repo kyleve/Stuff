@@ -19,6 +19,8 @@ The local projection remains bound to account A. Account B cannot acquire it.
 
 The current model checks that stale work cannot grant access or project authority,
 that another account stays blocked, and that restart cannot restore invalidated trust.
+Access means admission to a normal session. Previously admitted reads and external
+displays can finish after lockout; `CompatibilityWrites` covers stale transactions.
 Four negative controls remove each protection. Two reachability controls demonstrate
 invalidation during a held response and successful recovery of the original account.
 

@@ -9,11 +9,23 @@ import Testing
 /// publish to.
 struct WidgetSnapshotPublisherTests {
     private actor SpyRefresher: WidgetTimelineRefreshing {
-        func publishCompatibility(_: WidgetCompatibilitySnapshot) async {}
+        private(set) var compatibility: WidgetCompatibilitySnapshot?
+        private var failNext = false
+
+        func failNextPublication() {
+            failNext = true
+        }
+
+        func publishCompatibility(_ value: WidgetCompatibilitySnapshot) {
+            compatibility = value
+        }
+
         private(set) var publishCount = 0
         private(set) var lastSnapshot: WidgetSnapshot?
 
-        func publish(_ snapshot: WidgetSnapshot) async {
+        func publish(_ snapshot: WidgetSnapshot) async throws {
+            struct Unavailable: Error {}
+            if failNext { failNext = false; throw Unavailable() }
             publishCount += 1
             lastSnapshot = snapshot
         }
@@ -43,6 +55,20 @@ struct WidgetSnapshotPublisherTests {
             maxAge: maxAge,
         )
         return (publisher, store, refresher)
+    }
+
+    @Test func failedSnapshotKeepsWidgetsBlockedUntilAFreshPublicationSucceeds() async throws {
+        let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
+        let (publisher, _, refresher) = try Self.makePublisher(now: { now })
+        await refresher.publishCompatibility(.init(requiredVersion: nil))
+        await refresher.failNextPublication()
+        await publisher.refreshIfStale()
+        #expect(await refresher.publishCount == 0)
+        #expect(await refresher.compatibility?.allowsData == false)
+
+        await publisher.refreshIfStale()
+        #expect(await refresher.publishCount == 1)
+        #expect(await refresher.compatibility?.allowsData == true)
     }
 
     @Test func publishBuildsAndPublishesASnapshot() async throws {

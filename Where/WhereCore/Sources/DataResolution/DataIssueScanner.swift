@@ -98,7 +98,7 @@ public actor DataIssueScanner {
     ) async throws -> DataIssueScanResult {
         while true {
             try Task.checkCancellation()
-            try await reportReader.validateDataAccess()
+
             let currentDate = now()
             let currentDay = calendar.startOfDay(for: currentDate)
             let trackedRegions = attributor.loadedRegions
@@ -197,7 +197,7 @@ public actor DataIssueScanner {
                 at: currentDate,
                 result: result,
             )
-            try await reportReader.validateDataAccess()
+
             return result
         }
     }
