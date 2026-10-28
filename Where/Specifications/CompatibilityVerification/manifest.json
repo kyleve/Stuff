@@ -8,8 +8,8 @@
       "expect": "pass"
     },
     {
-      "name": "local-satisfies-remote",
-      "config": "LocalSatisfiesRemote.cfg",
+      "name": "skip-remote-read",
+      "config": "SkipRemoteRead.cfg",
       "expect": "fail",
       "outputContains": "Invariant RemoteMeansRemote is violated."
     },
@@ -20,16 +20,16 @@
       "outputContains": "Invariant HigherFloorWins is violated."
     },
     {
-      "name": "local-erases-failure",
-      "config": "LocalErasesFailure.cfg",
+      "name": "local-unblocks",
+      "config": "LocalUnblocks.cfg",
       "expect": "fail",
-      "outputContains": "Invariant LocalCannotEraseFailure is violated."
+      "outputContains": "Invariant OnlyVerificationUnblocks is violated."
     },
     {
-      "name": "joined-local",
-      "config": "JoinedLocal.cfg",
+      "name": "local-during-remote",
+      "config": "LocalDuringRemote.cfg",
       "expect": "fail",
-      "outputContains": "Invariant JoinedLocalNotReached is violated."
+      "outputContains": "Invariant LocalDuringRemoteNotReached is violated."
     }
   ]
 }
