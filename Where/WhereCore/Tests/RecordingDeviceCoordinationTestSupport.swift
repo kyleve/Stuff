@@ -7,6 +7,7 @@ final class RecordingCoordinationInstallation: InstallationRecordingContextStori
     var backupImportRecovery: BackupCoordinator.DurableImportRecovery?
     var onboardingImportCompletion: BackupCoordinator.OnboardingImportCompletion?
     var failsControlWrite = false
+    var failsAccountWrite = false
     struct WriteFailure: Error {}
 
     init(deviceID: RecordingDeviceID) {
@@ -34,6 +35,11 @@ final class RecordingCoordinationInstallation: InstallationRecordingContextStori
             isEnabled,
             at: Date(),
         )
+    }
+
+    func setRecordingAccount(_ binding: RecordingAccountBinding) throws {
+        if failsAccountWrite { throw WriteFailure() }
+        onboardingContext = onboardingContext.settingRecordingAccount(binding)
     }
 
     func setRecordingControl(_ control: RecordingInstallationControl) throws {
@@ -120,6 +126,10 @@ actor RecordingCoordinationTransport: RecordingAuthorityTransport {
 
     func holdCancellation(_ gate: RecordingCoordinationGate) {
         cancelGate = gate
+    }
+
+    func accountID() -> RecordingAccountID {
+        .local
     }
 
     func subscribe() async {

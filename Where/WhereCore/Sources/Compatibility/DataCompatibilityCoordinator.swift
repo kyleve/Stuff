@@ -16,7 +16,10 @@ public actor DataCompatibilityCoordinator {
         let task: Task<DataCompatibilityState, Never>
     }
 
+    private struct AccountSession: Equatable { let id = UUID() }
+    private var accountSession = AccountSession()
     private var checking: Check?
+    private var invalidating: Task<Void, Never>?
     #if DEBUG
         /// Counts admitted checks so race tests can hold a local check before a remote caller
         /// joins.
@@ -46,22 +49,53 @@ public actor DataCompatibilityCoordinator {
         store.changes()
     }
 
+    /// Revoke before touching persistence or the network. Old completions retain their old token.
+    public func invalidateAccount() async {
+        accountSession = AccountSession()
+        checking?.task.cancel()
+        checking = nil
+        revokeAccess()
+        if case .updateRequired = state {} else {
+            state = .verificationFailed(RecordingAccountError.verificationRequired
+                .localizedDescription)
+        }
+        let session = accountSession
+        let task = Task {
+            do { try await self.recording.invalidateAccount() }
+            catch {
+                Self.logger.accessBlocked(error: .restricted(.errorDetails, error))
+                guard session == self.accountSession else { return }
+                self.state = .verificationFailed(error.localizedDescription)
+            }
+        }
+        invalidating = task
+        await task.value
+        if session == accountSession { invalidating = nil }
+    }
+
     public func recheck() async -> DataCompatibilityState {
+        let session = accountSession
+        await invalidating?.value
+        guard session == accountSession else { return state }
         await recording.subscribeToChanges()
+        guard session == accountSession else { return state }
         return await check(.remoteAuthority)
     }
 
     /// Local history changes need no network round trip. A prior verification failure
     /// remains blocked until an explicit remote retry succeeds.
     public func recheckLocalHistory() async -> DataCompatibilityState {
+        let session = accountSession
         do {
             let required = try await store.requiredDataCompatibilityVersion()
+            guard session == accountSession else { return state }
             if required > supportedVersion {
                 state = .updateRequired(required)
                 revokeAccess()
                 return state
             }
         } catch {
+            guard session == accountSession else { return state }
             Self.logger.accessBlocked(error: .restricted(.errorDetails, error))
             state = .verificationFailed(error.localizedDescription)
             revokeAccess()
@@ -77,8 +111,10 @@ public actor DataCompatibilityCoordinator {
             pendingCheckCountForTesting += 1
             defer { pendingCheckCountForTesting -= 1 }
         #endif
+        let session = accountSession
         if let checking {
             let result = await checking.task.value
+            guard session == accountSession else { return state }
             if verification == .remoteAuthority, checking.verification == .localHistory {
                 // Re-enter after the local task: another queued caller may already own this read.
                 return await check(.remoteAuthority)
@@ -87,9 +123,11 @@ public actor DataCompatibilityCoordinator {
         }
         let task = Task {
             let result = await self.evaluate(verification)
+            guard session == self.accountSession else { return self.state }
             // A locally observed higher floor cannot be undone by an older remote completion.
             if case .updateRequired = self.state {} else { self.state = result }
             _ = await self.recheckLocalHistory()
+            guard session == self.accountSession else { return self.state }
             if case .compatible = self.state {} else { self.revokeAccess() }
             self.checking = nil
             return self.state
@@ -105,8 +143,9 @@ public actor DataCompatibilityCoordinator {
 
     /// Each normal world receives a new permit; stale worlds can never regain access.
     public func openDomainStore() async throws -> any WhereStore {
+        let session = accountSession
         let required = try await store.requiredDataCompatibilityVersion()
-        guard case let .compatible(version) = state,
+        guard invalidating == nil, session == accountSession, case let .compatible(version) = state,
               version == supportedVersion,
               required == version
         else { throw DataCompatibilityError.notReady }
@@ -133,6 +172,7 @@ public actor DataCompatibilityCoordinator {
                 guard owner.deviceID == context.currentDevice.id
                 else { return .waitingForRecordingDevice(owner) }
                 // No offline or secondary override: this always rechecks and commits on the server.
+                try Task.checkCancellation()
                 try await recording.advanceCompatibility()
             }
             let verified = try await store.requiredDataCompatibilityVersion()

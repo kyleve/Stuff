@@ -742,7 +742,10 @@ onboarding. A committed backup retains its durable marker for recovery by the ne
 Published builds can supply TestFlight, App Store, or both links.
 
 Foreground entry verifies compatibility before refreshing the normal session.
-The app also refreshes on authority pushes and iCloud account changes. History
+The app refreshes on authority pushes. iCloud account changes revoke access and
+publish a blocking state before verification, so launch can drain the old scope
+while the network is suspended. Different accounts stay blocked; returning to the
+original account creates a fresh scope. History
 notifications check the local projection without a network round trip. Bootstrap
 output destinations remain available to clear stale notifications and widget
 access even when no normal service world can be assembled.

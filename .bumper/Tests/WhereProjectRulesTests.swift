@@ -3,6 +3,24 @@ import BumperBowlingTestSupport
 import Testing
 
 struct WhereProjectRulesTests {
+    @Test
+    func `account trust shares the authority coordinator lifetime`() throws {
+        let source = "func make() { _ = RecordingAccountAccess(installation: installation, transport: transport) }"
+        let allowed = try evaluate(
+            path: "Where/WhereCore/Sources/Coordination/RecordingAuthorityCoordinator.swift",
+            component: .whereCore,
+            source: source,
+        )
+        let rejected = try evaluate(
+            path: "Where/WhereCore/Sources/Coordination/CompetingAccountAccess.swift",
+            component: .whereCore,
+            source: source,
+        )
+        #expect(allowed.violations.isEmpty)
+        #expect(rejected.violations
+            .contains { $0.rule.id == "where.recording_account_access_composition" })
+    }
+
     @Test(arguments: ["Task", "Task<Void, Never>", "Task.detached", "Task.init"])
     func onboardingWorkBelongsToTheGate(constructor: String) throws {
         let path: RelativeFilePath = "Where/WhereUI/Sources/Onboarding/OnboardingFlowModel.swift"

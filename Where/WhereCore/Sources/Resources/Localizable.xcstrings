@@ -145,6 +145,28 @@
         }
       }
     },
+    "recording.account.differentAccount" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This history belongs to another iCloud account. Sign back into the original account to continue."
+          }
+        }
+      }
+    },
+    "recording.account.verificationRequired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verify your iCloud account to continue."
+          }
+        }
+      }
+    },
     "recording.error.conflictingImmutableRecord" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -72,6 +72,7 @@ struct RecordingDeviceRoleModelTests {
         let authority = RecordingAuthorityCoordinator(
             store: store,
             transport: LocalRecordingAuthorityTransport(now: { Date() }),
+            installation: InMemoryInstallationRecordingContextStore(context: .testing),
         )
         let other = RecordingDeviceID(rawValue: UUID())
         let claim = try RecordingAuthorityProposal(
@@ -111,6 +112,7 @@ struct RecordingDeviceRoleModelTests {
         let authority = RecordingAuthorityCoordinator(
             store: store,
             transport: LocalRecordingAuthorityTransport(now: { Date() }),
+            installation: InMemoryInstallationRecordingContextStore(context: .testing),
         )
         let other = RecordingDeviceID(rawValue: UUID())
         let claim = try RecordingAuthorityProposal(

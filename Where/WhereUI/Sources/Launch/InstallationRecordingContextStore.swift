@@ -144,6 +144,7 @@ public final class FileInstallationRecordingContextStore:
         let isRejoining: Bool
         let backupImportRecovery: BackupImportRecovery?
         let onboardingImportCompletionID: UUID?
+        let recordingAccount: RecordingAccountBinding?
         let recordingControl: RecordingInstallationControl?
 
         enum CodingKeys: String, CodingKey {
@@ -156,6 +157,7 @@ public final class FileInstallationRecordingContextStore:
             case isRejoining
             case backupImportRecovery
             case onboardingImportCompletionID
+            case recordingAccount
             case recordingControl
         }
 
@@ -164,6 +166,7 @@ public final class FileInstallationRecordingContextStore:
             backupImportRecovery: BackupCoordinator.DurableImportRecovery?,
             onboardingImportCompletion: BackupCoordinator.OnboardingImportCompletion?,
         ) {
+            recordingAccount = context.recordingAccount
             recordingControl = context.recordingControl
             deviceID = context.currentDevice.id.rawValue
             systemName = context.currentDevice.systemName
@@ -195,6 +198,7 @@ public final class FileInstallationRecordingContextStore:
                 recordingChoice: recordingChoice,
                 isRejoining: isRejoining,
             ).settingRecordingControl(recordingControl ?? .initial)
+                .settingRecordingAccount(recordingAccount)
         }
     }
 
@@ -360,6 +364,16 @@ public final class FileInstallationRecordingContextStore:
         return confirmed
     }
 
+    public func setRecordingAccount(_ binding: RecordingAccountBinding) throws {
+        let updated = try resolution.get().settingRecordingAccount(binding)
+        try persist(
+            updated,
+            backupImportRecovery: backupImportRecovery,
+            onboardingImportCompletion: onboardingImportCompletion,
+        )
+        resolution = .resolved(updated)
+    }
+
     public func setRecordingControl(_ control: RecordingInstallationControl) throws {
         let updated = try resolution.get().settingRecordingControl(control)
         try persist(
@@ -381,13 +395,13 @@ public final class FileInstallationRecordingContextStore:
     }
 
     public func rejoin() throws -> InstallationRecordingContext {
-        let proposed = Self.proposedContext(
+        let proposed = try Self.proposedContext(
             systemName: systemName,
             kind: kind,
             id: makeUUID(),
             registeredAt: now(),
             isRejoining: true,
-        )
+        ).settingRecordingAccount(resolution.get().recordingAccount)
         try persist(
             proposed,
             backupImportRecovery: backupImportRecovery,

@@ -46,6 +46,10 @@ public final class InMemoryInstallationRecordingContextStore:
         return onboardingContext
     }
 
+    public func setRecordingAccount(_ binding: RecordingAccountBinding) throws {
+        onboardingContext = onboardingContext.settingRecordingAccount(binding)
+    }
+
     public func setRecordingControl(_ control: RecordingInstallationControl) throws {
         onboardingContext = onboardingContext.settingRecordingControl(control)
     }
@@ -56,6 +60,7 @@ public final class InMemoryInstallationRecordingContextStore:
 
     public func rejoin() throws -> InstallationRecordingContext {
         onboardingContext = proposedContext(isRejoining: true)
+            .settingRecordingAccount(onboardingContext.recordingAccount)
         return onboardingContext
     }
 

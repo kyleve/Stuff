@@ -346,3 +346,5 @@ Never derive the folder from a localized label or rename a persisted theme ident
 - Withdraw process-owned outputs even when bootstrap verification fails before service assembly. Recheck compatibility on foreground entry before session refresh; keep demo activation independent of the real bootstrap (`WhereCompatibilityLifecycleTests`).
 - Inspect higher local requirements without waiting for a suspended server refresh. A higher floor is permanent for the current process; an older refresh completion must never restore the normal world.
 - Unblock process handoffs before publishing a compatible state that resumes launch (`WhereCompatibilityModelTests`).
+
+- Publish account invalidation as a blocking state before network verification; cancel superseded refresh publication. Teardown must not wait for the account lookup (`WhereCompatibilityLifecycleTests`).

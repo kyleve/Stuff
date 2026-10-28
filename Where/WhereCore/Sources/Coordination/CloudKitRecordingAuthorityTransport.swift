@@ -11,10 +11,17 @@ import Foundation
 /// The private database requires an iCloud account. Authentication failures throw; they never
 /// imply an empty authority or select the local development transport.
 public actor CloudKitRecordingAuthorityTransport: RecordingAuthorityTransport {
+    private let container: CKContainer
     private let database: CKDatabase
 
     public init(containerIdentifier: String) {
-        database = CKContainer(identifier: containerIdentifier).privateCloudDatabase
+        let container = CKContainer(identifier: containerIdentifier)
+        self.container = container
+        database = container.privateCloudDatabase
+    }
+
+    public func accountID() async throws -> RecordingAccountID {
+        try await .cloudKit(recordName: container.userRecordID().recordName)
     }
 
     public func current() async throws -> RecordingAuthorityCommit? {
@@ -35,6 +42,7 @@ public actor CloudKitRecordingAuthorityTransport: RecordingAuthorityTransport {
     public func commit(_ proposal: RecordingAuthorityProposal) async throws
         -> RecordingAuthorityCommit
     {
+        try DataAccessPermit.current?.validate()
         try proposal.validate()
         guard let transitionID = proposal.result.revision?.eventID
         else { throw RecordingAuthorityError.invalidRecord }
@@ -63,12 +71,14 @@ public actor CloudKitRecordingAuthorityTransport: RecordingAuthorityTransport {
         // The coordinator's later SwiftData projection is a separate transaction.
         let result: SaveResults
         do {
+            try DataAccessPermit.current?.validate()
             let saved = try await database.modifyRecords(
                 saving: [head.record, event.record],
                 deleting: [],
                 savePolicy: .ifServerRecordUnchanged,
                 atomically: true,
             )
+            try DataAccessPermit.current?.validate()
             result = SaveResults(records: saved.saveResults)
         } catch {
             if Self.isConflict(error) { throw RecordingAuthorityError.conflict }
@@ -145,7 +155,9 @@ public actor CloudKitRecordingAuthorityTransport: RecordingAuthorityTransport {
         .ID) async throws -> CloudKitRecordingAuthorityRecord?
     {
         do {
+            try DataAccessPermit.current?.validate()
             let record = try await database.record(for: recordID.recordID)
+            try DataAccessPermit.current?.validate()
             return try CloudKitRecordingAuthorityRecord(record: record, id: recordID)
         } catch let error as CKError
             where error.code == .unknownItem || error.code == .zoneNotFound

@@ -636,6 +636,12 @@ public final class WhereModel {
         }
     }
 
+    /// System account changes invalidate trust even while the real world is hidden by demo mode.
+    public func accountDidChange() async {
+        await compatibility.invalidateAccount()
+        await refreshCompatibility()
+    }
+
     /// Release a revoked world without changing preferences, consent, or queued samples.
     func suspendForCompatibility() async {
         guard let scope = activeScope, scope.kind == .real else { return }

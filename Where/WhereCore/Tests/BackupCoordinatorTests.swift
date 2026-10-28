@@ -13,7 +13,11 @@ struct BackupCoordinatorTests {
         let source = try Self.makeHarness()
         let fixture = RecordingAuthorityFixture()
         let server = LocalRecordingAuthorityTransport(now: { Date(timeIntervalSince1970: 2000) })
-        let authority = RecordingAuthorityCoordinator(store: source.store, transport: server)
+        let authority = await RecordingAuthorityCoordinator(
+            store: source.store,
+            transport: server,
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
+        )
         let claim = try fixture.proposal(.initial, .claim, device: fixture.phone)
         _ = try await authority.submit(claim)
         let sample = try LocationSample(

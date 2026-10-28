@@ -34,3 +34,8 @@ The current case describes the corrected protocol and its companion Swift regres
 
 Bounds: one local check, one remote request, two versions, and one failed account verification.
 CloudKit retry policy and storage decoding have separate Swift tests.
+
+The companion [`AccountVerification`](../AccountVerification/README.md) model covers
+account invalidation, late successful responses, restart, offline fallback, and
+recovery of the original account. This model continues to isolate request coalescing
+and the monotonic local compatibility floor.
