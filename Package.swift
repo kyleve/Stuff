@@ -26,6 +26,7 @@ let package = Package(
         .library(name: "TestHostSupport", targets: ["TestHostSupport"]),
         .library(name: "RegionKit", targets: ["RegionKit"]),
         .library(name: "WhereCrashReporting", targets: ["WhereCrashReporting"]),
+        .library(name: "StorageKit", targets: ["StorageKit"]),
         .library(name: "WhereCore", targets: ["WhereCore"]),
         .library(name: "WhereUI", targets: ["WhereUI"]),
         .library(name: "WhereIntents", targets: ["WhereIntents"]),
@@ -181,6 +182,10 @@ let package = Package(
                 .product(name: "Capture", package: "capture-ios"),
             ],
             path: "Where/WhereCrashReporting/Sources",
+        ),
+        .target(
+            name: "StorageKit",
+            path: "Shared/StorageKit/Sources",
         ),
         .target(
             name: "WhereCore",
