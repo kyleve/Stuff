@@ -5,6 +5,21 @@ import Testing
 
 @MainActor
 struct DataCompatibilityCoordinatorTests {
+    @Test func localHistoryCannotAuthorizeInitialAccess() async throws {
+        let fixture = try CompatibilityAccountFixture()
+        _ = try await fixture.recording.selectRecordingRole(.recordingRequested)
+        let reads = await fixture.transport.readCount
+        let identityReads = await fixture.transport.identityReadCount
+        #expect(await fixture.coordinator.recheckLocalHistory() == .checking)
+        #expect(await fixture.transport.readCount == reads)
+        #expect(await fixture.transport.identityReadCount == identityReads)
+        await #expect(throws: DataCompatibilityError.notReady) {
+            _ = try await fixture.coordinator.openDomainStore()
+        }
+        #expect(await fixture.coordinator.recheck() == .compatible(.current))
+        _ = try await fixture.coordinator.openDomainStore()
+    }
+
     @Test func accountInvalidationBlocksOfflineCacheAndSurvivesRestart() async throws {
         let fixture = try CompatibilityAccountFixture()
         let oldScope = try await fixture.establish()
@@ -98,7 +113,7 @@ struct DataCompatibilityCoordinatorTests {
     }
 
     @Test(arguments: [CompatibilityRemoteChange.signedOut, .newerRequirement])
-    func remoteRetriesDuringLocalInspectionStillVerifyAuthority(
+    func concurrentRetriesVerifyAuthorityWhileLocalHistoryRemainsAvailable(
         change: CompatibilityRemoteChange,
     ) async throws {
         let store = try SwiftDataStore.inMemory()
@@ -122,17 +137,16 @@ struct DataCompatibilityCoordinatorTests {
         )
         #expect(await coordinator.recheck() == .compatible(.current))
         let domain = try await coordinator.openDomainStore()
-        // Hold a user operation so the local check parks at waitUntilIdle().
+        // Hold a user operation so remote verification parks at waitUntilIdle().
         let gate = CompatibilityTestGate()
         await transport.holdNextRead(gate)
         let selection = Task { try await recording.selectRecordingRole(.secondary) }
         await gate.waitUntilEntered()
         defer { gate.resume() }
-        let local = Task { await coordinator.recheckLocalHistory() }
-        try await waitForCompatibilityChecks(1, in: coordinator)
         let firstRemote = Task { await coordinator.recheck() }
         let secondRemote = Task { await coordinator.recheck() }
-        try await waitForCompatibilityChecks(3, in: coordinator)
+        try await waitForCompatibilityChecks(2, in: coordinator)
+        #expect(await coordinator.recheckLocalHistory() == .compatible(.current))
         let reads = await transport.readCount
         let identityReads = await transport.identityReadCount
         let newerVersion = DataCompatibilityVersion(rawValue: 2)
@@ -149,7 +163,6 @@ struct DataCompatibilityCoordinatorTests {
         }
         gate.resume()
         _ = try await selection.value
-        #expect(await local.value == .compatible(.current))
         let results = await [firstRemote.value, secondRemote.value]
         for result in results {
             switch change {
@@ -210,7 +223,7 @@ struct DataCompatibilityCoordinatorTests {
         #expect(await remote.value == .updateRequired(version))
     }
 
-    @Test func secondaryUpdatingFirstWaitsWithoutRaisingTheFloor() async throws {
+    @Test func secondaryWaitsForVerificationAfterASufficientFloorArrives() async throws {
         let fixture = RecordingAuthorityFixture()
         let store = try SwiftDataStore.inMemory()
         let authority = RecordingAuthorityCoordinator(
@@ -237,8 +250,18 @@ struct DataCompatibilityCoordinatorTests {
         await #expect(throws: DataCompatibilityError.notReady) {
             _ = try await coordinator.openDomainStore()
         }
-        // The current build still reads the unchanged shared contract.
-        #expect(try await store.allSamples().isEmpty)
+        // Sync can deliver a sufficient floor, but history observation no longer resumes access.
+        let version = DataCompatibilityVersion(rawValue: 2)
+        try await store.perform {
+            try await store.addDataCompatibilityRequirement(.init(id: UUID(), version: version))
+        }
+        #expect(await coordinator.recheckLocalHistory() == .waitingForRecordingDevice(owner))
+        await #expect(throws: DataCompatibilityError.notReady) {
+            _ = try await coordinator.openDomainStore()
+        }
+        #expect(await coordinator.recheck() == .compatible(version))
+        let freshScope = try await coordinator.openDomainStore()
+        #expect(try await freshScope.allSamples().isEmpty)
     }
 
     @Test func ownerAdvancesOnceAndOlderScopesNeverRegainAccess() async throws {

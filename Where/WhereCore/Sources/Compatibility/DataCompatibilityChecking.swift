@@ -4,6 +4,7 @@ public protocol DataCompatibilityChecking: Sendable {
     func changes() -> AsyncStream<Void>
     func snapshot() async -> DataCompatibilitySnapshot
     func recheck() async -> DataCompatibilityState
+    /// Inspect local requirements without granting access or refreshing authority.
     func recheckLocalHistory() async -> DataCompatibilityState
     func invalidateAccount() async
     func revokeAccess() async
