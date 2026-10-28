@@ -76,6 +76,8 @@ layering, and the domain rules this target merely starts up.
   *behind* the onboarding gate. This target opens nothing at startup. The
   intents stack derives from whatever scope the launch resolves, in the
   `onServicesReady` hook.
+- The Inspector factory awaits `SwiftDataStore.makeContainer(storage:)` with local-only storage.
+  Keep its configured recovery URL equal to `SwiftDataStore.inspectorStoreURL(groupContainerURL:)`.
 - **Only the app owns the CloudKit capability.** Keep its App Group, CloudKit
   container (`iCloud.com.stuff.where`), Push Notifications entitlement, and
   remote-notification background mode together in `Project.swift`; widgets and

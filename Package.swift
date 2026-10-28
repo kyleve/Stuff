@@ -190,6 +190,7 @@ let package = Package(
         .target(
             name: "WhereCore",
             dependencies: [
+                .target(name: "StorageKit"),
                 .target(name: "InstallerKit"),
                 .target(name: "CreditKit"),
                 .target(name: "JournalKit"),

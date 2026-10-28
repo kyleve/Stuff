@@ -1,6 +1,7 @@
 import Foundation
 import PeriscopeCore
 import RegionKit
+import StorageKit
 import SwiftData
 
 /// Builds reusable generation-scoped descriptors while keeping the predicate
@@ -485,47 +486,33 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
     }
 
-    public static func makeContainer(storage: Storage) throws -> ModelContainer {
-        // A plain `Schema` of the live models. SwiftData runs implicit
-        // lightweight migration when the on-disk store predates an additive
-        // change (new optional fields, new models); the launch flow shows
-        // migration UI purely off slowness, not a predicted version, so no
-        // `VersionedSchema`/`SchemaMigrationPlan` scaffolding is needed.
-        let schema = Schema(inspectorModelTypes)
-        let configuration = modelConfiguration(storage: storage, schema: schema)
-        return try ModelContainer(for: schema, configurations: [configuration])
-    }
-
-    /// The exact store URL used inside the resolved App Group container.
-    /// Inspector passes the entitlement-resolved root so this lookup never asks
-    /// SwiftData to resolve an unavailable App Group in a test host.
-    public static func inspectorStoreURL(groupContainerURL: URL) -> URL {
-        groupContainerURL.appending(
-            path: "Library/Application Support/default.store",
-            directoryHint: .notDirectory,
-        )
-    }
-
-    private static func modelConfiguration(
-        storage: Storage,
-        schema: Schema,
-    ) -> ModelConfiguration {
-        // On-disk storage lives in the App Group container so the share
-        // extension (and any other sibling process) writes into the same store
-        // the app reads. An in-memory store has no container — leave it default.
-        let groupContainer: ModelConfiguration.GroupContainer = switch storage {
-            case .inMemory: .none
-            case let .localOnly(appGroupIdentifier),
-                 let .cloudKit(appGroupIdentifier): .identifier(appGroupIdentifier)
+    /// Open the configured store through StorageKit. App Group resolution must
+    /// succeed; an unavailable entitlement must never open a different sandbox store.
+    public static func makeContainer(storage: Storage) async throws -> ModelContainer {
+        switch storage {
+            case .inMemory:
+                return try makeInMemoryContainer()
+            case let .localOnly(appGroupIdentifier), let .cloudKit(appGroupIdentifier):
+                guard let groupURL = FileManager.default.containerURL(
+                    forSecurityApplicationGroupIdentifier: appGroupIdentifier,
+                ) else {
+                    throw WhereStorage.AppGroupUnavailableError()
+                }
+                return try await WhereStorage.makeContainer(
+                    groupContainerURL: groupURL,
+                    cloudKit: storage.usesCloudKit ? .automatic : .none,
+                )
         }
-        // CloudKit and sibling App Group writes are observed through SwiftData
-        // history by `HistoryObserverRemoteChangeSource` after opening the store.
-        return ModelConfiguration(
-            schema: schema,
-            isStoredInMemoryOnly: storage == .inMemory,
-            groupContainer: groupContainer,
-            cloudKitDatabase: storage.usesCloudKit ? .automatic : .none,
-        )
+    }
+
+    /// Independent, disk-free storage for synchronous previews and test fixtures.
+    public static func makeInMemoryContainer() throws -> ModelContainer {
+        try SwiftDataStorage.inMemoryModelContainer(for: inspectorModelTypes)
+    }
+
+    /// Inspector and production resolve the same StorageKit store family.
+    public static func inspectorStoreURL(groupContainerURL: URL) -> URL {
+        WhereStorage.storeURL(groupContainerURL: groupContainerURL)
     }
 
     /// Convenience for tests and SwiftUI previews: builds an
@@ -534,7 +521,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// container, so callers get a clean slate per use without any
     /// shared state to reset.
     public static func inMemory() throws -> SwiftDataStore {
-        let container = try makeContainer(storage: .inMemory)
+        let container = try makeInMemoryContainer()
         return SwiftDataStore(modelContainer: container)
     }
 
@@ -551,19 +538,15 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// caller opening another container over the same file (two containers
     /// racing to *create* the store on a fresh install is how the launch
     /// once failed with `SwiftDataError`).
-    public static func make(storage: Storage) throws -> SwiftDataStore {
-        let container = try logger.measure(.open) { try makeContainer(storage: storage) }
+    public static func make(storage: Storage) async throws -> SwiftDataStore {
+        let container = try await logger
+            .measure(.open) { try await makeContainer(storage: storage) }
         if storage == .inMemory {
             logger.openedInMemory(
                 mode: .restricted(.technicalState, String(describing: storage)),
             )
         } else {
-            // Log the resolved on-disk path and whether the App Group container
-            // is actually reachable at runtime. If the App Group capability isn't
-            // provisioned for the signing in use, `containerURL(...)` is nil and
-            // SwiftData falls back to the per-process sandbox — which reads as
-            // "my old data is still here / the store didn't move" rather than an
-            // error. Logging both makes that diagnosable instead of a guess.
+            // The explicit App Group resolution above succeeded. Log its exact store path.
             let appGroupIdentifier = storage.appGroupIdentifier
             let groupResolved = appGroupIdentifier.flatMap {
                 FileManager.default.containerURL(
@@ -606,7 +589,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         public static func inMemory(
             remoteChangeSource: ScriptedStoreRemoteChangeSource,
         ) throws -> SwiftDataStore {
-            let container = try makeContainer(storage: .inMemory)
+            let container = try makeInMemoryContainer()
             return inMemory(
                 modelContainer: container,
                 remoteChangeSource: remoteChangeSource,

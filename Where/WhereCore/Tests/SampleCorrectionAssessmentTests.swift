@@ -30,7 +30,7 @@ struct SampleCorrectionAssessmentTests {
 
     @Test @MainActor func syncedDuplicateRowsApplyOneRevisionPerSample() async throws {
         let samples = FlightTrajectoryFixtures.turningFlight().samples
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let context = ModelContext(container)
         // Distinct synced records can carry the same logical sample identity.
         for sample in samples + samples {

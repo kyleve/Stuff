@@ -98,7 +98,7 @@ extension InspectorConfiguration {
         public let modelTypes: [any PersistentModel.Type]?
         public let rowLimit: Int?
         public let valueFormatter: (@Sendable (Any) -> String?)?
-        let makeContainer: @Sendable () throws -> ModelContainer
+        let makeContainer: @Sendable () async throws -> ModelContainer
 
         public init(
             id: ID,
@@ -109,7 +109,7 @@ extension InspectorConfiguration {
             modelTypes: [any PersistentModel.Type]? = nil,
             rowLimit: Int? = 500,
             valueFormatter: (@Sendable (Any) -> String?)? = nil,
-            makeContainer: @escaping @Sendable () throws -> ModelContainer,
+            makeContainer: @escaping @Sendable () async throws -> ModelContainer,
         ) {
             self.id = id
             self.title = title

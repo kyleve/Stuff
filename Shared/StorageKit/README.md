@@ -223,3 +223,34 @@ vends, and — in detail — the two teardown paths: children-first ordering, th
 `prepareForDeletion → onDeactivate → delete → afterDeletion` sequence, park-safe
 retries on a thrown handler, and that deletion errors surface while leaving data
 in place.
+
+## Where usage
+
+Where uses a dedicated StorageKit namespace inside its App Group's Application Support directory.
+The [WhereStorage adapter](../../Where/WhereCore/Sources/Persistence/WhereStorage.swift) owns the path and schema.
+This example omits Where's entitlement resolution and uses a supplied `appGroupApplicationSupportURL`:
+
+```swift
+let storage = try StorageSystem(
+    "Where",
+    mode: .persistent(base: .custom(appGroupApplicationSupportURL))
+)
+let shared = try await storage.container("shared")
+let modelContainer = try await shared.swiftData.modelContainer(
+    for: modelTypes,
+    named: "history",
+    cloudKit: .none
+)
+```
+
+The store lives at `Where/shared/history/history.store` beneath that base.
+Its sidecars and external blobs share the dedicated `history` directory.
+A cached store requires the same schema and CloudKit policy on each request.
+Removing its child container invalidates the cached model container.
+
+Where adopts this layout before release, without a legacy path fallback or automatic file migration.
+Where's reset still uses its domain operations to propagate deletion through CloudKit.
+StorageKit tree deletion is not a substitute for that reset.
+
+`SwiftDataStorage.inMemoryModelContainer(for:)` creates independent containers for synchronous previews and tests.
+It disables CloudKit and creates no StorageSystem or temporary directory.

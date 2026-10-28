@@ -92,6 +92,7 @@ public actor StorageContainer {
     struct CachedModelStore {
         let container: ModelContainer
         let typeIDs: Set<ObjectIdentifier>
+        let cloudKit: CloudKitOption
     }
 
     /// This node's key (a single, sanitized path component).

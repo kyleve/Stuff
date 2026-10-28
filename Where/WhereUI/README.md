@@ -691,3 +691,11 @@ for changes confined to a child component. Standard references keep existing pat
 Flat screen references use `flat/`, and comparison sheets use `themes/`. Special
 traits nest under the group's `other/` directory. Review sheet PNGs before recording. Their embedded panel maps are part of the
 reference; preserve PNG metadata when copying them.
+
+## Storage construction
+
+`WhereBootstrap` awaits the StorageKit-backed `SwiftDataStore.make(storage:)` factory.
+`WhereStorePreparation` retains one shared task for onboarding discovery and scope resolution.
+Concurrent callers receive the same store. A failed open permits a new attempt.
+Cancellation of one caller does not cancel the shared open.
+The existing onboarding gates, session teardown, and App Intents handoff remain the owners of scope lifetime.

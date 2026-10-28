@@ -20,9 +20,8 @@ system, formatting, and global conventions. Read that first.
   `Shared/StorageKit/Sources`); the hosted test bundle `StorageKitTests` is wired
   in [`Project.swift`](../../Project.swift) via the `unitTests` helper (host:
   `StuffTestHost`).
-- Not yet adopted by the Where app — this is a standalone module. Migrating
-  Where's ad-hoc storage (`LocationOutbox`, `WidgetSnapshotStore`,
-  `SwiftDataStore`, `WherePreferences`) onto it is a future pass.
+- WhereCore uses StorageKit for SwiftData construction. Its `WhereStorage` adapter owns a dedicated namespace inside the App Group.
+  Preferences, journals, installation consent, and widget files retain their separate owners.
 
 ## Key types
 
@@ -98,6 +97,8 @@ system, formatting, and global conventions. Read that first.
   user-vended `container("store")` — documented; use distinct `named:` keys. A
   store name pins one schema: re-vending the same name with different `types`
   throws `StorageError.modelStoreSchemaMismatch` (cache keys on the type set).
+  Reject a different CloudKit policy for an open store.
+  Child deletion must invalidate that store's cached model container.
   Don't put a store directly in a shared directory.
 - **Two teardown paths, never a flag.** `deactivate()` (reversible: run
   `onDeactivate` + drop cached vends, keep files, go `inactive`, reactivate on
