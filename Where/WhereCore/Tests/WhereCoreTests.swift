@@ -25,7 +25,7 @@ struct YearReportTests {
 
 struct SwiftDataStoreFactoryTests {
     @Test func make_inMemory_roundTripsASample() async throws {
-        let store = try SwiftDataStore.make(storage: .inMemory)
+        let store = try await SwiftDataStore.make(storage: .inMemory)
         let sample = LocationSample(
             timestamp: Date(timeIntervalSince1970: 1_700_000_000),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),

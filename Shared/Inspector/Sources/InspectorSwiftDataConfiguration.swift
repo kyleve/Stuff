@@ -38,7 +38,7 @@ public struct InspectorSwiftDataConfiguration {
     /// A fresh-container factory enables the destructive whole-store action.
     /// Without one, browsing and row deletion remain available but the store
     /// cannot be discarded and reopened safely.
-    let makeContainer: (@Sendable () throws -> ModelContainer)?
+    let makeContainer: (@Sendable () async throws -> ModelContainer)?
 
     public init(
         container: ModelContainer,
@@ -46,7 +46,7 @@ public struct InspectorSwiftDataConfiguration {
         title: String = "SwiftData",
         rowLimit: Int? = 500,
         valueFormatter: (@Sendable (Any) -> String?)? = nil,
-        makeContainer: (@Sendable () throws -> ModelContainer)? = nil,
+        makeContainer: (@Sendable () async throws -> ModelContainer)? = nil,
     ) {
         self.container = container
         self.modelTypes = modelTypes

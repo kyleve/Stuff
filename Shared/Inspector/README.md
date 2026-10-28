@@ -62,7 +62,7 @@ let configuration = InspectorConfiguration(
             storeURL: AppStore.inspectorStoreURL,
             recoveryStorageURLs: AppStore.inspectorRecoveryStorageURLs,
             modelTypes: AppStore.inspectorModelTypes,
-            makeContainer: { try AppStore.makeContainer() }
+            makeContainer: { try await AppStore.makeContainer() }
         ),
     ]
 )
@@ -138,3 +138,8 @@ Run:
 
 Unit tests use temporary directories, private UserDefaults suites, and in-memory SwiftData schemas.
 The module's image references are owned by `InspectorSnapshotTests` in the repository-wide `StuffSnapshotTests` scheme.
+
+SwiftData factories accept `async throws` closures, including actor-owned storage providers.
+After erasure, Inspector clears the old container before it awaits the replacement.
+Store operations fail while the replacement is unavailable. A failed reopen keeps that state visible.
+Filesystem protection retains the original store-family URLs throughout this interval and after a failed reopen.

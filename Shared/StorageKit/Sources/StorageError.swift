@@ -11,4 +11,6 @@ public enum StorageError: Error, Sendable, Equatable {
     /// distinct schemas under distinct names rather than silently reusing the
     /// first one.
     case modelStoreSchemaMismatch(StorageKey)
+    /// A cached directory cannot be reopened with a different file name or CloudKit policy.
+    case modelStoreConfigurationMismatch(StorageKey)
 }

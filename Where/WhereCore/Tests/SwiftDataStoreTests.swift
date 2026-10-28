@@ -50,7 +50,7 @@ struct SwiftDataStoreTests {
     }
 
     @Test func delayedPlanningRowsCannotReappearAcrossAReset() async throws {
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let store = SwiftDataStore(modelContainer: container)
         let stay = try PlannedStayTestSupport.record(stay: PlannedStayTestSupport.stay())
         let home = try HomeRegionRecord(id: UUID(), region: .california, updatedAt: Date())
@@ -86,7 +86,7 @@ struct SwiftDataStoreTests {
     @MainActor func partialOptionalMotionNeverDropsAValidRawPosition(
         partial: IncompleteMotion,
     ) async throws {
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let speed = LocationMotion.Speed(metersPerSecond: 240, accuracyMetersPerSecond: 2)
         let altitude = LocationMotion.Altitude(meters: 11000, accuracyMeters: 10)
         let sample = FlightTrajectoryFixtures.sample(
@@ -318,7 +318,7 @@ struct SwiftDataStoreTests {
 
     @Test @MainActor func attributionHistoryIsGenerationScopedAndCorruptionFailsClosed(
     ) async throws {
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let store = SwiftDataStore(modelContainer: container)
         let revision = SampleAttributionRevision(
             id: .init(rawValue: UUID()),
@@ -564,7 +564,7 @@ struct SwiftDataStoreTests {
     }
 
     @Test func unreadableRemovalFailsClosed() async throws {
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let context = ModelContext(container)
         let row = SDRecordingDeviceRemoval()
         row.generationID = WhereDataGenerationID.initial.rawValue
@@ -581,7 +581,7 @@ struct SwiftDataStoreTests {
     }
 
     @Test func identicalRemovalRowsCanonicalizeAndConflictsFailClosed() async throws {
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let context = ModelContext(container)
         let removal = RecordingDeviceRemoval(
             id: .init(rawValue: UUID()),
@@ -713,7 +713,7 @@ struct SwiftDataStoreTests {
     }
 
     @Test func malformedSyncedAuthorityFailsClosedWhileOtherRowsAreDropped() async throws {
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let context = ModelContext(container)
         let deviceID = try #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA"))
         let eventID = try #require(UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB"))
@@ -788,7 +788,7 @@ struct SwiftDataStoreTests {
     }
 
     @Test func legacyRowsWithoutGenerationIDsBelongToTheInitialGeneration() async throws {
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let date = Date(timeIntervalSinceReferenceDate: 100)
         let deviceID = RecordingDeviceID(rawValue: UUID())
         let sample = LocationSample(
@@ -872,7 +872,7 @@ struct SwiftDataStoreTests {
     }
 
     @Test func lateLegacyRowsCannotRepopulateAnySyncedUserData() async throws {
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let store = SwiftDataStore(modelContainer: container)
         let deviceID = try RecordingDeviceID(
             rawValue: #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")),
@@ -1022,7 +1022,7 @@ struct SwiftDataStoreTests {
     }
 
     @Test func generationRotationDeletesOnlyCurrentRowsAcrossEveryScopedTable() async throws {
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let store = SwiftDataStore(modelContainer: container)
         let current = try await store.perform {
             try await store.rotateDataGeneration(
@@ -1135,7 +1135,7 @@ struct SwiftDataStoreTests {
 
     @Test func syntheticGenerationRowsRequireTheExactResetFrontierAndAJoinRetiresThem(
     ) async throws {
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let first = Self.generation(
             id: "10000000-0000-0000-0000-000000000000",
             parentIDs: [.initial],
@@ -1209,7 +1209,7 @@ struct SwiftDataStoreTests {
     }
 
     @Test func rotationWritesOneCanonicalMultiParentNodeAndScopesFollowingRowsToIt() async throws {
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let first = Self.generation(
             id: "10000000-0000-0000-0000-000000000000",
             parentIDs: [.initial],
@@ -1294,7 +1294,7 @@ struct SwiftDataStoreTests {
 
     @Test func expectedGenerationTransactionRejectsGenerationImportedWhileBodyIsSuspended(
     ) async throws {
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let store = SwiftDataStore(modelContainer: container)
         let deviceID = RecordingDeviceID(rawValue: UUID())
         let sample = LocationSample(
@@ -1344,7 +1344,7 @@ struct SwiftDataStoreTests {
     func mutationSnapshotRejectsExternalCommitWithoutSavingRevisions(
         afterSnapshot: Bool,
     ) async throws {
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let store = SwiftDataStore(modelContainer: container)
         let sample = LocationSample(
             timestamp: Date(timeIntervalSince1970: 60),
@@ -1444,7 +1444,7 @@ struct SwiftDataStoreTests {
 
     @Test func readSnapshotRejectsCommitBeforeNotification() async throws {
         let source = ScriptedStoreRemoteChangeSource()
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let store = SwiftDataStore.inMemory(
             modelContainer: container,
             remoteChangeSource: source,
@@ -1497,7 +1497,7 @@ struct SwiftDataStoreTests {
 
     @Test func readSnapshotAllowsDelayedNotificationForIncludedCommit() async throws {
         let source = ScriptedStoreRemoteChangeSource()
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let remoteContext = ModelContext(container)
         remoteContext.insert(SDManualDay(value: day, generationID: .initial))
         try remoteContext.save()
@@ -1533,7 +1533,7 @@ struct SwiftDataStoreTests {
     }
 
     @Test func inactiveEvidenceBlobIsNotResurrectedByMetadataOnlyActiveWrite() async throws {
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let store = SwiftDataStore(modelContainer: container)
         let deviceID = RecordingDeviceID(rawValue: UUID())
         let currentGeneration = try await store.perform {
@@ -1571,7 +1571,7 @@ struct SwiftDataStoreTests {
     /// Generation-scoped data needs a new CloudKit record in the current generation. Global removal
     /// tombstones instead retain one identity across rotations so a delayed sync remains active.
     @Test func scopedRowsRemainSeparateWhileGlobalRemovalsCanonicalize() async throws {
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let store = SwiftDataStore(modelContainer: container)
         let deviceID = try RecordingDeviceID(
             rawValue: #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")),
@@ -1662,7 +1662,7 @@ struct SwiftDataStoreTests {
     }
 
     @Test func duplicateProfilesResolveDeterministicallyByRegistrationGeneration() async throws {
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let context = ModelContext(container)
         let deviceID = RecordingDeviceID(rawValue: UUID())
         let registeredAt = Date(timeIntervalSinceReferenceDate: 100)
@@ -1695,7 +1695,7 @@ struct SwiftDataStoreTests {
     }
 
     @Test func incompleteGenerationHistoryFailsClosed() async throws {
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let context = ModelContext(container)
         context.insert(SDWhereDataGeneration(value: WhereDataGeneration(
             id: WhereDataGenerationID(rawValue: UUID()),
@@ -1714,7 +1714,7 @@ struct SwiftDataStoreTests {
     }
 
     @Test func incompleteGenerationHistoryReleasesStoreExclusivity() async throws {
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let context = ModelContext(container)
         context.insert(SDWhereDataGeneration(value: WhereDataGeneration(
             id: WhereDataGenerationID(rawValue: UUID()),
@@ -1775,7 +1775,7 @@ struct SwiftDataStoreTests {
     }
 
     @Test func localCommitCarriesTheHistoryAuthorUsedByRemoteFiltering() async throws {
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let container = try SwiftDataStore.makeInMemoryContainer()
         let store = SwiftDataStore(modelContainer: container)
 
         try await store.perform {

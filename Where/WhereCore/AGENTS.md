@@ -21,6 +21,13 @@ internal shape.
 
 ## Shape & invariants
 
+- Use StorageKit for SwiftData construction through `SwiftDataStore` and `WhereStorage`.
+  Preserve `Library/Application Support/default.store` in the resolved App Group.
+  Never use StorageKit tree deletion on this compatibility layout; its directories can also contain logs.
+  A missing App Group must throw. Never fall back to the process sandbox.
+  Keep the same schema and path for the app, share extension, and Inspector.
+  Guards: `WhereStorageTests` and `WhereArchitectureTests`.
+
 - Use InstallerKit for local and published build identity, feed validation, and cache policy.
   Keep `WherePreferences.installerUpdates` device-local. `BuildInfo` exposes an
   installer identity only for the Development audience.

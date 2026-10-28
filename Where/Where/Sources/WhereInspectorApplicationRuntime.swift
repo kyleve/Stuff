@@ -92,7 +92,7 @@
                         storeURL: whereStoreURL,
                         modelTypes: SwiftDataStore.inspectorModelTypes,
                         makeContainer: {
-                            try SwiftDataStore.makeContainer(storage: .localOnly(
+                            try await SwiftDataStore.makeContainer(storage: .localOnly(
                                 appGroupIdentifier: appGroupIdentifier,
                             ))
                         },

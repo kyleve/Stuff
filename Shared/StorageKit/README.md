@@ -223,3 +223,27 @@ vends, and — in detail — the two teardown paths: children-first ordering, th
 `prepareForDeletion → onDeactivate → delete → afterDeletion` sequence, park-safe
 retries on a thrown handler, and that deletion errors surface while leaving data
 in place.
+
+## Existing store layouts
+
+The `directory:named:` overload keeps a dedicated store directory and its file name separate.
+Where uses it to retain `Library/Application Support/default.store` inside its App Group.
+The [WhereStorage adapter](../../Where/WhereCore/Sources/Persistence/WhereStorage.swift) owns the path mapping.
+
+```swift
+let library = try await storage.container("Library")
+let modelContainer = try await library.swiftData.modelContainer(
+    for: modelTypes,
+    directory: "Application Support",
+    named: "default",
+    cloudKit: .none
+)
+```
+
+The directory identifies the cache entry. A second request must use the same schema, file name, and CloudKit policy.
+Removing the child directory invalidates its cached container.
+This API does not move, copy, or transform existing records.
+Where keeps the container tree private and never deletes it through StorageKit because its existing directory can also contain logs.
+
+`SwiftDataStorage.inMemoryModelContainer(for:)` creates independent containers for synchronous previews and tests.
+It disables CloudKit and creates no StorageSystem or temporary directory.

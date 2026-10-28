@@ -30,8 +30,8 @@ actor InspectorSwiftDataSourceWorker {
 
     func open(
         _ source: InspectorConfiguration.SwiftDataSource,
-    ) throws -> InspectorSwiftDataStore {
-        try InspectorSwiftDataStore(source: source)
+    ) async throws -> InspectorSwiftDataStore {
+        try await InspectorSwiftDataStore(source: source)
     }
 
     /// Delete an unreadable source's configured store family as one serialized

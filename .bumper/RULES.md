@@ -19,7 +19,8 @@ Repair a violation with the macro authoring API. Do not add a file exception. Mu
 | `InstallerKit` | none (PeriscopeCore for logs) | Foundation, Observation |
 | `InstallerKitUI` | none (InstallerKit for updates) | Foundation, SwiftUI, UIKit |
 | `RegionKit` | none | Foundation |
-| `WhereCore` | `RegionKit` | Foundation, persistence |
+| `StorageKit` | none | Foundation, persistence |
+| `WhereCore` | `RegionKit`, `StorageKit` | Foundation, persistence |
 | `WhereUI` | `RegionKit`, `WhereCore` | Foundation, SwiftUI, UIKit |
 | `WhereIntents` | `RegionKit`, `WhereCore`, `WhereUI` | Foundation, SwiftUI, UIKit |
 | `Where` app | `RegionKit`, `WhereCore`, `WhereUI`, `WhereIntents` | Foundation, SwiftUI, UIKit |

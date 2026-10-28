@@ -93,7 +93,7 @@ final class ShareEvidenceModel {
         phase = .saving
         let pending = buildPendingEvidence()
         do {
-            let store = try SwiftDataStore.make(storage: storage)
+            let store = try await SwiftDataStore.make(storage: storage)
             try await store.perform {
                 for item in pending {
                     try await store.write(evidence: item.evidence, blob: item.blob)

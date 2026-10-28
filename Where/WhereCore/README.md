@@ -33,7 +33,7 @@ one it belongs to rather than to a god-object:
   SwiftData's `HistoryObserver` and persistent-history transaction authors to
   emit only the external-import subset,
   so headless notifications and widgets rebuild without duplicating local work.
-  `SwiftDataStore.make(storage:)` opens an explicitly selected CloudKit,
+  `SwiftDataStore.make(storage:)` asynchronously opens an explicitly selected CloudKit,
   local-only, or in-memory store. On-disk modes carry their App Group identifier;
   the host chooses that policy and group, so WhereCore contains no audience
   default. `SwiftDataStore.inMemory()` is the convenience used by tests and
@@ -389,7 +389,7 @@ import WhereCore
 // previews use the synchronous `@_spi(Testing)` `init` instead (an explicit
 // attributor, default four) via `@_spi(Testing) import WhereCore`.
 let services = try await WhereServices.make(
-    store: try SwiftDataStore.make(storage: .cloudKit(
+    store: try await SwiftDataStore.make(storage: .cloudKit(
         appGroupIdentifier: "group.com.stuff.where"
     )),
     locationSource: CoreLocationSource(),
@@ -558,3 +558,17 @@ Route shape, timing, accuracy, and sensor values remain recognizable characteris
    Use `sparse-flight.json` and `recordedSparseFlightRetainsRecognitionWithoutInventingAirbornePoints` as an example.
 7. Run `./test --only WhereCoreTests/FlightTrajectoryAnalyzerTests` with the export configuration unset.
    The bundled JSON fixture runs in ordinary CI without the private archive or export configuration.
+
+## StorageKit adoption
+
+`SwiftDataStore.make(storage:)` and `makeContainer(storage:)` await StorageKit factories.
+The [WhereStorage adapter](Sources/Persistence/WhereStorage.swift) maps containers onto the existing App Group directory.
+The database remains at `Library/Application Support/default.store`, with the same schema and sidecars.
+An unavailable App Group throws instead of opening a process-local replacement.
+The app retains its CloudKit policy. The share extension and Inspector use local-only access to the same file.
+
+`SwiftDataStore.inMemory()` and `makeInMemoryContainer()` remain synchronous for previews and test fixtures.
+They use StorageKit's disk-free factory. Demo mode inherits this path.
+
+Preferences, recording consent, retry journals, widget files, and Periscope keep their existing owners and formats.
+Reset still commits Where's generation changes through `WhereServices`; it does not delete the App Group container tree.
