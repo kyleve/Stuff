@@ -1,0 +1,84 @@
+import PeriscopeCore
+
+/// Structured events and spans for `WhereSession`.
+@LogScope("WhereSession")
+enum WhereSessionLog {
+    enum SpanName: Hashable { case foregroundRefresh }
+
+    @LogEvent(
+        "when-in-use-only",
+        level: .warning,
+        message: "Location authorized for When-In-Use only; background tracking unavailable",
+    )
+    struct WhenInUseOnly {}
+
+    @LogEvent("location-access-denied", level: .warning)
+    struct LocationAccessDenied {
+        @LogField(exposure: .restricted, kind: .technicalState) var status: String
+        var message: String {
+            "Location access \(status); background tracking unavailable"
+        }
+    }
+
+    @LogEvent("background-tracking-started", message: "Background tracking started")
+    struct BackgroundTrackingStarted {}
+
+    @LogEvent("background-tracking-stopped", message: "Background tracking stopped")
+    struct BackgroundTrackingStopped {}
+
+    @LogEvent("permission-granted")
+    struct PermissionGranted {
+        @LogField(exposure: .restricted, kind: .technicalState) var status: String
+        var message: String {
+            "Location permission granted (\(status))"
+        }
+    }
+
+    @LogEvent("tracking-enabled", message: "Tracking enabled with background authorization")
+    struct TrackingEnabled {}
+
+    @LogEvent("stopped-background-tracking", message: "Stopped background tracking")
+    struct StoppedBackgroundTracking {}
+
+    @LogEvent("recording-reconcile-failed", level: .warning, version: 2)
+    struct RecordingReconcileFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+        var message: String {
+            "Failed to reconcile device recording policy: \(error.description)"
+        }
+    }
+
+    @LogEvent(
+        "reminders-unauthorized",
+        level: .warning,
+        message: "Logging reminders enabled but notifications not authorized",
+    )
+    struct RemindersUnauthorized {}
+
+    @LogEvent(
+        "summary-unauthorized",
+        level: .warning,
+        message: "Daily summary enabled but notifications not authorized",
+    )
+    struct SummaryUnauthorized {}
+
+    @LogEvent(
+        "issue-alerts-unauthorized",
+        level: .warning,
+        message: "Issue alerts enabled but notifications not authorized",
+    )
+    struct IssueAlertsUnauthorized {}
+
+    @LogEvent("region-styles-load-failed", level: .warning, version: 2)
+    struct RegionStylesLoadFailed {
+        @LogField(exposure: .restricted, kind: .errorDetails)
+        var error: LogError
+        var message: String {
+            "Failed to load region appearances for styling: \(error.description)"
+        }
+    }
+
+    @LogEvent("erased-session", message: "Erased session and reset state")
+    struct ErasedSession {}
+}

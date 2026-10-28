@@ -1,47 +1,179 @@
 import Foundation
+import RegionKit
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
-/// A Liquid Glass card summarizing how many days were spent in one region.
-/// Used prominently on the Primary tab and (more compactly) on Elsewhere.
+/// A themed region-day summary with compact paper cards for Elsewhere.
 struct RegionSummaryCard: View {
+    /// Why the shared card is being rendered. A theme specimen keeps the real
+    /// compact-card surface and hierarchy, but omits the provenance stamp that
+    /// cannot remain legible in the narrow half-column preview.
+    enum RenderPurpose {
+        case content
+        case themeSpecimen
+    }
+
     let regionDays: RegionDays
     var caption: String?
     /// An optional reverse-geocoded "where" teaser (e.g. "Paris, France"),
-    /// shown beneath the caption. Used on the Elsewhere cards; `nil` on
-    /// Primary, which intentionally stays a pure passport stamp.
+    /// shown beneath the region name. Used on the Elsewhere cards; `nil` on the
+    /// Locations cards, which intentionally stay a pure passport stamp.
     var places: String?
-    var compact = false
+
+    /// The caller selects a presentation; the stylesheet resolves its complete
+    /// geometry and surface, including compact primary specimens for galleries.
+    var variant: WhereStylesheet.CardStyle.Variant = .regular
+
+    var renderPurpose: RenderPurpose = .content
+
+    /// When `true`, the card's Liquid Glass reacts to touch with the system's
+    /// interactive press (scale + illumination), so a tappable card feels
+    /// physical without a custom animation. The Primary cards opt in; the
+    /// display-only / link cards leave it `false`.
+    var interactive = false
 
     /// Calendar days in the year being summarized; the ambient bar is drawn as
     /// a fraction of this. Callers pass the selected year's real length
-    /// (`WhereSession.daysInSelectedYear`); the default is only for previews.
+    /// (`YearReportModel.daysInSelectedYear`); the default is only for previews.
     var yearLength = 365
+
+    /// The forecasted total rendered behind recorded progress. Locations cards
+    /// supply it when Estimated Time & Planning is visible; other cards omit it.
+    var estimatedDays: DayBounds?
 
     /// The calendar year being summarized, inked onto the entry stamp. Callers
     /// pass `WhereSession.selectedYear`; the default is only for previews.
-    var year = Calendar.current.component(.year, from: Date())
+    var year = WhereModel.currentYear
 
-    /// Drives the holographic stamp sheen. The Primary tab passes its live
-    /// `TiltProvider`; Elsewhere (and previews) pass `nil`, leaving a gentle
-    /// static sheen.
+    /// Drives the card's light sheen. Locations and the region editor pass a
+    /// live `TiltProvider`; callers without one use the card's static pose.
     var tilt: TiltProvider?
 
+    /// An explicit style to render instead of resolving the region's look from
+    /// `\.regionStyles`. The region-customization screen passes the in-progress
+    /// draft appearance so the card previews a pick before it's saved; every
+    /// other caller leaves it `nil` and gets the resolved look.
+    var styleOverride: RegionStyle?
+
+    /// Recorded fixes from the card's selected-year projection. Primary and
+    /// Elsewhere cards share the same clipping and constellation renderer.
+    var recordedPoints: [RegionDayPoint] = []
+
+    /// Whether the card renders `recordedPoints`. Both tabs bind this to the
+    /// user's Appearance preference so hiding dots leaves the raw data intact.
+    var showsRecordedPoints = true
+
+    /// Identity of the loaded recorded-point snapshot. Callers supply it to
+    /// restart projection only when the underlying point content changes.
+    var recordedPointsID: RegionCardLocations.ID?
+
+    /// Loaded from the root-owned UI path cache. The large watermark uses
+    /// medium fidelity, the stamp uses small, and the repeated border uses
+    /// micro. Point-only refreshes retain the previous value until its updated
+    /// constellation is ready, so the static artwork never blinks out.
+    @State private var artworkModel = RegionArtworkModel<
+        RegionArtworkLoadID.StaticArtworkID,
+        RegionArtworkPaths
+    >()
+
+    private var regionPaths: RegionArtworkPaths? {
+        artworkModel.artwork(for: regionArtworkLoadID.staticArtworkID)
+    }
+
+    @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
+    #if DEBUG
+        // The live designer draft is a runtime override, outside the cached base slice.
+        @Environment(\.colorScheme) private var colorScheme
+        @Environment(\.cardDesignerConfiguration) private var cardDesignerConfiguration
+    #endif
+
+    private var cardStyles: WhereStylesheet.CardStyles {
+        #if DEBUG
+            if let cardDesignerConfiguration {
+                return cardDesignerConfiguration.resolve(
+                    over: stylesheet.card,
+                    colorScheme: colorScheme,
+                )
+            }
+        #endif
+        return stylesheet.card
+    }
+
+    /// The resolved spec for this card's variant, read once so the rest of the
+    /// view is a straight-line render with no `compact` branching.
+    private var card: WhereStylesheet.CardStyle {
+        cardStyles[variant]
+    }
+
     private var style: RegionStyle {
-        regionDays.region.style
+        styleOverride ?? regionStyles.style(for: regionDays.region)
+    }
+
+    private var recordedFraction: Double {
+        fraction(for: regionDays.days)
+    }
+
+    private var estimatedFraction: Double? {
+        estimatedDays.map { fraction(for: $0.upper) }
+    }
+
+    /// Paper artwork uses the original region color. Dark glass uses a pale
+    /// derivative while interactive Liquid Glass illuminates nearby surfaces.
+    private var securityPrintTint: Color {
+        card.paper == nil ? cardStyles.securityPrint.tint(style.tint) : style.tint
+    }
+
+    private var contentTint: Color {
+        card.contentTint.apply(to: style.tint)
+    }
+
+    private var foregroundPrintTint: Color {
+        card.paper == nil ? card.contentTint.apply(to: securityPrintTint) : style.tint
     }
 
     private var cardShape: RoundedRectangle {
-        RoundedRectangle(
-            cornerRadius: compact ? UIConstants.CornerRadius.compactCard : UIConstants
-                .CornerRadius.card,
-            style: .continuous,
+        RoundedRectangle(cornerRadius: card.cornerRadius, style: .continuous)
+    }
+
+    private var barHeight: CGFloat {
+        card.progressBarHeight
+    }
+
+    private func fraction(for days: Int) -> Double {
+        guard yearLength > 0 else { return 0 }
+        return min(1, max(0, Double(days) / Double(yearLength)))
+    }
+
+    private var regionArtworkLoadID: RegionArtworkLoadID {
+        RegionArtworkLoadID(
+            region: regionDays.region,
+            variant: variant,
+            isEnabled: card.regionShape != nil,
+            showsRecordedPoints: showsRecordedPoints,
+            recordedPointsID: recordedPointsID,
         )
     }
 
-    private var fraction: Double {
-        guard yearLength > 0 else { return 0 }
-        return min(1, Double(regionDays.days) / Double(yearLength))
+    /// How a count change plays out while the card is on screen. Reduce Motion is
+    /// already resolved into it by the stylesheet.
+    private var dayCount: WhereStylesheet.CardStyles.DayCountStyle {
+        cardStyles.dayCount
+    }
+
+    private var accessibilityLabel: String {
+        guard let estimatedDays else {
+            return WhereFormat.regionDaysAccessibility(
+                region: regionDays.region.localizedName,
+                days: regionDays.days,
+            )
+        }
+        return WhereFormat.regionDaysEstimatedAccessibility(
+            region: regionDays.region.localizedName,
+            recordedDays: regionDays.days,
+            estimatedDays: estimatedDays,
+        )
     }
 
     /// A circular rubber-stamp "entry" impression: the region glyph and year
@@ -51,254 +183,350 @@ struct RegionSummaryCard: View {
         EntryStamp(
             title: regionDays.region.localizedName.uppercased(),
             year: year,
-            symbolName: style.symbolName,
-            tint: style.tint,
-            size: compact ? UIConstants.Size.entryStampCompact : UIConstants.Size.entryStamp,
-            showsArcText: !compact,
+            symbol: style.symbol,
+            tint: foregroundPrintTint,
+            style: card.entryStamp,
+            regionPath: regionPaths?.stamp ?? Path(),
+            regionShape: card.regionShape,
         )
     }
 
     /// A faint, region-tinted "security print" behind the content: a guilloché
     /// rosette of subtly wobbling concentric rings plus an oversized region
-    /// glyph watermarked into the corner, the way a passport page is printed
-    /// beneath its stamps.
+    /// glyph and microprinted silhouette border, the way a passport page is
+    /// printed beneath its stamps.
     private var stampPaper: some View {
-        ZStack {
-            Canvas { context, size in
-                let wobble: CGFloat = compact ? 2 : 3
-                let lineWidth: CGFloat = compact ? 2 : 3
-                func rosette(center: CGPoint, spacing: CGFloat, opacity: Double) {
-                    let ringCount = Int(max(size.width, size.height) / spacing)
-                    for ring in 1 ... max(1, ringCount) {
-                        let angle = Double(ring) * 0.55
-                        let ringCenter = CGPoint(
-                            x: center.x + CGFloat(cos(angle)) * wobble,
-                            y: center.y + CGFloat(sin(angle)) * wobble,
-                        )
-                        let radius = CGFloat(ring) * spacing
-                        let rect = CGRect(
-                            x: ringCenter.x - radius,
-                            y: ringCenter.y - radius,
-                            width: radius * 2,
-                            height: radius * 2,
-                        )
-                        context.stroke(
-                            Path(ellipseIn: rect),
-                            with: .color(style.tint.opacity(opacity)),
-                            lineWidth: lineWidth,
-                        )
-                    }
-                }
-                // A bold rosette behind the stamp, plus a smaller, fainter one
-                // in the opposite corner for denser, layered security print.
-                rosette(
-                    center: CGPoint(x: size.width * 0.8, y: size.height * 0.5),
-                    spacing: compact ? 13 : 18,
-                    opacity: 0.12,
-                )
-                rosette(
-                    center: CGPoint(x: size.width * 0.12, y: size.height * 0.22),
-                    spacing: compact ? 11 : 15,
-                    opacity: 0.08,
+        // Read the main-actor `style.tint` and the value-type `rosette` spec once
+        // here so the nonisolated `Canvas` renderer closure captures `Sendable`
+        // values rather than reaching back into main-actor state.
+        let tint = securityPrintTint
+        let rosette = card.rosette
+        let rosetteFill = cardStyles.rosetteFill
+        return ZStack {
+            SecurityPrintRosette(
+                tint: tint,
+                wobble: rosette.wobble,
+                lineWidth: rosette.lineWidth,
+                primaryRingSpacing: rosette.primaryRingSpacing,
+                secondaryRingSpacing: rosette.secondaryRingSpacing,
+                primaryOpacity: rosetteFill.primary,
+                secondaryOpacity: rosetteFill.secondary,
+            )
+
+            if
+                let regionShape = card.regionShape,
+                let regionPath = regionPaths?.microprint,
+                !regionPath.isEmpty
+            {
+                RegionOutlineSecurityBorder(
+                    paths: [regionPath],
+                    tint: tint,
+                    cornerRadius: card.cornerRadius,
+                    inset: regionShape.securityBorder.inset,
+                    glyphSize: regionShape.securityBorder.glyphSize,
+                    spacing: regionShape.securityBorder.spacing,
+                    opacity: regionShape.securityBorder.opacity,
                 )
             }
 
-            Image(systemName: style.symbolName)
-                .font(.system(
-                    size: compact
-                        ? UIConstants.Size.stampWatermarkCompact
-                        : UIConstants.Size.stampWatermark,
-                ))
-                .foregroundStyle(style.tint.opacity(0.08))
-                .rotationEffect(.degrees(-14))
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                .offset(
-                    x: compact ? UIConstants.Spacings.large : UIConstants.Spacings.xxxLarge,
-                    y: compact ? UIConstants.Spacings.regular : UIConstants.Spacings.large,
+            if
+                let regionShape = card.regionShape,
+                let regionPath = regionPaths?.watermark,
+                !regionPath.isEmpty
+            {
+                RegionOutlineArtwork(
+                    path: regionPath,
+                    tint: tint,
+                    style: regionShape.watermark,
+                    constellationPoints: showsRecordedPoints
+                        ? regionPaths?.constellation ?? []
+                        : [],
+                    constellationStyle: cardStyles.constellation,
                 )
+            } else {
+                Image(systemSymbol: style.symbol)
+                    .font(.system(size: card.watermarkFontSize))
+                    .foregroundStyle(tint.opacity(cardStyles.watermarkOpacity))
+                    .rotationEffect(.degrees(-14))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    .offset(x: card.watermarkOffset.width, y: card.watermarkOffset.height)
+            }
         }
+        .blendMode(card.paper == nil ? cardStyles.securityPrint.backgroundBlendMode : .normal)
         .clipShape(cardShape)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 
-    /// A layered, official-looking frame: a heavy solid outer line, a thin solid
-    /// line, a ring of perforation dots (Primary cards only), and a dashed inner
-    /// line — like the engraved, perforated edge of a passport page.
-    private var stampFrame: some View {
-        ZStack {
-            cardShape
-                .strokeBorder(style.tint.opacity(0.6), lineWidth: compact ? 2.5 : 3.5)
-            cardShape
-                .inset(by: UIConstants.Spacings.small)
-                .strokeBorder(style.tint.opacity(0.35), lineWidth: 1)
-            if !compact {
-                cardShape
-                    .inset(by: UIConstants.Spacings.large)
-                    .strokeBorder(
-                        style.tint.opacity(0.45),
-                        style: StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [0.01, 6]),
-                    )
-            }
-            cardShape
-                .inset(by: compact ? UIConstants.Spacings.large : UIConstants.Spacings.xxLarge)
-                .strokeBorder(
-                    style.tint.opacity(0.4),
-                    style: StrokeStyle(lineWidth: 1, dash: [5, 4]),
-                )
-        }
-        .allowsHitTesting(false)
+    private func loadRegionOutlines(_ regionOutlinePathCache: RegionOutlinePathCache) async
+        -> RegionArtworkPaths?
+    {
+        guard card.regionShape != nil else { return nil }
+        async let watermark = regionOutlinePathCache.path(
+            for: regionDays.region,
+            resolution: .medium,
+        )
+        async let stamp = regionOutlinePathCache.path(
+            for: regionDays.region,
+            resolution: .small,
+        )
+        async let microprint = regionOutlinePathCache.path(
+            for: regionDays.region,
+            resolution: .micro,
+        )
+        let visibleRecordedPoints = showsRecordedPoints ? recordedPoints : []
+        async let projectedPoints = regionOutlinePathCache.projectedPoints(
+            for: regionDays.region,
+            points: visibleRecordedPoints,
+        )
+        let (watermarkPath, stampPath, microprintPath, projected) = await (
+            watermark,
+            stamp,
+            microprint,
+            projectedPoints,
+        )
+        guard Task.isCancelled == false else { return nil }
+        let constellation = cardStyles.constellation
+        return RegionArtworkPaths(
+            watermark: watermarkPath,
+            stamp: stampPath,
+            microprint: microprintPath,
+            constellation: RegionLocationConstellationLayout.selectedPoints(
+                from: projected,
+                inside: watermarkPath,
+                gridResolution: constellation.gridResolution,
+                maximumCount: constellation.maximumPointCount,
+            ),
+        )
     }
 
-    var body: some View {
-        VStack(
-            alignment: .leading,
-            spacing: compact ? UIConstants.Spacings.regular : UIConstants.Spacings.xxLarge,
-        ) {
-            HStack(spacing: UIConstants.Spacings.large) {
-                Text(style.emoji)
-                    .font(compact ? .title2 : .largeTitle)
-                    .accessibilityHidden(true)
+    private var content: some View {
+        let regionName = Text(regionDays.region.localizedName)
+            .font(card.regionNameTypography.font)
+            .tracking(card.regionNameTracking)
+            .lineLimit(1)
+            .allowsTightening(true)
+            .minimumScaleFactor(0.7)
+            .foregroundStyle(contentTint)
+            .opacity(card.paper == nil ? cardStyles.nameOpacity : 1)
 
-                VStack(alignment: .leading, spacing: UIConstants.Spacings.xxSmall) {
-                    Text(regionDays.region.localizedName)
-                        .font(.system(compact ? .headline : .title3, design: .serif)
-                            .weight(.semibold))
-                        .textCase(.uppercase)
-                        .tracking(compact ? 1 : 1.5)
+        return VStack(alignment: .leading, spacing: card.contentSpacing) {
+            HStack(alignment: .top, spacing: stylesheet.spacing.large) {
+                VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
+                    regionName
                     if let caption {
                         Text(caption)
                             .font(.caption2.weight(.semibold))
                             .textCase(.uppercase)
                             .tracking(1)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(card.paper == nil
+                                ? AnyShapeStyle(.secondary)
+                                : AnyShapeStyle(contentTint))
                     }
                     if let places {
-                        Label(places, systemImage: "mappin.and.ellipse")
+                        Label(places, systemSymbol: .mappinAndEllipse)
                             .font(.caption2.weight(.medium))
-                            .foregroundStyle(style.tint)
-                            .lineLimit(1)
+                            .foregroundStyle(contentTint)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
 
                 Spacer(minLength: 0)
 
-                entryStamp
-            }
-
-            HStack(alignment: .firstTextBaseline, spacing: UIConstants.Spacings.small) {
-                Text(regionDays.days, format: .number)
-                    .font(
-                        compact
-                            ? .system(.title, design: .rounded, weight: .bold)
-                            : .system(
-                                size: UIConstants.Size.heroNumberFontSize,
-                                weight: .bold,
-                                design: .rounded,
-                            ),
-                    )
-                    .contentTransition(.numericText())
-                    .foregroundStyle(style.tint)
-                Text(Strings.dayUnit(regionDays.days))
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-            }
-
-            Capsule()
-                .fill(.quaternary)
-                .frame(height: UIConstants.Size.progressBarHeight)
-                .overlay(alignment: .leading) {
-                    GeometryReader { proxy in
-                        Capsule()
-                            .fill(style.tint.gradient)
-                            .frame(width: proxy.size.width * fraction)
-                    }
+                if renderPurpose == .content {
+                    entryStamp
                 }
-                .frame(height: UIConstants.Size.progressBarHeight)
-                .accessibilityHidden(true)
+            }
+
+            if let estimatedDays {
+                LocationCardEstimateSticker(
+                    recordedDays: regionDays.days,
+                    estimatedDays: estimatedDays,
+                    regionTint: contentTint,
+                    securityPrintTint: foregroundPrintTint,
+                    card: card,
+                    style: cardStyles.estimateSticker,
+                    transition: dayCount,
+                )
+            } else {
+                LocationCardDayCount(
+                    days: regionDays.days,
+                    tint: contentTint,
+                    card: card,
+                    transition: dayCount.transition(days: regionDays.days),
+                )
+            }
+
+            if card.showsProgress {
+                Capsule()
+                    .fill(.quaternary)
+                    .frame(height: barHeight)
+                    .overlay(alignment: .leading) {
+                        GeometryReader { proxy in
+                            ZStack(alignment: .leading) {
+                                if let estimatedFraction {
+                                    Capsule()
+                                        .fill(securityPrintTint.opacity(
+                                            cardStyles.estimatedProgressOpacity,
+                                        ))
+                                        .frame(width: proxy.size.width * estimatedFraction)
+                                    if let estimatedDays, !estimatedDays.isExact {
+                                        Capsule()
+                                            .fill(securityPrintTint.opacity(
+                                                cardStyles.estimatedProgressOpacity,
+                                            ))
+                                            .frame(width: proxy.size
+                                                .width * fraction(for: estimatedDays.lower))
+                                        Rectangle()
+                                            .fill(securityPrintTint)
+                                            .frame(width: barHeight / 3)
+                                            .offset(x: proxy.size
+                                                .width * fraction(for: estimatedDays.lower))
+                                    }
+                                }
+                                Capsule()
+                                    .fill(contentTint)
+                                    .frame(width: proxy.size.width * recordedFraction)
+                            }
+                            .frame(width: proxy.size.width, height: barHeight, alignment: .leading)
+                            .clipShape(.capsule)
+                        }
+                    }
+                    .frame(height: barHeight)
+                    .accessibilityHidden(true)
+            }
         }
-        .padding(compact ? UIConstants.Padding.compactCard : UIConstants.Padding.card)
+        // What makes the count's `.contentTransition` run at all — one morphs
+        // only inside an animation transaction — and it sweeps the ambient bar,
+        // which reads the same count, in the same beat.
+        .animation(dayCount.animation, value: regionDays.days)
+        .animation(dayCount.animation, value: estimatedDays)
+        .padding(card.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background { stampPaper }
-        .glassEffect(.regular.tint(style.tint.opacity(0.18)), in: cardShape)
-        .holographicSheen(
-            roll: tilt?.roll ?? 0,
-            pitch: tilt?.pitch ?? 0,
-            in: cardShape,
-            tint: .white,
-            intensity: compact ? 0.5 : 1,
-        )
-        .overlay { stampFrame }
-        .clipShape(cardShape)
-        .shadow(
-            color: style.tint.opacity(compact ? 0.55 : 0.75),
-            radius: compact
-                ? UIConstants.Shadow.cardGlowRadiusCompact
-                : UIConstants.Shadow.cardGlowRadius,
-        )
-        .shadow(
-            color: style.tint.opacity(compact ? 0.4 : 0.6),
-            radius: compact ? UIConstants.Shadow.cardRadiusCompact : UIConstants.Shadow.cardRadius,
-            y: compact ? UIConstants.Shadow.cardOffsetYCompact : UIConstants.Shadow.cardOffsetY,
-        )
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            Strings.regionDaysAccessibility(
-                region: regionDays.region.localizedName,
-                days: regionDays.days,
-            ),
+    }
+
+    var body: some View {
+        content
+            .modifier(RegionCardSurface(
+                card: card,
+                glassTintOpacity: cardStyles.glassTintOpacity,
+                tint: style.tint,
+                interactive: interactive,
+                tilt: tilt,
+            ))
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityValue(places ?? "")
+            .regionArtworkTask(
+                id: regionArtworkLoadID,
+                displayKey: regionArtworkLoadID.staticArtworkID,
+                model: artworkModel,
+                load: loadRegionOutlines,
+            )
+    }
+}
+
+/// Restarts cached artwork loading when a designer changes the outline treatment
+/// or the user changes GPS-dot visibility without changing the card's region.
+struct RegionArtworkLoadID: Equatable {
+    struct StaticArtworkID: Equatable {
+        let region: Region
+        let variant: WhereStylesheet.CardStyle.Variant
+        let isEnabled: Bool
+    }
+
+    let region: Region
+    let variant: WhereStylesheet.CardStyle.Variant
+    let isEnabled: Bool
+    let showsRecordedPoints: Bool
+    let recordedPointsID: RegionCardLocations.ID?
+
+    var staticArtworkID: StaticArtworkID {
+        StaticArtworkID(
+            region: region,
+            variant: variant,
+            isEnabled: isEnabled,
         )
     }
 }
 
 /// A circular rubber-stamp impression — double ring, centered region glyph and
 /// year, with the region name curved along the top arc — tilted as if an
-/// official pressed it onto a passport page. Sizes scale off `size` so it reads
-/// the same on the big Primary cards and the compact Elsewhere ones.
+/// official pressed it onto a passport page. The card stylesheet owns its
+/// complete drawing treatment for both regular and compact cards.
 private struct EntryStamp: View {
     let title: String
     let year: Int
-    let symbolName: String
+    let symbol: SFSymbol
     let tint: Color
-    let size: CGFloat
-    var showsArcText = true
+    let style: WhereStylesheet.CardStyle.EntryStamp
+    let regionPath: Path
+    let regionShape: WhereStylesheet.CardStyle.RegionShape?
 
     var body: some View {
+        let size = style.size
         ZStack {
             Circle()
-                .strokeBorder(tint.opacity(0.7), lineWidth: size * 0.035)
+                .strokeBorder(
+                    tint.opacity(style.outerRing.opacity),
+                    lineWidth: size * style.outerRing.lineWidthFraction,
+                )
             Circle()
                 .strokeBorder(
-                    tint.opacity(0.45),
+                    tint.opacity(style.innerRing.opacity),
                     style: StrokeStyle(
-                        lineWidth: size * 0.012,
-                        dash: [size * 0.05, size * 0.035],
+                        lineWidth: size * style.innerRing.lineWidthFraction,
+                        dash: [
+                            size * style.innerRing.dash.lengthFraction,
+                            size * style.innerRing.dash.spacingFraction,
+                        ],
                     ),
                 )
-                .padding(size * 0.13)
+                .padding(size * style.innerRing.insetFraction)
 
-            VStack(spacing: size * 0.02) {
-                Image(systemName: symbolName)
-                    .font(.system(size: size * 0.26))
+            VStack(spacing: size * style.content.spacingFraction) {
+                if let regionShape, !regionPath.isEmpty {
+                    RegionOutlineArtwork(
+                        path: regionPath,
+                        tint: tint,
+                        style: regionShape.stamp,
+                    )
+                    .frame(
+                        width: size * style.content.artworkExtent.width,
+                        height: size * style.content.artworkExtent.height,
+                    )
+                } else {
+                    Image(systemSymbol: symbol)
+                        .font(style.content.symbolFont.font(for: size))
+                }
                 Text(verbatim: String(year))
-                    .font(.system(size: size * 0.15, weight: .bold, design: .serif))
+                    .font(style.content.yearFont.font(for: size))
                     .monospacedDigit()
             }
-            .foregroundStyle(tint.opacity(0.85))
+            .foregroundStyle(tint.opacity(style.content.opacity))
 
-            if showsArcText {
+            if let arc = style.arc {
                 ArcText(
                     text: title,
-                    radius: size * 0.37,
-                    font: .system(size: size * 0.1, weight: .semibold, design: .serif),
-                    color: tint.opacity(0.7),
+                    size: size,
+                    tint: tint,
+                    style: arc,
                 )
             }
         }
         .frame(width: size, height: size)
-        .rotationEffect(.degrees(-8))
+        .rotationEffect(.degrees(style.rotationDegrees))
         .accessibilityHidden(true)
     }
+}
+
+/// The cached render artifacts both card sizes consume together.
+private struct RegionArtworkPaths {
+    let watermark: Path
+    let stamp: Path
+    let microprint: Path
+    let constellation: [RegionLocationConstellationLayout.Point]
 }
 
 /// Lays out `text` along the upper arc of a circle of the given `radius`,
@@ -307,19 +535,22 @@ private struct EntryStamp: View {
 /// region names both stay legible.
 private struct ArcText: View {
     let text: String
-    let radius: CGFloat
-    let font: Font
-    let color: Color
+    let size: CGFloat
+    let tint: Color
+    let style: WhereStylesheet.CardStyle.EntryStamp.Arc
 
     var body: some View {
         let characters = Array(text)
-        let sweep = min(250, Double(characters.count) * 17)
+        let sweep = min(
+            style.maximumSweepDegrees,
+            Double(characters.count) * style.sweepDegreesPerCharacter,
+        )
         ZStack {
             ForEach(Array(characters.enumerated()), id: \.offset) { index, character in
                 Text(String(character))
-                    .font(font)
-                    .foregroundStyle(color)
-                    .offset(y: -radius)
+                    .font(style.font.font(for: size))
+                    .foregroundStyle(tint.opacity(style.opacity))
+                    .offset(y: -size * style.radiusFraction)
                     .rotationEffect(angle(at: index, count: characters.count, sweep: sweep))
             }
         }
@@ -342,10 +573,94 @@ private struct ArcText: View {
             )
             RegionSummaryCard(
                 regionDays: RegionDays(region: .europeanUnion, days: 22),
-                compact: true,
+                variant: .elsewhere,
                 year: 2026,
             )
         }
         .padding()
+        .whereBroadwayRoot()
+    }
+
+    #Preview("Changing count") {
+        ChangingCountPreview()
+            .whereBroadwayRoot()
+    }
+
+    /// Stands in for the count changing under the user, which is otherwise only
+    /// reachable by waiting for a sample to land: stepping the count plays the
+    /// same morph the live card does.
+    private struct ChangingCountPreview: View {
+        @State private var days = 148
+
+        var body: some View {
+            VStack {
+                RegionSummaryCard(
+                    regionDays: RegionDays(region: .california, days: days),
+                    caption: "Home base",
+                    year: 2026,
+                )
+                Stepper(value: $days, in: 0 ... 365) {
+                    Text(verbatim: "Days: \(days)")
+                }
+            }
+            .padding()
+        }
+    }
+#endif
+
+#if DEBUG
+    import SnapshotKit
+
+    extension RegionSummaryCard: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            for variant in [WhereStylesheet.CardStyle.Variant.regular, .compact, .elsewhere] {
+                themedSnapshot(variant: variant, reduceTransparency: false)
+                themedSnapshot(variant: variant, reduceTransparency: true)
+            }
+        }
+
+        private static func themedSnapshot(
+            variant: WhereStylesheet.CardStyle.Variant,
+            reduceTransparency: Bool,
+        ) -> SnapshotCase {
+            let cache = RegionOutlinePathCache()
+            let name = switch variant {
+                case .regular: "Regular"
+                case .compact: "Compact"
+                case .elsewhere: "Elsewhere"
+            }
+            return whereThemeSnapshot(
+                name: name + (reduceTransparency ? "ReduceTransparency" : ""),
+                configurations: reduceTransparency ? .componentLightDark : .componentRepresentative,
+                onReadyToMeasure: {
+                    _ = await cache.path(for: .california, resolution: .medium)
+                    _ = await cache.path(for: .california, resolution: .small)
+                    _ = await cache.path(for: .california, resolution: .micro)
+                },
+            ) {
+                RegionSummaryCard(
+                    regionDays: RegionDays(
+                        region: .california,
+                        days: variant == .elsewhere ? 2 : 148,
+                    ),
+                    places: variant == .elsewhere ? "San Francisco, United States" : nil,
+                    variant: variant,
+                    estimatedDays: variant == .elsewhere ? nil : DayBounds(lower: 180, upper: 220),
+                    year: 2026,
+                )
+                .padding(24)
+                .background(.background)
+                .environment(\.regionOutlinePathCache, cache)
+                .bTraitOverrides { traits, overrides in
+                    var accessibility = traits.accessibility
+                    accessibility.isReduceTransparencyEnabled = reduceTransparency
+                    overrides.accessibility = accessibility
+                }
+            }
+        }
+    }
+
+    #Preview("Themes") {
+        RegionSummaryCard.snapshotPreviews
     }
 #endif

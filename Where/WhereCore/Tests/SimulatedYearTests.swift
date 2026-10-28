@@ -1,6 +1,7 @@
 import Foundation
+import RegionKit
 import Testing
-import WhereCore
+@_spi(Testing) import WhereCore
 
 struct SimulatedYearTests {
     private static let pacific = WhereCoreTestSupport.pacific
@@ -70,7 +71,7 @@ struct SimulatedYearTests {
         let report = try await Self.fixture.value.report
 
         let byMonth = Dictionary(grouping: report.days) {
-            Self.calendar.component(.month, from: $0.date)
+            $0.day.month
         }
 
         func totals(_ month: Int) -> [Region: Int] {
@@ -118,14 +119,17 @@ struct SimulatedYearTests {
             month: 11,
             day: 13,
         )) ?? Date()
-        try await services.journal.addManualDay(date: date, regions: [.california, .newYork])
+        try await services.journal.addManualDay(
+            date: date,
+            regions: [.california, .newYork],
+            audit: nil,
+        )
 
         let after = try await services.reports.yearReport(for: SimulatedYear.year)
         #expect(after.days.count == before.days.count + 1)
 
         let nov13 = after.days.first { day in
-            let components = Self.calendar.dateComponents([.month, .day], from: day.date)
-            return components.month == 11 && components.day == 13
+            day.day == CalendarDay(year: SimulatedYear.year, month: 11, day: 13)
         }
         #expect(nov13?.regions == [.california, .newYork])
         #expect((after.totals[.california] ?? 0) == (before.totals[.california] ?? 0) + 1)

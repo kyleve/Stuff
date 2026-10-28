@@ -1,47 +1,89 @@
 import Foundation
-import LifecycleKit
-import SwiftUI
 import Testing
-import WhereCore
-import WhereTesting
-import WhereUI
+@_spi(Testing) @testable import WhereCore
+@_spi(Testing) @testable import WhereUI
 
 @MainActor
 struct OnboardingModelTests {
-    private func makePreferences() -> WherePreferences {
-        WherePreferences(store: InMemoryKeyValueStore())
+    @Test func freshInstallationStartsUnonboardedAndUnconfirmed() {
+        let model = makeModel(
+            preferences: makePreferences(),
+            contextStore: unconfirmedContextStore(kind: .phone),
+        )
+
+        #expect(model.hasOnboarded == false)
+        #expect(model.hasConfirmedRecordingChoice == false)
+        #expect(model.installationRecordingContext.recommendedRecordingEnabled)
     }
 
-    @Test func hasOnboardedDefaultsFalse() {
-        let model = WhereModel(preferences: makePreferences())
-        #expect(!model.hasOnboarded)
-    }
-
-    @Test func completeOnboardingPersists() {
+    @Test func confirmationPersistsLocalChoiceOutsidePreferences() throws {
         let preferences = makePreferences()
-        let model = WhereModel(preferences: preferences)
+        let contextStore = unconfirmedContextStore(kind: .tablet)
+        let model = makeModel(preferences: preferences, contextStore: contextStore)
+
+        let confirmed = try model.confirmInitialRecordingChoice(isEnabled: false)
         model.completeOnboarding()
+
         #expect(model.hasOnboarded)
+        #expect(model.hasConfirmedRecordingChoice)
+        #expect(confirmed.automaticRecordingEnabled == false)
 
-        // A fresh model over the same preferences sees onboarding as done.
-        let relaunched = WhereModel(preferences: preferences)
+        let relaunched = makeModel(preferences: preferences, contextStore: contextStore)
         #expect(relaunched.hasOnboarded)
+        #expect(relaunched.hasConfirmedRecordingChoice)
+        #expect(relaunched.installationRecordingContext == confirmed)
     }
-}
 
-@MainActor
-struct OnboardingViewTests {
-    @Test func onboardingViewRenders() throws {
-        // Onboarding reads both the app model and the logged-in session; the
-        // injected services build the session up front, so inject both.
-        let model = WhereModel(services: PreviewSupport.previewServices())
-        let view = OnboardingView(bridge: LifecycleStepUIBridge(reason: .userForeground))
-            .environment(model)
-            .environment(model.session)
+    @Test func retryPersistsAChangedRecordingChoice() throws {
+        let contextStore = unconfirmedContextStore(kind: .phone)
+        let model = makeModel(preferences: makePreferences(), contextStore: contextStore)
 
-        try show(UIHostingController(rootView: view)) { hosted in
-            waitForOneRunloop()
-            #expect(hosted.view != nil)
-        }
+        _ = try model.confirmInitialRecordingChoice(isEnabled: true)
+        let retried = try model.confirmInitialRecordingChoice(isEnabled: false)
+
+        #expect(retried.automaticRecordingEnabled == false)
+        #expect(try contextStore.resolve().automaticRecordingEnabled == false)
+    }
+
+    @Test func restoredOnboardingFlagDoesNotConfirmANewInstallation() {
+        let restoredPreferences = makePreferences()
+        restoredPreferences.hasOnboarded = true
+        let model = makeModel(
+            preferences: restoredPreferences,
+            contextStore: unconfirmedContextStore(kind: .tablet),
+        )
+
+        #expect(model.hasOnboarded)
+        #expect(model.hasConfirmedRecordingChoice == false)
+        #expect(model.installationRecordingContext.recommendedRecordingEnabled == false)
+    }
+
+    private func makeModel(
+        preferences: WherePreferences,
+        contextStore: InMemoryInstallationRecordingContextStore,
+    ) -> WhereModel {
+        WhereModel(
+            preferences: preferences,
+            installationContextStore: contextStore,
+            makeBootstrap: { _ in UnusedBootstrap() },
+            logSystem: .isolated(),
+        )
+    }
+
+    private func unconfirmedContextStore(
+        kind: RecordingDeviceKind,
+    ) -> InMemoryInstallationRecordingContextStore {
+        InMemoryInstallationRecordingContextStore(
+            context: InstallationRecordingContext(
+                currentDevice: CurrentRecordingDevice(
+                    id: RecordingDeviceID(rawValue: UUID()),
+                    systemName: kind == .tablet ? "iPad" : "iPhone",
+                    kind: kind,
+                ),
+                registeredAt: Date(timeIntervalSinceReferenceDate: 0),
+                recordingChoice: .unconfirmed,
+                isRejoining: false,
+            ),
+        )
     }
 }

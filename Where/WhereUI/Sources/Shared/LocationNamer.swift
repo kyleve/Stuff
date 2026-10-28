@@ -1,33 +1,33 @@
 import CoreLocation
 import Foundation
+import MapKit
+import PeriscopeCore
+import RegionKit
 import WhereCore
 
 /// The human-readable pieces of a reverse-geocoded coordinate, and the rule
 /// for turning them into a single "City, Country" label. Split out from the
 /// geocoder so the formatting is a pure, testable value (constructing real
-/// `CLPlacemark`s is impractical in unit tests).
+/// MapKit results is impractical in unit tests).
 struct PlaceComponents: Equatable {
-    var locality: String?
-    var area: String?
+    var city: String?
     var country: String?
 
-    /// A compact label: the most specific available place, qualified by
-    /// country. Prefers the city (`locality`), falling back to the state /
-    /// province (`area`); returns `nil` only when nothing is known.
+    /// A compact label: the city qualified by country. Falls back to whichever
+    /// single piece is known; returns `nil` only when neither is.
     var displayName: String? {
-        guard let primary = locality ?? area else { return country }
-        guard let country else { return primary }
-        return "\(primary), \(country)"
+        guard let city else { return country }
+        guard let country else { return city }
+        return "\(city), \(country)"
     }
 }
 
 extension PlaceComponents {
-    init(placemark: CLPlacemark) {
-        self.init(
-            locality: placemark.locality,
-            area: placemark.administrativeArea,
-            country: placemark.country,
-        )
+    /// MapKit's geocoder folds the old `CLPlacemark` fields into
+    /// formatted strings; `cityName` and `regionName` (the country) are the two
+    /// pieces this compact teaser needs.
+    init(_ representations: MKAddressRepresentations) {
+        self.init(city: representations.cityName, country: representations.regionName)
     }
 }
 
@@ -39,9 +39,7 @@ extension PlaceComponents {
 /// Failures (offline, rate-limited, mid-ocean) resolve to `nil` and aren't
 /// cached, so a later attempt can succeed. This is best-effort sugar on top of
 /// the coordinates the app already stores; nothing depends on it resolving.
-actor LocationNamer {
-    static let shared = LocationNamer()
-
+actor LocationNamer: PlaceNaming {
     /// ~0.05° (~5–6 km) buckets: fine enough to separate cities, coarse
     /// enough that a day's worth of jitter around one place hits a single
     /// cache entry (and a single geocode).
@@ -75,14 +73,36 @@ actor LocationNamer {
         return name
     }
 
-    /// Creates a throwaway `CLGeocoder` per call (sidestepping its
-    /// one-request-at-a-time constraint) and maps the first placemark to a
-    /// label. Returns `nil` on any failure.
+    /// Reverse-geocodes `coordinate` with MapKit and maps the first result to a
+    /// label, returning `nil` on any failure. Runs on the main actor because
+    /// `MKReverseGeocodingRequest` vends its (non-`Sendable`) `MKMapItem`s
+    /// there; only the resulting `String` crosses back.
+    ///
+    /// Every `nil` is honest, but they aren't all failures: a lookup with no
+    /// match is a real answer and stays quiet, while a refused coordinate or a
+    /// thrown request warns (see ``LocationNamerLog``).
+    @MainActor
     private static func reverseGeocode(_ coordinate: Coordinate) async -> String? {
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        guard
-            let placemark = try? await CLGeocoder().reverseGeocodeLocation(location).first
-        else { return nil }
-        return PlaceComponents(placemark: placemark).displayName
+        guard let request = MKReverseGeocodingRequest(location: location) else {
+            logger.unusableCoordinate()
+            return nil
+        }
+        do {
+            guard
+                let representations = try await request.mapItems.first?.addressRepresentations
+            else {
+                // No match — an unnamed place or open water. Nothing failed.
+                return nil
+            }
+            return PlaceComponents(representations).displayName
+        } catch {
+            logger.geocodeFailed(
+                error: .restricted(.errorDetails, error),
+            )
+            return nil
+        }
     }
+
+    private static let logger = WhereLog.root(LocationNamerLog.self)
 }

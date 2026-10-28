@@ -1,4 +1,5 @@
 import CoreLocation
+import RegionKit
 import WhereCore
 
 extension Coordinate {
@@ -16,5 +17,17 @@ extension Sequence<Coordinate> {
     /// `MapPolygon(coordinates:)`.
     var clLocationCoordinates: [CLLocationCoordinate2D] {
         map(\.clLocationCoordinate)
+    }
+}
+
+extension Coordinate {
+    /// Build a model `Coordinate` from a MapKit/CoreLocation coordinate — the
+    /// reverse of ``clLocationCoordinate``, used to hit-test a map tap against
+    /// `RegionAttributor` (the region picker's map mode).
+    init(_ clLocationCoordinate: CLLocationCoordinate2D) {
+        self.init(
+            latitude: clLocationCoordinate.latitude,
+            longitude: clLocationCoordinate.longitude,
+        )
     }
 }

@@ -1,0 +1,92 @@
+{
+  "Axe Playwright": {
+    "repo": "dequelabs/axe-core-npm",
+    "ref": "2375f7f5523a2accaeef91a3cb12e30a46e7fbea",
+    "version": "4.14.0"
+  },
+  "ESLint": {
+    "repo": "eslint/eslint",
+    "ref": "4637f9827a1ba137498eaee70957850621082815",
+    "version": "10.13.0"
+  },
+  "ESLint JavaScript Config": {
+    "repo": "eslint/eslint",
+    "ref": "84fb885d49ac810e79a9491276b4828b53d913e5",
+    "version": "10.0.1"
+  },
+  "ESLint Astro": {
+    "repo": "ota-meshi/eslint-plugin-astro",
+    "ref": "1cfdc01b0725bed3bd99cff8b5e0efefd2c47136",
+    "version": "3.2.1"
+  },
+  "Ruff": {
+    "repo": "astral-sh/ruff",
+    "ref": "30516b42ab972ffa2569e5efcfee81135da466d3",
+    "version": "0.17.2"
+  },
+  "Stylelint": {
+    "repo": "stylelint/stylelint",
+    "ref": "bc06c7cdb1413de3d8dc939b33af138ab7e59df1",
+    "version": "17.16.0"
+  },
+  "TypeScript ESLint": {
+    "repo": "typescript-eslint/typescript-eslint",
+    "ref": "4ad6b7553781fa3c93fc26642d7219d2e6624504",
+    "version": "8.72.1"
+  },
+  "Stylelint Standard Config": {
+    "repo": "stylelint/stylelint-config-standard",
+    "ref": "fbbe7b8e3efaf6ad84084268944be412e4bee3df",
+    "version": "40.0.0"
+  },
+  "Stylelint Recommended Config": {
+    "repo": "stylelint/stylelint-config-recommended",
+    "ref": "c25f0142f1d033676ee078c5edfed63d02f2370b",
+    "version": "18.0.0"
+  },
+  "Astro": {
+    "repo": "withastro/astro",
+    "ref": "c2c43a99f4d50676456c137ff88359579f78bf5c",
+    "version": "7.4.0"
+  },
+  "Astro Check": {
+    "repo": "withastro/astro",
+    "ref": "112d3ea14cf997218239fd8a436707e56a3815fb",
+    "version": "0.9.10"
+  },
+  "Fastlane": {
+    "repo": "fastlane/fastlane",
+    "ref": "452f0b4e0c7129d9e99dc6a1aa4b8780ebd334f5",
+    "version": "2.241.1"
+  },
+  "Node.js": {
+    "repo": "nodejs/node",
+    "ref": "f14cd3aa7bf9ca8df2cc5b8bb14beb0f335b1d93",
+    "version": "24.22.0"
+  },
+  "Node.js Types": {
+    "repo": "DefinitelyTyped/DefinitelyTyped",
+    "ref": "8cbe9250b21658bb36f7995a0b5cddcc22c8aa2e",
+    "version": "24.19.2"
+  },
+  "Playwright": {
+    "repo": "microsoft/playwright",
+    "ref": "cfe490d941f992655948eee8fd4fd94e1c4234bf",
+    "version": "1.64.1"
+  },
+  "ShellCheck": {
+    "repo": "koalaman/shellcheck",
+    "ref": "aac0823e6b58f8a499e856e93738082691cbf212",
+    "version": "0.11.0"
+  },
+  "TLA+ Tools": {
+    "repo": "tlaplus/tlaplus",
+    "ref": "5a47802b5c391f59ecdd44117981f4ff8c0656ba",
+    "version": "1.7.4"
+  },
+  "TypeScript": {
+    "repo": "microsoft/TypeScript",
+    "ref": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "version": "6.0.3"
+  }
+}

@@ -1,19 +1,33 @@
 #!/bin/bash
 set -euo pipefail
 
-# CI runs formatting via the workflow's `format` job;
-# this only configures the local pre-commit hook.
-git config core.hooksPath .githooks
+usage() {
+    cat <<'EOF'
+Usage: ./ide [--bootstrap] [--install] [--no-open] [--team-id ID]
 
-# Gitignored, machine-local mise config that overrides/extends .mise.toml.
-LOCAL_MISE=".mise.local.toml"
+Set up repository tooling and generate the Xcode project.
 
+Options:
+  --bootstrap, --setup  Install mise and the repository's pinned tools.
+  -i, --install        Resolve project and install-site dependencies first.
+  --no-open            Generate without opening Xcode.
+  --team-id ID         Persist the Apple Developer Team ID for this checkout.
+  -h, --help           Show this help without performing setup.
+EOF
+}
+
+# Parse the public interface before consulting Git, LFS, Xcode, or mise. Help
+# and usage errors must be safe in a fresh checkout and from another cwd.
+BOOTSTRAP=false
 INSTALL=false
 OPEN=true
 TEAM_ID=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
+        --bootstrap|--setup)
+            BOOTSTRAP=true
+            ;;
         -i|--install)
             INSTALL=true
             ;;
@@ -35,9 +49,155 @@ while [ $# -gt 0 ]; do
                 exit 1
             fi
             ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "error: unknown option '$1'" >&2
+            usage >&2
+            exit 1
+            ;;
     esac
     shift
 done
+
+script_root=$(CDPATH='' cd "$(dirname "$0")" && pwd)
+cd "$script_root"
+
+# CI runs formatting via the workflow's `format` job;
+# this only configures the local pre-commit hook.
+git config core.hooksPath .githooks
+
+# .githooks carries the Git LFS hooks too, and those exit non-zero when the
+# git-lfs binary is missing — so routing Git at them without it turns every
+# checkout, merge, and push into a hard failure. LFS isn't optional here
+# anyway: without it the snapshot reference images (see .gitattributes) arrive
+# as pointer files and every comparison fails. Check-and-instruct rather than
+# install, same as the Xcode check below.
+if ! command -v git-lfs >/dev/null 2>&1; then
+    cat >&2 <<'EOF'
+error: git-lfs is required — the snapshot reference images are stored in Git LFS,
+and the hooks in .githooks fail without it.
+
+Install it, then re-run ./ide:
+  brew install git-lfs
+EOF
+    exit 1
+fi
+
+# Idempotent; sets this repo's lfs clean/smudge filters if they aren't already.
+# --skip-repo leaves the hooks alone, since .githooks is tracked in the repo.
+git lfs install --local --skip-repo >/dev/null
+
+# Gitignored, machine-local mise config that overrides/extends .mise.toml.
+LOCAL_MISE=".mise.local.toml"
+
+# Resolve the mise binary: prefer one already on PATH, otherwise the common
+# install locations (the official installer's $HOME/.local/bin, Homebrew). This
+# lets bootstrap work before `mise activate` is in the user's shell. Prints
+# nothing when mise is unavailable, so callers treat an empty result as
+# "not found".
+find_mise() {
+    command -v mise 2>/dev/null && return
+    for candidate in "$HOME/.local/bin/mise" /opt/homebrew/bin/mise /usr/local/bin/mise; do
+        [ -x "$candidate" ] && { echo "$candidate"; return; }
+    done
+}
+
+# Idempotently add `mise activate` to the user's shell rc so mise and the pinned
+# tools land on PATH in new interactive shells. This is a convenience only —
+# ./ide and the git hooks resolve mise directly (see find_mise), so nothing
+# breaks without it. Only touches a known rc (zsh/bash), never duplicates the
+# line, and prints a manual note for other shells.
+ensure_mise_activation() {
+    local shell_name rc activate_line
+    shell_name="$(basename "${SHELL:-}")"
+    case "$shell_name" in
+        zsh)
+            rc="$HOME/.zshrc"
+            # shellcheck disable=SC2016 # Write this expression literally to the rc file.
+            activate_line='eval "$(mise activate zsh)"'
+            ;;
+        bash)
+            rc="$HOME/.bashrc"
+            # shellcheck disable=SC2016 # Write this expression literally to the rc file.
+            activate_line='eval "$(mise activate bash)"'
+            ;;
+        *)
+            echo "note: add mise activation to your shell's rc so mise is on PATH in new shells (https://mise.jdx.dev/getting-started.html)"
+            return
+            ;;
+    esac
+
+    if [ -f "$rc" ] && grep -q "mise activate" "$rc"; then
+        return
+    fi
+
+    printf '\n# Added by ./ide --bootstrap: put mise (and the pinned tools) on PATH\n%s\n' "$activate_line" >>"$rc"
+    echo "==> added mise activation to $rc (restart your shell or run: source $rc)"
+}
+
+# One-shot machine setup: verify Xcode, install mise, install the pinned tools.
+# Must run before anything that shells out to mise.
+if [ "$BOOTSTRAP" = true ]; then
+    # Xcode must be a full Xcode.app (not just the Command Line Tools) and
+    # runnable — Tuist can't operate against the CLT alone. We check-and-instruct
+    # rather than install: Xcode is a large, interactive App Store download.
+    xcode_path="$(xcode-select -p 2>/dev/null || true)"
+    if [ -z "$xcode_path" ] || [[ "$xcode_path" == *CommandLineTools* ]] || ! xcodebuild -version >/dev/null 2>&1; then
+        cat >&2 <<'EOF'
+error: a full Xcode installation is required (Tuist can't run against the Command Line Tools alone).
+
+Fix it, then re-run ./ide --bootstrap:
+  1. Install Xcode from the App Store (or https://developer.apple.com/download).
+  2. sudo xcode-select -s /Applications/Xcode.app
+  3. sudo xcodebuild -runFirstLaunch
+  4. sudo xcodebuild -license accept
+EOF
+        exit 1
+    fi
+
+    # Install mise (self-contained official installer — no Homebrew needed) if
+    # it isn't already available.
+    if [ -z "$(find_mise)" ]; then
+        echo "==> installing mise"
+        curl -fsSL https://mise.run | sh
+        ensure_mise_activation
+    fi
+
+    MISE="$(find_mise)"
+    if [ -z "$MISE" ]; then
+        echo "error: mise installation failed; install it manually from https://mise.jdx.dev" >&2
+        exit 1
+    fi
+
+    # Every clone and worktree has a distinct config path, and mise refuses to
+    # read an untrusted .mise.toml. Running this explicit bootstrap is the trust
+    # boundary, so make fresh checkouts usable without a separate manual step.
+    echo "==> mise trust"
+    "$MISE" trust
+
+    # Install the pinned tools from .mise.toml.
+    echo "==> mise install"
+    "$MISE" install
+
+    # Codex may create a managed worktree with LFS smudging disabled, leaving
+    # snapshot references as pointer text even though git-lfs is installed.
+    # Bootstrap is already the networked, one-shot setup boundary, and all
+    # worktrees share the repository's LFS object cache, so hydrate the current
+    # checkout here deterministically. A failed download must fail setup: an
+    # apparently ready checkout with pointer-backed references cannot run or
+    # re-record snapshots honestly.
+    echo "==> git lfs pull"
+    git lfs pull
+fi
+
+MISE="$(find_mise)"
+if [ -z "$MISE" ]; then
+    echo "error: mise not found — run ./ide --bootstrap first to set up this machine." >&2
+    exit 1
+fi
 
 # Persist the Apple Developer Team ID into the gitignored .mise.local.toml so
 # Project.swift can read TUIST_DEVELOPMENT_TEAM and stamp DEVELOPMENT_TEAM into
@@ -46,21 +206,28 @@ done
 # TOML: `mise set` creates the file and the [env] table as needed.
 if [ -n "$TEAM_ID" ]; then
     echo "==> mise set TUIST_DEVELOPMENT_TEAM=$TEAM_ID (in $LOCAL_MISE)"
-    mise set --file "$LOCAL_MISE" "TUIST_DEVELOPMENT_TEAM=$TEAM_ID"
+    "$MISE" set --file "$LOCAL_MISE" "TUIST_DEVELOPMENT_TEAM=$TEAM_ID"
 fi
 
 if [ "$INSTALL" = true ]; then
     echo "==> tuist install"
-    mise exec -- tuist install
+    "$MISE" exec -- tuist install
+fi
+
+if [ "$BOOTSTRAP" = true ] || [ "$INSTALL" = true ]; then
+    echo "==> install locked Ruby dependencies"
+    BUNDLE_PATH=vendor/bundle BUNDLE_FROZEN=true "$MISE" exec -- bundle install
+    echo "==> install site dependencies"
+    "$MISE" exec -- npm ci
 fi
 
 echo "==> sync-agents --install"
-./sync-agents --install
+"$MISE" exec -- ./sync-agents --install
 
 if [ "$OPEN" = true ]; then
     echo "==> tuist generate"
-    mise exec -- tuist generate
+    "$MISE" exec -- tuist generate
 else
     echo "==> tuist generate --no-open"
-    mise exec -- tuist generate --no-open
+    "$MISE" exec -- tuist generate --no-open
 fi

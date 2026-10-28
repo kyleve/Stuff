@@ -1,3 +1,4 @@
+import TestHostSupport
 import UIKit
 
 @MainActor
@@ -10,8 +11,11 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         options _: UIScene.ConnectionOptions,
     ) {
         guard let windowScene = scene as? UIWindowScene else { return }
-        window = UIWindow(windowScene: windowScene)
-        window?.rootViewController = UIViewController()
-        window?.makeKeyAndVisible()
+        let window = UIWindow(windowScene: windowScene)
+        window.rootViewController = UIViewController()
+        // Marks this as the window `TestHostSupport.hostKeyWindow()` / `show()` target.
+        window.isMainTestHostWindow = true
+        window.makeKeyAndVisible()
+        self.window = window
     }
 }

@@ -1,7 +1,14 @@
 import Foundation
+import RegionKit
 
 /// Type-erased entry point so a heterogeneous detector list runs uniformly.
 public protocol DataIssueDetecting: Sendable {
+    /// The category of issue this detector finds — its identity to the scanner,
+    /// which spans each detector's pass under it so a slow scan attributes to a
+    /// detector rather than to "the scan". One detector per category; a second
+    /// detector for the same category would pool its timings with the first.
+    var detects: DataIssueCategory { get }
+
     func detectAnyIssues(in input: DataIssueInput) -> [any DataIssue]
 }
 
@@ -19,9 +26,15 @@ extension DataIssueDetector {
 public struct DataIssueInput: Sendable {
     public let year: Int
     public let report: YearReport
-    public let otherDayCoordinates: [Date: [Coordinate]]
+    public let otherDayCoordinates: [CalendarDay: [Coordinate]]
+    /// The year's passive GPS fixes, queryable per day, for a speed-based
+    /// detector that needs per-fix timestamps the
+    /// aggregated `report` has collapsed away. Lazy and memoized (see
+    /// `DaySamples`), so a scan whose detectors never consult it does no
+    /// grouping work.
+    public let daySamples: DaySamples
     public let primaryRegions: [Region]
-    public let attributor: RegionAttributor
+    public let attributor: any RegionAttributing
     public let driftThresholdMeters: Double
     public let calendar: Calendar
     public let now: Date
@@ -29,9 +42,10 @@ public struct DataIssueInput: Sendable {
     public init(
         year: Int,
         report: YearReport,
-        otherDayCoordinates: [Date: [Coordinate]],
+        otherDayCoordinates: [CalendarDay: [Coordinate]],
+        daySamples: DaySamples,
         primaryRegions: [Region],
-        attributor: RegionAttributor,
+        attributor: any RegionAttributing,
         driftThresholdMeters: Double,
         calendar: Calendar,
         now: Date,
@@ -39,6 +53,7 @@ public struct DataIssueInput: Sendable {
         self.year = year
         self.report = report
         self.otherDayCoordinates = otherDayCoordinates
+        self.daySamples = daySamples
         self.primaryRegions = primaryRegions
         self.attributor = attributor
         self.driftThresholdMeters = driftThresholdMeters

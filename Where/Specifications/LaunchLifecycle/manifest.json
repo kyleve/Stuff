@@ -1,0 +1,17 @@
+{
+  "source": "pluscal",
+  "module": "LaunchLifecycle.tla",
+  "cases": [
+    {
+      "name": "broken",
+      "config": "Broken.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant MemoNoDoubleRun is violated."
+    },
+    {
+      "name": "current",
+      "config": "Current.cfg",
+      "expect": "pass"
+    }
+  ]
+}

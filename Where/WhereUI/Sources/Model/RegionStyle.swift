@@ -1,39 +1,42 @@
+import RegionKit
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
 /// Whimsical, location-themed styling for a `Region`: an SF Symbol, a playful
 /// emoji, and an accent color. Pure presentation, so it lives in `WhereUI`
 /// alongside the views it decorates.
+///
+/// Every region gets a stable style: a small set of hand-tuned looks for the
+/// regions the app started with, and an id-derived default (a deterministic
+/// tint from a palette) for everything else, so any of the 50+ available
+/// regions renders sensibly without a bespoke entry.
 public struct RegionStyle: Sendable {
-    public let symbolName: String
+    public let symbol: SFSymbol
     public let emoji: String
     public let tint: Color
 
-    public init(symbolName: String, emoji: String, tint: Color) {
-        self.symbolName = symbolName
+    public init(symbol: SFSymbol, emoji: String, tint: Color) {
+        self.symbol = symbol
         self.emoji = emoji
         self.tint = tint
     }
 
-    public static func style(for region: Region) -> RegionStyle {
-        switch region {
-            case .california:
-                RegionStyle(symbolName: "sun.max.fill", emoji: "🌴", tint: .orange)
-            case .newYork:
-                RegionStyle(symbolName: "building.2.fill", emoji: "🗽", tint: .indigo)
-            case .canada:
-                RegionStyle(symbolName: "leaf.fill", emoji: "🍁", tint: .red)
-            case .europeanUnion:
-                RegionStyle(symbolName: "star.circle.fill", emoji: "🇪🇺", tint: .blue)
-            case .other:
-                RegionStyle(symbolName: "location.magnifyingglass", emoji: "🧭", tint: .teal)
-        }
+    /// Build a style from a user-picked ``RegionAppearance`` (token → color).
+    public init(_ appearance: RegionAppearance) {
+        self.init(
+            symbol: appearance.symbolName.sfSymbol,
+            emoji: appearance.emoji,
+            tint: appearance.color.color,
+        )
     }
-}
 
-extension Region {
-    /// Convenience accessor so views can write `region.style`.
-    public var style: RegionStyle {
-        RegionStyle.style(for: self)
+    /// The look for a region with no user-picked appearance: the region's
+    /// default ``RegionAppearance`` (a hand-tuned look for the regions the app
+    /// shipped with, an id-derived default for everything else). Sharing
+    /// `RegionAppearanceCatalog.defaultAppearance(for:)` keeps the fallback and
+    /// the customization pre-fill in lockstep — a picked appearance always wins.
+    public static func fallbackStyle(for region: Region) -> RegionStyle {
+        RegionStyle(RegionAppearanceCatalog.defaultAppearance(for: region))
     }
 }

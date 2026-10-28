@@ -1,5 +1,5 @@
 import Foundation
-import LogKit
+import PeriscopeCore
 import UserNotifications
 
 /// Time of day (in the user's calendar) at which the daily "log before the day
@@ -39,8 +39,10 @@ public protocol LoggingReminderScheduling: Sendable {
     /// picture.
     ///
     /// - Parameters:
-    ///   - badgeCount: total unlogged days this year (the backlog). Shown as the
-    ///     app-icon badge when `enabled`, cleared to 0 otherwise.
+    ///   - badgeCount: the app-icon badge value the caller computed (unlogged-day
+    ///     backlog plus any decoupled data-issue count). Set verbatim whether or
+    ///     not `enabled`, so a caller that turns reminders off can still surface
+    ///     an issue count; pass 0 to clear.
     ///   - scheduleDays: upcoming days (today + a small buffer) that are still
     ///     unlogged and should each get a reminder at `reminderTime`. A day that
     ///     drops out of this set (because it got logged) has its pending and
@@ -57,19 +59,28 @@ public protocol LoggingReminderScheduling: Sendable {
     ) async
 }
 
-/// A `LoggingReminderScheduling` that does nothing. For SwiftUI previews and
-/// view-model tests that need a controller without touching
-/// `UNUserNotificationCenter`. Reports unauthorized so the UI's "denied"
-/// affordances stay exercisable.
+/// A `LoggingReminderScheduling` that does nothing. For SwiftUI previews,
+/// view-model tests, and demo mode — anything that needs a reconciler without
+/// touching `UNUserNotificationCenter`.
+///
+/// - Parameter authorized: what it reports back. Defaults to *un*authorized, so
+///   the UI's "denied" affordances stay exercisable in previews and tests. Demo
+///   mode passes `true`: it presents a fully-granted user (as its location
+///   source does), and a scheduler claiming denial there would both log a
+///   spurious warning and offer a dead-end trip to the Settings app.
 public struct NoopLoggingReminderScheduler: LoggingReminderScheduling {
-    public init() {}
+    private let authorized: Bool
+
+    public init(authorized: Bool = false) {
+        self.authorized = authorized
+    }
 
     public func requestAuthorization() async -> Bool {
-        false
+        authorized
     }
 
     public func isAuthorized() async -> Bool {
-        false
+        authorized
     }
 
     public func reconcile(
@@ -90,7 +101,7 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
     private let calendar: Calendar
 
     private static let identifierPrefix = "com.stuff.where.logging-reminder"
-    private static let logger = WhereLog.channel(.loggingReminderScheduler)
+    private static let logger = WhereLog.reminders(LoggingReminderSchedulerLog.self)
 
     public init(
         center: UNUserNotificationCenter = .current(),
@@ -116,8 +127,8 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         do {
             return try await center.requestAuthorization(options: [.alert, .sound, .badge])
         } catch {
-            Self.logger.error(
-                "Notification authorization request failed: \(error.localizedDescription)",
+            Self.logger.authorizationRequestFailed(
+                error: .restricted(.errorDetails, error),
             )
             return false
         }
@@ -140,9 +151,31 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         reminderTime: ReminderTime,
         enabled: Bool,
     ) async {
+        await Self.logger.measure(.reconcileNotifications, budget: .seconds(1)) {
+            await performReconcile(
+                badgeCount: badgeCount,
+                scheduleDays: scheduleDays,
+                reminderTime: reminderTime,
+                enabled: enabled,
+            )
+        }
+    }
+
+    /// `reconcile`'s body, split out so the span covers every path — including
+    /// the disabled one, which still walks both notification sets to remove what
+    /// it owns.
+    private func performReconcile(
+        badgeCount: Int,
+        scheduleDays: [Date],
+        reminderTime: ReminderTime,
+        enabled: Bool,
+    ) async {
         guard enabled else {
+            // Reminders are off, but the badge may still carry a decoupled
+            // data-issue count (see `ReminderReconciler`), so honor the requested
+            // count rather than forcing it to 0.
             await removeAllOwnedReminders()
-            await setBadge(0)
+            await setBadge(badgeCount)
             return
         }
 
@@ -150,16 +183,12 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
             case .authorized, .provisional, .ephemeral:
                 break
             case .notDetermined, .denied:
-                Self.logger.warning(
-                    "Logging reminders enabled but notification authorization not granted; reminders disabled",
-                )
+                Self.logger.authorizationNotGranted()
                 await removeAllOwnedReminders()
                 await setBadge(0)
                 return
             @unknown default:
-                Self.logger.warning(
-                    "Logging reminders enabled but notification authorization status is unknown; reminders disabled",
-                )
+                Self.logger.authorizationUnknown()
                 await removeAllOwnedReminders()
                 await setBadge(0)
                 return
@@ -208,8 +237,10 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         // every launch/foreground and after every user write, so a no-op
         // reconcile (the common case) stays quiet.
         if !pendingToRemove.isEmpty || !staleDelivered.isEmpty || !toSchedule.isEmpty {
-            Self.logger.info(
-                "Reconciled logging reminders (scheduled \(toSchedule.count), removed \(pendingToRemove.count); badge: \(badgeCount))",
+            Self.logger.reconciled(
+                scheduled: .shared(.count, toSchedule.count),
+                removed: .shared(.count, pendingToRemove.count),
+                badge: .shared(.count, badgeCount),
             )
         }
     }
@@ -220,8 +251,8 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         components.minute = time.minute
 
         let content = UNMutableNotificationContent()
-        content.title = String(localized: "reminder.notification.title", bundle: .module)
-        content.body = String(localized: "reminder.notification.body", bundle: .module)
+        content.title = String(localized: .reminderNotificationTitle)
+        content.body = String(localized: .reminderNotificationBody)
         content.sound = .default
 
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
@@ -233,8 +264,9 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         do {
             try await center.add(request)
         } catch {
-            Self.logger.error(
-                "Failed to schedule reminder \(identifier): \(error.localizedDescription)",
+            Self.logger.scheduleFailed(
+                identifier: .restricted(.identifier, identifier),
+                error: .restricted(.errorDetails, error),
             )
         }
     }
@@ -267,8 +299,8 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         do {
             try await center.setBadgeCount(max(0, count))
         } catch {
-            Self.logger.error(
-                "Failed to set badge count: \(error.localizedDescription)",
+            Self.logger.badgeUpdateFailed(
+                error: .restricted(.errorDetails, error),
             )
         }
     }

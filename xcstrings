@@ -1,0 +1,200 @@
+#!/usr/bin/swift
+
+// xcstrings — rewrite every String Catalog in the tree the way Xcode itself
+// serializes one, and (with --lint) check that they already are.
+//
+// Why this exists: Xcode rewrites a `.xcstrings` in place during an IDE build
+// whenever string extraction finds something the catalog doesn't have yet, and
+// it writes the whole file with its own serializer (Foundation's pretty-printed
+// JSON: two-space indent, `"key" : value` with a space before the colon, keys
+// sorted by code point, no trailing newline). A catalog written by anything else
+// — a migration script's `json.dump`, a hand edit — parses fine but differs on
+// every line, so the next build in Xcode lands thousands of lines of pure
+// serialization noise on top of the one entry it actually added. Keeping the
+// checked-in files byte-identical to Xcode's output keeps that diff honest.
+//
+// This only touches *formatting*. Catalog content — which keys exist, their
+// values, comments, and extraction state — belongs to Xcode and the translators;
+// normalizing never adds, drops, or edits an entry. See the Localization section
+// in Where/AGENTS.md.
+
+import Foundation
+
+let usage = """
+Usage: ./xcstrings [options] [path ...]
+
+Rewrites String Catalogs in Xcode's own serialization (content untouched).
+With no paths, walks the repository for every `.xcstrings`.
+
+Options:
+  --lint      Report catalogs that aren't normalized; write nothing. Exits 1 if any differ.
+  -h, --help  Show this help
+
+Examples:
+  ./xcstrings
+  ./xcstrings --lint
+  ./xcstrings Where/WhereUI/Sources/Resources/Localizable.xcstrings
+"""
+
+// MARK: - Xcode's serializer
+
+/// Serializes a parsed catalog the way Xcode's String Catalog writer does.
+///
+/// Foundation's `.prettyPrinted` output is the format, with one deviation that
+/// matters: `JSONSerialization.WritingOptions.sortedKeys` compares keys
+/// case-insensitively, while Xcode sorts them by code point — so a catalog with
+/// an auto-extracted `"Log today here"` alongside `"appIcon.title"` orders the
+/// capital first. Keys are sorted here and only leaf values are handed to
+/// Foundation, which keeps string escaping byte-identical to Xcode's.
+struct CatalogSerializer {
+    enum Failure: Error, CustomStringConvertible {
+        case unsupportedValue(Any)
+
+        var description: String {
+            switch self {
+            case let .unsupportedValue(value):
+                "unsupported JSON value in catalog: \(type(of: value)) (\(value))"
+            }
+        }
+    }
+
+    func data(from object: Any) throws -> Data {
+        var output = ""
+        try write(object, indent: 0, into: &output)
+        return Data(output.utf8)
+    }
+
+    private func write(_ value: Any, indent: Int, into output: inout String) throws {
+        switch value {
+        case let dictionary as [String: Any]:
+            try write(dictionary: dictionary, indent: indent, into: &output)
+        case let array as [Any]:
+            try write(array: array, indent: indent, into: &output)
+        default:
+            output += try fragment(for: value)
+        }
+    }
+
+    private func write(dictionary: [String: Any], indent: Int, into output: inout String) throws {
+        // Foundation renders an empty container as an open brace, a blank line,
+        // and the closing brace back at the container's own indent.
+        guard dictionary.isEmpty == false else {
+            output += "{\n\n\(pad(indent))}"
+            return
+        }
+        output += "{\n"
+        let keys = dictionary.keys.sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }
+        for (offset, key) in keys.enumerated() {
+            output += "\(pad(indent + 1))\(try fragment(for: key)) : "
+            try write(dictionary[key]!, indent: indent + 1, into: &output)
+            output += offset == keys.count - 1 ? "\n" : ",\n"
+        }
+        output += "\(pad(indent))}"
+    }
+
+    private func write(array: [Any], indent: Int, into output: inout String) throws {
+        guard array.isEmpty == false else {
+            output += "[\n\n\(pad(indent))]"
+            return
+        }
+        output += "[\n"
+        for (offset, element) in array.enumerated() {
+            output += pad(indent + 1)
+            try write(element, indent: indent + 1, into: &output)
+            output += offset == array.count - 1 ? "\n" : ",\n"
+        }
+        output += "\(pad(indent))]"
+    }
+
+    /// Renders a leaf through Foundation so escaping matches Xcode exactly:
+    /// serializing `[value]` and dropping the brackets is the shortest way to
+    /// reach the same encoder without reimplementing its escape rules.
+    private func fragment(for value: Any) throws -> String {
+        guard JSONSerialization.isValidJSONObject([value]) else {
+            throw Failure.unsupportedValue(value)
+        }
+        let data = try JSONSerialization.data(withJSONObject: [value], options: [.withoutEscapingSlashes])
+        return String(decoding: data.dropFirst().dropLast(), as: UTF8.self)
+    }
+
+    private func pad(_ indent: Int) -> String {
+        String(repeating: "  ", count: indent)
+    }
+}
+
+// MARK: - Command
+
+func normalized(_ url: URL) throws -> Data {
+    let original = try Data(contentsOf: url)
+    let object = try JSONSerialization.jsonObject(with: original, options: [])
+    let rewritten = try CatalogSerializer().data(from: object)
+    // A round-trip must preserve content exactly; anything else is a bug here
+    // rather than something to quietly write over a translator's work.
+    let reparsed = try JSONSerialization.jsonObject(with: rewritten, options: [])
+    guard NSDictionary(dictionary: object as? [String: Any] ?? [:])
+        .isEqual(to: reparsed as? [String: Any] ?? [:])
+    else {
+        throw CatalogSerializer.Failure.unsupportedValue(object)
+    }
+    return rewritten
+}
+
+func catalogs(under root: URL) throws -> [URL] {
+    let skipped: Set<String> = ["Derived", ".build", ".git", "build"]
+    var found: [URL] = []
+    let enumerator = FileManager.default.enumerator(
+        at: root,
+        includingPropertiesForKeys: nil,
+        options: [.skipsHiddenFiles],
+    )
+    while let url = enumerator?.nextObject() as? URL {
+        if url.hasDirectoryPath, skipped.contains(url.lastPathComponent) || url.pathExtension == "xcodeproj" {
+            enumerator?.skipDescendants()
+            continue
+        }
+        if url.pathExtension == "xcstrings" { found.append(url) }
+    }
+    return found.sorted { $0.path < $1.path }
+}
+
+var lintOnly = false
+var paths: [String] = []
+for argument in CommandLine.arguments.dropFirst() {
+    switch argument {
+    case "--lint": lintOnly = true
+    case "-h", "--help": print(usage); exit(0)
+    default:
+        guard argument.hasPrefix("-") == false else {
+            FileHandle.standardError.write(Data("error: unknown option '\(argument)' (see ./xcstrings --help)\n".utf8))
+            exit(1)
+        }
+        paths.append(argument)
+    }
+}
+
+let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+let targets = try paths.isEmpty ? catalogs(under: root) : paths.map { URL(fileURLWithPath: $0) }
+var offenders: [String] = []
+
+for url in targets {
+    let display = url.path.replacingOccurrences(of: root.path + "/", with: "")
+    let rewritten = try normalized(url)
+    guard try rewritten != Data(contentsOf: url) else { continue }
+    offenders.append(display)
+    if lintOnly {
+        print("not normalized: \(display)")
+    } else {
+        try rewritten.write(to: url)
+        print("normalized: \(display)")
+    }
+}
+
+if offenders.isEmpty {
+    let subject = targets.count == 1 ? "catalog already matches" : "catalogs already match"
+    print("\(targets.count) \(subject) Xcode's serialization.")
+} else if lintOnly {
+    let subject = offenders.count == 1 ? "catalog isn't" : "catalogs aren't"
+    fflush(stdout) // Keep the summary below the files it counts.
+    FileHandle.standardError.write(Data("\(offenders.count) \(subject) normalized — run ./xcstrings\n".utf8))
+    exit(1)
+}

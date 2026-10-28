@@ -10,15 +10,15 @@ public struct AbruptChangeIssue: DataIssue, Hashable {
     }
 
     public var id: DataIssueID {
-        .abruptChange(earlier: earlierDay.date, later: laterDay.date)
+        .abruptChange(earlier: earlierDay.day, later: laterDay.day)
     }
 
     public var category: DataIssueCategory {
         .abruptChange
     }
 
-    public var sortKey: Date {
-        laterDay.date
+    public var sortKey: CalendarDay {
+        laterDay.day
     }
 
     public var isDismissible: Bool {

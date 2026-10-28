@@ -1,0 +1,1048 @@
+import Foundation
+import TestHostSupport
+import Testing
+@_spi(Testing) import WhereCore
+@_spi(Testing) @testable import WhereUI
+
+/// Covers `YearReportModel`: the year report load (out-of-order year fetches, failed
+/// manual saves), the missing-day computation the banner / backfill read, the
+/// Resolve badge count, and the store-change observer that keeps them honest.
+@MainActor
+struct YearReportModelTests {
+    @Test func locationsUsesAllVisitedConfiguredRegionsWithStableTies() {
+        let model = YearReportModel(
+            services: PreviewSupport.previewServices(),
+            details: YearReportDetails(
+                primaryRegions: [.california, .newYork, .canada, .europeanUnion],
+                report: YearReport(year: 2026, days: [], totals: [
+                    .other: 40,
+                    .canada: 10,
+                    .newYork: 8,
+                    .california: 8,
+                    .europeanUnion: 0,
+                ]),
+                primaryRegionLocations: [:],
+            ),
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
+        #expect(model.locationRegions.map(\.region) == [.canada, .california, .newYork])
+        #expect(model.locationRegions.map(\.days) == [10, 8, 8])
+        #expect(model.ranking.primary.count == 2)
+        #expect(model.hasElsewhere)
+    }
+
+    @Test func olderSameYearReadCannotUndoNewCoordinates() async throws {
+        let store = try TestStore()
+        let services = PlanningModelTestSupport.services(store: store)
+        let model = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
+        let timestamp = Self.day(2026, 6, 1)
+        try await store.perform {
+            try await store.add(sample: LocationSample(
+                timestamp: timestamp,
+                coordinate: ElsewherePreview.vegas,
+                horizontalAccuracy: 10,
+                source: .gpsVisit,
+            ))
+        }
+        await model.refresh()
+        let originalReport = model.report
+        await store.enableFirstSamplesGate()
+        let older = Task { await model.refresh() }
+        await store.awaitFirstSamplesCall()
+        try await store.perform {
+            try await store.add(sample: LocationSample(
+                timestamp: timestamp,
+                coordinate: ElsewherePreview.portland,
+                horizontalAccuracy: 10,
+                source: .gpsVisit,
+            ))
+        }
+        await model.refresh()
+        #expect(model.elsewhereInput?.history.samples.count == 2)
+        await store.releaseFirstSamplesCall()
+        await older.value
+        #expect(model.report == originalReport)
+        #expect(model.elsewhereInput?.history.samples.count == 2)
+    }
+
+    @Test func elsewhereAvailabilitySurvivesRefreshFailureAndFollowsYearAndLastVisit() async throws {
+        let store = try TestStore()
+        let services = PlanningModelTestSupport.services(store: store)
+        let model = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
+        let day = Self.cday(2026, 6, 1)
+        try await services.journal.addManualDay(
+            date: day.startOfDay(in: Self.calendar),
+            regions: [.other],
+            audit: nil,
+        )
+        await model.refresh()
+        #expect(model.hasElsewhere)
+
+        await store.enableFirstSamplesGate()
+        let refresh = Task { await model.refresh() }
+        await store.awaitFirstSamplesCall()
+        #expect(model.hasElsewhere)
+        await store.releaseFirstSamplesCall()
+        await refresh.value
+
+        await model.select(year: 2025)
+        #expect(!model.hasElsewhere)
+        await model.select(year: 2026)
+        #expect(model.hasElsewhere)
+        try await services.journal.addManualDay(
+            date: day.startOfDay(in: Self.calendar),
+            regions: [.california],
+            audit: nil,
+        )
+        await model.refresh()
+        #expect(!model.hasElsewhere)
+
+        try await services.journal.addManualDay(
+            date: day.startOfDay(in: Self.calendar),
+            regions: [.other],
+            audit: nil,
+        )
+        await model.refresh()
+        await store.failSamples()
+        await model.refresh()
+        #expect(model.hasElsewhere)
+        guard case .failed = model.loadState else {
+            Issue.record("Expected a failed report refresh")
+            return
+        }
+    }
+
+    private func date(year: Int, month: Int, day: Int) -> Date {
+        Calendar.current.date(
+            from: DateComponents(year: year, month: month, day: day, hour: 12),
+        )!
+    }
+
+    /// Build dates in the same calendar `YearReportModel` uses (gregorian, current
+    /// time zone), so the day keys line up regardless of the host machine.
+    private static var calendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        return calendar
+    }
+
+    private static func day(_ year: Int, _ month: Int, _ day: Int) -> Date {
+        calendar.date(from: DateComponents(year: year, month: month, day: day))!
+    }
+
+    private static func cday(_ year: Int, _ month: Int, _ day: Int) -> CalendarDay {
+        CalendarDay(year: year, month: month, day: day)
+    }
+
+    private func makeServices() throws -> WhereServices {
+        try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            summaryScheduler: NoopDailySummaryScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+        )
+    }
+
+    @Test func historicalFlightsRefreshWithoutChangingTheReportOrRestoringReviews() throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        let original = report.report
+        let flight = try #require(PreviewSupport.flightReview(state: .completed).flight)
+        report.setDataIssueScan(DataIssueScanResult(
+            revision: UUID(),
+            issues: [],
+            reviews: [],
+            completedFlights: [flight],
+            nextReassessmentAt: nil,
+        ))
+        #expect(report.completedFlights == [flight])
+        #expect(report.flightDayKeys == flight.completedDays(in: report.calendar))
+        #expect(report.correctionReviews.isEmpty)
+        #expect(report.dataIssueCount == 0)
+        #expect(report.report == original)
+        report.setDataIssueScan(DataIssueScanResult(
+            revision: UUID(),
+            issues: [],
+            reviews: [],
+            completedFlights: [],
+            nextReassessmentAt: nil,
+        ))
+        #expect(report.flightDayKeys.isEmpty)
+        #expect(report.report == original)
+    }
+
+    @Test func recordedLocationDotsDefaultOnAndPersistAcrossModels() throws {
+        let preferences = makePreferences()
+        let services = try makeServices()
+        let model = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: preferences,
+        )
+
+        #expect(model.showsRecordedLocationDots)
+        model.showsRecordedLocationDots = false
+        #expect(model.showsRecordedLocationDots == false)
+
+        let reloaded = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: preferences,
+        )
+        #expect(reloaded.showsRecordedLocationDots == false)
+    }
+
+    // MARK: - Year load / stale fetches / save errors
+
+    @Test func futureItineraryYearsRemainReachableWithoutEnablingAnnualEstimates() async throws {
+        let store = try TestStore()
+        let services = PlanningModelTestSupport.services(store: store)
+        let model = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { PlanningModelTestSupport.now },
+        )
+        let stay = try PlannedStay(
+            id: .init(rawValue: UUID()),
+            region: .newYork,
+            arrival: .init(exact: CalendarDay(year: 2027, month: 12, day: 20)),
+            departure: .init(exact: CalendarDay(year: 2028, month: 1, day: 5)),
+        )
+        try await services.plannedStays.create(stay)
+        await model.forecasts.refresh()
+        #expect(model.selectableYears == Array((2021 ... 2028).reversed()))
+
+        await model.select(year: 2028)
+        #expect(model.forecasts.leadingForecasts(report: model.report).isEmpty)
+        #expect(model.forecasts.plannedIntervals(intersecting: 2028).count == 1)
+        try await model.setEstimatedTimeAndPlanningEnabled(false)
+        #expect(model.selectableYears.contains(2028))
+        await model.select(year: 2026)
+        #expect(model.selectableYears.first == 2026)
+        try await model.setEstimatedTimeAndPlanningEnabled(true)
+        #expect(model.selectableYears.first == 2028)
+    }
+
+    @Test func staleYearFetchDoesNotOverwriteNewerSelection() async throws {
+        let store = try TestStore()
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+        )
+
+        // Seed each year with a distinct region so we can tell which report won.
+        try await services.journal.addManualDay(
+            date: date(year: 2024, month: 3, day: 1),
+            regions: [.newYork],
+            audit: nil,
+        )
+        try await services.journal.addManualDay(
+            date: date(year: 2026, month: 3, day: 1),
+            regions: [.california],
+            audit: nil,
+        )
+
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
+        await store.enableFirstSamplesGate()
+
+        // Start the 2024 fetch; it suspends inside the gated `samples(in:)`.
+        let stale = Task { await report.select(year: 2024) }
+        await store.awaitFirstSamplesCall()
+
+        // The 2026 fetch runs to completion while 2024 is still in flight.
+        await report.select(year: 2026)
+        #expect(report.report?.year == 2026)
+
+        // Now let the slower 2024 fetch finish — it must be discarded.
+        await store.releaseFirstSamplesCall()
+        await stale.value
+
+        #expect(report.selectedYear == 2026)
+        #expect(report.report?.year == 2026)
+        #expect(report.report?.totals[.california] == 1)
+        #expect(report.report?.totals[.newYork] == nil)
+        #expect(report.loadState == .loaded)
+    }
+
+    @Test func failedManualSaveThrowsAndLeavesLoadStateAlone() async throws {
+        let store = try TestStore()
+        await store.failManualDays()
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+        )
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
+
+        await #expect(throws: ManualSaveFailure.self) {
+            try await report.setManualDay(
+                date: self.date(year: 2026, month: 1, day: 2),
+                regions: [.california],
+            )
+        }
+
+        // A failed save must not flip the whole screen into the error state;
+        // the form surfaces the error inline instead.
+        #expect(report.loadState == .idle)
+    }
+
+    @Test func failedManualRangeSaveThrows() async throws {
+        let store = try TestStore()
+        await store.failManualDays()
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+        )
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
+
+        await #expect(throws: ManualSaveFailure.self) {
+            try await report.setManualDays(
+                from: self.date(year: 2026, month: 1, day: 2),
+                through: self.date(year: 2026, month: 1, day: 4),
+                regions: [.california],
+            )
+        }
+    }
+
+    /// A failed year-report load parks `loadState` at `.failed(.reportUnavailable)`
+    /// — the typed reason the error screens present — rather than a bare string.
+    @Test func failedReportLoadParksInReportUnavailable() async throws {
+        let store = try TestStore()
+        await store.failSamples()
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+        )
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
+
+        await report.refresh()
+
+        guard case let .failed(.reportUnavailable(message)) = report.loadState else {
+            Issue.record("expected .failed(.reportUnavailable), got \(report.loadState)")
+            return
+        }
+        #expect(!message.isEmpty)
+    }
+
+    // MARK: - Missing days
+
+    @Test func missingDaysSurfacePastGapsAndExcludeToday() throws {
+        let today = Self.day(2026, 1, 5)
+        let present = [Self.day(2026, 1, 2), Self.day(2026, 1, 4)]
+        let report = try YearReportModel(
+            services: makeServices(),
+            details: Self.details(YearReport(
+                year: 2026,
+                days: present
+                    .map { DayPresence(date: $0, in: Self.calendar, regions: [.california]) },
+                totals: [.california: present.count],
+            )),
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { today },
+        )
+
+        // Jan 1 and Jan 3 are past gaps. Jan 5 (today) is still loggable, so it
+        // isn't surfaced even though it's unlogged.
+        #expect(report.missingDays.map(\.start) == [
+            Self.cday(2026, 1, 1),
+            Self.cday(2026, 1, 3),
+        ])
+        #expect(report.missingDayCount == 2)
+        #expect(!report.missingDays.contains { $0.start == Self.cday(2026, 1, 5) })
+    }
+
+    @Test func missingDaysAreEmptyWhenViewingAPastYear() throws {
+        let today = Self.day(2026, 6, 1)
+        let report = try YearReportModel(
+            services: makeServices(),
+            details: Self.details(YearReport(year: 2025, days: [], totals: [:])),
+            selectedYear: 2025,
+            preferences: makePreferences(),
+            now: { today },
+        )
+
+        #expect(report.missingDays.isEmpty)
+        #expect(report.missingDayCount == 0)
+    }
+
+    // MARK: - Data-issue badge count
+
+    @Test func refreshDataIssueCountCountsMissingDays() async throws {
+        let store = try TestStore()
+        let now = date(year: 2026, month: 2, day: 10)
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+            now: { now },
+        )
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { now },
+        )
+
+        try await services.journal.addManualDay(
+            date: date(year: 2026, month: 1, day: 1),
+            regions: [.california],
+            audit: nil,
+        )
+        await report.refresh()
+        await report.refreshDataIssueCount(force: true)
+
+        #expect(report.dataIssueCount > 0)
+    }
+
+    @Test func driftThresholdChangePersists() throws {
+        let store = try TestStore()
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+        )
+        let preferences = makePreferences()
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: preferences,
+        )
+
+        report.driftThreshold = .km25
+        #expect(preferences.driftThresholdMeters == DriftThreshold.km25.rawValue)
+    }
+
+    @Test func estimatedTimeVisibilityMirrorsAndPersists() async throws {
+        let preferences = makePreferences()
+        preferences.showsEstimatedTimeAndPlanning = false
+        let report = try YearReportModel(
+            services: makeServices(),
+            selectedYear: 2026,
+            preferences: preferences,
+        )
+
+        #expect(report.showsEstimatedTimeAndPlanning == false)
+
+        try await report.setEstimatedTimeAndPlanningEnabled(true)
+        #expect(preferences.showsEstimatedTimeAndPlanning)
+    }
+
+    @Test func locationWelcomeVisibilityMirrorsAndPersists() throws {
+        let preferences = makePreferences()
+        preferences.showsLocationWelcome = false
+        let report = try YearReportModel(
+            services: makeServices(),
+            selectedYear: 2026,
+            preferences: preferences,
+        )
+
+        #expect(report.showsLocationWelcome == false)
+
+        report.showsLocationWelcome = true
+        #expect(preferences.showsLocationWelcome)
+    }
+
+    /// The Resolve list keys its scan `.task(id:)` on `dataIssueScanInputs`, so a
+    /// drift-threshold change must change that identity — otherwise the list keeps
+    /// a stale scan while the badge count moves and the two visibly disagree. The
+    /// mirror also has to be observable (it can't read straight through the
+    /// non-observable `WherePreferences`) or a dependent view's `body` would never
+    /// re-run to re-key the task.
+    @Test func dataIssueScanInputsTrackTheDriftThreshold() throws {
+        let store = try TestStore()
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+        )
+        let preferences = makePreferences()
+        let report = YearReportModel(
+            services: services,
+            details: Self.details(YearReport(year: 2026, days: [], totals: [:])),
+            selectedYear: 2026,
+            preferences: preferences,
+        )
+
+        let before = report.dataIssueScanInputs
+        report.driftThreshold = .km25
+
+        #expect(report.dataIssueScanInputs != before)
+        #expect(report.dataIssueScanInputs.driftThreshold == .km25)
+    }
+
+    /// A manual "Find issues now" must re-key `dataIssueScanInputs` even though
+    /// year / report / threshold are unchanged, so an already-open Resolve list
+    /// reloads from the freshly-forced scan rather than keeping a stale one.
+    @Test func rescanForIssuesRekeysScanInputs() async throws {
+        let store = try TestStore()
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+        )
+        let report = YearReportModel(
+            services: services,
+            details: Self.details(YearReport(year: 2026, days: [], totals: [:])),
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
+
+        let before = report.dataIssueScanInputs
+        await report.rescanForIssues()
+
+        #expect(report.dataIssueScanInputs != before)
+    }
+
+    @Test func rawGPSWriteRekeysReviewWhenYearReportIsUnchanged() async throws {
+        let store = try TestStore()
+        let now = FlightReviewTestSupport.date(hour: 18)
+        let services = FlightReviewTestSupport.services(store: store, now: now)
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { now },
+        )
+        let first = LocationSample(
+            timestamp: FlightReviewTestSupport.date(hour: 17),
+            coordinate: FlightReviewTestSupport.destination,
+            horizontalAccuracy: 20,
+            source: .gpsSignificantChange,
+        )
+        try await store.perform { try await store.add(sample: first) }
+        await report.activate()
+        defer { report.deactivate() }
+        let beforeReport = report.report
+        let beforeInputs = report.dataIssueScanInputs
+        let beforeScan = report.dataIssueScan?.revision
+        let later = LocationSample(
+            timestamp: FlightReviewTestSupport.date(hour: 17.5),
+            coordinate: FlightReviewTestSupport.destination,
+            horizontalAccuracy: 20,
+            source: .gpsSignificantChange,
+        )
+
+        try await store.perform { try await store.add(sample: later) }
+        await waitUntil { report.dataIssueScan?.revision != beforeScan }
+
+        #expect(report.report == beforeReport)
+        #expect(report.dataIssueScanInputs != beforeInputs)
+    }
+
+    @Test(arguments: [false, true])
+    func flightLabelsRetainNamesForRemovedDevices(removedBeforeLoad: Bool) async throws {
+        let store = try TestStore()
+        let services = FlightReviewTestSupport.services(store: store, now: Self.day(2026, 3, 16))
+        _ = try await services.recording.register(authorization: .always)
+        let remoteID = RecordingDeviceID(rawValue: UUID())
+        let registeredAt = Self.day(2026, 3, 1)
+        try await store.perform {
+            try await store.addRecordingDeviceProfile(RecordingDeviceProfile(
+                id: remoteID,
+                systemName: "iPad",
+                kind: .tablet,
+                registeredAt: registeredAt,
+                registrationGenerationID: .initial,
+            ))
+        }
+        _ = try await services.recording.rename(remoteID, to: "Travel tablet")
+        if removedBeforeLoad { _ = try await services.recording.remove(remoteID) }
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
+        let flight = FlightReviewTestSupport.flight(recordingSource: .device(remoteID))
+        await report.refreshDataIssueCount(force: true)
+        #expect(report
+            .flightDeviceLabel(flight) ==
+            String(localized: .flightStatusDeviceNamed("Travel tablet")))
+        if !removedBeforeLoad {
+            _ = try await services.recording.remove(remoteID)
+            await report.refreshDataIssueCount(force: true)
+            #expect(report
+                .flightDeviceLabel(flight) ==
+                String(localized: .flightStatusDeviceNamed("Travel tablet")))
+        }
+        #expect(try await services.recording.devices().contains { $0.id == remoteID } == false)
+        let unknownID = RecordingDeviceID(rawValue: UUID())
+        #expect(report
+            .flightDeviceLabel(FlightReviewTestSupport.flight(recordingSource: .device(unknownID)))
+            == String(localized: .flightStatusDeviceNamed(unknownID.rawValue.uuidString)))
+        #expect(report.flightDeviceLabel(FlightReviewTestSupport.flight(recordingSource: .legacy))
+            == String(localized: .flightStatusDeviceLegacy))
+        #expect(report
+            .flightDeviceLabel(FlightReviewTestSupport
+                .flight(recordingSource: .device(services.recording.currentDevice.id)))
+            == String(localized: .flightStatusDeviceCurrent))
+    }
+
+    @Test func deactivationDiscardsAnInFlightDeviceNameRefresh() async throws {
+        let store = try TestStore()
+        let services = FlightReviewTestSupport.services(store: store, now: Self.day(2026, 3, 16))
+        let remoteID = RecordingDeviceID(rawValue: UUID())
+        let registeredAt = Self.day(2026, 3, 1)
+        try await store.perform {
+            try await store.addRecordingDeviceProfile(RecordingDeviceProfile(
+                id: remoteID,
+                systemName: "iPad",
+                kind: .tablet,
+                registeredAt: registeredAt,
+                registrationGenerationID: .initial,
+            ))
+        }
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
+        let flight = FlightReviewTestSupport.flight(recordingSource: .device(remoteID))
+        await store.gateRecordingDevices(afterCalls: 0)
+        let refresh = Task { await report.refreshDataIssueCount(force: true) }
+        await store.awaitRecordingDevicesGate()
+        report.deactivate()
+        await store.releaseRecordingDevicesGate()
+        await refresh.value
+        #expect(report
+            .flightDeviceLabel(flight) ==
+            String(localized: .flightStatusDeviceNamed(remoteID.rawValue.uuidString)))
+        await report.refreshDataIssueCount(force: true)
+        #expect(report
+            .flightDeviceLabel(flight) == String(localized: .flightStatusDeviceNamed("iPad")))
+    }
+
+    @Test func liveFlightNoticeIsCurrentDeviceOnlyAndExpiresWithoutRemovingHistory() throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        let current = PreviewSupport.flightReview(state: .flightLikely)
+        let flight = try #require(current.flight)
+        let remoteFlight = FlightAssessment(
+            id: .init(
+                recordingSource: .device(RecordingDeviceID(rawValue: UUID())),
+                departureSampleID: flight.id.departureSampleID,
+            ),
+            startedAt: flight.startedAt,
+            lastObservationAt: flight.lastObservationAt,
+            lastFlightAt: flight.lastFlightAt,
+            airborneSampleIDs: flight.airborneSampleIDs,
+            groundSampleIDs: flight.groundSampleIDs,
+            peakSpeedKMH: flight.peakSpeedKMH,
+            progress: flight.progress,
+            inferredEndpoints: flight.inferredEndpoints,
+            supportedIntervals: [.init(
+                start: flight.startedAt,
+                end: flight.lastFlightAt,
+                kind: .observedMotion,
+            )],
+        )
+        let remote = GPSCorrectionReview(
+            id: current.id,
+            day: current.day,
+            points: [],
+            state: .pending(remoteFlight),
+        )
+        report.setDataIssueScan(DataIssueScanResult(
+            revision: UUID(),
+            issues: [],
+            reviews: [remote],
+            completedFlights: [],
+            nextReassessmentAt: nil,
+        ))
+        #expect(report.liveFlightReview == nil)
+        #expect(report.hasCorrectionReviews)
+        #expect(report.dataIssueCount == 0)
+
+        let shared = GPSCorrectionReview(
+            id: current.id,
+            day: current.day,
+            points: [],
+            state: .pending(remoteFlight),
+            flights: [flight, remoteFlight],
+        )
+        report.setDataIssueScan(DataIssueScanResult(
+            revision: UUID(),
+            issues: [],
+            reviews: [shared],
+            completedFlights: [],
+            nextReassessmentAt: nil,
+        ))
+        #expect(report.liveFlightReview == shared)
+        #expect(report.liveFlightAssessment(in: shared) == flight)
+
+        report.setDataIssueScan(DataIssueScanResult(
+            revision: UUID(),
+            issues: [],
+            reviews: [current],
+            completedFlights: [],
+            nextReassessmentAt: nil,
+        ))
+        #expect(report.liveFlightReview == current)
+
+        let expiredFlight = FlightAssessment(
+            id: flight.id,
+            startedAt: flight.startedAt.addingTimeInterval(-24 * 60 * 60),
+            lastObservationAt: flight.lastObservationAt.addingTimeInterval(-24 * 60 * 60),
+            lastFlightAt: flight.lastFlightAt.addingTimeInterval(-24 * 60 * 60),
+            airborneSampleIDs: flight.airborneSampleIDs,
+            groundSampleIDs: flight.groundSampleIDs,
+            peakSpeedKMH: flight.peakSpeedKMH,
+            progress: .awaitingArrival,
+            inferredEndpoints: flight.inferredEndpoints,
+            supportedIntervals: [.init(
+                start: flight.startedAt.addingTimeInterval(-24 * 60 * 60),
+                end: flight.lastFlightAt.addingTimeInterval(-24 * 60 * 60),
+                kind: .observedMotion,
+            )],
+        )
+        let expired = GPSCorrectionReview(
+            id: current.id,
+            day: current.day,
+            points: [],
+            state: .pending(expiredFlight),
+        )
+        report.setDataIssueScan(DataIssueScanResult(
+            revision: UUID(),
+            issues: [],
+            reviews: [expired],
+            completedFlights: [],
+            nextReassessmentAt: nil,
+        ))
+        #expect(report.liveFlightReview == nil)
+        #expect(report.correctionReviews == [expired])
+    }
+
+    @Test func deactivationPreventsAnInFlightActivationFromStartingNewScans() async throws {
+        let store = try TestStore()
+        let now = FlightReviewTestSupport.date(hour: 18)
+        let services = FlightReviewTestSupport.services(store: store, now: now)
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { now },
+        )
+        await store.enableFirstSamplesGate()
+        let activation = Task { await report.activate() }
+        await store.awaitFirstSamplesCall()
+
+        report.deactivate()
+        await store.releaseFirstSamplesCall()
+        await activation.value
+
+        #expect(report.report == nil)
+        #expect(report.dataIssueScan == nil)
+    }
+
+    // MARK: - Store-change observer
+
+    /// The write path no longer refreshes inline: a manual edit commits, the
+    /// store pings `changes()`, and the data-change observer re-pulls the report
+    /// + badge count. Proves the single read path keeps the UI honest.
+    @Test func manualWriteRefreshesViaDataChangeObserver() async throws {
+        let store = try TestStore()
+        let now = date(year: 2026, month: 2, day: 10)
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+            now: { now },
+        )
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { now },
+        )
+
+        // Observer only — no `refresh()` called here, so any state change must
+        // arrive through the committed write's ping.
+        report.observeDataChanges()
+        #expect(report.report == nil)
+
+        try await report.setManualDay(
+            date: date(year: 2026, month: 1, day: 1),
+            regions: [.california],
+        )
+
+        // The observer re-pulls the report first, then the badge count, so wait
+        // for the *count* to land rather than just the report — otherwise this
+        // races the two awaits and can read a stale 0 count between them.
+        await waitUntil { report.report?.days.isEmpty == false && report.dataIssueCount > 0 }
+        #expect(report.report?.days.isEmpty == false)
+        #expect(report.dataIssueCount > 0)
+    }
+
+    /// Guards against a retain cycle through the long-lived data-change observer:
+    /// it captures `[weak self]` and `deinit` cancels it, so dropping the last
+    /// strong reference deallocates the model even while the task is parked in
+    /// `for await` (a quiet store emits nothing on its own).
+    @Test func deinitsWhileObservingDataChanges() throws {
+        let store = try TestStore()
+        weak var weakReport: YearReportModel?
+        do {
+            let services = WhereServices(
+                store: store,
+                locationSource: ScriptedLocationSource(),
+                reminderScheduler: NoopLoggingReminderScheduler(),
+                widgetRefresher: NoopWidgetTimelineRefresher(),
+            )
+            let report = YearReportModel(
+                services: services,
+                selectedYear: 2026,
+                preferences: makePreferences(),
+            )
+            weakReport = report
+            report.observeDataChanges()
+            #expect(weakReport != nil)
+        }
+        #expect(weakReport == nil)
+    }
+
+    // MARK: - Scene activate / deactivate (the background-rescan leak fix)
+
+    /// `activate()` subscribes and pulls, so the scene shows fresh data the moment
+    /// it appears and stays live for later writes without a second `activate()`.
+    @Test func activatePullsFreshDataAndStaysLive() async throws {
+        let store = try TestStore()
+        let now = date(year: 2026, month: 2, day: 10)
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+            now: { now },
+        )
+        try await services.journal.addManualDay(
+            date: date(year: 2026, month: 1, day: 1),
+            regions: [.california],
+            audit: nil,
+        )
+
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { now },
+        )
+        await report.activate()
+        #expect(report.report?.days.count == 1)
+        #expect(report.loadState == .loaded)
+
+        // Still subscribed — a later committed write re-pulls on its own.
+        try await report.setManualDay(
+            date: date(year: 2026, month: 1, day: 2),
+            regions: [.california],
+        )
+        await waitUntil { report.report?.days.count == 2 }
+    }
+
+    /// The leak fix: once the scene backgrounds, `deactivate()` cancels the
+    /// subscription so a committed write drives no refresh. Proven against a live
+    /// probe sharing the same store — both subscribe to the same fan-out, so by
+    /// the time the probe reacts to the write the paused model has already seen
+    /// (and ignored) the same ping.
+    @Test func deactivateStopsRefreshingOnWrites() async throws {
+        let store = try TestStore()
+        let now = date(year: 2026, month: 2, day: 10)
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+            now: { now },
+        )
+
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { now },
+        )
+        await report.activate()
+        #expect(report.report?.days.count == 0)
+        report.deactivate()
+
+        let probe = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { now },
+        )
+        await probe.activate()
+
+        try await services.journal.addManualDay(
+            date: date(year: 2026, month: 1, day: 1),
+            regions: [.california],
+            audit: nil,
+        )
+        await waitUntil { probe.report?.days.count == 1 }
+
+        // The paused model never re-pulled off the same signal.
+        #expect(report.report?.days.count == 0)
+    }
+
+    /// Reactivating on foreground re-subscribes *and* pulls, so a write that
+    /// landed while the scene was backgrounded (live GPS, a remote sync) is caught
+    /// up — the deactivate/activate pair can't strand the UI on stale data.
+    @Test func reactivatingAfterBackgroundPullsTheGap() async throws {
+        let store = try TestStore()
+        let now = date(year: 2026, month: 2, day: 10)
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+            now: { now },
+        )
+
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { now },
+        )
+        await report.activate()
+        #expect(report.report?.days.count == 0)
+        report.deactivate()
+
+        // A write while "backgrounded" — the paused model can't observe it.
+        try await services.journal.addManualDay(
+            date: date(year: 2026, month: 1, day: 1),
+            regions: [.california],
+            audit: nil,
+        )
+        #expect(report.report?.days.count == 0)
+
+        // Foregrounding re-subscribes and pulls the gap.
+        await report.activate()
+        #expect(report.report?.days.count == 1)
+    }
+
+    // MARK: - Evidence day keys
+
+    /// `activate()` loads the evidence day-keys the calendar badge reads, keyed
+    /// to the capture day (in the model's calendar).
+    @Test func activateLoadsEvidenceDayKeys() async throws {
+        let services = try makeServices()
+        let captured = date(year: 2026, month: 3, day: 4)
+        try await services.journal.addEvidence(
+            Evidence(kind: .planeTicket, capturedAt: captured, contentType: .pdf),
+            blob: nil,
+        )
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
+
+        await report.activate()
+
+        #expect(report.evidenceDayKeys == [Self.cday(2026, 3, 4)])
+    }
+
+    /// Adding evidence pings the store-change signal, so the observer re-pulls
+    /// the day-keys without an explicit refresh — the calendar lights up on its
+    /// own.
+    @Test func addingEvidenceRefreshesDayKeysViaObserver() async throws {
+        let services = try makeServices()
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
+        report.observeDataChanges()
+
+        try await services.journal.addEvidence(
+            Evidence(
+                kind: .document,
+                capturedAt: date(year: 2026, month: 7, day: 9),
+                contentType: .pdf,
+            ),
+            blob: nil,
+        )
+
+        await waitUntil { report.evidenceDayKeys == [Self.cday(2026, 7, 9)] }
+    }
+
+    /// Switching years clears the previous year's markers immediately so the
+    /// calendar can't badge the new year's days with the old year's evidence.
+    @Test func selectingYearClearsEvidenceDayKeys() async throws {
+        let services = try makeServices()
+        try await services.journal.addEvidence(
+            Evidence(
+                kind: .photo,
+                capturedAt: date(year: 2026, month: 5, day: 2),
+                contentType: .image,
+            ),
+            blob: nil,
+        )
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
+        await report.activate()
+        #expect(report.evidenceDayKeys == [Self.cday(2026, 5, 2)])
+
+        await report.select(year: 2025)
+        #expect(report.evidenceDayKeys.isEmpty)
+    }
+
+    private func waitUntil(
+        timeout: Duration = .seconds(2),
+        _ predicate: () -> Bool,
+    ) async {
+        let deadline = ContinuousClock.now.advanced(by: timeout)
+        while ContinuousClock.now < deadline {
+            if predicate() { return }
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(predicate(), "condition was not met before timeout")
+    }
+
+    private static func details(_ report: YearReport) -> YearReportDetails {
+        YearReportDetails(
+            primaryRegions: [.california, .newYork],
+            report: report,
+            primaryRegionLocations: [:],
+        )
+    }
+}

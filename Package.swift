@@ -1,52 +1,187 @@
 // swift-tools-version: 6.2
+import CompilerPluginSupport
 import PackageDescription
 
 let package = Package(
     name: "Stuff",
     defaultLocalization: "en",
     platforms: [
-        .iOS(.v26),
+        .iOS("27.0"),
+        .macOS(.v26),
     ],
     products: [
-        .library(name: "StuffCore", targets: ["StuffCore"]),
+        .library(name: "InstallerKit", targets: ["InstallerKit"]),
+        .library(name: "InstallerKitUI", targets: ["InstallerKitUI"]),
+        .library(name: "CreditKit", targets: ["CreditKit"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
-        .library(name: "LogKit", targets: ["LogKit"]),
-        .library(name: "LogViewerUI", targets: ["LogViewerUI"]),
-        .library(name: "SwiftDataInspector", targets: ["SwiftDataInspector"]),
+        .library(name: "LifecycleKitUI", targets: ["LifecycleKitUI"]),
+        .library(name: "JournalKit", targets: ["JournalKit"]),
+        .library(name: "PeriscopeCore", targets: ["PeriscopeCore"]),
+        .library(name: "PeriscopeUI", targets: ["PeriscopeUI"]),
+        .library(name: "PeriscopeTools", targets: ["PeriscopeTools"]),
+        .library(name: "Inspector", targets: ["Inspector"]),
+        .library(name: "Flyover", targets: ["Flyover"]),
+        .library(name: "SnapshotKit", targets: ["SnapshotKit"]),
+        .library(name: "SnapshotKitTesting", targets: ["SnapshotKitTesting"]),
+        .library(name: "TestHostSupport", targets: ["TestHostSupport"]),
+        .library(name: "RegionKit", targets: ["RegionKit"]),
+        .library(name: "WhereCrashReporting", targets: ["WhereCrashReporting"]),
         .library(name: "StorageKit", targets: ["StorageKit"]),
         .library(name: "WhereCore", targets: ["WhereCore"]),
         .library(name: "WhereUI", targets: ["WhereUI"]),
-        .library(name: "WhereTesting", targets: ["WhereTesting"]),
+        .library(name: "WhereIntents", targets: ["WhereIntents"]),
+        .library(name: "BroadwayCore", targets: ["BroadwayCore"]),
+        .library(name: "BroadwayUI", targets: ["BroadwayUI"]),
     ],
     dependencies: [
+        .package(
+            url: "https://github.com/RoyalPineapple/BumperBowling.git",
+            branch: "main",
+        ),
         .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
+        .package(url: "https://github.com/bitdriftlabs/capture-ios.git", from: "0.23.11"),
+        // Snapshot-testing engine + accessibility parser. Consumed only by
+        // SnapshotKitTesting and test bundles, never a shipping app.
+        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.18.0"),
+        .package(url: "https://github.com/cashapp/AccessibilitySnapshot", from: "0.12.0"),
+        .package(url: "https://github.com/SFSafeSymbols/SFSafeSymbols", from: "7.0.0"),
+        .package(url: "https://github.com/swiftlang/swift-syntax", exact: "603.0.2"),
     ],
     targets: [
+        .macro(
+            name: "PeriscopeMacros",
+            dependencies: [
+                .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
+                .product(name: "SwiftDiagnostics", package: "swift-syntax"),
+                .product(name: "SwiftParser", package: "swift-syntax"),
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+            ],
+            path: "Shared/Periscope/PeriscopeMacros/Sources",
+        ),
         .target(
-            name: "StuffCore",
-            path: "Shared/StuffCore/Sources",
+            name: "InstallerKit",
+            dependencies: [.target(name: "PeriscopeCore")],
+            path: "Shared/InstallerKit/Sources",
+        ),
+        .target(
+            name: "InstallerKitUI",
+            dependencies: [
+                .target(name: "InstallerKit"),
+                .target(name: "BroadwayCore"),
+                .target(name: "BroadwayUI"),
+                .target(name: "SnapshotKit"),
+                .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
+            ],
+            path: "Shared/InstallerKitUI/Sources",
+            resources: [.process("Resources")],
+        ),
+        .target(
+            name: "CreditKit",
+            path: "Shared/CreditKit/Sources",
         ),
         .target(
             name: "LifecycleKit",
             path: "Shared/LifecycleKit/Sources",
+        ),
+        .target(
+            name: "LifecycleKitUI",
+            dependencies: [
+                .target(name: "LifecycleKit"),
+                .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
+            ],
+            path: "Shared/LifecycleKitUI/Sources",
             resources: [
                 .process("Resources"),
             ],
         ),
         .target(
-            name: "LogKit",
-            path: "Shared/LogKit/Sources",
+            name: "JournalKit",
+            path: "Shared/JournalKit/Sources",
         ),
         .target(
-            name: "LogViewerUI",
+            name: "PeriscopeCore",
             dependencies: [
-                .target(name: "LogKit"),
+                .target(name: "JournalKit"),
+                .target(name: "PeriscopeMacros"),
             ],
-            path: "Shared/LogViewerUI/Sources",
+            path: "Shared/Periscope/PeriscopeCore/Sources",
         ),
         .target(
-            name: "SwiftDataInspector",
-            path: "Shared/SwiftDataInspector/Sources",
+            name: "PeriscopeUI",
+            dependencies: [
+                .target(name: "PeriscopeCore"),
+            ],
+            path: "Shared/Periscope/PeriscopeUI/Sources",
+        ),
+        .target(
+            name: "PeriscopeTools",
+            dependencies: [
+                .target(name: "PeriscopeCore"),
+                .target(name: "PeriscopeUI"),
+                .target(name: "BroadwayCore"),
+                .target(name: "BroadwayUI"),
+                .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
+            ],
+            path: "Shared/Periscope/PeriscopeTools/Sources",
+        ),
+        .target(
+            name: "Inspector",
+            dependencies: [
+                .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
+            ],
+            path: "Shared/Inspector/Sources",
+        ),
+        .target(
+            name: "Flyover",
+            dependencies: [
+                .target(name: "BroadwayCore"),
+                .target(name: "BroadwayUI"),
+                .target(name: "SnapshotKit"),
+                .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
+            ],
+            path: "Shared/Flyover/Sources",
+        ),
+        .target(
+            name: "SnapshotKit",
+            path: "Shared/SnapshotKit/Sources",
+        ),
+        .target(
+            name: "SnapshotKitTesting",
+            dependencies: [
+                .target(name: "SnapshotKit"),
+                .target(name: "TestHostSupport"),
+                .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
+                // Keep the focused Core + SwiftUI renderer products: the
+                // umbrella additionally pulls in AccessibilitySnapshot's own
+                // SnapshotTesting integration, widening every consuming test
+                // bundle's statically embedded closure for no benefit.
+                .product(name: "AccessibilitySnapshotCore", package: "AccessibilitySnapshot"),
+                .product(name: "AccessibilitySnapshotPreviews", package: "AccessibilitySnapshot"),
+            ],
+            path: "Shared/SnapshotKitTesting/Sources",
+        ),
+        .target(
+            name: "TestHostSupport",
+            path: "Shared/TestHostSupport/Sources",
+        ),
+        .target(
+            name: "RegionKit",
+            dependencies: [
+                .target(name: "PeriscopeCore"),
+            ],
+            path: "Where/RegionKit/Sources",
+            resources: [
+                .process("Resources"),
+            ],
+        ),
+        .target(
+            name: "WhereCrashReporting",
+            dependencies: [
+                .product(name: "Capture", package: "capture-ios"),
+            ],
+            path: "Where/WhereCrashReporting/Sources",
         ),
         .target(
             name: "StorageKit",
@@ -55,10 +190,20 @@ let package = Package(
         .target(
             name: "WhereCore",
             dependencies: [
-                .target(name: "LogKit"),
+                .target(name: "InstallerKit"),
+                .target(name: "CreditKit"),
+                .target(name: "JournalKit"),
+                .target(name: "PeriscopeCore"),
+                .target(name: "RegionKit"),
                 .product(name: "ZIPFoundation", package: "ZIPFoundation"),
             ],
             path: "Where/WhereCore/Sources",
+            exclude: [
+                "DataResolution/AGENTS.md",
+                "DataResolution/CLAUDE.md",
+                "DataResolution/Flights/AGENTS.md",
+                "DataResolution/Flights/CLAUDE.md",
+            ],
             resources: [
                 .process("Resources"),
             ],
@@ -66,11 +211,22 @@ let package = Package(
         .target(
             name: "WhereUI",
             dependencies: [
+                .target(name: "InstallerKitUI"),
+                .target(name: "InstallerKit"),
                 .target(name: "WhereCore"),
+                .target(name: "BroadwayCore"),
+                .target(name: "BroadwayUI"),
+                .target(name: "CreditKit"),
+                .target(name: "Flyover"),
                 .target(name: "LifecycleKit"),
-                .target(name: "LogKit"),
-                .target(name: "LogViewerUI"),
-                .target(name: "SwiftDataInspector"),
+                .target(name: "LifecycleKitUI"),
+                .target(name: "PeriscopeCore"),
+                .target(name: "PeriscopeTools"),
+                .target(name: "PeriscopeUI"),
+                .target(name: "RegionKit"),
+                .target(name: "SnapshotKit"),
+                .target(name: "Inspector"),
+                .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
             ],
             path: "Where/WhereUI/Sources",
             resources: [
@@ -78,11 +234,39 @@ let package = Package(
             ],
         ),
         .target(
-            name: "WhereTesting",
+            name: "WhereIntents",
             dependencies: [
+                .target(name: "PeriscopeCore"),
+                .target(name: "RegionKit"),
                 .target(name: "WhereCore"),
+                .target(name: "WhereUI"),
             ],
-            path: "Where/WhereTesting/Sources",
+            path: "Where/WhereIntents/Sources",
+            resources: [
+                .process("Resources"),
+            ],
+        ),
+        .target(
+            name: "BroadwayCore",
+            path: "Shared/Broadway/BroadwayCore/Sources",
+        ),
+        .target(
+            name: "BroadwayUI",
+            dependencies: [
+                .target(name: "BroadwayCore"),
+            ],
+            path: "Shared/Broadway/BroadwayUI/Sources",
+        ),
+        .testTarget(
+            name: "PeriscopeMacrosTests",
+            dependencies: [
+                .target(name: "PeriscopeMacros"),
+                .product(name: "SwiftParser", package: "swift-syntax"),
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
+            ],
+            path: "Shared/Periscope/PeriscopeMacros/Tests",
         ),
     ],
 )

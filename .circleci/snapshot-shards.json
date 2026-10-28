@@ -1,0 +1,95 @@
+{
+  "formatVersion": 1,
+  "shards": [
+    {
+      "index": 0,
+      "suites": [
+        "InspectorSnapshotTests/InspectorSnapshotTests",
+        "InstallerKitUISnapshotTests/UpdateBrowserViewSnapshotTests",
+        "WhereUISnapshotTests/AppearanceSettingsViewSnapshotTests",
+        "WhereUISnapshotTests/CardDesignerStudioViewSnapshotTests",
+        "WhereUISnapshotTests/DeveloperOverlaySnapshotTests",
+        "WhereUISnapshotTests/LocationsViewSnapshotTests",
+        "WhereUISnapshotTests/PlannedStayEditorSnapshotTests",
+        "WhereUISnapshotTests/PlannedStaysViewSnapshotTests",
+        "WhereUISnapshotTests/PlanningRegionPickerViewSnapshotTests",
+        "WhereUISnapshotTests/RegionDaysViewSnapshotTests",
+        "WhereUISnapshotTests/ResolutionViewSnapshotTests",
+        "WhereUISnapshotTests/RootViewSnapshotTests",
+        "WhereUISnapshotTests/SiriFeaturesViewSnapshotTests"
+      ]
+    },
+    {
+      "index": 1,
+      "suites": [
+        "InstallerKitUISnapshotTests/AppUpdatesViewSnapshotTests",
+        "InstallerKitUISnapshotTests/UpdateBuildViewSnapshotTests",
+        "InstallerKitUISnapshotTests/UpdateFailureCardSnapshotTests",
+        "InstallerKitUISnapshotTests/UpdateHistoryViewSnapshotTests",
+        "PeriscopeToolsSnapshotTests/PeriscopeViewerSnapshotTests",
+        "WhereUISnapshotTests/DataSettingsViewSnapshotTests",
+        "WhereUISnapshotTests/DeveloperDemoLaunchSheetSnapshotTests",
+        "WhereUISnapshotTests/ElsewhereViewSnapshotTests",
+        "WhereUISnapshotTests/LicenseViewSnapshotTests",
+        "WhereUISnapshotTests/LocationForecastPanelSnapshotTests",
+        "WhereUISnapshotTests/LocationForecastSummarySnapshotTests",
+        "WhereUISnapshotTests/OnboardingThemeSelectionViewSnapshotTests",
+        "WhereUISnapshotTests/OnboardingViewSnapshotTests",
+        "WhereUISnapshotTests/PersonalizationFeaturesViewSnapshotTests",
+        "WhereUISnapshotTests/PrivacyDiagnosticsSettingsViewSnapshotTests",
+        "WhereUISnapshotTests/PrivacyPassportCardSnapshotTests",
+        "WhereUISnapshotTests/RegionSummaryCardSnapshotTests",
+        "WhereUISnapshotTests/RegionsSettingsViewSnapshotTests"
+      ]
+    },
+    {
+      "index": 2,
+      "suites": [
+        "FlyoverSnapshotTests/FlyoverSnapshotTests",
+        "ToolsSnapshotTests/InstallerSiteSnapshotTests",
+        "WhereUISnapshotTests/CalendarContentViewSnapshotTests",
+        "WhereUISnapshotTests/DayRelabelViewSnapshotTests",
+        "WhereUISnapshotTests/DeveloperCrashTestingViewSnapshotTests",
+        "WhereUISnapshotTests/EstimatedTimeFeaturesViewSnapshotTests",
+        "WhereUISnapshotTests/FlightReviewPointRowSnapshotTests",
+        "WhereUISnapshotTests/FlightStatusBannerSnapshotTests",
+        "WhereUISnapshotTests/InsightsAccuracyFeaturesViewSnapshotTests",
+        "WhereUISnapshotTests/LaunchSplashViewSnapshotTests",
+        "WhereUISnapshotTests/LocationsBackgroundSnapshotTests",
+        "WhereUISnapshotTests/PrivacyBackupsFeaturesViewSnapshotTests",
+        "WhereUISnapshotTests/RegionCustomizeViewSnapshotTests",
+        "WhereUISnapshotTests/ShareEvidenceFeaturesViewSnapshotTests",
+        "WhereUISnapshotTests/TodayCircularAccessoryViewSnapshotTests",
+        "WhereUISnapshotTests/TodayWidgetViewSnapshotTests",
+        "WhereUISnapshotTests/YearTotalsRectangularAccessoryViewSnapshotTests"
+      ]
+    },
+    {
+      "index": 3,
+      "suites": [
+        "WhereUISnapshotTests/AboutSettingsViewSnapshotTests",
+        "WhereUISnapshotTests/AppIconViewSnapshotTests",
+        "WhereUISnapshotTests/DevelopmentUpdatesViewSnapshotTests",
+        "WhereUISnapshotTests/DevicesSettingsViewSnapshotTests",
+        "WhereUISnapshotTests/FlightDayDetailViewSnapshotTests",
+        "WhereUISnapshotTests/LoggedDaysViewSnapshotTests",
+        "WhereUISnapshotTests/MainTabsSnapshotTests",
+        "WhereUISnapshotTests/ManualDayViewSnapshotTests",
+        "WhereUISnapshotTests/PlacesYearFeaturesViewSnapshotTests",
+        "WhereUISnapshotTests/PresenceTimelineListSnapshotTests",
+        "WhereUISnapshotTests/RankingAnimationLabViewSnapshotTests",
+        "WhereUISnapshotTests/RecordingFeaturesViewSnapshotTests",
+        "WhereUISnapshotTests/RegionMapViewSnapshotTests",
+        "WhereUISnapshotTests/RegionWelcomeCardSnapshotTests",
+        "WhereUISnapshotTests/SettingsViewSnapshotTests",
+        "WhereUISnapshotTests/SnapshotCaptureFlagProbeTests",
+        "WhereUISnapshotTests/TodayInlineAccessoryViewSnapshotTests",
+        "WhereUISnapshotTests/WhereFlyoverWebExportTests",
+        "WhereUISnapshotTests/WhereLifecycleFailureViewSnapshotTests",
+        "WhereUISnapshotTests/WidgetFeaturesViewSnapshotTests",
+        "WhereUISnapshotTests/YearTotalsWidgetViewSnapshotTests",
+        "WhereUISnapshotTests/YearViewSnapshotTests"
+      ]
+    }
+  ]
+}

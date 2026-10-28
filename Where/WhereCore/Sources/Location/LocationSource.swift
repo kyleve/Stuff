@@ -40,6 +40,16 @@ public protocol LocationSource: AnyObject, Sendable {
     func start() async
     func stop() async
 
+    /// Bounded one-shot GPS fix for "where is the device *right now*".
+    ///
+    /// Unlike the passive `sampleStream` (Visits + significant-change, which can
+    /// be minutes stale), this actively asks for a fresh fix. It supports
+    /// manual-entry audit capture, app-wide region resolution, and
+    /// `LocationIngestor.captureTodayIfNeeded(now:)`, which persists a fix for
+    /// today when the app opens on a day that has no GPS sample yet. The
+    /// nonthrowing result preserves why a fix was unavailable.
+    func requestCurrentLocation() async -> CurrentLocationResult
+
     /// The current authorization status, read on demand.
     func currentAuthorization() async -> LocationAuthorizationStatus
 
@@ -72,6 +82,9 @@ public final class ScriptedLocationSource: LocationSource, @unchecked Sendable {
 
     private let lock = NSLock()
     private var _status: LocationAuthorizationStatus
+    /// What the next `requestCurrentLocation()` returns. Defaults to timeout so
+    /// tests opt in to a captured location explicitly.
+    private var _nextRequestedLocationResult: CurrentLocationResult = .unavailable(.timeout)
 
     /// - Parameters:
     ///   - permissionResult: what the next call to `requestPermission()`
@@ -93,6 +106,25 @@ public final class ScriptedLocationSource: LocationSource, @unchecked Sendable {
 
     public func start() async {}
     public func stop() async {}
+
+    public func requestCurrentLocation() async -> CurrentLocationResult {
+        guard !Task.isCancelled else { return .unavailable(.cancellation) }
+        return lock.withLock { _nextRequestedLocationResult }
+    }
+
+    /// Set the fix the next `requestCurrentLocation()` will return (or `nil` to
+    /// simulate a timeout). Mirrors how `emit(_:)` scripts the passive stream.
+    public func setNextRequestedLocation(_ sample: LocationSample?) {
+        lock.withLock {
+            _nextRequestedLocationResult = sample.map(CurrentLocationResult.success)
+                ?? .unavailable(.timeout)
+        }
+    }
+
+    /// Set the complete typed outcome for the next one-shot request.
+    public func setNextRequestedLocationResult(_ result: CurrentLocationResult) {
+        lock.withLock { _nextRequestedLocationResult = result }
+    }
 
     public func currentAuthorization() async -> LocationAuthorizationStatus {
         lock.withLock { _status }

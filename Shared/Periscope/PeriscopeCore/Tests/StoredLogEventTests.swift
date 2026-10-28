@@ -1,0 +1,62 @@
+import Foundation
+import PeriscopeCore
+import Testing
+
+struct StoredLogEventTests {
+    @Test func historicalPayloadHasNoImplicitExportApproval() throws {
+        let stored = makeStored(payload: Data(#"{"secret":"historical"}"#.utf8))
+        #expect(try stored.exportedPayload(using: .init(
+            mode: .diagnostic,
+            enabledControls: [.personalData],
+        )) == nil)
+    }
+
+    private func makeStored(payload: Data) -> StoredLogEvent {
+        let scope = LogScope.root(named: "photos")
+        return StoredLogEvent(
+            id: UUID(),
+            date: Date(timeIntervalSinceReferenceDate: 100),
+            sequence: 0,
+            level: .notice,
+            eventName: PhotoLogs.Event.eventName,
+            eventVersion: PhotoLogs.Event.eventVersion,
+            message: "photo p1",
+            payload: payload,
+            exportMetadata: nil,
+            scopes: [scope.id],
+            tags: [LogTag(key: LogTagKey("payment-id"), value: "pay_123")],
+            spanID: nil,
+            spanExitMode: nil,
+            callSite: nil,
+            externalID: nil,
+            attachments: [],
+            sessionID: UUID(),
+            ambientSnapshotID: nil,
+        )
+    }
+
+    @Test func decodeRecoversTheOriginalEvent() throws {
+        let payload = try JSONEncoder().encode(makePhotoEvent("p1"))
+        let stored = makeStored(payload: payload)
+
+        let decoded = try stored.decode(PhotoLogs.Event.self)
+        #expect(decoded.photoID == "p1")
+    }
+
+    @Test func decodeThrowsWhenTheShapeNoLongerMatches() throws {
+        let payload = try JSONEncoder().encode(Message(
+            level: .restricted(.technicalState, .info),
+            text: .restricted(.arbitraryText, "not a photo"),
+        ))
+        let stored = makeStored(payload: payload)
+
+        #expect(throws: (any Error).self) {
+            try stored.decode(PhotoLogs.Event.self)
+        }
+    }
+
+    @Test func primaryScopeIsTheFirstScope() {
+        let stored = makeStored(payload: Data())
+        #expect(stored.primaryScope == stored.scopes.first)
+    }
+}

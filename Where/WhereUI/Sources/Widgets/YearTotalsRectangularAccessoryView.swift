@@ -1,3 +1,5 @@
+import SFSafeSymbols
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -14,53 +16,82 @@ public struct YearTotalsRectangularAccessoryView: View {
         self.snapshot = snapshot
     }
 
+    @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
+
     private var ranked: [RegionDays] {
         snapshot.rankedTotals(maxRows: Self.maxRows)
     }
 
     public var body: some View {
-        if ranked.isEmpty {
-            Label(Strings.widgetYearEmpty, systemImage: "calendar.badge.exclamationmark")
+        Group {
+            if ranked.isEmpty {
+                Label(
+                    String(localized: .widgetYearEmpty),
+                    systemSymbol: .calendarBadgeExclamationmark,
+                )
                 .font(.caption)
-        } else {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(ranked) { entry in
-                    HStack(spacing: UIConstants.Spacings.xSmall) {
-                        Image(systemName: entry.region.style.symbolName)
-                            .font(.caption2)
-                            .accessibilityHidden(true)
-                        Text(entry.region.localizedName)
-                            .font(.caption2)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                        Spacer(minLength: UIConstants.Spacings.xSmall)
-                        Text(entry.days, format: .number)
-                            .font(.caption.weight(.bold))
-                            .monospacedDigit()
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(ranked) { entry in
+                        HStack(spacing: stylesheet.spacing.xSmall) {
+                            Image(systemSymbol: regionStyles.style(for: entry.region).symbol)
+                                .font(.caption2)
+                                .accessibilityHidden(true)
+                            Text(entry.region.localizedName)
+                                .font(.caption2)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                            Spacer(minLength: stylesheet.spacing.xSmall)
+                            Text(entry.days, format: .number)
+                                .font(.caption.weight(.bold))
+                                .monospacedDigit()
+                        }
                     }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel(
-                        Strings.regionDaysAccessibility(
-                            region: entry.region.localizedName,
-                            days: entry.days,
-                        ),
-                    )
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(WhereFormat.widgetYearTitle(year: snapshot.year))
+        .accessibilityValue(WhereFormat.widgetYearAccessibilityValue(entries: ranked))
     }
 }
 
 #if DEBUG
-    #Preview("Ranked", traits: .fixedLayout(width: 170, height: 80)) {
-        YearTotalsRectangularAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot())
+    extension YearTotalsRectangularAccessoryView: SnapshotProviding {
+        public static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "Ranked",
+                configurations: .componentLightDarkWithAnnotations,
+                settle: .immediate,
+            ) {
+                YearTotalsRectangularAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [.california],
+                    totals: [.california: 132, .newYork: 41, .canada: 9, .other: 2],
+                ))
+            }
+            whereSnapshot(name: "Empty", configurations: .componentLightDark, settle: .immediate) {
+                YearTotalsRectangularAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [],
+                    totals: [:],
+                ))
+            }
+        }
     }
 
-    #Preview("Empty", traits: .fixedLayout(width: 170, height: 80)) {
-        YearTotalsRectangularAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
-            dayRegions: [],
-            totals: [:],
-        ))
+    #Preview {
+        YearTotalsRectangularAccessoryView.snapshotPreviews
+    }
+#endif
+
+#if DEBUG
+    extension YearTotalsRectangularAccessoryView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            YearTotalsRectangularAccessoryView.self,
+            title: "Year Totals Rectangular",
+            viewport: .fixed(CGSize(width: 338, height: 76)),
+            navigationContainer: .none,
+        )
     }
 #endif

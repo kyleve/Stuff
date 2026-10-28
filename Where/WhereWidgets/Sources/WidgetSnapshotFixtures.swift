@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 import WhereCore
 
 /// Shared calendar and snapshot builders for the widget extension. Keeps

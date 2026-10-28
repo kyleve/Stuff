@@ -1,4 +1,7 @@
 import Foundation
+import PeriscopeCore
+import UIKit
+import WhereCore
 
 /// A typed, `Hashable` identifier for an app-icon option.
 ///
@@ -33,19 +36,19 @@ extension AppIconID: Codable {
 /// One selectable app icon, decoded from the bundled `AppIcons.json` manifest
 /// that the `./icons` script maintains.
 ///
-/// `alternateIconName` is the asset-catalog appiconset name passed to
-/// `setAlternateIconName`; `nil` marks the primary icon. `previewImageName`
-/// names an imageset in `AppIconPreviews.xcassets` — a parallel catalog, since
-/// SwiftUI `Image` can't load appiconset images — rendered by the picker.
+/// `assetName` is the asset-catalog appiconset name. Whether it is primary or
+/// alternate depends on the host's injected primary icon for this build.
+/// `previewImageName` names an imageset in `AppIconPreviews.xcassets` — a
+/// parallel catalog, since SwiftUI `Image` can't load appiconset images.
 struct AppIconOption: Identifiable, Hashable, Codable {
     let id: AppIconID
     let displayName: String
-    let alternateIconName: String?
+    let assetName: String
     let previewImageName: String
 
-    /// Whether this is the primary (default) icon, i.e. `setAlternateIconName(nil)`.
-    var isPrimary: Bool {
-        alternateIconName == nil
+    /// The value to pass to UIKit for a build with `primaryAppIconName`.
+    func alternateIconName(primaryAppIconName: String) -> String? {
+        assetName == primaryAppIconName ? nil : assetName
     }
 }
 
@@ -65,6 +68,28 @@ enum AppIconCatalog {
         return try JSONDecoder().decode(Manifest.self, from: data).icons
     }
 
+    /// The bundled manifest, degrading to an empty list when it can't be read.
+    ///
+    /// A missing or malformed `AppIcons.json` is a packaging error rather than
+    /// anything a user can cause or recover from, so it trips an
+    /// `assertionFailure` in debug and — in release — leaves the picker empty and
+    /// the icon surfaces on their Classic fallback. Every best-effort caller goes
+    /// through here, so the load failure can't be dropped at one site and
+    /// reported at another.
+    static func loadedOptions() -> [AppIconOption] {
+        do {
+            return try load(from: .module)
+        } catch {
+            logger.manifestUnreadable(
+                error: .restricted(.errorDetails, error),
+            )
+            assertionFailure("Failed to load the bundled AppIcons.json manifest: \(error)")
+            return []
+        }
+    }
+
+    private static let logger = WhereLog.root(AppIconCatalogLog.self)
+
     /// Resolve which option matches the live `alternateIconName`, falling back to
     /// the primary (or first) option when the active icon isn't listed — e.g. it
     /// was removed from the manifest since it was last set, or `nil` (the primary
@@ -73,10 +98,30 @@ enum AppIconCatalog {
     static func selectedOption(
         in options: [AppIconOption],
         current alternateIconName: String?,
+        primaryAppIconName: String,
     ) -> AppIconOption? {
-        options.first { $0.alternateIconName == alternateIconName }
-            ?? options.first { $0.isPrimary }
+        options.first {
+            $0.alternateIconName(primaryAppIconName: primaryAppIconName) == alternateIconName
+        }
+            ?? options.first { $0.assetName == primaryAppIconName }
             ?? options.first
+    }
+
+    /// The preview-catalog image name of the currently selected icon, resolved
+    /// from the live `UIApplication.shared.alternateIconName` against the
+    /// manifest and falling back to the bundled "Classic" art. Shared by every
+    /// in-app surface that renders the selected icon (launch splash and shared
+    /// loading states) so they stay in lockstep.
+    @MainActor static func liveSelectedPreviewImageName(
+        primaryAppIconName: String,
+    ) -> String {
+        let options = loadedOptions()
+        let selected = selectedOption(
+            in: options,
+            current: UIApplication.shared.alternateIconName,
+            primaryAppIconName: primaryAppIconName,
+        )
+        return selected?.previewImageName ?? "AppIconClassic"
     }
 
     private struct Manifest: Codable {

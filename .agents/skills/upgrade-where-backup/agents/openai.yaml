@@ -1,0 +1,4 @@
+interface:
+  display_name: "Upgrade Where Backup"
+  short_description: "Upgrade and verify a Where backup archive"
+  default_prompt: "Use $upgrade-where-backup to upgrade and verify this Where backup."

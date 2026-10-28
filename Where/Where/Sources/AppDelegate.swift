@@ -1,38 +1,145 @@
-import LifecycleKit
+import PeriscopeCore
 import UIKit
 import WhereCore
+import WhereCrashReporting
 import WhereUI
+#if DEBUG
+    import Inspector
+#endif
 
-/// Owns the app's single `WhereModel` and the `LifecycleRunner` that drives
-/// launch, wiring both up at process launch rather than from a SwiftUI view's
-/// `.task`.
-///
-/// This matters for background relaunch: when CoreLocation relaunches the app
-/// after termination (a significant location change or visit), there's no UI,
-/// so a view's `.task` is not a reliable hook. `didFinishLaunching` always
-/// runs, so building the runner here (whose synchronous
-/// `initializePrerequisites` installs the `CLLocationManager`) lets CoreLocation
-/// deliver the pending event, while the async launch steps continue background
-/// tracking off the main thread.
+/// Selects one complete application runtime before launch and forwards every
+/// process callback to it without branching again.
 @MainActor
 final class AppDelegate: NSObject, UIApplicationDelegate {
-    let model = WhereModel()
+    private static let logger = WhereLog.root(WhereAppLog.self)
 
-    /// The launch engine, built in `didFinishLaunching` (where the launch
-    /// reason is known) and handed to `RootView` via `WhereApp`.
-    private(set) var launcher: LifecycleRunner!
+    let runtime: any WhereApplicationRuntime
+    private let reportingControllers: [any WhereReportingController]
+
+    override init() {
+        let buildEnvironment = WhereBuildEnvironment.current()
+        let preferences = WherePreferences(store: UserDefaults.standard)
+        let launchConfiguration = preferences.diagnosticReportingConfiguration.effective(
+            isDebugBuild: Self.isDebugBuild,
+        )
+        let client = BitdriftReportingClient(
+            apiKey: "GiBBMbsJNDqIM9c5450IEHoYFLt025SQo5kN2Vj6evk3GyILRVl1MWRBWUFLcGso9Qw=",
+            environment: ProcessInfo.processInfo.environment,
+            writer: BitdriftLogWriter(),
+            startupFailure: { error in
+                Self.recordDiagnosticProviderFailure(error)
+            },
+        )
+        let reportingController = DiagnosticReportingController(
+            launchConfiguration: launchConfiguration,
+            client: client,
+            logSystem: .shared,
+            now: Date.init,
+        )
+        reportingControllers = [reportingController]
+        let applyRemoteLogging: DiagnosticReportingSettingsModel.ApplyRemoteLogging = {
+            [reportingController] configuration, revision in
+            try await reportingController.applyRemoteLogging(configuration, revision: revision)
+        }
+        #if DEBUG
+            guard let applicationIdentifier = Bundle.main.bundleIdentifier else {
+                preconditionFailure("Where has no bundle identifier")
+            }
+            let modeController = WhereDeveloperLaunchController(
+                applicationIdentifier: applicationIdentifier,
+            )
+            runtime = Self.selectRuntime(
+                modeController: modeController,
+                fileManager: .default,
+                regular: {
+                    RegularApplicationRuntime(
+                        buildEnvironment: buildEnvironment,
+                        preferences: preferences,
+                        effectiveDiagnosticReportingConfiguration: launchConfiguration,
+                        applyRemoteLogging: applyRemoteLogging,
+                        developerLaunchController: modeController,
+                    )
+                },
+                inspector: {
+                    WhereInspectorApplicationRuntime(
+                        buildEnvironment: buildEnvironment,
+                        modeController: modeController.inspectorModeController,
+                    )
+                },
+            )
+        #else
+            let regularRuntime = RegularApplicationRuntime(
+                buildEnvironment: buildEnvironment,
+                preferences: preferences,
+                effectiveDiagnosticReportingConfiguration: launchConfiguration,
+                applyRemoteLogging: applyRemoteLogging,
+            )
+            runtime = regularRuntime
+        #endif
+        client.setStartupFailureHandler {
+            [weak model = (runtime as? RegularApplicationRuntime)?.model] error in
+            Self.recordDiagnosticProviderFailure(error)
+            let message = String(describing: error)
+            Task {
+                await reportingController.providerDidFail()
+                model?.diagnosticReporting.recordRuntimeFailure(message)
+            }
+        }
+        super.init()
+    }
+
+    private static var isDebugBuild: Bool {
+        #if DEBUG
+            true
+        #else
+            false
+        #endif
+    }
+
+    private static func recordDiagnosticProviderFailure(_ error: any Error) {
+        logger.diagnosticProviderStartupFailed(
+            attachments: [.error(error, name: "provider-startup-error")],
+        )
+    }
+
+    init(runtime: any WhereApplicationRuntime) {
+        self.runtime = runtime
+        reportingControllers = []
+        super.init()
+    }
+
+    init(
+        runtime: any WhereApplicationRuntime,
+        reportingControllers: [any WhereReportingController],
+    ) {
+        self.runtime = runtime
+        self.reportingControllers = reportingControllers
+        super.init()
+    }
+
+    #if DEBUG
+        static func selectRuntime(
+            modeController: WhereDeveloperLaunchController,
+            fileManager: FileManager,
+            regular: () -> any WhereApplicationRuntime,
+            inspector: () -> any WhereApplicationRuntime,
+        ) -> any WhereApplicationRuntime {
+            modeController.completePendingStoreErasures(fileManager: fileManager)
+            if modeController.nextLaunch == .inspector {
+                return inspector()
+            } else {
+                return regular()
+            }
+        }
+    #endif
 
     func application(
-        _: UIApplication,
-        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil,
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions options: [UIApplication.LaunchOptionsKey: Any]? = nil,
     ) -> Bool {
-        let reason = WhereLaunch.lifecycleReason(from: launchOptions)
-        // `initializePrerequisites` installs the CLLocationManager synchronously
-        // (so a queued location event isn't lost) and registers the
-        // foreground-notification presenter; the rest (store open, etc.) runs as
-        // async steps off this synchronous launch path.
-        launcher = WhereLaunch.makeLauncher(model: model, reason: reason)
-        Task { await launcher.run() }
-        return true
+        for reportingController in reportingControllers {
+            reportingController.start()
+        }
+        return runtime.didFinishLaunching(application: application, options: options)
     }
 }

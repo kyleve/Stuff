@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 import WhereCore
 
 /// Scripts a year-long sequence of `LocationSample`s, manual day entries,
@@ -194,7 +195,7 @@ enum SimulatedYear {
         }
         for d in 8 ... 12 {
             let date = calendar.date(from: DateComponents(year: year, month: 11, day: d)) ?? Date()
-            try? await services.journal.addManualDay(date: date, regions: [.california])
+            try? await services.journal.addManualDay(date: date, regions: [.california], audit: nil)
         }
         for d in 15 ... 30 {
             await emitNoon(month: 11, day: d, lat: sf.lat, lng: sf.lng)

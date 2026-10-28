@@ -23,6 +23,13 @@ public enum LocationAuthorizationStatus: Sendable, Hashable {
         self == .always
     }
 
+    /// Whether a one-shot foreground fix (`requestCurrentLocation()`) can
+    /// succeed: any granted status, including When-In-Use. Broader than
+    /// `allowsBackgroundTracking` because a foreground fix doesn't need Always.
+    public var allowsForegroundFix: Bool {
+        self == .whenInUse || self == .always
+    }
+
     /// Whether the user has actively refused (vs. simply not been asked), so
     /// the UI can route to the Settings app instead of re-prompting.
     public var isDenied: Bool {

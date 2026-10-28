@@ -1,32 +1,62 @@
 import Foundation
+import RegionKit
 
 /// Versioned, `Codable` manifest describing a whole-database backup of the
 /// Where feature. Serialized to `manifest.json` at the root of the backup
 /// `.zip`; evidence blob bytes live alongside it under `assets/` and are
 /// linked back to their records by `BackupAssetEntry`.
 ///
-/// The four arrays mirror the four SwiftData tables exactly
-/// (`SDLocationSample` / `SDEvidence` / `SDManualDay` / `SDDismissedIssue`) via
-/// their value-type representations, so an export captures everything and an
-/// import can upsert it back row-for-row.
+/// The arrays represent the persisted collections (`SDLocationSample` /
+/// `SDEvidence` / `SDManualDay` / `SDDismissedIssue` / `SDTrackedRegion`) via
+/// their value-type representations, plus installation profiles, nickname events, the
+/// device-removal tombstones, and planned-stay revisions. Target-owned check-ins and local
+/// recording consent are
+/// intentionally excluded because a backup cannot restore proof of local physical state.
 public struct BackupArchive: Codable, Sendable, Hashable {
     /// Bumped whenever the archive's on-disk shape changes in a way older
     /// readers can't understand, so an importer can refuse a file it doesn't
-    /// know how to read instead of silently dropping data. `dismissedIssues`
-    /// was added without a bump because it is additive: older readers ignore
-    /// the unknown key, and newer readers tolerate its absence (see
-    /// `init(from:)`).
-    public static let currentFormatVersion = 1
+    /// know how to read instead of silently dropping data (see
+    /// `BackupService.readArchive`, which rejects any other version).
+    ///
+    /// v3 adds sample provenance, immutable installation profiles, nickname changes, and archive
+    /// tombstones. v4 expands device kinds, groups metadata edit payloads, and renames the
+    /// profile's registration-generation key; v5 adds `plannedStayRecords`; v6 retains motion
+    /// measurements and sample-attribution revisions. v7 adds independent stay identities,
+    /// arrival/departure windows, and `homeRegionRecords`. There is no in-app
+    /// decode fallback for an older archive — it is reshaped out of band by
+    /// `Tools/upgrade-backup.rb`, matching the module's no-migration-on-read rule (see
+    /// `AGENTS.md`).
+    public static let currentFormatVersion = 7
 
     public let formatVersion: Int
     public let exportedAt: Date
     public let samples: [LocationSample]
     public let evidence: [Evidence]
     public let manualDays: [DayPresence]
-    /// Data-resolution dismissals (issue key + when dismissed), so a restore
-    /// keeps issues the user already dismissed dismissed. Absent in manifests
-    /// written before this field existed; those decode to `[]`.
+    /// Data-resolution dismissals (issue id + when dismissed), so a restore
+    /// keeps issues the user already dismissed dismissed.
     public let dismissedIssues: [DismissedIssue]
+    /// The user's tracked regions at export time (region ids only), so a restore
+    /// carries the region selection. Retained alongside ``primaryRegions`` as the
+    /// bare-id list `upgrade-backup.rb` and the import summary count read.
+    public let trackedRegions: [Region]
+    /// The user's primary regions at export time, each with its picked
+    /// ``RegionAppearance`` (color / emoji / icon) and pick order, so a restore
+    /// brings back the *look*, not just the region set. Import restores from
+    /// this; `trackedRegions` is the derived id list.
+    public let primaryRegions: [PrimaryRegion]
+    /// Immutable installation profiles.
+    public let recordingDeviceProfiles: [RecordingDeviceProfile]
+    /// Full append-only nickname history.
+    public let recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange]
+    /// Irreversible installation-removal tombstones.
+    public let recordingDeviceRemovals: [RecordingDeviceRemoval]
+    /// All synced stay revisions, including per-stay deletion tombstones.
+    public let plannedStayRecords: [PlannedStayRecord]
+    /// Synced forecast home choices. Nil-region revisions select historical estimates.
+    public let homeRegionRecords: [HomeRegionRecord]
+    /// Lossless per-sample correction history, including reset tombstones.
+    public let sampleAttributionRevisions: [SampleAttributionRevision]
     /// One entry per evidence record that has blob bytes in the archive.
     /// Evidence without bytes simply has no entry here.
     public let assets: [BackupAssetEntry]
@@ -37,7 +67,15 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         samples: [LocationSample],
         evidence: [Evidence],
         manualDays: [DayPresence],
-        dismissedIssues: [DismissedIssue] = [],
+        dismissedIssues: [DismissedIssue],
+        trackedRegions: [Region],
+        primaryRegions: [PrimaryRegion],
+        recordingDeviceProfiles: [RecordingDeviceProfile],
+        recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange],
+        recordingDeviceRemovals: [RecordingDeviceRemoval],
+        plannedStayRecords: [PlannedStayRecord],
+        homeRegionRecords: [HomeRegionRecord],
+        sampleAttributionRevisions: [SampleAttributionRevision],
         assets: [BackupAssetEntry],
     ) {
         self.formatVersion = formatVersion
@@ -46,32 +84,15 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         self.evidence = evidence
         self.manualDays = manualDays
         self.dismissedIssues = dismissedIssues
+        self.trackedRegions = trackedRegions
+        self.primaryRegions = primaryRegions
+        self.recordingDeviceProfiles = recordingDeviceProfiles
+        self.recordingDeviceMetadataChanges = recordingDeviceMetadataChanges
+        self.recordingDeviceRemovals = recordingDeviceRemovals
+        self.plannedStayRecords = plannedStayRecords
+        self.homeRegionRecords = homeRegionRecords
+        self.sampleAttributionRevisions = sampleAttributionRevisions
         self.assets = assets
-    }
-
-    private enum CodingKeys: String, CodingKey {
-        case formatVersion
-        case exportedAt
-        case samples
-        case evidence
-        case manualDays
-        case dismissedIssues
-        case assets
-    }
-
-    /// Custom decode (encode stays synthesized) so manifests written before
-    /// `dismissedIssues` existed still import: the missing key decodes to `[]`
-    /// rather than throwing.
-    public init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        formatVersion = try container.decode(Int.self, forKey: .formatVersion)
-        exportedAt = try container.decode(Date.self, forKey: .exportedAt)
-        samples = try container.decode([LocationSample].self, forKey: .samples)
-        evidence = try container.decode([Evidence].self, forKey: .evidence)
-        manualDays = try container.decode([DayPresence].self, forKey: .manualDays)
-        dismissedIssues = try container
-            .decodeIfPresent([DismissedIssue].self, forKey: .dismissedIssues) ?? []
-        assets = try container.decode([BackupAssetEntry].self, forKey: .assets)
     }
 }
 

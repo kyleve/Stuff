@@ -1,3 +1,6 @@
+import RegionKit
+import SFSafeSymbols
+import SnapshotKit
 import SwiftUI
 import WhereCore
 import WidgetKit
@@ -12,19 +15,26 @@ public struct TodayInlineAccessoryView: View {
         self.snapshot = snapshot
     }
 
+    @Environment(\.regionStyles) private var regionStyles
+
     private var regions: [Region] {
         snapshot.orderedDayRegions
     }
 
     public var body: some View {
-        if let first = regions.first {
-            Label(
-                regions.map(\.localizedName).joined(separator: " · "),
-                systemImage: first.style.symbolName,
-            )
-        } else {
-            Label(Strings.widgetTodayEmpty, systemImage: "location.slash")
+        Group {
+            if let first = regions.first {
+                Label(
+                    regions.map(\.localizedName).joined(separator: " · "),
+                    systemSymbol: regionStyles.style(for: first).symbol,
+                )
+            } else {
+                Label(String(localized: .widgetTodayEmpty), systemSymbol: .locationSlash)
+            }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(WhereFormat.widgetTodayAccessibilityLabel(date: snapshot.day))
+        .accessibilityValue(WhereFormat.widgetTodayAccessibilityValue(regions: regions))
     }
 }
 
@@ -38,6 +48,8 @@ public struct TodayCircularAccessoryView: View {
         self.snapshot = snapshot
     }
 
+    @Environment(\.regionStyles) private var regionStyles
+
     private var regions: [Region] {
         snapshot.orderedDayRegions
     }
@@ -46,7 +58,8 @@ public struct TodayCircularAccessoryView: View {
         ZStack {
             AccessoryWidgetBackground()
             VStack(spacing: 0) {
-                Image(systemName: regions.first?.style.symbolName ?? "location.slash")
+                Image(systemSymbol: regions.first
+                    .map { regionStyles.style(for: $0).symbol } ?? .locationSlash)
                     .font(.title3)
                 if regions.count > 1 {
                     Text(verbatim: "+\(regions.count - 1)")
@@ -55,27 +68,79 @@ public struct TodayCircularAccessoryView: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityText)
-    }
-
-    private var accessibilityText: String {
-        guard !regions.isEmpty else { return Strings.widgetTodayEmpty }
-        return regions.map(\.localizedName).joined(separator: ", ")
+        .accessibilityLabel(WhereFormat.widgetTodayAccessibilityLabel(date: snapshot.day))
+        .accessibilityValue(WhereFormat.widgetTodayAccessibilityValue(regions: regions))
     }
 }
 
 #if DEBUG
-    #Preview("Inline", traits: .fixedLayout(width: 200, height: 30)) {
-        TodayInlineAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
-            dayRegions: [.california, .newYork],
-            totals: [.california: 132, .newYork: 41],
-        ))
+    extension TodayInlineAccessoryView: SnapshotProviding {
+        public static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "Regions",
+                configurations: .componentLightDarkWithAnnotations,
+                settle: .immediate,
+            ) {
+                TodayInlineAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [.california, .newYork],
+                    totals: [.california: 132, .newYork: 41],
+                ))
+            }
+            whereSnapshot(name: "Empty", configurations: .componentLightDark, settle: .immediate) {
+                TodayInlineAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [],
+                    totals: [:],
+                ))
+            }
+        }
     }
 
-    #Preview("Circular", traits: .fixedLayout(width: 80, height: 80)) {
-        TodayCircularAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
-            dayRegions: [.california, .newYork],
-            totals: [.california: 132, .newYork: 41],
-        ))
+    extension TodayCircularAccessoryView: SnapshotProviding {
+        public static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "Regions",
+                configurations: .componentLightDarkWithAnnotations,
+                settle: .immediate,
+            ) {
+                TodayCircularAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [.california, .newYork],
+                    totals: [.california: 132, .newYork: 41],
+                ))
+            }
+            whereSnapshot(name: "Empty", configurations: .componentLightDark, settle: .immediate) {
+                TodayCircularAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [],
+                    totals: [:],
+                ))
+            }
+        }
+    }
+
+    #Preview("Inline") {
+        TodayInlineAccessoryView.snapshotPreviews
+    }
+
+    #Preview("Circular") {
+        TodayCircularAccessoryView.snapshotPreviews
+    }
+#endif
+
+#if DEBUG
+    extension TodayInlineAccessoryView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            TodayInlineAccessoryView.self,
+            title: "Today Inline",
+            viewport: .fixed(CGSize(width: 338, height: 60)),
+            navigationContainer: .none,
+        )
+    }
+
+    extension TodayCircularAccessoryView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            TodayCircularAccessoryView.self,
+            title: "Today Circular",
+            viewport: .fixed(CGSize(width: 76, height: 76)),
+            navigationContainer: .none,
+        )
     }
 #endif

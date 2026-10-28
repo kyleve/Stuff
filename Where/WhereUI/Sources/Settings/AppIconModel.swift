@@ -19,15 +19,22 @@ final class AppIconModel {
     var applyError: String?
 
     private let setter: any AlternateIconSetting
+    private let primaryAppIconName: String
 
     init(
+        primaryAppIconName: String,
         options: [AppIconOption]? = nil,
         setter: any AlternateIconSetting = UIApplication.shared,
     ) {
-        let resolved = options ?? AppIconModel.loadOptions()
+        let resolved = options ?? AppIconCatalog.loadedOptions()
         self.options = resolved
         self.setter = setter
-        selectedID = AppIconModel.matchSelection(in: resolved, current: setter.alternateIconName)
+        self.primaryAppIconName = primaryAppIconName
+        selectedID = AppIconModel.matchSelection(
+            in: resolved,
+            current: setter.alternateIconName,
+            primaryAppIconName: primaryAppIconName,
+        )
     }
 
     /// Whether the device supports alternate icons at all (false is rare on
@@ -52,7 +59,9 @@ final class AppIconModel {
     func apply(_ option: AppIconOption) async -> Bool {
         guard option.id != selectedID, supportsAlternateIcons else { return false }
         do {
-            try await setter.setAlternateIconName(option.alternateIconName)
+            try await setter.setAlternateIconName(option.alternateIconName(
+                primaryAppIconName: primaryAppIconName,
+            ))
             selectedID = option.id
             return true
         } catch {
@@ -69,18 +78,19 @@ final class AppIconModel {
         set { if !newValue { applyError = nil } }
     }
 
-    private static func loadOptions() -> [AppIconOption] {
-        (try? AppIconCatalog.load()) ?? []
-    }
-
     /// Match the live `alternateIconName` to a manifest option, falling back to
     /// the primary (or first) option when the active icon isn't listed — e.g.
     /// it was removed from the manifest since it was last set.
     private static func matchSelection(
         in options: [AppIconOption],
         current alternateIconName: String?,
+        primaryAppIconName: String,
     ) -> AppIconID {
-        AppIconCatalog.selectedOption(in: options, current: alternateIconName)?.id ?? AppIconID("")
+        AppIconCatalog.selectedOption(
+            in: options,
+            current: alternateIconName,
+            primaryAppIconName: primaryAppIconName,
+        )?.id ?? AppIconID("")
     }
 }
 
@@ -90,6 +100,7 @@ final class AppIconModel {
         /// canvas never touch the springboard.
         static func preview(activeAlternateIconName: String? = nil) -> AppIconModel {
             AppIconModel(
+                primaryAppIconName: "AppIcon",
                 setter: InMemoryAlternateIconSetting(alternateIconName: activeAlternateIconName),
             )
         }

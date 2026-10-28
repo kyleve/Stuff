@@ -1,0 +1,39 @@
+# BroadwayCore
+
+Foundation types for the Broadway design system.
+`BroadwayCore` defines the `BContext` environment that flows through a view hierarchy.
+It carries the current traits, themes, and a lazily-populated stylesheet cache.
+
+## Public API
+
+- **`BContext`** — root environment container (`baseTraits` + `traitOverrides` → `traits`, plus `themes` and a cached `BStylesheets`). `Equatable` + `Sendable`. `stylesheet(_:fallback:)` resolves a stylesheet inline (no `try`), trapping in debug and returning the fallback in release on a programmer error.
+- **`BTraits` / `BThemes`** — type-keyed containers for trait and theme values. `BTraits.Overrides` layers scoped overrides over base traits.
+- **`BStylesheets`** — lazy, cached stylesheet resolver scoped to traits+themes.
+- **`BAccessibility`** — accessibility snapshot (`.current()`) + observation: a `UIViewController`-based `BTraitsValue` observer, plus a view-controller-free `.changes()` `AsyncStream` a SwiftUI root can consume from a `.task`.
+- **Utilities** — `AnyEquatable` (type-erased `Equatable`), `CopyOnWrite` (`@_spi(CopyOnWrite)` copy-on-write wrapper), `EquatableIgnored`, `TypeIdentifier`, `StylesheetError`.
+
+`BScaledDimension.value(_:relativeTo:category:)` scales authored geometry with
+system font metrics and an explicit Broadway content-size category. Use it during
+stylesheet slicing. `BContentSizeCategory.uiContentSizeCategory` provides the
+reverse of `BContentSizeCategory.from(_:)` for UIKit consumers.
+
+`BModeVarying<Value>` stores light and dark values without reading ambient traits.
+Its read-only subscript selects a value from an explicit `BMode` during slicing.
+It conditionally conforms to `Equatable`, `Hashable`, and `Sendable` when its value does.
+
+```swift
+let opacity = BModeVarying(light: 0.14, dark: 0.3)
+let resolvedOpacity = opacity[context.traits.mode]
+```
+
+## How it works
+
+`BContext` holds a `BStylesheets` cache that is rebuilt whenever `baseTraits`, `traitOverrides`, or `themes` change (via `didSet`).
+The cache is `@EquatableIgnored`, so two contexts compare equal on their inputs, not on the derived cache.
+`BContext+UITraits.swift` bridges the context onto a `UITraitCollection` custom trait (guarded by `#if canImport(UIKit)`).
+
+## Install
+
+Local SPM library declared in the root [`Package.swift`](../../../Package.swift).
+Depend on it with `.package(product: "BroadwayCore")`.
+Run tests with `./test BroadwayCoreTests`.

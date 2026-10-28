@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 
 /// Persistence boundary for the Where feature. Everything that crosses
 /// this protocol is a value type, so callers (the `WhereServices` collaborators)
@@ -7,9 +8,9 @@ import Foundation
 /// All methods are `async throws` so the production CloudKit-backed
 /// implementation has somewhere to surface I/O errors.
 ///
-/// All mutating methods (`add(sample:)`, `write(evidence:blob:)`,
-/// `setManualDay`, `clearManualDay`, `clear(in:)`, and the
-/// `EvidenceBlobStore` writers)
+/// All mutating methods (`add(sample:)`, recording profile/metadata/check-in/event writes,
+/// `write(evidence:blob:)`, `setManualDay`,
+/// `clearManualDay`, `clear(in:)`, and the `EvidenceBlobStore` writers)
 /// MUST be called from inside a `perform { ... }` block — the block
 /// boundary is what owns the underlying write transaction. The
 /// production `SwiftDataStore` implementation traps with a
@@ -27,9 +28,132 @@ public protocol WhereStore: Sendable {
         _ block: @Sendable () async throws -> T,
     ) async throws -> T
 
+    /// Run a mutation only if the account is still in `expectedDataGenerationID`. Callers capture
+    /// the
+    /// generation before any suspension that informs the write; a reset/Replace crossing that work
+    /// then fails instead of admitting a stale decision into the new generation.
+    @discardableResult
+    func perform<T: Sendable>(
+        expectedDataGenerationID: WhereDataGenerationID,
+        _ block: @Sendable () async throws -> T,
+    ) async throws -> T
+
+    /// Pin every read in `block` to one logical data generation and verify that generation and the
+    /// durable
+    /// store generation are still current before returning. This is the multi-table read boundary
+    /// for authority decisions and backup export; a remote commit crossing its reads invalidates
+    /// the
+    /// result through persistent history even if its notification has not arrived yet.
+    /// Inside `perform`, retain that evidence boundary until the outer save. An external commit
+    /// crossing it throws `WhereStoreReadConflictError.changedDuringTransaction` before saving.
+    @discardableResult
+    func readSnapshot<T: Sendable>(
+        _ block: @Sendable () async throws -> T,
+    ) async throws -> T
+
+    /// A fresh stream that emits whenever committed data changes — once after
+    /// every outermost `perform` transaction commits, and (for a CloudKit-backed
+    /// store) on a remote import synced from another device. The payload is a
+    /// bare `Void`: subscribers re-read what they care about, so they only need
+    /// to know *that* something changed, not what. Each call returns its own
+    /// independent stream that drops out of the fan-out when iteration stops.
+    ///
+    /// This is the single read-refresh signal: every write origin (manual edit,
+    /// live GPS ingestion, remote sync) funnels through `perform` or the remote
+    /// import, so a consumer that re-derives on each ping can't go stale.
+    func changes() -> AsyncStream<Void>
+
+    /// Remote-import subset of ``changes()``. On-disk implementations emit only when another
+    /// process or CloudKit changes the store; local `perform` commits do not. Headless derived
+    /// outputs subscribe here so remote data refreshes them without duplicating the synchronous
+    /// reconciliation local writers already await.
+    func remoteChanges() -> AsyncStream<Void>
+
+    /// Current account-wide logical generation. Rows from older generations are retained only as
+    /// sync/audit history and never participate in normal reads.
+    func dataGeneration() async throws -> WhereDataGeneration
+
+    /// Reset boundary not causally observed when `registrationGenerationID` was created. A non-nil
+    /// result retires that pre-reset installation at the returned account-reset timestamp.
+    func recordingDeviceResetBarrier(
+        for registrationGenerationID: WhereDataGenerationID,
+    ) async throws -> Date?
+
+    /// Atomically erase the active generation's synced rows and append a fresh destructive
+    /// generation.
+    /// Every subsequent write in the same transaction is stamped into the returned generation.
+    /// Immutable device profiles remain global so a late/offline installation can still be
+    /// identified, but its old user-data rows cannot affect the new generation.
+    func rotateDataGeneration(
+        reason: WhereDataGenerationReason,
+        changedBy deviceID: RecordingDeviceID,
+        at date: Date,
+    ) async throws -> WhereDataGeneration
+
+    /// Receipt inserted atomically with an import's rows. Lookup is by both the random token and
+    /// local installation identity; callers inspect the stamped generation but treat a receipt in a
+    /// superseded generation as proof that the physical save occurred.
+    func backupImportReceipt(
+        id: UUID,
+        installationID: RecordingDeviceID,
+    ) async throws -> BackupImportReceipt?
+
+    /// Insert an immutable import receipt. Must run inside `perform { ... }`.
+    func addBackupImportReceipt(
+        id: UUID,
+        installationID: RecordingDeviceID,
+    ) async throws
+
+    /// Remove an import receipt after its device-local recovery marker is durably committed.
+    /// Must run inside `perform { ... }`.
+    func removeBackupImportReceipt(
+        id: UUID,
+        installationID: RecordingDeviceID,
+    ) async throws
+
     func add(sample: LocationSample) async throws
     func samples(in interval: DateInterval) async throws -> [LocationSample]
     func allSamples() async throws -> [LocationSample]
+
+    /// Every current-generation attribution revision for the requested raw sample identities.
+    func sampleAttributionRevisions(for sampleIDs: Set<UUID>) async throws
+        -> [SampleAttributionRevision]
+    /// Full correction history, including reset tombstones and revisions whose sample has not
+    /// synced.
+    func allSampleAttributionRevisions() async throws -> [SampleAttributionRevision]
+    /// Insert an immutable revision, accepting identical retries and rejecting conflicting
+    /// identities.
+    /// Must run inside `perform { ... }`; the sample may arrive later through CloudKit.
+    func addSampleAttributionRevision(_ revision: SampleAttributionRevision) async throws
+
+    /// Every assembled synced device read model, including removed devices.
+    func recordingDevices() async throws -> [RecordingDevice]
+
+    /// Immutable installation profiles.
+    func recordingDeviceProfiles() async throws -> [RecordingDeviceProfile]
+
+    /// Insert a profile, accepting an identical retry and rejecting conflicting contents for
+    /// an existing installation id. Must run inside `perform { ... }`.
+    func addRecordingDeviceProfile(_ profile: RecordingDeviceProfile) async throws
+
+    /// Full append-only nickname timeline.
+    func recordingDeviceMetadataChanges() async throws -> [RecordingDeviceMetadataChange]
+
+    /// Insert an immutable metadata event. Must run inside `perform { ... }`.
+    func addRecordingDeviceMetadataChange(_ change: RecordingDeviceMetadataChange) async throws
+
+    /// Latest target-owned check-in for each installation.
+    func recordingDeviceCheckIns() async throws -> [RecordingDeviceCheckIn]
+
+    /// Upsert one target-owned check-in, preserving a newer existing value during backup merge.
+    /// Must run inside `perform { ... }`.
+    func setRecordingDeviceCheckIn(_ checkIn: RecordingDeviceCheckIn) async throws
+
+    /// Irreversible device tombstones in the active generation.
+    func recordingDeviceRemovals() async throws -> [RecordingDeviceRemoval]
+
+    /// Insert an immutable removal tombstone. Must run inside `perform { ... }`.
+    func addRecordingDeviceRemoval(_ removal: RecordingDeviceRemoval) async throws
 
     func write(evidence: Evidence, blob: Data?) async throws
     func evidence(in interval: DateInterval) async throws -> [Evidence]
@@ -38,44 +162,181 @@ public protocol WhereStore: Sendable {
     func allEvidence() async throws -> [Evidence]
     func evidenceBlob(for id: UUID) async throws -> Data?
 
-    /// Set (or replace) the manual presence record for a given calendar day.
-    /// Implementations should treat `day.date` as already normalized to the
-    /// start-of-day key (callers via `DayJournal` do this for them).
+    /// Set (or replace) the manual presence record for a calendar day, keyed by
+    /// `day.day` (its timezone-independent `CalendarDay`).
     func setManualDay(_ day: DayPresence) async throws
-    /// Remove the manual presence record for a given calendar day, if any.
-    /// `date` is the start-of-day key (callers via `DayJournal` normalize
-    /// it). A no-op when no record exists. Used to undo a relabel/backfill for
-    /// a single day without disturbing raw samples.
-    func clearManualDay(_ date: Date) async throws
-    func manualDays(in interval: DateInterval) async throws -> [DayPresence]
-    /// Every manual-day record in the store, regardless of `dateKey`. Used
-    /// by the whole-database backup export.
+    /// Remove the manual presence record for `day`, if any. A no-op when no
+    /// record exists. Used to undo a relabel/backfill for a single day without
+    /// disturbing raw samples.
+    func clearManualDay(_ day: CalendarDay) async throws
+    /// The manual-day records whose `CalendarDay` falls in the inclusive
+    /// `dayRange`. Used to load a year's manual entries.
+    func manualDays(in dayRange: ClosedRange<CalendarDay>) async throws -> [DayPresence]
+    /// Every manual-day record in the store, regardless of day. Used by the
+    /// whole-database backup export.
     func allManualDays() async throws -> [DayPresence]
 
-    /// Erase all samples / evidence / manual entries whose timestamp lies in
-    /// the given interval. Used by `DayJournal.clearYear`.
-    func clear(in interval: DateInterval) async throws
+    /// Erase samples / evidence whose timestamp lies in `interval` and manual
+    /// entries whose `CalendarDay` falls in `manualDays`. Manual days key by
+    /// calendar day (not instant), so they take a `CalendarDay` range rather
+    /// than the timestamp interval used for samples/evidence. Used by
+    /// `DayJournal.clearYear`.
+    func clear(
+        in interval: DateInterval,
+        manualDays dayRange: ClosedRange<CalendarDay>,
+    ) async throws
 
-    /// Erase every sample / evidence / manual entry in the store. Used by the
-    /// "replace" backup-import strategy to mirror the imported file exactly.
-    func clearAll() async throws
-
-    /// Every persisted dismissal key for data-resolution issues. Used by the
-    /// scanner to filter out already-dismissed issues (it only needs the keys).
-    func dismissedIssueKeys() async throws -> Set<String>
+    /// Every persisted dismissed data-resolution issue id. Used by the scanner
+    /// to filter out already-dismissed issues (it only needs the ids).
+    func dismissedIssueIDs() async throws -> Set<DataIssueID>
 
     /// Every persisted dismissal with its original `dismissedAt` timestamp. Used
     /// by the whole-database backup export so a restore round-trips dismissals
     /// verbatim.
     func allDismissedIssues() async throws -> [DismissedIssue]
 
-    /// Persist or remove a dismissed data-resolution issue key. Must run inside
+    /// Every planned-stay revision, including deletion tombstones. Resolve the newest revision
+    /// separately for each stable stay identity after CloudKit merges.
+    func plannedStayRecords() async throws -> [PlannedStayRecord]
+
+    /// Replace local revisions for this stay identity with `record`, retaining tombstones
+    /// so an older remote row cannot resurrect cleared intent. Must run inside
+    /// `perform { ... }`.
+    func replacePlannedStayRecord(with record: PlannedStayRecord) async throws
+
+    /// Upsert an exact planned-stay revision during backup import. Must run
+    /// inside `perform { ... }`.
+    func restorePlannedStayRecord(_ record: PlannedStayRecord) async throws
+
+    /// Every revision of the forecast home choice, including historical-mode tombstones.
+    func homeRegionRecords() async throws -> [HomeRegionRecord]
+
+    /// Replace local home revisions with a newer choice. Must run inside `perform { ... }`.
+    func replaceHomeRegionRecord(with record: HomeRegionRecord) async throws
+
+    /// Restore an exact home revision during backup import. Must run inside `perform { ... }`.
+    func restoreHomeRegionRecord(_ record: HomeRegionRecord) async throws
+
+    /// Persist or remove a dismissed data-resolution issue. Must run inside
     /// `perform { ... }`. Upserts when `dismissed == true` (stamping the current
     /// date); deletes when false.
-    func setIssueDismissed(_ dismissed: Bool, key: String) async throws
+    func setIssueDismissed(_ dismissed: Bool, id: DataIssueID) async throws
 
     /// Restore a dismissal verbatim, preserving its original `dismissedAt`
-    /// instead of stamping "now". Upserts by `key`. Must run inside
+    /// instead of stamping "now". Upserts by id. Must run inside
     /// `perform { ... }`. Used by backup import.
     func restoreDismissedIssue(_ issue: DismissedIssue) async throws
+
+    /// The user's tracked regions — the set the app loads geometry for and
+    /// attributes against. Stored as one row per region (so concurrent
+    /// cross-device edits merge rather than clobbering the whole set) and read
+    /// as a `Set`; when the user hasn't chosen any yet, this returns
+    /// ``WhereStore/defaultTrackedRegions``.
+    func trackedRegions() async throws -> Set<Region>
+
+    /// The user's tracked regions with their picked appearance and pick order —
+    /// the same rows ``trackedRegions()`` reads, surfaced as ordered
+    /// ``PrimaryRegion`` values for the picker/customization UI. Ordered by the
+    /// stored pick order (rows without one sort last, then by region id). When
+    /// the user hasn't chosen any yet, mirrors ``WhereStore/defaultTrackedRegions``
+    /// (in canonical order, with no stored appearance).
+    func primaryRegions() async throws -> [PrimaryRegion]
+
+    /// Add (`tracked == true`) or remove (`false`) a single tracked region.
+    /// Per-region so two devices adding different regions
+    /// both survive a sync. Must run inside `perform { ... }`.
+    func setTrackedRegion(_ tracked: Bool, region: Region) async throws
+
+    /// Replace the entire primary set with `regions`: upsert a row per entry
+    /// (storing its `appearance` — cleared when `nil` — and pick `order`) and
+    /// delete every tracked row not in `regions`. The picker/customization
+    /// commit path — the ordered list fully describes the primary (tracked) set,
+    /// so removals happen by omission rather than a separate call. Must run
+    /// inside `perform { ... }`.
+    func setPrimaryRegions(_ regions: [PrimaryRegion]) async throws
+}
+
+extension WhereStore {
+    /// Run one mutation against the generation current at command start, failing if a reset or
+    /// Replace wins before commit. Use this when the command does not already hold a snapshot id.
+    public func performInCurrentGeneration<T: Sendable>(
+        _ block: @Sendable () async throws -> T,
+    ) async throws -> T {
+        let generationID = try await (dataGeneration()).id
+        return try await perform(expectedDataGenerationID: generationID, block)
+    }
+
+    public func perform<T: Sendable>(
+        expectedDataGenerationID: WhereDataGenerationID,
+        _ block: @Sendable () async throws -> T,
+    ) async throws -> T {
+        try await perform {
+            guard try await (dataGeneration()).id == expectedDataGenerationID else {
+                throw RecordingPersistenceError.dataGenerationChanged
+            }
+            return try await block()
+        }
+    }
+
+    public func readSnapshot<T: Sendable>(
+        _ block: @Sendable () async throws -> T,
+    ) async throws -> T {
+        let expected = try await (dataGeneration()).id
+        let result = try await block()
+        guard try await (dataGeneration()).id == expected else {
+            throw RecordingPersistenceError.dataGenerationChanged
+        }
+        return result
+    }
+
+    /// Stores without an external writer never emit remote changes.
+    public func remoteChanges() -> AsyncStream<Void> {
+        AsyncStream { $0.finish() }
+    }
+
+    /// Regions tracked out of the box, until the user chooses their own. The
+    /// "no rows yet" fallback for ``trackedRegions()`` and the historical
+    /// California / New York / Canada / European Union set.
+    public static var defaultTrackedRegions: Set<Region> {
+        [.california, .newYork, .canada, .europeanUnion]
+    }
+
+    /// Default: the out-of-the-box set. `SwiftDataStore` overrides this with the
+    /// persisted rows; in-memory test fakes inherit the default.
+    public func trackedRegions() async throws -> Set<Region> {
+        Self.defaultTrackedRegions
+    }
+
+    /// Default: derive ordered primary regions from ``trackedRegions()`` with no
+    /// stored appearance. `SwiftDataStore` overrides this to read the persisted
+    /// appearance and pick order; test fakes inherit this catalog-ordered view.
+    public func primaryRegions() async throws -> [PrimaryRegion] {
+        try await Region.inCanonicalOrder(trackedRegions())
+            .enumerated()
+            .map { PrimaryRegion(region: $1, appearance: nil, order: $0) }
+    }
+
+    /// Default: a no-op. `SwiftDataStore` overrides this to persist rows; test
+    /// fakes that don't exercise tracked-region persistence inherit the no-op.
+    public func setTrackedRegion(_: Bool, region _: Region) async throws {}
+
+    /// Default: a no-op. `SwiftDataStore` overrides this to replace the persisted
+    /// rows; test fakes that don't exercise persistence inherit the no-op.
+    public func setPrimaryRegions(_: [PrimaryRegion]) async throws {}
+
+    public func plannedStayRecords() async throws -> [PlannedStayRecord] {
+        []
+    }
+
+    public func replacePlannedStayRecord(with _: PlannedStayRecord) async throws {}
+
+    public func restorePlannedStayRecord(_: PlannedStayRecord) async throws {}
+
+    public func homeRegionRecords() async throws -> [HomeRegionRecord] {
+        []
+    }
+
+    public func replaceHomeRegionRecord(with _: HomeRegionRecord) async throws {}
+
+    public func restoreHomeRegionRecord(_: HomeRegionRecord) async throws {}
 }

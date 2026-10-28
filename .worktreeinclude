@@ -1,0 +1,2 @@
+# Preserve the machine-local signing choice in Codex-managed worktrees.
+.mise.local.toml

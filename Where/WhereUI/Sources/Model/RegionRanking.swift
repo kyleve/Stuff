@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 import WhereCore
 
 /// A region paired with the number of calendar days the user was present in
@@ -39,27 +40,24 @@ public struct RegionRanking: Hashable, Sendable {
     /// live), so it always falls into `secondary` when present.
     public init(report: YearReport, primaryCount: Int = RegionRanking.primaryCount) {
         let ranked = RegionRanking.ranked(report: report)
-        let primary = Array(
-            ranked.filter { $0.region != .other }.prefix(max(0, primaryCount)),
-        )
-        let primaryRegions = Set(primary.map(\.region))
+        // Shared with the headless data-issue scan (`Region.primaryRegions`).
+        // Locations and Elsewhere use configured membership separately.
+        let primaryRegions = Set(Region.primaryRegions(in: report.totals, count: primaryCount))
+        let primary = ranked.filter { primaryRegions.contains($0.region) }
         let secondary = ranked.filter { !primaryRegions.contains($0.region) }
         self.init(primary: primary, secondary: secondary)
     }
 
-    /// All present regions sorted by day count descending, ties broken by
-    /// `Region.allCases` declaration order so the layout is stable.
+    /// All present regions sorted by day count descending, ties broken by the
+    /// catalog's canonical (`declarationOrder`) order so the layout is stable.
     static func ranked(report: YearReport) -> [RegionDays] {
-        let order = Dictionary(
-            uniqueKeysWithValues: Region.allCases.enumerated().map { ($1, $0) },
+        Region.rankedByDayCount(
+            report.totals
+                .filter { $0.value > 0 }
+                .map { RegionDays(region: $0.key, days: $0.value) },
+            days: \.days,
+            region: \.region,
         )
-        return report.totals
-            .filter { $0.value > 0 }
-            .map { RegionDays(region: $0.key, days: $0.value) }
-            .sorted { lhs, rhs in
-                if lhs.days != rhs.days { return lhs.days > rhs.days }
-                return (order[lhs.region] ?? 0) < (order[rhs.region] ?? 0)
-            }
     }
 
     public var isEmpty: Bool {

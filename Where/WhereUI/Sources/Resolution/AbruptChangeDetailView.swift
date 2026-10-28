@@ -1,54 +1,68 @@
+import RegionKit
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
 /// Detail screen for an abrupt location change: explains the likely missing
 /// travel day and offers relabel paths for either adjacent day.
 struct AbruptChangeDetailView: View {
-    @Environment(WhereSession.self) private var session
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.stylesheet) private var stylesheet
 
     let issue: any DataIssue
+    let report: YearReportModel
+    let resolve: ResolveModel
 
     var body: some View {
         if let payload = travelDayPayload {
             Form {
                 Section {
-                    Text(Strings.resolutionAbruptDetailExplanation)
+                    Text(String(localized: .resolutionAbruptDetailExplanation))
                 }
 
-                Section(Strings.resolutionAbruptDetailEarlierHeader) {
+                Section(String(localized: .resolutionAbruptDetailEarlier)) {
                     daySummary(payload.earlier)
                     NavigationLink {
-                        DayRelabelView(day: payload.earlier, initialRegions: payload.suggested)
+                        DayRelabelView(
+                            day: payload.earlier,
+                            report: report,
+                            initialRegions: payload.suggested,
+                            reason: .travelDay,
+                        )
                     } label: {
-                        Text(Strings.resolutionAbruptDetailRelabelEarlier)
+                        Text(String(localized: .resolutionAbruptDetailRelabelEarlier))
                     }
                 }
 
-                Section(Strings.resolutionAbruptDetailLaterHeader) {
+                Section(String(localized: .resolutionAbruptDetailLater)) {
                     daySummary(payload.later)
                     NavigationLink {
-                        DayRelabelView(day: payload.later, initialRegions: payload.suggested)
+                        DayRelabelView(
+                            day: payload.later,
+                            report: report,
+                            initialRegions: payload.suggested,
+                            reason: .travelDay,
+                        )
                     } label: {
-                        Text(Strings.resolutionAbruptDetailRelabelLater)
+                        Text(String(localized: .resolutionAbruptDetailRelabelLater))
                     }
                 }
 
                 Section {
-                    Button(Strings.resolutionAbruptDetailBothRight) {
+                    Button(String(localized: .resolutionAbruptDetailBothRight)) {
                         Task {
-                            await session.dismiss(issue)
+                            await resolve.dismiss(issue)
                             dismiss()
                         }
                     }
                 }
             }
-            .navigationTitle(Strings.resolutionAbruptDetailTitle)
+            .navigationTitle(String(localized: .resolutionAbruptDetailTitle))
             .navigationBarTitleDisplayMode(.inline)
         } else {
             ContentUnavailableView(
-                Strings.loadErrorTitle,
-                systemImage: "exclamationmark.triangle",
+                String(localized: .commonLoadErrorTitle),
+                systemSymbol: .exclamationmarkTriangle,
             )
         }
     }
@@ -65,8 +79,8 @@ struct AbruptChangeDetailView: View {
     }
 
     private func daySummary(_ day: DayPresence) -> some View {
-        VStack(alignment: .leading, spacing: UIConstants.Spacings.xxSmall) {
-            Text(day.date.formatted(.dateTime.month(.abbreviated).day().year()))
+        VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
+            Text(day.displayDate.formatted(.dateTime.month(.abbreviated).day().year()))
                 .font(.headline)
             Text(day.regions.map(\.localizedName).sorted().joined(separator: ", "))
                 .foregroundStyle(.secondary)
@@ -81,15 +95,47 @@ struct AbruptChangeDetailView: View {
                 issue: AbruptChangeIssue(
                     earlierDay: DayPresence(
                         date: .now,
+                        in: .current,
                         regions: [.california],
                     ),
                     laterDay: DayPresence(
-                        date: .now,
+                        date: Date().addingTimeInterval(86400),
+                        in: .current,
                         regions: [.newYork],
                     ),
                 ),
+                report: PreviewSupport.loadedYearReportModel(),
+                resolve: PreviewSupport.resolveModel(),
             )
         }
-        .environment(PreviewSupport.loadedSession())
+    }
+#endif
+
+#if DEBUG
+    extension AbruptChangeDetailView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            AbruptChangeDetailView.self,
+            title: "Abrupt Change",
+            routes: [
+                .push(to: DayRelabelView.flyoverID),
+            ],
+        ) { world in
+            AbruptChangeDetailView(
+                issue: AbruptChangeIssue(
+                    earlierDay: DayPresence(
+                        date: PreviewSupport.referenceNow,
+                        in: world.report.calendar,
+                        regions: [.california],
+                    ),
+                    laterDay: DayPresence(
+                        date: PreviewSupport.referenceNow.addingTimeInterval(86400),
+                        in: world.report.calendar,
+                        regions: [.newYork],
+                    ),
+                ),
+                report: world.report,
+                resolve: PreviewSupport.resolveModel(),
+            )
+        }
     }
 #endif

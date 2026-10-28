@@ -1,0 +1,177 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+specs_root="$repo_root/Where/Specifications"
+
+tlc_version="1.7.4"
+tlc_sha256="936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88"
+tlc_url="https://github.com/tlaplus/tlaplus/releases/download/v${tlc_version}/tla2tools.jar"
+pcal_version="1.11"
+java_version="temurin-21.0.8+9.0.LTS"
+
+tool_root="$repo_root/.build/tla"
+jar_dir="$tool_root/v${tlc_version}"
+jar_path="$jar_dir/tla2tools.jar"
+runs_dir="$tool_root/runs"
+
+usage() {
+    cat <<'EOF'
+Usage: ./tla-check [--list] [SPEC ...]
+
+Generate and run TLA+ model checks declared under
+Where/Specifications/*/manifest.json.
+With no SPEC names, every discoverable spec is checked.
+
+Options:
+  --list    Print discoverable spec folder names and exit
+  --help    Show this help
+
+PlusCal manifests are translated only inside the retained run directory;
+tracked model sources are never rewritten.
+
+Downloads pinned TLC and Java into .build/tla/ on first use (~350 MB).
+Set TLA_JAVA to a Java executable to bypass the pinned mise runtime.
+EOF
+}
+
+checksum() {
+    shasum -a 256 "$1" | awk '{print $1}'
+}
+
+ensure_tools() {
+    mkdir -p "$jar_dir" "$runs_dir"
+
+    if [[ ! -f "$jar_path" ]]; then
+        download_path="$(mktemp "$jar_dir/tla2tools.jar.download.XXXXXX")"
+        echo "Downloading TLC ${tlc_version}..."
+        if curl --fail --location --retry 3 --output "$download_path" "$tlc_url"; then
+            :
+        else
+            download_status=$?
+            rm -f "$download_path"
+            return "$download_status"
+        fi
+        if [[ "$(checksum "$download_path")" != "$tlc_sha256" ]]; then
+            rm -f "$download_path"
+            echo "TLC download checksum did not match ${tlc_sha256}." >&2
+            exit 1
+        fi
+        mv "$download_path" "$jar_path"
+    fi
+
+    if [[ "$(checksum "$jar_path")" != "$tlc_sha256" ]]; then
+        echo "Cached TLC checksum did not match ${tlc_sha256}." >&2
+        exit 1
+    fi
+
+    export MISE_DATA_DIR="$tool_root/mise/data"
+    export MISE_CACHE_DIR="$tool_root/mise/cache"
+    export MISE_STATE_DIR="$tool_root/mise/state"
+    export MISE_CONFIG_DIR="$tool_root/mise/config"
+}
+
+discover_specs() {
+    find "$specs_root" -mindepth 2 -maxdepth 2 -name manifest.json -print \
+        | while IFS= read -r manifest; do
+            basename "$(dirname "$manifest")"
+        done \
+        | sort
+}
+
+list_specs() {
+    local names
+    names="$(discover_specs)"
+    if [[ -z "$names" ]]; then
+        echo "No specs found under $specs_root" >&2
+        exit 1
+    fi
+    printf '%s\n' "$names"
+}
+
+validate_spec_name() {
+    local name="$1"
+    if [[ ! -f "$specs_root/$name/manifest.json" ]]; then
+        echo "error: unknown spec '$name' (no manifest at $specs_root/$name/manifest.json)" >&2
+        exit 1
+    fi
+}
+
+run_spec() {
+    local spec_name="$1"
+    local spec_dir="$specs_root/$spec_name"
+    local manifest="$spec_dir/manifest.json"
+    local run_dir
+
+    validate_spec_name "$spec_name"
+    run_dir="$(mktemp -d "$runs_dir/${spec_name}.XXXXXX")"
+
+    echo "==> $spec_name"
+    python3 "$repo_root/Tools/tla_check.py" \
+        "$manifest" "$spec_dir" "$run_dir" "$jar_path" \
+        "$tlc_version" "$pcal_version" "$java_version" "$tlc_sha256"
+}
+
+main() {
+    local list_only=false
+    local specs=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h | --help)
+                usage
+                exit 0
+                ;;
+            --list)
+                list_only=true
+                shift
+                ;;
+            --)
+                shift
+                specs+=("$@")
+                break
+                ;;
+            -*)
+                echo "error: unknown option '$1'" >&2
+                usage >&2
+                exit 2
+                ;;
+            *)
+                specs+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    if $list_only; then
+        list_specs
+        exit 0
+    fi
+
+    if [[ ${#specs[@]} -eq 0 ]]; then
+        while IFS= read -r name; do
+            specs+=("$name")
+        done < <(discover_specs)
+        if [[ ${#specs[@]} -eq 0 ]]; then
+            echo "No specs found under $specs_root" >&2
+            exit 1
+        fi
+    fi
+
+    ensure_tools
+
+    local spec failed=false
+    for spec in "${specs[@]}"; do
+        if ! run_spec "$spec"; then
+            failed=true
+        fi
+    done
+
+    if $failed; then
+        exit 1
+    fi
+
+    echo "All TLA+ checks passed (${#specs[@]} spec(s))."
+}
+
+main "$@"

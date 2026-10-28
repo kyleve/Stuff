@@ -1,0 +1,17 @@
+{
+  "source": "pluscal",
+  "module": "IntentServicesHandoff.tla",
+  "cases": [
+    {
+      "name": "broken",
+      "config": "Broken.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoSelfCreate is violated."
+    },
+    {
+      "name": "current",
+      "config": "Current.cfg",
+      "expect": "pass"
+    }
+  ]
+}

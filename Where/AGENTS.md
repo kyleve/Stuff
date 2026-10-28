@@ -1,338 +1,309 @@
 # Where – Feature Shape
 
-Where is an iOS/iPadOS/macOS app for answering "what
-region was I in on which day?" It ingests passive
-GPS (Visits + significant-change), accepts user-asserted history
-(manual coordinates, whole-day overlays, evidence like boarding
-passes), and rolls everything up into per-day region presence and
-per-year reports. The primary use case is residency / day-count
-audits, so a day "counts" for a region if **any** sample in that
-calendar day fell inside the region's polygon (a single day can
-belong to multiple regions, e.g. a CA→NY same-day flight).
+Where is an iOS/iPadOS app. It answers "what region was I in on which day?"
+It ingests passive GPS (Visits + significant-change). It accepts user-asserted
+history (manual coordinates, whole-day overlays, evidence like boarding passes).
+It rolls everything up into per-day region presence and per-year reports. A day
+counts for each region in its effective sample attribution plus additive manual
+entries, unless an authoritative manual overlay replaces that presence.
+Device removal and GPS corrections affect
+effective attribution; raw observations remain available for review and backup.
+A single day can belong to multiple regions.
 
-This file complements the root [`AGENTS.md`](../AGENTS.md), which
-owns build system, formatting, and global conventions. Read that
-first.
+This file complements the root [`AGENTS.md`](../AGENTS.md). That file owns the
+build system, formatting, and global conventions. Read that first.
 
 ## Modules
 
-```
-Where/
-  Where/         App target – SwiftUI entry point (WhereApp → RootView)
-  WhereCore/     SPM library – domain model, persistence, GPS, aggregation
-  WhereUI/       SPM library – SwiftUI views (depends on WhereCore)
-  WhereTesting/  SPM library – iOS test host helpers (show(), waitFor, ...)
-```
+The layering stack runs bottom-up: **RegionKit** (geometry + region lookup) →
+**WhereCore** (domain. It never imports SwiftUI/UIKit) → **WhereUI** (SwiftUI
+views + view models) → the thin hosts (**Where** app, **WhereIntents**,
+**WhereWidgets**, **WhereShareExtension**, **RegionViewer**). Each layer
+reaches only *down*. Each module's own `AGENTS.md` / `README.md` is the
+authority on what it is. Add domain behavior to WhereCore. Add presentation to
+WhereUI. The app target stays tiny.
 
-- **App target** `Where` ([`Project.swift`](../Project.swift),
-  bundle ID `com.stuff.where`) is intentionally tiny: it wires
-  `RootView` from `WhereUI` into a `WindowGroup`. Almost no logic
-  lives here — add domain behavior to `WhereCore`, presentation and
-  view-model wiring to `WhereUI`.
-- **`WhereCore`** is the domain layer. It is pure Swift + Foundation +
-  SwiftData + CoreLocation; it must not import SwiftUI or UIKit.
-  Bundled region polygons (`Resources/*.geojson`) ship here.
-- **`WhereUI`** is the SwiftUI layer: views plus `@Observable` view
-  models (`WhereModel`, `WhereSession`) that mirror service state and
-  expose UI intent methods. It depends on `WhereCore` and is what the
-  app target imports. It is **not** the domain model — see [Layering](#layering).
-- **`WhereTesting`** is a UIKit-only helper library for hosted unit
-  tests (`show(_:perform:)`, `waitFor(...)`, `recursiveDescription`).
-  It is meant for test bundles, not production code.
-
-Tests live under each module's `Tests/` (Swift Testing only, never
-XCTest — see the root rules).
-
-## Key types in `WhereCore`
-
-Public surface is small and `Sendable`; values cross the persistence
-boundary, never SwiftData records.
-
-- [`WhereServices`](WhereCore/Sources/WhereServices.swift) –
-  the feature's service layer: a small `Sendable` container assembled
-  once by `WhereBootstrap` that composes a `WhereStore` and a
-  `LocationSource` into focused collaborators. Use this as the entry
-  point — don't talk to the store or location source directly from UI.
-  Collaborators (each `WhereCore`, unit-tested in isolation):
-    - `ReportReader` (`struct`) – pure reads: `yearReport`, location
-      projections.
-    - `LocationIngestor` (`actor`) – live GPS ingestion: the monitoring
-      lifecycle (idempotent `start()` / `stop()`, plus `quiesce()` that stops
-      the source and drains any in-flight persist for a clean erase), the
-      single-consumer sample stream, a bounded retry queue for transient
-      persistence failures, and authorization.
-    - `DayJournal` (`actor`) – user-sourced writes: manual days, range
-      backfills, overrides, clears, evidence — each followed by its
-      reminder reconcile + widget publish.
-    - `ReminderReconciler` / `DailySummaryReconciler` (`actor`s) – the
-      notification intent + badge/schedule (and recap-body)
-      reconciliation.
-    - `WidgetSnapshotPublisher` (`actor`) – owns the published widget
-      snapshot + the rebuild/throttle policy.
-    - `BackupCoordinator` (`actor`) – backup export/import
-      (`ImportStrategy` / `ImportSummary` live here).
-    - [`DataIssueScanner`](WhereCore/Sources/DataResolution/DataIssueScanner.swift)
-      (`actor`) – scans the year report + raw samples for fixable data
-      quality issues (missing days, GPS border drift, abrupt location
-      changes). Owns detection I/O, a ~3h throttle/cache keyed by
-      `(year, driftThresholdMeters)`, and sorting; exposes
-      `issues(year:primaryRegions:driftThresholdMeters:force:)` and
-      `invalidate()`. Detectors implement [`DataIssueDetector`](WhereCore/Sources/DataResolution/DataIssueDetector.swift)
-      (typed `Issue` per detector, erased to `[any DataIssue]` for the
-      UI). Dismissals are read from the store and filtered out before
-      return. `WhereServices.reset()` calls `await resolution.invalidate()`.
-  The one cross-collaborator op is `WhereServices.reset()` (quiesce GPS
-  ingestion, then wipe the store) — the app's erase/teardown path.
-- [`LocationSample`](WhereCore/Sources/LocationSample.swift) +
-  [`SampleSource`](WhereCore/Sources/LocationSample.swift) – the
-  atomic observation unit. `SampleSource` distinguishes
-  GPS / manual / evidence-implied origins.
-- [`DayPresence`](WhereCore/Sources/DayPresence.swift) /
-  [`YearReport`](WhereCore/Sources/YearReport.swift) – aggregated
-  output of [`DayAggregator`](WhereCore/Sources/DayAggregator.swift)
-  (pure, no I/O).
-- [`Region`](WhereCore/Sources/Region.swift) – the closed set of
-  tracked regions (`california`, `newYork`, `canada`,
-  `europeanUnion`, `other`). Two exhaustive switches make adding a
-  region a compile error until resolved: `Region.localizedName`
-  (needs a matching string-catalog entry under
-  [`Resources/Localizable.xcstrings`](WhereCore/Sources/Resources/Localizable.xcstrings))
-  and `Region.geometrySource` (the single source of truth for where a
-  region's polygons come from — `.usStateFeature(name:)`, `.bundledFile`,
-  or `.none`).
-- [`RegionAttributor`](WhereCore/Sources/RegionAttributor.swift) –
-  maps `Coordinate` → `Region` via bundled GeoJSON
-  ([`Resources/`](WhereCore/Sources/Resources/), see that folder's
-  README for provenance). Loads polygons in `Region.allCases` order
-  (which fixes first-match priority) driven entirely by each region's
-  `geometrySource`. `RegionAttributor.shared` is the process-wide
-  instance.
-- [`RegionGeometryCatalog`](WhereCore/Sources/RegionGeometryCatalog.swift) –
-  read-only, off-main API behind the developer region-map viewer. Its
-  `outlines(for:)` returns drawable `RegionOutline`s (exterior ring +
-  title + optional `Region`) for either `.attribution` (what
-  `RegionAttributor` loaded) or `.source` (every authored GeoJSON
-  feature, cached). UI consumes outlines via this catalog, never the raw
-  `RegionPolygons`/`GeoJSON` internals.
-- [`Evidence`](WhereCore/Sources/Evidence/Evidence.swift) +
-  [`EvidenceBlobStore`](WhereCore/Sources/Evidence/EvidenceBlobStore.swift)
-  – metadata + externally-stored bytes for user-attached proofs
-  (boarding passes, hotel receipts, …).
-- **Data resolution** ([`DataResolution/`](WhereCore/Sources/DataResolution/))
-  – [`DataIssue`](WhereCore/Sources/DataResolution/DataIssue.swift) protocol +
-  per-detector issue types (`MissingDaysIssue`, `BorderDriftIssue`,
-  `AbruptChangeIssue`), closed [`IssueResolution`](WhereCore/Sources/DataResolution/DataIssue.swift)
-  enum (backfill / relabel / mark-travel-day), and [`DriftThreshold`](WhereCore/Sources/DataResolution/DataIssue.swift)
-  (persisted via `WherePreferences.driftThresholdMeters`, default 1 km). UI
-  switches on `IssueResolution`, not detector types. `BorderDriftIssue` covers
-  both a day attributed *only* to `.other` and a *mixed* day where a real
-  region also picked up a stray `.other` (GPS jitter across a border); its
-  relabel resolution suggests the day's real regions, dropping only the
-  spurious `.other`.
-- [`GeoPolygon`](WhereCore/Sources/GeoPolygon.swift) – planar polygon
-  geometry used by `RegionAttributor`; exposes
-  `distanceToBoundary(from:)` for border-drift detection.
-- [`LongitudeSpan`](WhereCore/Sources/LongitudeSpan.swift) – the shortest
-  longitudinal arc enclosing a set of longitudes, **antimeridian-aware**
-  (a cluster straddling ±180° like Alaska's Aleutians frames as a tight
-  arc, not a near-global span). The region-map viewer pairs it with
-  `BoundingBox` (latitude) to frame its camera.
-
-### Persistence
-
-- [`WhereStore`](WhereCore/Sources/Persistence/WhereStore.swift)
-  – protocol boundary. All mutations MUST be inside a
-  `perform { ... }` block (the block owns the write transaction);
-  the production store traps otherwise.
-- [`SwiftDataStore`](WhereCore/Sources/Persistence/SwiftDataStore.swift)
-  – `@ModelActor` SwiftData implementation. The auto-generated
-  main context is treated as read-only; each outermost `perform`
-  spins up a peer `ModelContext` for batched writes (commit on
-  success, discard on throw, nested `perform`s coalesce).
-  Storage modes: `.inMemory` / `.localOnly` / `.cloudKit`, with
-  `.default` auto-picking based on test env + `#if DEBUG` —
-  production is CloudKit-synced. Record types include
-  `SDDismissedIssue` (CloudKit-synced dismissal keys for the Resolve
-  tab; included in backup export/import via `BackupArchive.dismissedIssues`,
-  round-tripped as `DismissedIssue` value types preserving `dismissedAt`).
-
-### GPS
-
-- [`LocationSource`](WhereCore/Sources/Location/LocationSource.swift)
-  – `AnyObject` protocol exposing an `AsyncStream<LocationSample>`.
-  Production is
-  [`CoreLocationSource`](WhereCore/Sources/Location/CoreLocationSource.swift)
-  (Visits + significant-change, requires Always authorization).
-  Tests/previews wire `ScriptedLocationSource` and call `emit(_:)`
-  to push samples.
-- `LocationPermissionDeniedError` is the hard-failure signal — surface
-  a Settings deep-link rather than silently degrading.
-
-### Logging
-
-All logging goes through
-[`WhereLog`](WhereCore/Sources/WhereLog.swift), the central facade over
-[`LogKit`](../Shared/LogKit). Get a logger with
-`WhereLog.channel(_:)`, passing a typed `WhereLog.Category` rather than a
-raw string — add a case there to introduce a new category (its raw value
-is the Console.app category, all under subsystem `"com.stuff.where"`).
-Each `LogChannel` fans out to `os.Logger` (Console.app) and, in DEBUG
-builds, into the process-wide `WhereLog.store` buffer the in-app log
-viewer reads (Settings → Developer → Logs, DEBUG only — see
-[`LogViewerUI`](../Shared/LogViewerUI)). Messages are plain `String`s, so
-per-argument `os` privacy annotations are not available; the facade logs
-as `.public`, so keep PII out of log messages.
-
-Level semantics: `info` marks the **success of an important operation**
-(session lifecycle, year loaded, tracking started/stopped, store opened,
-backup export/import, widget published); `warning` marks a
-**degraded-but-handled** state the app recovered from (When-In-Use/denied
-location, retry-queue saturation, missing Application Support or backup
-asset, reminders/summary enabled without notification authorization);
-`error`/`fault` stay reserved for outright failures. `warning` maps to
-`OSLogType.default`, so it shows as a distinct level in the in-app viewer
-without inflating Console's error-level queries. There is no fine-grained
-`.debug` tracing on the hot paths (per-GPS-sample persist, per-day reminder
-scheduling, widget throttle/skip) — those stay quiet by design.
+The DEBUG app has a second boot runtime from
+[`Shared/Inspector`](../Shared/Inspector). `AppDelegate` selects either the
+regular composition root or the standalone Inspector before launch. Inspector
+is not a `WhereScope`. It must never construct regular app services.
 
 ## Layering
 
-Where splits **domain** from **presentation**. Keep the split sharp when adding
-features — views should not grow business logic just because SwiftUI makes it
-easy.
-
 | Layer | Where | Owns |
 |-------|-------|------|
-| **Domain / services** | `WhereCore` (`WhereServices` collaborators) | Rules, detection, aggregation, persistence, side effects (reminders, widgets, backup). Unit-test here. |
-| **View model** | `WhereUI` (`WhereSession`, `WhereModel`) | Lifecycle wiring, observable mirrors of service output, UI intent methods (`refresh()`, `dismiss(_:)`, `select(year:)`). Orchestrates `WhereServices`; does not reimplement Core rules. |
-| **Views** | `WhereUI` (`*View`) | Layout, navigation, localized copy, bindings to session/model. Calls view-model methods; does not talk to the store, run detection, or own cache/throttle policy. |
+| **Domain / services** | `WhereCore` (`WhereServices` collaborators) | Rules, detection, aggregation, persistence, side effects. Unit-test here. |
+| **View model** | `WhereUI` (`WhereModel`, the `WhereSession` coordinator, the scoped `YearReportModel` / `ResolveModel` / `BackupModel` / `RemindersSettingsModel` / `DevicesSettingsModel`) | Lifecycle wiring, observable mirrors of service output, UI intent methods. |
+| **Views** | `WhereUI` (`*View`) | Layout, navigation, localized copy, bindings. Never store I/O, detection, or cache/throttle policy. |
 
-**Data resolution** is the reference shape: `DataIssueScanner` + detectors live in
-Core; `WhereSession.refreshDataIssues` / `dismiss(_:)` mirror and trigger;
-[`ResolutionView`](WhereUI/Sources/Resolution/ResolutionView.swift) only lists,
-routes by `IssueResolution`, and forwards dismiss.
+When in doubt, ask this: if the behavior would still be correct without
+SwiftUI, it belongs in `WhereCore` (or on the coordinator / a scoped model —
+still not a `View`).
 
-When in doubt: if the behavior would still be correct without SwiftUI, it
-belongs in `WhereCore` (or, for logged-in orchestration that exists only to
-serve the UI, on `WhereSession` — still not in a `View`).
+Rules the code enforces and agents must preserve:
 
-## View models & launch (`WhereUI`)
+- **`WhereServices` is the domain entry point.** UI must never talk to the store
+  or location source directly.
+- **All store mutations run inside `WhereStore.perform { … }`.** The
+  production store traps otherwise. Values cross the boundary. Never pass
+  SwiftData records.
+- **One read path.** Every committed write pings `WhereStore.changes()`.
+  Readers refresh purely off that signal. Write intents commit. They do not
+  refresh inline. Launch is a typed [`LifecycleKit`](../Shared/LifecycleKit)
+  `LaunchPlan` (`WhereLaunch` in WhereUI). It renders in
+  [`LifecycleKitUI`](../Shared/LifecycleKitUI)'s container in `RootView`.
+- **All logging goes through [Periscope](../Shared/Periscope).** Define `@LogScope` namespaces and nested `@LogEvent` structs. Classify each payload property with `@LogField`. Emit it with a matching `.shared` or `.restricted` input. Use the `WhereLog` facade. Never write a direct `LogEvent` conformance or use a raw string. Each module
+  keeps its `*Log.swift` event types in its `Sources/Logging/` folder. Not
+  re-derivable from source: events log `.public`, so **keep PII out**. `info`
+  = important success. `warning` = degraded-but-handled. `error`/`fault` =
+  outright failure. Hot paths stay quiet by design. RegionKit emits a separate
+  `"RegionKit"` root into the *same* `Periscope.shared`. Only the app process
+  attaches a store. Widgets and the share extension are OSLog-only. App
+  Intents run in the app process. An event about a store object stamps its
+  `externalID` with the object's `store://` identity. RegionKit's parallel
+  scheme is `region://` (see [`RegionKit/AGENTS.md`](RegionKit/AGENTS.md)).
+- **Spans measure work and declare what "too slow" means.** See
+  [Spans](#spans).
+- **Location comes through the `LocationSource` protocol.**
+  `CoreLocationSource` runs in production. `ScriptedLocationSource` runs in
+  tests/previews. The bounded one-shot `requestCurrentLocation()` returns a
+  typed, nonthrowing acquisition outcome. Live region decisions require a fix
+  no more than 60 seconds old, with valid accuracy no worse than 1 km, whose
+  uncertainty circle stays inside one tracked region. Passive valid samples
+  remain historical evidence regardless of that live-decision cap.
+- **Automatic recording consent is installation-local.** Stamp automatic GPS
+  samples with their `RecordingDeviceID`. Route user-facing reads through
+  `LocationHistoryReader`. Sync profiles, nickname events, advisory check-ins,
+  and global removal tombstones. Never sync another device's recording toggle.
+  Keep consent beside the backup-excluded installation identity. Phone
+  onboarding recommends On only when no other active device recently reported
+  recording. Tablet/other and explicit rejoins recommend Off.
+- **Manual entries carry a `ManualEntryAudit`.** `DayJournal`'s write methods
+  take an explicit `audit:` (no default). An additive backfill must not downgrade
+  an authoritative row's regions. The newer audit always wins.
 
-`WhereUI` hosts the SwiftUI shell and **view models** — not the domain model.
-Launch is driven by [`LifecycleKit`](../Shared/LifecycleKit) (read its
-[`AGENTS.md`](../Shared/LifecycleKit/AGENTS.md) for the engine).
+## Spans
 
-- [`WhereModel`](WhereUI/Sources/Model/WhereModel.swift) (`@MainActor
-  @Observable`) – app-level view model: the onboarding gate, persisted
-  `WherePreferences`, and an **optional** `WhereSession`. Lives for the whole
-  process and is built *before* the store opens so a background relaunch can
-  wire CoreLocation first.
-- [`WhereSession`](WhereUI/Sources/Model/WhereSession.swift) (`@MainActor
-  @Observable`) – logged-in view model over a **non-optional** `WhereServices`:
-  `selectedYear`, `report`, `loadState`, tracking/authorization, reminder +
-  summary settings, backup, **data issues**. Created by the launch's
-  `open-store` step (`startSession()`), dropped on reset (`endSession()`), and
-  read by logged-in views via `@Environment(WhereSession.self)` — so there are
-  no `guard let session` checks sprinkled through the UI. Exposes intent
-  methods that delegate to Core (`refresh()` → `ReportReader`, `dismiss(_:)` →
-  `DayJournal` + `DataIssueScanner`, etc.) and holds thin mirrors (e.g.
-  `dataIssues` from `services.resolution.issues(...)`).
-- [`WhereLaunch`](WhereUI/Sources/Launch/WhereLaunch.swift) – assembles the
-  cold-launch `LifecycleSteps` and its reverse `resetSequence` (erase + reset),
-  with steps named by the typed `LaunchStepID` enum (a parity test guards step
-  order against `WhereSession.start()`). The nested `WhereBootstrap` owns the
-  service assembly: `prepareLocation()` runs as the runner's synchronous
-  `initializePrerequisites` (installs `CLLocationManager` so a queued background
-  event isn't lost), and `makeServices()` opens the store off the main actor.
-- [`RootView`](WhereUI/Sources/RootView.swift) wraps the real `TabView` in a
-  `LifecycleContainer`, gating `enterForeground()` on `scenePhase == .active` so
-  a headless background launch stays UI-less. Tabs: Primary, Calendar,
-  **Resolve** ([`ResolutionView`](WhereUI/Sources/Resolution/ResolutionView.swift)
-  — missing days, border drift, abrupt changes; badge shows
-  `session.dataIssueCount`), Settings.
-  [`AppDelegate`](Where/Sources/AppDelegate.swift) picks the `LifecycleReason`
-  from `launchOptions` and drives the runner.
+Anything plausibly expensive is measured. Use `logger.measure(.name, budget:)`
+on the owning type's `*Log`. Then the [Periscope](../Shared/Periscope) span
+history can say which work is slow on a real device. It does not only say that
+a screen felt slow.
 
-## SwiftUI views & previews
+- **Names are a typed `enum SpanName`** nested on the `*Log`. Never use a raw
+  string. When a name carries a value, give it `CustomStringConvertible`. Then
+  the history buckets by something readable — `step(resolve-scope)`,
+  `loadRegion(us-CA)`, `detect(border-drift)` — not the Swift case's shape.
+- **The budget is the promise, and it lives next to the work.** Overrunning it
+  emits a `SpanOverdue` warning while the span keeps running. A budget is a
+  claim about this specific call ("a widget publish must not take 2s"). It is
+  not a timeout. Omit it only where no ceiling is meaningful — user-driven
+  backup export/import, which scales with the archive.
+- **Launch and reset steps declare a budget, not a `measure` call.** Every step
+  in `WhereLaunch`'s plans conforms to `BudgetedLaunchStep`. It joins the plan
+  through `.measured()`, which wraps it in `MeasuredStep`. A new step is
+  spanned by declaring `budget`. `MeasuredStep` pointedly is not itself
+  budgeted. Nothing can be measured twice into nested duplicate spans. Gates
+  are exempt. The onboarding gate parks on the user. It has nothing to promise.
+- **Span the work, not the property.** Composite orchestration that reflects
+  user-perceived latency is worth a span even when its callees have their own
+  (`WhereSession.appBecameActive`, `YearReportModel.refreshAll`, an intent's
+  `perform`). A SwiftUI computed property re-evaluated per `body` pass is not.
+  It would emit continuously and bury the real signal.
+- **If a type needs spans but has no events,** declare an `@LogScope` enum
+  with its nested `SpanName` and no `@LogEvent` members. See `ReportReaderLog`,
+  `DataIssueScannerLog`, and `PresenceCalendarLog`. Derive its logger through
+  the owning `WhereLog` group.
+- **Spans emitted before a scope's durable store attaches are
+  half-persisted.** A `SpanBegan` from the pre-sink window is only in OSLog.
+  The `SpanEnded` lands in the store. Durations survive but the pair does not.
+  That gap is Periscope's to close (P0 in its
+  [`TODOs.md`](../Shared/Periscope/TODOs.md)). Do not work around it here.
 
-Every previewable component in `WhereUI` (any `View`, `Widget`, or
-`WidgetBundle`) **must** ship at least one `#Preview` in the same file — a
-hard rule, checked before the component is done. Previews are our fastest
-visual regression check and double as living documentation of each view's
-states.
+## Scopes and the launch
 
-- Wrap previews in `#if DEBUG ... #endif` and place them at the bottom of
-  the file (see
-  [`RegionSummaryCard.swift`](WhereUI/Sources/Primary/RegionSummaryCard.swift)
-  for the canonical shape).
-- Don't construct services, stores, or location sources inline. Pull
-  fixtures from
-  [`PreviewSupport`](WhereUI/Sources/Preview/PreviewSupport.swift) —
-  `loadedSession()`, `emptySession()`, `elsewhereOnlySession()`,
-  `missingDaysSession()`, `resolutionSession()`, `loadedModel()`, and
-  `sampleReport()` are all synchronous, in-memory, and never touch disk,
-  CloudKit, or CoreLocation. Add a new helper there rather than hand-rolling
-  `WhereServices` in a `#Preview`.
-- Inject whatever the view reads from the environment: logged-in views read
-  `@Environment(WhereSession.self)`, so pass a `*Session()` fixture
-  (`.environment(PreviewSupport.loadedSession())`); the app-level shell
-  (onboarding, Settings reset) reads `WhereModel`, so pass
-  `.environment(PreviewSupport.loadedModel())`.
-- Cover the states that matter, not just the happy path — empty, loaded, and
-  any distinct edge state (e.g. missing-days, elsewhere-only) each deserve a
-  preview when the view renders them differently.
+- **A `WhereScope` is what the app is logged in *to*.** It is one open store's
+  `WhereServices`, the `WherePreferences` driving it, and the durable log store
+  they record into. It is created whole. `WhereSession` is built from one. A
+  surface must not read one world's store against another's preferences.
+- **Onboarding may prepare the real store only for recording-authority
+  discovery.** Retain that exact store for scope resolution. Do not construct
+  services, expose App Intents, start GPS, or open the log store until the
+  user finishes choosing a world.
+- **At most one scope is active and log-routing at a time.** Logging out — a
+  reset, or leaving a demo — releases and tears down the scope. Logging back in
+  builds a fresh one. Flyover is the narrow exception to "one open world". It
+  may retain one separately built, in-memory demo scope beside the active app
+  scope. It never activates or log-routes it. It never opens a second copy of
+  the real store. Guards:
+  `WhereResetTests.loggingOutReleasesTheScopeBeforeTheNextLoginOpensOne`.
+  `WhereFlyoverWorldTests.buildsASeededSiblingWithoutActivatingIt`.
+- **The onboarding gate declares `modes: .all`,** not the `.foreground`
+  default. Parking a headless launch is the point. Keep recording confirmation
+  in the backup-excluded installation sidecar. Then restoring backed-up
+  `hasOnboarded` onto another device parks at the final choice page.
+- **A gate carries no value.** A choice made *at* it reaches `resolve-scope`
+  through `WhereModel`. That is the one step that reads model state rather than
+  the trunk.
+- **Ambient log sources start at process launch. The durable sink is a
+  scope's.** Records emitted before a scope exists reach OSLog only.
+- **Publish durable-log bring-up through `WhereModel.logStoreState`.** The
+  active scope owns the store. The process model mirrors opening, ready,
+  unavailable, and failed states for the DEBUG developer surface. Guards:
+  `WhereModelTests`.
 
-## Developer tools
+### Demo mode
 
-- [`RegionMapView`](WhereUI/Sources/Developer/RegionMapView.swift) draws
-  region boundary polygons on a real map with a segmented toggle between
-  `.attribution` (what `RegionAttributor` loaded) and `.source` (every
-  authored GeoJSON feature), reading geometry from
-  [`RegionGeometryCatalog`](WhereCore/Sources/RegionGeometryCatalog.swift).
-  It is **self-contained** — no `@Environment(WhereSession.self)` — so the
-  same view backs both the DEBUG-only Settings → Developer → Region map entry
-  and the standalone `RegionViewer` Mac Catalyst app. Geometry decodes off
-  the main thread (the catalog is `async`); a decode failure lands in a
-  `.failure` state (and the logs), never a silently empty map.
-- Map views bridge model `Coordinate`s to MapKit with the shared
-  [`Coordinate.clLocationCoordinate`](WhereUI/Sources/Shared/Coordinate+MapKit.swift)
-  extension (`Coordinate` itself stays CoreLocation-free in the model layer).
+- **Demo mode is a second scope, not a flag.** It uses an in-memory store
+  seeded by `DemoDataBuilder`, in-memory preferences and log store, noop
+  schedulers, outbox, and widget refresher. Enter from the onboarding intro.
+  Leave from the first block of Settings (`WhereLaunch.exitDemoPlan`). Quitting
+  mid-demo needs no teardown.
+- **A demo leaves no mark on the device.** Anything that writes outside its own
+  store is injected as a no-op or skipped at the call site (Spotlight indexing
+  in `AppDelegate`). Settings hides the groups that would reach past it
+  (`SettingsDestination.isAvailableInDemoMode`). A new persisting surface needs
+  the same treatment.
+- **`WhereModel` decides when a scope routes its logs.** A scope holds its log
+  store from birth and routes only while active. One that opens while shadowed
+  is remembered rather than attached. Guard:
+  `DemoModeTests.aLogStoreOpeningLateNeverAttachesToAShadowedScope`.
+- **Flyover builds but never activates its demo scope.** Its frames share that
+  one in-memory world while the real app keeps its current scope. Dismissing
+  Flyover releases the sibling. The process-global `WhereLog` facade remains a
+  known exception tracked in [`TODOs.md`](TODOs.md).
+- **The logging system is injected, not global.** `WhereModel.logSystem` has no
+  default. A test must not silently attach sinks to `Periscope.shared`. (The
+  `WhereLog` facade still emits into `.shared`. Pre-existing.)
+- **Demo mode asks for no permission and presents a granted user.** The
+  scripted location source reports `.always`. The noop schedulers are built
+  `authorized: true`. No surface nags about a permission the demo cannot obtain.
+  Guard: `DemoModeTests.demoPresentsAFullyGrantedUser`.
+- **Views branch on `\.isInDemoMode`.** Seed once at `RootView` via
+  `demoMode(of:)`. Guard: `DemoModeEnvironmentTests`.
+- App Intents answer from the demo store while it is active. That is
+  process-scoped and self-correcting on exit. It is accepted rather than
+  special-cased (#150).
+
+## Navigation
+
+The logged-in shell is `MainTabs`. Its tabs are Locations, optional Elsewhere,
+Your Year, and Settings, in that order. Show Elsewhere only when the selected
+year has visits outside the configured primary set. Keep it available during
+same-year refreshes; return to Locations if its last visit disappears. New
+screens use a pushed destination, a sheet, or a Settings row inside this shape. `MainTabs` passes the
+scene-scoped `YearReportModel` by explicit init injection. The always-on
+`WhereSession` coordinator travels in the environment. Settings is a
+typed-route list (`SettingsSearch.swift`. Every switch is exhaustive). A
+new drill-in is a set of compile errors to fill in. About stays the last
+block. The demo-mode exit is the first.
+
+Data, Privacy & Diagnostics, and About lead with the shared privacy passport.
+Derive its detail from process-effective reporting channels, not saved pending
+choices. Hide the persisted diagnostics destination in demo mode. About still
+discloses the real process state.
+The About screen renders three live sources. They are the generated attribution
+report (`WhereCore.AppAttribution`), `RegionDataSource`, and `BuildInfo`.
+Never hard-code a list in the view. A missing report or unstamped build
+renders an honest empty state. Shipped libraries stay a separate section
+from development tools. Keep its final passport sign-off linked to the public
+project repository. Design and rationale: PR #140.
+
+## Localization
+
+All user-facing copy resolves through each module's `Localizable.xcstrings`
+via Xcode's generated `LocalizedStringResource` symbols. A typo'd or removed
+key is a compile error. Add a key as a **manual** entry first (so its symbol
+generates). Then reference `.thatSymbol`. Never use a raw
+`String(localized: "literal.key")`, a hand-maintained key facade, or an
+English literal in `Text` / `errorDescription`.
+
+- **WhereUI:** reference symbols directly. Composition, pluralization, and
+  number/coordinate formatting go through
+  [`WhereFormat`](WhereUI/Sources/Shared/WhereFormat.swift).
+- **RegionKit:** region names resolve dynamically from `regions.json`
+  (+ optional `localizationKey`). That is the one deliberate exception to static
+  symbols (see [`RegionKit/AGENTS.md`](RegionKit/AGENTS.md)).
+- **Extensions** use their own generated symbols for chrome and WhereUI's
+  public helpers for shared copy. **DEBUG-only UI** is still localized.
+- The catalogs carry a few value-less **auto-extracted** entries (`""`,
+  `%lld`). They are Xcode's, not ours. An IDE build re-adds a deleted one. Remove
+  the *source* literal instead. Catalogs stay byte-identical to Xcode's own
+  serialization (root [Formatting](../AGENTS.md#formatting)).
+
+## Dates
+
+- **A logical day is a `CalendarDay` (Y-M-D), not a `Date`.** See
+  [`WhereCore/AGENTS.md`](WhereCore/AGENTS.md). Never persist a day as an
+  absolute instant.
+- **Year bounds are half-open. Day ranges are inclusive**
+  (`Date.calendarDays(through:in:)`, `CalendarDay.days(through:)`).
+- **The app is Gregorian-only. Never use `Calendar.current`.** A non-Gregorian
+  device calendar silently mismatches the stored reports. Use the calendar the
+  owning type vends, or a fresh `Calendar(identifier: .gregorian)` with the
+  current time zone (see `Calendar.whereIntents`).
+- **Inject `Calendar`. Do not reach for globals.** Prefer calendar APIs over
+  hardcoded day/weekday counts (`Calendar.dayCount(ofYear:)`).
+- **Core layout APIs throw on failure.** Views surface
+  `ContentUnavailableView` + log. Never use `!`.
+- Shared date-range copy lives in `DateRangeFormatting`. WhereUI composition
+  and value formatting go through `WhereFormat`.
+
+## UI construction
+
+Load the repo [`building-ui`](../.agents/skills/building-ui/SKILL.md) skill for
+view/model placement, reuse, Broadway styling, layout, accessibility,
+localization, previews, and image coverage. WhereUI previews use
+[`PreviewSupport`](WhereUI/Sources/Preview/PreviewSupport.swift). Use
+synchronous, in-memory fixtures. Never use disk, CloudKit, or CoreLocation.
 
 ## Adding things
 
-- **New library target:** add to root
-  [`Package.swift`](../Package.swift) under `Where/<Name>/Sources`,
-  then wire a hosted test bundle in
-  [`Project.swift`](../Project.swift) via the existing `unitTests`
-  helper (`Where/<Name>/Tests/**`).
-- **New region:** add the `Region` case, then resolve the two
-  compile errors it forces: a `localizedName` `Localizable.xcstrings`
-  entry, and a `Region.geometrySource` case declaring where its
-  polygons come from — `.usStateFeature(name:)` (a feature already in
-  `us-states.geojson`, no new file) or `.bundledFile` (drop a new
-  `<rawValue>.geojson` into
-  [`Resources/`](WhereCore/Sources/Resources/)). `RegionAttributor`
-  loads it automatically from `geometrySource`; add a
-  `RegionAttributorTests` spot-check.
-- **New evidence kind / sample source:** add the case, then update
-  the exhaustive switches in `fromDiscriminator(...)` and the
-  `knownCases` array — the compiler will surface every site that
-  needs updating.
-- **New SwiftUI view / widget:** add a `#Preview` in the same file (see
-  [SwiftUI views & previews](#swiftui-views--previews)).
-- **New app icon:** run `./icons --add <1024.png> --name <Name>` (see the
-  root [`AGENTS.md`](../AGENTS.md#managing-app-icons)) — it updates both asset
-  catalogs and `AppIcons.json`. Don't hand-edit those; the picker is
-  manifest-driven.
+- **New library target:** add it in root [`Package.swift`](../Package.swift) under
+  `Where/<Name>/Sources`. Add a hosted test bundle via `Project.swift`'s
+  `unitTests` helper.
+- **New region:** pure data. No `Region` case, no code. See
+  [`RegionKit/README.md`](RegionKit/README.md#adding-a-region).
+- **New evidence kind / sample source:** add the case. Follow the compile
+  errors through the exhaustive switches.
+- **New app icon:** run `./icons --add` (root
+  [`AGENTS.md`](../AGENTS.md#managing-app-icons)). Never hand-edit the
+  catalogs or manifest.
+
+## Installing to a device
+
+`./Where/install` builds, signs, and installs the app onto a connected iPhone
+from the CLI — macOS-only, one-time `./ide --team-id <id>` setup. It defaults
+to the **Where Development** scheme with compiler optimizations forced on, so
+DEBUG-only developer surfaces survive at near-Release speed. Pass
+`--configuration Beta` for the TestFlight-style production identity or
+`--configuration Release` for the App Store audience. Options:
+`./Where/install --help`.
+
+`./Where/archive` exports the same optimized Development audience for ad hoc
+distribution. [DISTRIBUTION.md](DISTRIBUTION.md) owns account setup and operation.
+Keep CI profile overrides scoped to the Development device configuration in
+`Project.swift`; validate all three profiles against generated target settings
+before archiving. Sign the app and extensions during archive, not only export.
+Shared publication rules live in [Tools/InstallerKit/AGENTS.md](../Tools/InstallerKit/AGENTS.md#publication).
+Where's archive and signing guards are `Tools/Tests/test_signing_profiles.py`,
+`test_where_archive.py`, and `test_where_signing_command.py`.
 
 ## Testing
 
-- Use the `unitTests` helper in `Project.swift`; the test bundle
-  runs in `StuffTestHost` and links `WhereTesting` automatically.
-- Use `ScriptedLocationSource` to drive `WhereServices` (its
-  `LocationIngestor`) from tests — never instantiate
-  `CoreLocationSource` outside production wiring.
-- Use `SwiftDataStore.inMemory()` for persistence tests so you
-  never touch the user's on-disk / CloudKit store.
-- UI tests that need a UIKit window go through `show(_:perform:)`
-  from `WhereTesting`.
+Root [testing conventions](../AGENTS.md#testing) apply. What is specific here:
+
+- **Formal protocol specs** live under [`Specifications/`](Specifications/README.md). Run them locally with [`./tla-check`](../tla-check) (opt-in, not CI). PlusCal is the editable model source. The checker translates an isolated copy under `.build/tla/runs/` before running TLC. Each concern also holds TLC configs, a `manifest.json`, and a README tying the model to production code and cited Swift tests.
+- Test bundles run in `StuffTestHost` via the `unitTests` helper in
+  `Project.swift`. They link `TestHostSupport` (`show(_:perform:)`, `waitFor`).
+- Use `ScriptedLocationSource` and `SwiftDataStore.inMemory()` for consumer tests.
+  Test `CoreLocationSource` only through its injected fake request driver.
+  Never use live location requests or the user’s on-disk/CloudKit store.
+  Consumer remote-import tests use the `@_spi(Testing)`
+  `inMemory(remoteChangeSource:)` + `ScriptedStoreRemoteChangeSource` seam;
+  production-source history tests use isolated temporary on-disk containers
+  without CloudKit (`StoreRemoteChangeSourceTests`).
+- How screens render is pinned by the image snapshots in
+  `WhereUI/SnapshotTests/` (the `WhereUISnapshotTests` bundle, run from the
+  shared `StuffSnapshotTests` scheme + CI job, not `Stuff-iOS-Tests`). See
+  [`WhereUI/AGENTS.md`](WhereUI/AGENTS.md#testing). Do not add "hosts without
+  crashing" smoke tests for surfaces those suites cover.

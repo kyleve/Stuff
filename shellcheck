@@ -1,0 +1,36 @@
+#!/bin/sh
+set -eu
+
+usage() {
+    cat <<'EOF'
+Usage: ./shellcheck
+
+Lint every tracked shell file with the repository's pinned ShellCheck.
+
+Options:
+  -h, --help  Show this help.
+EOF
+}
+
+case "${1-}" in
+    "")
+        ;;
+    -h|--help)
+        usage
+        exit 0
+        ;;
+    *)
+        echo "error: unknown option '$1'" >&2
+        usage >&2
+        exit 1
+        ;;
+esac
+
+script_root=$(CDPATH='' cd "$(dirname "$0")" && pwd)
+cd "$script_root"
+
+file_list=$(mktemp "${TMPDIR:-/tmp}/stuff-shellcheck.XXXXXX")
+trap 'rm -f "$file_list"' EXIT HUP INT TERM
+
+git grep -Ilz -e '^#!.*\(ba\|z\|k\)\?sh\([[:space:]]\|$\)' > "$file_list"
+xargs -0 mise exec -- shellcheck -- < "$file_list"

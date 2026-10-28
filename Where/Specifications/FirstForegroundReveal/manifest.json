@@ -1,0 +1,52 @@
+{
+  "source": "pluscal",
+  "module": "FirstForegroundReveal.tla",
+  "cases": [
+    {
+      "name": "broken-readiness-only",
+      "config": "BrokenReadinessOnly.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoStrandedReady is violated."
+    },
+    {
+      "name": "broken-self-rearming",
+      "config": "BrokenSelfRearming.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant OneHoldPerFirstReveal is violated."
+    },
+    {
+      "name": "coalesced-reachability",
+      "config": "ReachCoalesced.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant CoalescedPromotionNotReached is violated."
+    },
+    {
+      "name": "rendered-splash-reachability",
+      "config": "ReachRenderedSplash.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RenderedRunnerSplashNotReached is violated."
+    },
+    {
+      "name": "repeated-resume-reachability",
+      "config": "ReachRepeatedResume.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RepeatedResumeNotReached is violated."
+    },
+    {
+      "name": "interrupted-first-reveal-reachability",
+      "config": "ReachInterruptedFirstReveal.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant InterruptedFirstRevealNotReached is violated."
+    },
+    {
+      "name": "current",
+      "config": "Current.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-repeated",
+      "config": "CurrentRepeated.cfg",
+      "expect": "pass"
+    }
+  ]
+}

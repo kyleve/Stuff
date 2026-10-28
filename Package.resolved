@@ -1,6 +1,114 @@
 {
-  "originHash" : "290f4f4f567766c3af06cda2e9b5ef722f18cb0b6a0ccb699a3fdb0cbbf6d528",
+  "originHash" : "50f5c006bb5b3e164cef24425f9464618baa354aeac574f74d2034161d47c135",
   "pins" : [
+    {
+      "identity" : "accessibilitysnapshot",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/cashapp/AccessibilitySnapshot",
+      "state" : {
+        "revision" : "c1605f10124733eed116b4737147ed4e2bd7e2e3",
+        "version" : "0.12.0"
+      }
+    },
+    {
+      "identity" : "bumperbowling",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/RoyalPineapple/BumperBowling.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "8a0725ff6aa86727745c1547abfbc2930b3f08dc"
+      }
+    },
+    {
+      "identity" : "capture-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/bitdriftlabs/capture-ios.git",
+      "state" : {
+        "revision" : "9fabf517a561196223265a29036f0d33feb614bc",
+        "version" : "0.23.11"
+      }
+    },
+    {
+      "identity" : "cocoalumberjack",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/CocoaLumberjack/CocoaLumberjack.git",
+      "state" : {
+        "revision" : "c5f2ed4d219866117e135cf648180dc7b66739d3",
+        "version" : "3.9.1"
+      }
+    },
+    {
+      "identity" : "ios-snapshot-test-case",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/uber/ios-snapshot-test-case.git",
+      "state" : {
+        "revision" : "7b10770333a961be6e5a41c9ce04b8c6d3990126",
+        "version" : "8.0.0"
+      }
+    },
+    {
+      "identity" : "sfsafesymbols",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SFSafeSymbols/SFSafeSymbols",
+      "state" : {
+        "revision" : "e01b3d4f861412f8dcee8d93c417d2c2b0cdfd77",
+        "version" : "7.0.0"
+      }
+    },
+    {
+      "identity" : "swift-custom-dump",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/pointfreeco/swift-custom-dump",
+      "state" : {
+        "revision" : "a8cd6c976f335ed361dcecddb0dc39ebda51bc3e",
+        "version" : "1.6.1"
+      }
+    },
+    {
+      "identity" : "swift-log",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-log",
+      "state" : {
+        "revision" : "3ffafb9722d5d918c614feb496c8789a3b59d222",
+        "version" : "1.15.0"
+      }
+    },
+    {
+      "identity" : "swift-snapshot-testing",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/pointfreeco/swift-snapshot-testing",
+      "state" : {
+        "revision" : "1bc16f430d8410e7f087d4c787767b26fd32fe30",
+        "version" : "1.19.3"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-syntax",
+      "state" : {
+        "revision" : "79e4b74a295b6eb74a8b585e3a39d29e70c1dbd1",
+        "version" : "603.0.2"
+      }
+    },
+    {
+      "identity" : "swiftybeaver",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SwiftyBeaver/SwiftyBeaver.git",
+      "state" : {
+        "revision" : "8cba041db09596183331d123f337d0eb2e6e8e91",
+        "version" : "2.1.1"
+      }
+    },
+    {
+      "identity" : "xctest-dynamic-overlay",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/pointfreeco/xctest-dynamic-overlay",
+      "state" : {
+        "revision" : "8f6abcf4c8950e2679d5b2fee4ca284fd7c34886",
+        "version" : "1.11.0"
+      }
+    },
     {
       "identity" : "zipfoundation",
       "kind" : "remoteSourceControl",

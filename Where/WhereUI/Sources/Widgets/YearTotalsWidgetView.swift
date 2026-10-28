@@ -1,10 +1,13 @@
+import SFSafeSymbols
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
 /// Home-screen widget content: year-to-date day counts per region — the
 /// number a residency-audit user wants at a glance. Renders from a
 /// `WidgetSnapshot` value; ranking reuses `RegionRanking.ranked` so the
-/// widget orders regions exactly like the app's Primary/Elsewhere tabs.
+/// widget orders regions exactly like the app's Locations tab (primary
+/// regions first, then Elsewhere).
 public struct YearTotalsWidgetView: View {
     private let snapshot: WidgetSnapshot
     private let maxRows: Int
@@ -16,13 +19,16 @@ public struct YearTotalsWidgetView: View {
         self.maxRows = maxRows
     }
 
+    @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
+
     private var ranked: [RegionDays] {
         snapshot.rankedTotals(maxRows: maxRows)
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: UIConstants.Spacings.small) {
-            Text(Strings.widgetYearTitle(year: snapshot.year))
+        VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
+            Text(WhereFormat.widgetYearTitle(year: snapshot.year))
                 .font(.caption2.weight(.semibold))
                 .textCase(.uppercase)
                 .tracking(1)
@@ -39,43 +45,39 @@ public struct YearTotalsWidgetView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(WhereFormat.widgetYearTitle(year: snapshot.year))
+        .accessibilityValue(WhereFormat.widgetYearAccessibilityValue(entries: ranked))
     }
 
     private var rows: some View {
-        VStack(alignment: .leading, spacing: UIConstants.Spacings.xSmall) {
+        VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
             ForEach(ranked) { entry in
-                HStack(spacing: UIConstants.Spacings.small) {
-                    Text(entry.region.style.emoji)
+                HStack(spacing: stylesheet.spacing.small) {
+                    Text(regionStyles.style(for: entry.region).emoji)
                         .font(.caption)
                         .accessibilityHidden(true)
                     Text(entry.region.localizedName)
                         .font(.caption.weight(.medium))
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
-                    Spacer(minLength: UIConstants.Spacings.small)
+                    Spacer(minLength: stylesheet.spacing.small)
                     Text(entry.days, format: .number)
-                        .font(.system(.body, design: .rounded, weight: .bold))
+                        .font(stylesheet.typography.widgetTotalNumber)
                         .monospacedDigit()
-                        .foregroundStyle(entry.region.style.tint)
+                        .foregroundStyle(regionStyles.style(for: entry.region).tint)
                 }
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel(
-                    Strings.regionDaysAccessibility(
-                        region: entry.region.localizedName,
-                        days: entry.days,
-                    ),
-                )
             }
         }
     }
 
     private var emptyContent: some View {
-        VStack(alignment: .leading, spacing: UIConstants.Spacings.xSmall) {
-            Image(systemName: "calendar.badge.exclamationmark")
+        VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
+            Image(systemSymbol: .calendarBadgeExclamationmark)
                 .font(.title3)
                 .foregroundStyle(.tertiary)
                 .accessibilityHidden(true)
-            Text(Strings.widgetYearEmpty)
+            Text(String(localized: .widgetYearEmpty))
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
         }
@@ -83,16 +85,45 @@ public struct YearTotalsWidgetView: View {
 }
 
 #if DEBUG
-    #Preview("Ranked totals") {
-        YearTotalsWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot())
-            .padding()
+    extension YearTotalsWidgetView: SnapshotProviding {
+        public static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "Ranked",
+                configurations: .componentRepresentative,
+                settle: .immediate,
+            ) {
+                YearTotalsWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [.california],
+                    totals: [
+                        .california: 132,
+                        .newYork: 41,
+                        .canada: 9,
+                        .europeanUnion: 4,
+                        .other: 2,
+                    ],
+                ))
+            }
+            whereSnapshot(name: "Empty", configurations: .componentLightDark, settle: .immediate) {
+                YearTotalsWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [],
+                    totals: [:],
+                ))
+            }
+        }
     }
 
-    #Preview("Empty") {
-        YearTotalsWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
-            dayRegions: [],
-            totals: [:],
-        ))
-        .padding()
+    #Preview {
+        YearTotalsWidgetView.snapshotPreviews
+    }
+#endif
+
+#if DEBUG
+    extension YearTotalsWidgetView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            YearTotalsWidgetView.self,
+            title: "Year Totals Widget",
+            viewport: .fixed(CGSize(width: 338, height: 158)),
+            navigationContainer: .none,
+        )
     }
 #endif

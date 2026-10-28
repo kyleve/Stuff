@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 
 /// What kind of evidence is attached (a boarding pass, hotel receipt, etc.).
 /// Used to render an appropriate icon in the UI and to bucket evidence in
@@ -15,6 +16,10 @@ public enum EvidenceKind: Sendable, Hashable, Codable {
     case rideshare
     case photo
     case document
+    /// A shared email — e.g. a flight itinerary or reservation forwarded from
+    /// Mail. Distinct from `.document` so the audit export can tell an emailed
+    /// confirmation apart from a scanned/attached file.
+    case email
     case other(String?)
 
     /// Stable identifier used for SwiftData / GeoJSON-style persistence and
@@ -30,6 +35,7 @@ public enum EvidenceKind: Sendable, Hashable, Codable {
             case .rideshare: "rideshare"
             case .photo: "photo"
             case .document: "document"
+            case .email: "email"
             case .other: "other"
         }
     }
@@ -53,6 +59,7 @@ public enum EvidenceKind: Sendable, Hashable, Codable {
                 case .rideshare: return .rideshare
                 case .photo: return .photo
                 case .document: return .document
+                case .email: return .email
                 case .other: return .other(otherLabel)
             }
         }
@@ -69,6 +76,7 @@ public enum EvidenceKind: Sendable, Hashable, Codable {
         .rideshare,
         .photo,
         .document,
+        .email,
         .other(nil),
     ]
 }

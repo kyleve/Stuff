@@ -1,67 +1,188 @@
 import LifecycleKit
+import PeriscopeCore
+import SFSafeSymbols
+import SnapshotKit
 import SwiftUI
-import WhereCore
+import UniformTypeIdentifiers
+@_spi(Testing) import WhereCore
 
-/// First-run onboarding: a short paged intro to the passport concept that
-/// culminates in the background-location permission request — the natural
-/// place to ask for Always, rather than burying it in Settings.
+/// First-run onboarding, run as the launch's user-facing gate. A short paged
+/// intro to the passport concept, then picking the primary regions you spend
+/// time in and giving each a look, then confirming whether this device should
+/// record automatically. Enabling it requests background-location permission
+/// here, rather than burying that decision in Settings.
 ///
-/// Presented as the UI of the launch sequence's interactive `onboarding` step.
-/// When the user finishes, it persists `hasOnboarded` and resolves the
-/// `LifecycleStepUIBridge` so the launch continues; the existing
-/// authorization-sync and tracking-reconcile steps then pick up whatever
-/// permission was granted.
+/// No session exists behind this screen: the gate precedes every step that builds
+/// the user's world. The final choice may prepare and retain the real store solely
+/// to discover synced authority; services and GPS remain dormant.
+/// Onboarding is what brings the
+/// user's world into being — restoring a backup or finishing the flow logs in
+/// to the real scope (`WhereModel.resolveScope()`, which performs the app's one
+/// store open), commits the picked regions + appearances to it, persists the
+/// confirmed recording choice beside this installation's non-backed-up
+/// identity, and resolves the `LifecycleGateHandle` so launch continues. The
+/// steps after the gate then build the session, seed region styling, and pick
+/// up whatever permission was granted.
 public struct OnboardingView: View {
-    // Onboarding straddles both: it persists the app-level `hasOnboarded` flag
-    // (model) and kicks off background tracking through the session, which the
-    // `open-store` step has already built by the time this step runs.
+    // The model is onboarding's whole world: it persists the app-level
+    // `hasOnboarded` flag and vends the scope this flow creates. There is no
+    // session to hand in — nothing has built one yet.
     @Environment(WhereModel.self) private var model
-    @Environment(WhereSession.self) private var session
-    private let bridge: LifecycleStepUIBridge
+    @Environment(\.stylesheet) private var stylesheet
+    @State private var flow: OnboardingFlowModel
 
-    @State private var page = 0
-    @State private var isFinishing = false
+    private var deviceKind: RecordingDeviceKind {
+        flow.installationContext.currentDevice.kind
+    }
 
-    public init(bridge: LifecycleStepUIBridge) {
-        self.bridge = bridge
+    public init(
+        gate: LifecycleGateHandle,
+        installationContext: InstallationRecordingContext,
+    ) {
+        self.init(
+            gate: gate,
+            installationContext: installationContext,
+            startsAtRecordingChoice: false,
+            initialTheme: .standard,
+        )
+    }
+
+    /// Internal composition/test initializer. A restored installation whose
+    /// backed-up onboarding flag arrived without this non-backed-up context
+    /// skips to the device-specific verification page; snapshots use the same
+    /// route to capture that page directly.
+    init(
+        gate: LifecycleGateHandle,
+        installationContext: InstallationRecordingContext,
+        startsAtRecordingChoice: Bool,
+        initialTheme: WhereTheme = .standard,
+    ) {
+        _flow = State(initialValue: OnboardingFlowModel(
+            gate: gate,
+            installationContext: installationContext,
+            startsAtRecordingChoice: startsAtRecordingChoice,
+            initialTheme: initialTheme,
+        ))
     }
 
     private let pages = OnboardingPage.all
 
     public var body: some View {
-        VStack(spacing: UIConstants.Spacings.xxxLarge) {
-            TabView(selection: $page) {
-                ForEach(pages.indices, id: \.self) { index in
-                    pageView(pages[index])
-                        .tag(index)
-                        .padding(.horizontal, UIConstants.Spacings.xxxLarge)
-                }
+        Group {
+            switch flow.phase {
+                case .intro: introScreen
+                case .theme:
+                    OnboardingThemeSelectionView(
+                        selection: flow.theme,
+                        onSelect: { flow.selectTheme($0, using: model) },
+                        onContinue: flow.continueAfterThemeSelection,
+                    )
+                case .pickRegions: pickRegions
+                case .customize: customize
+                case .location: location
             }
-            .tabViewStyle(.page(indexDisplayMode: .always))
-
-            footer
-                .padding(.horizontal, UIConstants.Spacings.xxxLarge)
-                .padding(.bottom, UIConstants.Spacings.xxxLarge)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             LinearGradient(
-                colors: [Color(.systemBackground), Color.accentColor.opacity(0.12)],
+                colors: [
+                    stylesheet.palette.onboarding.backgroundTop,
+                    stylesheet.palette.onboarding.backgroundBottom,
+                ],
                 startPoint: .top,
                 endPoint: .bottom,
             )
             .ignoresSafeArea(),
         )
+        .animation(stylesheet.motion.reducedReveal, value: flow.phase)
+        .onDisappear { flow.discardPendingRestore() }
+        // Log View Mode: reveal an inspect badge for onboarding events (region
+        // commit / backup restore). A no-op in release.
+        .debugLogInspectable(WhereLog.session(OnboardingViewLog.self))
+    }
+
+    // MARK: - Intro
+
+    @ViewBuilder
+    private var introScreen: some View {
+        if flow.intro.isBuildingDemo {
+            // The launch splash, captioned for the work: entering demo mode
+            // ends in a relaunch through that same splash, so borrowing it
+            // here makes the whole entry read as one continuous wait rather
+            // than two unrelated screens.
+            LaunchSplashView(caption: .work(
+                title: String(localized: .demoBuildingTitle),
+                subtitle: String(localized: .demoBuildingSubtitle),
+            ))
+        } else if flow.intro.isRestoringBackup {
+            // A backup restore is a whole-screen blocking wait, so show the
+            // shared app-icon loading treatment (as first-load / scan / summary
+            // do) rather than an inline spinner.
+            AppIconLoadingView(caption: String(localized: .onboardingRestoring))
+        } else {
+            introPages
+        }
+    }
+
+    private var introPages: some View {
+        VStack(spacing: stylesheet.spacing.xxxLarge) {
+            TabView(selection: $flow.page) {
+                ForEach(pages.indices, id: \.self) { index in
+                    pageView(pages[index])
+                        .tag(index)
+                        .padding(.horizontal, stylesheet.spacing.xxxLarge)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .always))
+
+            introFooter
+                .padding(.horizontal, stylesheet.spacing.xxxLarge)
+                .padding(.bottom, stylesheet.spacing.xxxLarge)
+        }
+        .fileImporter(
+            isPresented: $flow.showImporter,
+            allowedContentTypes: [.zip],
+            onCompletion: flow.handleRestoreSelection,
+        )
+        .confirmationDialog(
+            String(localized: .settingsBackupImportStrategyTitle),
+            isPresented: $flow.showRestoreStrategyDialog,
+            titleVisibility: .visible,
+            presenting: flow.restoreSelection.selectedURL,
+        ) { _ in
+            Button(String(localized: .onboardingRestoreMergeRecommended)) {
+                flow.chooseRestoreStrategy(OnboardingRestoreSelection.recommendedStrategy)
+            }
+            Button(String(localized: .settingsBackupReplace), role: .destructive) {
+                flow.chooseRestoreStrategy(.replace)
+            }
+            Button(String(localized: .settingsDataCancel), role: .cancel) {
+                flow.discardPendingRestore()
+            }
+        } message: { _ in
+            Text(String(localized: .settingsBackupImportStrategyMessage))
+        }
+        .alert(
+            flow.failureTitle,
+            isPresented: $flow.intro.isShowingFailure,
+            presenting: flow.intro.failure,
+        ) { _ in
+            Button(String(localized: .commonOk), role: .cancel) {}
+        } message: { failure in
+            // Formatted here rather than stored: the state keeps the error
+            // itself, so nothing has to decide how to say it before it's shown.
+            Text(failure.error.localizedDescription)
+        }
     }
 
     private func pageView(_ page: OnboardingPage) -> some View {
-        VStack(spacing: UIConstants.Spacings.xxxLarge) {
+        VStack(spacing: stylesheet.spacing.xxxLarge) {
             Spacer(minLength: 0)
-            Image(systemName: page.symbol)
-                .font(.system(size: 72))
+            Image(systemSymbol: page.symbol)
+                .font(stylesheet.typography.onboardingIcon)
                 .foregroundStyle(Color.accentColor)
                 .accessibilityHidden(true)
-            VStack(spacing: UIConstants.Spacings.large) {
+            VStack(spacing: stylesheet.spacing.large) {
                 Text(page.title)
                     .font(.largeTitle.bold())
                     .multilineTextAlignment(.center)
@@ -74,52 +195,216 @@ public struct OnboardingView: View {
         }
     }
 
-    @ViewBuilder private var footer: some View {
-        if page < pages.count - 1 {
+    private var introFooter: some View {
+        VStack(spacing: stylesheet.spacing.medium) {
             Button {
-                withAnimation { page += 1 }
+                withAnimation { flow.advanceIntro(pageCount: pages.count) }
             } label: {
-                Text(Strings.onboardingContinue)
+                Text(String(localized: .onboardingContinue))
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-        } else {
-            VStack(spacing: UIConstants.Spacings.large) {
-                Button {
-                    // Request Always-location right here so the system prompt
-                    // maps 1:1 to the tap; the launch's tracking-reconcile step
-                    // picks up whatever was granted.
-                    guard !isFinishing else { return }
-                    isFinishing = true
-                    Task {
-                        await session.startTracking()
-                        completeAndContinue()
-                    }
-                } label: {
-                    Text(Strings.onboardingEnableLocation)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
+
+            // Returning users can skip the manual setup by restoring a backup;
+            // the restore's progress replaces the intro with the loading view.
+            Button(String(localized: .onboardingRestoreBackup)) { flow.showImporter = true }
                 .controlSize(.large)
 
-                Button(Strings.onboardingNotNow) {
-                    guard !isFinishing else { return }
-                    isFinishing = true
-                    completeAndContinue()
-                }
+            // And anyone can look around first, without handing over a
+            // location permission or leaving anything on their device.
+            Button(String(localized: .onboardingTryDemo)) { flow.enterDemoMode(using: model) }
                 .controlSize(.large)
-            }
-            .disabled(isFinishing)
+        }
+        .disabled(flow.intro.isBuildingDemo)
+    }
+
+    // MARK: - Pick regions
+
+    private var pickRegions: some View {
+        NavigationStack {
+            RegionPickerView(model: flow.selection)
+                .navigationTitle(String(localized: .onboardingRegionsTitle))
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(String(localized: .onboardingNext)) { flow.phase = .customize }
+                            .disabled(!flow.selection.hasSelection)
+                    }
+                }
         }
     }
 
-    /// Persist that onboarding is done and resolve the step's bridge so the
-    /// launch continues. Shared by the "Enable Location" and "Not now" taps;
-    /// the permission request, when wanted, is made by the button before this.
-    private func completeAndContinue() {
-        model.completeOnboarding()
-        bridge.complete()
+    // MARK: - Customize
+
+    private var customize: some View {
+        NavigationStack {
+            RegionCustomizeView(
+                model: flow.selection,
+                onBack: { flow.phase = .pickRegions },
+                onFinish: { flow.phase = .location },
+            )
+        }
+    }
+
+    // MARK: - Location
+
+    private var location: some View {
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: stylesheet.spacing.xxxLarge) {
+                    Spacer(minLength: 0)
+                    Image(systemSymbol: deviceKind.systemSymbol)
+                        .font(stylesheet.typography.onboardingIcon)
+                        .foregroundStyle(Color.accentColor)
+                        .accessibilityHidden(true)
+                    VStack(spacing: stylesheet.spacing.large) {
+                        Text(recordingTitle)
+                            .font(.largeTitle.bold())
+                            .multilineTextAlignment(.center)
+                        Text(String(localized: .onboardingRecordingDescription))
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    Spacer(minLength: 0)
+
+                    VStack(spacing: stylesheet.spacing.large) {
+                        VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
+                            switch flow.deviceDiscovery {
+                                case .idle, .loading:
+                                    ProgressView(String(localized: .onboardingRecordingChecking))
+                                case let .ready(recommendation):
+                                    if recommendation.recentRecordingDevice != nil {
+                                        Label(
+                                            String(localized: .onboardingRecordingRecent),
+                                            systemSymbol: .iphoneRadiowavesLeftAndRight,
+                                        )
+                                    }
+                                case let .failed(description):
+                                    Label(description, systemSymbol: .icloudSlash)
+                                        .foregroundStyle(.secondary)
+                            }
+                            Toggle(
+                                String(localized: .settingsDevicesAutomaticRecording),
+                                isOn: $flow.recordingEnabled,
+                            )
+                            Text(recordingRecommendation)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Button {
+                            // Request Always-location only after the user confirms an
+                            // enabled choice; the launch's reconcile step picks up
+                            // whatever the system grants.
+                            flow.finish(using: model)
+                        } label: {
+                            Text(String(localized: .onboardingContinue))
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                    }
+                    .disabled(flow.isFinishing || flow.deviceDiscovery == .loading)
+                }
+                .padding(.horizontal, stylesheet.spacing.xxxLarge)
+                .padding(.bottom, stylesheet.spacing.xxxLarge)
+                .frame(maxWidth: .infinity, minHeight: geometry.size.height)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+        }
+        .task { await flow.discoverRecordingDevices(using: model) }
+    }
+
+    private var recordingTitle: LocalizedStringResource {
+        switch deviceKind {
+            case .phone: .onboardingRecordingPhoneTitle
+            case .tablet: .onboardingRecordingTabletTitle
+            case .computer, .watch, .other: .onboardingRecordingOtherTitle
+        }
+    }
+
+    private var recordingRecommendation: LocalizedStringResource {
+        let recommendsEnabled = if case let .ready(recommendation) = flow.deviceDiscovery {
+            recommendation.isEnabled
+        } else {
+            flow.installationContext.recommendedRecordingEnabled
+        }
+        if recommendsEnabled {
+            return .onboardingRecordingRecommendationOn
+        } else {
+            return .onboardingRecordingRecommendationOff
+        }
+    }
+}
+
+/// What the onboarding intro is doing, and how it went.
+///
+/// One value rather than a pair of "is running" flags beside a loose error:
+/// restoring a backup and building a demo each take over the whole screen, so
+/// only one can be underway, and a failure always belongs to whichever one
+/// produced it. As separate properties, "restoring *and* building" and "failed
+/// with no error" were both spellable.
+///
+/// `@Observable` for the same reason `SaveErrorAlertState` is: the activity
+/// stays the single source of truth while `isShowingFailure` gives
+/// `.alert(isPresented:)` the binding it wants, without a closure-built
+/// `Binding` in the view.
+@Observable
+final class OnboardingIntroState {
+    /// The long task the intro is running, if any.
+    enum Activity {
+        case browsing
+        case restoringBackup
+        case buildingDemo
+        case failed(Failure)
+    }
+
+    /// A task that didn't finish. Holds the error itself rather than a
+    /// message, so the view formats it where it presents it — and anything
+    /// else that wants to inspect it still can.
+    struct Failure {
+        /// Which of the intro's two ways forward failed, since they say
+        /// different things about it.
+        enum Flow: Equatable {
+            case restoreBackup
+            case demo
+
+            var title: String {
+                switch self {
+                    case .restoreBackup: String(localized: .onboardingRestoreErrorTitle)
+                    case .demo: String(localized: .onboardingDemoErrorTitle)
+                }
+            }
+        }
+
+        let flow: Flow
+        let error: any Error
+    }
+
+    var activity: Activity = .browsing
+
+    var isRestoringBackup: Bool {
+        if case .restoringBackup = activity { return true }
+        return false
+    }
+
+    var isBuildingDemo: Bool {
+        if case .buildingDemo = activity { return true }
+        return false
+    }
+
+    var failure: Failure? {
+        if case let .failed(failure) = activity { return failure }
+        return nil
+    }
+
+    /// Drives the failure alert. Dismissing it returns the intro to browsing,
+    /// which is the only way `activity` leaves `.failed`.
+    var isShowingFailure: Bool {
+        get { failure != nil }
+        set { if !newValue { activity = .browsing } }
     }
 }
 
@@ -127,36 +412,106 @@ public struct OnboardingView: View {
 /// list reads declaratively and stays easy to reorder.
 struct OnboardingPage: Identifiable {
     let id: String
-    let symbol: String
+    let symbol: SFSymbol
     let title: String
     let description: String
 
     static let all: [OnboardingPage] = [
         OnboardingPage(
             id: "welcome",
-            symbol: "globe.americas.fill",
-            title: Strings.onboardingWelcomeTitle,
-            description: Strings.onboardingWelcomeDescription,
+            symbol: .globeAmericasFill,
+            title: String(localized: .onboardingWelcomeTitle),
+            description: String(localized: .onboardingWelcomeDescription),
         ),
         OnboardingPage(
             id: "automatic",
-            symbol: "location.fill.viewfinder",
-            title: Strings.onboardingAutomaticTitle,
-            description: Strings.onboardingAutomaticDescription,
+            symbol: .locationFillViewfinder,
+            title: String(localized: .onboardingAutomaticTitle),
+            description: String(localized: .onboardingAutomaticDescription),
         ),
         OnboardingPage(
             id: "privacy",
-            symbol: "lock.shield.fill",
-            title: Strings.onboardingPrivacyTitle,
-            description: Strings.onboardingPrivacyDescription,
+            symbol: .lockShieldFill,
+            title: String(localized: .onboardingPrivacyTitle),
+            description: String(localized: .onboardingPrivacyDescription),
         ),
     ]
 }
 
 #if DEBUG
+    extension OnboardingView: SnapshotProviding {
+        public static var snapshots: [SnapshotCase] {
+            [
+                whereSnapshot(name: "Default", configurations: .screenRepresentative) {
+                    // `onboardingModel()` (not `loadedModel()`) so `hasOnboarded`
+                    // is false and the capture lands on the intro flow.phase.
+                    OnboardingView(
+                        gate: LifecycleGateHandle(
+                            id: LaunchStepID.onboarding,
+                            reason: .userForeground,
+                        ),
+                        installationContext: .testing,
+                    )
+                    .environment(PreviewSupport.onboardingModel())
+                },
+                whereSnapshot(
+                    name: "PhoneRecordingChoice",
+                    configurations: SnapshotConfiguration.combinations(devices: [.iPhone]) + [
+                        SnapshotConfiguration(dynamicType: .accessibility5, device: .iPhone),
+                    ],
+                ) {
+                    OnboardingView(
+                        gate: LifecycleGateHandle(
+                            id: LaunchStepID.onboarding,
+                            reason: .userForeground,
+                        ),
+                        installationContext: .testing,
+                        startsAtRecordingChoice: true,
+                    )
+                    .environment(PreviewSupport.onboardingModel())
+                },
+                whereSnapshot(
+                    name: "TabletRecordingChoice",
+                    configurations: SnapshotConfiguration.combinations(devices: [.iPad]),
+                ) {
+                    OnboardingView(
+                        gate: LifecycleGateHandle(
+                            id: LaunchStepID.onboarding,
+                            reason: .userForeground,
+                        ),
+                        installationContext: InstallationRecordingContext(
+                            currentDevice: CurrentRecordingDevice(
+                                id: RecordingDeviceID(
+                                    rawValue: UUID(
+                                        uuidString: "00000000-0000-0000-0000-000000000003",
+                                    )!,
+                                ),
+                                systemName: "iPad",
+                                kind: .tablet,
+                            ),
+                            registeredAt: InstallationRecordingContext.testing.registeredAt,
+                            recordingChoice: .unconfirmed,
+                            isRejoining: false,
+                        ),
+                        startsAtRecordingChoice: true,
+                    )
+                    .environment(PreviewSupport.onboardingModel())
+                },
+            ]
+        }
+    }
+
     #Preview {
-        OnboardingView(bridge: LifecycleStepUIBridge(reason: .userForeground))
-            .environment(PreviewSupport.loadedModel())
-            .environment(PreviewSupport.loadedSession())
+        OnboardingView.snapshotPreviews
+    }
+#endif
+
+#if DEBUG
+    extension OnboardingView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            OnboardingView.self,
+            title: "Onboarding",
+            navigationContainer: .none,
+        )
     }
 #endif

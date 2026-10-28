@@ -19,7 +19,11 @@ struct PresenceTimelineTests {
     }
 
     @Test func groupsConsecutiveDaysIntoOneStint() {
-        let days = (1 ... 3).map { DayPresence(date: day(2026, 1, $0), regions: [.california]) }
+        let days = (1 ... 3).map { DayPresence(
+            date: day(2026, 1, $0),
+            in: calendar,
+            regions: [.california],
+        ) }
         let stints = PresenceTimeline.stints(from: report(days), calendar: calendar)
         #expect(stints.count == 1)
         #expect(stints[0].region == .california)
@@ -30,9 +34,9 @@ struct PresenceTimelineTests {
 
     @Test func breaksStintOnAGap() {
         let days = [
-            DayPresence(date: day(2026, 1, 1), regions: [.california]),
-            DayPresence(date: day(2026, 1, 2), regions: [.california]),
-            DayPresence(date: day(2026, 1, 5), regions: [.california]),
+            DayPresence(date: day(2026, 1, 1), in: calendar, regions: [.california]),
+            DayPresence(date: day(2026, 1, 2), in: calendar, regions: [.california]),
+            DayPresence(date: day(2026, 1, 5), in: calendar, regions: [.california]),
         ]
         let stints = PresenceTimeline.stints(from: report(days), calendar: calendar)
         #expect(stints.count == 2)
@@ -44,11 +48,11 @@ struct PresenceTimelineTests {
     @Test func transitionDayIsSharedByBothRegions() {
         // CA Jan 1–3, with Jan 3 also New York, then NY Jan 3–5.
         let days = [
-            DayPresence(date: day(2026, 1, 1), regions: [.california]),
-            DayPresence(date: day(2026, 1, 2), regions: [.california]),
-            DayPresence(date: day(2026, 1, 3), regions: [.california, .newYork]),
-            DayPresence(date: day(2026, 1, 4), regions: [.newYork]),
-            DayPresence(date: day(2026, 1, 5), regions: [.newYork]),
+            DayPresence(date: day(2026, 1, 1), in: calendar, regions: [.california]),
+            DayPresence(date: day(2026, 1, 2), in: calendar, regions: [.california]),
+            DayPresence(date: day(2026, 1, 3), in: calendar, regions: [.california, .newYork]),
+            DayPresence(date: day(2026, 1, 4), in: calendar, regions: [.newYork]),
+            DayPresence(date: day(2026, 1, 5), in: calendar, regions: [.newYork]),
         ]
         let stints = PresenceTimeline.stints(from: report(days), calendar: calendar)
         #expect(stints.count == 2)
@@ -62,9 +66,9 @@ struct PresenceTimelineTests {
 
     @Test func sortsChronologicallyAcrossRegions() {
         let days = [
-            DayPresence(date: day(2026, 3, 1), regions: [.newYork]),
-            DayPresence(date: day(2026, 1, 1), regions: [.california]),
-            DayPresence(date: day(2026, 2, 1), regions: [.canada]),
+            DayPresence(date: day(2026, 3, 1), in: calendar, regions: [.newYork]),
+            DayPresence(date: day(2026, 1, 1), in: calendar, regions: [.california]),
+            DayPresence(date: day(2026, 2, 1), in: calendar, regions: [.canada]),
         ]
         let stints = PresenceTimeline.stints(from: report(days), calendar: calendar)
         #expect(stints.map(\.region) == [.california, .canada, .newYork])

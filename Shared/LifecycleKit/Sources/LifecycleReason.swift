@@ -9,21 +9,36 @@ public enum LifecycleReason: Sendable, Hashable {
     case userForeground
     /// A headless relaunch with no window, to service a system event.
     case background(LifecycleBackgroundCause)
+    /// Launched under the UIScene lifecycle, where `UIApplication.applicationState`
+    /// can't distinguish a user-tap launch from a headless wake at
+    /// `didFinishLaunching` time — it reads `.background` for both. Behaves like
+    /// a background launch (no window, background-safe steps only) until a scene
+    /// activates and `LifecycleRunner.enterForeground()` promotes it to
+    /// `.userForeground`. If no scene ever connects (a genuine headless wake),
+    /// it honestly stays `.undetermined` for the process's life — the
+    /// background-safe steps that ran serviced the wake, and no fabricated cause
+    /// is ever claimed.
+    case undetermined
 
-    /// Whether this is a headless background launch.
-    public var isBackground: Bool {
+    /// Whether the host should build no view tree for this launch — true for a
+    /// headless `.background` relaunch and for an `.undetermined` one that has
+    /// not yet been promoted (iOS shows no UI for either, and building the heavy
+    /// content for a launch nobody sees defeats the headless path).
+    public var buildsNoViewTree: Bool {
         switch self {
             case .userForeground: false
-            case .background: true
+            case .background, .undetermined: true
         }
     }
 
     /// The single `LifecycleModeSet` bit a step's `modes` must contain for it
-    /// to run under this reason.
+    /// to run under this reason. `.undetermined` gates to the background-safe
+    /// subset: until a scene proves the launch is user-visible, only run the
+    /// work a possible headless wake needs.
     public var modeSet: LifecycleModeSet {
         switch self {
             case .userForeground: .foreground
-            case .background: .background
+            case .background, .undetermined: .background
         }
     }
 }

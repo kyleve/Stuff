@@ -1,0 +1,805 @@
+import json
+import os
+from pathlib import Path
+import platform
+import shutil
+import signal
+import stat
+import subprocess
+import tempfile
+import time
+import unittest
+
+
+from Tools.repository import repository_root
+
+
+REPOSITORY = repository_root(__file__)
+
+
+class XcodeCommandFixture:
+    def __init__(self, temporary: str):
+        self.root = Path(temporary) / "repository with spaces ü"
+        self.bin = self.root / "fake bin"
+        self.outside = self.root / "outside cwd"
+        self.home = self.root / "home"
+        self.log = self.root / "commands.log"
+        self.test_work = self.root / "test work"
+        self.profile_work = self.root / "profile work"
+        for directory in (self.bin, self.outside, self.home):
+            directory.mkdir(parents=True, exist_ok=True)
+
+        for command in ("test", "profile", "flaky"):
+            self._copy(command)
+        for module in (
+            "flaky_results.py",
+            "profile_results.py",
+            "snapshot_reports.py",
+            "test_runner.py",
+            "xcode_results.py",
+        ):
+            self._copy(f"Tools/{module}")
+        self._copy(".circleci/test_artifacts.py")
+        self._copy(".xcode-build-version")
+        self.expected_xcode_build = (
+            (self.root / ".xcode-build-version").read_text().strip()
+        )
+        (self.root / "Project.swift").write_text('name: "ExampleSnapshotTests"\n')
+        self._write_executable(
+            self.root / "simulator",
+            "#!/bin/bash\nprintf 'fixture-udid\\n'\n",
+        )
+        (self.root / "signal_child.py").write_text(
+            """import os
+from pathlib import Path
+import signal
+import sys
+import time
+
+Path(sys.argv[1]).write_text(str(os.getpid()))
+
+def finish(received, _frame):
+    Path(sys.argv[2]).write_text(str(received))
+    raise SystemExit(128 + received)
+
+signal.signal(signal.SIGINT, finish)
+signal.signal(signal.SIGTERM, finish)
+while True:
+    time.sleep(1)
+"""
+        )
+        self._write_fake_tools()
+
+    def run(self, command: str, *arguments: str, **overrides: str):
+        environment = self.environment(overrides)
+        return subprocess.run(
+            [str(self.root / command), *arguments],
+            cwd=self.outside,
+            env=environment,
+            capture_output=True,
+            text=True,
+        )
+
+    def environment(self, overrides=None):
+        environment = {
+            "HOME": str(self.home),
+            "LC_ALL": "C",
+            "PATH": f"{self.bin}:/usr/bin:/bin",
+            "PROFILE_WORKDIR": str(self.profile_work),
+            "TEST_WORKDIR": str(self.test_work),
+            "TMPDIR": str(self.root / "temporary files"),
+            "TOOL_LOG": str(self.log),
+            "BUILD_STATUS": "0",
+            "MISE_STATUS": "0",
+            "TEST_STATUS": "0",
+            "XCODE_OUTPUT": "passing",
+            "FAKE_XCODE_BUILD": self.expected_xcode_build,
+            "XCRUN_OUTPUT": "valid",
+        }
+        environment.update(overrides or {})
+        Path(environment["TMPDIR"]).mkdir(exist_ok=True)
+        return environment
+
+    def command_log(self) -> str:
+        return self.log.read_text() if self.log.exists() else ""
+
+    def test_artifacts(self, scheme: str) -> Path:
+        root = self.root / "ci-test-build"
+        products = root / "DerivedData" / "Build" / "Products"
+        built_products = products / "Debug-iphonesimulator"
+        built_products.mkdir(parents=True)
+        xctestrun = products / f"{scheme}_fixture.xctestrun"
+        xctestrun.write_text("")
+        manifest = {
+            "architecture": platform.machine(),
+            "artifactRoot": str(root.resolve()),
+            "builtProducts": str(built_products.relative_to(root)),
+            "checkout": str(self.root.resolve()),
+            "commit": "fixture-commit",
+            "configuration": "Debug",
+            "formatVersion": 2,
+            "productsRoot": str(products.relative_to(root)),
+            "schemes": {scheme: str(xctestrun.relative_to(root))},
+            "sdkBuild": "fixture-sdk-build",
+            "xcodeBuild": self.expected_xcode_build,
+        }
+        (root / "manifest.json").write_text(json.dumps(manifest))
+        return root
+
+    def _copy(self, relative: str) -> None:
+        destination = self.root / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(REPOSITORY / relative, destination)
+
+    def _write_executable(self, path: Path, contents: str) -> None:
+        path.write_text(contents)
+        path.chmod(path.stat().st_mode | stat.S_IXUSR)
+
+    def _write_fake_tools(self) -> None:
+        self._write_executable(
+            self.bin / "git",
+            """#!/bin/bash
+if [ "$*" = "rev-parse HEAD" ]; then
+  printf 'fixture-commit\n'
+  exit 0
+fi
+exit 0
+""",
+        )
+        self._write_executable(
+            self.bin / "mise",
+            """#!/bin/bash
+printf 'mise %s\\n' "$*" >>"$TOOL_LOG"
+status="${MISE_STATUS:-0}"
+if [ "$status" -eq 0 ] && [[ " $* " == *" swift build --show-bin-path "* ]]; then
+  printf '%s/.build/fixture/Products/Debug\\n' "$PWD"
+fi
+if [ "$status" -eq 0 ] && [ "${MISSING_MACRO_BUNDLE:-0}" != 1 ] && [[ " $* " == *" swift build --product PeriscopeMacrosTests "* ]]; then
+  /bin/mkdir -p .build/fixture/Products/Debug/PeriscopeMacrosTests.xctest
+fi
+exit "$status"
+""",
+        )
+        self._write_executable(
+            self.bin / "xcodebuild",
+            """#!/bin/bash
+printf 'xcodebuild %s\\n' "$*" >>"$TOOL_LOG"
+if [ "$*" = "-version" ]; then
+  printf 'Xcode 27.0\\nBuild version %s\\n' "${FAKE_XCODE_BUILD:?}"
+  exit 0
+fi
+case " $* " in
+  *" -showBuildSettings "*)
+    printf '    BUILT_PRODUCTS_DIR = /tmp/fixture-products\\n'
+    exit "${SHOW_SETTINGS_STATUS:-0}"
+    ;;
+esac
+case " $* " in
+  *" build-for-testing "*)
+    if [ "${BUILD_STATUS:-0}" -ne 0 ]; then exit "$BUILD_STATUS"; fi
+    derived_data=""
+    scheme=""
+    previous=""
+    for argument in "$@"; do
+      if [ "$previous" = "-derivedDataPath" ]; then derived_data="$argument"; fi
+      if [ "$previous" = "-scheme" ]; then scheme="$argument"; fi
+      previous="$argument"
+    done
+    if [ -n "$derived_data" ]; then
+      mkdir -p "$derived_data/Build/Products/Debug-iphonesimulator"
+      touch "$derived_data/Build/Products/${scheme}_fixture.xctestrun"
+    fi
+    exit 0
+    ;;
+esac
+result=""
+previous=""
+for argument in "$@"; do
+  if [ "$previous" = "-resultBundlePath" ]; then
+    result="$argument"
+    mkdir -p "$result"
+  fi
+  previous="$argument"
+done
+case "${XCODE_OUTPUT:-passing}" in
+  passing)
+    printf '◇ Suite ValueTests started\\n'
+    printf '◇ Test works() started\\n'
+    printf '✔ Test works() passed after 0.001 seconds\\n'
+    ;;
+  failed)
+    printf '◇ Suite ValueTests started\\n'
+    printf '◇ Test fails() started\\n'
+    printf '✘ Test fails() failed after 0.001 seconds\\n'
+    ;;
+  zero) printf '** TEST SUCCEEDED **\\n' ;;
+  invalid-bytes)
+    /usr/bin/printf '\\377split output\\n'
+    printf '◇ Test works() started\\n'
+    printf '✔ Test works() passed after 0.001 seconds\\n'
+    ;;
+  pipe-source)
+    printf '%s\\n' "$$" >"$XCODE_PID_FILE"
+    exec /usr/bin/yes '◇ Test stillRunning() started'
+    ;;
+  hang)
+    printf '%s\\n' "$$" >"$XCODE_PID_FILE"
+    trap 'printf INT >"$XCODE_EXIT_MARKER"; exit 130' INT
+    trap 'printf TERM >"$XCODE_EXIT_MARKER"; exit 143' TERM
+    if [ "${SPAWN_GRANDCHILD:-0}" = 1 ]; then
+      /usr/bin/python3 "$SIGNAL_CHILD_SCRIPT" \
+        "$XCODE_GRANDCHILD_PID_FILE" "$XCODE_GRANDCHILD_EXIT_MARKER" &
+    fi
+    while :; do
+      printf 'xcodebuild still running\\n'
+      /bin/sleep 0.02
+    done
+    ;;
+esac
+exit "${TEST_STATUS:-0}"
+""",
+        )
+        self._write_executable(
+            self.bin / "xcrun",
+            """#!/bin/bash
+printf 'xcrun %s\\n' "$*" >>"$TOOL_LOG"
+if [ "$1" = xctest ]; then
+  printf 'Host macro tests\\n'
+  exit "${MACRO_TEST_STATUS:-0}"
+fi
+if [ "$*" = "--sdk iphonesimulator --show-sdk-build-version" ]; then
+  printf 'fixture-sdk-build\\n'
+  exit 0
+fi
+if [ "${XCRUN_OUTPUT:-valid}" = malformed ]; then
+  printf '{'
+  exit 0
+fi
+path=""
+previous=""
+for argument in "$@"; do
+  if [ "$previous" = "--path" ]; then path="$argument"; fi
+  previous="$argument"
+done
+if [[ "$path" == *tight* ]]; then
+  results='["Passed", "Failed"]'
+elif [[ "$path" == *suite* ]]; then
+  results='["Failed"]'
+elif [ "${XCRUN_RESULT:-passed}" = failed ]; then
+  results='["Failed"]'
+else
+  results='["Passed"]'
+fi
+/usr/bin/python3 -c '
+import json, sys
+results = json.loads(sys.argv[1])
+children = [
+    {"nodeType": "Test Case", "name": "works()", "nodeIdentifier": "ValueTests/works()", "result": result, "durationInSeconds": 0.01}
+    for result in results
+]
+print(json.dumps({"testNodes": [{"nodeType": "Unit test bundle", "name": "CoreTests", "children": [{"nodeType": "Test Suite", "name": "ValueTests", "children": children}]}]}))
+' "$results"
+""",
+        )
+
+
+class XcodeCommandContractTests(unittest.TestCase):
+    def fixture(self):
+        temporary = tempfile.TemporaryDirectory(prefix="stuff-xcode-contract-")
+        self.addCleanup(temporary.cleanup)
+        return XcodeCommandFixture(temporary.name)
+
+    def test_macro_suite_uses_current_product_path_not_a_stale_bundle(self):
+        fixture = self.fixture()
+        stale = fixture.root / ".build/stale/Products/Debug/PeriscopeMacrosTests.xctest"
+        stale.mkdir(parents=True)
+
+        result = fixture.run("test", "--skip-architecture", "PeriscopeMacrosTests")
+
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        current = (
+            fixture.root / ".build/fixture/Products/Debug/PeriscopeMacrosTests.xctest"
+        )
+        self.assertIn(f"xcrun xctest {current}", fixture.command_log())
+        self.assertNotIn(f"xcrun xctest {stale}", fixture.command_log())
+        self.assertNotIn("xcodebuild ", fixture.command_log())
+        self.assertIn(
+            "ruby Shared/CreditKit/Tools/Tests/generate_attribution_test.rb",
+            fixture.command_log(),
+        )
+        self.assertIn(
+            "ruby Where/Tools/Tests/upgrade_backup_test.rb", fixture.command_log()
+        )
+
+    def test_host_regression_failure_fails_the_command(self):
+        fixture = self.fixture()
+
+        result = fixture.run(
+            "test",
+            "--skip-architecture",
+            "PeriscopeMacrosTests",
+            MACRO_TEST_STATUS="47",
+        )
+
+        self.assertEqual(47, result.returncode, result.stdout + result.stderr)
+        self.assertIn("Failed (exit 47)", result.stdout)
+        self.assertIn(
+            "Host macro tests",
+            (fixture.test_work / "PeriscopeMacrosTests.log").read_text(),
+        )
+
+    def test_artifact_producer_can_delegate_host_checks_without_dropping_schemes(self):
+        for skip_host_tests, macro_status in ((False, 0), (False, 47), (True, 0)):
+            with self.subTest(
+                skip_host_tests=skip_host_tests, macro_status=macro_status
+            ):
+                fixture = self.fixture()
+                artifacts = fixture.root / "ci test build"
+                arguments = [
+                    "--everything",
+                    "--skip-architecture",
+                    "--no-generate",
+                    "--build-artifacts",
+                    str(artifacts),
+                ]
+                if skip_host_tests:
+                    arguments.append("--skip-host-tests")
+
+                result = fixture.run(
+                    "test",
+                    *arguments,
+                    MISE_STATUS="127" if skip_host_tests else "0",
+                    MACRO_TEST_STATUS=str(macro_status),
+                )
+
+                self.assertEqual(
+                    macro_status, result.returncode, result.stdout + result.stderr
+                )
+                manifest = json.loads((artifacts / "manifest.json").read_text())
+                self.assertEqual(
+                    {"Stuff-iOS-Tests", "StuffSnapshotTests"}, set(manifest["schemes"])
+                )
+                self.assertIn(
+                    "-destination generic/platform=iOS Simulator", fixture.command_log()
+                )
+                self.assertNotIn("test-without-building", fixture.command_log())
+                if skip_host_tests:
+                    self.assertNotIn("mise ", fixture.command_log())
+                    self.assertNotIn("xcrun xctest", fixture.command_log())
+                else:
+                    self.assertIn(
+                        "swift build --product PeriscopeMacrosTests",
+                        fixture.command_log(),
+                    )
+                    self.assertIn("xcrun xctest", fixture.command_log())
+                    self.assertIn("generate_attribution_test.rb", fixture.command_log())
+
+    def test_unit_scope_keeps_host_regressions_unless_explicitly_delegated(self):
+        for skip_host_tests in (False, True):
+            with self.subTest(skip_host_tests=skip_host_tests):
+                fixture = self.fixture()
+                arguments = [
+                    "--all",
+                    "--skip-architecture",
+                    "--no-generate",
+                    "--no-build",
+                ]
+                if skip_host_tests:
+                    arguments.append("--skip-host-tests")
+
+                result = fixture.run(
+                    "test", *arguments, MISE_STATUS="127" if skip_host_tests else "0"
+                )
+
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                self.assertIn("test-without-building -workspace", fixture.command_log())
+                if skip_host_tests:
+                    self.assertNotIn("mise ", fixture.command_log())
+                    self.assertNotIn("xcrun xctest", fixture.command_log())
+                else:
+                    self.assertIn("generate_attribution_test.rb", fixture.command_log())
+                    self.assertIn("upgrade_backup_test.rb", fixture.command_log())
+                    self.assertIn("xcrun xctest", fixture.command_log())
+
+    def test_explicit_macro_selection_rejects_disabled_host_tests_before_tools(self):
+        for arguments in (
+            ("--skip-host-tests", "PeriscopeMacrosTests"),
+            ("--test-artifacts", "unused", "PeriscopeMacrosTests"),
+        ):
+            with self.subTest(arguments=arguments):
+                fixture = self.fixture()
+
+                result = fixture.run("test", *arguments)
+
+                self.assertEqual(1, result.returncode)
+                self.assertIn(
+                    "PeriscopeMacrosTests requires host tests to be enabled",
+                    result.stderr,
+                )
+                self.assertEqual("", fixture.command_log())
+
+    def test_macro_suite_rejects_missing_current_bundle_even_if_stale_bundle_exists(
+        self,
+    ):
+        fixture = self.fixture()
+        stale = fixture.root / ".build/stale/Products/Debug/PeriscopeMacrosTests.xctest"
+        stale.mkdir(parents=True)
+
+        result = fixture.run(
+            "test",
+            "--skip-architecture",
+            "PeriscopeMacrosTests",
+            MISSING_MACRO_BUNDLE="1",
+        )
+
+        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+        self.assertIn("did not produce PeriscopeMacrosTests.xctest", result.stderr)
+        self.assertNotIn("xcrun xctest", fixture.command_log())
+
+    def test_snapshot_run_rejects_a_different_xcode_build_before_generation(self):
+        fixture = self.fixture()
+
+        result = fixture.run(
+            "test",
+            "--snapshots",
+            "--skip-architecture",
+            "--no-generate",
+            "--no-build",
+            FAKE_XCODE_BUILD="27A5228h",
+        )
+
+        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+        self.assertIn(
+            f"snapshot tests require Xcode build {fixture.expected_xcode_build}",
+            result.stderr,
+        )
+        self.assertNotIn("test-without-building", fixture.command_log())
+
+    def test_unit_run_does_not_require_the_snapshot_xcode_build(self):
+        fixture = self.fixture()
+
+        result = fixture.run(
+            "test",
+            "--skip-architecture",
+            "--no-generate",
+            "--no-build",
+            "CoreTests",
+            FAKE_XCODE_BUILD="27A5228h",
+        )
+
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertNotIn("xcodebuild -version", fixture.command_log())
+
+    def test_unit_run_does_not_require_the_flyover_command_fixture(self):
+        fixture = self.fixture()
+
+        result = fixture.run(
+            "test",
+            "--skip-architecture",
+            "--no-generate",
+            "--no-build",
+            "CoreTests",
+        )
+
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertNotIn("Testing flyover command", result.stdout)
+
+    def test_artifact_consumer_skips_host_checks_owned_by_a_separate_invocation(self):
+        fixture = self.fixture()
+        artifacts = fixture.test_artifacts("Stuff-iOS-Tests")
+        flyover_fixture = fixture.root / "Shared/Flyover/Tools/Tests/flyover_test.sh"
+        flyover_fixture.parent.mkdir(parents=True)
+        fixture._write_executable(flyover_fixture, "#!/bin/bash\nexit 99\n")
+
+        result = fixture.run(
+            "test",
+            "--all",
+            "--skip-architecture",
+            "--test-artifacts",
+            str(artifacts),
+            "--shared",
+            MISE_STATUS="127",
+        )
+
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertNotIn("mise ", fixture.command_log())
+        self.assertNotIn("Testing flyover command", result.stdout)
+        self.assertIn("test-without-building -xctestrun", fixture.command_log())
+
+    def test_test_preserves_xcode_failure_through_the_progress_pipeline(self):
+        fixture = self.fixture()
+
+        result = fixture.run(
+            "test",
+            "--skip-architecture",
+            "--no-generate",
+            "--no-build",
+            "CoreTests",
+            TEST_STATUS="41",
+            XCODE_OUTPUT="failed",
+            XCRUN_RESULT="failed",
+        )
+
+        self.assertEqual(41, result.returncode, result.stdout + result.stderr)
+        self.assertIn("1 tests", result.stdout)
+        self.assertIn("1 failed", result.stdout)
+        self.assertIn("Failed (exit 41)", result.stdout)
+
+    def test_test_rejects_a_successful_xcode_run_that_matched_zero_tests(self):
+        fixture = self.fixture()
+
+        result = fixture.run(
+            "test",
+            "--skip-architecture",
+            "--no-generate",
+            "--no-build",
+            "CoreTests",
+            XCODE_OUTPUT="zero",
+        )
+
+        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+        self.assertIn("this run matched no tests", result.stdout)
+
+    def test_test_tolerates_unexpected_output_bytes_without_losing_test_counts(self):
+        fixture = self.fixture()
+
+        result = fixture.run(
+            "test",
+            "--skip-architecture",
+            "--no-generate",
+            "--no-build",
+            "CoreTests",
+            XCODE_OUTPUT="invalid-bytes",
+        )
+
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("1 tests", result.stdout)
+
+    def test_test_surfaces_a_progress_process_failure_after_xcode_succeeds(self):
+        fixture = self.fixture()
+        fixture._write_executable(
+            fixture.bin / "python3",
+            """#!/bin/bash
+if [[ " $* " == *" Tools/test_runner.py progress "* ]]; then
+  /bin/cat >/dev/null
+  exit 52
+fi
+exec /usr/bin/python3 "$@"
+""",
+        )
+
+        result = fixture.run(
+            "test",
+            "--skip-architecture",
+            "--no-generate",
+            "--no-build",
+            "CoreTests",
+        )
+
+        self.assertEqual(52, result.returncode, result.stdout + result.stderr)
+        self.assertIn("Failed (exit 52)", result.stdout)
+
+    def test_test_keeps_legacy_last_scope_selector_precedence(self):
+        bundles_last = self.fixture()
+        result = bundles_last.run(
+            "test",
+            "--skip-architecture",
+            "--no-generate",
+            "--no-build",
+            "--all",
+            "CoreTests",
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("-only-testing:CoreTests", bundles_last.command_log())
+
+        all_last = self.fixture()
+        result = all_last.run(
+            "test",
+            "--skip-architecture",
+            "--no-generate",
+            "--no-build",
+            "CoreTests",
+            "--all",
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertNotIn("-only-testing:CoreTests", all_last.command_log())
+        self.assertIn("-scheme Stuff-iOS-Tests", all_last.command_log())
+
+        snapshots_last = self.fixture()
+        result = snapshots_last.run(
+            "test",
+            "--skip-architecture",
+            "--no-generate",
+            "--no-build",
+            "--all",
+            "--snapshots",
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("-scheme StuffSnapshotTests", snapshots_last.command_log())
+
+    def test_public_usage_errors_do_not_reach_xcode_dependencies(self):
+        scenarios = [
+            ("test", ("--unknown",)),
+            ("test", ("--device",)),
+            ("profile", ("--unknown",)),
+            ("profile", ("--top",)),
+            ("flaky", ("--unknown",)),
+            ("flaky", ("--iterations",)),
+        ]
+        for command, arguments in scenarios:
+            with self.subTest(command=command, arguments=arguments):
+                fixture = self.fixture()
+                result = fixture.run(command, *arguments)
+
+                self.assertNotEqual(0, result.returncode)
+                self.assertEqual("", fixture.command_log())
+
+    def test_unlaunchable_xcodebuild_surfaces_shell_compatible_status(self):
+        fixture = self.fixture()
+        fixture._write_executable(
+            fixture.bin / "xcodebuild",
+            "#!/missing/interpreter\n",
+        )
+
+        result = fixture.run(
+            "test",
+            "--skip-architecture",
+            "--no-generate",
+            "--no-build",
+            "CoreTests",
+        )
+
+        self.assertEqual(126, result.returncode, result.stdout + result.stderr)
+
+    def test_ctrl_c_and_a_closed_output_pipe_leave_no_xcode_processes(self):
+        for interruption in ("interrupt", "closed-pipe"):
+            with self.subTest(interruption=interruption):
+                fixture = self.fixture()
+                child_pid = fixture.root / f"{interruption}-xcode.pid"
+                grandchild_pid = fixture.root / f"{interruption}-grandchild.pid"
+                xcode_exit = fixture.root / f"{interruption}-xcode-exit"
+                grandchild_exit = fixture.root / f"{interruption}-grandchild-exit"
+                environment = fixture.environment(
+                    {
+                        "XCODE_OUTPUT": (
+                            "hang" if interruption == "interrupt" else "pipe-source"
+                        ),
+                        "XCODE_PID_FILE": str(child_pid),
+                        "XCODE_GRANDCHILD_PID_FILE": str(grandchild_pid),
+                        "XCODE_EXIT_MARKER": str(xcode_exit),
+                        "XCODE_GRANDCHILD_EXIT_MARKER": str(grandchild_exit),
+                        "SIGNAL_CHILD_SCRIPT": str(fixture.root / "signal_child.py"),
+                        "SPAWN_GRANDCHILD": "1" if interruption == "interrupt" else "0",
+                    }
+                )
+                process = subprocess.Popen(
+                    [
+                        str(fixture.root / "test"),
+                        "--skip-architecture",
+                        "--no-generate",
+                        "--no-build",
+                        "--heartbeat",
+                        "0.05",
+                        "CoreTests",
+                    ],
+                    cwd=fixture.outside,
+                    env=environment,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    start_new_session=True,
+                )
+                try:
+                    expected_pids = [child_pid]
+                    if interruption == "interrupt":
+                        expected_pids.append(grandchild_pid)
+                    self._wait_until(
+                        lambda: all(path.exists() for path in expected_pids)
+                    )
+                    pids = [int(path.read_text()) for path in expected_pids]
+                    if interruption == "interrupt":
+                        os.killpg(process.pid, signal.SIGINT)
+                    else:
+                        process.stdout.close()
+
+                    process.wait(timeout=8)
+                    normalized_status = (
+                        128 - process.returncode
+                        if process.returncode < 0
+                        else process.returncode
+                    )
+                    if interruption == "interrupt":
+                        # Every pipeline stage receives SIGINT. The outer shell can
+                        # observe SIGPIPE first when a downstream stage exits sooner.
+                        self.assertIn(normalized_status, (130, 141))
+                        self._wait_until(lambda: grandchild_exit.exists())
+                        self.assertEqual(
+                            str(signal.SIGINT.value), grandchild_exit.read_text()
+                        )
+                    else:
+                        self.assertNotEqual(0, normalized_status)
+                        self._wait_until(lambda: not self._pid_exists(pids[0]))
+                finally:
+                    if process.poll() is None:
+                        os.killpg(process.pid, signal.SIGKILL)
+                        process.wait(timeout=5)
+                    if process.stdout and not process.stdout.closed:
+                        process.stdout.close()
+                    if process.stderr and not process.stderr.closed:
+                        process.stderr.close()
+
+    def _wait_until(self, predicate, timeout=8):
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if predicate():
+                return
+            time.sleep(0.01)
+        self.fail("condition did not become true before the deadline")
+
+    def _pid_exists(self, pid):
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        return True
+
+    def test_profile_preserves_test_failure_but_tolerates_report_failure(self):
+        fixture = self.fixture()
+        failed = fixture.run(
+            "profile",
+            "--tests-only",
+            "--no-snapshots",
+            TEST_STATUS="37",
+            XCODE_OUTPUT="failed",
+        )
+
+        self.assertEqual(37, failed.returncode, failed.stdout + failed.stderr)
+        self.assertIn("unit-test leg", failed.stderr)
+
+        malformed = fixture.run(
+            "profile",
+            "--tests-only",
+            "--no-snapshots",
+            XCRUN_OUTPUT="malformed",
+        )
+
+        self.assertEqual(0, malformed.returncode, malformed.stdout + malformed.stderr)
+        self.assertIn("warning: couldn't parse test results", malformed.stderr)
+        self.assertIn("PROFILE WALLS", malformed.stdout)
+
+    def test_flaky_treats_test_failures_as_data_and_build_failures_as_fatal(self):
+        fixture = self.fixture()
+        observations = fixture.run(
+            "flaky",
+            "--suite-runs",
+            "1",
+            "--iterations",
+            "2",
+            "--no-update",
+            TEST_STATUS="65",
+            XCODE_OUTPUT="failed",
+        )
+
+        self.assertEqual(
+            0, observations.returncode, observations.stdout + observations.stderr
+        )
+        self.assertIn("1 flaky test(s) detected", observations.stdout)
+        self.assertIn("CoreTests/ValueTests/works()", observations.stdout)
+
+        build_failure = fixture.run(
+            "flaky",
+            "--suite-runs",
+            "1",
+            "--iterations",
+            "2",
+            "--no-update",
+            BUILD_STATUS="29",
+        )
+
+        self.assertEqual(
+            29, build_failure.returncode, build_failure.stdout + build_failure.stderr
+        )
+        self.assertIn("build failed", build_failure.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()

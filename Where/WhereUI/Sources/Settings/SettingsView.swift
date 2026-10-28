@@ -1,452 +1,467 @@
-import LifecycleKit
-import LogViewerUI
 #if DEBUG
-    import SwiftDataInspector
+    @_spi(Testing) import InstallerKitUI
 #endif
+import InstallerKit
+import RegionKit
+import SFSafeSymbols
+import SnapshotKit
 import SwiftUI
-import UIKit
-import UniformTypeIdentifiers
 import WhereCore
 
-/// Settings tab: location permission + tracking, retroactive manual entry,
-/// whole-database backup export/import, and the destructive "erase a year"
-/// action.
+/// Settings tab: an iOS-Settings-style top-level list of icon rows that drill
+/// into grouped sub-screens — App Updates for eligible builds, then Data (attachments, logged days,
+/// regions), then devices, alerts, appearance, report year, data management,
+/// feature discovery, and About — plus a search field that filters individual settings and
+/// deep-links to the screen — and the row — containing each.
+///
+/// The top level owns nothing but navigation; behavior lives in the sub-screens
+/// (`DevicesSettingsView`, `AlertsSettingsView`, …). The scene's report model and
+/// the two view-scoped editing models (backup, reminders) are owned here and
+/// handed down; the `WhereSession` coordinator (recording/location) and
+/// `WhereModel` (reset) come from the environment via the sub-screens.
 struct SettingsView: View {
-    // Most settings live on the logged-in session; `model` is kept only to
-    // drive the reset sequence (which rebuilds the session from scratch).
-    @Environment(WhereModel.self) private var model
+    let report: YearReportModel
+    let recordingWarning: RecordingConfigurationWarningModel
+    @State private var backup: BackupModel
+    @State private var reminders: RemindersSettingsModel
+    @State private var searchText = ""
+    @State private var showRegions = false
+
     @Environment(WhereSession.self) private var session
-    @Environment(\.openURL) private var openURL
-    @Environment(\.lifecycleRunner) private var runner
+    @Environment(UpdateModel.self) private var updates: UpdateModel?
+    @Environment(WhereModel.self) private var model
+    @Environment(\.lifecycle) private var lifecycle
+    @Environment(\.isInDemoMode) private var isInDemoMode
+    @Environment(\.primaryAppIconName) private var primaryAppIconName
 
-    @State private var showClearConfirmation = false
-    @State private var showResetConfirmation = false
-    @State private var showAppIcon = false
+    init(
+        report: YearReportModel,
+        recordingWarning: RecordingConfigurationWarningModel? = nil,
+    ) {
+        self.report = report
+        self.recordingWarning = recordingWarning ?? RecordingConfigurationWarningModel(
+            preferences: report.preferences,
+        )
+        _backup = State(initialValue: BackupModel(services: report.services))
+        _reminders = State(initialValue: RemindersSettingsModel(
+            services: report.services,
+            preferences: report.preferences,
+            now: report.now,
+        ))
+    }
 
-    // Backup import: the picked file, the merge/replace choice, and the
-    // success confirmation.
-    @State private var showImporter = false
-    @State private var pendingImportURL: URL?
-    @State private var showStrategyDialog = false
-    @State private var showImportSuccess = false
-    @State private var lastImportSummary: BackupCoordinator.ImportSummary?
+    private var searchQuery: String {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var isSearching: Bool {
+        !searchQuery.isEmpty
+    }
+
+    private var searchResults: [SettingsSearchResult] {
+        SettingsCatalog.results(matching: searchQuery)
+            .filter { isAvailable($0.destination) }
+    }
+
+    /// Whether a group is offered right now. Everything is, except the few
+    /// groups a demo has no business showing (see
+    /// `SettingsDestination.isAvailableInDemoMode`) — filtered here rather than
+    /// per-row so the list and the search index can't disagree about what
+    /// exists.
+    private func isAvailable(_ destination: SettingsDestination) -> Bool {
+        destination.isAvailable(isInDemoMode: isInDemoMode, updatesEnabled: updates != nil)
+    }
 
     var body: some View {
-        @Bindable var session = session
-
         NavigationStack {
-            Form {
-                trackingSection
-                remindersSection
-                summarySection
-                resolutionSection
-                appIconSection
-                manualEntrySection
-                backupSection
-                dataSection
-                resetSection
-                #if DEBUG
-                    developerSection
-                #endif
-            }
-            .navigationTitle(Strings.settingsTitle)
-            .sheet(isPresented: $showAppIcon) {
-                AppIconView()
-            }
-            .alert(Strings.settingsPermissionAlertTitle, isPresented: $session.permissionDenied) {
-                Button(Strings.settingsPermissionAlertOpenSettings) { openSystemSettings() }
-                Button(Strings.settingsPermissionAlertNotNow, role: .cancel) {}
-            } message: {
-                Text(Strings.settingsPermissionAlertMessage)
-            }
-            .fileImporter(
-                isPresented: $showImporter,
-                allowedContentTypes: [.zip],
-                onCompletion: handleImportSelection,
-            )
-            .confirmationDialog(
-                Strings.settingsBackupImportStrategyTitle,
-                isPresented: $showStrategyDialog,
-                titleVisibility: .visible,
-                presenting: pendingImportURL,
-            ) { url in
-                Button(Strings.settingsBackupMerge) { runImport(url: url, strategy: .merge) }
-                Button(Strings.settingsBackupReplace, role: .destructive) {
-                    runImport(url: url, strategy: .replace)
-                }
-                Button(Strings.settingsDataCancel, role: .cancel) { pendingImportURL = nil }
-            } message: { _ in
-                Text(Strings.settingsBackupImportStrategyMessage)
-            }
-            .alert(
-                Strings.settingsBackupImportedTitle,
-                isPresented: $showImportSuccess,
-                presenting: lastImportSummary,
-            ) { _ in
-                Button(Strings.commonOK, role: .cancel) {}
-            } message: { summary in
-                Text(Strings.settingsBackupImportedMessage(
-                    samples: summary.sampleCount,
-                    evidence: summary.evidenceCount,
-                    manualDays: summary.manualDayCount,
-                    dismissedIssues: summary.dismissedIssueCount,
-                ))
-            }
-            .alert(
-                Strings.settingsBackupErrorTitle,
-                isPresented: $session.isShowingBackupError,
-                presenting: session.backupError,
-            ) { _ in
-                Button(Strings.commonOK, role: .cancel) {}
-            } message: { message in
-                Text(message)
-            }
-        }
-    }
-
-    private var trackingSection: some View {
-        @Bindable var session = session
-        return Section {
-            LocationStatusRow(status: session.authorizationStatus, isTracking: session.isTracking)
-
-            Toggle(isOn: $session.trackingEnabled) {
-                Label(Strings.settingsLocationToggle, systemImage: "location.fill")
-            }
-
-            if showGrantButton {
-                Button {
-                    Task { await session.requestPermission() }
-                } label: {
-                    Label(Strings.settingsLocationGrant, systemImage: "location.magnifyingglass")
-                }
-            }
-
-            if showOpenSettingsButton {
-                Button {
-                    openSystemSettings()
-                } label: {
-                    Label(Strings.settingsPermissionAlertOpenSettings, systemImage: "gear")
-                }
-            }
-        } header: {
-            Text(Strings.settingsLocationHeader)
-        } footer: {
-            Text(Strings.settingsLocationFooter)
-        }
-    }
-
-    /// Re-requesting only helps before the user has made a final decision.
-    private var showGrantButton: Bool {
-        switch session.authorizationStatus {
-            case .notDetermined, .whenInUse: true
-            case .restricted, .denied, .always: false
-        }
-    }
-
-    /// Once access is denied/restricted (or stuck at When-In-Use), the only way
-    /// forward is the Settings app.
-    private var showOpenSettingsButton: Bool {
-        switch session.authorizationStatus {
-            case .denied, .restricted, .whenInUse: true
-            case .notDetermined, .always: false
-        }
-    }
-
-    private var remindersSection: some View {
-        @Bindable var session = session
-        return Section {
-            Toggle(isOn: $session.remindersEnabled) {
-                Label(Strings.settingsRemindersToggle, systemImage: "bell.badge")
-            }
-
-            if session.remindersEnabled {
-                DatePicker(
-                    Strings.settingsReminderTime,
-                    selection: $session.reminderTimeOfDay,
-                    displayedComponents: .hourAndMinute,
-                )
-
-                if !session.notificationsAuthorized {
-                    Button {
-                        openSystemSettings()
-                    } label: {
-                        Label(Strings.settingsRemindersOpenSettings, systemImage: "bell.slash")
+            List {
+                if isSearching {
+                    ForEach(searchResults) { result in
+                        searchNavigationRow(result)
                     }
-                }
-            }
-        } header: {
-            Text(Strings.settingsRemindersHeader)
-        } footer: {
-            Text(remindersFooter)
-        }
-    }
-
-    private var remindersFooter: String {
-        if session.remindersEnabled, !session.notificationsAuthorized {
-            return Strings.settingsRemindersDeniedFooter
-        }
-        return Strings.settingsRemindersFooter
-    }
-
-    private var summarySection: some View {
-        @Bindable var session = session
-        return Section {
-            Toggle(isOn: $session.summaryEnabled) {
-                Label(Strings.settingsSummaryToggle, systemImage: "chart.bar.doc.horizontal")
-            }
-
-            if session.summaryEnabled {
-                DatePicker(
-                    Strings.settingsSummaryTime,
-                    selection: $session.summaryTimeOfDay,
-                    displayedComponents: .hourAndMinute,
-                )
-
-                if !session.notificationsAuthorized {
-                    Button {
-                        openSystemSettings()
-                    } label: {
-                        Label(Strings.settingsRemindersOpenSettings, systemImage: "bell.slash")
-                    }
-                }
-            }
-        } header: {
-            Text(Strings.settingsSummaryHeader)
-        } footer: {
-            Text(summaryFooter)
-        }
-    }
-
-    private var summaryFooter: String {
-        if session.summaryEnabled, !session.notificationsAuthorized {
-            return Strings.settingsSummaryDeniedFooter
-        }
-        return Strings.settingsSummaryFooter
-    }
-
-    private var resolutionSection: some View {
-        @Bindable var session = session
-
-        return Section {
-            Picker(Strings.settingsResolutionHeader, selection: $session.driftThreshold) {
-                ForEach(DriftThreshold.allCases, id: \.self) { threshold in
-                    Text(Strings.driftThresholdLabel(kilometers: threshold.rawValue / 1000))
-                        .tag(threshold)
-                }
-            }
-        } footer: {
-            Text(Strings.settingsResolutionFooter)
-        }
-    }
-
-    private var appIconSection: some View {
-        Section {
-            Button {
-                showAppIcon = true
-            } label: {
-                Label(Strings.settingsAppIconLink, systemImage: "app.badge")
-            }
-        } header: {
-            Text(Strings.settingsAppIconHeader)
-        } footer: {
-            Text(Strings.settingsAppIconFooter)
-        }
-    }
-
-    private var manualEntrySection: some View {
-        Section {
-            NavigationLink {
-                ManualDayEntryView()
-            } label: {
-                Label(Strings.settingsManualLink, systemImage: "calendar.badge.plus")
-            }
-        } header: {
-            Text(Strings.settingsManualHeader)
-        } footer: {
-            Text(Strings.settingsManualFooter)
-        }
-    }
-
-    private var backupSection: some View {
-        Section {
-            // `ShareLink` builds the archive lazily through `BackupArchiveFile`
-            // and presents the native share sheet (with its own export
-            // progress), so no custom `UIActivityViewController` is needed.
-            ShareLink(
-                item: backupArchiveFile,
-                preview: SharePreview(Strings.settingsBackupShareTitle),
-            ) {
-                Label(Strings.settingsBackupExport, systemImage: "square.and.arrow.up")
-            }
-            .disabled(session.backupState != .idle)
-
-            Button {
-                showImporter = true
-            } label: {
-                if session.backupState == .importing {
-                    importProgressLabel
                 } else {
-                    Label(Strings.settingsBackupImport, systemImage: "square.and.arrow.down")
-                }
-            }
-            .disabled(session.backupState != .idle)
-        } header: {
-            Text(Strings.settingsBackupHeader)
-        } footer: {
-            Text(Strings.settingsBackupFooter)
-        }
-    }
-
-    /// Determinate progress for an in-flight import, driven by
-    /// `session.backupProgress` as the backup coordinator writes each row.
-    private var importProgressLabel: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label(Strings.settingsBackupImporting, systemImage: "square.and.arrow.down")
-            ProgressView(value: session.backupProgress)
-        }
-    }
-
-    /// Lazily-built backup for `ShareLink`. The closure runs only when the
-    /// share sheet resolves the item; a failed export sets `session.backupError`
-    /// (surfacing the alert) and throws to abort the share.
-    private var backupArchiveFile: BackupArchiveFile {
-        BackupArchiveFile { [session] in
-            guard let url = await session.exportBackup() else {
-                throw CocoaError(.fileWriteUnknown)
-            }
-            return url
-        }
-    }
-
-    private func handleImportSelection(_ result: Result<URL, any Error>) {
-        switch result {
-            case let .success(url):
-                pendingImportURL = url
-                showStrategyDialog = true
-            case let .failure(error):
-                session.backupError = error.localizedDescription
-        }
-    }
-
-    private func runImport(url: URL, strategy: BackupCoordinator.ImportStrategy) {
-        Task {
-            if let summary = await session.importBackup(from: url, strategy: strategy) {
-                lastImportSummary = summary
-                showImportSuccess = true
-            }
-            pendingImportURL = nil
-        }
-    }
-
-    private var dataSection: some View {
-        Section {
-            Button(role: .destructive) {
-                showClearConfirmation = true
-            } label: {
-                Label(eraseTitle, systemImage: "trash")
-            }
-            .confirmationDialog(
-                eraseTitle,
-                isPresented: $showClearConfirmation,
-                titleVisibility: .visible,
-            ) {
-                Button(eraseTitle, role: .destructive) {
-                    Task { await session.clearSelectedYear() }
-                }
-                Button(Strings.settingsDataCancel, role: .cancel) {}
-            } message: {
-                Text(Strings.settingsDataConfirmMessage(year: session.selectedYear))
-            }
-        } header: {
-            Text(Strings.settingsDataHeader)
-        } footer: {
-            Text(Strings.settingsDataFooter(year: session.selectedYear))
-        }
-    }
-
-    private var eraseTitle: String {
-        Strings.settingsDataErase(year: session.selectedYear)
-    }
-
-    /// Whole-app teardown: wipes every year's data and returns to first-run
-    /// onboarding, run through the `LifecycleRunner` published into the
-    /// environment by `LifecycleContainer`. The runner proxy asserts in debug /
-    /// no-ops in release when no container is above (e.g. previews).
-    private var resetSection: some View {
-        Section {
-            Button(role: .destructive) {
-                showResetConfirmation = true
-            } label: {
-                Label(Strings.settingsResetErase, systemImage: "arrow.counterclockwise")
-            }
-            .confirmationDialog(
-                Strings.settingsResetErase,
-                isPresented: $showResetConfirmation,
-                titleVisibility: .visible,
-            ) {
-                Button(Strings.settingsResetConfirm, role: .destructive) {
-                    requestReset()
-                }
-                Button(Strings.settingsDataCancel, role: .cancel) {}
-            } message: {
-                Text(Strings.settingsResetMessage)
-            }
-        } footer: {
-            Text(Strings.settingsResetFooter)
-        }
-    }
-
-    private func requestReset() {
-        Task { await runner.teardown(WhereLaunch.resetSequence(for: model)) }
-    }
-
-    #if DEBUG
-        /// Developer-only tools, compiled out of release: the in-app log viewer
-        /// over the shared `WhereLog` buffer every logger writes to, plus — when
-        /// the live session can vend a SwiftData container — the generic
-        /// SwiftData inspector (previews and non-SwiftData fakes don't show it).
-        private var developerSection: some View {
-            Section {
-                NavigationLink {
-                    LogViewer(configuration: LogViewerConfiguration(
-                        store: WhereLog.store,
-                        title: Strings.settingsDebugLogsTitle,
-                    ))
-                } label: {
-                    Label(Strings.settingsDebugLogsLink, systemImage: "ladybug")
-                }
-
-                if let configuration = session.swiftDataInspectorConfiguration {
-                    NavigationLink {
-                        SwiftDataInspectorView(configuration: configuration)
-                    } label: {
-                        Label(Strings.settingsDebugInspectorLink, systemImage: "cylinder.split.1x2")
+                    if recordingWarning.isPresented {
+                        recordingWarningSection
+                    }
+                    if isInDemoMode {
+                        demoSection
+                    }
+                    ForEach(SettingsListSection.allCases, id: \.self) { section in
+                        let destinations = section.destinations.filter(isAvailable)
+                        if !destinations.isEmpty {
+                            Section {
+                                ForEach(destinations, id: \.self) { destination in
+                                    groupNavigationRow(destination)
+                                }
+                            } header: {
+                                if let headerTitle = section.headerTitle {
+                                    Text(headerTitle)
+                                }
+                            }
+                        }
                     }
                 }
-
-                NavigationLink {
-                    RegionMapView()
-                } label: {
-                    Label(Strings.settingsDebugRegionMapLink, systemImage: "map")
+            }
+            .navigationTitle(String(localized: .settingsTitle))
+            .searchable(text: $searchText, prompt: String(localized: .settingsSearchPrompt))
+            .overlay {
+                if isSearching, searchResults.isEmpty {
+                    ContentUnavailableView.search(text: searchQuery)
                 }
-            } header: {
-                Text(Strings.settingsDebugHeader)
-            } footer: {
-                Text(Strings.settingsDebugFooter)
+            }
+            .navigationDestination(for: SettingsRoute.self) { route in
+                destination(for: route)
+            }
+            .sheet(isPresented: $showRegions) {
+                RegionsSettingsView(usedThisYear: regionsUsedThisYear)
             }
         }
-    #endif
+    }
 
-    private func openSystemSettings() {
-        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-        openURL(url)
+    private var recordingWarningSection: some View {
+        Section {
+            NavigationLink(value: SettingsRoute(.devices)) {
+                Label {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(.settingsRecordingWarningTitle)
+                            .font(.headline)
+                        Text(.settingsRecordingWarningMessage)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemSymbol: .exclamationmarkTriangleFill)
+                        .foregroundStyle(.yellow)
+                        .accessibilityHidden(true)
+                }
+            }
+            Button(.settingsRecordingWarningDismiss, role: .cancel) {
+                recordingWarning.dismiss()
+            }
+        }
+    }
+
+    /// The way out of demo mode, at the very top of the list where a temporary
+    /// state belongs — above the real settings rather than filed among them.
+    ///
+    /// No confirmation: there is nothing to lose. Demo data was never saved,
+    /// and leaving is exactly what quitting the app would do anyway, so a
+    /// "are you sure?" would overstate the stakes.
+    private var demoSection: some View {
+        Section {
+            Button {
+                exitDemoMode()
+            } label: {
+                Label(
+                    String(localized: .settingsDemoExit),
+                    systemSymbol: .rectanglePortraitAndArrowRight,
+                )
+            }
+        } header: {
+            Text(String(localized: .settingsDemoHeader))
+        } footer: {
+            Text(String(localized: .settingsDemoFooter))
+        }
+    }
+
+    /// Tear the demo world down and re-drive the launch, through the same
+    /// `LifecycleProxy` the reset flow uses. The relaunch parks on the
+    /// onboarding gate (or resolves straight through for someone who had
+    /// already onboarded before trying the demo).
+    private func exitDemoMode() {
+        Task { await lifecycle.teardown(WhereLaunch.exitDemoPlan(for: model), input: session) }
+    }
+
+    /// A top-level row that either pushes its sub-screen or, for a sheet group
+    /// (Regions), presents it modally.
+    @ViewBuilder
+    private func groupNavigationRow(_ destination: SettingsDestination) -> some View {
+        if destination.isSheet {
+            Button { present(destination) } label: { groupRow(destination) }
+                .tint(.primary)
+        } else {
+            NavigationLink(value: SettingsRoute(destination)) { groupRow(destination) }
+        }
+    }
+
+    /// A search-result row that mirrors the group row's push-vs-sheet routing.
+    @ViewBuilder
+    private func searchNavigationRow(_ result: SettingsSearchResult) -> some View {
+        if result.destination.isSheet {
+            Button { present(result.destination) } label: { searchRow(result) }
+                .tint(.primary)
+        } else {
+            NavigationLink(value: SettingsRoute(result)) { searchRow(result) }
+        }
+    }
+
+    /// Present a sheet group. Non-sheet destinations are pushed via
+    /// `NavigationLink`, so reaching them here is a programmer error.
+    private func present(_ destination: SettingsDestination) {
+        switch destination {
+            case .regions:
+                showRegions = true
+            case .placesYear, .recording, .privacyBackups, .attachments, .loggedDays, .devices,
+                 .alerts, .appearance, .year, .siri,
+                 .widgets, .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization,
+                 .data, .privacyDiagnostics, .updates, .about:
+                assertionFailure("\(destination) is a push destination, not a sheet")
+        }
+    }
+
+    /// A top-level drill-in row: icon + group title, with a value subtitle where
+    /// one is cheap and useful (location status, the report year).
+    private func groupRow(_ destination: SettingsDestination) -> some View {
+        LabeledContent {
+            if let subtitle = subtitle(for: destination) {
+                Text(subtitle)
+                    .foregroundStyle(.secondary)
+            }
+        } label: {
+            Label {
+                Text(destination.rowTitle)
+            } icon: {
+                SettingsIcon(systemSymbol: destination.systemSymbol, color: destination.iconColor)
+            }
+        }
+    }
+
+    /// A cheap, always-available value shown on the right of a group row; `nil`
+    /// for groups without a meaningful one-line summary.
+    private func subtitle(for destination: SettingsDestination) -> String? {
+        switch destination {
+            case .devices:
+                LocationStatusRow.statusTitle(
+                    status: session.authorizationStatus,
+                    isTracking: session.isTracking,
+                )
+            case .updates:
+                updates?.attentionTitle
+            case .year:
+                report.selectedYear.formatted(.number.grouping(.never))
+            case .placesYear, .recording, .privacyBackups, .attachments, .loggedDays, .regions,
+                 .alerts, .appearance, .siri, .widgets,
+                 .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization, .data,
+                 .privacyDiagnostics, .about:
+                nil
+        }
+    }
+
+    /// A search result row: the owning group's icon beside the setting's name
+    /// over its parent group, so a result reads as belonging to its section.
+    private func searchRow(_ result: SettingsSearchResult) -> some View {
+        Label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(result.title)
+                Text(result.destination.rowTitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } icon: {
+            SettingsIcon(
+                systemSymbol: result.destination.systemSymbol,
+                color: result.destination.iconColor,
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func destination(for route: SettingsRoute) -> some View {
+        switch route.destination {
+            case .attachments:
+                EvidenceListView(report: report)
+            case .loggedDays:
+                LoggedDaysView(report: report)
+            case .devices:
+                DevicesSettingsView(session: session, focus: route.focus)
+            case .regions:
+                // Regions is presented as a sheet (`isSheet`), so it's never
+                // routed here; this arm only keeps the switch exhaustive.
+                EmptyView()
+            case .alerts:
+                AlertsSettingsView(report: report, reminders: reminders, focus: route.focus)
+            case .appearance:
+                AppearanceSettingsView(report: report, focus: route.focus)
+            case .year:
+                VisibleYearSettingsView(report: report, focus: route.focus)
+            case .placesYear:
+                PlacesYearFeaturesView(report: report, focus: route.focus)
+            case .recording:
+                RecordingFeaturesView(
+                    authorizationStatus: session.authorizationStatus,
+                    isTracking: session.isTracking,
+                    focus: route.focus,
+                )
+            case .privacyBackups:
+                PrivacyBackupsFeaturesView(
+                    configuration: model.diagnosticReporting.effectiveConfiguration,
+                    focus: route.focus,
+                )
+            case .siri:
+                SiriFeaturesView(
+                    focus: route.focus,
+                    presentation: featureDiscoveryPresentation,
+                )
+            case .widgets:
+                WidgetFeaturesView(
+                    focus: route.focus,
+                    presentation: featureDiscoveryPresentation,
+                )
+            case .shareEvidence:
+                ShareEvidenceFeaturesView(
+                    report: report,
+                    focus: route.focus,
+                    presentation: featureDiscoveryPresentation,
+                )
+            case .estimatedTime:
+                EstimatedTimeFeaturesView(report: report, focus: route.focus)
+            case .insightsAccuracy:
+                InsightsAccuracyFeaturesView(
+                    report: report,
+                    focus: route.focus,
+                )
+            case .personalization:
+                PersonalizationFeaturesView(
+                    report: report,
+                    focus: route.focus,
+                    primaryAppIconName: primaryAppIconName,
+                )
+            case .data:
+                DataSettingsView(report: report, backup: backup, focus: route.focus)
+            case .privacyDiagnostics:
+                PrivacyDiagnosticsSettingsView(focus: route.focus)
+            case .updates:
+                if let updates, !isInDemoMode {
+                    DevelopmentUpdatesView(model: updates, focus: route.focus)
+                }
+            case .about:
+                AboutSettingsView(
+                    focus: route.focus,
+                    diagnosticReportingConfiguration: model.diagnosticReporting
+                        .effectiveConfiguration,
+                )
+        }
+    }
+
+    /// Regions with days in the selected report year, so the region editor can
+    /// surface a "used this year" group (grouping order only — it doesn't affect
+    /// what's saved). `.other` isn't a pickable region, so it's dropped.
+    private var regionsUsedThisYear: Set<Region> {
+        guard let totals = report.report?.totals else { return [] }
+        return Set(totals.filter { $0.key != .other && $0.value > 0 }.map(\.key))
+    }
+
+    private var featureDiscoveryPresentation: FeatureDiscoveryPresentation {
+        FeatureDiscoveryPresentation(
+            report: report.report,
+            selectedYear: report.selectedYear,
+            referenceDate: report.referenceDate,
+            calendar: report.calendar,
+        )
     }
 }
 
 #if DEBUG
+    extension SettingsView: SnapshotProviding {
+        /// The extra right-to-left variant exercises the RTL configuration axis
+        /// on a directional screen (leading labels, trailing values/toggles).
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "Default",
+                configurations: .fullContentScreenRepresentative + [
+                    SnapshotConfiguration(
+                        layoutDirection: .rightToLeft,
+                        device: .iPhoneFullContent,
+                    ),
+                ],
+                measurementReadiness: .immediate,
+            ) {
+                SettingsView(report: PreviewSupport.loadedYearReportModel())
+                    .environment(PreviewSupport.loadedModel())
+                    .environment(PreviewSupport.loadedSession())
+            }
+            whereSnapshot(
+                name: "UpdateAvailable",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                SettingsView(report: PreviewSupport.loadedYearReportModel())
+                    .environment(PreviewSupport.loadedModel())
+                    .environment(PreviewSupport.loadedSession())
+                    .environment(InstallerPreview.model(.available))
+            }
+            whereSnapshot(
+                name: "LocalBuild",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                SettingsView(report: PreviewSupport.loadedYearReportModel())
+                    .environment(PreviewSupport.loadedModel())
+                    .environment(PreviewSupport.loadedSession())
+                    .environment(InstallerPreview.model(.local))
+            }
+            // Demo mode: the exit section on top, and the groups that would
+            // reach past the demo (backup, erase/reset, app icon) gone.
+            whereSnapshot(
+                name: "DemoMode",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                SettingsView(report: PreviewSupport.loadedYearReportModel())
+                    .environment(PreviewSupport.loadedModel())
+                    .environment(PreviewSupport.loadedSession())
+                    .environment(\.isInDemoMode, true)
+            }
+            whereSnapshot(
+                name: "RecordingConfigurationWarning",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                SettingsView(
+                    report: PreviewSupport.loadedYearReportModel(),
+                    recordingWarning: PreviewSupport.recordingConfigurationWarningModel(),
+                )
+                .environment(PreviewSupport.loadedModel())
+                .environment(PreviewSupport.loadedSession())
+            }
+        }
+    }
+
     #Preview {
-        SettingsView()
-            .environment(PreviewSupport.loadedModel())
-            .environment(PreviewSupport.loadedSession())
+        SettingsView.snapshotPreviews
+    }
+#endif
+
+#if DEBUG
+    extension SettingsView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            SettingsView.self,
+            title: "Settings",
+            navigationContainer: .none,
+            routes: [
+                .push(to: EvidenceListView.flyoverID),
+                .push(to: LoggedDaysView.flyoverID),
+                .modal(to: RegionsSettingsView.flyoverID),
+                .push(to: DevicesSettingsView.flyoverID),
+                .push(to: AlertsSettingsView.flyoverID),
+                .push(to: AppearanceSettingsView.flyoverID),
+                .push(to: VisibleYearSettingsView.flyoverID),
+                .push(to: PlacesYearFeaturesView.flyoverID),
+                .push(to: RecordingFeaturesView.flyoverID),
+                .push(to: PrivacyBackupsFeaturesView.flyoverID),
+                .push(to: SiriFeaturesView.flyoverID),
+                .push(to: WidgetFeaturesView.flyoverID),
+                .push(to: ShareEvidenceFeaturesView.flyoverID),
+                .push(to: EstimatedTimeFeaturesView.flyoverID),
+                .push(to: InsightsAccuracyFeaturesView.flyoverID),
+                .push(to: PersonalizationFeaturesView.flyoverID),
+                .push(to: DataSettingsView.flyoverID),
+                .push(to: PrivacyDiagnosticsSettingsView.flyoverID),
+                .push(to: DevelopmentUpdatesView.flyoverID),
+                .push(to: AboutSettingsView.flyoverID),
+            ],
+        ) { world in
+            SettingsView(report: world.report)
+        }
     }
 #endif

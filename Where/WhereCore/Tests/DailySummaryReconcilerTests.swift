@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 import Testing
 @testable import WhereCore
 
@@ -13,7 +14,11 @@ struct DailySummaryReconcilerTests {
             calendar: WhereCoreTestSupport.calendar(),
             timeZone: WhereCoreTestSupport.pacific,
         )
-        let reader = ReportReader(store: store, aggregator: aggregator, attributor: .shared)
+        let reader = ReportReader(
+            store: store,
+            aggregator: aggregator,
+            attributor: RegionAttributor.shared,
+        )
         let spy = SpyDailySummaryScheduler()
         let reconciler = DailySummaryReconciler(
             scheduler: spy,
@@ -30,10 +35,12 @@ struct DailySummaryReconcilerTests {
         try await store.perform {
             try await store.setManualDay(DayPresence(
                 date: WhereCoreTestSupport.iso("2026-02-01T00:00:00-08:00"),
+                in: WhereCoreTestSupport.calendar(),
                 regions: [.california],
             ))
             try await store.setManualDay(DayPresence(
                 date: WhereCoreTestSupport.iso("2026-02-02T00:00:00-08:00"),
+                in: WhereCoreTestSupport.calendar(),
                 regions: [.newYork],
             ))
         }
@@ -51,6 +58,7 @@ struct DailySummaryReconcilerTests {
         try await store.perform {
             try await store.setManualDay(DayPresence(
                 date: WhereCoreTestSupport.iso("2026-02-01T00:00:00-08:00"),
+                in: WhereCoreTestSupport.calendar(),
                 regions: [.california],
             ))
         }

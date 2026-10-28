@@ -1,0 +1,79 @@
+# SnapshotKit – Module Shape
+
+SnapshotKit is the generic, shippable half of the snapshot-testing framework. It provides the appearance *matrix* (`SnapshotConfiguration` + presets + `combinations` + identifiers), the `SnapshotProviding` protocol, the `SnapshotCase` descriptor, and the `snapshotPreviews` cutsheet. It drives both SwiftUI previews and image snapshot tests from one source of truth. See [`README.md`](README.md).
+
+Read the root [`AGENTS.md`](../../AGENTS.md) first.
+
+## Scope & dependencies
+
+- **Use SwiftUI, Foundation, and UIKit only. Do not link a snapshot-comparison engine.** UI modules link SnapshotKit (including in release) to drive previews. It must never pull in `SnapshotTesting`/XCTest. The capture and comparison pipeline lives in [`SnapshotKitTesting`](../SnapshotKitTesting).
+- **Declare the library target in [`Package.swift`](../../Package.swift).** UI consumers listed in that manifest use it for previews. `SnapshotKitTesting` consumes it for the config→traits mapping. `SnapshotKitTests` covers pure logic.
+
+## Invariants an agent can't re-derive
+
+- **Choose coverage per distinct layout, not per domain state.** Use a
+  `*Representative` matrix for representative layouts and the matching
+  `*LightDark` preset for additional states. Reuse the focused `WithAX5` and
+  `WithAnnotations` presets for repeated wrapping or annotation coverage;
+  AX5 and annotations are separate captures, not a Cartesian product.
+  Add individual configurations for exceptional contrast or tablet composition.
+  Document a repeated representative matrix at its declaration.
+- **Keep configuration selection explicit.** `SnapshotCase` and assertion APIs
+  must not supply a broad default matrix. Preserve configuration identifiers and
+  frame semantics when changing coverage. Guard: `SnapshotConfigurationTests`.
+- **`identifierParts` omit default axes.** Only non-default trait, frame, and type values appear in a config's `identifier`.
+- **Non-default values include `dark`, `xxxl`, `contrast`, `rtl`, `bold`, `accessibility`, and `iPad`.** The light/standard/default baseline stays empty.
+- **Reference-image filenames depend on this.** Treat omission rules as a wire format.
+- **When you add an axis, give it a default that is omitted.** That is how `layoutDirection`/`legibilityWeight` landed.
+- **Treat explicit layout traits as non-default.** Their idiom and size classes must add one stable identifier token.
+- **Filter `.accessibility` configs out of previews.** `snapshotPreviews` drops them.
+- **Stuff keeps AccessibilitySnapshot's annotation renderer in the test-only `SnapshotKitTesting` product.** It does not link into shipping UI modules.
+- **Accessibility configs only render as snapshot tests.** Do not "fix" previews to include them without a preview-only dependency boundary.
+- **Keep `SnapshotCase` content builders lazy.** Constructing a provider's descriptor array must not instantiate every view or model.
+- **Do not assume captured models are isolated between configurations.** The
+  `SnapshotKitTesting` runner evaluates ordinary content once per case and re-hosts it.
+  Cutsheet panel builders run per configuration and must create fresh fixtures.
+  Retries reuse the supplied view and captured models in both paths. Ordinary
+  per-configuration model isolation remains in [`TODOs.md`](TODOs.md).
+- **Use `\.isCapturingSnapshot` for motion end-states only.** A view may read it only to freeze motion at a deterministic phase.
+- **Never use it to change layout, content, or behavior.**
+- **One carve-out (documented on the property):** content no settle window can make deterministic may substitute a placeholder of identical layout.
+- **That carve-out covers externally-loaded substrates, wall-clock-dependent system controls, and wall-clock timers.**
+- **It is a hybrid accessor:** pure-SwiftUI `EnvironmentKey` first, `UITraitBridgedEnvironmentKey` fallback. The setter mirrors into both.
+- **See mechanics and rationale on `SnapshotCaptureFlag.swift`.** Do not simplify it to a plain `@Entry`.
+- **Keep SnapshotKit design-system-agnostic.** SnapshotKit never imports Broadway/WhereUI.
+- **The Broadway root wrap is a consumer concern** (`WhereUI`'s `whereSnapshot(...)`).
+- **Use full-content frames for scrollable subjects.**
+- **If a snapshot contains a `ScrollView`, `List`, `Form`, or equivalent UIKit-backed scroller, use a full-content frame preset.**
+- **That may be `.fullContentScreenRepresentative`, a consumer's matching compact preset, or an explicit `.fullContent` frame.**
+- **Device full-content presets keep their normal viewport height as a minimum.** They grow only when the settled content is taller.
+- **Custom full-content frames shrink-wrap unless given a minimum.**
+- **Capture the production screen including navigation, tab, sheet, search, and toolbar chrome when measurement converges.**
+- **If a container is intentionally bounded or greedy, snapshot its shared scrolling child directly.** Never add snapshot-only production layout.
+- **Fixed device frames are for non-scrolling subjects.**
+- **Use two-axis full-content frames only for spatial canvases.** Choose `.iPhoneFullContent2D`, `.iPadFullContent2D`, or an explicit `.fullContent2D` when the production subject intentionally scrolls in both dimensions.
+- **Keep ordinary screen presets fixed-width.** Guard: `SnapshotConfigurationTests`.
+- **Measurement readiness never replaces capture readiness.**
+- **Keep `measurementReadiness` at `.sameAsCapture` when async work can change ideal height.**
+- **Or await that work deterministically from `onReadyToMeasure` and use `.settled` for the probe.**
+- **Use `.immediate` only for synchronously sized fixtures.** The case's final `settle` remains independently load-bearing.
+- **A measurement hook is intrinsic/full-content-only.** Guards: `AsyncContentCaptureTests` and `LargeViewCaptureTests`.
+
+## Component comparisons and reference groups
+
+- Keep theme identities and ordering in the consumer. Accept generic labeled panels
+  and validated reference groups; never import a consumer's theme model.
+- Author independent captures with `SnapshotCase.cutsheet` and `SnapshotPanelBuilder`.
+  Keep single-view and cutsheet construction mutually exclusive. Reject empty sheets and duplicate panel identities.
+  Keep raw content and capture descriptors behind the `Capture` SPI.
+  Preview the same stored subject that the runner captures.
+- Keep panel builders lazy and require fresh fixture state on each invocation.
+  Preview panels at their normal width; allow horizontal scrolling for wide sheets.
+- Preserve reference filenames and configuration identifiers. Use structured case identity
+  so a reference group cannot collide with punctuation in a case name.
+- Keep capture, pixel geometry, reference metadata, and per-panel comparison in
+  [`SnapshotKitTesting`](../SnapshotKitTesting/AGENTS.md). Previews remain an approximation.
+
+## Testing
+
+`SnapshotKitTests` covers the matrix logic — `combinations` counts and `identifierParts` omission — as pure value assertions (no rendering). Consumers' snapshot bundles exercise the rendering pipeline through `SnapshotKitTesting`.

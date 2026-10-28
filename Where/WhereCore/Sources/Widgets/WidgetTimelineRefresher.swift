@@ -1,4 +1,4 @@
-import LogKit
+import PeriscopeCore
 import WidgetKit
 
 /// Publishes a freshly-computed `WidgetSnapshot` for the widget extension
@@ -26,17 +26,20 @@ public struct NoopWidgetTimelineRefresher: WidgetTimelineRefreshing {
 /// every kind rather than per-kind because all Where widgets render from the
 /// same snapshot, so any committed change can affect all of them.
 public struct WidgetCenterTimelineRefresher: WidgetTimelineRefreshing {
-    private static let logger = WhereLog.channel(.widgetRefresher)
+    private static let logger = WhereLog.widgets(WidgetTimelineRefresherLog.self)
+    private let appGroupIdentifier: String
 
-    public init() {}
+    public init(appGroupIdentifier: String) {
+        self.appGroupIdentifier = appGroupIdentifier
+    }
 
     public func publish(_ snapshot: WidgetSnapshot) async {
         do {
-            try WidgetSnapshotStore.shared().write(snapshot)
-            Self.logger.info("Wrote widget snapshot to App Group; reloading timelines")
+            try WidgetSnapshotStore.shared(appGroupIdentifier: appGroupIdentifier).write(snapshot)
+            Self.logger.wroteSnapshot()
         } catch {
-            Self.logger.error(
-                "Failed to publish widget snapshot: \(error.localizedDescription)",
+            Self.logger.publishFailed(
+                error: .restricted(.errorDetails, error),
             )
         }
         WidgetCenter.shared.reloadAllTimelines()

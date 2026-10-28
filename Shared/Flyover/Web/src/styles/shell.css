@@ -1,0 +1,317 @@
+/* Shell styles. Responsive overrides stay beside their owning component. */
+
+@layer components {
+    .application {
+        display: grid;
+        grid-template-rows: 64px minmax(0, 1fr);
+        width: 100%;
+        height: 100dvh;
+        min-height: 0;
+    }
+
+    .app-header {
+        position: relative;
+        z-index: 30;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        min-width: 0;
+        padding: 0 22px;
+        border-bottom: 1px solid var(--line);
+        background: color-mix(in srgb, var(--surface) 90%, transparent);
+        -webkit-backdrop-filter: var(--glass);
+        backdrop-filter: var(--glass);
+    }
+
+    .app-identity {
+        min-width: 0;
+        gap: 11px;
+    }
+
+    .brand-mark {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 11px;
+        background: linear-gradient(145deg, #5270f4, #2b48ca);
+        box-shadow: 0 7px 18px rgb(49 87 232 / 30%), inset 0 1px rgb(255 255 255 / 28%);
+        color: white;
+        font-size: 18px;
+        font-weight: 750;
+    }
+
+    .identity-copy {
+        display: grid;
+        grid-template-columns: auto auto;
+        align-items: baseline;
+        gap: 8px;
+        min-width: 0;
+    }
+
+    .identity-copy h1 {
+        overflow: hidden;
+        font-size: 17px;
+        font-weight: 680;
+        letter-spacing: -0.015em;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .product-label {
+        color: var(--accent);
+    }
+
+    .header-actions {
+        gap: 8px;
+    }
+
+    .header-profile select {
+        max-width: 180px;
+        height: 38px;
+        border-color: transparent;
+        background-color: var(--surface-muted);
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .search-trigger {
+        min-width: 156px;
+        justify-content: flex-start;
+        padding: 0 8px 0 11px;
+        border-color: var(--line);
+        background: var(--surface-muted);
+    }
+
+    .search-trigger .button-label {
+        flex: 1;
+        text-align: left;
+    }
+
+    .build-trigger {
+        position: relative;
+        padding: 0 9px;
+    }
+
+    .commit-label {
+        color: var(--secondary);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px;
+    }
+
+    .dirty-dot {
+        position: absolute;
+        top: 7px;
+        right: 5px;
+        width: 7px;
+        height: 7px;
+        border: 2px solid var(--surface-solid);
+        border-radius: 50%;
+        background: #f59e0b;
+    }
+
+    .bottom-dock {
+        position: fixed;
+        z-index: 40;
+        bottom: max(18px, env(safe-area-inset-bottom));
+        left: 50%;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        max-width: calc(100vw - 32px);
+        min-height: 58px;
+        padding: 7px;
+        border: 1px solid color-mix(in srgb, var(--line-strong) 82%, transparent);
+        border-radius: 18px;
+        background: color-mix(in srgb, var(--surface) 94%, transparent);
+        box-shadow: var(--shadow-large);
+        transform: translateX(-50%);
+        -webkit-backdrop-filter: var(--glass);
+        backdrop-filter: var(--glass);
+    }
+
+    .zoom-controls .icon-button {
+        min-width: 34px;
+        min-height: 34px;
+    }
+
+    .zoom-value {
+        width: 46px;
+        color: var(--secondary);
+        font-size: 11px;
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    .dock-action {
+        min-height: 42px;
+        padding: 0 10px;
+        font-size: 12px;
+        font-weight: 650;
+        white-space: nowrap;
+    }
+
+    .dock-action[data-active="true"] {
+        background: var(--accent-soft);
+        color: var(--accent);
+    }
+
+    .filter-trigger {
+        position: relative;
+    }
+
+    .filter-badge:not(:empty) {
+        display: grid;
+        width: 17px;
+        height: 17px;
+        place-items: center;
+        border-radius: 99px;
+        background: var(--action-background);
+        color: var(--action-text);
+        font-size: 9px;
+        font-weight: 750;
+    }
+
+    .result-count {
+        min-width: 48px;
+        padding: 0 6px;
+        color: var(--tertiary);
+        font-size: 10px;
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+        text-align: center;
+    }
+}
+
+@layer responsive {
+    @media (width <= 1050px) {
+        .fit-all .button-label {
+            display: none;
+        }
+    }
+
+    @media (width <= 760px) {
+        .application {
+            grid-template-rows: 56px minmax(0, 1fr);
+        }
+
+        .app-header {
+            gap: 10px;
+            padding: 0 11px;
+        }
+
+        .app-identity {
+            gap: 8px;
+        }
+
+        .brand-mark {
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+        }
+
+        .product-label,
+        .commit-label,
+        .search-trigger .button-label,
+        .search-trigger kbd {
+            display: none;
+        }
+
+        .identity-copy {
+            display: block;
+        }
+
+        .identity-copy h1 {
+            max-width: 105px;
+            font-size: 15px;
+        }
+
+        .header-actions {
+            gap: 2px;
+        }
+
+        .header-profile select {
+            max-width: 122px;
+            height: 36px;
+            padding-right: 24px;
+            font-size: 11px;
+        }
+
+        .search-trigger,
+        .build-trigger {
+            min-width: 38px;
+            width: 38px;
+            padding: 0;
+            justify-content: center;
+        }
+
+        .bottom-dock {
+            right: 10px;
+            bottom: max(10px, env(safe-area-inset-bottom));
+            left: 10px;
+            max-width: none;
+            min-height: 56px;
+            justify-content: flex-start;
+            justify-content: safe center;
+            gap: 2px;
+            overflow-x: auto;
+            padding: 6px;
+            transform: none;
+        }
+
+        .bottom-dock .dock-separator,
+        .bottom-dock .result-count,
+        .bottom-dock .dock-action .button-label {
+            display: none;
+        }
+
+        .bottom-dock .dock-action {
+            min-width: 40px;
+            padding: 0 8px;
+        }
+
+        .view-tabs .segment {
+            padding: 0 9px;
+        }
+
+        .zoom-value {
+            width: 39px;
+        }
+    }
+
+    @media (pointer: coarse), (width <= 760px) {
+        .header-profile select,
+        .header-button,
+        .bottom-dock button,
+        .bottom-dock .segment,
+        .bottom-dock .zoom-controls .icon-button {
+            min-width: var(--touch-target-size);
+            min-height: var(--touch-target-size);
+        }
+
+        .header-profile select {
+            height: var(--touch-target-size);
+        }
+    }
+
+    @media (width <= 440px) {
+        .identity-copy h1 {
+            max-width: 72px;
+        }
+
+        .header-profile select {
+            max-width: 104px;
+        }
+
+        .view-tabs .button-label {
+            display: none;
+        }
+
+        .view-tabs .segment {
+            width: 39px;
+            padding: 0;
+        }
+    }
+}

@@ -1,13 +1,14 @@
+import SnapshotKit
 import SwiftUI
-import UIKit
 
 /// The Where launch screen shown for the whole launch: the user's selected app
-/// icon, gently pulsing on a dark backdrop with a "radar ping" sonar sweep
+/// icon, gently pulsing on an adaptive backdrop with a "radar ping" sonar sweep
 /// behind it.
 ///
-/// The icon respects the system color mode (the asset catalog resolves the
-/// light/dark preview art from `@Environment(\.colorScheme)`) while always
-/// sitting on a dark background, so the brand mark reads the same in either
+/// The backdrop follows the system light/dark mode (an adaptive
+/// `systemBackground` with a subtle vignette), and the icon resolves its
+/// matching light/dark preview art from the asset catalog via
+/// `@Environment(\.colorScheme)`, so the splash reads correctly in either
 /// appearance. When the runner reaches `.ready`, `RootView` removes this view
 /// with a scale-up-and-fade transition that reveals the main UI — that motion
 /// lives at the container seam, not here.
@@ -19,81 +20,154 @@ import UIKit
 /// reassurance caption in after it's lingered a beat. There's no second view to
 /// reconcile and no remount, so the pulse and radar run uninterrupted.
 ///
+/// The caption's copy is deliberately launch-neutral ("Getting things ready…")
+/// — a slow launch may be a schema migration, a fresh install's very first
+/// store creation (which routinely outlives the caption delay), or plain
+/// slowness, and the splash can't tell which, so it never claims a specific
+/// cause.
+///
 /// Honors Reduce Motion: the pulse and the sweeping rings are pinned to a
-/// static frame, and the caption appears without a fade.
+/// static frame, and the caption appears without a fade. Snapshot captures
+/// likewise skip the pulse (see ``MotionIsStatic``), freeze the rings at a
+/// canonical phase, and never start the slow-launch timer — whether the
+/// caption is visible under capture is decided solely by the explicit
+/// `previewShowsCaption` seam, never by how long the settle loop happens to
+/// take — so the never-settling motion and the wall-clock reveal both render
+/// deterministically.
 struct LaunchSplashView: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    // Two distinct questions, deliberately not merged:
+    // • `motionIsStatic` (Reduce Motion *or* capture) gates never-settling
+    //   motion — the pulse — which must freeze in both cases.
+    // • `isCapturingSnapshot` alone gates the wall-clock caption timer below:
+    //   Reduce Motion users still get the caption (just without the fade), so
+    //   the timer can't key off `motionIsStatic` — only a capture skips it.
+    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
+    @MotionIsStatic private var motionIsStatic
+    @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.primaryAppIconName) private var primaryAppIconName
     @State private var pulsing = false
     @State private var showCaption: Bool
 
-    /// How long the splash must linger before the "taking a moment" caption
-    /// fades in, so a fast launch never flashes it.
-    private static let captionDelay = Duration.milliseconds(500)
+    private var splash: WhereStylesheet.Palette.Splash {
+        stylesheet.palette.splash
+    }
+
+    /// What, if anything, the splash says beneath the icon.
+    enum Caption {
+        /// The launch's own: nothing at first, and a launch-neutral
+        /// reassurance fading in only once the launch has run long.
+        case slowLaunchReassurance
+        /// Named work the user is waiting on, shown immediately — for a
+        /// deliberate wait (building the demo's data) rather than a launch
+        /// that happens to be slow. Nothing to fade in: the wait is expected,
+        /// and saying so late would read as something having gone wrong.
+        case work(title: String, subtitle: String)
+    }
+
+    private let caption: Caption
 
     /// Preview/test seam: when `nil`, the live selected icon is resolved from
     /// `UIApplication.shared.alternateIconName` in `body` (on the main actor).
     private let injectedPreviewImageName: String?
 
-    /// - Parameter previewShowsCaption: preview/test seam to render the slow-
-    ///   launch caption immediately instead of waiting out `captionDelay`.
-    init(previewImageName: String? = nil, previewShowsCaption: Bool = false) {
+    /// - Parameters:
+    ///   - caption: what to say beneath the icon. Defaults to the launch's own
+    ///     slow-launch reassurance.
+    ///   - previewShowsCaption: preview/test seam to render the slow-launch
+    ///     caption immediately instead of waiting out the caption delay.
+    ///     Ignored for `.work`, which is shown from the first frame anyway.
+    init(
+        caption: Caption = .slowLaunchReassurance,
+        previewImageName: String? = nil,
+        previewShowsCaption: Bool = false,
+    ) {
+        self.caption = caption
         injectedPreviewImageName = previewImageName
-        _showCaption = State(initialValue: previewShowsCaption)
+        switch caption {
+            case .slowLaunchReassurance:
+                _showCaption = State(initialValue: previewShowsCaption)
+            case .work:
+                _showCaption = State(initialValue: true)
+        }
+    }
+
+    private var captionTitle: String {
+        switch caption {
+            case .slowLaunchReassurance: String(localized: .launchCaptionTitle)
+            case let .work(title, _): title
+        }
+    }
+
+    private var captionSubtitle: String {
+        switch caption {
+            case .slowLaunchReassurance: String(localized: .launchCaptionSubtitle)
+            case let .work(_, subtitle): subtitle
+        }
     }
 
     var body: some View {
-        let imageName = injectedPreviewImageName ?? Self.liveSelectedPreviewImageName()
+        let imageName = injectedPreviewImageName ?? AppIconCatalog.liveSelectedPreviewImageName(
+            primaryAppIconName: primaryAppIconName,
+        )
         ZStack {
             background
-            RadarPingBackground(animated: !reduceMotion, tint: .accentColor)
+            RadarPingBackground(tint: splash.iconGlow)
             icon(named: imageName)
 
             if showCaption {
                 VStack {
                     Spacer()
-                    caption
-                        .padding(.bottom, UIConstants.Size.launchCaptionBottomInset)
+                    captionView
+                        .padding(.bottom, stylesheet.size.launchCaptionBottomInset)
                 }
                 .transition(.opacity)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black)
+        .background(splash.background)
         .ignoresSafeArea()
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(showCaption ? Strings.migrationTitle : Strings.launchAccessibilityLabel)
+        .accessibilityLabel(
+            showCaption ? captionTitle : String(localized: .launchAccessibilityLabel),
+        )
         .task {
-            try? await Task.sleep(for: Self.captionDelay)
+            // A `.work` caption is already showing and never changes; only the
+            // launch's own reassurance is on a timer.
+            guard case .slowLaunchReassurance = caption else { return }
+            // Under snapshot capture the caption must be deterministic — shown
+            // iff the explicit `previewShowsCaption` seam says so — never a race
+            // between this wall-clock timer and the capture's settle loop. Both
+            // caption states have their own snapshot cases, so the timer adds
+            // nothing there. (Reduce Motion alone doesn't suppress it: those
+            // users still get the caption, just without the fade.)
+            guard !isCapturingSnapshot else { return }
+            try? await Task.sleep(for: stylesheet.launch.captionDelay)
             guard !Task.isCancelled else { return }
-            if reduceMotion {
-                showCaption = true
-            } else {
-                withAnimation(.easeOut(duration: 0.3)) { showCaption = true }
-            }
+            withAnimation(stylesheet.launch.captionAnimation) { showCaption = true }
         }
     }
 
-    /// The reassurance shown below the icon once a launch runs long: the radar
-    /// and pulsing icon already say "working", so this is just text, pinned
-    /// light since the backdrop is always dark.
-    private var caption: some View {
-        VStack(spacing: UIConstants.Spacings.small) {
-            Text(Strings.migrationTitle)
+    /// The text below the icon — the slow-launch reassurance, or the named
+    /// work being waited on. The radar and pulsing icon already say "working",
+    /// so this is just text, pinned light since the backdrop is always dark.
+    private var captionView: some View {
+        VStack(spacing: stylesheet.spacing.small) {
+            Text(captionTitle)
                 .font(.headline)
-            Text(Strings.migrationSubtitle)
+            Text(captionSubtitle)
                 .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.7))
+                .foregroundStyle(.secondary)
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(.primary)
         .multilineTextAlignment(.center)
-        .padding(.horizontal, UIConstants.Spacings.xxxLarge)
+        .padding(.horizontal, stylesheet.spacing.xxxLarge)
     }
 
     /// A subtle vignette — a touch lighter at the center, falling to black — so
     /// the icon and rings have some depth instead of floating on flat black.
     private var background: some View {
         RadialGradient(
-            colors: [Color(white: 0.16), .black],
+            colors: [splash.vignetteCenter, splash.vignetteEdge],
             center: .center,
             startRadius: 0,
             endRadius: 520,
@@ -102,45 +176,40 @@ struct LaunchSplashView: View {
     }
 
     private func icon(named name: String) -> some View {
-        let cornerRadius = UIConstants.Size.launchIcon * AppIconImage.cornerRadiusRatio
-        return AppIconImage(name: name, size: UIConstants.Size.launchIcon, bordered: false)
+        let cornerRadius = stylesheet.size.launchIcon * AppIconImage.cornerRadiusRatio
+        return AppIconImage(name: name, size: stylesheet.size.launchIcon, bordered: false)
             .scaleEffect(pulsing ? 1.1 : 1)
             .background {
                 // A soft brand-tinted glow that breathes with the pulse.
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color.accentColor)
+                    .fill(splash.iconGlow)
                     .blur(radius: 44)
                     .opacity(pulsing ? 0.55 : 0.3)
                     .scaleEffect(pulsing ? 1.3 : 0.85)
             }
             .onAppear {
-                guard !reduceMotion else { return }
+                guard !motionIsStatic else { return }
                 withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
                     pulsing = true
                 }
             }
-    }
-
-    /// Resolve the preview-catalog image name of the currently selected icon,
-    /// matching the live alternate icon against the manifest the same way the
-    /// picker does, and falling back to the bundled "Classic" art.
-    @MainActor private static func liveSelectedPreviewImageName() -> String {
-        let options = (try? AppIconCatalog.load()) ?? []
-        let selected = AppIconCatalog.selectedOption(
-            in: options,
-            current: UIApplication.shared.alternateIconName,
-        )
-        return selected?.previewImageName ?? "AppIconClassic"
     }
 }
 
 /// Concentric "sonar" rings that expand outward from the center and fade as
 /// they grow, staggered so a new ring sets off before the previous one
 /// dissolves. Driven by a `TimelineView` clock and drawn in a `Canvas`, so
-/// there's no per-ring view state to keep in sync; pausing the clock (Reduce
-/// Motion) renders a single static frame of staggered rings.
+/// there's no per-ring view state to keep in sync; pausing the clock (static
+/// motion — see ``MotionIsStatic``) renders a single static frame of
+/// staggered rings.
+///
+/// Snapshot captures additionally pin the phase to a constant — a paused
+/// `TimelineView` still reports the wall-clock pause time, which would leak
+/// run-dependent ring radii/opacities into the image.
 private struct RadarPingBackground: View {
-    let animated: Bool
+    @MotionIsStatic private var motionIsStatic
+    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
+
     var tint: Color = .white
 
     private let ringCount = 4
@@ -149,9 +218,13 @@ private struct RadarPingBackground: View {
     private let maxOpacity: Double = 0.32
 
     var body: some View {
-        TimelineView(.animation(paused: !animated)) { timeline in
+        // `motionIsStatic` pauses the clock (no ticks under Reduce Motion or
+        // capture); `isCapturingSnapshot` additionally pins the phase, since a
+        // paused `TimelineView` still reports its wall-clock pause instant —
+        // which would leak run-dependent ring radii/opacities into the capture.
+        TimelineView(.animation(paused: motionIsStatic)) { timeline in
             Canvas { context, size in
-                let now = timeline.date.timeIntervalSinceReferenceDate
+                let now = timeline.radarPhaseClock(capturingSnapshot: isCapturingSnapshot)
                 let center = CGPoint(x: size.width / 2, y: size.height / 2)
                 let maxRadius = max(size.width, size.height) * 0.75
                 for index in 0 ..< ringCount {
@@ -181,22 +254,53 @@ private struct RadarPingBackground: View {
     }
 }
 
+extension TimelineViewDefaultContext {
+    /// The radar rings' animation-phase clock: the wall-clock time normally, or
+    /// a pinned constant under snapshot capture so the rings freeze at a
+    /// deterministic phase (see `RadarPingBackground`).
+    fileprivate func radarPhaseClock(capturingSnapshot: Bool) -> Double {
+        capturingSnapshot ? 0 : date.timeIntervalSinceReferenceDate
+    }
+}
+
 #if DEBUG
-    // `accessibilityReduceMotion` is a read-only environment value, so the
-    // motion-pinned variant can't be previewed via `.environment`; at rest the
-    // animated splash looks identical to it anyway. These cover the color-mode
-    // variation (which changes the rendered icon art) and the slow-launch caption.
-    #Preview("Light") {
-        LaunchSplashView(previewImageName: "AppIconClassic")
-            .environment(\.colorScheme, .light)
+    extension LaunchSplashView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Default", configurations: .phoneLightDark) {
+                LaunchSplashView(previewImageName: "AppIconClassic")
+            }
+            whereSnapshot(name: "SlowLaunchCaption", configurations: .phoneLightDark) {
+                LaunchSplashView(previewImageName: "AppIconClassic", previewShowsCaption: true)
+            }
+            whereSnapshot(name: "WorkCaption", configurations: .phoneLightDark) {
+                LaunchSplashView(
+                    caption: .work(
+                        title: String(localized: .demoBuildingTitle),
+                        subtitle: String(localized: .demoBuildingSubtitle),
+                    ),
+                    previewImageName: "AppIconClassic",
+                )
+            }
+        }
     }
 
-    #Preview("Dark") {
-        LaunchSplashView(previewImageName: "AppIconClassic")
-            .environment(\.colorScheme, .dark)
+    // The cutsheet covers the color-mode variation (which changes the rendered
+    // icon art) and each caption: absent, the slow-launch reassurance, and
+    // named work (demo mode's interstitial, shown from the first frame).
+    // Reduce Motion isn't shown: it's a read-only environment value that can't
+    // be set via `.environment`, and at rest the animated splash looks
+    // identical to its motion-pinned frame.
+    #Preview {
+        LaunchSplashView.snapshotPreviews
     }
+#endif
 
-    #Preview("Slow launch") {
-        LaunchSplashView(previewImageName: "AppIconClassic", previewShowsCaption: true)
+#if DEBUG
+    extension LaunchSplashView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            LaunchSplashView.self,
+            title: "Launch",
+            navigationContainer: .none,
+        )
     }
 #endif

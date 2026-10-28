@@ -5,33 +5,155 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Pair with CircleCI manual_full_gate for a stacked branch tip.
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-jobs:
-  format:
-    name: SwiftFormat Lint
-    runs-on: macos-26
-    steps:
-      - uses: actions/checkout@v4
-      - uses: jdx/mise-action@v3
-      - run: ./swiftformat --lint
+permissions:
+  contents: read
 
-  test:
-    name: Build & Test
-    needs: format
-    runs-on: macos-26
+env:
+  # CI installs tools only. Agent skills are local-development inputs, and mise
+  # otherwise runs the postinstall hook even when every tool is already cached.
+  MISE_NO_HOOKS: "1"
+
+jobs:
+  # Prototype and exploratory PRs opt out with `NO-CI` in their title. Main
+  # pushes still run every job.
+  format:
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
+    name: Lint & Formatting
+    runs-on: xcode-27
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v3
-      # Pin the iOS Simulator so hosted tests and signing stay predictable (all test targets are iOS).
-      - name: Build & Test
-        run: mise exec -- tuist test --no-selective-testing -- -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2'
-      # Hosted tests can crash the test-host process on CI without leaving any error
-      # in Tuist's summarized log. On failure, capture crash reports + the .xcresult
-      # bundle (which holds the per-test crash backtraces) and upload them for analysis.
+      - name: Install web lint dependencies
+        run: mise exec -- npm ci
+      - name: ShellCheck
+        run: ./shellcheck
+      - name: Python, TypeScript, and CSS lint
+        run: |
+          mise exec -- npm run lint
+          mise exec -- npm run test:lint
+      - run: ./swiftformat --lint
+      - name: SF Symbol lint
+        run: ./sf-symbols --lint
+      # Catalogs drift out of Xcode's serialization the moment one is written by
+      # anything but Xcode, and the cost lands on whoever next builds in the IDE
+      # (see "Formatting" in AGENTS.md). Keep this in the required
+      # Lint & Formatting job.
+      - name: String Catalog lint
+        run: ./xcstrings --lint
+      # The only thing that actually stops a stale attribution report from
+      # shipping: nothing about adding or bumping a dependency forces a re-run,
+      # and the app can't check itself (its test bundle can't read Package.swift).
+      # Offline and sub-second, so it rides along here for the same reason the
+      # catalog lint does.
+      - name: Attribution report check
+        run: ./attribution --check
+
+  test-tools:
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
+    name: Tool Tests
+    runs-on: xcode-27
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v3
+      # Site publication tests build Astro fixtures through the shared launcher.
+      - name: Install site dependencies
+        run: mise exec -- npm ci
+      - name: Install locked Ruby dependencies
+        run: BUNDLE_PATH=vendor/bundle BUNDLE_FROZEN=true mise exec -- bundle install
+      - name: Retained tool tests
+        run: |
+          python3 -m unittest discover -s Tools/Tests -p 'test_*.py'
+          mise exec -- ruby -I Tools/Tests -e 'Dir["Tools/Tests/**/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
+      - name: CircleCI helper tests and snapshot plan
+        run: |
+          python3 .circleci/Tests/test_xcresult_to_junit.py
+          python3 .circleci/Tests/test_test_artifacts.py
+          ./snapshot-shards check
+
+  test-web:
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
+    name: Web Checks & Tests
+    runs-on: xcode-27
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v3
+      - name: Install site dependencies
+        run: mise exec -- npm ci
+      - name: Astro and TypeScript checks
+        run: mise exec -- npm run check --workspaces --if-present
+      - name: Web unit tests
+        run: mise exec -- npm run test:unit --workspaces --if-present
+      - name: Flyover browser regressions
+        run: |
+          mise exec -- npx playwright install chromium webkit
+          mise exec -- npm run test:browser --workspace stuff-flyover-site -- --reporter=line
+      - name: Upload browser failure diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: flyover-browser-failures
+          path: Shared/Flyover/Web/test-results
+          if-no-files-found: ignore
+          retention-days: 7
+
+  architecture:
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
+    name: Bumper Bowling
+    runs-on: xcode-27
+    env:
+      BUMPER_CACHE_DIR: .build/bumper-cache
+      BUMPER_RUNNER_BUILD_CONFIGURATION: debug
+      BUMPER_EVALUATION_TIMEOUT_SECONDS: '120'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore Bumper build cache
+        id: bumper-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .build
+          key: ${{ runner.os }}-${{ runner.arch }}-bumper-${{ env.BUMPER_RUNNER_BUILD_CONFIGURATION }}-${{ hashFiles('Package.swift', 'Package.resolved', 'BumperBowling.swift', '.bumper/Sources/**/*.swift', '.bumper/Tests/**/*.swift') }}
+      - name: Validate and enforce architecture
+        run: ./test --architecture-only
+      # Lint builds and populates the cached Bumper consumer runner. Save only
+      # after the complete architecture pass so a cold run does not cache a
+      # half-populated .build directory.
+      - name: Save Bumper build cache
+        if: steps.bumper-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .build
+          key: ${{ steps.bumper-cache.outputs.cache-primary-key }}
+
+  test-macos:
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
+    name: Build & Test (macOS)
+    # Host-side Swift tests require GitHub's pinned Xcode image.
+    runs-on: xcode-27
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v3
+      - name: Install site dependencies
+        run: mise exec -- npm ci
+      # This invocation includes Flyover, attribution, and backup-upgrader checks.
+      # Keep all host checks in this required job, alongside the iOS builder.
+      - name: Host-side regression tests
+        env:
+          TEST_WORKDIR: ${{ github.workspace }}/test-output-host
+        run: ./test --skip-architecture PeriscopeMacrosTests
+      # Tests can crash the host process on CI without leaving any error in
+      # Tuist's summarized log. On failure, capture crash reports + the .xcresult
+      # bundle (which holds the per-test crash backtraces) and upload them.
       - name: Collect test diagnostics
         if: ${{ failure() }}
         run: |
@@ -40,13 +162,14 @@ jobs:
           find "$HOME/Library/Developer/Xcode/DerivedData" -maxdepth 6 -name '*.xcresult' \
             -exec cp -R {} diagnostics/xcresult/ \; 2>/dev/null || true
           cp -R "$HOME/.local/state/tuist/sessions" diagnostics/tuist-sessions 2>/dev/null || true
+          cp -R test-output-host diagnostics/host-tests 2>/dev/null || true
           echo '--- collected diagnostics ---'
           find diagnostics -maxdepth 3 | head -200
       - name: Upload test diagnostics
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
-          name: test-diagnostics
+          name: test-diagnostics-macos
           path: diagnostics
           if-no-files-found: warn
           retention-days: 7

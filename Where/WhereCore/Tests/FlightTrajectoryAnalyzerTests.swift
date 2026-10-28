@@ -1,0 +1,1232 @@
+import Foundation
+import Testing
+import WhereCore
+
+private typealias Fixtures = FlightTrajectoryFixtures
+
+struct FlightTrajectoryAnalyzerTests {
+    private let analyzer = FlightTrajectoryAnalyzer()
+
+    @Test func coarsePreviousFixCannotAuthorizeResumedEndpointExclusion() throws {
+        let samples = [
+            Fixtures.sample(1, minutes: 0, east: 0, accuracy: 1000),
+            Fixtures.sample(2, minutes: 180, east: 1800),
+            Fixtures.sample(3, minutes: 185, east: 1875),
+            Fixtures.sample(4, minutes: 190, east: 1950),
+            Fixtures.sample(5, minutes: 195, east: 1950),
+            Fixtures.sample(6, minutes: 200, east: 1950),
+        ]
+        let flight = try #require(analyzer.analyze(samples: samples, now: samples[5].timestamp)
+            .first)
+        #expect(!flight.isPending)
+        #expect(flight.airborneSampleIDs == [samples[2].id])
+        #expect(flight.inferredEndpoints.isEmpty)
+    }
+
+    @Test(arguments: FlightTrajectoryGenerator.Profile.allCases)
+    func generatedRecordingProfilesPreserveRecognitionAndGroundSafety(
+        profile: FlightTrajectoryGenerator.Profile,
+    ) throws {
+        let environment = ProcessInfo.processInfo.environment
+        if let selected = environment["WHERE_FLIGHT_FUZZ_PROFILE"] {
+            let selectedProfile = try #require(FlightTrajectoryGenerator
+                .Profile(rawValue: selected))
+            if profile != selectedProfile { return }
+        }
+        let seeds: [UInt64]
+        if let replay = environment["WHERE_FLIGHT_FUZZ_SEED"] {
+            seeds = try [#require(UInt64(replay))]
+        } else {
+            let count = try #require(Int(environment["WHERE_FLIGHT_FUZZ_COUNT"] ?? "1000"))
+            try #require((1 ... 10000).contains(count))
+            seeds = (0 ..< count).map(UInt64.init)
+        }
+        for seed in seeds {
+            let scenario = FlightTrajectoryGenerator.make(profile: profile, seed: seed)
+            let flights = analyzer.analyze(samples: scenario.samples, now: scenario.now)
+            let airborne = flights
+                .reduce(into: Set<LocationSample.ID>()) { $0.formUnion($1.airborneSampleIDs) }
+            let correct = flights.count == scenario.expectedFlights
+                && flights.allSatisfy { !$0.isPending }
+                && airborne.isDisjoint(with: scenario.groundIDs)
+            if !correct {
+                let reduced = FlightTrajectoryGenerator.reduced(scenario.samples) { samples in
+                    let result = analyzer.analyze(samples: samples, now: scenario.now)
+                    if !airborne.isDisjoint(with: scenario.groundIDs) {
+                        return result
+                            .contains { !$0.airborneSampleIDs.isDisjoint(with: scenario.groundIDs) }
+                    }
+                    // Keep independent journey witnesses while minimizing a missed
+                    // recognition or completion; deletion alone must not create it.
+                    guard scenario.requiredEvidenceIDs.isSubset(of: Set(samples.map(\.id)))
+                    else { return false }
+                    return result.count != scenario.expectedFlights || result
+                        .contains(where: \.isPending)
+                }
+                let data = try JSONEncoder().encode(reduced)
+                let trace = try #require(String(data: data, encoding: .utf8))
+                Issue
+                    .record(
+                        "\(scenario.description); expected=\(scenario.expectedFlights), actual=\(flights.count), pending=\(flights.filter(\.isPending).count); synthetic trace=\(trace)",
+                    )
+                return
+            }
+            var random = FlightTrajectoryGenerator.Random(seed: seed)
+            var reordered = scenario.samples + scenario.samples
+            reordered.shuffle(using: &random)
+            #expect(
+                analyzer.analyze(samples: reordered, now: scenario.now) == flights,
+                "Permutation/duplication: \(scenario.description)",
+            )
+            let thinned = scenario.samples.enumerated().filter { index, sample in
+                scenario.groundIDs.contains(sample.id) || index.isMultiple(of: Int(seed % 3) + 2)
+            }.map(\.element)
+            let thinnerFlights = analyzer.analyze(samples: thinned, now: scenario.now)
+            #expect(
+                thinnerFlights
+                    .allSatisfy { $0.airborneSampleIDs.isDisjoint(with: scenario.groundIDs) },
+                "Thinning: \(scenario.description)",
+            )
+            // Retain enough cruise evidence in the dense profile; sparse profiles
+            // already contain the required independent endpoint observations.
+            if profile == .denseJet || profile == .sparseJet || profile == .shortSparseJet ||
+                profile == .mixedSampling
+            {
+                #expect(
+                    thinnerFlights.count == scenario.expectedFlights,
+                    "Recognition after thinning: \(scenario.description)",
+                )
+            }
+            if profile == .sparseJet || profile == .shortSparseJet || profile == .mixedSampling {
+                let coarse = scenario.samples.enumerated().map { index, sample in
+                    LocationSample(
+                        id: sample.id,
+                        timestamp: sample.timestamp,
+                        coordinate: sample.coordinate,
+                        horizontalAccuracy: index < 2 ? 1000 : sample.horizontalAccuracy,
+                        source: sample.source,
+                        recordingDeviceID: sample.recordingDeviceID,
+                        motion: sample.motion,
+                    )
+                }
+                let recognized = analyzer.analyze(samples: coarse, now: scenario.now)
+                #expect(recognized.count == 1, "Coarse endpoint support: \(scenario.description)")
+                #expect(recognized.allSatisfy { $0.airborneSampleIDs == [] })
+                let split = scenario.samples.enumerated().map { index, sample in
+                    LocationSample(
+                        id: sample.id,
+                        timestamp: sample.timestamp,
+                        coordinate: sample.coordinate,
+                        horizontalAccuracy: sample.horizontalAccuracy,
+                        source: sample.source,
+                        recordingDeviceID: index < 2 ? sample.recordingDeviceID : nil,
+                        motion: sample.motion,
+                    )
+                }
+                #expect(
+                    analyzer.analyze(samples: split, now: scenario.now).isEmpty,
+                    "Different recording sources: \(scenario.description)",
+                )
+            }
+            if profile == .denseJet {
+                let delayed = scenario.samples.enumerated().map { index, sample in
+                    Fixtures.replacing(
+                        sample,
+                        timestamp: sample.timestamp
+                            .addingTimeInterval(index >= scenario.samples
+                                .count - 3 ? 3 * 86400 : 0),
+                    )
+                }
+                let lateFlights = analyzer.analyze(
+                    samples: delayed,
+                    now: scenario.now.addingTimeInterval(3 * 86400),
+                )
+                #expect(lateFlights.count == 1)
+                #expect(
+                    lateFlights.first?.progress.arrival?.isTimingUncertain == true,
+                    "Delayed arrival: \(scenario.description)",
+                )
+                var calendar = Calendar(identifier: .gregorian)
+                calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+                let lateDay = CalendarDay(
+                    from: scenario.now.addingTimeInterval(3 * 86400),
+                    in: calendar,
+                )
+                #expect(lateFlights
+                    .allSatisfy { !$0.completedDays(in: calendar).contains(lateDay) })
+            }
+            if scenario.expectedFlights == 0 { continue }
+            let anchor = scenario.samples[2]
+            let conflict = LocationSample(
+                id: Fixtures.sampleID(99999),
+                timestamp: anchor.timestamp.addingTimeInterval(0.1),
+                coordinate: .init(
+                    latitude: -anchor.coordinate.latitude,
+                    longitude: anchor.coordinate
+                        .longitude > 0 ? anchor.coordinate
+                        .longitude - 180 : anchor.coordinate
+                        .longitude + 180,
+                ),
+                horizontalAccuracy: 20,
+                source: .gpsSignificantChange,
+                recordingDeviceID: anchor.recordingDeviceID,
+                motion: nil,
+            )
+            let contradicted = analyzer.analyze(
+                samples: scenario.samples + [conflict],
+                now: scenario.now,
+            )
+            #expect(
+                contradicted.allSatisfy { $0.airborneSampleIDs.isSubset(of: airborne) },
+                "Contradiction cannot add corrections: \(scenario.description)",
+            )
+            let unlanded = scenario.samples
+                .filter { $0.timestamp < scenario.now.addingTimeInterval(-600) }
+            let beforeSilence = analyzer.analyze(samples: unlanded, now: scenario.now)
+            let afterSilence = analyzer.analyze(
+                samples: unlanded,
+                now: scenario.now.addingTimeInterval(3 * 86400),
+            )
+            #expect(
+                afterSilence.filter { !$0.isPending }.map(\.id) == beforeSilence
+                    .filter { !$0.isPending }.map(\.id),
+                "Silence: \(scenario.description)",
+            )
+        }
+    }
+
+    /// Recorded callbacks preserve the original outage, coarse fixes, motion
+    /// availability, and ground resumption. No in-flight callback independently
+    /// establishes an airborne point, even though this journey requires a flight.
+    @Test func recordedSparseFlightRetainsRecognitionWithoutInventingAirbornePoints() throws {
+        let fixture = try RecordedFlightFixture.load(.sparse)
+        let samples = fixture.samples
+        #expect(samples.count == 76)
+        let flights = analyzer.analyze(samples: samples, now: fixture.now)
+        try #require(flights.count == 1)
+        let flight = try #require(flights.first)
+        let firstGroundAt = Date(timeIntervalSince1970: 1_577_891_199.9787588)
+        let confirmedAt = Date(timeIntervalSince1970: 1_577_892_606.848868)
+        #expect(flight.progress == .completed(arrival: .observedGround(
+            firstObservedAt: firstGroundAt,
+            confirmedAt: confirmedAt,
+        )))
+        #expect(flight.airborneSampleIDs.isEmpty)
+        #expect(flight.inferredEndpoints.isEmpty)
+        #expect(flight.supportedIntervals.allSatisfy { $0.kind == .displacement })
+        #expect(flight.supportedIntervals.allSatisfy { $0.end <= firstGroundAt })
+        for timestamp in [firstGroundAt, confirmedAt] {
+            let ground = try #require(samples.first { $0.timestamp == timestamp })
+            #expect(flight.groundSampleIDs.contains(ground.id))
+        }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        #expect(flight.completedDays(in: calendar) == [CalendarDay(year: 2020, month: 1, day: 1)])
+    }
+
+    /// A complete legacy window has a five-hour outage and initially coarse
+    /// destination fixes. The displacement supports a flight, never point exclusions.
+    @Test func recordedLegacySparseFlightNeedsNoMotionSensors() throws {
+        let fixture = try RecordedFlightFixture.load(.legacySparse)
+        let samples = fixture.samples
+        #expect(samples.count == 58)
+        #expect(samples.allSatisfy { $0.motion == nil && $0.recordingDeviceID == nil })
+        let flight = try RecordedFlightAssertions.completedFlight(
+            samples: samples,
+            now: fixture.now,
+            travelDay: CalendarDay(year: 2020, month: 2, day: 1),
+            lastDepartureGroundID: Fixtures.sampleID(1),
+            firstArrivalGroundID: Fixtures.sampleID(43),
+        )
+        #expect(flight.id.recordingSource == .legacy)
+        #expect(flight.airborneSampleIDs.isEmpty)
+        #expect(flight.inferredEndpoints.isEmpty)
+        #expect(flight.supportedIntervals.allSatisfy { $0.kind == .displacement })
+    }
+
+    /// Hour-long recording gaps precede a dense cruise run. Legacy identity,
+    /// simultaneous callbacks, and coarse road fixes must not split or extend the flight.
+    @Test func recordedLegacyMixedSamplingKeepsOneFlightAndProtectsGround() throws {
+        let fixture = try RecordedFlightFixture.load(.legacyMixed)
+        let samples = fixture.samples
+        #expect(samples.count == 66)
+        #expect(samples.allSatisfy { $0.motion == nil && $0.recordingDeviceID == nil })
+        let flight = try RecordedFlightAssertions.completedFlight(
+            samples: samples,
+            now: fixture.now,
+            travelDay: CalendarDay(year: 2020, month: 3, day: 1),
+            lastDepartureGroundID: Fixtures.sampleID(34),
+            firstArrivalGroundID: Fixtures.sampleID(44),
+        )
+        #expect(flight.id.recordingSource == .legacy)
+        // These interior fixes have independent fast movement on both sides.
+        let cruiseIDs = Set([18, 59, 39, 5, 50, 63, 54, 21, 38, 15].map(Fixtures.sampleID))
+        #expect(cruiseIDs.isSubset(of: flight.airborneSampleIDs))
+        #expect(flight.supportedIntervals.contains { $0.kind == .observedMotion })
+    }
+
+    /// Cruise resumes after a 77-minute outage, then turns during approach.
+    /// A burst of stationary arrival callbacks must retain every ground identity.
+    @Test func recordedInterruptedCruiseKeepsOneFlightThroughTurningApproach() throws {
+        let fixture = try RecordedFlightFixture.load(.interruptedCruise)
+        let samples = fixture.samples
+        #expect(samples.count == 89)
+        #expect(samples.allSatisfy { $0.motion == nil })
+        let flight = try RecordedFlightAssertions.completedFlight(
+            samples: samples,
+            now: fixture.now,
+            travelDay: CalendarDay(year: 2020, month: 4, day: 1),
+            lastDepartureGroundID: Fixtures.sampleID(39),
+            // Point 67 starts a 12.8-minute ground sequence within 1.8 km;
+            // each positional speed upper bound is below 28 km/h.
+            firstArrivalGroundID: Fixtures.sampleID(67),
+        )
+        let device = try #require(samples.first?.recordingDeviceID)
+        #expect(flight.id.recordingSource == .device(device))
+        let cruiseIDs = Set([76, 85, 48, 5, 72, 75, 36, 57, 54, 49, 89, 32, 30, 66]
+            .map(Fixtures.sampleID))
+        #expect(cruiseIDs.isSubset(of: flight.airborneSampleIDs))
+        #expect(flight.supportedIntervals.contains { $0.kind == .observedMotion })
+    }
+
+    /// Recording first resumes in cruise after more than four hours. Independent
+    /// position evidence can corroborate that first point without excluding the airport.
+    @Test func recordedResumedCruiseCorroboratesOnlyTheAirborneEndpoint() throws {
+        let fixture = try RecordedFlightFixture.load(.resumedCruise)
+        let samples = fixture.samples
+        #expect(samples.count == 52)
+        #expect(samples.allSatisfy { $0.motion == nil })
+        let flight = try RecordedFlightAssertions.completedFlight(
+            samples: samples,
+            now: fixture.now,
+            travelDay: CalendarDay(year: 2020, month: 5, day: 1),
+            lastDepartureGroundID: Fixtures.sampleID(33),
+            firstArrivalGroundID: Fixtures.sampleID(30),
+        )
+        let device = try #require(samples.first?.recordingDeviceID)
+        #expect(flight.id.recordingSource == .device(device))
+        let cruiseIDs = Set([36, 17, 3, 26, 6, 39, 37, 28, 11, 22].map(Fixtures.sampleID))
+        #expect(cruiseIDs.isSubset(of: flight.airborneSampleIDs))
+        let resumed = try #require(flight.inferredEndpoints.first {
+            $0.sampleID == Fixtures.sampleID(49)
+        })
+        guard case let .recordingGap(duration, averageSpeedKMH) = resumed.reason else {
+            Issue.record("A sensorless recording requires positional endpoint corroboration")
+            return
+        }
+        #expect(duration > 4 * 60 * 60)
+        #expect((700 ... 800).contains(averageSpeedKMH))
+    }
+
+    @Test func recordedCruiseProgressRequiresObservedArrival() throws {
+        let fixture = try RecordedFlightFixture.load(.resumedCruise)
+        let samples = fixture.samples
+        let departure = try #require(samples.first { $0.id == Fixtures.sampleID(33) })
+        let cruise = try #require(samples.first { $0.id == Fixtures.sampleID(6) })
+        let arrival = try #require(samples.first { $0.id == Fixtures.sampleID(30) })
+        let coarseGround = try #require(samples.first { $0.id == Fixtures.sampleID(1) })
+        let groundStart = try #require(samples.first { $0.id == Fixtures.sampleID(12) })
+        let secondGround = try #require(samples.first { $0.id == Fixtures.sampleID(16) })
+        let confirmation = try #require(samples.first { $0.id == Fixtures.sampleID(20) })
+
+        #expect(analyzer.analyze(
+            samples: samples.filter { $0.timestamp <= departure.timestamp },
+            now: departure.timestamp,
+        ).isEmpty)
+
+        // The recording has resumed with several independently spaced cruise
+        // observations. Later approach and ground callbacks are not available yet.
+        let cruiseSamples = samples.filter { $0.timestamp <= cruise.timestamp }
+        let activeFlights = analyzer.analyze(
+            samples: cruiseSamples,
+            now: cruise.timestamp,
+        )
+        try #require(activeFlights.count == 1)
+        let active = try #require(activeFlights.first)
+        #expect(active.progress == .flightLikely)
+        #expect(Set([36, 17, 3, 26].map(Fixtures.sampleID)).isSubset(of: active.airborneSampleIDs))
+
+        for silence in [3600.0, 3 * 86400.0] {
+            let awaitingFlights = analyzer.analyze(
+                samples: cruiseSamples,
+                now: cruise.timestamp.addingTimeInterval(silence),
+            )
+            try #require(awaitingFlights.count == 1)
+            let awaiting = try #require(awaitingFlights.first)
+            #expect(awaiting.id == active.id)
+            #expect(awaiting.progress == .awaitingArrival)
+            #expect(awaiting.completedDays(in: RecordedFlightArchiveFixture.calendar).isEmpty)
+        }
+
+        let groundFlights = analyzer.analyze(
+            samples: samples.filter { $0.timestamp <= arrival.timestamp },
+            now: arrival.timestamp,
+        )
+        try #require(groundFlights.count == 1)
+        let firstGround = try #require(groundFlights.first)
+        #expect(firstGround.progress == .awaitingArrival)
+
+        // The first cluster includes a 307 m fix, above the ground-quality
+        // limit. Points 12 and 16 alone cannot establish a stationary dwell.
+        #expect(coarseGround.horizontalAccuracy > 250)
+        let unconfirmedFlights = analyzer.analyze(
+            samples: samples.filter { $0.timestamp <= secondGround.timestamp },
+            now: secondGround.timestamp,
+        )
+        try #require(unconfirmedFlights.count == 1)
+        #expect(unconfirmedFlights.first?.progress == .awaitingArrival)
+
+        // Points 12, 16, and 20 form a stationary cluster across 38 minutes.
+        // Each fix meets the 250 m limit and each gap is shorter than 30 minutes.
+        let completedFlights = analyzer.analyze(
+            samples: samples.filter { $0.timestamp <= confirmation.timestamp },
+            now: confirmation.timestamp,
+        )
+        try #require(completedFlights.count == 1)
+        let completed = try #require(completedFlights.first)
+        #expect(completed.progress == .completed(arrival: .observedGround(
+            firstObservedAt: groundStart.timestamp,
+            confirmedAt: confirmation.timestamp,
+        )))
+        #expect(completed.groundSampleIDs.contains(groundStart.id))
+        #expect(completed.airborneSampleIDs.contains(arrival.id) == false)
+        #expect(completed.completedDays(in: RecordedFlightArchiveFixture.calendar)
+            == [RecordedFlightArchiveFixture.day])
+    }
+
+    @Test func delayedGroundDoesNotInventInterveningFlightDays() throws {
+        let samples = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 5, east: 75),
+            Fixtures.sample(3, minutes: 10, east: 150),
+            Fixtures.sample(4, minutes: 4320, east: 4000),
+            Fixtures.sample(5, minutes: 4325, east: 4000),
+            Fixtures.sample(6, minutes: 4330, east: 4000),
+        ]
+        let flight = try #require(analyzer.analyze(samples: samples, now: samples[5].timestamp)
+            .first)
+        #expect(flight.progress == .completed(arrival: .uncertainTiming(
+            lastSupportedTravelAt: samples[2].timestamp,
+            firstObservedAt: samples[3].timestamp,
+            confirmedAt: samples[5].timestamp,
+        )))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        #expect(flight.completedDays(in: calendar) == [CalendarDay(
+            from: samples[0].timestamp,
+            in: calendar,
+        )])
+        #expect(flight.airborneSampleIDs == [samples[1].id])
+        #expect(flight.supportedPeriods == [DateInterval(
+            start: samples[0].timestamp,
+            end: samples[2].timestamp,
+        )])
+    }
+
+    @Test(arguments: [30.0, 30.01])
+    func arrivalTimingUsesTheSupportedTravelBoundary(gapMinutes: Double) throws {
+        let samples = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 5, east: 75),
+            Fixtures.sample(3, minutes: 10, east: 150),
+            Fixtures.sample(4, minutes: 10 + gapMinutes, east: 150),
+            Fixtures.sample(5, minutes: 15 + gapMinutes, east: 150),
+            Fixtures.sample(6, minutes: 20 + gapMinutes, east: 150),
+        ]
+        let flight = try #require(analyzer.analyze(samples: samples, now: samples[5].timestamp)
+            .first)
+        #expect(flight.progress.arrival?.isTimingUncertain == (gapMinutes > 30))
+    }
+
+    @Test func consistentMidpointPreservesSparseFlightRecognition() throws {
+        let samples = Fixtures.sparseFlight()
+        let midpoint = Fixtures.sample(100, minutes: 140, east: 2000)
+        let flights = analyzer.analyze(samples: samples + [midpoint], now: samples[4].timestamp)
+        let flight = try #require(flights.first)
+        #expect(flights.count == 1)
+        #expect(flight.progress.arrival?.firstGroundAt == samples[2].timestamp)
+        #expect(flight.airborneSampleIDs.isEmpty)
+    }
+
+    @Test func coarseDisplacementDoesNotAuthorizePointExclusions() throws {
+        let samples = [
+            Fixtures.sample(1, minutes: 0, east: 0, accuracy: 1000),
+            Fixtures.sample(2, minutes: 5, east: 0, accuracy: 1000),
+            Fixtures.sample(3, minutes: 275, east: 4000, accuracy: 1000),
+            Fixtures.sample(4, minutes: 280, east: 4000, accuracy: 1000),
+        ]
+        let flight = try #require(analyzer.analyze(samples: samples, now: samples[3].timestamp)
+            .first)
+        #expect(flight.airborneSampleIDs.isEmpty)
+        #expect(flight.groundSampleIDs.isEmpty)
+        #expect(flight.progress == .awaitingArrival)
+    }
+
+    @Test func sparseTravelConfirmsArrivalWithoutProposingAirborneEdits() throws {
+        let samples = Fixtures.sparseFlight()
+        let flights = analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 285))
+        let flight = try #require(flights.first)
+        #expect(flights.count == 1)
+        #expect(flight.startedAt == samples[1].timestamp)
+        #expect(flight.progress.arrival?.firstGroundAt == samples[2].timestamp)
+        #expect(flight.lastObservationAt == samples[4].timestamp)
+        #expect(flight.airborneSampleIDs.isEmpty)
+        #expect(flight.inferredEndpoints.isEmpty)
+        #expect(flight.groundSampleIDs == Set(samples[2 ... 4].map(\.id)))
+        #expect(flight.peakSpeedKMH > 880)
+        #expect(analyzer
+            .analyze(samples: Array(samples.reversed()), now: samples[4].timestamp) == flights)
+        #expect(analyzer.analyze(samples: samples + samples, now: samples[4].timestamp) == flights)
+    }
+
+    @Test(arguments: [nil, 0.0] as [Double?])
+    func shortSparseFlightUsesCalculatedSpeedAndPreservesGroundPoints(
+        reportedSpeed: Double?,
+    ) throws {
+        let motion = reportedSpeed.map {
+            LocationMotion(
+                speed: .init(metersPerSecond: $0, accuracyMetersPerSecond: 1),
+                altitude: nil,
+            )
+        }
+        let samples = Fixtures.shortSparseFlight().map { Fixtures.replacing($0, motion: motion) }
+        let flights = analyzer.analyze(samples: samples, now: samples[4].timestamp)
+        try #require(flights.count == 1)
+        let flight = flights[0]
+        #expect(flight.isPending == false)
+        #expect(flight.startedAt == samples[1].timestamp)
+        #expect(flight.lastObservationAt == samples[4].timestamp)
+        #expect(flight.peakSpeedKMH > 599 && flight.peakSpeedKMH < 601)
+        #expect(flight.airborneSampleIDs.isEmpty)
+        #expect(flight.inferredEndpoints.isEmpty)
+        #expect(flight.groundSampleIDs == Set(samples[2 ... 4].map(\.id)))
+        #expect(analyzer
+            .analyze(samples: samples + samples.reversed(), now: samples[4].timestamp) == flights)
+
+        // A coarse midpoint can corroborate travel without authorizing point exclusions.
+        let midpoint = Fixtures.sample(100, minutes: 15, east: 100, accuracy: 1000)
+        let withMidpoint = analyzer.analyze(
+            samples: samples + [midpoint],
+            now: samples[4].timestamp,
+        )
+        try #require(withMidpoint.count == 1)
+        #expect(withMidpoint[0].isPending == false)
+        #expect(withMidpoint[0].airborneSampleIDs.isEmpty)
+        #expect(withMidpoint[0].inferredEndpoints.isEmpty)
+        #expect(withMidpoint[0].groundSampleIDs == flight.groundSampleIDs)
+    }
+
+    @Test(arguments: [0.0, 25.0])
+    func reportedFlightSpeedCannotReplacePositionalTravel(distanceKM: Double) {
+        let motion = LocationMotion(
+            speed: .init(metersPerSecond: 250, accuracyMetersPerSecond: 1),
+            altitude: nil,
+        )
+        let samples = (0 ..< 5).map { index in
+            Fixtures.sample(
+                index + 1,
+                minutes: Double(index) * 5,
+                east: Double(index) * distanceKM,
+                motion: motion,
+            )
+        }
+        #expect(analyzer.analyze(samples: samples, now: samples[4].timestamp).isEmpty)
+    }
+
+    @Test func briefClusteredErrorsAndAlternatingJumpsCannotEstablishFlight() {
+        let clustered = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 5, east: 0),
+            Fixtures.sample(3, minutes: 6.5, east: 20),
+            Fixtures.sample(4, minutes: 7.5, east: 20),
+            Fixtures.sample(5, minutes: 8.5, east: 20),
+            Fixtures.sample(6, minutes: 10, east: 0),
+            Fixtures.sample(7, minutes: 15, east: 0),
+        ]
+        let alternating = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 5, east: 50),
+            Fixtures.sample(3, minutes: 10, east: 0),
+            Fixtures.sample(4, minutes: 15, east: 50),
+        ]
+        #expect(analyzer.analyze(samples: clustered, now: Fixtures.date(minutes: 20)).isEmpty)
+        #expect(analyzer.analyze(samples: alternating, now: Fixtures.date(minutes: 20)).isEmpty)
+    }
+
+    @Test func observedCruiseStillRecognizesJourneysBelowTheSparseDurationLimit() throws {
+        let samples = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 2, east: 30),
+            Fixtures.sample(3, minutes: 4, east: 60),
+        ]
+        let flights = analyzer.analyze(samples: samples, now: samples[2].timestamp)
+        try #require(flights.count == 1)
+        #expect(flights[0].isPending)
+        #expect(flights[0].airborneSampleIDs == [samples[1].id])
+    }
+
+    @Test func sparseTravelWaitsForCorroborationThenObservedArrival() throws {
+        let samples = Fixtures.sparseFlight()
+        #expect(analyzer.analyze(samples: samples, now: samples[2].timestamp).isEmpty)
+        let pending = try #require(analyzer.analyze(samples: samples, now: samples[3].timestamp)
+            .first)
+        #expect(pending.progress == .awaitingArrival)
+        let silent = try #require(analyzer.analyze(
+            samples: Array(samples.prefix(4)),
+            now: Fixtures.date(minutes: 3 * 24 * 60),
+        ).first)
+        #expect(silent.progress == .awaitingArrival)
+        #expect(silent.airborneSampleIDs.isEmpty)
+    }
+
+    @Test func sparseTravelCannotCombineDifferentRecordingDevices() {
+        let samples = Fixtures.sparseFlight().enumerated().map { index, sample in
+            Fixtures.sample(
+                index + 1,
+                minutes: sample.timestamp.timeIntervalSince(Fixtures.start) / 60,
+                east: index < 2 ? 0 : 4000,
+                deviceID: index < 2 ? Fixtures.device : nil,
+            )
+        }
+        #expect(analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 300)).isEmpty)
+    }
+
+    @Test func sparseFlightsSeparatedByGroundDwellRemainDistinct() throws {
+        let samples = Fixtures.sparseFlight() + [
+            Fixtures.sample(6, minutes: 290, east: 4000),
+            Fixtures.sample(7, minutes: 560, east: 0),
+            Fixtures.sample(8, minutes: 565, east: 0),
+            Fixtures.sample(9, minutes: 570, east: 0),
+        ]
+        let flights = analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 570))
+        try #require(flights.count == 2)
+        #expect(flights[0].progress.arrival?.firstGroundAt == Fixtures.date(minutes: 275))
+        #expect(flights[1].startedAt == Fixtures.date(minutes: 290))
+        #expect(flights[1].progress.arrival?.firstGroundAt == Fixtures.date(minutes: 560))
+        #expect(flights.allSatisfy { $0.airborneSampleIDs == [] })
+    }
+
+    @Test func aLaterSparseTripCannotExtendAnEarlierPendingFlightsObservations() throws {
+        let earlier = Array(Fixtures.sparseFlight().prefix(4))
+        let laterStart = 3.0 * 24 * 60
+        let later = [
+            Fixtures.sample(101, minutes: laterStart, east: 0),
+            Fixtures.sample(102, minutes: laterStart + 5, east: 0),
+            Fixtures.sample(103, minutes: laterStart + 275, east: 4000),
+            Fixtures.sample(104, minutes: laterStart + 280, east: 4000),
+            Fixtures.sample(105, minutes: laterStart + 285, east: 4000),
+        ]
+        let flights = analyzer.analyze(samples: earlier + later, now: later[4].timestamp)
+        try #require(flights.count == 2)
+        #expect(flights[0].progress == .awaitingArrival)
+        #expect(flights[0].lastObservationAt == earlier[3].timestamp)
+        #expect(flights[1].progress.arrival?.firstGroundAt == later[2].timestamp)
+    }
+
+    @Test(arguments: [false, true])
+    func sparseDeparturePreservesArrivalConfirmedByExactlyThreeLayoverObservations(
+        incomingHasCruise: Bool,
+    ) throws {
+        let earlier = incomingHasCruise ? [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 5, east: 75),
+            Fixtures.sample(3, minutes: 10, east: 150),
+            Fixtures.sample(4, minutes: 15, east: 150),
+            Fixtures.sample(5, minutes: 20, east: 150),
+        ] : Fixtures.sparseFlight()
+        let initial = try #require(analyzer.analyze(samples: earlier, now: earlier[4].timestamp)
+            .first)
+        try #require(initial.isPending == false)
+        let departureMinutes = earlier[4].timestamp.timeIntervalSince(Fixtures.start) / 60
+        let destinationEast = incomingHasCruise ? -3850.0 : 0
+        let later = [
+            Fixtures.sample(6, minutes: departureMinutes + 270, east: destinationEast),
+            Fixtures.sample(7, minutes: departureMinutes + 275, east: destinationEast),
+            Fixtures.sample(8, minutes: departureMinutes + 280, east: destinationEast),
+        ]
+        let flights = analyzer.analyze(samples: earlier + later, now: later[2].timestamp)
+        try #require(flights.count == 2)
+        #expect(flights[0] == initial)
+        #expect(flights[1].startedAt == earlier[4].timestamp)
+        #expect(flights[1].progress.arrival?.firstGroundAt == later[0].timestamp)
+        #expect(flights[1].airborneSampleIDs.isEmpty)
+    }
+
+    @Test func sparseOvernightFlightsIncludeBothCalendarDays() throws {
+        let samples = Fixtures.sparseFlight().map {
+            Fixtures.replacing($0, timestamp: $0.timestamp.addingTimeInterval(23 * 60 * 60))
+        }
+        let flight = try #require(analyzer.analyze(samples: samples, now: samples[4].timestamp)
+            .first)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        #expect(flight.completedDays(in: calendar) == [
+            CalendarDay(from: samples[1].timestamp, in: calendar),
+            CalendarDay(from: samples[2].timestamp, in: calendar),
+        ])
+    }
+
+    @Test func resumedCruiseIncludesItsFirstPointButPreservesBothGroundEndpoints() throws {
+        let samples = Fixtures.resumedFlight()
+        let flights = analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 300))
+        let flight = try #require(flights.first)
+        #expect(flights.count == 1)
+        #expect(flight.startedAt == samples[2].timestamp)
+        #expect(flight.airborneSampleIDs == Set(samples[3 ... 5].map(\.id)))
+        #expect(flight.inferredEndpoints.map(\.sampleID) == [samples[3].id])
+        #expect(flight.groundSampleIDs.isSuperset(of: Set(samples[0 ... 2].map(\.id))))
+        #expect(flight.groundSampleIDs.isSuperset(of: Set(samples[6 ... 8].map(\.id))))
+        #expect(analyzer.analyze(
+            samples: Array(samples.reversed()),
+            now: Fixtures.date(minutes: 300),
+        ) == flights)
+        #expect(analyzer.analyze(
+            samples: samples + [samples[3]],
+            now: Fixtures.date(minutes: 300),
+        ) == flights)
+    }
+
+    @Test func longGapCorroborationNeverCrossesRecordingDevices() throws {
+        let samples = Array(Fixtures.resumedFlight().dropFirst(3))
+        let other = Fixtures.sample(99, minutes: 10, east: 0, deviceID: nil)
+        let flight = try #require(analyzer.analyze(
+            samples: [other] + samples,
+            now: Fixtures.date(minutes: 300),
+        ).first)
+        #expect(flight.inferredEndpoints.isEmpty)
+        #expect(flight.airborneSampleIDs.contains(samples[0].id) == false)
+    }
+
+    @Test(arguments: [0, 1, 2])
+    func tracksWithoutThreeAnchorsRemainUnassessed(sampleCount: Int) {
+        let samples = (0 ..< sampleCount).map { index in
+            Fixtures.sample(index + 1, minutes: Double(index) * 5, east: Double(index) * 75)
+        }
+        #expect(analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 20)).isEmpty)
+    }
+
+    @Test(arguments: [0.0, 0.5, 20.0])
+    func denseCallbacksCannotSupplyIndependentCruiseAnchors(intervalSeconds: Double) {
+        let samples = (0 ..< 3).map { index in
+            Fixtures.sample(
+                index + 1,
+                minutes: Double(index) * intervalSeconds / 60,
+                east: Double(index) * 75,
+            )
+        }
+        #expect(analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 20)).isEmpty)
+    }
+
+    @Test func malformedObservationsPreserveTheValidAssessment() throws {
+        let trace = Fixtures.turningFlight()
+        let invalid = [
+            Fixtures.sample(101, minutes: .nan, east: 120),
+            Fixtures.sample(102, minutes: .infinity, east: 120),
+            Fixtures.sample(103, minutes: 25, east: .nan),
+            Fixtures.sample(104, minutes: 25, east: .infinity),
+            Fixtures.sample(105, minutes: 25, east: 120, north: .nan),
+            Fixtures.sample(106, minutes: 25, east: 20100),
+            Fixtures.sample(107, minutes: 25, east: 120, north: 10100),
+            Fixtures.sample(108, minutes: 25, east: 120, accuracy: .nan),
+            Fixtures.sample(109, minutes: 25, east: 120, accuracy: .infinity),
+            Fixtures.sample(110, minutes: 25, east: 120, accuracy: -1),
+            Fixtures.sample(111, minutes: 25, east: 120, accuracy: 251),
+        ]
+        let expected = analyzer.analyze(samples: trace.samples, now: trace.readyAt)
+        let actual = analyzer.analyze(samples: trace.samples + invalid, now: trace.readyAt)
+        let flight = try #require(actual.first)
+        #expect(actual == expected)
+        let invalidIDs = Set(invalid.map(\.id))
+        #expect(flight.airborneSampleIDs.isDisjoint(with: invalidIDs))
+        #expect(flight.groundSampleIDs.isDisjoint(with: invalidIDs))
+        #expect(analyzer.analyze(samples: invalid, now: trace.readyAt).isEmpty)
+    }
+
+    @Test func arrivalCompletesAtDwellConfirmationBeforeFlightFreshnessExpires() throws {
+        let samples = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 5, east: 75),
+            Fixtures.sample(3, minutes: 10, east: 150),
+            Fixtures.sample(4, minutes: 15, east: 150),
+            Fixtures.sample(5, minutes: 20, east: 150),
+        ]
+        let beforeConfirmation = try #require(analyzer.analyze(
+            samples: samples,
+            now: Fixtures.date(minutes: 20).addingTimeInterval(-1),
+        ).first)
+        #expect(beforeConfirmation.progress == .awaitingArrival)
+        let confirmed = try #require(analyzer.analyze(
+            samples: samples,
+            now: Fixtures.date(minutes: 20),
+        ).first)
+        #expect(confirmed.progress.arrival?.firstGroundAt == Fixtures.date(minutes: 10))
+        #expect(confirmed.lastObservationAt == Fixtures.date(minutes: 20))
+        #expect(confirmed.reassessment == .whenEvidenceChanges)
+    }
+
+    @Test func recognizesTheSyntheticCruiseAndTurningApproachAfterDwell() throws {
+        let trace = Fixtures.turningFlight()
+        let assessments = analyzer.analyze(samples: trace.samples, now: trace.readyAt)
+        let flight = try #require(assessments.first)
+        #expect(assessments.count == 1)
+        #expect(flight.progress.arrival?.firstGroundAt == trace.firstGroundAt)
+        #expect(flight.peakSpeedKMH > 850)
+        #expect(flight.airborneSampleIDs.contains(trace.shortIntervalID))
+        #expect(flight.airborneSampleIDs.contains(Fixtures.sampleID(13)))
+        #expect(flight.airborneSampleIDs.contains(Fixtures.sampleID(14)))
+        #expect(flight.airborneSampleIDs.contains(trace.departureNoiseID) == false)
+        #expect(flight.airborneSampleIDs.contains(Fixtures.sampleID(15)) == false)
+        #expect(flight.groundSampleIDs.contains(Fixtures.sampleID(15)))
+        #expect(flight.groundSampleIDs.contains(Fixtures.sampleID(17)))
+        #expect(flight.airborneSampleIDs.isDisjoint(with: flight.groundSampleIDs))
+    }
+
+    @Test func prefixesRequireCruiseEvidenceAndThenObservedArrival() throws {
+        let trace = Fixtures.turningFlight()
+        #expect(analyzer.analyze(samples: trace.samples, now: Fixtures.date(minutes: 20)).isEmpty)
+        let cruise = try #require(analyzer.analyze(
+            samples: trace.samples,
+            now: Fixtures.date(minutes: 25),
+        ).first)
+        #expect(cruise.progress == .flightLikely)
+        let approach = try #require(analyzer.analyze(
+            samples: trace.samples,
+            now: Fixtures.date(minutes: 125),
+        ).first)
+        #expect(approach.progress == .awaitingArrival)
+        let taxi = try #require(analyzer.analyze(
+            samples: trace.samples,
+            now: Fixtures.date(minutes: 135),
+        ).first)
+        #expect(taxi.progress == .awaitingArrival)
+        #expect(taxi.groundSampleIDs.contains(Fixtures.sampleID(15)) == false)
+        #expect(cruise.id == taxi.id)
+    }
+
+    @Test(arguments: [false, true])
+    func laterFlightDoesNotExtendAnUnconfirmedTrip(laterStartsWithTransition: Bool) throws {
+        let trace = Fixtures.separatedFlights(laterStartsWithTransition: laterStartsWithTransition)
+        let flights = analyzer.analyze(samples: trace.samples, now: trace.readyAt)
+        try #require(flights.count == 2)
+        #expect(flights[0].progress == .awaitingArrival)
+        #expect(flights[0].lastObservationAt == trace.earlierLastObservationAt)
+        #expect(flights[1].startedAt == trace.laterStartedAt)
+        #expect(flights[1].progress.arrival?.firstGroundAt == trace.laterFirstGroundAt)
+        #expect(flights[0].airborneSampleIDs.isDisjoint(with: flights[1].airborneSampleIDs))
+    }
+
+    @Test func silenceChangesFreshnessWithoutInventingArrival() throws {
+        let trace = Fixtures.turningFlight()
+        let prefix = trace.samples.filter { $0.timestamp <= trace.lastCruiseAt }
+        let justBefore = try #require(analyzer.analyze(
+            samples: prefix,
+            now: trace.lastCruiseAt.addingTimeInterval(1799),
+        ).first)
+        #expect(justBefore.progress == .flightLikely)
+        let stale = try #require(analyzer.analyze(
+            samples: prefix,
+            now: trace.lastCruiseAt.addingTimeInterval(1800),
+        ).first)
+        #expect(stale.progress == .awaitingArrival)
+        #expect(stale.reassessment == .whenEvidenceChanges)
+        let muchLater = try #require(analyzer.analyze(
+            samples: prefix,
+            now: trace.lastCruiseAt.addingTimeInterval(86400),
+        ).first)
+        #expect(muchLater.progress == .awaitingArrival)
+        #expect(muchLater.id == stale.id)
+    }
+
+    @Test func duplicateCallbacksKeepEveryReviewedSampleIdentity() throws {
+        let trace = Fixtures.turningFlight()
+        let duplicate = Fixtures.sample(99, minutes: 25, east: 120, source: .gpsVisit)
+        let flight = try #require(analyzer.analyze(
+            samples: trace.samples + [duplicate],
+            now: trace.readyAt,
+        ).first)
+        #expect(flight.airborneSampleIDs.contains(duplicate.id))
+        #expect(flight.airborneSampleIDs.contains(Fixtures.sampleID(7)))
+        #expect(flight.airborneSampleIDs.contains(trace.shortIntervalID))
+    }
+
+    @Test func nearSimultaneousDepartureDuplicatesRemainEndpoints() throws {
+        let trace = Fixtures.turningFlight()
+        let duplicate = Fixtures.sample(99, minutes: 15 + 0.5 / 60, east: 5, source: .gpsVisit)
+        let flight = try #require(analyzer.analyze(
+            samples: trace.samples + [duplicate],
+            now: trace.readyAt,
+        ).first)
+        #expect(flight.airborneSampleIDs.contains(duplicate.id) == false)
+        #expect(flight.airborneSampleIDs.contains(Fixtures.sampleID(5)) == false)
+    }
+
+    @Test func denseCruiseCallbacksDoNotPrematurelyReportAwaitingArrival() throws {
+        let trace = Fixtures.turningFlight()
+        let flight = try #require(analyzer.analyze(
+            samples: trace.samples,
+            now: Fixtures.date(minutes: 25 + 5.0 / 60),
+        ).first)
+        #expect(flight.progress == .flightLikely)
+        #expect(flight.lastFlightAt == Fixtures.date(minutes: 25 + 5.0 / 60))
+    }
+
+    @Test func aContradictoryTrailingFixDoesNotExtendFreshCruiseEvidence() throws {
+        let trace = Fixtures.turningFlight()
+        let prefix = trace.samples.filter { $0.timestamp <= Fixtures.date(minutes: 25) }
+        // Plausible against the older five-minute baseline, but impossible
+        // against the preceding anchor only five seconds before this fix.
+        let teleport = Fixtures.sample(99, minutes: 25 + 5.0 / 60, east: 150)
+        let flight = try #require(analyzer.analyze(
+            samples: prefix + [teleport],
+            now: teleport.timestamp,
+        ).first)
+        #expect(flight.progress == .awaitingArrival)
+        #expect(flight.lastFlightAt == Fixtures.date(minutes: 25))
+        #expect(flight.airborneSampleIDs.contains(teleport.id) == false)
+    }
+
+    @Test(arguments: [15, 30, 60, 300])
+    func samplingDensityDoesNotTurnCruiseIntoGround(cadenceSeconds: Int) throws {
+        var samples = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 5, east: 0),
+            Fixtures.sample(3, minutes: 10, east: 0),
+        ]
+        for seconds in stride(from: 0, through: 1200, by: cadenceSeconds) {
+            samples.append(Fixtures.sample(
+                100 + seconds,
+                minutes: 15 + Double(seconds) / 60,
+                east: Double(seconds) * 0.25,
+            ))
+        }
+        samples += [
+            Fixtures.sample(2001, minutes: 40, east: 300),
+            Fixtures.sample(2002, minutes: 45, east: 300),
+        ]
+        let flight = try #require(analyzer.analyze(
+            samples: samples,
+            now: Fixtures.date(minutes: 45),
+        ).first)
+        #expect(flight.startedAt == Fixtures.date(minutes: 15))
+        #expect(flight.progress.arrival?.firstGroundAt == Fixtures.date(minutes: 35))
+        #expect(flight.airborneSampleIDs.isEmpty == false)
+    }
+
+    @Test func separateDevicesAndLegacyHistoryCannotManufactureMovement() {
+        let second = RecordingDeviceID(rawValue: Fixtures.sampleID(9001))
+        var samples: [LocationSample] = []
+        for index in 0 ..< 6 {
+            samples.append(Fixtures.sample(index + 1, minutes: Double(index) * 5, east: 0))
+            samples.append(Fixtures.sample(
+                index + 101,
+                minutes: Double(index) * 5 + 1,
+                east: 40,
+                deviceID: second,
+            ))
+            samples.append(Fixtures.sample(
+                index + 201,
+                minutes: Double(index) * 5 + 2,
+                east: 80,
+                deviceID: nil,
+            ))
+        }
+        #expect(analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 60)).isEmpty)
+    }
+
+    @Test func anotherDeviceCannotLandTheFlyingDevice() throws {
+        let trace = Fixtures.turningFlight()
+        let prefix = trace.samples.filter { $0.timestamp <= trace.lastCruiseAt }
+        let second = RecordingDeviceID(rawValue: Fixtures.sampleID(9001))
+        let ground = (0 ..< 4).map { index in
+            Fixtures.sample(
+                index + 101,
+                minutes: 130 + Double(index) * 5,
+                east: 1470,
+                deviceID: second,
+            )
+        }
+        let flight = try #require(analyzer.analyze(
+            samples: prefix + ground,
+            now: Fixtures.date(minutes: 145),
+        ).first)
+        #expect(flight.id.recordingSource == .device(Fixtures.device))
+        #expect(flight.progress == .awaitingArrival)
+        #expect(flight.groundSampleIDs.isDisjoint(with: Set(ground.map(\.id))))
+    }
+
+    @Test func poorAndConflictingShortIntervalFixesStayUncorrected() throws {
+        let trace = Fixtures.turningFlight()
+        let poor = Fixtures.sample(101, minutes: 26, east: 150, accuracy: 2000)
+        let conflicting = Fixtures.sample(102, minutes: 25 + 0.5 / 60, east: 300)
+        let flight = try #require(analyzer.analyze(
+            samples: trace.samples + [poor, conflicting],
+            now: trace.readyAt,
+        ).first)
+        #expect(flight.airborneSampleIDs.contains(poor.id) == false)
+        #expect(flight.airborneSampleIDs.contains(conflicting.id) == false)
+        #expect(flight.progress.arrival?.firstGroundAt == trace.firstGroundAt)
+    }
+
+    @Test func teleportReversalsAndImpossibleSpeedsDoNotConfirmAFlight() {
+        let reversal = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 5, east: 75),
+            Fixtures.sample(3, minutes: 10, east: 0),
+        ]
+        let impossible = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 5, east: 200),
+            Fixtures.sample(3, minutes: 10, east: 400),
+        ]
+        #expect(analyzer.analyze(samples: reversal, now: Fixtures.date(minutes: 20)).isEmpty)
+        #expect(analyzer.analyze(samples: impossible, now: Fixtures.date(minutes: 20)).isEmpty)
+    }
+
+    @Test func motionBelowTheJetThresholdRemainsUncertain() {
+        let samples = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 5, east: 30),
+            Fixtures.sample(3, minutes: 10, east: 60),
+            Fixtures.sample(4, minutes: 15, east: 90),
+        ]
+        #expect(analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 20)).isEmpty)
+    }
+
+    @Test func highAverageSpeedCannotCompensateForASlowCruiseLeg() {
+        let samples = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 5, east: 75),
+            Fixtures.sample(3, minutes: 10, east: 105),
+        ]
+        // The run averages about 630 km/h, but its second leg is only 360 km/h.
+        #expect(analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 20)).isEmpty)
+    }
+
+    @Test func motionSensorsCanVetoDwellButAltitudeDoesNotCreateFlight() throws {
+        let trace = Fixtures.turningFlight()
+        let flyingSpeed = LocationMotion(
+            speed: .init(metersPerSecond: 200, accuracyMetersPerSecond: 2),
+            altitude: .init(meters: 9000, accuracyMeters: 10),
+        )
+        let contradicted = trace.samples.map { sample in
+            sample.timestamp >= trace.firstGroundAt
+                ? Fixtures.replacing(sample, motion: flyingSpeed) : sample
+        }
+        let flight = try #require(analyzer.analyze(
+            samples: contradicted,
+            now: Fixtures.date(minutes: 170),
+        ).first)
+        #expect(flight.progress == .awaitingArrival)
+        let highGround = (0 ..< 4).map { index in
+            Fixtures.sample(
+                index + 101,
+                minutes: Double(index) * 5,
+                east: 0,
+                motion: .init(speed: nil, altitude: .init(meters: 5000, accuracyMeters: 10)),
+            )
+        }
+        #expect(analyzer.analyze(samples: highGround, now: Fixtures.date(minutes: 20)).isEmpty)
+    }
+
+    @Test func denseContradictoryObservationsPreventArrivalConfirmation() throws {
+        let trace = Fixtures.turningFlight()
+        let highSpeed = Fixtures.sample(
+            101,
+            minutes: 135 + 20.0 / 60,
+            east: 1445,
+            north: 8,
+            motion: .init(
+                speed: .init(metersPerSecond: 200, accuracyMetersPerSecond: 1),
+                altitude: nil,
+            ),
+        )
+        let teleport = Fixtures.sample(102, minutes: 135 + 30.0 / 60, east: 1800)
+        for contradiction in [highSpeed, teleport] {
+            let flight = try #require(analyzer.analyze(
+                samples: trace.samples + [contradiction],
+                now: trace.readyAt,
+            ).first)
+            #expect(flight.progress == .awaitingArrival)
+            #expect(flight.groundSampleIDs.contains(contradiction.id) == false)
+            #expect(flight.airborneSampleIDs.contains(contradiction.id) == false)
+        }
+    }
+
+    @Test func midnightAndInputOrderingDoNotSplitAFlight() throws {
+        let trace = Fixtures.turningFlight()
+        let offset: TimeInterval = 23 * 3600
+        let shifted = trace.samples.map {
+            Fixtures.replacing($0, timestamp: $0.timestamp.addingTimeInterval(offset))
+        }
+        let expected = analyzer.analyze(
+            samples: shifted,
+            now: trace.readyAt.addingTimeInterval(offset),
+        )
+        let reversed = analyzer.analyze(
+            samples: Array(shifted.reversed()),
+            now: trace.readyAt.addingTimeInterval(offset),
+        )
+        let flight = try #require(expected.first)
+        #expect(expected.count == 1)
+        #expect(flight
+            .progress.arrival?.firstGroundAt == trace.firstGroundAt.addingTimeInterval(offset))
+        #expect(reversed == expected)
+    }
+
+    @Test func completedObservationDoesNotFollowLaterUnrelatedLocations() throws {
+        let trace = Fixtures.turningFlight()
+        let later = Fixtures.sample(999, minutes: 24 * 60, east: 1500)
+        let flight = try #require(analyzer.analyze(
+            samples: trace.samples + [later],
+            now: later.timestamp,
+        ).first)
+        #expect(flight.progress.arrival?.firstGroundAt == trace.firstGroundAt)
+        #expect(flight.lastObservationAt == trace.readyAt)
+    }
+
+    @Test func aRealLayoverSeparatesFlightsAndProtectsGroundSamples() throws {
+        let samples = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 5, east: 75),
+            Fixtures.sample(3, minutes: 10, east: 150),
+            Fixtures.sample(4, minutes: 15, east: 150),
+            Fixtures.sample(5, minutes: 20, east: 150),
+            Fixtures.sample(6, minutes: 25, east: 150),
+            Fixtures.sample(7, minutes: 30, east: 225),
+            Fixtures.sample(8, minutes: 35, east: 300),
+            Fixtures.sample(9, minutes: 40, east: 300),
+            Fixtures.sample(10, minutes: 45, east: 300),
+        ]
+        let flights = analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 45))
+        try #require(flights.count == 2)
+        #expect(flights[0].progress.arrival?.firstGroundAt == Fixtures.date(minutes: 10))
+        #expect(flights[1].progress.arrival?.firstGroundAt == Fixtures.date(minutes: 35))
+        let layoverIDs = Set(samples[2 ... 5].map(\.id))
+        #expect(flights.allSatisfy { $0.airborneSampleIDs.isDisjoint(with: layoverIDs) })
+        #expect(flights[0].groundSampleIDs.contains(Fixtures.sampleID(4)))
+    }
+
+    @Test func aSparseLayoverPreservesUnknownEndpointsBetweenCruiseSegments() throws {
+        let trace = Fixtures.sparseLayover()
+        let flights = analyzer.analyze(samples: trace.samples, now: trace.readyAt)
+        let flight = try #require(flights.first)
+        #expect(flights.count == 1)
+        #expect(flight.progress.arrival?.firstGroundAt == trace.firstGroundAt)
+        #expect(flight.airborneSampleIDs == trace.airborneSampleIDs)
+        #expect(flight.airborneSampleIDs.isDisjoint(with: trace.layoverSampleIDs))
+        #expect(flight.groundSampleIDs.isDisjoint(with: trace.layoverSampleIDs))
+        #expect(analyzer.analyze(samples: Array(trace.samples.reversed()), now: trace.readyAt)
+            == flights)
+    }
+
+    @Test(arguments: [-0.5, 0, 0.5])
+    func sparseLayoverEndpointCallbacksRemainUnknown(offsetSeconds: Double) throws {
+        let trace = Fixtures.sparseLayover()
+        let duplicates = [10.0, 30.0].enumerated().map { index, minutes in
+            Fixtures.sample(
+                101 + index,
+                minutes: minutes + offsetSeconds / 60,
+                east: 150,
+                source: .gpsVisit,
+            )
+        }
+        let samples = trace.samples + duplicates
+        let flights = analyzer.analyze(samples: samples, now: trace.readyAt)
+        let flight = try #require(flights.first)
+        #expect(flights.count == 1)
+        #expect(flight.progress.arrival?.firstGroundAt == trace.firstGroundAt)
+        #expect(flight.airborneSampleIDs == trace.airborneSampleIDs)
+        let unknownIDs = trace.layoverSampleIDs.union(duplicates.map(\.id))
+        #expect(flight.airborneSampleIDs.isDisjoint(with: unknownIDs))
+        #expect(flight.groundSampleIDs.isDisjoint(with: unknownIDs))
+        #expect(analyzer.analyze(samples: Array(samples.reversed()), now: trace.readyAt) == flights)
+    }
+
+    @Test func layoverConfirmationCanShareTheNextDepartureAnchor() throws {
+        let samples = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 5, east: 75),
+            Fixtures.sample(3, minutes: 10, east: 150),
+            Fixtures.sample(4, minutes: 15, east: 150),
+            // This third ground anchor confirms arrival and starts the next
+            // flight's first cruise leg. Both flights must retain it as ground.
+            Fixtures.sample(5, minutes: 20, east: 150),
+            Fixtures.sample(6, minutes: 25, east: 225),
+            Fixtures.sample(7, minutes: 30, east: 300),
+            Fixtures.sample(8, minutes: 35, east: 300),
+            Fixtures.sample(9, minutes: 40, east: 300),
+        ]
+        let flights = analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 40))
+        try #require(flights.count == 2)
+        #expect(flights[0].progress.arrival?.firstGroundAt == Fixtures.date(minutes: 10))
+        #expect(flights[0].lastObservationAt == Fixtures.date(minutes: 20))
+        #expect(flights[1].progress.arrival?.firstGroundAt == Fixtures.date(minutes: 30))
+        #expect(flights[1].id.departureSampleID == Fixtures.sampleID(5))
+        let layoverIDs = Set(samples[2 ... 4].map(\.id))
+        #expect(flights.allSatisfy { $0.airborneSampleIDs.isDisjoint(with: layoverIDs) })
+        #expect(flights.allSatisfy { layoverIDs.isSubset(of: $0.groundSampleIDs) })
+    }
+
+    @Test func aLongUnknownGapCannotBecomeAMotionBaseline() {
+        let samples = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 125, east: 1875),
+            Fixtures.sample(3, minutes: 250, east: 3750),
+        ]
+        #expect(analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 250)).isEmpty)
+    }
+
+    @Test func approachExtensionStopsAtItsTimeBound() throws {
+        var samples = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 5, east: 75),
+            Fixtures.sample(3, minutes: 10, east: 150),
+        ]
+        for index in 1 ... 7 {
+            samples.append(Fixtures.sample(
+                index + 3,
+                minutes: 10 + Double(index) * 5,
+                east: 150 + Double(index) * 20,
+            ))
+        }
+        samples += [
+            Fixtures.sample(11, minutes: 50, east: 290),
+            Fixtures.sample(12, minutes: 55, east: 290),
+        ]
+        let flight = try #require(analyzer.analyze(
+            samples: samples,
+            now: Fixtures.date(minutes: 55),
+        ).first)
+        #expect(flight.progress.arrival?.firstGroundAt == Fixtures.date(minutes: 45))
+        #expect(flight.airborneSampleIDs.contains(Fixtures.sampleID(8)))
+        #expect(flight.airborneSampleIDs.contains(Fixtures.sampleID(9)) == false)
+        #expect(flight.airborneSampleIDs.contains(Fixtures.sampleID(10)) == false)
+    }
+
+    @Test func shortBurstsAndUncertainThresholdSpeedsDoNotConfirmFlight() {
+        let brief = [
+            Fixtures.sample(1, minutes: 0, east: 0),
+            Fixtures.sample(2, minutes: 1, east: 15),
+            Fixtures.sample(3, minutes: 2, east: 30),
+        ]
+        let uncertain = [
+            Fixtures.sample(1, minutes: 0, east: 0, accuracy: 250),
+            Fixtures.sample(2, minutes: 5, east: 37.6, accuracy: 250),
+            Fixtures.sample(3, minutes: 10, east: 75.2, accuracy: 250),
+        ]
+        #expect(analyzer.analyze(samples: brief, now: Fixtures.date(minutes: 10)).isEmpty)
+        #expect(analyzer.analyze(samples: uncertain, now: Fixtures.date(minutes: 10)).isEmpty)
+    }
+
+    @Test func manualAndEvidenceCoordinatesNeverBecomeFlightEvidence() {
+        let samples = [
+            Fixtures.sample(1, minutes: 0, east: 0, source: .manual),
+            Fixtures.sample(2, minutes: 5, east: 75, source: .manual),
+            Fixtures.sample(3, minutes: 10, east: 150, source: .evidenceImplied(
+                id: Fixtures.sampleID(999),
+                kind: .boardingPass,
+            )),
+        ]
+        #expect(analyzer.analyze(samples: samples, now: Fixtures.date(minutes: 20)).isEmpty)
+    }
+}

@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 import WhereCore
 
 /// A maximal run of consecutive calendar days the user was present in one
@@ -28,8 +29,8 @@ public struct RegionStint: Hashable, Sendable, Identifiable {
 /// alongside the views that render it.
 public enum PresenceTimeline {
     /// Group each region's present days into maximal consecutive runs, then
-    /// flatten and sort by start date (ties broken by end date, then by
-    /// `Region.allCases` order). `report.days` is already sorted ascending and
+    /// flatten and sort by start date (ties broken by end date, then by the
+    /// catalog's canonical order). `report.days` is already sorted ascending and
     /// has one entry per calendar day, so each region's dates are unique.
     public static func stints(
         from report: YearReport,
@@ -37,8 +38,9 @@ public enum PresenceTimeline {
     ) -> [RegionStint] {
         var datesByRegion: [Region: [Date]] = [:]
         for day in report.days {
+            let startOfDay = day.startOfDay(in: calendar)
             for region in day.regions {
-                datesByRegion[region, default: []].append(day.date)
+                datesByRegion[region, default: []].append(startOfDay)
             }
         }
 
@@ -89,6 +91,6 @@ public enum PresenceTimeline {
     }
 
     private static func regionOrder(_ region: Region) -> Int {
-        Region.allCases.firstIndex(of: region) ?? 0
+        Region.declarationOrder[region, default: 0]
     }
 }

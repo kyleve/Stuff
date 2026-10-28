@@ -1,7 +1,7 @@
 import SwiftUI
+import TestHostSupport
 import Testing
 import UIKit
-import WhereTesting
 
 private enum LifecycleEvent {
     case viewWillAppear

@@ -1,137 +1,405 @@
+import InstallerKit
 import LifecycleKit
+import LifecycleKitUI
+import PeriscopeUI
+import SnapshotKit
 import SwiftUI
-import WhereCore
+@_spi(Testing) import WhereCore
+#if DEBUG
+    import Inspector
+    import PeriscopeCore
+    import PeriscopeTools
+#endif
 
-/// The app's root: the launch sequence gated in front of a Liquid Glass tab bar
-/// over the four top-level screens (Primary, Elsewhere, Resolve, Settings).
+/// The app's root: the launch plan gated in front of `MainTabs`, the Liquid
+/// Glass tab bar for Locations, optional Elsewhere, Your Year, and Settings.
 ///
-/// `LifecycleContainer` renders the splash / onboarding / migration UI while
-/// the `LifecycleRunner` runs, then the `TabView` (the real "logged-in" UI —
-/// the launch *destination*, not a step) once it reaches `.ready`. The model is
-/// built at launch (so CoreLocation is wired for background relaunch) and shared
-/// down through the environment.
+/// `LifecycleContainer` renders the splash / onboarding UI while the
+/// `LifecycleRunner` runs, then the `TabView` (the real "logged-in" UI — the
+/// launch *destination*, not a step) once it reaches `.ready`, built from the
+/// session the launch's trunk produced. The first visible ready reveal is
+/// always covered by the splash minimum, including after a headless launch
+/// whose foreground drive coalesces between renders. The model is built at
+/// launch (so CoreLocation is wired for background relaunch) and shared down
+/// through the environment.
 public struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var model: WhereModel
-    private let launcher: LifecycleRunner
+    #if DEBUG
+        /// The logged-in tab bar's measured height, reported up from `MainTabs` and
+        /// handed to the sibling `DeveloperOverlay` so its button rests clear of the
+        /// tab bar. Zero when logged out (no tab bar in the tree).
+        @State private var developerTabBarInset: CGFloat = 0
+        /// The footprint the non-modal floating developer HUD occupies, reported up
+        /// from the sibling `DeveloperOverlay` and applied as extra safe area to the
+        /// app content so screens behind the HUD can scroll clear of it.
+        @State private var developerOverlayInsets = EdgeInsets()
+        /// Periscope's "log view mode" mirror, built once the launch bootstrap has
+        /// opened the log store. Injected into the environment so
+        /// `debugLogInspectable(_:)` badges across the app can reveal their scopes;
+        /// the developer overlay binds its toggle to it.
+        @State private var inspector: PeriscopeInspector?
+        /// Watches the shared pipeline for `.warning`+ records and shows them as
+        /// in-app toasts while developing. Retained for the process; started once
+        /// the store is available.
+        @State private var alerter: PeriscopeAlerter?
+        @State private var toastCenter = DeveloperToastCenter()
+        /// One process-scoped designer draft. Its configuration persists, but
+        /// applying it to real cards remains session-only.
+        @State private var cardDesigner = CardDesignerModel(
+            store: .standard,
+            key: "where.debug.card-designer.configuration",
+        )
+    #endif
+    private let updates: UpdateModel?
+    private let launcher: LifecycleRunner<WhereSession>
+    private let primaryAppIconName: String
+    #if DEBUG
+        private let developerLaunchController: WhereDeveloperLaunchController?
+        /// Hosted snapshots have no active SwiftUI scene even though their
+        /// controller is on screen. Production leaves this nil and follows the
+        /// real scene phase; the testing SPI can explicitly model visibility.
+        private let presentationVisibilityOverride: Bool?
+    #endif
 
-    /// Inject the app-owned model + runner built at launch. The app uses this.
-    public init(model: WhereModel, launcher: LifecycleRunner) {
-        _model = State(initialValue: model)
-        self.launcher = launcher
-    }
+    // Inject the app-owned model + runner built at launch. The app uses this.
+    #if DEBUG
+        public init(
+            model: WhereModel,
+            launcher: LifecycleRunner<WhereSession>,
+            primaryAppIconName: String,
+            updates: UpdateModel? = nil,
+            developerLaunchController: WhereDeveloperLaunchController? = nil,
+        ) {
+            _model = State(initialValue: model)
+            self.launcher = launcher
+            self.primaryAppIconName = primaryAppIconName
+            self.updates = updates
+            self.developerLaunchController = developerLaunchController
+            presentationVisibilityOverride = nil
+        }
+
+        @_spi(Testing)
+        public init(
+            model: WhereModel,
+            launcher: LifecycleRunner<WhereSession>,
+            primaryAppIconName: String,
+            updates: UpdateModel? = nil,
+            presentationVisibilityOverride: Bool,
+        ) {
+            _model = State(initialValue: model)
+            self.launcher = launcher
+            self.primaryAppIconName = primaryAppIconName
+            self.updates = updates
+            developerLaunchController = nil
+            self.presentationVisibilityOverride = presentationVisibilityOverride
+        }
+    #else
+        public init(
+            model: WhereModel,
+            launcher: LifecycleRunner<WhereSession>,
+            primaryAppIconName: String,
+            updates: UpdateModel? = nil,
+        ) {
+            _model = State(initialValue: model)
+            self.launcher = launcher
+            self.primaryAppIconName = primaryAppIconName
+            self.updates = updates
+        }
+    #endif
 
     /// Convenience for previews and the hosted UI test: build a model and a
     /// foreground runner for it. The runner isn't run by the app delegate
     /// here, so `.task` drives it (see `body`).
     public init() {
-        let model = WhereModel()
+        // Mirrors the app root's wiring (see `AppDelegate`). Nothing here
+        // attaches a sink unless a scope is actually resolved, which a preview
+        // or the hosted UI test never gets to.
+        let installationContextStore = InMemoryInstallationRecordingContextStore(
+            context: .testing,
+        )
+        let model = WhereModel(
+            preferences: WherePreferences(store: UserDefaults.standard),
+            installationContextStore: installationContextStore,
+            makeBootstrap: {
+                WhereBootstrap(
+                    installationContextStore: $0,
+                    storeStorage: .inMemory,
+                    widgetRefresher: NoopWidgetTimelineRefresher(),
+                    locationOutbox: NoOpLocationOutbox(),
+                )
+            },
+            logSystem: .shared,
+        )
         _model = State(initialValue: model)
         launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        primaryAppIconName = "AppIcon"
+        updates = nil
+        #if DEBUG
+            developerLaunchController = nil
+            presentationVisibilityOverride = nil
+        #endif
     }
 
     public var body: some View {
-        LifecycleContainer(
-            launcher,
-            transition: revealTransition,
-            animation: revealAnimation,
-            splash: { LaunchSplashView() },
-            failure: { LifecycleFailureView(failure: $0, retry: $1) },
-        ) {
-            TabView {
-                Tab(Strings.tabPrimary, systemImage: "star.fill") {
-                    PrimaryView()
-                }
-
-                Tab(Strings.tabElsewhere, systemImage: "globe.americas.fill") {
-                    SecondaryView()
-                }
-
-                Tab(Strings.tabResolution, systemImage: "checklist") {
-                    ResolutionView()
-                }
-                .badge(model.session?.dataIssueCount ?? 0)
-
-                Tab(Strings.tabSettings, systemImage: "gearshape.fill") {
-                    SettingsView()
-                }
-            }
-            .tabBarMinimizeBehavior(.onScrollDown)
+        RootStyledContent { stylesheet in
+            rootContent(stylesheet: stylesheet)
         }
-        .environment(model)
-        // The logged-in session appears once `open-store` builds it. Injected
-        // as an optional `Observable`, so the `TabView`'s `@Environment(WhereSession.self)`
-        // views resolve it (they only render at `.ready`, by which point it's
-        // present) and re-inject when a reset rebuilds it.
-        .environment(model.session)
-        // Settings' "Erase all data & reset" runs the teardown through the
-        // `LifecycleRunner` that `LifecycleContainer` publishes into the
-        // environment, which wipes data + preferences and re-drives the launch
-        // sequence back to onboarding.
-        //
-        // `run()` is idempotent: in the app the delegate already kicked it off,
-        // so this is a no-op there; in previews/tests it's what drives the
-        // launch.
-        //
-        // Promote a background launch only once the scene is genuinely active.
-        // SwiftUI may build this view (and run `.task`) for a scene that iOS
-        // connected in the background; promoting then would flip the launcher to
-        // foreground and build the heavy `TabView` for a launch nobody sees,
-        // defeating the headless path. The `.onChange` below handles the later
-        // background→foreground transition; this initial check covers a launch
-        // that is already active when the view first appears.
-        .task {
-            await launcher.run()
-            if scenePhase == .active {
-                await launcher.enterForeground()
-            }
-        }
-        .onChange(of: scenePhase) { _, newPhase in
-            guard newPhase == .active else { return }
-            Task {
-                await launcher.enterForeground()
-                await model.session?.appBecameActive()
-            }
-        }
-    }
-
-    /// How the launch splash gives way to the app once the runner is `.ready`:
-    /// the splash scales up and fades while the `TabView` stays put beneath it
-    /// (`insertion: .identity`), reading as the icon zooming toward the viewer to
-    /// uncover the UI. Reduce Motion swaps this for a plain crossfade.
-    private var revealTransition: AnyTransition {
-        if reduceMotion {
-            return .opacity
-        }
-        return .asymmetric(
-            insertion: .identity,
-            removal: .scale(scale: 16).combined(with: .opacity),
+        .whereBroadwayRoot(
+            theme: model.theme,
+            regionStyles: model.session?.regionStyles ?? .default,
         )
     }
 
-    private var revealAnimation: Animation {
-        reduceMotion ? .easeInOut(duration: 0.2) : .easeIn(duration: 0.18)
+    private func rootContent(stylesheet: WhereStylesheet) -> some View {
+        ZStack {
+            LifecycleContainer(
+                launcher,
+                transition: stylesheet.launch.reveal.transition,
+                animation: stylesheet.launch.revealAnimation,
+                minimumSplashDuration: stylesheet.launch.minimumSplashDuration,
+                isPresentationVisible: isLifecyclePresentationVisible,
+                splash: { _ in
+                    if model.isBuildingLaunchDemo {
+                        LaunchSplashView(caption: .work(
+                            title: String(localized: .demoBuildingTitle),
+                            subtitle: String(localized: .demoBuildingSubtitle),
+                        ))
+                    } else {
+                        LaunchSplashView()
+                    }
+                },
+                failure: { WhereLifecycleFailureView(failure: $0) },
+                gates: {
+                    // The gate precedes every world-building step, so there is
+                    // no session (and no open store) behind it yet — onboarding
+                    // builds the scope it commits regions with, through the model.
+                    GateView(for: OnboardingGate.self) { handle, _ in
+                        OnboardingView(
+                            gate: handle,
+                            installationContext: model.installationRecordingContext,
+                            startsAtRecordingChoice: model.hasOnboarded,
+                            initialTheme: model.theme,
+                        )
+                    }
+                },
+            ) { session in
+                // `.ready` carries the session the launch produced — the app
+                // surface cannot render without it. `MainTabs` owns the
+                // scene-scoped `YearReportModel` and gets a fresh one whenever
+                // a reset rebuilds the session. Keyed on the session's
+                // monotonic `id` (never reused within the process) rather than
+                // its address, so a rebuilt session can't collide with a freed
+                // one and skip the rebuild.
+                if session.isCurrentDeviceRemoved {
+                    RemovedDeviceView(model: model, session: session)
+                } else {
+                    MainTabs(
+                        session: session,
+                        initialDetails: model.initialYearDetails,
+                        selectedYear: model.initialSelectedYear,
+                    )
+                    .id(session.id)
+                }
+            }
+            // Extend the app content's safe area by the floating HUD's footprint so
+            // scroll views behind the non-modal window inset and their last rows
+            // clear it. Scoped to the content only — never the sibling overlay/toast
+            // layers below — so the overlay's own geometry can't feed back on itself.
+            #if DEBUG
+            .safeAreaPadding(developerOverlayInsets)
+            #endif
+
+            // The floating developer launcher/accordion sits above every launch
+            // phase and tab so its tools are reachable from anywhere (even logged
+            // out). Selected tools open in its HUD. The whole surface is DEBUG-only
+            // and compiled out of release entirely.
+            #if DEBUG
+                DeveloperOverlay(tabBarInset: developerTabBarInset)
+                // High-severity log toasts float above everything, including the
+                // developer overlay, so a warning/error is visible wherever it fires.
+                DeveloperToastOverlay(center: toastCenter)
+            #endif
+        }
+        #if DEBUG
+        .onPreferenceChange(DeveloperTabBarInsetKey.self) { developerTabBarInset = $0 }
+            .onPreferenceChange(DeveloperOverlayInsetKey.self) { developerOverlayInsets = $0 }
+            .environment(\.periscopeInspector, inspector)
+            .task { configureDeveloperLogging() }
+            .onChange(of: model.logStore.map(ObjectIdentifier.init)) { _, _ in
+                configureDeveloperLogging()
+            }
+        #endif
+            // Seed the app's root logging context so any view that logs freeform via
+            // `\.logContext` emits under the "Where" scope rather than a bare root.
+            .logContext(WhereLog.root)
+            .environment(model)
+            .environment(updates)
+            // The logged-in session appears once the launch's `start-session`
+            // step builds it. Injected as an optional `Observable`, so the
+            // `TabView`'s `@Environment(WhereSession.self)` views resolve it
+            // (they only render at `.ready`, by which point it's present) and
+            // re-inject when a reset rebuilds it. The DEBUG developer overlay
+            // reads it optionally — it can appear before login.
+            .environment(model.session)
+            .environment(\.primaryAppIconName, primaryAppIconName)
+        #if DEBUG
+            .environment(developerLaunchController)
+            .environment(\.cardDesignerModel, cardDesigner)
+            .environment(
+                \.cardDesignerConfiguration,
+                cardDesigner.appliesToApp ? cardDesigner.configuration : nil,
+            )
+        #endif
+            // Which world the app is in, seeded once here so no view has to
+            // ask the model. Reading the model's mode tracks its scope state,
+            // so entering or leaving demo mode re-renders what branches on it.
+            .demoMode(of: model)
+            // Settings' "Erase all data & reset" runs the teardown through the
+            // `LifecycleProxy` that `LifecycleContainer` publishes into the
+            // environment, which wipes data + preferences and re-drives the
+            // launch plan back to onboarding.
+            //
+            // `run()` is idempotent: in the app the delegate already kicked it off,
+            // so this is a no-op there; in previews/tests it's what drives the
+            // launch.
+            //
+            // Promote the launch (`.undetermined` from the app delegate, or a
+            // genuine `.background` relaunch) only once the scene is genuinely
+            // active. SwiftUI may build this view (and run `.task`) for a scene that
+            // iOS connected in the background; promoting then would flip the launcher
+            // to foreground and build the heavy `TabView` for a launch nobody sees,
+            // defeating the headless path. The `.onChange` below handles the later
+            // background→foreground transition; this initial check covers a launch
+            // that is already active when the view first appears — and it must run
+            // *before* awaiting `run()`: when the scene arrives already active,
+            // `.onChange` never fires, and promoting only after `run()` returns
+            // would leave the user staring at the empty background surface for the
+            // entire (possibly slow) headless drive instead of the splash.
+            .task {
+                if scenePhase == .active {
+                    await launcher.enterForeground()
+                }
+                await launcher.run()
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                guard newPhase == .active else { return }
+                Task {
+                    await launcher.enterForeground()
+                    await model.session?.appBecameActive()
+                }
+            }
     }
+
+    private var isLifecyclePresentationVisible: Bool {
+        #if DEBUG
+            presentationVisibilityOverride ?? (scenePhase == .active)
+        #else
+            scenePhase == .active
+        #endif
+    }
+
+    #if DEBUG
+        /// Build the log-view-mode inspector and start the toast alerter once the
+        /// launch bootstrap has opened the process-global store. Idempotent: it's
+        /// driven from both the initial `.task` (fixtures that inject a store up
+        /// front) and an `.onChange` (the app, where the store opens off the
+        /// launch path), and does nothing until the store exists or after it's
+        /// wired once.
+        private func configureDeveloperLogging() {
+            guard inspector == nil, let store = model.logStore else { return }
+            inspector = PeriscopeInspector(system: .shared, store: store)
+            let alerter = PeriscopeAlerter(
+                system: .shared,
+                threshold: .warning,
+                handler: DeveloperToastAlertHandler(center: toastCenter),
+            )
+            alerter.start()
+            self.alerter = alerter
+        }
+    #endif
 }
 
 #if DEBUG
-    private struct LoggedInRootPreview: View {
-        private let model = PreviewSupport.loadedModel()
-
-        var body: some View {
-            RootView(
-                model: model,
-                launcher: WhereLaunch.makeLauncher(model: model, reason: .userForeground),
+    extension RootView: SnapshotProviding {
+        /// The logged-in root is multi-phase async work — splash → launch steps →
+        /// `.ready` → `MainTabs` activation → glass-material adaptation — and
+        /// every phase is pixel-quiet under capture (motion frozen, animations
+        /// disabled), so pixel stability alone can bake *any* intermediate phase
+        /// on a slow runner (CI captured the splash and the pre-activation tabs).
+        ///
+        /// The pre-capture hook awaits the launcher's drive — `run()` is
+        /// idempotent and awaits the in-flight drive, a deterministic "reached
+        /// `.ready`" signal — so the raised settle floor only has to outlast the
+        /// post-ready tail: `MainTabs`' `.task` activation (empty-store re-pull +
+        /// Resolve badge) and the native glass toolbar/tab bar material
+        /// adaptation, which starts quiet a few hundred ms after the chrome
+        /// hosts. Those have no reachable completion signal (the scene's report
+        /// model is private to `MainTabs`; the adaptation has no public
+        /// notification), hence the generous floor — see the flakiness ledger in
+        /// `Where/TODOs.md`.
+        public static var snapshots: [SnapshotCase] {
+            let model = welcomeDisabled(PreviewSupport.loadedModel())
+            let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+            let recordingWarningModel = welcomeDisabled(
+                PreviewSupport.recordingConfigurationWarningAppModel(),
             )
+            let recordingWarningLauncher = WhereLaunch.makeLauncher(
+                model: recordingWarningModel,
+                reason: .userForeground,
+            )
+            whereSnapshot(
+                name: "LoggedIn",
+                configurations: .fullContentPhoneLightDark,
+                settle: .settledAtLeast(minDuration: 1.5),
+                onReadyToSnapshot: { await launcher.run() },
+            ) {
+                RootView(
+                    model: model,
+                    launcher: launcher,
+                    primaryAppIconName: "AppIcon",
+                    presentationVisibilityOverride: true,
+                )
+            }
+            whereSnapshot(
+                name: "RecordingConfigurationWarning",
+                configurations: .fullContentPhoneLightDark,
+                settle: .settledAtLeast(minDuration: 1.5),
+                onReadyToSnapshot: { await recordingWarningLauncher.run() },
+            ) {
+                RootView(
+                    model: recordingWarningModel,
+                    launcher: recordingWarningLauncher,
+                    primaryAppIconName: "AppIcon",
+                    presentationVisibilityOverride: true,
+                )
+            }
+        }
+
+        private static func welcomeDisabled(_ model: WhereModel) -> WhereModel {
+            model.preferences.showsLocationWelcome = false
+            return model
         }
     }
 
+    // The from-scratch launch preview (splash → onboarding) — the matrix pins
+    // only the logged-in root, so this stays as a bespoke preview alongside the
+    // cutsheet.
     #Preview {
         RootView()
     }
 
     #Preview("Logged in") {
-        LoggedInRootPreview()
+        RootView.snapshotPreviews
     }
 #endif
+
+/// Resolves launch appearance beneath the root that owns its Broadway context.
+private struct RootStyledContent<Content: View>: View {
+    @Environment(\.stylesheet) private var stylesheet
+    @ViewBuilder let content: (WhereStylesheet) -> Content
+
+    var body: some View {
+        content(stylesheet)
+    }
+}

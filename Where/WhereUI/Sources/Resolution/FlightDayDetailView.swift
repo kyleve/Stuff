@@ -1,0 +1,267 @@
+import RegionKit
+import SFSafeSymbols
+import SnapshotKit
+import SwiftUI
+import WhereCore
+
+/// Shared flight/drift review. Pending evidence leaves manual editing available;
+/// Apply submits only the exact reviewed samples to Core's guarded transaction.
+struct FlightDayDetailView: View {
+    let report: YearReportModel
+    @State private var model: FlightReviewModel
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.stylesheet) private var stylesheet
+
+    init(review: GPSCorrectionReview, report: YearReportModel) {
+        self.report = report
+        _model = State(initialValue: FlightReviewModel(review: review, report: report))
+    }
+
+    var body: some View {
+        Form {
+            if let review = model.review {
+                Section {
+                    if review.flights.isEmpty {
+                        FlightStatusBanner(review: review, deviceLabel: nil)
+                            .listRowInsets(EdgeInsets())
+                    } else {
+                        ForEach(review.flights) { flight in
+                            FlightStatusBanner(
+                                review: review,
+                                deviceLabel: report.flightDeviceLabel(flight),
+                                flight: flight,
+                            )
+                            .listRowInsets(EdgeInsets())
+                        }
+                    }
+                }
+
+                if !model.mapData.pins.isEmpty || !model.mapData.routes.isEmpty {
+                    Section {
+                        RecordedPointsMap(data: model.mapData)
+                            .listRowInsets(EdgeInsets())
+                    }
+                }
+
+                if let flight = review.flight {
+                    Section(String(localized: .flightReviewEvidenceTitle)) {
+                        LabeledContent(String(localized: .flightReviewPeakSpeed)) {
+                            Text(
+                                Measurement(
+                                    value: flight.peakSpeedKMH,
+                                    unit: UnitSpeed.kilometersPerHour,
+                                ),
+                                format: .measurement(width: .abbreviated, usage: .asProvided),
+                            )
+                        }
+                        Text(String(localized: .flightReviewEvidenceDescription))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if let proposal = review.proposal {
+                    Section(String(localized: .flightReviewChangesTitle)) {
+                        LabeledContent(String(localized: .flightReviewResultingRegions)) {
+                            Text(proposal.resultingRegions.isEmpty
+                                ? String(localized: .flightReviewNoPresence)
+                                : proposal.resultingRegions.map(\.localizedName).sorted()
+                                .joined(separator: ", "))
+                        }
+                        DisclosureGroup(String(localized: .flightReviewChangeCount(proposal.edits
+                                .count)))
+                        {
+                            ForEach(model.editedPoints, id: \.sample.id) { point in
+                                VStack(alignment: .leading) {
+                                    Text(
+                                        point.sample.timestamp,
+                                        format: .dateTime.hour().minute().second(),
+                                    )
+                                    Text(model.replacementDescription(for: point.sample.id))
+                                        .foregroundStyle(.secondary)
+                                    if let explanation = model
+                                        .inferredExplanation(for: point.sample.id)
+                                    {
+                                        Text(explanation)
+                                            .font(stylesheet.flightReviewPoint.detailFont)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    if let speed = WhereFormat
+                                        .recordedFlightSpeed(point.sample.motion?.speed)
+                                    {
+                                        Text(speed)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    if let altitude = WhereFormat
+                                        .recordedFlightAltitude(point.sample.motion?.altitude)
+                                    {
+                                        Text(altitude)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                        }
+                        Text(String(localized: .flightReviewChangesDescription))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if !review.flights.isEmpty, !model.recordedPoints.isEmpty {
+                    Section {
+                        DisclosureGroup(String(localized: .flightReviewPointsCount(model
+                                .recordedPoints.count)))
+                        {
+                            ForEach(model.recordedPoints) { point in
+                                FlightReviewPointRow(
+                                    point: point,
+                                    select: model.selectPointCorrection,
+                                )
+                                .disabled(!model.canEditPoints)
+                            }
+                        }
+                    } header: {
+                        Text(String(localized: .flightReviewPointsTitle))
+                    } footer: {
+                        Text(String(localized: .flightReviewPointsDescription))
+                    }
+                }
+            } else {
+                Section {
+                    Label(String(localized: .flightReviewUnavailable), systemSymbol: .infoCircle)
+                }
+            }
+
+            switch model.saveState {
+                case .idle, .applied:
+                    EmptyView()
+                case .applying:
+                    Section { SavingStatusRow(text: String(localized: .manualSavingStatus)) }
+                case .refreshed:
+                    Section {
+                        Label(
+                            String(localized: .flightReviewRefreshed),
+                            systemSymbol: .arrowClockwise,
+                        )
+                    }
+                case .pointApplied:
+                    Section {
+                        Label(
+                            String(localized: .flightReviewPointUpdated),
+                            systemSymbol: .checkmarkCircle,
+                        )
+                    }
+                case let .failed(message):
+                    Section {
+                        Label(message, systemSymbol: .exclamationmarkTriangle)
+                    }
+            }
+
+            if model.review?.proposal != nil {
+                Section {
+                    Button(String(localized: .flightReviewApply)) {
+                        Task {
+                            await model.apply()
+                            if model.saveState == .applied { dismiss() }
+                        }
+                    }
+                    .disabled(!model.canApply)
+                    .accessibilityIdentifier("where_flight_apply")
+                }
+            }
+
+            Section {
+                NavigationLink {
+                    DayRelabelView(day: model.review?.day ?? model.initialDay, report: report)
+                } label: {
+                    Text(String(localized: .flightReviewManualEdit))
+                }
+                .disabled(model.saveState == .applying)
+            } footer: {
+                Text(String(localized: .resolutionFlightManualFixFooter))
+            }
+        }
+        .navigationTitle(model.initialDay.displayDate
+            .formatted(.dateTime.month(.abbreviated).day().year()))
+        .navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog(
+            String(localized: .flightReviewPointConfirmTitle),
+            isPresented: $model.isConfirmingPointCorrection,
+            titleVisibility: .visible,
+            presenting: model.pointConfirmation,
+        ) { correction in
+            Button(correction.action.title) {
+                Task { await model.applyPointCorrection(correction) }
+            }
+        } message: { correction in
+            Text(correction.action.confirmationMessage)
+        }
+        .task(id: report.dataIssueScanInputs) {
+            model.receive(report.dataIssueScan)
+        }
+        .refreshable { await report.rescanForIssues() }
+    }
+}
+
+#if DEBUG
+    extension FlightDayDetailView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            for state in FlightReviewPreviewState.allCases {
+                whereSnapshot(
+                    name: state == .ready ? "Default" : state.rawValue,
+                    configurations: configurations(for: state),
+                ) {
+                    NavigationStack {
+                        FlightDayDetailView(
+                            review: PreviewSupport.flightReview(state: state),
+                            report: PreviewSupport.loadedYearReportModel(),
+                        )
+                    }
+                }
+            }
+            let mixed = PreviewSupport.mixedFlightReview()
+            for review in [mixed, mixed.dismissingProposal()].compactMap(\.self) {
+                whereSnapshot(
+                    name: review.proposal == nil ? "MixedFlightsDismissed" : "MixedFlights",
+                    // The multi-flight evidence/actions layout is a second representative.
+                    configurations: review
+                        .proposal == nil ? .fullContentPhoneLightDark :
+                        .fullContentScreenRepresentative,
+                ) {
+                    NavigationStack {
+                        FlightDayDetailView(
+                            review: review,
+                            report: PreviewSupport.loadedYearReportModel(),
+                        )
+                    }
+                }
+            }
+        }
+
+        private static func configurations(for state: FlightReviewPreviewState)
+            -> [SnapshotConfiguration]
+        {
+            switch state {
+                case .ready: .fullContentScreenRepresentative
+                case .uncertainArrival:
+                    .fullContentPhoneLightDarkWithAX5AndAnnotations
+                case .flightLikely, .waiting, .stale, .noPresence,
+                     .completed: .fullContentPhoneLightDark
+            }
+        }
+    }
+
+    #Preview {
+        FlightDayDetailView.snapshotPreviews
+    }
+#endif
+
+#if DEBUG
+    extension FlightDayDetailView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            FlightDayDetailView.self,
+            title: "Flight Day",
+            routes: [.push(to: DayRelabelView.flyoverID)],
+        )
+    }
+#endif

@@ -1,6 +1,7 @@
 import Foundation
+import RegionKit
 import Testing
-import WhereCore
+@_spi(Testing) import WhereCore
 
 /// Mirror image of `SimulatedYearTests`: scripts a year with far more
 /// time in New York than in California to verify the aggregator and
@@ -116,7 +117,7 @@ struct NewYorkHeavyYearTests {
         let report = try await Self.newYorkHeavyReport.value
 
         let byMonth = Dictionary(grouping: report.days) {
-            Self.calendar.component(.month, from: $0.date)
+            $0.day.month
         }
         func totals(_ month: Int) -> [Region: Int] {
             var counts: [Region: Int] = [:]
@@ -149,7 +150,7 @@ struct NewYorkHeavyYearTests {
         // no day from those months should leak into CA, .other, etc.
         let newYorkMonths: Set = [1, 2, 3, 4, 7, 8, 9, 10, 11, 12]
         for day in report.days {
-            let month = Self.calendar.component(.month, from: day.date)
+            let month = day.day.month
             if newYorkMonths.contains(month) {
                 #expect(
                     day.regions == [.newYork],

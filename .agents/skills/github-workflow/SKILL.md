@@ -1,0 +1,487 @@
+---
+name: github-workflow
+description: Create and maintain PRs and gh stack chains. Handle review feedback and diagnose GitHub Actions or CircleCI failures. Use for publishing changes, responding to reviews, and managing stacks.
+---
+
+GitHub workflow for this repo. Read root [`AGENTS.md`](../../../AGENTS.md) first for
+always-on commit and test invariants. This skill assumes those.
+
+## Prerequisites
+
+- **Never commit on `main`.** Branch first and keep every commit for one piece
+  of work on that one branch.
+- Run checks in proportion to risk. Pure documentation or comment-only changes
+  can skip checks that cannot exercise them. Record skipped checks in the PR.
+  Never push a known-red tree.
+
+## Tools
+
+| Job | Tool |
+|-----|------|
+| Read PRs, checks, comments, issues | `gh` |
+| Download CircleCI failure artifacts | `./circleci-artifacts <job-uuid-or-url>` |
+| Create or update a PR | `ManagePullRequest` when available; otherwise `gh pr create` / `gh pr edit` |
+| Create, update, sync, or merge a PR stack | `gh stack` |
+| Reply on a review thread | `ManagePullRequest` `post_comment` with `in_reply_to`, or `gh api` |
+| Resolve a review thread | `ManagePullRequest` `resolve_comment` when asked |
+
+Cloud agents: use `ManagePullRequest` for create/update/reply — not `gh pr
+create` / `gh pr edit`. Local sessions can use `gh` throughout.
+
+**Stacked PRs are the exception:** use `gh stack` in every environment for
+stack topology and lifecycle. `ManagePullRequest` and `gh pr edit` can refine
+an individual PR's title or body after submission. They must not manually wire
+base branches or substitute for `gh stack`.
+
+**Unsolicited top-level PR comments** (not review replies) still need an
+explicit user request. **Review feedback is different:** when the user asks you
+to address comments (`PTAL`, `address review`, `fix the feedback`), that
+authorizes replies on the threads you fix, decline, or defer — see
+[Review comments](#review-comments).
+
+## Branch, push, and plan handoff
+
+- **Multi-step work lands one commit per step**, so history stays bisectable and
+  can land piecewise — including pure-groundwork steps, which say so in the body.
+- **Commit completed work eagerly.** Once a coherent change is verified, commit
+  it unless the user explicitly asks to keep it uncommitted.
+- **Push the branch as commits land.** Do not accumulate unpushed work or wait
+  for the user to ask.
+- **Plan-driven work finishes with a PR.** After executing an approved plan (all
+  steps verified), push the branch and **open a ready-for-review PR** before
+  handing back — or update the existing PR if one is already open. Never leave
+  finished plan work local-only, unpushed, or without a PR the user can review.
+- **Any finished task on a feature branch** follows the same push habit. Open or
+  update the PR when the branch carries reviewable work, not only after formal
+  plans.
+
+## Ad hoc installable builds
+
+Use the exact label `installable` when the user requests a downloadable iOS PR build:
+
+```bash
+gh pr edit <number> --add-label installable
+```
+
+The label keeps the latest successful branch build available after later pushes.
+It applies to every enabled app distribution workflow in this repository.
+It authorizes signing the PR's code, so do not add it to every PR automatically.
+Only same-repository PRs qualify. Conflicts fail the installable build before signing.
+Closing the PR or removing the label retires its app channels after Pages deploys.
+Historical release assets remain available.
+
+Read [the installer guide](../../../Tools/InstallerKit/README.md) for app registration and shared hosting.
+Read the app's distribution guide for its enable variable and signing setup.
+The trusted controller and app registration must already exist on `main`.
+After labeling, inspect the app's distribution run and follow its summary link.
+Verify the built SHA in the plan or summary. The PR controller itself runs from `main`.
+Report the install page as ready only after **App Install Site** succeeds.
+The shared homepage lists main builds. PR builds live under `/apps/<app-id>/`.
+
+## Opening a PR
+
+- **Open PRs ready-for-review, not draft.**
+- If the branch belongs to a stack, or the work needs dependent PRs, follow
+  [Creating and maintaining stacked PRs](#creating-and-maintaining-stacked-prs)
+  instead of opening independent PRs.
+- **Default after plan execution:** if the branch has no PR yet, open one before
+  handing back. If a PR exists, push and refresh the body when the work outgrew
+  it.
+- Start from [`.github/PULL_REQUEST_TEMPLATE.md`](../../../.github/PULL_REQUEST_TEMPLATE.md)
+  and follow [Writing the PR body](#writing-the-pr-body) below.
+- For new or changed screens, add [screen snapshot comments](#screen-snapshot-comments) before handing over the PR.
+- **Flag lines that warrant extra scrutiny.** Leave a PR review comment on
+  anything worth a closer read (subtle behavior changes, incomplete migrations,
+  assumptions about `main`).
+
+### Review the completed diff
+
+Before pushing reviewable work, review the complete branch diff against its PR base.
+Use [code-review](../code-review/SKILL.md) for scope, contract tracing, guard coverage, and findings.
+Include the material review result and remaining validation limits in the PR body.
+Update owning guidance only for a missing invariant or obsolete instruction.
+Keep each rule at its existing owner.
+
+For behavior or contract changes, compare the description with the completed diff before publication and after material revisions.
+First inventory the material changes from the diff without relying on the description.
+Then check that the description covers each material change.
+For each behavior or compatibility claim, locate evidence in the code and relevant validation.
+Qualify claims that depend on source inspection or incomplete validation.
+
+### Writing the PR body
+
+Squash merges on `main` use **PR title → commit subject** and **PR body → commit
+body** — the body is what `git show` reads months later. Write for someone
+bisecting or reconstructing *why*, not for the conversation that produced the
+branch.
+
+- **Title:** prefer `type(scope): imperative description` when it fits — the squash
+  commit subject on `main`. Use the same **types** and **scopes** as
+  [`TODOs.md`](../../../TODOs.md) (`feat`, `fix`, `refactor`, `docs`, …;
+  `WhereUI`, `WhereCore`, `Periscope`, …). Prose titles are fine for
+  cross-cutting work that doesn't have one scope (`Add demo mode…`). Branch
+  commits stay bisectable narrative. Only the PR title needs this shape.
+- **End state, not a changelog:** describe what the repo looks like after merge,
+  not commit-by-commit or chat-by-chat progress.
+- **Explain what the diff doesn't show** — motivation, rejected alternatives,
+  trade-offs, follow-ups that aren't obvious from the code alone.
+
+#### Pick a tier
+
+Choose only the explanations that resolve a real review question.
+Add them within the existing sections.
+Omit inapplicable material without `N/A` placeholders.
+
+| Tier | When | Keep | Add when warranted |
+|------|------|------|--------------------|
+| Small | Obvious fix, 1–2 modules, no design choices | Summary, Testing | — |
+| Medium | Behavior change, new UI slice, docs/skill extraction | Summary, Why, Review focus, Testing | User-facing / Internal split in Summary when mixed; skip rationale for doc-only work |
+| Large | Architecture, multi-module migration, new protocol | Summary or Problem + Changes, Why, Design decisions, Review focus, Testing | Product behavior, Architecture, ⚠️ Breaking changes, Compatibility, Rollout / follow-ups, Stack; situational sections (prototype round, backlog reconciliation) |
+
+#### Section semantics
+
+- **Summary** — end-state bullets (add/keep/preserve/migrate/remove). Not a
+  commit log. When a PR mixes user-visible and internal work, prefix bullets
+  with **User-facing:** or **Internal:** so `git log` readers can scan quickly.
+- **Why / Problem** — what was wrong or missing before. Link prior PRs when
+  building on them.
+  For bug fixes, include the failure trigger and the visible symptom or relevant error text.
+  Use terms that future readers can search for.
+- **Changes / Architecture / Product behavior** — high-level structure and
+  behavior. Group by subsystem and explain ownership and data flow.
+- **Screenshots** — selected images that explain visible behavior. Follow
+  [Explain visible changes](#explain-visible-changes). When images add no useful context, omit this section.
+- **Primary APIs** — important additions, changed contracts, and removals, with
+  short usage examples. Follow [Explain API and architecture changes](#explain-api-and-architecture-changes).
+- **Design decisions / Trade-offs** — explicit choices and what was rejected.
+  When a choice depends on a temporary assumption, state what evidence or condition warrants reconsideration.
+- **⚠️ Breaking changes** — wire-format, persistence, backup, CloudKit schema,
+  or API breaks. What existing data/installs lose or must do. Delete the section
+  when there are none.
+- **Compatibility** — how old data, backups, or parallel installs behave through
+  the change. Required upgrade order. Delete when N/A.
+- **Review focus** — subtle behavior, incomplete migrations, assumptions about
+  `main`. Prefer inline review comments for specific lines.
+- **Testing** — exact commands with pass counts and the relevant behavior or invariant they exercise.
+  Link source locations for conclusions based only on inspection.
+  For skipped checks, state
+  **what** and **why**.
+
+#### Guide the review
+
+- For changes across several files or layers, add a short reading route to **Review focus**.
+  Link the central contract, implementation, integration, and relevant test in a useful order.
+  Choose only the useful starting points.
+  State what each starting point establishes.
+- For behavior changes with meaningful branches, add a compact **Situation → Before → After** table to **Product behavior** or **Summary**.
+  Include the ordinary case and relevant failure, cancellation, or recovery cases.
+  Use scenarios from the implemented behavior.
+- For stacked PRs or changes with several consumers, explain this PR's effect after merge.
+  Put this explanation in **Summary** or **Stack**.
+  State whether the slice adds groundwork or activates reachable behavior.
+  Identify affected audiences, entry points, extensions, or existing data where relevant.
+  Name any prerequisite PR or activation condition.
+
+#### Explain API and architecture changes
+
+When a PR changes APIs or architecture, show enough structure to understand the
+change without opening the diff.
+
+- Summarize the primary API additions, changes, and removals in a compact table
+  or bullets. Name each API's role and affected callers. For a removed or
+  replaced API, name its replacement or explain how callers now work.
+- Focus on entry points, important state/value types, and changed boundaries.
+  Omit exhaustive symbol lists and implementation helpers.
+- Add one or two short, language-tagged code samples showing composition,
+  injection, or the main calling flow. Use a before/after pair when it clarifies
+  an API replacement. Explain who owns the components and how they connect.
+- Use the current implementation's names, argument labels, and async/error
+  contracts. Mark omitted setup or illustrative future-feature code explicitly.
+  Do not present invented helpers as APIs shipped by the PR.
+- Link the key source files when readers need more detail. Keep the examples
+  focused on the design rather than copying full implementations.
+- Scale this material to the change. A small API edit can use one bullet and a
+  few lines of code. Omit API sections for changes with no relevant API impact.
+
+#### Explain visible changes
+
+For new screens or meaningful UI changes, include screenshots or snapshot images that explain the result.
+
+- Choose a small set of representative images, usually one to three. Show the main flow and relevant states without reproducing the full snapshot matrix.
+- Prefer existing snapshots that match the reviewed revision, or capture the running feature. Use synthetic or demo data.
+  Follow [building-ui](../building-ui/SKILL.md) and [running-tests](../running-tests/SKILL.md) for capture and review.
+- For a visual fix or redesign, label comparable images **Before** and **After**.
+  Keep their device, appearance, data, and framing consistent.
+- Caption each image with the behavior to inspect. Identify the snapshot fixture or live capture, revision, and relevant device or appearance settings.
+  Provide descriptive alt text. Keep images readable inline and link to the full-resolution images.
+- Use persistent GitHub attachments or revision-pinned repository image URLs that return image bytes, including Git LFS assets.
+  Avoid local paths, expiring artifact URLs, and extra image copies committed only for the PR body.
+- Open the published PR and check each image, caption, and link. When the relevant UI changes, replace stale images.
+- Keep visual explanation separate from testing claims. A snapshot fixture does not establish live interaction, motion, or VoiceOver behavior.
+- If useful images cannot be captured or published, state the reason and the remaining visual validation limit.
+
+#### Explain complex flows with diagrams
+
+When prose hides important relationships, add a compact diagram beside the architecture explanation.
+Backend-heavy features often qualify: multi-owner work, persistence, synchronization, cancellation, retries, and recovery.
+Skip diagrams for simple changes or facts that a short paragraph or table explains clearly.
+
+- Prefer fenced `mermaid` in the PR body so the diagram stays editable and renders on GitHub.
+- Use a flowchart for decisions and data flow, a sequence diagram for ownership and ordering, or a state diagram for lifecycle.
+- Give each diagram one question to answer. Split unrelated flows instead of drawing the entire system.
+- Name the real components and label important transitions. Distinguish durable writes from in-memory state and asynchronous handoffs from atomic operations.
+- Include the failure, cancellation, fallback, or retry paths that affect the changed contract. Do not show only the happy path.
+- State omitted details and assumptions beside the diagram. Never imply cross-device atomicity or guarantees that the implementation does not provide.
+- Link the source that owns the flow. Keep API examples and validation evidence alongside the diagram, not replaced by it.
+- Trace the diagram against the current implementation before posting. Refresh it when review changes the flow.
+- Verify Mermaid syntax and inspect rendering when a renderer is available. Otherwise state the rendering limitation in validation.
+
+#### Common PR shapes
+
+Use the tier table above. **Do not open merged PRs for examples** unless a
+shape below is genuinely unclear.
+
+##### Small fix
+
+- **Summary:** 2–4 end-state bullets.
+- **Testing:** commands run + pass counts.
+- Drop **Why** and **Review focus** unless something subtle needs calling out.
+
+##### Feature or behavior change
+
+- **Summary**, **Why**, **Review focus**, **Testing**.
+- **Summary:** prefix **User-facing:** / **Internal:** when the PR ships both.
+- **Why:** user-visible problem or gap. Link a prior PR when building on one.
+- **Review focus:** edge cases, incomplete migrations, assumptions about `main`.
+
+##### Large feature
+
+- Everything in *Feature or behavior change*, plus **Product behavior** and/or
+  **Architecture**.
+- **Product behavior:** what the user sees — onboarding, settings, failure
+  modes, edge cases.
+- **Architecture:** key types, invariants, ownership. Group by subsystem with
+  bold labels.
+- **⚠️ Breaking changes** and **Compatibility** when persistence, backups,
+  CloudKit, or wire formats are involved.
+- **Rollout / follow-ups** when ship order or a follow-on PR matters.
+
+##### Refactor or migration
+
+- **Problem** (or **Summary**), **Changes**, **Design decisions**, **Review
+  focus**, **Testing**.
+- **Changes:** deep walkthrough — what moved, what was deleted, what the
+  compiler now enforces.
+- **Design decisions:** explicit choices and rejected alternatives.
+- **⚠️ Breaking changes** / **Compatibility** when stored shapes or backup
+  restore behavior changes.
+- **Backlog reconciliation** when the branch touched `TODOs.md` or
+  `MODULE_AUDIT.md`.
+
+##### Docs, skills, or repo tooling
+
+- **Summary**, **Why** (if non-obvious), **Testing** / **Verification**.
+- State skipped checks explicitly (`./test` not run because Markdown-only).
+- **Review focus** only when the boundary between moved and retained guidance
+  matters.
+
+##### Stacked PR
+
+- **Summary**, **Testing**, **Stack** (position, base-PR link, what this slice
+  adds).
+- Do not repeat the full feature write-up — point at the stack head for that.
+
+#### Template hygiene
+
+- Populate every section you keep. **Delete unused section headers** and stub
+  bullets before opening or updating the PR. Empty headers pollute the squash
+  commit body.
+- Refresh the title/body once the branch outgrows them. Fold into any human
+  edits rather than overwriting them.
+
+## Keeping a PR current
+
+- Push each commit as it lands.
+- After material revisions, include a brief update in [authorized review replies](#review-comments) or a requested status comment.
+  Link the relevant commits or comparison.
+  Identify changed decisions, assumptions that need another review, and repeated or pending validation.
+  Keep the main body current with the final design and its rationale.
+
+## Screen snapshot comments
+
+For each new or changed screen, post a file-level PR review comment with a representative snapshot of the resulting screen.
+These comments and their image updates are part of the screen-change handoff.
+
+- Attach the comment to the screen's owning source file in the PR diff.
+  If that file is unchanged, use the changed file responsible for the screen change.
+  Name the screen in the comment.
+- Before posting, look for an existing agent-authored snapshot comment for that screen.
+  Maintain one snapshot comment per screen.
+- Apply the capture, caption, revision, image-link, and publication checks from [Explain visible changes](#explain-visible-changes).
+  Include the [AI attribution](#posting-under-the-users-identity) in the comment.
+- With `gh api`, use the [review-comment API](https://docs.github.com/en/rest/pulls/comments) with `subject_type=file`, the source `path`, and the current head `commit_id`.
+- After further screen-code changes, capture the updated screen.
+  Edit the existing snapshot comment in place.
+  Use its comment ID to update the body through the review-comment API.
+  Replace the current image, caption, and capture revision.
+  Preserve the discussion.
+  Open the updated comment and check the image.
+- If an image refresh is blocked, label the previous image as stale.
+  Report the blocker.
+
+## Creating and maintaining stacked PRs
+
+Treat a stack as one dependency chain even when the requested PR is near its
+base. A conflict or failing integration in one slice can block every PR above
+it.
+
+- **Use `gh stack` for the whole stack lifecycle.** Never emulate a stack by
+  manually chaining PR base branches with `gh pr create`, `gh pr edit`,
+  `ManagePullRequest`, or raw pushes. Run `gh stack --version` first. If the
+  extension is unavailable or reports that stacked PRs are not enabled for the
+  repository, report the blocker instead of falling back to ordinary PRs.
+- Create a new locally tracked stack before implementing its dependent slices.
+  Pass branches bottom-to-top to `gh stack init --base <trunk> <branches...>`,
+  or start the bottom branch with `gh stack init <branch>` and add each next
+  layer from the current top with `gh stack add <branch>`. Put foundational
+  work at the bottom and each dependent concern above it.
+- Open or update every PR and the GitHub stack together with `gh stack submit
+  --auto --open`. `--open` is required by this repo's ready-for-review rule.
+  Without it, non-interactive submission creates drafts. After submission,
+  use the ordinary per-PR editing tool to apply this skill's title/body guidance
+  and template, then confirm the graph with `gh stack view --json`.
+- Use `gh stack link --base <trunk> --open <bottom> ... <top>` only when the
+  branches are managed without local `gh stack` tracking, such as
+  by another branch tool or a separate worktree whose stack metadata is absent.
+  Arguments are bottom-to-top. `link` pushes branches, creates or reuses PRs,
+  corrects their bases, and links the remote stack. It does not create local
+  navigation metadata.
+- Start existing-stack work by checking it out with `gh stack checkout
+  <stack-number-or-PR>` and inspecting the whole graph with `gh stack view
+  --json`. Do not use bare `checkout`, `view`, `submit`, `switch`, or `modify`
+  in an agent session because they can open an interactive picker or TUI. Then
+  read every PR's base, head SHA, mergeability, merge-state status, and checks.
+  Find the first broken slice. Do not assume the PR the user noticed owns the
+  fault.
+- Make a change on the earliest branch that owns it. After changing a lower
+  slice, run `gh stack rebase --upstack` from that slice so every dependent
+  branch inherits the fix, then use `gh stack push` to update the complete
+  active chain. Use `gh stack sync` for the routine fetch/reconcile/rebase/push
+  flow after trunk or remote stack state changes. It never opens missing PRs,
+  so use `submit --auto --open` when the stack gains a new PR.
+- Rebase from that first affected branch through the stack with `gh stack
+  rebase --no-trunk --upstack`. This rewrites upstack branches, so obtain user
+  authorization before doing it unless their request already explicitly covers
+  repairing or updating the full stack.
+- Resolve conflicts on the slice that introduced the affected code. Preserve
+  both downstack fixes and the slice's intended addition. Do not accept one
+  side wholesale merely to finish the rebase. Re-record snapshot references
+  when both sides contain intentional visual changes.
+- After each slice rebases, search it for logical conflicts such as references
+  to renamed stylesheet tokens or APIs. Put the compatibility fix and its tests
+  on the earliest slice that owns the affected code, commit it there, then
+  continue rebasing the remaining upstack branches. Do not bury fixes for a
+  lower PR in the stack head.
+- Run focused behavior checks while repairing individual slices, then run the
+  complete affected test and lint set at the stack tip. The tip contains every
+  slice and is the final integration proof.
+- Push the complete rewritten chain with `gh stack push`, then re-read every PR
+  and verify its base branch, remote head SHA, and `mergeable` value. Return the
+  checkout to the branch the user was reviewing when practical.
+- Merge through `gh stack merge <stack-or-PR> --yes`, never `gh pr merge`.
+  Passing a PR merges that PR plus every unmerged slice below it. Passing a
+  stack number merges the whole stack. The operation is all-or-nothing unless
+  the base uses a merge queue, in which case GitHub queues the selected stack.
+
+`gh stack push` and `submit` are not atomic. Some branch or PR updates can land
+before a later lease or API failure. Re-run after fixing the rejected slice and
+verify every member. `gh stack sync` uses an atomic multi-branch push, restores
+the stack if its cascade rebase conflicts, and can exit successfully after
+aborting a non-interactive local/remote divergence. Read its final status rather
+than trusting exit code alone. `gh stack <command> --help` is authoritative for
+the installed extension's current flags and behavior.
+
+GitHub commonly reports an otherwise mergeable upstack PR as `BLOCKED` while
+its parent PR or required checks are pending. Distinguish that expected
+downstack dependency from `CONFLICTING` / `DIRTY`, failed checks, or an
+unexpected base before reporting the repair complete. Cancelled superseded
+workflow runs immediately after a stacked force-push are also expected. Assess
+the newest run for each head SHA.
+
+## Merging main and other branches
+
+When bringing `main` or another branch into yours — because CI failed, before
+a long review, or to pick up a dependency:
+
+- **Resolve git-reported conflicts** — the `<<<<` / `>>>>` markers. Do not leave
+  conflict markers or half-resolved hunks.
+- **Check for logical conflicts too.** Changes on both sides can compose cleanly
+  in git but still clash in behavior: a renamed symbol your branch still
+  references, a relocated test helper, an updated signature your call sites don't
+  match, a new invariant your code violates, duplicate registrations. Re-read
+  the merged result and run `./test` (at least the affected tier) after merging
+  — a clean merge is not proof the branch still makes sense.
+- **Identify the revision the failing provider tested before changing branch history.**
+  GitHub Actions PR jobs use the default PR merge checkout in
+  [ci.yml](../../../.github/workflows/ci.yml).
+  CircleCI checks out `pipeline.git.revision` directly in
+  [config.yml](../../../.circleci/config.yml).
+  Compare that revision, base, toolchain, and selected suites with the local run.
+  If the failure is an integration conflict, bring in the current base through the applicable branch or stack workflow.
+
+## Review comments
+
+Three modes:
+
+**Exploring (user has not asked you to act):** read open review threads, summarize
+what's there, and ask which to take on. Do not change code or post replies yet.
+
+**Addressing (user pointed you at comments — e.g. "PTAL", "address review",
+"fix the feedback"):** for each comment you fix in code, **also reply on GitHub**
+in that thread. A code change without a reply is an incomplete handoff — the
+reviewer cannot tell their note was seen.
+
+**Historical audit (lessons or guidance changes):**
+
+Use [review-lessons](../review-lessons/SKILL.md) for historical evidence,
+monthly audit windows, and guidance changes.
+Use this skill for publishing the resulting PR.
+
+When addressing:
+
+- Read the complete thread, including later corrections, before deciding on a fix.
+  Search for the same defect in sibling call sites and shared helpers.
+  Keep product changes within the requested scope and file deferred occurrences.
+- **One commit per review issue** — each distinct piece of feedback gets its
+  own commit, unless several items fit together logically or address similar
+  issues (then one commit for the group is fine). Either way, fixes stay
+  bisectable.
+- **Reply on every thread you fixed** — after pushing, reply naming the commit
+  that resolved it (short summary of what changed). Use `gh` or
+  `ManagePullRequest` `post_comment` with `in_reply_to` for review threads.
+- **Reply on threads you declined** — say why, or that it was filed in the
+  area's [`TODOs.md`](../../../TODOs.md). Never drop feedback silently.
+- Anything deferred gets filed in `TODOs.md` and the reply links
+  to that item.
+
+## CI
+
+- Start with `gh pr checks <pr>` to identify the failing provider, check, and
+  job URL. Use GitHub Actions logs for GitHub-hosted checks.
+- For a failed CircleCI check, use the repository-owned
+  `./circleci-artifacts <job-uuid-or-url>` script instead of scraping the web
+  UI. It downloads the job bundle to
+  `.build/circleci-artifacts/<job-uuid>` by default and requires an
+  authenticated CircleCI CLI.
+- Read the smallest diagnostic artifact first. Snapshot jobs publish
+  `snapshots/diagnostics/test-output/failures.json` and `diffs.jsonl`; inspect
+  the corresponding actual/reference images under
+  `snapshots/diagnostics/snapshot-images` before recording any reference.
+- **Don't block the conversation polling CI.** Report what's running and hand
+  the turn back. Delegate a genuine watch to a background subagent.
+
+## Posting under the user's identity
+
+Anything posted as the user — PR replies, issue comments, review responses —
+opens with a line marking it AI-generated, e.g. `> _Posted by an AI agent on
+$USER's behalf._`. No exception for short or purely factual comments.

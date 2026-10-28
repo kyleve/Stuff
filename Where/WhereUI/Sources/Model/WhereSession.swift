@@ -1,49 +1,65 @@
 import Foundation
-import LogKit
 import Observation
-#if DEBUG
-    import SwiftDataInspector
-#endif
+import PeriscopeCore
 import WhereCore
 
-/// The logged-in, services-backed state of the Where app: the selected year,
-/// the loaded `YearReport`, GPS / permission state, the reminder + daily-summary
-/// settings, and backup progress. Every mutation funnels through a
-/// `WhereServices` collaborator so the views stay free of persistence and
-/// CoreLocation details.
+/// The always-on, logged-in coordinator for the Where app: GPS / permission
+/// state, the launch-time reminder + daily-summary *application*, the widget
+/// snapshot republish, and the erase/reset pass-through. Every mutation funnels
+/// through a `WhereServices` collaborator so the views stay free of persistence
+/// and CoreLocation details.
 ///
-/// A session only exists once the store is open: `WhereModel` creates it in the
-/// launch's `open-store` step and drops it on reset, so — unlike the old
-/// `WhereModel` — `services` is non-optional and there are no pre-attach nil
-/// guards. Logged-in views read it via `@Environment(WhereSession.self)`; the
-/// `TabView` renders only at `.ready` and onboarding runs after `open-store`,
-/// so the session is always present wherever those views appear.
+/// It deliberately holds **no presentation state**. Everything scoped to the
+/// visible UI lives in child observables the scene / views own:
+/// - the selected year's `YearReport`, ranking, missing days, day-write intents,
+///   and the data-issue count (drives the Locations tab's Resolve toolbar
+///   badge) → scene-scoped ``YearReportModel`` (owned by `MainTabs`, created
+///   only once the real UI is on screen);
+/// - the Resolve issue list → view-scoped ``ResolveModel``;
+/// - the reminder/summary editing surface → view-scoped ``RemindersSettingsModel``;
+/// - backup export/import progress → view-scoped ``BackupModel``.
+///
+/// A session only exists once the app is logged in to a scope: `WhereModel`
+/// creates it in the launch's `start-session` step and drops it on reset (and
+/// on entering demo mode), so `services` is non-optional and there are no
+/// pre-attach nil guards. Logged-in views read it via
+/// `@Environment(WhereSession.self)`; the `TabView` renders only at `.ready`
+/// and onboarding runs *before* the scope is resolved, so the session is always
+/// present wherever those views appear. It also vends `services` / `preferences` / `now`
+/// so `MainTabs` can build the scene's `YearReportModel` (and the tabs their
+/// view-scoped models) from the injected coordinator.
 @MainActor
 @Observable
 public final class WhereSession {
-    /// Where the current year's data is in its load lifecycle. `failed`
-    /// carries a user-presentable message.
-    public enum LoadState: Equatable {
-        case idle
-        case loading
-        case loaded
-        case failed(String)
+    /// A process-unique, monotonically increasing identity for this session.
+    /// `RootView` keys `MainTabs` (and thus the scene-scoped `YearReportModel`) on
+    /// it, so a reset that rebuilds the session forces a fresh scene. Unlike an
+    /// address-derived `ObjectIdentifier`, a monotonic token is never reused
+    /// within the process — a session freed and reallocated at the same address
+    /// gets a new token, so the scene can't fail to rebuild on a collision.
+    public let id: SessionID
+
+    /// The current installation's locally applied recording state. One value carries the
+    /// resolved policy, physical status, and durable acknowledgement together; `.unavailable`
+    /// means Core failed closed because it could not prove that agreement.
+    public private(set) var recordingRuntimeState: RecordingDeviceRuntimeState = .unavailable
+
+    /// Whether background GPS ingestion is currently attached. Derived from the applied state,
+    /// so it cannot drift from the configuration Core durably acknowledged.
+    public var isTracking: Bool {
+        guard case let .applied(configuration) = recordingRuntimeState else { return false }
+        return configuration.device.status == .recording
     }
 
-    public private(set) var selectedYear: Int
-    public private(set) var report: YearReport?
-    public private(set) var loadState: LoadState = .idle
-
-    /// Unresolved data-quality issues for the selected year (Resolve tab + badge).
-    public private(set) var dataIssues: [any DataIssue] = []
-
-    public var dataIssueCount: Int {
-        dataIssues.count
+    public var isCurrentDeviceRemoved: Bool {
+        if case .removed = recordingRuntimeState { true } else { false }
     }
 
-    /// Whether background GPS ingestion is currently attached. Reflects reality
-    /// (authorization + the user's intent), not just the last button tap.
-    public private(set) var isTracking = false
+    /// Stable installation identity used by the Devices settings screen to mark
+    /// the current row and prevent archiving it.
+    public var currentRecordingDeviceID: RecordingDeviceID {
+        services.recording.currentDevice.id
+    }
 
     /// The latest known location authorization status, kept live via
     /// `LocationIngestor.authorizationUpdates()`.
@@ -53,128 +69,25 @@ public final class WhereSession {
     /// so the UI can offer to open Settings.
     public var permissionDenied = false
 
-    /// Whether the daily "log before the day ends" reminder is enabled. Persists
-    /// across launches; defaults to on so the safety net is active out of the
-    /// box. Settable so SwiftUI can drive it through a plain key-path binding;
-    /// the setter persists the intent and reconciles the schedule/badge.
-    public var remindersEnabled: Bool {
-        get { remindersEnabledStorage }
-        set {
-            guard newValue != remindersEnabledStorage else { return }
-            remindersEnabledStorage = newValue
-            preferences.remindersEnabled = newValue
-            Task { await applyReminderConfiguration() }
-        }
-    }
-
-    /// Time of day the daily reminder fires. Persists and reconciles on change.
-    public var reminderTime: ReminderTime {
-        get { reminderTimeStorage }
-        set {
-            guard newValue != reminderTimeStorage else { return }
-            reminderTimeStorage = newValue
-            preferences.reminderTime = newValue
-            Task { await applyReminderConfiguration() }
-        }
-    }
-
-    /// `Date`-typed projection of `reminderTime` for the Settings `DatePicker`,
-    /// which works in `Date`. Lets the view bind `$session.reminderTimeOfDay`
-    /// directly instead of building a closure binding; writes round-trip back
-    /// into `reminderTime` (and its persistence/reconcile).
-    public var reminderTimeOfDay: Date {
-        get {
-            calendar.date(
-                bySettingHour: reminderTime.hour,
-                minute: reminderTime.minute,
-                second: 0,
-                of: now(),
-            ) ?? now()
-        }
-        set {
-            let components = calendar.dateComponents([.hour, .minute], from: newValue)
-            reminderTime = ReminderTime(
-                hour: components.hour ?? ReminderTime.defaultEvening.hour,
-                minute: components.minute ?? ReminderTime.defaultEvening.minute,
-            )
-        }
-    }
-
-    /// Whether the daily summary recap notification is enabled. Persists across
-    /// launches; defaults to on so the year-to-date recap arrives out of the
-    /// box. Settable so SwiftUI can drive it through a plain key-path binding;
-    /// the setter persists the intent and reconciles the scheduled summary.
-    public var summaryEnabled: Bool {
-        get { summaryEnabledStorage }
-        set {
-            guard newValue != summaryEnabledStorage else { return }
-            summaryEnabledStorage = newValue
-            preferences.summaryEnabled = newValue
-            Task { await applySummaryConfiguration() }
-        }
-    }
-
-    /// Time of day the daily summary fires. Persists and reconciles on change.
-    public var summaryTime: ReminderTime {
-        get { summaryTimeStorage }
-        set {
-            guard newValue != summaryTimeStorage else { return }
-            summaryTimeStorage = newValue
-            preferences.summaryTime = newValue
-            Task { await applySummaryConfiguration() }
-        }
-    }
-
-    /// `Date`-typed projection of `summaryTime` for the Settings `DatePicker`,
-    /// mirroring `reminderTimeOfDay`. Writes round-trip into `summaryTime` (and
-    /// its persistence/reconcile).
-    public var summaryTimeOfDay: Date {
-        get {
-            calendar.date(
-                bySettingHour: summaryTime.hour,
-                minute: summaryTime.minute,
-                second: 0,
-                of: now(),
-            ) ?? now()
-        }
-        set {
-            let components = calendar.dateComponents([.hour, .minute], from: newValue)
-            summaryTime = ReminderTime(
-                hour: components.hour ?? ReminderTime.defaultMorning.hour,
-                minute: components.minute ?? ReminderTime.defaultMorning.minute,
-            )
-        }
-    }
-
-    /// Observed backing storage for `remindersEnabled` / `reminderTime`. The
-    /// public computed properties layer persistence + reconciliation onto their
-    /// setters, which a stored property can't express.
-    private var remindersEnabledStorage: Bool
-    private var reminderTimeStorage: ReminderTime
-
-    /// Observed backing storage for `summaryEnabled` / `summaryTime`, mirroring
-    /// the reminder storage above.
-    private var summaryEnabledStorage: Bool
-    private var summaryTimeStorage: ReminderTime
-
-    /// GPS border-drift detection threshold (device setting).
-    public var driftThreshold: DriftThreshold {
-        get { DriftThreshold(rawValue: preferences.driftThresholdMeters) ?? .default }
-        set {
-            guard newValue.rawValue != preferences.driftThresholdMeters else { return }
-            preferences.driftThresholdMeters = newValue.rawValue
-            Task { await refreshDataIssues(force: true) }
-        }
-    }
-
-    /// Whether the system has granted notification permission. Lets the Settings
-    /// UI route the user to the system Settings app when they've enabled
-    /// reminders but denied permission.
-    public private(set) var notificationsAuthorized = false
-
     /// The services every mutation funnels through. Non-optional: a session only
-    /// exists once `WhereModel` has assembled the service layer.
+    /// exists once `WhereModel` has assembled the service layer. Exposed so
+    /// `MainTabs` / the tabs can build their scoped models from the injected
+    /// coordinator.
     let services: WhereServices
+    private let installationContextStore: any InstallationRecordingContextStoring
+
+    /// The persisted user intent (tracking, reminder/summary schedules) the
+    /// coordinator applies at launch/foreground. Owned by `WhereModel` and shared
+    /// by reference so onboarding (model), the coordinator, and the view-scoped
+    /// editing models all read/write the same store. Exposed so `MainTabs` can
+    /// thread it into the scene's `YearReportModel`.
+    let preferences: WherePreferences
+
+    /// The coordinator's notion of "now". Not used by the coordinator itself; it
+    /// vends the injected clock to the scene's `YearReportModel` (calendar /
+    /// missing-day math) so previews/tests can pin a deterministic date.
+    let now: @Sendable () -> Date
+
     /// `@ObservationIgnored` (it's plumbing, not observable UI state) and
     /// `nonisolated(unsafe)` so the `deinit` can cancel it. The unsafety is sound:
     /// every read/write is on the main actor except the `deinit`, which by
@@ -182,18 +95,22 @@ public final class WhereSession {
     /// access to race.
     @ObservationIgnored private nonisolated(unsafe) var authorizationTask: Task<Void, Never>?
 
-    /// The persisted user intent (tracking, reminder/summary schedules) the
-    /// session mirrors into its observable storage. Owned by `WhereModel` and
-    /// shared by reference so onboarding (model) and the logged-in UI (session)
-    /// read/write the same store.
-    let preferences: WherePreferences
-    private let now: @Sendable () -> Date
+    /// Mirrors only successfully applied current-device configurations emitted by Core.
+    @ObservationIgnored private nonisolated(unsafe) var recordingConfigurationTask:
+        Task<Void, Never>?
 
-    /// Gregorian calendar in the current time zone — matches the day keys the
-    /// aggregator produces in `report.days`, so the missing-day math lines up.
-    let calendar: Calendar
+    /// Observes `dataChangeUpdates()` to keep ``regionStyles`` in sync with the
+    /// store's picked region appearances. Same `nonisolated(unsafe)` rationale as
+    /// `authorizationTask` — only touched on the main actor except `deinit`.
+    @ObservationIgnored private nonisolated(unsafe) var regionStyleTask: Task<Void, Never>?
 
-    private static let logger = WhereLog.channel(.session)
+    /// The user's picked region looks, resolved for the view environment (seeded
+    /// into `whereBroadwayRoot(regionStyles:)` by `RootView`). Loaded at launch
+    /// and kept live on every store change, so a Settings edit or a synced pick
+    /// from another device restyles the UI without a relaunch.
+    public private(set) var regionStyles: RegionStyleResolver = .default
+
+    private static let logger = WhereLog.session(WhereSessionLog.self)
 
     /// The authorization the degradation warning was last evaluated against.
     /// `syncAuthorization()` runs on every foreground, so warning only on a
@@ -206,109 +123,86 @@ public final class WhereSession {
     /// rather than on every configuration apply (which also runs per foreground).
     private var warnedRemindersUnauthorized = false
     private var warnedSummaryUnauthorized = false
+    private var warnedIssueAlertsUnauthorized = false
 
-    /// Persisted user intent to track in the background. Effective tracking is
-    /// this AND `.always` authorization; we default to `true` so that, once the
-    /// user grants Always, tracking resumes automatically on every launch.
-    private var wantsTracking: Bool {
-        get { preferences.wantsTracking }
-        set { preferences.wantsTracking = newValue }
+    /// Whether this session has performed its explicit, idempotent registration operation.
+    private var didRegisterRecordingDevice = false
+    /// Orders local recording intents across permission prompts; a newer Off must not be
+    /// overwritten when an earlier On resumes after the prompt.
+    private var recordingIntentSequence: UInt64 = 0
+    /// Last controller-ordered runtime emission applied to presentation state.
+    private var lastRecordingRuntimeSequence: UInt64?
+
+    /// Latest resolved desired policy for this installation, available only after Core applies
+    /// and acknowledges it. This gates foreground capture without a second mutable mirror.
+    private var recordingEnabled: Bool {
+        guard case let .applied(configuration) = recordingRuntimeState else { return false }
+        return configuration.localAutomaticRecordingEnabled == true
     }
 
-    /// Primary/secondary split of the current report, or an empty ranking
-    /// while nothing is loaded.
-    public var ranking: RegionRanking {
-        guard let report else { return RegionRanking(primary: [], secondary: []) }
-        return RegionRanking(report: report)
+    /// A process-unique session identity. A typed token rather than a raw `Int`
+    /// so it can't be transposed with any other counter, and `Hashable` so
+    /// SwiftUI's `.id(_:)` can key a subtree on it.
+    public struct SessionID: Hashable, Sendable {
+        fileprivate let value: Int
     }
 
-    /// Total distinct days with any tracked presence in the loaded year.
-    public var trackedDayCount: Int {
-        report?.days.count ?? 0
+    /// Monotonic source for `SessionID`s. `@MainActor`-isolated (the enclosing
+    /// class is), so minting from `init` needs no extra synchronization.
+    private static var nextRawID = 0
+
+    private static func mintID() -> SessionID {
+        defer { nextRawID += 1 }
+        return SessionID(value: nextRawID)
     }
 
-    /// Unlogged days this year (Jan 1 through today), collapsed into ranges, for
-    /// the warning banner and the backfill flow. Empty unless the user is
-    /// viewing the current year, since past years can't gain "today" coverage by
-    /// opening the app.
-    public var missingDays: [MissingDayRange] {
-        guard let report, isViewingCurrentYear else { return [] }
-        let present = Set(report.days.map(\.date))
-        // Through yesterday: today is still loggable, so it isn't a "missed" day
-        // yet — the evening reminder covers it instead of the banner/backfill.
-        return MissingDays.missingRanges(
-            year: report.year,
-            through: MissingDays.backlogCutoff(asOf: now(), calendar: calendar),
-            present: present,
-            calendar: calendar,
-        )
-    }
-
-    /// Total number of unlogged days behind `missingDays`.
-    public var missingDayCount: Int {
-        missingDays.reduce(0) { $0 + $1.dayCount }
-    }
-
-    /// The session's notion of "now", forwarded for calendar and missing-day
-    /// math in views and tests.
-    public var referenceDate: Date {
-        now()
-    }
-
-    /// Start-of-day keys for days that still need logging in the loaded year.
-    public var missingDayKeys: Set<Date> {
-        guard let report, isViewingCurrentYear else { return [] }
-        return Set(MissingDays.missingDayKeys(
-            year: report.year,
-            through: MissingDays.backlogCutoff(asOf: now(), calendar: calendar),
-            present: Set(report.days.map(\.date)),
-            calendar: calendar,
-        ))
-    }
-
-    private var isViewingCurrentYear: Bool {
-        selectedYear == calendar.component(.year, from: now())
-    }
-
-    /// Number of calendar days in the selected year (365, or 366 in a leap
-    /// year). Region cards scale their ambient progress bar against this rather
-    /// than a hardcoded 365.
-    public var daysInSelectedYear: Int {
-        let calendar = Calendar.current
-        guard
-            let midYear = calendar.date(from: DateComponents(
-                year: selectedYear,
-                month: 6,
-                day: 15,
-            )),
-            let range = calendar.range(of: .day, in: .year, for: midYear)
-        else { return 365 }
-        return range.count
-    }
-
-    /// Build a session over an already-assembled service layer. `report` is the
-    /// preview/test seam: a non-nil value lands `loadState` at `.loaded` so
-    /// `#Preview`s render content synchronously without driving `start()`.
-    public init(
-        services: WhereServices,
-        report: YearReport? = nil,
-        selectedYear: Int = WhereModel.currentYear,
-        preferences: WherePreferences = WherePreferences(),
+    /// Build a coordinator over the scope the app is logged in to. The
+    /// designated initializer: taking the whole scope is what guarantees the
+    /// services and the preferences a session reads belong to the same world.
+    init(
+        scope: WhereScope,
+        installationContextStore: (any InstallationRecordingContextStoring)? = nil,
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
-        self.services = services
-        self.report = report
-        self.selectedYear = selectedYear
-        self.preferences = preferences
+        id = Self.mintID()
+        services = scope.services
+        preferences = scope.preferences
         self.now = now
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = .current
-        self.calendar = calendar
-        remindersEnabledStorage = preferences.remindersEnabled
-        reminderTimeStorage = preferences.reminderTime
-        summaryEnabledStorage = preferences.summaryEnabled
-        summaryTimeStorage = preferences.summaryTime
-        loadState = report == nil ? .idle : .loaded
+        if let installationContextStore {
+            self.installationContextStore = installationContextStore
+        } else {
+            let registeredAt = now()
+            self.installationContextStore = InMemoryInstallationRecordingContextStore(
+                context: InstallationRecordingContext(
+                    currentDevice: scope.services.recording.currentDevice,
+                    registeredAt: registeredAt,
+                    recordingChoice: .on(enabledAt: registeredAt),
+                    isRejoining: false,
+                ),
+            )
+        }
+    }
+
+    /// Build a coordinator over a loose service layer, wrapping it in a scope.
+    /// For previews and tests that drive the coordinator directly and have no
+    /// reason to name the scope; the app always has one.
+    ///
+    /// The wrapper scope never opens a log store, so nothing is ever registered
+    /// on the logging system it names — which is why this doesn't ask the
+    /// caller for one.
+    public convenience init(
+        services: WhereServices,
+        preferences: WherePreferences,
+        now: @escaping @Sendable () -> Date = { Date() },
+    ) {
+        self.init(
+            scope: .fake(
+                services: services,
+                preferences: preferences,
+                logSystem: .shared,
+            ),
+            now: now,
+        )
     }
 
     /// Cancel the authorization observer when the session is dropped (e.g. the
@@ -319,46 +213,56 @@ public final class WhereSession {
     /// until the next status change resumes it.
     deinit {
         authorizationTask?.cancel()
+        recordingConfigurationTask?.cancel()
+        regionStyleTask?.cancel()
     }
 
-    /// Sync authorization, resume tracking if appropriate, then load the
-    /// selected year. Safe to call repeatedly; the authorization observer is
-    /// only set up once.
+    /// Sync authorization, resume tracking if appropriate, apply the reminder /
+    /// summary schedules, and republish the widget snapshot. Safe to call
+    /// repeatedly; the authorization observer is only set up once.
     ///
-    /// This is the imperative equivalent of `WhereLaunch.sequence`'s work steps,
-    /// kept for previews/tests that drive the session directly without a
-    /// `LifecycleRunner`.
+    /// This is the imperative equivalent of `WhereLaunch.plan(for:)`'s coordinator
+    /// work steps, kept for previews/tests that drive the coordinator directly
+    /// without a `LifecycleRunner`. Report/data-issue loading is *not* here — the
+    /// scene's `YearReportModel` owns that and starts it when the UI appears.
     public func start() async {
         await syncAuthorization()
         observeAuthorizationChanges()
+        observeRecordingConfigurationChanges()
+        await seedRegionStyles()
+        observeRegionStyleChanges()
         await reconcileTracking()
-        await refresh()
+        await captureTodayIfNeeded()
         await applyReminderConfiguration()
         await applySummaryConfiguration()
-        await refreshDataIssues(force: false)
+        await applyIssueAlertConfiguration()
         // Republish the widget snapshot from whatever is already on disk so a
         // cold launch with no writes this session doesn't leave the widget
         // blank or showing the previous day's "today".
         await refreshWidgetSnapshot()
     }
 
-    /// Refresh state that can change while the app is away, including
-    /// notification permission edits made in Settings and calendar-day rollover.
+    /// Refresh state that can change while the app is away: authorization +
+    /// tracking, the reminder/summary schedules (notification permission edits),
+    /// and the widget snapshot (calendar-day rollover). The scene's `YearReportModel`
+    /// separately re-pulls the report on `.active`.
     public func appBecameActive() async {
-        await syncAuthorization()
-        await reconcileTracking()
-        await refresh()
-        await applyReminderConfiguration()
-        await applySummaryConfiguration()
-        await refreshDataIssues(force: false)
-        // The calendar day may have rolled over while backgrounded; recompute
-        // so the widget's "today" reflects the current day rather than stale
-        // foreground state.
-        await refreshWidgetSnapshot()
+        await Self.logger.measure(.foregroundRefresh, budget: .seconds(5)) {
+            await syncAuthorization()
+            await reconcileTracking()
+            await captureTodayIfNeeded()
+            await applyReminderConfiguration()
+            await applySummaryConfiguration()
+            await applyIssueAlertConfiguration()
+            // The calendar day may have rolled over while backgrounded;
+            // recompute so the widget's "today" reflects the current day rather
+            // than stale foreground state.
+            await refreshWidgetSnapshot()
+        }
     }
 
     /// Republish the widget snapshot from whatever is on disk. A launch step
-    /// in its own right (see `WhereLaunch.sequence`).
+    /// in its own right (see `WhereLaunch.plan(for:)`).
     public func refreshWidgetSnapshot() async {
         await services.widgets.refreshIfStale()
     }
@@ -366,7 +270,7 @@ public final class WhereSession {
     /// Read the current authorization status from the ingestor into our
     /// observable state. Does not surface the permission alert — that's
     /// reserved for explicit user actions. A launch step (see
-    /// `WhereLaunch.sequence`).
+    /// `WhereLaunch.plan(for:)`).
     func syncAuthorization() async {
         authorizationStatus = await services.ingestor.authorizationStatus()
         warnIfAuthorizationDegraded()
@@ -385,12 +289,10 @@ public final class WhereSession {
             case .always, .notDetermined:
                 break
             case .whenInUse:
-                Self.logger.warning(
-                    "Location authorized for When-In-Use only; background tracking unavailable",
-                )
+                Self.logger.whenInUseOnly()
             case .denied, .restricted:
-                Self.logger.warning(
-                    "Location access \(authorizationStatus); background tracking unavailable",
+                Self.logger.locationAccessDenied(
+                    status: .restricted(.technicalState, String(describing: authorizationStatus)),
                 )
         }
     }
@@ -413,149 +315,115 @@ public final class WhereSession {
         }
     }
 
+    /// Load the user's picked region appearances into ``regionStyles`` so the
+    /// UI resolves them everywhere it renders a region. A launch step (see
+    /// `WhereLaunch.plan(for:)`); also re-run on every store change via
+    /// `observeRegionStyleChanges()`. On failure it keeps the last good resolver
+    /// (honest degraded state) and logs.
+    func seedRegionStyles() async {
+        do {
+            let primary = try await services.primaryRegions()
+            regionStyles = RegionStyleResolver(primaryRegions: primary)
+        } catch {
+            Self.logger.regionStylesLoadFailed(
+                error: .restricted(.errorDetails, error),
+            )
+        }
+    }
+
+    /// Subscribe to store changes (local commits + remote CloudKit imports) so a
+    /// customized region's look stays live — a Settings edit or a synced pick on
+    /// another device reloads ``regionStyles``. Idempotent.
+    func observeRegionStyleChanges() {
+        guard regionStyleTask == nil else { return }
+        let updates = services.dataChangeUpdates()
+        regionStyleTask = Task { @MainActor [weak self] in
+            for await _ in updates {
+                guard let self else { break }
+                await seedRegionStyles()
+            }
+        }
+    }
+
+    /// Observe Core's focused policy reconciliation output. The controller emits only after
+    /// physical GPS state and its target-owned advisory check-in agree, so this mirror never has
+    /// to infer state from an arbitrary store-change notification.
+    private func observeRecordingConfigurationChanges() {
+        guard recordingConfigurationTask == nil else { return }
+        let updates = services.recording.runtimeUpdates()
+        recordingConfigurationTask = Task { @MainActor [weak self] in
+            for await update in updates {
+                guard let self else { break }
+                applyRecordingRuntimeUpdate(update)
+            }
+        }
+    }
+
     /// Start or stop GPS ingestion so it matches the user's intent and the
     /// current authorization. Tracking only runs with Always authorization. A
-    /// launch step (see `WhereLaunch.sequence`).
+    /// launch step (see `WhereLaunch.plan(for:)`).
     func reconcileTracking() async {
+        observeRecordingConfigurationChanges()
         let wasTracking = isTracking
-        if wantsTracking, authorizationStatus.allowsBackgroundTracking {
-            await services.ingestor.start()
-            isTracking = true
-            if !wasTracking { Self.logger.info("Background tracking started") }
-        } else {
-            await services.ingestor.stop()
-            isTracking = false
-            if wasTracking { Self.logger.info("Background tracking stopped") }
-        }
-    }
-
-    public func select(year: Int) async {
-        guard year != selectedYear else { return }
-        Self.logger.info("Selected year \(year)")
-        selectedYear = year
-        // Drop the previous year's report so views fall back to their loading
-        // state instead of rendering stale data under the new year's label.
-        report = nil
-        await refresh()
-        await refreshDataIssues(force: true)
-    }
-
-    func refreshDataIssues(force: Bool) async {
         do {
-            dataIssues = try await services.resolution.issues(
-                year: selectedYear,
-                primaryRegions: ranking.primary.map(\.region),
-                driftThresholdMeters: Double(preferences.driftThresholdMeters),
-                force: force,
-            )
+            await services.recording.startMonitoringChanges()
+            if didRegisterRecordingDevice {
+                _ = try await services.recording.reconcile(
+                    authorization: authorizationStatus,
+                )
+            } else {
+                _ = try await services.recording.register(
+                    authorization: authorizationStatus,
+                )
+                didRegisterRecordingDevice = true
+            }
+            await synchronizeRecordingRuntimeState()
+            if isTracking, !wasTracking {
+                Self.logger.backgroundTrackingStarted()
+            } else if !isTracking, wasTracking {
+                Self.logger.backgroundTrackingStopped()
+            }
         } catch {
-            // Surface the failure in the log and keep the last good list rather
-            // than silently blanking the tab + badge (which would read as "all
-            // clear"). The report's own `loadState` already covers the common
-            // case where the shared store is unreadable.
-            Self.logger.warning(
-                "Failed to scan for data issues: \(error.localizedDescription)",
+            // Core fails closed and stops its source. Keep the UI mirror equally honest.
+            didRegisterRecordingDevice = false
+            await synchronizeRecordingRuntimeState()
+            Self.logger.recordingReconcileFailed(
+                error: .restricted(.errorDetails, error),
             )
         }
     }
 
-    public func dismiss(_ issue: any DataIssue) async {
-        guard issue.isDismissible else { return }
-        do {
-            try await services.journal.dismissIssue(key: issue.id.storageKey)
-            dataIssues.removeAll { $0.id == issue.id }
-            await refreshDataIssues(force: true)
-        } catch {
-            Self.logger.warning(
-                "Failed to dismiss data issue \(issue.id.storageKey): \(error.localizedDescription)",
-            )
+    private func synchronizeRecordingRuntimeState() async {
+        guard let update = await services.recording.currentRuntimeUpdate() else { return }
+        applyRecordingRuntimeUpdate(update)
+    }
+
+    private func applyRecordingRuntimeUpdate(_ update: RecordingDeviceRuntimeUpdate) {
+        if let lastRecordingRuntimeSequence,
+           update.sequence <= lastRecordingRuntimeSequence
+        {
+            return
+        }
+        lastRecordingRuntimeSequence = update.sequence
+        recordingRuntimeState = update.state
+        if case .unavailable = update.state {
+            didRegisterRecordingDevice = false
+        } else if case .removed = update.state {
+            didRegisterRecordingDevice = false
         }
     }
 
-    public func refresh() async {
-        // Capture the year this fetch is for. `WhereSession` is reentrant while
-        // awaiting `yearReport`, so a rapid second `select(year:)` can start a
-        // newer fetch that finishes first; without this guard a slower older
-        // fetch could install its report under the newer year's label.
-        let requestedYear = selectedYear
-        loadState = .loading
-        do {
-            let report = try await services.reports.yearReport(for: requestedYear)
-            guard requestedYear == selectedYear else { return }
-            self.report = report
-            loadState = .loaded
-            Self.logger
-                .info("Year report loaded for \(requestedYear) (\(report.days.count) day(s))")
-        } catch {
-            guard requestedYear == selectedYear else { return }
-            loadState = .failed(error.localizedDescription)
-            Self.logger.warning(
-                "Failed to load year report for \(requestedYear): \(error.localizedDescription)",
-            )
-        }
-    }
-
-    /// Persist a single manual day. Throws on persistence failure so the
-    /// caller (the entry form) can keep itself open and show the error inline
-    /// instead of dismissing as if the save succeeded.
-    public func setManualDay(date: Date, regions: Set<Region>) async throws {
-        try await services.journal.addManualDay(date: date, regions: regions)
-        await refresh()
-        await refreshDataIssues(force: true)
-    }
-
-    /// Persist a manual day range. Throws on persistence failure (see
-    /// `setManualDay(date:regions:)`).
-    public func setManualDays(
-        from start: Date,
-        through end: Date,
-        regions: Set<Region>,
-    ) async throws {
-        try await services.journal.addManualDays(from: start, through: end, regions: regions)
-        await refresh()
-        await refreshDataIssues(force: true)
-    }
-
-    /// Authoritatively set a day's regions, *replacing* whatever was
-    /// attributed to it (the Elsewhere "fix this day" path) rather than
-    /// unioning. Throws on persistence failure so the editor can stay open and
-    /// surface the error instead of dismissing as if the save succeeded.
-    public func overrideDay(date: Date, regions: Set<Region>) async throws {
-        try await services.journal.overrideDay(date: date, regions: regions)
-        await refresh()
-        await refreshDataIssues(force: true)
-    }
-
-    /// Undo a day's manual override/backfill, restoring the GPS-detected
-    /// regions (the relabel "reset to GPS" action). Throws on persistence
-    /// failure so the editor can stay open and surface the error.
-    public func clearManualDay(date: Date) async throws {
-        try await services.journal.clearManualDay(date: date)
-        await refresh()
-        await refreshDataIssues(force: true)
-    }
-
-    /// The days in the loaded report whose presence includes `region`, sorted
-    /// ascending (matching `report.days`). Powers the Elsewhere drill-in list
-    /// so the user can see where a region's check-ins landed and correct them.
-    public func days(in region: Region) -> [DayPresence] {
-        guard let report else { return [] }
-        return report.days.filter { $0.regions.contains(region) }
-    }
-
-    /// The raw coordinates recorded inside `region` during the selected year,
-    /// grouped by day, for the Elsewhere drill-in's map and place names.
-    /// Returns an empty array (rather than throwing) on failure, so the view
-    /// can simply render nothing.
-    public func locations(in region: Region) async -> [RegionDayLocations] {
-        await (try? services.reports.locations(in: region, year: selectedYear)) ?? []
-    }
-
-    /// One representative coordinate per region for the selected year (the
-    /// most heavily sampled spot in each), for the Elsewhere cards' place-name
-    /// teaser. Empty on failure.
-    public func representativeCoordinates() async -> [Region: Coordinate] {
-        await (try? services.reports.representativeCoordinates(for: selectedYear)) ?? [:]
+    /// Fill in today with a one-shot GPS fix if the day has no GPS sample yet,
+    /// so opening the app on a fresh morning doesn't leave the calendar blank
+    /// until passive tracking next fires. Gated on the resolved recording policy
+    /// and a usable authorization (When-In-Use is enough for a foreground fix —
+    /// notably the only way When-In-Use users get any data). The ingestor is
+    /// non-blocking and reconciles widgets / reminders + pings the read signal
+    /// on persist. A launch step (see `WhereLaunch.plan(for:)`); also runs on
+    /// every foreground.
+    func captureTodayIfNeeded() async {
+        guard recordingEnabled, authorizationStatus.allowsForegroundFix else { return }
+        await services.ingestor.captureTodayIfNeeded(now: now())
     }
 
     /// Explicitly (re)request location access, e.g. from the "Grant location
@@ -573,7 +441,9 @@ public final class WhereSession {
         await syncAuthorization()
         await reconcileTracking()
         if authorizationStatus.allowsBackgroundTracking {
-            Self.logger.info("Location permission granted (\(authorizationStatus))")
+            Self.logger.permissionGranted(
+                status: .restricted(.technicalState, String(describing: authorizationStatus)),
+            )
         }
     }
 
@@ -583,36 +453,100 @@ public final class WhereSession {
     /// When-In-Use is granted the indicator guides the user to Settings; on a
     /// hard denial the Settings alert is surfaced.
     public func startTracking() async {
-        wantsTracking = true
         do {
-            try await services.ingestor.requestPermission()
-            permissionDenied = false
+            try await setRecordingEnabled(true)
         } catch {
-            permissionDenied = true
-        }
-        await syncAuthorization()
-        await reconcileTracking()
-        if authorizationStatus.allowsBackgroundTracking {
-            Self.logger.info("Tracking enabled with background authorization")
+            Self.logger.recordingReconcileFailed(
+                error: .restricted(.errorDetails, error),
+            )
         }
     }
 
     public func stopTracking() async {
-        wantsTracking = false
-        await services.ingestor.stop()
-        isTracking = false
-        Self.logger.info("Stopped background tracking")
+        do {
+            try await setRecordingEnabled(false)
+        } catch {
+            Self.logger.recordingReconcileFailed(
+                error: .restricted(.errorDetails, error),
+            )
+        }
     }
 
-    /// Push the current reminder intent to the reminder reconciler and refresh
-    /// whether the system has granted notification permission. A launch step
-    /// (see `WhereLaunch.sequence`).
+    /// Current synced device list. Registration is an explicit launch operation.
+    public func recordingDevices() async throws -> [RecordingDeviceConfiguration] {
+        try await services.recording.devices()
+    }
+
+    /// Persist and apply this installation's local recording choice.
+    public func setRecordingEnabled(_ enabled: Bool) async throws {
+        let (sequence, overflow) = recordingIntentSequence.addingReportingOverflow(1)
+        precondition(!overflow, "Recording intent sequence exhausted UInt64.")
+        recordingIntentSequence = sequence
+        try installationContextStore.setAutomaticRecordingEnabled(enabled)
+
+        var permissionRequestFailed = false
+        if enabled {
+            do {
+                try await services.ingestor.requestPermission()
+            } catch {
+                permissionRequestFailed = true
+            }
+            await syncAuthorization()
+        }
+        guard sequence == recordingIntentSequence else { return }
+        let configuration = try await services.recording.setAutomaticRecordingEnabled(
+            enabled,
+            authorization: authorizationStatus,
+        )
+        await synchronizeRecordingRuntimeState()
+        permissionDenied = enabled && permissionRequestFailed
+        if configuration.localAutomaticRecordingEnabled == true, isTracking {
+            Self.logger.trackingEnabled()
+        } else if configuration.localAutomaticRecordingEnabled == false {
+            Self.logger.stoppedBackgroundTracking()
+        }
+    }
+
+    public func renameRecordingDevice(
+        _ deviceID: RecordingDeviceID,
+        to nickname: String,
+    ) async throws {
+        _ = try await services.recording.rename(deviceID, to: nickname)
+    }
+
+    public func removeRecordingDevice(
+        _ deviceID: RecordingDeviceID,
+    ) async throws {
+        _ = try await services.recording.remove(deviceID)
+    }
+
+    func prepareDeviceRejoin() async throws {
+        authorizationTask?.cancel()
+        recordingConfigurationTask?.cancel()
+        regionStyleTask?.cancel()
+        try await services.recording.retireForRejoin()
+    }
+
+    /// Push the persisted reminder intent to the reminder reconciler and warn if
+    /// notifications are enabled but unauthorized. Reads `WherePreferences`
+    /// directly (the single source of truth the `RemindersSettingsModel` also
+    /// writes), so it re-applies whatever the user last chose. A launch step
+    /// (see `WhereLaunch.plan(for:)`); also runs on every foreground.
     func applyReminderConfiguration() async {
-        await services.reminders.configure(enabled: remindersEnabled, time: reminderTime)
-        notificationsAuthorized = await services.reminders.isAuthorized()
-        if remindersEnabled, !notificationsAuthorized {
+        let enabled = preferences.remindersEnabled
+        // The reminder reconciler also owns the app-icon badge, whose value folds
+        // in the unresolved-issue count — so it needs the issue-alert intent and
+        // the current drift threshold the scan runs at.
+        await services.reminders.configure(
+            enabled: enabled,
+            time: preferences.reminderTime,
+            issueAlertsEnabled: preferences.issueAlertsEnabled,
+            driftThresholdMeters: Double(preferences.driftThresholdMeters),
+        )
+        let authorized = await services.reminders.isAuthorized()
+        if enabled, !authorized {
             if !warnedRemindersUnauthorized {
-                Self.logger.warning("Logging reminders enabled but notifications not authorized")
+                Self.logger.remindersUnauthorized()
                 warnedRemindersUnauthorized = true
             }
         } else {
@@ -620,16 +554,17 @@ public final class WhereSession {
         }
     }
 
-    /// Push the current daily-summary intent to the summary reconciler and
-    /// refresh whether the system has granted notification permission.
-    /// Notification permission is global, so it shares `notificationsAuthorized`
-    /// with the logging reminder. A launch step (see `WhereLaunch.sequence`).
+    /// Push the persisted daily-summary intent to the summary reconciler and warn
+    /// if enabled but unauthorized. Reads `WherePreferences` directly, mirroring
+    /// `applyReminderConfiguration()`. A launch step (see `WhereLaunch.plan(for:)`);
+    /// also runs on every foreground.
     func applySummaryConfiguration() async {
-        await services.summary.configure(enabled: summaryEnabled, time: summaryTime)
-        notificationsAuthorized = await services.reminders.isAuthorized()
-        if summaryEnabled, !notificationsAuthorized {
+        let enabled = preferences.summaryEnabled
+        await services.summary.configure(enabled: enabled, time: preferences.summaryTime)
+        let authorized = await services.reminders.isAuthorized()
+        if enabled, !authorized {
             if !warnedSummaryUnauthorized {
-                Self.logger.warning("Daily summary enabled but notifications not authorized")
+                Self.logger.summaryUnauthorized()
                 warnedSummaryUnauthorized = true
             }
         } else {
@@ -637,168 +572,67 @@ public final class WhereSession {
         }
     }
 
-    public func clearSelectedYear() async {
-        do {
-            try await services.journal.clearYear(selectedYear)
-            await refresh()
-            await refreshDataIssues(force: true)
-        } catch {
-            loadState = .failed(error.localizedDescription)
-            Self.logger.warning(
-                "Failed to clear year \(selectedYear): \(error.localizedDescription)",
-            )
+    /// Push the persisted issue-alert intent to the issue-alert reconciler and
+    /// warn if enabled but unauthorized. Fires the alert at the evening reminder
+    /// time and scans at the current drift threshold. Reads `WherePreferences`
+    /// directly, mirroring `applyReminderConfiguration()`. A launch step (see
+    /// `WhereLaunch.plan(for:)`); also runs on every foreground.
+    func applyIssueAlertConfiguration() async {
+        let enabled = preferences.issueAlertsEnabled
+        await services.issueAlerts.configure(
+            enabled: enabled,
+            time: preferences.reminderTime,
+            driftThresholdMeters: Double(preferences.driftThresholdMeters),
+        )
+        let authorized = await services.reminders.isAuthorized()
+        if enabled, !authorized {
+            if !warnedIssueAlertsUnauthorized {
+                Self.logger.issueAlertsUnauthorized()
+                warnedIssueAlertsUnauthorized = true
+            }
+        } else {
+            warnedIssueAlertsUnauthorized = false
         }
     }
 
-    /// Erase all persisted data and reset this session's observable state to a
+    /// Erase synced user data and reset the coordinator's observable state to a
     /// clean slate. A thin pass-through to `WhereServices.reset()`, which owns
-    /// *what* gets cleared (GPS stop + store wipe + reminder/badge reconcile +
-    /// empty widget snapshot); the session only mirrors the outcome. The data
-    /// half of the reset/erase teardown (see `WhereLaunch.resetSequence`);
-    /// throws on persistence failure so the reset step parks the launcher in
-    /// `.failed` rather than silently half-erasing.
+    /// *what* gets cleared (device identities + user-data transaction + pending
+    /// fixes + derived-state reconciliation); the coordinator only mirrors the outcome. The
+    /// scene's `YearReportModel` is torn down and rebuilt by the relaunch, so no
+    /// report/issue state needs clearing here. The data half of the reset/erase
+    /// teardown (see `WhereLaunch.resetPlan(for:)`); throws on persistence failure
+    /// so the reset step parks the launcher in `.failed` rather than silently
+    /// half-erasing.
     public func eraseSession() async throws {
-        try await services.reset()
-        isTracking = false
-        report = nil
-        dataIssues = []
-        loadState = .idle
-        Self.logger.info("Erased session and reset state")
-    }
-
-    // MARK: - Backup
-
-    /// Where a backup export/import is in its lifecycle, so the UI can show a
-    /// spinner and disable the relevant row while work is in flight.
-    public enum BackupState: Equatable {
-        case idle
-        case exporting
-        case importing
-    }
-
-    public private(set) var backupState: BackupState = .idle
-
-    /// Fraction (`0...1`) of the in-flight import that has been written, for a
-    /// determinate progress bar. Reset to `0` whenever an import isn't running.
-    public private(set) var backupProgress: Double = 0
-
-    /// Staging directory of the most recent export. The share sheet copies the
-    /// file it needs out of our temporary directory, and `ShareLink` gives us
-    /// no dismissal hook to clean up after, so the previous export is deleted
-    /// lazily when the next one starts (bounding us to one stale archive).
-    private var previousExportDirectory: URL?
-
-    /// Last backup failure, surfaced as an alert. Mutable so the alert binding
-    /// can clear it on dismiss (mirrors `permissionDenied`).
-    public var backupError: String?
-
-    /// Drives the backup-error alert. Reads `true` while `backupError` holds a
-    /// message and clears it when the alert is dismissed, so the view can bind
-    /// straight to it (`$session.isShowingBackupError`) instead of building a
-    /// closure-based `Binding`. `backupError` stays the single source of truth.
-    public var isShowingBackupError: Bool {
-        get { backupError != nil }
-        set { if !newValue { backupError = nil } }
-    }
-
-    /// Build a backup `.zip` of the entire database and return its URL for the
-    /// share sheet, or `nil` if the export failed (in which case `backupError`
-    /// is set). The caller is responsible for the returned temporary file.
-    public func exportBackup() async -> URL? {
-        if let previous = previousExportDirectory {
-            try? FileManager.default.removeItem(at: previous)
-            previousExportDirectory = nil
-        }
-        backupState = .exporting
-        defer { backupState = .idle }
-        do {
-            let url = try await services.backup.exportBackup()
-            previousExportDirectory = url.deletingLastPathComponent()
-            Self.logger.info("Exported backup archive")
-            return url
-        } catch {
-            backupError = error.localizedDescription
-            Self.logger.warning("Backup export failed: \(error.localizedDescription)")
-            return nil
-        }
-    }
-
-    /// Import a backup file with the chosen merge/replace strategy, refreshing
-    /// the current year afterward. Returns the import summary on success, or
-    /// `nil` on failure (with `backupError` set).
-    public func importBackup(
-        from url: URL,
-        strategy: BackupCoordinator.ImportStrategy,
-    ) async -> BackupCoordinator.ImportSummary? {
-        backupState = .importing
-        backupProgress = 0
-        defer {
-            backupState = .idle
-            backupProgress = 0
-        }
-
-        // The backup coordinator reports progress from its own executor; funnel
-        // it through an ordered stream and apply it to `backupProgress` on the
-        // main actor so SwiftUI sees in-order, hop-free updates.
-        let (progress, continuation) = AsyncStream<Double>.makeStream()
-        let observer = Task { @MainActor [weak self] in
-            for await fraction in progress {
-                self?.backupProgress = fraction
-            }
-        }
-        defer { observer.cancel() }
+        let authorizationObserver = authorizationTask
+        let dataObserver = regionStyleTask
+        authorizationTask = nil
+        regionStyleTask = nil
+        authorizationObserver?.cancel()
+        dataObserver?.cancel()
+        await authorizationObserver?.value
+        await dataObserver?.value
 
         do {
-            let summary = try await services.backup.importBackup(from: url, strategy: strategy) {
-                continuation.yield($0)
-            }
-            continuation.finish()
-            await observer.value
-            await refresh()
-            await refreshDataIssues(force: true)
-            Self.logger.info(
-                "Imported backup (\(summary.sampleCount) samples, \(summary.evidenceCount) evidence, \(summary.manualDayCount) manual days, \(summary.dismissedIssueCount) dismissals)",
-            )
-            return summary
+            try await services.reset()
+        } catch let error as WhereServices.ResetCleanupError {
+            // Synced erasure already committed. Keep the old installation context available to
+            // a later cleanup retry, but never revive this session's observers or recording: the
+            // teardown step must release the scope and App Intents before surfacing the terminal
+            // partial-success state.
+            recordingRuntimeState = .unavailable
+            throw error
         } catch {
-            continuation.finish()
-            backupError = error.localizedDescription
-            Self.logger.warning("Backup import failed: \(error.localizedDescription)")
-            return nil
+            // The data transaction rolled back. This session remains valid for an explicit retry,
+            // so restore its live observers along with Core's operation gate.
+            recordingRuntimeState = .unavailable
+            await reconcileTracking()
+            observeAuthorizationChanges()
+            observeRegionStyleChanges()
+            throw error
         }
-    }
-
-    /// Drives the background-tracking `Toggle`. Reads the live `isTracking`
-    /// state; assigning kicks off the matching async start/stop so the view can
-    /// bind straight to it (`$session.trackingEnabled`) instead of building a
-    /// closure-based `Binding`. `isTracking` stays the single source of truth.
-    public var trackingEnabled: Bool {
-        get { isTracking }
-        set {
-            Task { newValue ? await startTracking() : await stopTracking() }
-        }
+        recordingRuntimeState = .unavailable
+        Self.logger.erasedSession()
     }
 }
-
-#if DEBUG
-    @_spi(Testing) extension WhereSession {
-        /// Inject issues for previews/tests without seeding raw samples.
-        public func setDataIssues(_ issues: [any DataIssue]) {
-            dataIssues = issues
-        }
-    }
-
-    extension WhereSession {
-        /// A read-only SwiftData inspector over the live store, for the DEBUG-only
-        /// developer entry point in Settings. `nil` when the backing store isn't
-        /// SwiftData (e.g. a preview/test fake), so the entry point hides itself.
-        var swiftDataInspectorConfiguration: SwiftDataInspectorConfiguration? {
-            guard let container = services.modelContainer else { return nil }
-            return SwiftDataInspectorConfiguration(
-                container: container,
-                modelTypes: SwiftDataStore.inspectorModelTypes,
-                title: Strings.settingsDebugInspectorTitle,
-            )
-        }
-    }
-#endif

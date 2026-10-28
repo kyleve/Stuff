@@ -1,14 +1,72 @@
 import Foundation
+import RegionKit
 import Testing
-import WhereCore
+@testable import WhereCore
 
 struct BackupServiceTests {
-    // Whole-second timestamps so the `.iso8601` date strategy (no
-    // fractional seconds) round-trips exactly.
+    private struct UpgradeVerificationConfiguration: Decodable {
+        let backupPath: String
+        let samplesCount: Int
+        let evidenceCount: Int
+        let manualDaysCount: Int
+        let dismissedIssuesCount: Int
+        let trackedRegionsCount: Int
+        let primaryRegionsCount: Int
+        let deviceProfilesCount: Int
+        let deviceChangesCount: Int
+        let deviceRemovalsCount: Int
+        let plannedStayRecordsCount: Int
+        let homeRegionRecordsCount: Int
+        let sampleAttributionRevisionsCount: Int
+        let assetsCount: Int
+    }
+
+    private static let calendar = WhereCoreTestSupport.calendar()
+
     private static let exportDate = Date(timeIntervalSince1970: 1_700_000_000)
     private static let evidenceWithBlobId =
         UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!
     private static let evidenceNoBlobId = UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!
+    private static let recordingDeviceID = RecordingDeviceID(
+        rawValue: UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC")!,
+    )
+
+    @Test(
+        .disabled(
+            if: ProcessInfo.processInfo.environment["WHERE_BACKUP_VERIFICATION_CONFIG"] == nil,
+            "Run through the upgrade-where-backup skill.",
+        ),
+    )
+    func upgradedBackupDecodesAndLoadsAssets() throws {
+        let configurationPath = try #require(
+            ProcessInfo.processInfo.environment["WHERE_BACKUP_VERIFICATION_CONFIG"],
+        )
+        let configuration = try JSONDecoder().decode(
+            UpgradeVerificationConfiguration.self,
+            from: Data(contentsOf: URL(fileURLWithPath: configurationPath)),
+        )
+        let result = try BackupService().readArchive(
+            at: URL(fileURLWithPath: configuration.backupPath),
+        )
+
+        #expect(result.archive.formatVersion == BackupArchive.currentFormatVersion)
+        #expect(result.archive.samples.count == configuration.samplesCount)
+        #expect(result.archive.evidence.count == configuration.evidenceCount)
+        #expect(result.archive.manualDays.count == configuration.manualDaysCount)
+        #expect(result.archive.dismissedIssues.count == configuration.dismissedIssuesCount)
+        #expect(result.archive.trackedRegions.count == configuration.trackedRegionsCount)
+        #expect(result.archive.primaryRegions.count == configuration.primaryRegionsCount)
+        #expect(result.archive.recordingDeviceProfiles.count == configuration.deviceProfilesCount)
+        #expect(result.archive.recordingDeviceMetadataChanges.count == configuration
+            .deviceChangesCount)
+        #expect(result.archive.recordingDeviceRemovals.count == configuration.deviceRemovalsCount)
+        #expect(result.archive.plannedStayRecords.count == configuration.plannedStayRecordsCount)
+        #expect(result.archive.homeRegionRecords.count == configuration.homeRegionRecordsCount)
+        #expect(result.archive.sampleAttributionRevisions.count == configuration
+            .sampleAttributionRevisionsCount)
+        #expect(result.archive.assets.count == configuration.assetsCount)
+        #expect(result.blobs.count == configuration.assetsCount)
+    }
 
     private static func sampleFixtures() -> [LocationSample] {
         [
@@ -18,6 +76,11 @@ struct BackupServiceTests {
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 5,
                 source: .gpsVisit,
+                recordingDeviceID: recordingDeviceID,
+                motion: LocationMotion(
+                    speed: .init(metersPerSecond: 240, accuracyMetersPerSecond: 2),
+                    altitude: .init(meters: 11000, accuracyMeters: 12),
+                ),
             ),
             LocationSample(
                 id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
@@ -27,6 +90,89 @@ struct BackupServiceTests {
                 source: .evidenceImplied(id: evidenceWithBlobId, kind: .boardingPass),
             ),
         ]
+    }
+
+    private static let recordingMetadataID = RecordingDeviceMetadataChange.ID(
+        rawValue: UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE")!,
+    )
+
+    private static func recordingDeviceProfileFixtures() -> [RecordingDeviceProfile] {
+        [
+            RecordingDeviceProfile(
+                id: recordingDeviceID,
+                systemName: "iPad",
+                kind: .tablet,
+                registeredAt: exportDate,
+                registrationGenerationID: .initial,
+            ),
+        ]
+    }
+
+    private static func recordingDeviceMetadataFixtures() -> [RecordingDeviceMetadataChange] {
+        [
+            RecordingDeviceMetadataChange(
+                id: recordingMetadataID,
+                deviceID: recordingDeviceID,
+                revision: 0,
+                changedAt: exportDate,
+                changedByDeviceID: recordingDeviceID,
+                payload: .nickname("Travel iPad"),
+            ),
+        ]
+    }
+
+    private static func recordingDeviceCheckInFixtures() -> [RecordingDeviceCheckIn] {
+        [
+            RecordingDeviceCheckIn(
+                deviceID: recordingDeviceID,
+                revision: 0,
+                lastSeenAt: exportDate,
+                status: .recording,
+            ),
+        ]
+    }
+
+    private static func plannedStayFixtures() throws -> [PlannedStayRecord] {
+        let stayID = try PlannedStay.ID(rawValue: #require(UUID(
+            uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC",
+        )))
+        return try [PlannedStayTestSupport.record(
+            stay: PlannedStayTestSupport.stay(id: stayID),
+            revisionID: #require(UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD")),
+            updatedAt: exportDate,
+        )]
+    }
+
+    private static func archive() -> BackupArchive {
+        BackupArchive(
+            exportedAt: exportDate,
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            dismissedIssues: [],
+            trackedRegions: [],
+            primaryRegions: [],
+            recordingDeviceProfiles: recordingDeviceProfileFixtures(),
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceRemovals: [],
+            plannedStayRecords: [],
+            homeRegionRecords: [],
+            sampleAttributionRevisions: [],
+            assets: [],
+        )
+    }
+
+    private static func attributionFixtures() -> [SampleAttributionRevision] {
+        let sampleID = sampleFixtures()[0].id
+        let replacements: [Set<Region>?] = [[], [.newYork], nil]
+        return replacements.enumerated().map { offset, regions in
+            SampleAttributionRevision(
+                id: .init(rawValue: UUID()),
+                sampleID: sampleID,
+                updatedAt: exportDate.addingTimeInterval(Double(offset)),
+                replacementRegions: regions,
+            )
+        }
     }
 
     private static func evidenceFixtures() -> [Evidence] {
@@ -54,6 +200,7 @@ struct BackupServiceTests {
         [
             DayPresence(
                 date: Date(timeIntervalSince1970: 1_700_000_000),
+                in: calendar,
                 regions: [.california, .newYork],
             ),
         ]
@@ -62,11 +209,11 @@ struct BackupServiceTests {
     private static func dismissedIssueFixtures() -> [DismissedIssue] {
         [
             DismissedIssue(
-                key: "borderDrift:1700000000",
+                id: .borderDrift(day: CalendarDay(year: 2026, month: 4, day: 1)),
                 dismissedAt: Date(timeIntervalSince1970: 1_700_000_000),
             ),
             DismissedIssue(
-                key: "missingDays:1700100000",
+                id: .missingDays(start: CalendarDay(year: 2026, month: 1, day: 5)),
                 dismissedAt: Date(timeIntervalSince1970: 1_700_100_000),
             ),
         ]
@@ -80,12 +227,35 @@ struct BackupServiceTests {
         let blobs: [UUID: Data] = [Self.evidenceWithBlobId: Data("boarding-pass-pdf".utf8)]
 
         let dismissedIssues = Self.dismissedIssueFixtures()
+        let recordingDeviceProfiles = Self.recordingDeviceProfileFixtures()
+        let recordingDeviceMetadataChanges = Self.recordingDeviceMetadataFixtures()
+        let sampleAttributionRevisions = Self.attributionFixtures()
+        let homeRegionRecords = try [
+            HomeRegionRecord(id: UUID(), region: .california, updatedAt: Self.exportDate),
+            HomeRegionRecord(
+                id: UUID(),
+                region: nil,
+                updatedAt: Self.exportDate.addingTimeInterval(1),
+            ),
+        ]
+        let deviceArchive = RecordingDeviceRemoval(
+            id: .init(rawValue: UUID()),
+            deviceID: Self.recordingDeviceID,
+            removedAt: Self.exportDate,
+            removedByDeviceID: Self.recordingDeviceID,
+        )
 
         let url = try service.makeArchiveFile(
             samples: samples,
             evidence: evidence,
             manualDays: manualDays,
             dismissedIssues: dismissedIssues,
+            recordingDeviceProfiles: recordingDeviceProfiles,
+            recordingDeviceMetadataChanges: recordingDeviceMetadataChanges,
+            recordingDeviceRemovals: [deviceArchive],
+            plannedStayRecords: Self.plannedStayFixtures(),
+            homeRegionRecords: homeRegionRecords,
+            sampleAttributionRevisions: sampleAttributionRevisions,
             blobs: blobs,
             exportedAt: Self.exportDate,
         )
@@ -101,11 +271,128 @@ struct BackupServiceTests {
         #expect(result.archive.samples == samples)
         #expect(result.archive.evidence == evidence)
         #expect(result.archive.manualDays == manualDays)
-        // Dismissals round-trip verbatim, key and timestamp.
+        // Dismissals round-trip verbatim, id and timestamp.
         #expect(result.archive.dismissedIssues == dismissedIssues)
+        #expect(result.archive.recordingDeviceProfiles == recordingDeviceProfiles)
+        #expect(result.archive.recordingDeviceMetadataChanges == recordingDeviceMetadataChanges)
+        #expect(result.archive.recordingDeviceRemovals == [deviceArchive])
+        #expect(try result.archive.plannedStayRecords == Self.plannedStayFixtures())
+        #expect(result.archive.sampleAttributionRevisions == sampleAttributionRevisions)
+        #expect(result.archive.homeRegionRecords == homeRegionRecords)
+        let encodedManifest = try #require(String(
+            data: BackupService.makeEncoder().encode(result.archive),
+            encoding: .utf8,
+        ))
+        #expect(encodedManifest.contains("\"isEnabled\"") == false)
+        #expect(encodedManifest.contains("\"registrationGenerationID\""))
+        #expect(encodedManifest.contains("00000000-0000-0000-0000-0000000000E0"))
         // Only the evidence with bytes gets an asset; the other is metadata-only.
         #expect(result.archive.assets.map(\.evidenceId) == [Self.evidenceWithBlobId])
         #expect(result.blobs == blobs)
+    }
+
+    @Test(arguments: [5, 6])
+    func unsupportedFormatIsRejectedBeforeItsMissingCurrentFieldsAreDecoded(version: Int) {
+        let legacyManifest = Data("{\"formatVersion\":\(version)}".utf8)
+
+        do {
+            _ = try BackupService.decodeManifest(legacyManifest)
+            Issue.record("Expected the legacy backup format to be rejected.")
+        } catch let BackupService.BackupError.unsupportedFormatVersion(rejectedVersion) {
+            #expect(rejectedVersion == version)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test func currentFormatDoesNotSilentlyBackfillAMissingProfileGeneration() throws {
+        let data = try BackupService.makeEncoder().encode(
+            Self.archive(),
+        )
+        var manifest = try #require(
+            JSONSerialization.jsonObject(with: data) as? [String: Any],
+        )
+        let profiles = try #require(
+            manifest["recordingDeviceProfiles"] as? [[String: Any]],
+        )
+        manifest["recordingDeviceProfiles"] = profiles.map { profile in
+            var profile = profile
+            profile.removeValue(forKey: "registrationGenerationID")
+            return profile
+        }
+
+        do {
+            _ = try BackupService.decodeManifest(
+                JSONSerialization.data(withJSONObject: manifest),
+            )
+            Issue.record("Expected the missing registration generation to be rejected.")
+        } catch let DecodingError.keyNotFound(key, _) {
+            #expect(key.stringValue == "registrationGenerationID")
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test func decoderRejectsANegativeMetadataRevisionFromABackup() throws {
+        let archive = BackupArchive(
+            exportedAt: Self.exportDate,
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            dismissedIssues: [],
+            trackedRegions: [],
+            primaryRegions: [],
+            recordingDeviceProfiles: Self.recordingDeviceProfileFixtures(),
+            recordingDeviceMetadataChanges: Self.recordingDeviceMetadataFixtures(),
+            recordingDeviceRemovals: [],
+            plannedStayRecords: [],
+            homeRegionRecords: [],
+            sampleAttributionRevisions: [],
+            assets: [],
+        )
+        var json = try #require(String(
+            data: BackupService.makeEncoder().encode(archive),
+            encoding: .utf8,
+        ))
+        let revision = try #require(json.range(of: "\"revision\" : 0"))
+        json.replaceSubrange(revision, with: "\"revision\" : -1")
+        do {
+            _ = try BackupService.makeDecoder().decode(
+                BackupArchive.self,
+                from: Data(json.utf8),
+            )
+            Issue.record("Expected the negative metadata revision to be rejected.")
+        } catch DecodingError.dataCorrupted {
+            // Expected.
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test func archiveNameIsDateAndTimeStamped() throws {
+        let service = BackupService()
+        let url = try service.makeArchiveFile(
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceRemovals: [],
+            plannedStayRecords: [],
+            homeRegionRecords: [],
+            sampleAttributionRevisions: [],
+            blobs: [:],
+            exportedAt: Self.exportDate,
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        // `Where Backup <yyyy-MM-dd> <HH.mm>.zip`. The time renders in the local
+        // time zone, so match the shape rather than a fixed instant.
+        let name = url.lastPathComponent
+        #expect(
+            name.wholeMatch(of: /Where Backup \d{4}-\d{2}-\d{2} \d{2}\.\d{2}\.zip/) != nil,
+            "Unexpected archive name: \(name)",
+        )
     }
 
     @Test func authoritativeManualDaySurvivesArchiveRoundTrip() throws {
@@ -113,6 +400,7 @@ struct BackupServiceTests {
         let manualDays = [
             DayPresence(
                 date: Date(timeIntervalSince1970: 1_700_000_000),
+                in: Self.calendar,
                 regions: [.newYork],
                 isAuthoritative: true,
             ),
@@ -121,6 +409,12 @@ struct BackupServiceTests {
             samples: [],
             evidence: [],
             manualDays: manualDays,
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceRemovals: [],
+            plannedStayRecords: [],
+            homeRegionRecords: [],
+            sampleAttributionRevisions: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -131,53 +425,143 @@ struct BackupServiceTests {
         #expect(result.archive.manualDays.first?.isAuthoritative == true)
     }
 
-    @Test func legacyManualDayWithoutAuthoritativeKeyDecodesAsAdditive() throws {
-        // Simulates a manifest written before `isAuthoritative` existed: the
-        // missing key must decode as additive rather than failing.
-        let json = #"{"date":"2026-07-04T00:00:00Z","regions":["newYork"]}"#
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let decoded = try decoder.decode(DayPresence.self, from: Data(json.utf8))
-        #expect(decoded.isAuthoritative == false)
-        #expect(decoded.regions == [.newYork])
+    @Test func trackedRegionsSurviveArchiveRoundTrip() throws {
+        let service = BackupService()
+        let texas = try #require(Region(rawValue: "us-TX"))
+        let url = try service.makeArchiveFile(
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            trackedRegions: [.california, texas],
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceRemovals: [],
+            plannedStayRecords: [],
+            homeRegionRecords: [],
+            sampleAttributionRevisions: [],
+            blobs: [:],
+            exportedAt: Self.exportDate,
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let result = try service.readArchive(at: url)
+        #expect(result.archive.trackedRegions == [.california, texas])
+    }
+
+    @Test func primaryRegionAppearanceSurvivesArchiveRoundTrip() throws {
+        let service = BackupService()
+        let texas = try #require(Region(rawValue: "us-TX"))
+        let primary = [
+            PrimaryRegion(
+                region: .california,
+                appearance: RegionAppearance(
+                    color: .orange,
+                    emoji: "🌴",
+                    symbolName: .sunMaxFill,
+                ),
+                order: 0,
+            ),
+            PrimaryRegion(region: texas, appearance: nil, order: 1),
+        ]
+        let url = try service.makeArchiveFile(
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            trackedRegions: primary.map(\.region),
+            primaryRegions: primary,
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceRemovals: [],
+            plannedStayRecords: [],
+            homeRegionRecords: [],
+            sampleAttributionRevisions: [],
+            blobs: [:],
+            exportedAt: Self.exportDate,
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let result = try service.readArchive(at: url)
+        #expect(result.archive.primaryRegions == primary)
+        // The bare-id list is written alongside for the summary count.
+        #expect(result.archive.trackedRegions == [.california, texas])
+    }
+
+    @Test func auditManualDaySurvivesArchiveRoundTrip() throws {
+        let service = BackupService()
+        let manualDays = [
+            DayPresence(
+                date: Date(timeIntervalSince1970: 1_700_000_000),
+                in: Self.calendar,
+                regions: [.california],
+                isAuthoritative: true,
+                audit: ManualEntryAudit(
+                    recordedAt: Date(timeIntervalSince1970: 1_700_050_000),
+                    note: "Reviewed my calendar.",
+                    location: CapturedLocation(
+                        coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+                        horizontalAccuracy: 12,
+                        timestamp: Date(timeIntervalSince1970: 1_700_050_000),
+                    ),
+                ),
+            ),
+        ]
+        let url = try service.makeArchiveFile(
+            samples: [],
+            evidence: [],
+            manualDays: manualDays,
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceRemovals: [],
+            plannedStayRecords: [],
+            homeRegionRecords: [],
+            sampleAttributionRevisions: [],
+            blobs: [:],
+            exportedAt: Self.exportDate,
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let result = try service.readArchive(at: url)
+        #expect(result.archive.manualDays == manualDays)
+        #expect(result.archive.manualDays.first?.audit == manualDays.first?.audit)
     }
 
     @Test func manifestRoundTripsThroughJSON() throws {
-        let archive = BackupArchive(
+        let archive = try BackupArchive(
             exportedAt: Self.exportDate,
             samples: Self.sampleFixtures(),
             evidence: Self.evidenceFixtures(),
             manualDays: Self.manualDayFixtures(),
             dismissedIssues: Self.dismissedIssueFixtures(),
+            trackedRegions: [.california, .newYork],
+            primaryRegions: [
+                PrimaryRegion(
+                    region: .california,
+                    appearance: RegionAppearance(
+                        color: .orange,
+                        emoji: "🌴",
+                        symbolName: .sunMaxFill,
+                    ),
+                    order: 0,
+                ),
+                PrimaryRegion(region: .newYork, appearance: nil, order: 1),
+            ],
+            recordingDeviceProfiles: Self.recordingDeviceProfileFixtures(),
+            recordingDeviceMetadataChanges: Self.recordingDeviceMetadataFixtures(),
+            recordingDeviceRemovals: [],
+            plannedStayRecords: Self.plannedStayFixtures(),
+            homeRegionRecords: [],
+            sampleAttributionRevisions: [],
             assets: [BackupAssetEntry(
                 evidenceId: Self.evidenceWithBlobId,
                 filename: "assets/\(Self.evidenceWithBlobId.uuidString)",
             )],
         )
 
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        let data = try encoder.encode(archive)
-
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let decoded = try decoder.decode(BackupArchive.self, from: data)
+        let data = try BackupService.makeEncoder().encode(archive)
+        let decoded = try BackupService.makeDecoder().decode(BackupArchive.self, from: data)
 
         #expect(decoded == archive)
-    }
-
-    @Test func legacyManifestWithoutDismissedIssuesDecodesAsEmpty() throws {
-        // Simulates a manifest written before `dismissedIssues` existed: the
-        // missing key must decode as empty rather than failing the import.
-        let json = """
-        {"formatVersion":1,"exportedAt":"2023-11-14T22:13:20Z",\
-        "samples":[],"evidence":[],"manualDays":[],"assets":[]}
-        """
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let decoded = try decoder.decode(BackupArchive.self, from: Data(json.utf8))
-        #expect(decoded.dismissedIssues.isEmpty)
-        #expect(decoded.formatVersion == 1)
+        #expect(decoded.formatVersion == BackupArchive.currentFormatVersion)
     }
 
     @Test func readingAFileThatIsNotAZipThrows() throws {
@@ -189,6 +573,106 @@ struct BackupServiceTests {
 
         #expect(throws: (any Error).self) {
             _ = try service.readArchive(at: bogus)
+        }
+    }
+
+    @Test func currentManifestRejectsInvalidPlanningBeforeImport() throws {
+        let encoder = BackupService.makeEncoder()
+        var manifest = try #require(
+            JSONSerialization.jsonObject(with: encoder.encode(Self.archive())) as? [String: Any],
+        )
+        let records = try Self.plannedStayFixtures()
+        var encodedRecords = try #require(
+            JSONSerialization.jsonObject(with: encoder.encode(records)) as? [[String: Any]],
+        )
+        var value = try #require(encodedRecords[0]["value"] as? [String: Any])
+        value["arrival"] = [
+            "earliest": ["year": 2026, "month": 11, "day": 1],
+            "latest": ["year": 2026, "month": 11, "day": 3],
+        ]
+        encodedRecords[0]["value"] = value
+        manifest["plannedStayRecords"] = encodedRecords
+
+        #expect(throws: BackupService.BackupError.invalidPlanningData) {
+            try BackupService.decodeManifest(JSONSerialization.data(withJSONObject: manifest))
+        }
+    }
+
+    @Test func currentManifestRejectsMismatchedStayIdentity() throws {
+        let encoder = BackupService.makeEncoder()
+        var manifest = try #require(
+            JSONSerialization.jsonObject(with: encoder.encode(Self.archive())) as? [String: Any],
+        )
+        var records = try #require(
+            JSONSerialization
+                .jsonObject(with: encoder.encode(Self.plannedStayFixtures())) as? [[String: Any]],
+        )
+        records[0]["stayID"] = UUID().uuidString
+        manifest["plannedStayRecords"] = records
+
+        #expect(throws: BackupService.BackupError.invalidPlanningData) {
+            try BackupService.decodeManifest(JSONSerialization.data(withJSONObject: manifest))
+        }
+    }
+
+    @Test func currentManifestRejectsUnknownHomeRegion() throws {
+        var manifest = try #require(
+            JSONSerialization.jsonObject(
+                with: BackupService.makeEncoder().encode(Self.archive()),
+            ) as? [String: Any],
+        )
+        manifest["homeRegionRecords"] = [[
+            "id": UUID().uuidString,
+            "region": "not-a-region",
+            "updatedAt": 1_700_000_000,
+        ]]
+
+        #expect(throws: BackupService.BackupError.invalidPlanningData) {
+            try BackupService.decodeManifest(JSONSerialization.data(withJSONObject: manifest))
+        }
+    }
+
+    @Test func currentManifestRejectsUnknownStayDestination() throws {
+        let encoder = BackupService.makeEncoder()
+        var manifest = try #require(
+            JSONSerialization.jsonObject(with: encoder.encode(Self.archive())) as? [String: Any],
+        )
+        var records = try #require(
+            JSONSerialization
+                .jsonObject(with: encoder.encode(Self.plannedStayFixtures())) as? [[String: Any]],
+        )
+        var value = try #require(records[0]["value"] as? [String: Any])
+        value["region"] = "not-a-region"
+        records[0]["value"] = value
+        manifest["plannedStayRecords"] = records
+
+        #expect(throws: BackupService.BackupError.invalidPlanningData) {
+            try BackupService.decodeManifest(JSONSerialization.data(withJSONObject: manifest))
+        }
+    }
+
+    @Test func loadingADeclaredAssetThrowsWhenItsFileIsMissing() throws {
+        let extractDirectory = FileManager.default.temporaryDirectory.appending(
+            path: "where-missing-backup-asset-\(UUID().uuidString)",
+            directoryHint: .isDirectory,
+        )
+        try FileManager.default.createDirectory(
+            at: extractDirectory,
+            withIntermediateDirectories: true,
+        )
+        defer { try? FileManager.default.removeItem(at: extractDirectory) }
+        let entry = BackupAssetEntry(
+            evidenceId: Self.evidenceWithBlobId,
+            filename: "assets/\(Self.evidenceWithBlobId.uuidString)",
+        )
+
+        do {
+            _ = try BackupService.loadAssets([entry], from: extractDirectory)
+            Issue.record("Expected a missing manifest-declared asset to throw.")
+        } catch let error as CocoaError {
+            #expect(error.code == .fileReadNoSuchFile)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
         }
     }
 }

@@ -1,0 +1,7 @@
+interface:
+  display_name: "Update to Latest Main"
+  short_description: "Safely fast-forward the primary checkout main"
+  default_prompt: "Use $update-main to update this primary checkout to the latest origin/main."
+
+policy:
+  allow_implicit_invocation: false

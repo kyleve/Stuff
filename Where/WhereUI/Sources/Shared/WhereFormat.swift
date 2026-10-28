@@ -1,0 +1,697 @@
+import Foundation
+import RegionKit
+import WhereCore
+
+/// Formatting and presentation helpers that compose Xcode's generated String
+/// Catalog symbols (`LocalizedStringResource`) with runtime values — counts,
+/// years, region names, enum cases.
+///
+/// Simple one-to-one strings are referenced through their generated symbols
+/// directly at the call site (`Text(.tabYear)`, `String(localized: .commonOk)`);
+/// only strings that need composition, pluralization, a `switch`, or non-catalog
+/// number/coordinate formatting live here. Every catalog lookup below goes
+/// through a generated symbol, so a removed or renamed key is a compile error.
+enum WhereFormat {
+    // MARK: Numbers & measurements (non-catalog)
+
+    /// Year without a grouping separator ("2026", not "2,026").
+    static func yearText(_ year: Int) -> String {
+        year.formatted(.number.grouping(.never))
+    }
+
+    /// A "37.77490, -122.41940"-style coordinate label. No catalog entry is
+    /// needed; the number style is locale-driven, like `driftThresholdLabel`.
+    static func auditCoordinate(latitude: Double, longitude: Double) -> String {
+        let lat = latitude.formatted(.number.precision(.fractionLength(5)))
+        let lon = longitude.formatted(.number.precision(.fractionLength(5)))
+        return "\(lat), \(lon)"
+    }
+
+    static func recordedFlightCoordinate(_ coordinate: Coordinate) -> String {
+        String(localized: .flightReviewPointCoordinates(auditCoordinate(
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude,
+        )))
+    }
+
+    /// A localized "10 km"-style label for a drift-threshold preset, kept in
+    /// kilometers (`.asProvided`, no conversion). Locale-driven, no catalog entry.
+    static func driftThresholdLabel(kilometers: Int) -> String {
+        Measurement(value: Double(kilometers), unit: UnitLength.kilometers)
+            .formatted(.measurement(width: .abbreviated, usage: .asProvided))
+    }
+
+    /// Recorded sensor context with its reported uncertainty. Invalid values
+    /// have no presentable measurement; neither value supplies arrival status.
+    static func recordedFlightSpeed(_ speed: LocationMotion.Speed?) -> String? {
+        guard let speed,
+              speed.metersPerSecond.isFinite, speed.metersPerSecond >= 0,
+              speed.accuracyMetersPerSecond.isFinite,
+              speed.accuracyMetersPerSecond >= 0 else { return nil }
+        let value = Measurement(value: speed.metersPerSecond, unit: UnitSpeed.metersPerSecond)
+            .formatted(.measurement(width: .abbreviated, usage: .general))
+        let uncertainty = Measurement(
+            value: speed.accuracyMetersPerSecond,
+            unit: UnitSpeed.metersPerSecond,
+        )
+        .formatted(.measurement(width: .abbreviated, usage: .general))
+        return String(localized: .flightReviewRecordedSpeed(value, uncertainty))
+    }
+
+    static func recordedFlightAltitude(_ altitude: LocationMotion.Altitude?) -> String? {
+        guard let altitude,
+              altitude.meters.isFinite,
+              altitude.accuracyMeters.isFinite, altitude.accuracyMeters > 0 else { return nil }
+        let value = Measurement(value: altitude.meters, unit: UnitLength.meters)
+            .formatted(.measurement(width: .abbreviated, usage: .general))
+        let uncertainty = Measurement(value: altitude.accuracyMeters, unit: UnitLength.meters)
+            .formatted(.measurement(width: .abbreviated, usage: .general))
+        return String(localized: .flightReviewRecordedAltitude(value, uncertainty))
+    }
+
+    // MARK: Counts
+
+    /// "1 day" / "5 days" — with the count rendered.
+    static func dayCount(_ count: Int) -> String {
+        String(localized: .commonDayCount(count))
+    }
+
+    /// Exact estimates keep ordinary pluralization; flexible estimates retain both bounds.
+    static func dayCount(_ bounds: DayBounds) -> String {
+        guard !bounds.isExact else { return dayCount(bounds.lower) }
+        return String(localized: .forecastRangeDays(
+            bounds.lower.formatted(),
+            bounds.upper.formatted(),
+        ))
+    }
+
+    static func forecastPercentage(_ bounds: DayBounds, year: Int) -> String {
+        let length = Calendar(identifier: .gregorian).dayCount(ofYear: year)
+        let lower = (Double(bounds.lower) / Double(length))
+            .formatted(.percent.precision(.fractionLength(1)))
+        guard !bounds.isExact else { return String(localized: .forecastPercent(lower)) }
+        let upper = (Double(bounds.upper) / Double(length))
+            .formatted(.percent.precision(.fractionLength(1)))
+        return String(localized: .forecastRangePercent(lower, upper))
+    }
+
+    static func plannedStayWindow(_ window: PlannedStay.DateWindow, calendar: Calendar) -> String {
+        let format = Date.FormatStyle(
+            date: .abbreviated,
+            time: .omitted,
+            calendar: calendar,
+            timeZone: calendar.timeZone,
+        )
+        let earliest = window.earliest.startOfDay(in: calendar).formatted(format)
+        guard !window.isExact else { return earliest }
+        let latest = window.latest.startOfDay(in: calendar).formatted(format)
+        return String(localized: .planningDateWindowRange(earliest, latest))
+    }
+
+    static func planningMembership(_ membership: PlanningDayPresence.Membership) -> String {
+        switch membership {
+            case .planned(.certain): String(localized: .planningCalendarPlanned)
+            case .planned(.possible): String(localized: .planningCalendarPossible)
+            case .homeAssumed(.certain): String(localized: .planningCalendarHome)
+            case .homeAssumed(.possible): String(localized: .planningCalendarPossibleHome)
+        }
+    }
+
+    static func locationForecastEstimate(region: Region, days: DayBounds) -> AttributedString {
+        AttributedString(localized: .locationForecastEstimate(region.localizedName, dayCount(days)))
+    }
+
+    static func regionDaysEstimatedAccessibility(
+        region: String,
+        recordedDays: Int,
+        estimatedDays: DayBounds,
+    ) -> String {
+        String(localized: .commonRegionDaysEstimatedAccessibility(
+            region,
+            dayCount(recordedDays),
+            dayCount(estimatedDays),
+        ))
+    }
+
+    /// "day" / "days" — the bare unit, when the count is shown separately.
+    static func dayUnit(_ count: Int) -> String {
+        count == 1 ? String(localized: .commonDay) : String(localized: .commonDays)
+    }
+
+    static func missingBannerCompact(count: Int) -> String {
+        count == 1
+            ? String(localized: .missingBannerCompactOne)
+            : String(localized: .missingBannerCompactOther(count))
+    }
+
+    static func manualRangeFooter(count: Int) -> String {
+        String(localized: .manualRangeFooter(count))
+    }
+
+    static func locationForecastEstimate(region: Region, days: Int) -> AttributedString {
+        AttributedString(localized: .locationForecastEstimate(
+            region.localizedName,
+            dayCount(days),
+        ))
+    }
+
+    static func locationForecastElapsed(days: Int) -> String {
+        String(localized: .locationForecastElapsed(dayCount(days)))
+    }
+
+    static func locationForecastBasis(yearToDateDays: Int) -> String {
+        String(localized: .locationForecastBasis(dayCount(yearToDateDays)))
+    }
+
+    static func locationForecastPlan(through day: CalendarDay) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        let date = day.startOfDay(in: calendar)
+        return String(localized: .locationForecastPlan(
+            date.formatted(.dateTime.month(.wide).day().year()),
+        ))
+    }
+
+    static func plannedStayOutsideLocation(
+        region: Region,
+        driftThreshold: DriftThreshold,
+    ) -> String {
+        String(localized: .locationForecastEditorLocationOutside(
+            region.localizedName,
+            driftThresholdLabel(kilometers: driftThreshold.rawValue / 1000),
+        ))
+    }
+
+    static func locationCardEstimatedDays(_ days: Int) -> String {
+        String(localized: .locationCardEstimatedDays(dayCount(days)))
+    }
+
+    static func locationsPlanningAssign(region: Region) -> String {
+        String(localized: .locationsPlanningAssign(region.localizedName))
+    }
+
+    static func locationsPlanningEdit(region: Region) -> String {
+        String(localized: .locationsPlanningEdit(region.localizedName))
+    }
+
+    static func locationsPlanningCurrentValue(region: Region) -> String {
+        String(localized: .locationsPlanningCurrentValue(region.localizedName))
+    }
+
+    static func settingsBackupImportedMessage(
+        samples: Int,
+        evidence: Int,
+        manualDays: Int,
+        dismissedIssues: Int,
+        trackedRegions: Int,
+    ) -> String {
+        String(localized: .settingsBackupImportedMessage(
+            samples,
+            evidence,
+            manualDays,
+            dismissedIssues,
+            trackedRegions,
+        ))
+    }
+
+    static func settingsBackupImportedMessage(
+        _ summary: BackupCoordinator.ImportSummary,
+    ) -> String {
+        settingsBackupImportedMessage(
+            samples: summary.sampleCount,
+            evidence: summary.evidenceCount,
+            manualDays: summary.manualDayCount,
+            dismissedIssues: summary.dismissedIssueCount,
+            trackedRegions: summary.trackedRegionCount,
+        )
+    }
+
+    /// A committed import is not retryable: pair its preserved summary with
+    /// recovery guidance that cannot be mistaken for a rolled-back failure.
+    static func backupImportCleanupMessage(
+        _ summary: BackupCoordinator.ImportSummary,
+    ) -> String {
+        String(localized: .backupImportCleanupMessage(
+            settingsBackupImportedMessage(summary),
+        ))
+    }
+
+    /// A later onboarding step cannot roll back an import that already committed. Preserve the
+    /// summary while directing the user to resume setup instead of applying the archive again.
+    static func backupImportSetupMessage(
+        _ summary: BackupCoordinator.ImportSummary,
+    ) -> String {
+        String(localized: .backupImportSetupMessage(
+            settingsBackupImportedMessage(summary),
+        ))
+    }
+
+    /// Result of a manual "Find issues now" scan — the current unresolved count,
+    /// worded as present state (0 / 1 / many explicit, no catalog plural rule).
+    static func settingsFindIssuesResult(count: Int) -> String {
+        switch count {
+            case 0: String(localized: .settingsFindIssuesResultNone)
+            case 1: String(localized: .settingsFindIssuesResultOne)
+            default: String(localized: .settingsFindIssuesResultMany(count))
+        }
+    }
+
+    // MARK: Years
+
+    static func primaryEmptyTitle(year: Int) -> String {
+        String(localized: .primaryEmptyTitle(yearText(year)))
+    }
+
+    static func primaryElsewhereOnlyDescription(count: Int) -> String {
+        String(localized: .primaryElsewhereOnlyDescription(count))
+    }
+
+    static func settingsDataErase(year: Int) -> String {
+        String(localized: .settingsDataErase(yearText(year)))
+    }
+
+    static func settingsDataConfirmMessage(year: Int) -> String {
+        String(localized: .settingsDataConfirmMessage(yearText(year)))
+    }
+
+    static func settingsDataFooter(year: Int) -> String {
+        String(localized: .settingsDataFooter(yearText(year)))
+    }
+
+    static func calendarTitle(year: Int) -> String {
+        String(localized: .calendarTitle(yearText(year)))
+    }
+
+    static func calendarRegionTitle(region: Region, year: Int) -> String {
+        String(localized: .calendarRegionTitle(region.localizedName, yearText(year)))
+    }
+
+    static func loggedDaysTitle(year: Int) -> String {
+        String(localized: .loggedDaysTitle(yearText(year)))
+    }
+
+    static func evidenceListTitle(year: Int) -> String {
+        String(localized: .evidenceListTitle(yearText(year)))
+    }
+
+    static func widgetYearTitle(year: Int) -> String {
+        String(localized: .widgetYearTitle(yearText(year)))
+    }
+
+    // MARK: Regions
+
+    static func secondaryRegionCurrent(regions: String) -> String {
+        String(localized: .secondaryRegionCurrent(regions))
+    }
+
+    static func regionPickerSelectionCount(selected: Int, max: Int) -> String {
+        String(localized: .regionPickerSelectionCount(selected, max))
+    }
+
+    static func regionPickerAtCapacity(max: Int) -> String {
+        String(localized: .regionPickerAtCapacity(max))
+    }
+
+    static func regionCustomizeSubtitle(region: String) -> String {
+        String(localized: .regionCustomizeSubtitle(region))
+    }
+
+    static func regionCustomizeStep(current: Int, total: Int) -> String {
+        String(localized: .regionCustomizeStep(current, total))
+    }
+
+    static func regionColorAccessibility(_ token: RegionColorToken) -> String {
+        String(localized: .regionCustomizeColorAccessibility(token.rawValue))
+    }
+
+    // MARK: Accessibility (composed)
+
+    static func regionDaysAccessibility(region: String, days: Int) -> String {
+        String(localized: .commonRegionDaysAccessibility(region, dayCount(days)))
+    }
+
+    static func regionDaysEstimatedAccessibility(
+        region: String,
+        recordedDays: Int,
+        estimatedDays: Int,
+    ) -> String {
+        String(localized: .commonRegionDaysEstimatedAccessibility(
+            region,
+            dayCount(recordedDays),
+            dayCount(estimatedDays),
+        ))
+    }
+
+    static func calendarMonthAccessibility(
+        regionTotals: [RegionDayTally],
+        regionCombinationTotals: [RegionCombinationDayTally],
+        needsAttentionDays: Int,
+        evidenceDays: Int,
+        plannedRegionTotals: [RegionDayTally],
+    ) -> String {
+        var components = regionTotals.map {
+            regionDaysAccessibility(region: $0.region.localizedName, days: $0.days)
+        }
+        if regionTotals.isEmpty {
+            components.append(String(localized: .calendarMonthEmptyAccessibility))
+        }
+        components += regionCombinationTotals.map {
+            String(localized: .calendarMonthCombinationAccessibility(
+                dayCount($0.days),
+                regionNamesAccessibility($0.regions),
+            ))
+        }
+        if needsAttentionDays > 0 {
+            components.append(String(localized: .calendarMonthNeedsAttentionAccessibility(
+                needsAttentionDays,
+            )))
+        }
+        if evidenceDays > 0 {
+            components.append(String(localized: .calendarMonthEvidenceAccessibility(evidenceDays)))
+        }
+        components += plannedRegionTotals.map {
+            String(localized: .calendarMonthPlannedAccessibility(
+                dayCount($0.days),
+                $0.region.localizedName,
+            ))
+        }
+        return accessibilityList(components)
+    }
+
+    static func calendarMonthLabel(
+        month: CalendarMonth,
+        planningSummary: [PlanningRegionSummary],
+        calendar: Calendar,
+    ) -> String {
+        var totals = [calendarMonthAccessibility(
+            regionTotals: month.regionTotals,
+            regionCombinationTotals: month.regionCombinationTotals,
+            needsAttentionDays: 0,
+            evidenceDays: 0,
+            plannedRegionTotals: [],
+        )]
+        for summary in planningSummary {
+            if summary.plannedDays.upper > 0 {
+                let kind: LocalizedStringResource = summary.plannedDays.isExact
+                    ? .planningCalendarPlanned : .planningCalendarPossible
+                totals.append(String(localized: .commonRegionDaysAccessibility(
+                    String(localized: .planningCalendarMonthSummary(
+                        summary.region.localizedName,
+                        String(localized: kind),
+                    )),
+                    dayCount(summary.plannedDays),
+                )))
+            }
+            if summary.homeDays.upper > 0 {
+                totals.append(String(localized: .commonRegionDaysAccessibility(
+                    String(localized: .planningCalendarMonthSummary(
+                        summary.region.localizedName,
+                        String(localized: .planningCalendarHome),
+                    )),
+                    dayCount(summary.homeDays),
+                )))
+            }
+        }
+        let format = Date.FormatStyle(
+            date: .omitted,
+            time: .omitted,
+            calendar: calendar,
+            timeZone: calendar.timeZone,
+        ).month(.wide).year()
+        return String(localized: .calendarMonthLabelAccessibility(
+            month.startOfMonth.formatted(format),
+            totals.joined(separator: "; "),
+        ))
+    }
+
+    static func calendarDateRange(
+        _ dates: ClosedRange<CalendarDay>,
+        calendar: Calendar,
+    ) -> String {
+        let format = Date.FormatStyle(
+            date: .omitted,
+            time: .omitted,
+            calendar: calendar,
+            timeZone: calendar.timeZone,
+        ).month(.wide).day()
+        let start = dates.lowerBound.startOfDay(in: calendar).formatted(format)
+        guard dates.lowerBound != dates.upperBound else { return start }
+        return String(localized: .calendarSpanDatesAccessibility(
+            start,
+            dates.upperBound.startOfDay(in: calendar).formatted(format),
+        ))
+    }
+
+    static func calendarSpanAccessibility(
+        dates: ClosedRange<CalendarDay>,
+        details: [String],
+        calendar: Calendar,
+    ) -> String {
+        String(localized: .calendarSpanAccessibility(
+            calendarDateRange(dates, calendar: calendar),
+            details.formatted(.list(type: .and)),
+        ))
+    }
+
+    static func calendarBadgeAccessibility(badge: String, dates: String) -> String {
+        String(localized: .calendarSpanBadgeAccessibility(badge, dates))
+    }
+
+    static func widgetTodayAccessibilityLabel(date: Date) -> String {
+        String(localized: .widgetTodayAccessibilityLabel(
+            date.formatted(.dateTime.month(.wide).day()),
+        ))
+    }
+
+    static func widgetTodayAccessibilityValue(regions: [Region]) -> String {
+        guard !regions.isEmpty else { return String(localized: .widgetTodayEmpty) }
+        return regionNamesAccessibility(regions)
+    }
+
+    static func widgetYearAccessibilityValue(entries: [RegionDays]) -> String {
+        guard !entries.isEmpty else { return String(localized: .widgetYearEmpty) }
+        return accessibilityList(entries.map {
+            regionDaysAccessibility(region: $0.region.localizedName, days: $0.days)
+        })
+    }
+
+    private static func regionNamesAccessibility(_ regions: [Region]) -> String {
+        accessibilityList(regions.map(\.localizedName))
+    }
+
+    private static func accessibilityList(_ components: [String]) -> String {
+        components.formatted(.list(type: .and))
+    }
+
+    static func calendarDayAccessibility(
+        date: Date,
+        regions: [Region],
+        needsAttention: Bool,
+        hasEvidence: Bool,
+        isPlanned: Bool,
+    ) -> String {
+        var label = calendarDayBase(date: date, regions: regions, needsAttention: needsAttention)
+        if isPlanned {
+            label = String(localized: .calendarDayPlannedAccessibility(label))
+        }
+        guard hasEvidence else { return label }
+        // Append the attachment cue so VoiceOver announces it after the day's
+        // regions/status, e.g. "Monday, March 4, California, has evidence".
+        return String(localized: .calendarDayHasEvidenceAccessibility(label))
+    }
+
+    private static func calendarDayBase(
+        date: Date,
+        regions: [Region],
+        needsAttention: Bool,
+    ) -> String {
+        let day = date.formatted(.dateTime.weekday(.wide).month(.wide).day())
+        if needsAttention {
+            return String(localized: .calendarDayNeedsAttentionAccessibility(day))
+        }
+        if regions.isEmpty {
+            return String(localized: .calendarDayEmptyAccessibility(day))
+        }
+        let names = regions.map(\.localizedName).joined(separator: ", ")
+        return String(localized: .calendarDayAccessibility(day, names))
+    }
+
+    static func timelineRowAccessibility(region: String, range: String, days: Int) -> String {
+        String(localized: .timelineRowAccessibility(region, range, dayCount(days)))
+    }
+
+    static func planningRowAccessibility(
+        region: String,
+        range: String,
+        days: DayBounds,
+        membership: PlanningDayPresence.Membership,
+    ) -> String {
+        String(localized: .timelinePlanningRowAccessibility(
+            region,
+            range,
+            dayCount(days),
+            planningMembership(membership),
+        ))
+    }
+
+    static func timelinePlannedRowAccessibility(
+        region: String,
+        range: String,
+        days: Int,
+    ) -> String {
+        String(localized: .timelinePlannedRowAccessibility(region, range, dayCount(days)))
+    }
+
+    static func evidenceRowAccessibility(kind: EvidenceKind, date: Date) -> String {
+        let day = date.formatted(.dateTime.month(.wide).day().year())
+        return String(localized: .evidenceRowAccessibility(evidenceKind(kind), day))
+    }
+
+    // MARK: Evidence
+
+    /// Human-readable name for an evidence kind. `.other` shows its
+    /// user-supplied label when present, else a generic "Other".
+    static func evidenceKind(_ kind: EvidenceKind) -> String {
+        switch kind {
+            case .planeTicket: String(localized: .evidenceKindPlaneTicket)
+            case .boardingPass: String(localized: .evidenceKindBoardingPass)
+            case .hotelReceipt: String(localized: .evidenceKindHotelReceipt)
+            case .carRental: String(localized: .evidenceKindCarRental)
+            case .rideshare: String(localized: .evidenceKindRideshare)
+            case .photo: String(localized: .evidenceKindPhoto)
+            case .document: String(localized: .evidenceKindDocument)
+            case .email: String(localized: .evidenceKindEmail)
+            case let .other(label):
+                if let label, !label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    label
+                } else {
+                    String(localized: .evidenceKindOther)
+                }
+        }
+    }
+
+    // MARK: Resolution
+
+    static func resolutionSectionHeader(_ category: DataIssueCategory) -> String {
+        switch category {
+            case .missingDays: String(localized: .resolutionSectionMissingDays)
+            case .borderDrift: String(localized: .resolutionSectionBorderDrift)
+            case .abruptChange: String(localized: .resolutionSectionAbruptChange)
+            case .flightDay: String(localized: .resolutionSectionFlightDay)
+        }
+    }
+
+    static func resolutionCategoryList(_ categories: Set<DataIssueCategory>) -> String {
+        DataIssueCategory.allCases
+            .filter(categories.contains)
+            .map(resolutionSectionHeader)
+            .formatted(.list(type: .and))
+    }
+
+    static func driftRowSubtitle(region: String, distance: String) -> String {
+        String(localized: .resolutionDriftSubtitle(region, distance))
+    }
+
+    static func resolutionAbruptRowTitle(earlier: Set<Region>, later: Set<Region>) -> String {
+        let earlierNames = earlier.map(\.localizedName).sorted().joined(separator: ", ")
+        let laterNames = later.map(\.localizedName).sorted().joined(separator: ", ")
+        return String(localized: .resolutionAbruptRowTitle(earlierNames, laterNames))
+    }
+
+    static func resolutionFlightDetailExplanation(
+        peakSpeedKMH: Double,
+        removed: Set<Region>,
+    ) -> String {
+        let speed = Measurement(value: peakSpeedKMH, unit: UnitSpeed.kilometersPerHour)
+            .formatted(.measurement(width: .abbreviated, usage: .general))
+        let removedNames = removed.map(\.localizedName).sorted().joined(separator: ", ")
+        return String(localized: .resolutionFlightDetailExplanation(speed, removedNames))
+    }
+
+    static func resolutionFlightApply(regions: Set<Region>) -> String {
+        let names = regions.map(\.localizedName).sorted().joined(separator: ", ")
+        return String(localized: .resolutionFlightApply(names))
+    }
+
+    static func relabelReasonBorderDrift(region: String, distance: String?) -> String {
+        if let distance {
+            return String(localized: .relabelReasonBorderDriftDistance(distance, region))
+        }
+        return String(localized: .relabelReasonBorderDrift(region))
+    }
+
+    static func relabelReasonFlight(removed: Set<Region>) -> String {
+        let removedNames = removed.map(\.localizedName).sorted().joined(separator: ", ")
+        return String(localized: .relabelReasonFlight(removedNames))
+    }
+
+    // MARK: Region map (developer)
+
+    static func regionMapKind(_ kind: RegionGeometryKind) -> String {
+        switch kind {
+            case .attribution: String(localized: .regionMapKindAttribution)
+            case .source: String(localized: .regionMapKindSource)
+        }
+    }
+
+    static func regionMapKindFooter(_ kind: RegionGeometryKind) -> String {
+        switch kind {
+            case .attribution: String(localized: .regionMapKindAttributionFooter)
+            case .source: String(localized: .regionMapKindSourceFooter)
+        }
+    }
+
+    // MARK: About
+
+    /// A build-metadata value, or a localized "Unknown" when the bundle doesn't
+    /// carry one — so a blank row can never read as a real, empty value.
+    static func aboutValue(_ value: String?) -> String {
+        value ?? String(localized: .settingsAboutValueUnknown)
+    }
+
+    /// The commit the app was built from, flagged when the working tree had
+    /// uncommitted changes so a developer build isn't mistaken for a
+    /// reproducible one.
+    static func aboutCommit(_ commit: BuildInfo.Commit?) -> String {
+        guard let commit else { return String(localized: .settingsAboutValueUnknown) }
+        return commit.isDirty
+            ? String(localized: .settingsAboutCommitModified(commit.sha))
+            : commit.sha
+    }
+
+    static func regionDataSourceRegionCount(_ count: Int) -> String {
+        String(localized: .settingsAboutDataSourceRegionCount(count))
+    }
+
+    static func regionDataSourceFidelity(_ fidelity: RegionDataSource.Fidelity) -> String {
+        switch fidelity {
+            case .authoritative: String(localized: .settingsAboutDataSourceAuthoritative)
+            case .approximate: String(localized: .settingsAboutDataSourceApproximate)
+        }
+    }
+
+    static func regionDataSourceLicense(_ license: RegionDataSource.License) -> String {
+        switch license {
+            case let .publicDomain(rationale):
+                String(localized: .settingsAboutDataSourcePublicDomain(rationale))
+            case .originalWork:
+                String(localized: .settingsAboutDataSourceOriginalWork)
+        }
+    }
+
+    static func regionDataSourcePublisher(_ url: URL) -> String {
+        String(localized: .settingsAboutDataSourcePublisherLink(linkHost(url)))
+    }
+
+    static func regionDataSourceObtainedFrom(_ url: URL) -> String {
+        String(localized: .settingsAboutDataSourceObtainedFromLink(linkHost(url)))
+    }
+
+    /// A link's bare host ("census.gov"), so a data-source link names where it
+    /// goes instead of reading as an unlabeled "Publisher". Falls back to the
+    /// whole URL for anything without a host.
+    private static func linkHost(_ url: URL) -> String {
+        guard let host = url.host() else { return url.absoluteString }
+        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+    }
+}

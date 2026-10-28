@@ -3,19 +3,19 @@
     {
       "id" : "classic",
       "displayName" : "Classic",
-      "alternateIconName" : null,
+      "assetName" : "AppIcon",
       "previewImageName" : "AppIconClassic"
     },
     {
       "id" : "pride",
       "displayName" : "Pride",
-      "alternateIconName" : "AppIconPride",
+      "assetName" : "AppIconPride",
       "previewImageName" : "AppIconPride"
     },
     {
       "id" : "solid",
       "displayName" : "Solid",
-      "alternateIconName" : "AppIconSolid",
+      "assetName" : "AppIconSolid",
       "previewImageName" : "AppIconSolid"
     }
   ]

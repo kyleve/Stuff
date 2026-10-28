@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 
 /// Everything the Where widgets render, captured as one `Sendable` value:
 /// which regions the snapshot's day already counts for, plus the per-region
@@ -18,12 +19,41 @@ public struct WidgetSnapshot: Hashable, Sendable, Codable {
     /// Day counts per region for `year` (a `YearReport.totals`). A day in
     /// two regions counts once for each.
     public let totals: [Region: Int]
-
-    public init(day: Date, year: Int, dayRegions: Set<Region>, totals: [Region: Int]) {
+    /// The user's picked appearances for their primary regions, carried across
+    /// the App Group so the widget process can render each region's chosen
+    /// color/emoji/icon (it has no store access and no `WhereSession`, so it
+    /// seeds its `RegionStyleResolver` from this). Empty for regions the user
+    /// hasn't customized (and for snapshots written before this field existed) —
+    /// those fall back to the default look.
+    public let appearances: [Region: RegionAppearance]
+    public init(
+        day: Date,
+        year: Int,
+        dayRegions: Set<Region>,
+        totals: [Region: Int],
+        appearances: [Region: RegionAppearance] = [:],
+    ) {
         self.day = day
         self.year = year
         self.dayRegions = dayRegions
         self.totals = totals
+        self.appearances = appearances
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case day, year, dayRegions, totals, appearances
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        day = try container.decode(Date.self, forKey: .day)
+        year = try container.decode(Int.self, forKey: .year)
+        dayRegions = try container.decode(Set<Region>.self, forKey: .dayRegions)
+        totals = try container.decode([Region: Int].self, forKey: .totals)
+        // Additive: snapshots written before `appearances` existed decode to an
+        // empty map rather than failing (the widget then uses default looks).
+        appearances = try container
+            .decodeIfPresent([Region: RegionAppearance].self, forKey: .appearances) ?? [:]
     }
 }
 
@@ -36,12 +66,15 @@ public struct WidgetSnapshot: Hashable, Sendable, Codable {
 public struct WidgetDataReader: Sendable {
     private let store: any WhereStore
     private let aggregator: DayAggregator
-    private let attributor: RegionAttributor
+    private let attributor: any RegionAttributing
+    private var history: LocationHistoryReader {
+        LocationHistoryReader(store: store)
+    }
 
     public init(
         store: any WhereStore,
         aggregator: DayAggregator = DayAggregator(),
-        attributor: RegionAttributor = .shared,
+        attributor: any RegionAttributing = RegionAttributor.shared,
     ) {
         self.store = store
         self.aggregator = aggregator
@@ -52,21 +85,34 @@ public struct WidgetDataReader: Sendable {
     /// that day's year from the store. Same aggregation rules as the app's
     /// year report, so the widget and the app never disagree on a count.
     public func snapshot(asOf date: Date) async throws -> WidgetSnapshot {
-        let calendar = aggregator.calendar
-        let day = calendar.startOfDay(for: date)
-        let year = calendar.component(.year, from: day)
-        let interval = aggregator.yearInterval(year: year)
-        let samples = try await store.samples(in: interval)
-        let manualDays = try await store.manualDays(in: interval)
-        let report = aggregator.report(
-            for: year,
-            samples: samples,
-            manualDays: manualDays,
-            attributor: attributor,
-        )
-        let dayRegions = report.days
-            .first { calendar.startOfDay(for: $0.date) == day }?
-            .regions ?? []
-        return WidgetSnapshot(day: day, year: year, dayRegions: dayRegions, totals: report.totals)
+        try await store.readSnapshot {
+            let calendar = aggregator.calendar
+            let startOfDay = calendar.startOfDay(for: date)
+            let calendarDay = CalendarDay(from: date, in: calendar)
+            let year = calendarDay.year
+            let interval = aggregator.yearInterval(year: year)
+            let dayRange = CalendarDay.yearRange(year)
+            let projection = try await history.projection(in: interval, attributor: attributor)
+            let manualDays = try await store.manualDays(in: dayRange)
+            let report = aggregator.report(
+                for: year,
+                history: projection.samples,
+                manualDays: manualDays,
+            )
+            let dayRegions = report.days
+                .first { $0.day == calendarDay }?
+                .regions ?? []
+            var appearances: [Region: RegionAppearance] = [:]
+            for primary in try await store.primaryRegions() {
+                if let appearance = primary.appearance { appearances[primary.region] = appearance }
+            }
+            return WidgetSnapshot(
+                day: startOfDay,
+                year: year,
+                dayRegions: dayRegions,
+                totals: report.totals,
+                appearances: appearances,
+            )
+        }
     }
 }

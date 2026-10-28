@@ -1,0 +1,16 @@
+---
+import type { BuildStatus } from '../data';
+import EmptyState from './EmptyState.astro';
+import Symbol from './Symbol.astro';
+interface Props { status: BuildStatus; hasPublishedBuild: boolean }
+const { status, hasPublishedBuild } = Astro.props;
+const preparing = status.state === 'preparing';
+const title = preparing ? (hasPublishedBuild ? 'New build preparing' : 'Preparing build') : 'Build not published';
+const message = preparing
+  ? 'This build is being prepared. Refresh this page after the workflow finishes.'
+  : 'The build did not finish publishing. Open the workflow for details.';
+---
+<EmptyState title={title} message={message}>
+  {hasPublishedBuild && <p>The previous published build remains available on this page.</p>}
+  <a class="text-link" href={status.runURL}>View build progress <Symbol name="arrow" size={14}/></a>
+</EmptyState>

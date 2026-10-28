@@ -1,31 +1,27 @@
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
 /// Toolbar control for choosing which calendar year the reports cover. Reads
-/// and drives the shared `WhereSession`.
+/// and drives the scene's `YearReportModel`.
 struct YearSelector: View {
-    @Environment(WhereSession.self) private var session
-
-    private var years: [Int] {
-        let current = WhereModel.currentYear
-        return Array((current - 5 ... current).reversed())
-    }
+    let report: YearReportModel
 
     var body: some View {
         Menu {
-            ForEach(years, id: \.self) { year in
+            ForEach(report.selectableYears, id: \.self) { year in
                 Button {
-                    Task { await session.select(year: year) }
+                    Task { await report.select(year: year) }
                 } label: {
-                    if year == session.selectedYear {
-                        Label { Text(yearText(year)) } icon: { Image(systemName: "checkmark") }
+                    if year == report.selectedYear {
+                        Label { Text(yearText(year)) } icon: { Image(systemSymbol: .checkmark) }
                     } else {
                         Text(yearText(year))
                     }
                 }
             }
         } label: {
-            Text(yearText(session.selectedYear))
+            Text(yearText(report.selectedYear))
         }
         .accessibilityIdentifier("where_year_selector")
     }
@@ -38,7 +34,6 @@ struct YearSelector: View {
 
 #if DEBUG
     #Preview {
-        YearSelector()
-            .environment(PreviewSupport.loadedSession())
+        YearSelector(report: PreviewSupport.loadedYearReportModel())
     }
 #endif

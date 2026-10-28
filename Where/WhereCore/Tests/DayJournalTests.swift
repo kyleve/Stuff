@@ -1,11 +1,66 @@
 import Foundation
+import RegionKit
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 /// Covers the user-sourced writes (ingest, manual-day overlays, range
 /// backfills, clears, evidence) and the reminder reconcile + widget publish
 /// each one fans out to — the work the controller delegates to `DayJournal`.
 struct DayJournalTests {
+    @Test(arguments: [false, true])
+    func resetToGPSClearsManualOverlayAndWritesCorrectionTombstones(bulk: Bool) async throws {
+        let h = try await SampleCorrectionTestSupport.completedFlight()
+        let proposal = try await h.proposal()
+        let result = try await h.coordinator.apply(proposal)
+        guard case .applied = result else {
+            Issue.record("The completed flight correction must apply")
+            return
+        }
+        let appliedRevisions = try await h.store.allSampleAttributionRevisions()
+        try await h.services.journal.overrideDay(
+            date: FlightTrajectoryFixtures.start,
+            regions: [.canada],
+            audit: nil,
+        )
+        if bulk {
+            try await h.services.journal.clearManualDays(dates: [FlightTrajectoryFixtures.start])
+        } else {
+            try await h.services.journal.clearManualDay(date: FlightTrajectoryFixtures.start)
+        }
+
+        let revisions = try await h.store.allSampleAttributionRevisions()
+        let resets = revisions.filter { $0.replacementRegions == nil }
+        let raw = FlightTrajectoryFixtures.turningFlight().samples
+        #expect(resets.count == raw.count)
+        #expect(Set(resets.map(\.sampleID)) == Set(raw.map(\.id)))
+        #expect(try await h.reader.manualDays(inYear: h.day.year).isEmpty)
+        let originalRegions = Set(raw
+            .map { SampleCorrectionTestSupport.attribution.region(at: $0.coordinate) })
+        #expect(try await h.reader.yearReport(for: h.day.year).days.first?
+            .regions == originalRegions)
+        #expect(try await Set(h.store.allSamples()) == Set(raw))
+
+        // A delayed immutable correction cannot resurrect what Reset to GPS undid.
+        let first = try #require(appliedRevisions.first)
+        try await h.store.perform {
+            try await h.store.addSampleAttributionRevision(.init(
+                id: .init(rawValue: UUID()),
+                sampleID: first.sampleID,
+                updatedAt: first.updatedAt,
+                replacementRegions: first.replacementRegions,
+            ))
+        }
+        #expect(try await h.reader.yearReport(for: h.day.year).days.first?
+            .regions == originalRegions)
+        let projection = try await LocationHistoryReader(store: h.store).projection(
+            in: h.interval,
+            attributor: SampleCorrectionTestSupport.attribution,
+        )
+        #expect(projection.samples.allSatisfy {
+            $0.regions == [SampleCorrectionTestSupport.attribution.region(at: $0.sample.coordinate)]
+        })
+    }
+
     private struct Harness {
         let journal: DayJournal
         let store: SwiftDataStore
@@ -54,11 +109,28 @@ struct DayJournalTests {
             calendar: WhereCoreTestSupport.calendar(),
             timeZone: WhereCoreTestSupport.pacific,
         )
-        let reader = ReportReader(store: store, aggregator: aggregator, attributor: .shared)
+        let reader = ReportReader(
+            store: store,
+            aggregator: aggregator,
+            attributor: RegionAttributor.shared,
+        )
+        let scanner = DataIssueScanner(
+            reportReader: reader,
+            attributor: RegionAttributor.shared,
+            calendar: WhereCoreTestSupport.calendar(),
+            now: now,
+        )
         let reminderSpy = SpyReminderScheduler()
         let reminders = ReminderReconciler(
             scheduler: reminderSpy,
             reportReader: reader,
+            issueScanner: scanner,
+            calendar: WhereCoreTestSupport.calendar(),
+            now: now,
+        )
+        let issueAlerts = DataIssueAlertReconciler(
+            scheduler: NoopDataIssueAlertScheduler(),
+            scanner: scanner,
             calendar: WhereCoreTestSupport.calendar(),
             now: now,
         )
@@ -67,10 +139,10 @@ struct DayJournalTests {
             widgetReader: WidgetDataReader(
                 store: store,
                 aggregator: aggregator,
-                attributor: .shared,
+                attributor: RegionAttributor.shared,
             ),
             widgetRefresher: refresher,
-            attributor: .shared,
+            attributor: RegionAttributor.shared,
             calendar: WhereCoreTestSupport.calendar(),
             now: now,
         )
@@ -78,7 +150,11 @@ struct DayJournalTests {
             store: store,
             aggregator: aggregator,
             reminders: reminders,
+            issueAlerts: issueAlerts,
+            issueScanner: scanner,
             widgets: widgets,
+            currentDeviceID: CurrentRecordingDevice.preview.id,
+            now: now,
         )
         return Harness(
             journal: journal,
@@ -89,16 +165,17 @@ struct DayJournalTests {
         )
     }
 
-    @Test func ingestPersistsAndPublishesOnce() async throws {
+    @Test func ingestPersistsAndFansOutOnce() async throws {
         let h = try Self.makeHarness(now: { WhereCoreTestSupport.iso("2026-03-15T20:00:00-07:00") })
         try await h.journal.ingest(sample(at: "2026-03-15T12:00:00-07:00"))
 
         let report = try await h.reader.yearReport(for: 2026)
         #expect(report.totals == [.california: 1])
+        #expect(await h.reminders.reconcileCount == 1)
         #expect(await h.widgets.publishCount == 1)
     }
 
-    @Test func bulkIngestPersistsEverySampleAndPublishesOnce() async throws {
+    @Test func bulkIngestPersistsEverySampleAndFansOutOnce() async throws {
         let h = try Self.makeHarness()
         try await h.journal.ingest([
             sample(at: "2026-01-10T12:00:00-08:00"),
@@ -113,6 +190,7 @@ struct DayJournalTests {
 
         let report = try await h.reader.yearReport(for: 2026)
         #expect(report.totals == [.california: 2, .newYork: 1])
+        #expect(await h.reminders.reconcileCount == 1)
         #expect(await h.widgets.publishCount == 1)
     }
 
@@ -129,6 +207,7 @@ struct DayJournalTests {
         try await h.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-03-03T12:00:00-08:00"),
             regions: [.newYork],
+            audit: nil,
         )
 
         let report = try await h.reader.yearReport(for: 2026)
@@ -144,6 +223,7 @@ struct DayJournalTests {
         try await h.journal.overrideDay(
             date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
             regions: [.newYork],
+            audit: nil,
         )
 
         let report = try await h.reader.yearReport(for: 2026)
@@ -158,6 +238,7 @@ struct DayJournalTests {
         try await h.journal.overrideDay(
             date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
             regions: [.newYork],
+            audit: nil,
         )
         try await h.journal
             .clearManualDay(date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"))
@@ -166,12 +247,44 @@ struct DayJournalTests {
         #expect(report.days.first?.regions == [.california])
     }
 
+    @Test func clearManualDaysRemovesEveryGivenDay() async throws {
+        let h = try Self.makeHarness()
+        let d1 = WhereCoreTestSupport.iso("2026-02-01T00:00:00-08:00")
+        let d2 = WhereCoreTestSupport.iso("2026-02-02T00:00:00-08:00")
+        let d3 = WhereCoreTestSupport.iso("2026-02-03T00:00:00-08:00")
+        for date in [d1, d2, d3] {
+            try await h.journal.addManualDay(date: date, regions: [.newYork], audit: nil)
+        }
+
+        try await h.journal.clearManualDays(dates: [d1, d3])
+
+        let remaining = try await Set(h.store.allManualDays().map(\.day))
+        #expect(remaining == [CalendarDay(year: 2026, month: 2, day: 2)])
+    }
+
+    @Test func clearManualDaysIsANoOpWhenEmpty() async throws {
+        let h = try Self.makeHarness()
+        try await h.journal.addManualDay(
+            date: WhereCoreTestSupport.iso("2026-02-01T00:00:00-08:00"),
+            regions: [.newYork],
+            audit: nil,
+        )
+        let publishesBefore = await h.widgets.publishCount
+
+        try await h.journal.clearManualDays(dates: [])
+
+        // Empty input writes nothing and skips the reconcile/publish fan-out.
+        #expect(await h.widgets.publishCount == publishesBefore)
+        #expect(try await h.store.allManualDays().count == 1)
+    }
+
     @Test func addManualDaysBackfillsEveryDayInRange() async throws {
         let h = try Self.makeHarness()
         try await h.journal.addManualDays(
             from: WhereCoreTestSupport.iso("2026-02-10T09:00:00-08:00"),
             through: WhereCoreTestSupport.iso("2026-02-14T20:00:00-08:00"),
             regions: [.newYork],
+            audit: nil,
         )
 
         let report = try await h.reader.yearReport(for: 2026)
@@ -185,6 +298,7 @@ struct DayJournalTests {
             from: WhereCoreTestSupport.iso("2026-02-14T00:00:00-08:00"),
             through: WhereCoreTestSupport.iso("2026-02-10T00:00:00-08:00"),
             regions: [.california],
+            audit: nil,
         )
 
         #expect(try await h.reader.yearReport(for: 2026).days.isEmpty)
@@ -197,7 +311,7 @@ struct DayJournalTests {
         try await h.journal.clearYear(2026)
 
         #expect(try await h.reader.yearReport(for: 2026).days.isEmpty)
-        #expect(await h.reminders.reconcileCount == 1)
+        #expect(await h.reminders.reconcileCount == 2)
     }
 
     @Test func eraseAllDataWipesEveryYearAndReconciles() async throws {
@@ -210,7 +324,7 @@ struct DayJournalTests {
         for year in [2024, 2025, 2026] {
             #expect(try await h.reader.yearReport(for: year).days.isEmpty)
         }
-        #expect(await h.reminders.reconcileCount == 1)
+        #expect(await h.reminders.reconcileCount == 4)
     }
 
     @Test func evidenceRoundTrips() async throws {
@@ -228,6 +342,58 @@ struct DayJournalTests {
         #expect(try await h.journal.evidence(for: 2026) == [evidence])
         #expect(try await h.journal.evidenceBlob(for: evidence.id) == blob)
     }
+
+    @Test func addManualDayStampsAudit() async throws {
+        let h = try Self.makeHarness()
+        let audit = Self.sampleAudit
+        try await h.journal.addManualDay(
+            date: WhereCoreTestSupport.iso("2026-03-03T12:00:00-08:00"),
+            regions: [.newYork],
+            audit: audit,
+        )
+
+        let stored = try await h.store.allManualDays()
+        #expect(stored.first?.audit == audit)
+    }
+
+    @Test func overrideDayStampsAudit() async throws {
+        let h = try Self.makeHarness()
+        let audit = Self.sampleAudit
+        try await h.journal.overrideDay(
+            date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
+            regions: [.newYork],
+            audit: audit,
+        )
+
+        let stored = try await h.store.allManualDays()
+        #expect(stored.first?.isAuthoritative == true)
+        #expect(stored.first?.audit == audit)
+    }
+
+    @Test func addManualDaysStampsTheSameAuditOnEveryDayInRange() async throws {
+        let h = try Self.makeHarness()
+        let audit = Self.sampleAudit
+        try await h.journal.addManualDays(
+            from: WhereCoreTestSupport.iso("2026-02-10T09:00:00-08:00"),
+            through: WhereCoreTestSupport.iso("2026-02-12T20:00:00-08:00"),
+            regions: [.newYork],
+            audit: audit,
+        )
+
+        let stored = try await h.store.allManualDays()
+        #expect(stored.count == 3)
+        #expect(stored.allSatisfy { $0.audit == audit })
+    }
+
+    private static let sampleAudit = ManualEntryAudit(
+        recordedAt: WhereCoreTestSupport.iso("2026-07-04T15:00:05-07:00"),
+        note: "Corrected from my travel log.",
+        location: CapturedLocation(
+            coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
+            horizontalAccuracy: 10,
+            timestamp: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
+        ),
+    )
 
     private func sample(at isoString: String) -> LocationSample {
         LocationSample(

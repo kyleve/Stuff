@@ -1,8 +1,9 @@
 import Foundation
+import RegionKit
 import WhereCore
 
 /// Shared fixtures for the per-detector test files (`MissingDaysDetectorTests`,
-/// `BorderDriftDetectorTests`, `AbruptLocationChangeDetectorTests`, and the
+/// `AbruptLocationChangeDetectorTests`, and the
 /// type-erasure coverage in `DataIssueDetectorTests`), so the `DataIssueInput`
 /// builder isn't duplicated across them.
 enum DataIssueDetectorFixtures {
@@ -18,10 +19,31 @@ enum DataIssueDetectorFixtures {
         ))!)
     }
 
+    static func calendarDay(_ year: Int, _ month: Int, _ day: Int) -> CalendarDay {
+        CalendarDay(year: year, month: month, day: day)
+    }
+
+    /// A passive GPS fix at `coordinate`, `hoursAfterStart` into `day`, for
+    /// building the timestamp-sorted `daySamples` the speed-based detector walks.
+    static func gpsSample(
+        day: CalendarDay,
+        hoursAfterStart: Double,
+        _ coordinate: Coordinate,
+        source: SampleSource = .gpsSignificantChange,
+    ) -> LocationSample {
+        LocationSample(
+            timestamp: day.startOfDay(in: calendar).addingTimeInterval(hoursAfterStart * 3600),
+            coordinate: coordinate,
+            horizontalAccuracy: 20,
+            source: source,
+        )
+    }
+
     static func input(
         year: Int = 2026,
         days: [DayPresence] = [],
-        otherDayCoordinates: [Date: [Coordinate]] = [:],
+        otherDayCoordinates: [CalendarDay: [Coordinate]] = [:],
+        daySamples: [CalendarDay: [LocationSample]] = [:],
         primaryRegions: [Region] = [.california, .newYork],
         driftThresholdMeters: Double = 10000,
         now: Date? = nil,
@@ -31,8 +53,11 @@ enum DataIssueDetectorFixtures {
             year: year,
             report: YearReport(year: year, days: days, totals: totals),
             otherDayCoordinates: otherDayCoordinates,
+            // Flatten to exercise the real `DaySamples` grouping (GPS-only,
+            // re-bucketed by the fixtures calendar the sample timestamps use).
+            daySamples: DaySamples(samples: daySamples.values.flatMap(\.self), calendar: calendar),
             primaryRegions: primaryRegions,
-            attributor: .shared,
+            attributor: RegionAttributor.shared,
             driftThresholdMeters: driftThresholdMeters,
             calendar: calendar,
             now: now ?? day(year, 6, 15),

@@ -1,0 +1,63 @@
+import InstallerKit
+import SwiftUI
+
+struct UpdateInstalledBuild: View {
+    let model: UpdateModel
+    let check: () -> Void
+    @Environment(\.installerStylesheet) private var stylesheet
+
+    var body: some View {
+        UpdateCard(title: .installerInstalledBuild) {
+            UpdateDetailRow(title: .installerChannel) {
+                model.installed.source.channelLabel
+            }
+            switch model.installed.source {
+                case let .published(publication):
+                    UpdatePullRequestLink(channel: publication.channel, installed: model.installed)
+                    UpdateDetailRow(title: .installerWorkflowRun) {
+                        Text(verbatim: String(publication.build.run))
+                    }
+                    UpdateDetailRow(title: .installerAttempt) {
+                        Text(verbatim: String(publication.build.attempt))
+                    }
+                    commit(publication.revision)
+                case let .local(.clean(revision)):
+                    commit(revision)
+                    UpdateDetailRow(title: .installerWorkingTree) {
+                        Text(.installerWorkingTreeClean)
+                    }
+                case let .local(.dirty(revision)):
+                    commit(revision)
+                    UpdateDetailRow(title: .installerWorkingTree) {
+                        Text(.installerUncommittedChanges)
+                    }
+                case .local(.unavailable):
+                    UpdateDetailRow(title: .installerCommit) { Text(.installerNotRecorded) }
+            }
+            Divider()
+            if let snapshot = model.state.snapshot {
+                UpdateDetailRow(title: .installerLastChecked) {
+                    Text(
+                        snapshot.checkedAt,
+                        format: .dateTime.month(.abbreviated).day().hour().minute(),
+                    )
+                    .font(stylesheet.details.labelFont)
+                }
+            }
+            UpdateCheckButton(isChecking: model.isChecking, check: check)
+        }
+    }
+
+    private func commit(_ revision: InstalledBuild.Revision) -> some View {
+        UpdateDetailRow(title: .installerCommit) {
+            Link(destination: model.installed.commitURL(for: revision)) {
+                Text(verbatim: String(revision.rawValue.prefix(stylesheet.details.revisionLength)))
+            }
+            .accessibilityHint(String(localized: .installerOpenCommit))
+        }
+    }
+}
+
+#if DEBUG
+    #Preview { AppUpdatesView<EmptyModifier>.snapshotPreviews }
+#endif

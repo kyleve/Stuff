@@ -1,5 +1,6 @@
 #if DEBUG
     import Foundation
+    import RegionKit
     import WhereCore
 
     /// Sample timeline entries for the widget `#Preview`s (DEBUG-only).

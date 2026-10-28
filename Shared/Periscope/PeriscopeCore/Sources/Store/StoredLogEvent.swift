@@ -1,0 +1,105 @@
+import Foundation
+
+/// A persisted log event, as returned by `PeriscopeStore` queries — the
+/// value-type snapshot of a stored row.
+///
+/// The structured payload is retained as JSON keyed by ``eventName`` +
+/// ``eventVersion``: ``decode(_:)`` recovers the original event type when it
+/// still matches, and tooling can fall back to rendering ``payload`` as raw
+/// JSON when the type has changed or no longer exists.
+public struct StoredLogEvent: Sendable, Identifiable, Hashable {
+    public let id: UUID
+    public let date: Date
+    /// Store-assigned monotonic insertion order — the tiebreak when two
+    /// events share a date, so merged query results sort stably.
+    public let sequence: Int
+    public let level: LogLevel
+    public let eventName: String
+    public let eventVersion: Int
+    public let message: String
+    /// The event's stored properties, JSON-encoded.
+    public let payload: Data
+    /// Versioned export permissions; absent on historical rows. Never infer permissions from JSON.
+    public let exportMetadata: Data?
+    /// Every scope the event references, primary first, in emission order.
+    public let scopes: [ScopeID]
+    /// The tags the event was stamped with.
+    public let tags: [LogTag]
+    /// The span this event begins or ends, when it is a span event.
+    public let spanID: SpanID?
+    /// How the span ended, when this is a span-ended event (the reason
+    /// lives in the payload — decode `SpanEnded` for it).
+    public let spanExitMode: SpanExit.Mode?
+    /// The emitting function/file, when the call site captured one.
+    public let callSite: LogCallSite?
+    /// The event's associated-object identifier (`LogEvent.externalID`).
+    public let externalID: String?
+    /// Attachment metadata; bytes load via
+    /// `PeriscopeStore.attachments(forEvent:)`.
+    public let attachments: [LogAttachmentInfo]
+    public let sessionID: UUID
+    /// The ambient state the event was stamped with — resolve it with
+    /// `PeriscopeStore.ambientSnapshot(for:)`. `nil` when no ambient source
+    /// had reported anything yet.
+    public let ambientSnapshotID: UUID?
+
+    public init(
+        id: UUID,
+        date: Date,
+        sequence: Int,
+        level: LogLevel,
+        eventName: String,
+        eventVersion: Int,
+        message: String,
+        payload: Data,
+        exportMetadata: Data?,
+        scopes: [ScopeID],
+        tags: [LogTag],
+        spanID: SpanID?,
+        spanExitMode: SpanExit.Mode?,
+        callSite: LogCallSite?,
+        externalID: String?,
+        attachments: [LogAttachmentInfo],
+        sessionID: UUID,
+        ambientSnapshotID: UUID?,
+    ) {
+        self.id = id
+        self.date = date
+        self.sequence = sequence
+        self.level = level
+        self.eventName = eventName
+        self.eventVersion = eventVersion
+        self.message = message
+        self.payload = payload
+        self.exportMetadata = exportMetadata
+        self.scopes = scopes
+        self.tags = tags
+        self.spanID = spanID
+        self.spanExitMode = spanExitMode
+        self.callSite = callSite
+        self.externalID = externalID
+        self.attachments = attachments
+        self.sessionID = sessionID
+        self.ambientSnapshotID = ambientSnapshotID
+    }
+
+    public var primaryScope: ScopeID? {
+        scopes.first
+    }
+
+    /// Historical records have no approved payload. Invalid metadata or payloads throw rather
+    /// than falling back to their unfiltered contents.
+    public func exportedPayload(using policy: LogExportPolicy) throws -> JSONValue? {
+        guard let exportMetadata else { return nil }
+        let metadata = try JSONDecoder().decode(LogExportMetadata.self, from: exportMetadata)
+        let value = try JSONDecoder().decode(JSONValue.self, from: payload)
+        return try metadata.filtered(value, using: policy)
+    }
+
+    /// Decode the structured payload back to its event type. Throws when
+    /// the stored JSON no longer matches the type's shape — callers degrade
+    /// to ``payload`` / ``message`` rather than losing the row.
+    public func decode<Event: LogEvent>(_: Event.Type) throws -> Event {
+        try JSONDecoder().decode(Event.self, from: payload)
+    }
+}

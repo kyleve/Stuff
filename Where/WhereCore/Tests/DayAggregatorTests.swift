@@ -1,9 +1,41 @@
 import Foundation
+import RegionKit
 import Testing
 import WhereCore
 
 struct DayAggregatorTests {
     let attributor = RegionAttributor.shared
+
+    @Test func whollyExcludedObservedDayDoesNotBecomeAMissingBackfill() {
+        let sample = LocationSample(
+            timestamp: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"),
+            coordinate: Coordinate(latitude: 37, longitude: -140),
+            horizontalAccuracy: 5,
+            source: .gpsSignificantChange,
+        )
+        let day = CalendarDay(from: sample.timestamp, in: calendar)
+        let report = aggregator.report(
+            for: day.year,
+            history: [AttributedLocationSample(sample: sample, regions: [])],
+            manualDays: [],
+        )
+        #expect(report.days == [DayPresence(day: day, regions: [])])
+        #expect(report.totals.isEmpty)
+
+        let issues = MissingDaysDetector().detectIssues(in: DataIssueInput(
+            year: day.year,
+            report: report,
+            otherDayCoordinates: [:],
+            daySamples: DaySamples(samples: [sample], calendar: calendar),
+            primaryRegions: [.california],
+            attributor: attributor,
+            driftThresholdMeters: 1000,
+            calendar: calendar,
+            now: WhereCoreTestSupport.iso("2026-03-20T12:00:00-07:00"),
+        ))
+        #expect(!issues.isEmpty) // Truly unobserved days still require backfill.
+        #expect(issues.allSatisfy { !($0.range.start ... $0.range.end).contains(day) })
+    }
 
     /// All tests pin themselves to America/Los_Angeles so behavior doesn't
     /// shift with the test runner's clock or default locale.
@@ -12,6 +44,14 @@ struct DayAggregatorTests {
             calendar: Calendar(identifier: .gregorian),
             timeZone: TimeZone(identifier: "America/Los_Angeles") ?? .gmt,
         )
+    }
+
+    /// The Pacific calendar the aggregator buckets days in — used to pin manual
+    /// `DayPresence` entries to the same `CalendarDay` the aggregator computes.
+    private var calendar: Calendar {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "America/Los_Angeles") ?? .gmt
+        return cal
     }
 
     @Test func singleRegionDay() {
@@ -60,16 +100,13 @@ struct DayAggregatorTests {
         #expect(days.isEmpty)
     }
 
-    @Test func lateNightPacificStillSameDay() throws {
+    @Test func lateNightPacificStillSameDay() {
         let samples = [
             makeSample(at: "2026-03-15T23:59:00-07:00", lat: 37.7749, lng: -122.4194),
         ]
         let days = aggregator.aggregate(samples: samples, attributor: attributor)
         #expect(days.count == 1)
-        let pt = try #require(TimeZone(identifier: "America/Los_Angeles"))
-        var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = pt
-        #expect(cal.component(.day, from: days[0].date) == 15)
+        #expect(days[0].day == CalendarDay(year: 2026, month: 3, day: 15))
     }
 
     @Test func crossMidnightInPacificButSameNewYorkDay_isTwoDays() {
@@ -90,6 +127,7 @@ struct DayAggregatorTests {
         ]
         let manual = DayPresence(
             date: startOfDay(forYear: 2026, month: 7, day: 4),
+            in: calendar,
             regions: [.newYork],
         )
         let report = aggregator.report(
@@ -98,7 +136,7 @@ struct DayAggregatorTests {
             manualDays: [manual],
             attributor: attributor,
         )
-        let day = report.days.first { $0.date == manual.date }
+        let day = report.days.first { $0.day == manual.day }
         #expect(day != nil)
         #expect(day?.regions == [.california, .newYork])
     }
@@ -111,6 +149,7 @@ struct DayAggregatorTests {
         ]
         let override = DayPresence(
             date: startOfDay(forYear: 2026, month: 7, day: 4),
+            in: calendar,
             regions: [.newYork],
             isAuthoritative: true,
         )
@@ -120,7 +159,7 @@ struct DayAggregatorTests {
             manualDays: [override],
             attributor: attributor,
         )
-        let day = report.days.first { $0.date == override.date }
+        let day = report.days.first { $0.day == override.day }
         #expect(day?.regions == [.newYork])
         #expect(report.totals == [.newYork: 1])
     }
@@ -129,15 +168,21 @@ struct DayAggregatorTests {
         // An additive overlay and an authoritative one on the same day: the
         // authoritative one wins, dropping the additive region too.
         let day = startOfDay(forYear: 2026, month: 7, day: 4)
-        let additive = DayPresence(date: day, regions: [.canada])
-        let override = DayPresence(date: day, regions: [.newYork], isAuthoritative: true)
+        let additive = DayPresence(date: day, in: calendar, regions: [.canada])
+        let override = DayPresence(
+            date: day,
+            in: calendar,
+            regions: [.newYork],
+            isAuthoritative: true,
+        )
         let report = aggregator.report(
             for: 2026,
             samples: [],
             manualDays: [additive, override],
             attributor: attributor,
         )
-        #expect(report.days.first { $0.date == day }?.regions == [.newYork])
+        #expect(report.days.first { $0.day == CalendarDay(from: day, in: calendar) }?
+            .regions == [.newYork])
     }
 
     @Test func locationsGroupInRegionSamplesByDayAndDropOthers() {
@@ -159,7 +204,7 @@ struct DayAggregatorTests {
         #expect(locations[0].points.count == 2)
         #expect(locations[1].points.count == 1)
         // Sorted ascending by day.
-        #expect(locations[0].date < locations[1].date)
+        #expect(locations[0].day < locations[1].day)
         // The New York point never lands in the California grouping.
         #expect(!locations.flatMap(\.points).map(\.coordinate).contains(Coordinate(
             latitude: 40.7128,
@@ -199,6 +244,45 @@ struct DayAggregatorTests {
         #expect(locations[0].points.first?.horizontalAccuracy == 65)
     }
 
+    @Test func locationsGroupSeveralRequestedRegionsInOneProjection() {
+        let samples = [
+            makeSample(
+                at: "2026-05-02T09:00:00-07:00",
+                lat: 34.0522,
+                lng: -118.2437,
+                accuracy: 25,
+            ),
+            makeSample(
+                at: "2026-05-01T09:00:00-07:00",
+                lat: 37.7749,
+                lng: -122.4194,
+                accuracy: 15,
+            ),
+            makeSample(
+                at: "2026-05-01T20:00:00-04:00",
+                lat: 40.7128,
+                lng: -74.0060,
+                accuracy: 35,
+            ),
+            makeSample(at: "2026-05-01T12:00:00-04:00", lat: 43.6532, lng: -79.3832),
+        ]
+
+        let locations = aggregator.locations(
+            in: [.california, .newYork],
+            samples: samples,
+            attributor: attributor,
+        )
+
+        #expect(Set(locations.keys) == [.california, .newYork])
+        #expect(locations[.california]?.map(\.day) == [
+            CalendarDay(year: 2026, month: 5, day: 1),
+            CalendarDay(year: 2026, month: 5, day: 2),
+        ])
+        #expect(locations[.california]?.flatMap(\.points).map(\.horizontalAccuracy) == [15, 25])
+        #expect(locations[.newYork]?.flatMap(\.points).map(\.horizontalAccuracy) == [35])
+        #expect(locations[.canada] == nil)
+    }
+
     @Test func representativeCoordinatePicksTheMostSampledCellPerRegion() {
         let samples = [
             // San Francisco ×3 — the dominant California cell.
@@ -233,6 +317,50 @@ struct DayAggregatorTests {
         let second = aggregator.representativeCoordinates(samples: samples, attributor: attributor)
         #expect(first[.california] == second[.california])
         #expect(first[.california] != nil)
+    }
+
+    @Test func pointsByRegionGroupsOneDayAcrossRegions() {
+        // A same-day flight: two CA points, an .other fly-over, and an NY point.
+        let samples = [
+            makeSample(at: "2026-07-14T08:00:00-07:00", lat: 37.6213, lng: -122.3790), // CA
+            makeSample(at: "2026-07-14T10:00:00-07:00", lat: 37.7749, lng: -122.4194), // CA
+            makeSample(at: "2026-07-14T13:00:00-07:00", lat: 39.53, lng: -106.16), // .other
+            makeSample(at: "2026-07-14T17:00:00-07:00", lat: 40.7128, lng: -74.0060), // NY
+        ]
+        let byRegion = aggregator.pointsByRegion(
+            onDay: CalendarDay(year: 2026, month: 7, day: 14),
+            samples: samples,
+            attributor: attributor,
+        )
+        #expect(byRegion[.california]?.count == 2)
+        #expect(byRegion[.other]?.count == 1)
+        #expect(byRegion[.newYork]?.count == 1)
+        #expect(byRegion[.canada] == nil)
+    }
+
+    @Test func pointsByRegionExcludesOtherDays() {
+        let samples = [
+            makeSample(at: "2026-07-14T10:00:00-07:00", lat: 37.7749, lng: -122.4194),
+            makeSample(at: "2026-07-15T10:00:00-07:00", lat: 37.7749, lng: -122.4194),
+        ]
+        let byRegion = aggregator.pointsByRegion(
+            onDay: CalendarDay(year: 2026, month: 7, day: 14),
+            samples: samples,
+            attributor: attributor,
+        )
+        #expect(byRegion[.california]?.count == 1)
+    }
+
+    @Test func pointsByRegionCarryHorizontalAccuracy() {
+        let samples = [
+            makeSample(at: "2026-07-14T10:00:00-07:00", lat: 37.7749, lng: -122.4194, accuracy: 42),
+        ]
+        let byRegion = aggregator.pointsByRegion(
+            onDay: CalendarDay(year: 2026, month: 7, day: 14),
+            samples: samples,
+            attributor: attributor,
+        )
+        #expect(byRegion[.california]?.first?.horizontalAccuracy == 42)
     }
 
     @Test func reportFiltersOtherYears() {

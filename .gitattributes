@@ -1,0 +1,6 @@
+# Snapshot reference images (SnapshotKitTesting writes them under __Snapshots__/)
+# are binary and accumulate over time, so store them in Git LFS. Scoped to the
+# snapshot directory by name so existing plain-blob PNGs (app icons, preview
+# assets) are untouched, and so future modules that adopt snapshot testing are
+# covered automatically.
+**/__Snapshots__/**/*.png filter=lfs diff=lfs merge=lfs -text
