@@ -1,46 +1,36 @@
 ---- MODULE CompatibilityVerification ----
 EXTENDS Integers
 CONSTANT Implementation
-ASSUME Implementation \in {"current", "local-satisfies-remote", "stale-completion", "local-erases-failure"}
+ASSUME Implementation \in {"current", "skip-remote-read", "stale-completion", "local-unblocks"}
 
 (* --algorithm CompatibilityVerificationAlgorithm {
-variables mode = "none", phase = "idle", state = "compatible", captured = "compatible",
-          localUsed = FALSE, remoteRequested = FALSE, remotePending = FALSE,
-          remoteCompleted = FALSE, remoteRead = FALSE, floor = 1,
-          failedVerification = FALSE, remoteSatisfiedLocally = FALSE;
+variables phase = "idle", state = "waiting", captured = "waiting",
+          localUsed = FALSE, remoteRequested = FALSE, remoteCompleted = FALSE,
+          remoteRead = FALSE, floor = 1, localDuringRemote = FALSE;
 
 process (LocalHistory = "local") {
 LocalStep:
     while (TRUE) {
-        await ~localUsed /\ mode = "none";
+        await ~localUsed;
         localUsed := TRUE;
-        if (state # "failed" \/ Implementation = "local-erases-failure") {
-            mode := "local" || phase := "read";
-        };
+        if (phase # "idle") { localDuringRemote := TRUE; };
+        if (floor = 2) { state := "update-required"; }
+        else if (Implementation = "local-unblocks") { state := "compatible"; };
     }
 }
 process (RequestRemote = "request") {
 RequestStep:
     while (TRUE) {
         await ~remoteRequested;
-        remoteRequested := TRUE || remotePending := TRUE;
-    }
-}
-fair process (StartRemote = "start") {
-StartStep:
-    while (TRUE) {
-        await remotePending /\ mode = "none";
-        mode := "remote" || phase := "read";
+        remoteRequested := TRUE || phase := "read";
     }
 }
 fair process (Read = "read") {
 ReadStep:
     while (TRUE) {
         await phase = "read";
-        if (mode = "remote") {
-            \* The account is unavailable in this scenario. A real authority read must fail.
-            remoteRead := TRUE || captured := "failed";
-        } else { captured := "compatible"; };
+        remoteRead := Implementation # "skip-remote-read";
+        either { captured := "compatible"; } or { captured := "failed"; };
         phase := "complete";
     }
 }
@@ -48,13 +38,10 @@ fair process (Complete = "complete") {
 CompleteStep:
     while (TRUE) {
         await phase = "complete";
-        if (state # "update-required" \/ Implementation = "stale-completion") { state := captured; };
-        if (mode = "remote") {
-            remoteCompleted := TRUE || remotePending := FALSE || failedVerification := TRUE;
-        } else if (remotePending /\ Implementation = "local-satisfies-remote") {
-            remoteCompleted := TRUE || remotePending := FALSE || remoteSatisfiedLocally := TRUE;
+        if (state # "update-required" \/ Implementation = "stale-completion") {
+            state := captured;
         };
-        mode := "none" || phase := "idle";
+        remoteCompleted := TRUE || phase := "idle";
     }
 }
 process (ImportRequirement = "import") {
@@ -67,11 +54,12 @@ ImportStep:
 process (Stutter = "stutter") { StutterStep: while (TRUE) { skip; } }
 } *)
 
-TypeOK == /\ mode \in {"none", "local", "remote"} /\ phase \in {"idle", "read", "complete"}
-          /\ state \in {"compatible", "failed", "update-required"} /\ floor \in {1, 2}
-RemoteMeansRemote == remoteCompleted => (remoteRead /\ ~remoteSatisfiedLocally)
+TypeOK == /\ phase \in {"idle", "read", "complete"}
+          /\ state \in {"waiting", "compatible", "failed", "update-required"}
+          /\ captured \in {"waiting", "compatible", "failed"} /\ floor \in {1, 2}
+RemoteMeansRemote == remoteCompleted => remoteRead
 HigherFloorWins == floor = 2 => state = "update-required"
-LocalCannotEraseFailure == failedVerification => state # "compatible"
+OnlyVerificationUnblocks == state = "compatible" => (remoteCompleted /\ captured = "compatible")
 RemoteEventuallyCompletes == remoteRequested ~> remoteCompleted
-JoinedLocalNotReached == ~(remotePending /\ mode = "local")
+LocalDuringRemoteNotReached == ~localDuringRemote
 ====
