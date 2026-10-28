@@ -4,50 +4,38 @@ import SwiftData
 import Testing
 
 struct StorageContainerSwiftDataTests {
-    @Test func separateDirectoryAndFileNamePreserveTheExistingLayoutAndCache() async throws {
+    @Test func namedStorePinsItsCloudKitPolicyUntilDeleted() async throws {
         let root = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
-        let system = try StorageSystem("Library", mode: .persistent(base: .custom(root)))
-        let library = try await system.container("Stores")
-        let first = try await library.swiftData.modelContainer(
+        let system = try StorageSystem("Example", mode: .persistent(base: .custom(root)))
+        let shared = try await system.container("shared")
+        let first = try await shared.swiftData.modelContainer(
             for: [Note.self],
-            directory: "Application Support",
-            named: "default",
+            named: "history",
             cloudKit: .none,
         )
-        let second = try await library.swiftData.modelContainer(
+        let second = try await shared.swiftData.modelContainer(
             for: [Note.self],
-            directory: "Application Support",
-            named: "default",
+            named: "history",
             cloudKit: .none,
         )
         #expect(first === second)
-        let expected = library.url.appending(path: "Application Support/default.store")
+        let expected = shared.url.appending(path: "history/history.store")
         #expect(first.configurations.first?.url.standardizedFileURL == expected.standardizedFileURL)
 
-        await #expect(throws: StorageError.modelStoreConfigurationMismatch("Application Support")) {
-            try await library.swiftData.modelContainer(
+        await #expect(throws: StorageError.modelStoreConfigurationMismatch("history")) {
+            try await shared.swiftData.modelContainer(
                 for: [Note.self],
-                directory: "Application Support",
-                named: "other",
-                cloudKit: .none,
-            )
-        }
-        await #expect(throws: StorageError.modelStoreConfigurationMismatch("Application Support")) {
-            try await library.swiftData.modelContainer(
-                for: [Note.self],
-                directory: "Application Support",
-                named: "default",
+                named: "history",
                 cloudKit: .automatic,
             )
         }
 
-        let directory = try await library.container("Application Support")
+        let directory = try await shared.container("history")
         try await directory.deleteContainer()
-        let replacement = try await library.swiftData.modelContainer(
+        let replacement = try await shared.swiftData.modelContainer(
             for: [Note.self],
-            directory: "Application Support",
-            named: "default",
+            named: "history",
             cloudKit: .none,
         )
         #expect(replacement !== first)

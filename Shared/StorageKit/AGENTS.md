@@ -20,7 +20,7 @@ system, formatting, and global conventions. Read that first.
   `Shared/StorageKit/Sources`); the hosted test bundle `StorageKitTests` is wired
   in [`Project.swift`](../../Project.swift) via the `unitTests` helper (host:
   `StuffTestHost`).
-- WhereCore uses StorageKit for SwiftData construction. Its `WhereStorage` adapter preserves the existing App Group store layout.
+- WhereCore uses StorageKit for SwiftData construction. Its `WhereStorage` adapter owns a dedicated namespace inside the App Group.
   Preferences, journals, installation consent, and widget files retain their separate owners.
 
 ## Key types
@@ -97,9 +97,8 @@ system, formatting, and global conventions. Read that first.
   user-vended `container("store")` — documented; use distinct `named:` keys. A
   store name pins one schema: re-vending the same name with different `types`
   throws `StorageError.modelStoreSchemaMismatch` (cache keys on the type set).
-  The explicit `directory:named:` overload separates the directory key from the file name.
-  Cache by directory; reject a different file name or CloudKit policy for an open directory.
-  Child deletion must invalidate that directory's cached model container.
+  Reject a different CloudKit policy for an open store.
+  Child deletion must invalidate that store's cached model container.
   Don't put a store directly in a shared directory.
 - **Two teardown paths, never a flag.** `deactivate()` (reversible: run
   `onDeactivate` + drop cached vends, keep files, go `inactive`, reactivate on

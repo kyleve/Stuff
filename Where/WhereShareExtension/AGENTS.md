@@ -29,7 +29,7 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   up the GPS ingestor, notifiers, or widget publisher; the store commit's
   persistent-history ping is what the app reconciles from later.
 - Await the StorageKit-backed `SwiftDataStore.make(storage:)` factory once per save operation.
-  Preserve the app's existing store path; surface an unavailable App Group as a save failure.
+  Use the app's shared StorageKit store path; surface an unavailable App Group as a save failure.
 - **Opens `.localOnly` storage, never CloudKit.** The extension holds only the
   App Group entitlement (no iCloud), so it must not initialize the CloudKit
   mirror; the app's container syncs the shared store's history. Resolve that

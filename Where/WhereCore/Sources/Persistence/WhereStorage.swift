@@ -2,42 +2,42 @@ import Foundation
 import StorageKit
 import SwiftData
 
-/// Maps StorageKit containers onto Where's existing App Group store layout.
+/// Owns Where's shared history store in a dedicated StorageKit tree.
 /// The app, share extension, and Inspector must use this same path and schema.
-/// This compatibility adapter returns only the model container. It never exposes
-/// tree deletion: the existing Application Support directory can also hold logs.
 enum WhereStorage {
     struct AppGroupUnavailableError: Error {}
 
-    private enum Directory: String {
-        case library = "Library"
-        case applicationSupport = "Application Support"
+    private static let namespace: StorageKey = "Where"
+    private static let shared: StorageKey = "shared"
+    private static let history: StorageKey = "history"
+
+    private static func baseURL(groupContainerURL: URL) -> URL {
+        groupContainerURL.appending(
+            path: "Library/Application Support",
+            directoryHint: .isDirectory,
+        )
     }
 
-    private static let storeName: StorageKey = "default"
-
     static func storeURL(groupContainerURL: URL) -> URL {
-        groupContainerURL
-            .appending(path: Directory.library.rawValue, directoryHint: .isDirectory)
-            .appending(path: Directory.applicationSupport.rawValue, directoryHint: .isDirectory)
-            .appending(path: "\(storeName.name).store", directoryHint: .notDirectory)
+        baseURL(groupContainerURL: groupContainerURL)
+            .appending(path: namespace.name, directoryHint: .isDirectory)
+            .appending(path: shared.name, directoryHint: .isDirectory)
+            .appending(path: history.name, directoryHint: .isDirectory)
+            .appending(path: "\(history.name).store", directoryHint: .notDirectory)
     }
 
     static func makeContainer(
         groupContainerURL: URL,
         cloudKit: CloudKitOption,
     ) async throws -> ModelContainer {
-        // Use the entitlement-resolved directory as the root. Its system-assigned
-        // name is unwrapped only at this filesystem boundary.
         let storage = try StorageSystem(
-            StorageKey(groupContainerURL.lastPathComponent),
-            mode: .persistent(base: .custom(groupContainerURL.deletingLastPathComponent())),
+            namespace,
+            mode: .persistent(base: .custom(baseURL(groupContainerURL: groupContainerURL))),
         )
-        let library = try await storage.container(StorageKey(Directory.library))
-        return try await library.swiftData.modelContainer(
+        let shared = try await storage.container(Self.shared)
+        return try await shared.swiftData.modelContainer(
             for: SwiftDataStore.inspectorModelTypes,
-            directory: StorageKey(Directory.applicationSupport),
-            named: storeName,
+            named: history,
             cloudKit: cloudKit,
         )
     }

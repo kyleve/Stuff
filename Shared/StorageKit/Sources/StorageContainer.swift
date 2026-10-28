@@ -92,7 +92,6 @@ public actor StorageContainer {
     struct CachedModelStore {
         let container: ModelContainer
         let typeIDs: Set<ObjectIdentifier>
-        let name: StorageKey
         let cloudKit: CloudKitOption
     }
 

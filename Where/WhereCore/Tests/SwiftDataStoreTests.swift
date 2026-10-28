@@ -359,7 +359,7 @@ struct SwiftDataStoreTests {
         #expect(
             SwiftDataStore.inspectorStoreURL(groupContainerURL: groupURL)
                 == groupURL.appending(
-                    path: "Library/Application Support/default.store",
+                    path: "Library/Application Support/Where/shared/history/history.store",
                     directoryHint: .notDirectory,
                 ),
         )

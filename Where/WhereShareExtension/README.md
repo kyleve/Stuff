@@ -49,5 +49,5 @@ both processes open the same SwiftData store.
 - **Refresh depends on app execution.** Both local-only and CloudKit app stores observe external commits through SwiftData history. Services reconcile when their observer can run, and scene-scoped reports subscribe while active and refresh on activation. A suspended app cannot repaint; the source does not deliberately defer every external write until the next foreground. Live cross-process and CloudKit delivery still require device validation.
 
 Store construction awaits `SwiftDataStore.make(storage:)`, which uses StorageKit.
-The extension keeps local-only access to the app's existing App Group database.
+The extension keeps local-only access to the app's shared StorageKit database inside the App Group.
 An unavailable App Group fails the save instead of creating a separate sandbox database.

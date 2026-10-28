@@ -510,7 +510,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         try SwiftDataStorage.inMemoryModelContainer(for: inspectorModelTypes)
     }
 
-    /// Inspector and production resolve the same existing store family.
+    /// Inspector and production resolve the same StorageKit store family.
     public static func inspectorStoreURL(groupContainerURL: URL) -> URL {
         WhereStorage.storeURL(groupContainerURL: groupContainerURL)
     }

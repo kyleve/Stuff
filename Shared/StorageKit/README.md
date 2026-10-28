@@ -224,26 +224,33 @@ vends, and — in detail — the two teardown paths: children-first ordering, th
 retries on a thrown handler, and that deletion errors surface while leaving data
 in place.
 
-## Existing store layouts
+## Where usage
 
-The `directory:named:` overload keeps a dedicated store directory and its file name separate.
-Where uses it to retain `Library/Application Support/default.store` inside its App Group.
-The [WhereStorage adapter](../../Where/WhereCore/Sources/Persistence/WhereStorage.swift) owns the path mapping.
+Where uses a dedicated StorageKit namespace inside its App Group's Application Support directory.
+The [WhereStorage adapter](../../Where/WhereCore/Sources/Persistence/WhereStorage.swift) owns the path and schema.
+This example omits Where's entitlement resolution and uses a supplied `appGroupApplicationSupportURL`:
 
 ```swift
-let library = try await storage.container("Library")
-let modelContainer = try await library.swiftData.modelContainer(
+let storage = try StorageSystem(
+    "Where",
+    mode: .persistent(base: .custom(appGroupApplicationSupportURL))
+)
+let shared = try await storage.container("shared")
+let modelContainer = try await shared.swiftData.modelContainer(
     for: modelTypes,
-    directory: "Application Support",
-    named: "default",
+    named: "history",
     cloudKit: .none
 )
 ```
 
-The directory identifies the cache entry. A second request must use the same schema, file name, and CloudKit policy.
-Removing the child directory invalidates its cached container.
-This API does not move, copy, or transform existing records.
-Where keeps the container tree private and never deletes it through StorageKit because its existing directory can also contain logs.
+The store lives at `Where/shared/history/history.store` beneath that base.
+Its sidecars and external blobs share the dedicated `history` directory.
+A cached store requires the same schema and CloudKit policy on each request.
+Removing its child container invalidates the cached model container.
+
+Where adopts this layout before release, without a legacy path fallback or automatic file migration.
+Where's reset still uses its domain operations to propagate deletion through CloudKit.
+StorageKit tree deletion is not a substitute for that reset.
 
 `SwiftDataStorage.inMemoryModelContainer(for:)` creates independent containers for synchronous previews and tests.
 It disables CloudKit and creates no StorageSystem or temporary directory.

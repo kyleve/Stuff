@@ -121,4 +121,4 @@ Existing installations created before that choice was introduced revisit only th
 Enabling is the only path that asks for location access.
 
 The Inspector runtime awaits the StorageKit-backed Where factory with CloudKit disabled.
-Its recovery configuration points to the same existing App Group store as regular launch.
+Its recovery configuration points to the same StorageKit store inside the App Group as regular launch.

@@ -562,8 +562,14 @@ Route shape, timing, accuracy, and sensor values remain recognizable characteris
 ## StorageKit adoption
 
 `SwiftDataStore.make(storage:)` and `makeContainer(storage:)` await StorageKit factories.
-The [WhereStorage adapter](Sources/Persistence/WhereStorage.swift) maps containers onto the existing App Group directory.
-The database remains at `Library/Application Support/default.store`, with the same schema and sidecars.
+The [WhereStorage adapter](Sources/Persistence/WhereStorage.swift) owns a dedicated `Where` namespace in the App Group's Application Support directory.
+Its `shared` container vends the `history` SwiftData store at `Library/Application Support/Where/shared/history/history.store`.
+The store's sidecars and external blobs stay inside the dedicated `history` directory.
+
+This pre-release change leaves the old `Library/Application Support/default.store` untouched and opens a new local database.
+It does not copy records or fall back to the old path.
+Existing local-only records require an explicit backup export from the old build and import into the new build.
+The CloudKit schema and audience policy stay the same. A CloudKit-enabled store can download existing cloud records.
 An unavailable App Group throws instead of opening a process-local replacement.
 The app retains its CloudKit policy. The share extension and Inspector use local-only access to the same file.
 

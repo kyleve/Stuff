@@ -39,24 +39,6 @@ public struct SwiftDataStorage: Sendable {
     ) async throws -> ModelContainer {
         try await container.makeModelContainer(
             for: types,
-            directory: name,
-            named: name,
-            cloudKit: cloudKit,
-        )
-    }
-
-    /// Open a store in a dedicated child directory with a separate file name.
-    /// This preserves an existing layout, such as `Application Support/default.store`.
-    /// A directory is reserved for one file name, schema, and CloudKit policy.
-    public func modelContainer(
-        for types: [any PersistentModel.Type],
-        directory: StorageKey,
-        named name: StorageKey,
-        cloudKit: CloudKitOption,
-    ) async throws -> ModelContainer {
-        try await container.makeModelContainer(
-            for: types,
-            directory: directory,
             named: name,
             cloudKit: cloudKit,
         )
@@ -83,18 +65,17 @@ extension StorageContainer {
     /// `StorageContainer` file.
     func makeModelContainer(
         for types: [any PersistentModel.Type],
-        directory: StorageKey,
         named name: StorageKey,
         cloudKit: CloudKitOption,
     ) throws -> ModelContainer {
         try activate()
         let typeIDs = Set(types.map { ObjectIdentifier($0) })
-        if let cached = modelContainerCache[directory] {
+        if let cached = modelContainerCache[name] {
             guard cached.typeIDs == typeIDs else {
                 throw StorageError.modelStoreSchemaMismatch(name)
             }
-            guard cached.name == name, cached.cloudKit == cloudKit else {
-                throw StorageError.modelStoreConfigurationMismatch(directory)
+            guard cached.cloudKit == cloudKit else {
+                throw StorageError.modelStoreConfigurationMismatch(name)
             }
             return cached.container
         }
@@ -109,7 +90,7 @@ extension StorageContainer {
                     cloudKitDatabase: .none,
                 )
             case .persistent:
-                let storeContainer = try container(directory)
+                let storeContainer = try container(name)
                 let storeURL = storeContainer.url.appending(
                     path: "\(name.name).store",
                     directoryHint: .notDirectory,
@@ -121,10 +102,9 @@ extension StorageContainer {
                 )
         }
         let modelContainer = try ModelContainer(for: schema, configurations: [configuration])
-        modelContainerCache[directory] = CachedModelStore(
+        modelContainerCache[name] = CachedModelStore(
             container: modelContainer,
             typeIDs: typeIDs,
-            name: name,
             cloudKit: cloudKit,
         )
         return modelContainer
