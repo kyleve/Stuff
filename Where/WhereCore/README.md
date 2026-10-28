@@ -577,7 +577,11 @@ Pausing recording leaves ownership unchanged. Secondary devices can still reques
 a one-shot location for a manual action.
 
 ```swift
-let authority = RecordingAuthorityCoordinator(store: store, transport: transport)
+let authority = RecordingAuthorityCoordinator(
+    store: store,
+    transport: transport,
+    installation: installationContextStore
+)
 let state = try await authority.refresh()
 let claim = try RecordingAuthorityProposal(
     state: state, action: .claim, deviceID: installation.currentDevice.id,

@@ -202,7 +202,11 @@ This example assumes an existing store, transport, and installation context.
 It shows the first claim only. Recording activation belongs to the later integration.
 
 ```swift
-let authority = RecordingAuthorityCoordinator(store: store, transport: transport)
+let authority = RecordingAuthorityCoordinator(
+    store: store,
+    transport: transport,
+    installation: installationContextStore
+)
 let state = try await authority.refresh()
 let proposal = try RecordingAuthorityProposal(
     state: state,
