@@ -49,3 +49,30 @@ actor CompatibilityGatedLocationSource: LocationSource {
         return .always
     }
 }
+
+/// Holds account verification without holding teardown or the local authority projection.
+actor CompatibilityAccountTransport: RecordingAuthorityTransport {
+    private let base = LocalRecordingAuthorityTransport(now: { .now })
+    private var gate: CompatibilityOperationGate?
+    func holdIdentity(_ gate: CompatibilityOperationGate) {
+        self.gate = gate
+    }
+
+    func accountID() async -> RecordingAccountID {
+        if let gate { self.gate = nil; await gate.wait() }
+        return .local
+    }
+
+    func subscribe() {}
+    func current() async -> RecordingAuthorityCommit? {
+        await base.current()
+    }
+
+    func fetchCommit(for eventID: RecordingAuthority.EventID) async -> RecordingAuthorityCommit? {
+        await base.fetchCommit(for: eventID)
+    }
+
+    func commit(_ proposal: RecordingAuthorityProposal) async throws -> RecordingAuthorityCommit {
+        try await base.commit(proposal)
+    }
+}

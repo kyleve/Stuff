@@ -20,7 +20,11 @@ struct RecordingAuthorityCoordinatorTests {
         await #expect(throws: RecordingAuthorityError.invalidRecord) {
             try await store.recordingAuthority()
         }
-        let coordinator = RecordingAuthorityCoordinator(store: store, transport: server)
+        let coordinator = await RecordingAuthorityCoordinator(
+            store: store,
+            transport: server,
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
+        )
         #expect(try await coordinator.refresh() == upgrade.result)
     }
 
@@ -28,7 +32,11 @@ struct RecordingAuthorityCoordinatorTests {
         let fixture = RecordingAuthorityFixture()
         let store = try SwiftDataStore.inMemory()
         let server = LocalRecordingAuthorityTransport(now: { Date() })
-        let coordinator = RecordingAuthorityCoordinator(store: store, transport: server)
+        let coordinator = await RecordingAuthorityCoordinator(
+            store: store,
+            transport: server,
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
+        )
         let claim = try fixture.proposal(.initial, .claim, device: fixture.phone)
         _ = try await coordinator.submit(claim)
         let upgrade = try fixture.proposal(
@@ -53,7 +61,11 @@ struct RecordingAuthorityCoordinatorTests {
         let fixture = RecordingAuthorityFixture()
         let server = LocalRecordingAuthorityTransport(now: { Date() })
         let store = try SwiftDataStore.inMemory()
-        let coordinator = RecordingAuthorityCoordinator(store: store, transport: server)
+        let coordinator = await RecordingAuthorityCoordinator(
+            store: store,
+            transport: server,
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
+        )
         let claim = try fixture.proposal(.initial, .claim, device: fixture.phone)
         _ = try await server.commit(claim)
         let recovery = try fixture.proposal(
@@ -73,10 +85,18 @@ struct RecordingAuthorityCoordinatorTests {
         let fixture = RecordingAuthorityFixture()
         let store = try SwiftDataStore.inMemory()
         let server = LocalRecordingAuthorityTransport(now: { Date() })
-        let coordinator = RecordingAuthorityCoordinator(store: store, transport: server)
+        let coordinator = await RecordingAuthorityCoordinator(
+            store: store,
+            transport: server,
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
+        )
         _ = try await coordinator.submit(fixture.proposal(.initial, .claim, device: fixture.phone))
         let emptyServer = LocalRecordingAuthorityTransport(now: { Date() })
-        let replacement = RecordingAuthorityCoordinator(store: store, transport: emptyServer)
+        let replacement = await RecordingAuthorityCoordinator(
+            store: store,
+            transport: emptyServer,
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
+        )
         await #expect(throws: RecordingAuthorityError.authorityDisappeared) {
             try await replacement.refresh()
         }

@@ -607,9 +607,19 @@ state without networking.
 missed while offline, then projects commits in one store transaction. Missing
 predecessors and conflicting records throw. The projection is operational metadata:
 reset and Replace must retain it and backups must not restore its live grants.
-CloudKit account changes must invalidate a consumer's cached authority before
-allowing offline recording; consumers must not treat a missing established head
-as permission to claim again.
+`RecordingAuthorityCoordinator` requires the installation sidecar as well as its
+store and transport. The first identity verification binds the projection to that
+CloudKit account. An account-change notification revokes existing permits and
+persists invalidation before retrying. Old responses cannot project authority or
+restore access. A different account remains blocked; history and pending commands
+stay with the original account. Returning to that account permits a fresh scope.
+
+A cold launch requires identity verification before offline fallback. This also
+covers account changes while the process was absent. A temporary outage during an
+already verified session retains the existing offline behavior. Missing established
+authority never permits another initial claim. Device rejoin preserves the account
+binding. These rules are covered by `DataCompatibilityCoordinatorTests` and the
+`AccountVerification` model.
 
 ### Replacing the recording phone
 
@@ -706,7 +716,8 @@ to write only at the current global version. It never claims recording ownership
 or advances the floor. The share extension checks it inside the store transaction.
 
 History observation uses local verified metadata. Explicit retry, foreground,
-CloudKit pushes, and account changes refresh server authority. A known verification
+CloudKit pushes refresh server authority. Account changes invalidate access first,
+then verify the original account again. A known verification
 failure remains blocked until remote verification succeeds. A remote retry that
 joins a local check waits for a remote verification before returning. Concurrent
 remote callers share that verification. Local imports can still enforce a higher

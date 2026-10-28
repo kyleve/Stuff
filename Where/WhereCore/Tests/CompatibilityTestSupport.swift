@@ -3,6 +3,25 @@ import CloudKit
 
 actor CompatibilityTestTransport: RecordingAuthorityTransport {
     enum Availability { case online, offline, signedOut }
+    var identity: RecordingAccountID = .cloudKit(recordName: "account-a")
+    func setAccountID(_ identity: RecordingAccountID) {
+        self.identity = identity
+    }
+
+    private(set) var identityReadCount = 0
+    private var identityGate: CompatibilityTestGate?
+    func holdNextIdentity(_ gate: CompatibilityTestGate) {
+        identityGate = gate
+    }
+
+    func accountID() async throws -> RecordingAccountID {
+        identityReadCount += 1
+        try check()
+        let identity = identity
+        if let gate = identityGate { identityGate = nil; await gate.suspend() }
+        return identity
+    }
+
     private let base = LocalRecordingAuthorityTransport(now: { .now })
     private(set) var readCount = 0
     private var nextReadGate: CompatibilityTestGate?
@@ -66,5 +85,55 @@ func waitForCompatibilityChecks(
     while await coordinator.pendingCheckCountForTesting != count {
         guard clock.now < deadline else { throw TimedOut() }
         await Task.yield()
+    }
+}
+
+/// One account-bound control plane. Recreating it retains only the supplied durable sidecar/store.
+@MainActor
+struct CompatibilityAccountFixture {
+    let store: SwiftDataStore
+    let transport: CompatibilityTestTransport
+    let installation: RecordingCoordinationInstallation
+    let authority: RecordingAuthorityCoordinator
+    let recording: RecordingDeviceCoordination
+    let coordinator: DataCompatibilityCoordinator
+
+    init(
+        store: SwiftDataStore,
+        transport: CompatibilityTestTransport,
+        installation: RecordingCoordinationInstallation,
+    ) {
+        self.store = store
+        self.transport = transport
+        self.installation = installation
+        authority = RecordingAuthorityCoordinator(
+            store: store,
+            transport: transport,
+            installation: installation,
+        )
+        recording = RecordingDeviceCoordination(
+            supportedVersion: .current,
+            authority: authority,
+            installation: installation,
+        )
+        coordinator = DataCompatibilityCoordinator(
+            store: store,
+            recording: recording,
+            installation: installation,
+        )
+    }
+
+    init() throws {
+        try self.init(
+            store: SwiftDataStore.inMemory(),
+            transport: CompatibilityTestTransport(),
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
+        )
+    }
+
+    func establish() async throws -> any WhereStore {
+        _ = try await recording.selectRecordingRole(.recordingRequested)
+        _ = await coordinator.recheck()
+        return try await coordinator.openDomainStore()
     }
 }

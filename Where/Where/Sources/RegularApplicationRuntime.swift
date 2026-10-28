@@ -155,7 +155,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
         accountChanges = Task { [weak model] in
             for await _ in NotificationCenter.default.notifications(named: .CKAccountChanged) {
                 guard !Task.isCancelled else { return }
-                await model?.refreshCompatibility()
+                await model?.accountDidChange()
             }
         }
         model.onLoggedOut = { [intentServices] in await intentServices.clear() }

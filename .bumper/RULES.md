@@ -207,3 +207,13 @@ Cancellation checkpoints and draining are behavior guards in `LifecycleGateHandl
 ### `where.compatibility_output_composition`
 
 Construct each production `DataCompatibilityOutputs` lifetime in `WhereServices` over that scope's store. Isolated test fixtures may construct their own. Mutation coverage: `outputLifetimesBelongToTheServiceScope`.
+
+## Account trust lifetime
+
+`where.recording_account_access_composition` confines `RecordingAccountAccess`
+construction to `RecordingAuthorityCoordinator` in production. Inject the existing
+coordinator instead of creating independent account trust. Fixtures are excluded.
+The mutation test `account trust shares the authority coordinator lifetime` checks
+the constructor spelling used in production. This syntax rule does not prove
+invalidation timing or storage atomicity; Swift regressions and `AccountVerification`
+cover those behaviors within their documented bounds.

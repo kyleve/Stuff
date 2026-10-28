@@ -112,3 +112,5 @@ intent-services registration. Inject runtime spies without launching a second
 regular runtime. Tests may construct an `AppDelegate(runtime:)` only with such
 a spy. A second `RegularApplicationRuntime.didFinishLaunching` would
 re-register the handoff, whose behavior is undocumented.
+
+- Route `CKAccountChanged` through `WhereModel.accountDidChange()`, which invalidates trust before retrying. Ordinary foreground refresh does not invalidate account trust.

@@ -401,7 +401,11 @@ public final class WhereBootstrap: WhereScopeAssembling {
                         now: { Date() },
                     )
             }
-            let authority = RecordingAuthorityCoordinator(store: store, transport: transport)
+            let authority = RecordingAuthorityCoordinator(
+                store: store,
+                transport: transport,
+                installation: self.installationContextStore,
+            )
             return RecordingDeviceCoordination(
                 supportedVersion: .current,
                 authority: authority,

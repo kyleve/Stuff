@@ -1,7 +1,8 @@
 import Foundation
+import Synchronization
 
 /// A condition-driven gate for suspended compatibility operations.
-struct CompatibilityTestGate {
+final class CompatibilityTestGate: Sendable {
     struct Channel {
         let stream: AsyncStream<Void>
         let continuation: AsyncStream<Void>.Continuation
@@ -13,12 +14,19 @@ struct CompatibilityTestGate {
     }
 
     let entered = Channel()
-    let release = Channel()
+    private enum State { case idle, waiting(CheckedContinuation<Void, Never>), released }
+    private let state = Mutex(State.idle)
 
     func suspend() async {
-        entered.continuation.yield()
-        for await _ in release.stream {
-            break
+        await withCheckedContinuation { continuation in
+            state.withLock { state in
+                switch state {
+                    case .idle: state = .waiting(continuation)
+                    case .released: continuation.resume()
+                    case .waiting: preconditionFailure("Only one held operation per gate")
+                }
+            }
+            entered.continuation.yield()
         }
     }
 
@@ -29,6 +37,9 @@ struct CompatibilityTestGate {
     }
 
     func resume() {
-        release.continuation.yield(); release.continuation.finish()
+        state.withLock { state in
+            if case let .waiting(continuation) = state { continuation.resume() }
+            state = .released
+        }
     }
 }

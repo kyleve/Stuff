@@ -13,6 +13,14 @@ public struct InstallationRecordingContext: Sendable, Equatable {
         case on(enabledAt: Date)
     }
 
+    public private(set) var recordingAccount: RecordingAccountBinding?
+
+    public func settingRecordingAccount(_ binding: RecordingAccountBinding?) -> Self {
+        var result = self
+        result.recordingAccount = binding
+        return result
+    }
+
     public let currentDevice: CurrentRecordingDevice
     /// Stable creation time for this installation's immutable device profile.
     public let registeredAt: Date
@@ -71,7 +79,7 @@ public struct InstallationRecordingContext: Sendable, Equatable {
             registeredAt: registeredAt,
             recordingChoice: isEnabled ? .on(enabledAt: registeredAt) : .off,
             isRejoining: false,
-        ).settingRecordingControl(recordingControl)
+        ).settingRecordingControl(recordingControl).settingRecordingAccount(recordingAccount)
     }
 
     /// Return a copy carrying a later local Settings choice.
@@ -91,7 +99,7 @@ public struct InstallationRecordingContext: Sendable, Equatable {
             registeredAt: registeredAt,
             recordingChoice: updatedChoice,
             isRejoining: false,
-        ).settingRecordingControl(recordingControl)
+        ).settingRecordingControl(recordingControl).settingRecordingAccount(recordingAccount)
     }
 
     /// The throwaway identity used by demo mode. It is intentionally distinct

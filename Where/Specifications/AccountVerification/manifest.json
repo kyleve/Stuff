@@ -1,0 +1,47 @@
+{
+  "source": "pluscal",
+  "module": "AccountVerification.tla",
+  "cases": [
+    {
+      "name": "current",
+      "config": "current.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "stale-response",
+      "config": "stale-response.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoStaleProjection is violated."
+    },
+    {
+      "name": "cached-after-change",
+      "config": "cached-after-change.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoOldAccountAccess is violated."
+    },
+    {
+      "name": "forget-restart",
+      "config": "forget-restart.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RestartNeedsVerification is violated."
+    },
+    {
+      "name": "accept-other-account",
+      "config": "accept-other-account.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoOldAccountAccess is violated."
+    },
+    {
+      "name": "race-reached",
+      "config": "race-reached.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RaceNotReached is violated."
+    },
+    {
+      "name": "recovery-reached",
+      "config": "recovery-reached.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RecoveryNotReached is violated."
+    }
+  ]
+}
