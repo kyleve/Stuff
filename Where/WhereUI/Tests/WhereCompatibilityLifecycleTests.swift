@@ -23,7 +23,7 @@ struct WhereCompatibilityLifecycleTests {
         #expect(bootstrap.withdrawals > 0)
         #expect(model.activeScope == nil)
         await #expect(throws: DataCompatibilityError.accessRevoked) {
-            _ = try await oldScope.allSamples()
+            try await oldScope.perform {}
         }
         gate.release()
         await change.value
@@ -31,7 +31,7 @@ struct WhereCompatibilityLifecycleTests {
         try await wait { runner.phase.isAwaitingGate(LaunchStepID.onboarding) }
         #expect(model.compatibility.isCompatible)
         await #expect(throws: DataCompatibilityError.accessRevoked) {
-            _ = try await oldScope.allSamples()
+            try await oldScope.perform {}
         }
     }
 

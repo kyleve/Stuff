@@ -11,31 +11,21 @@ import Testing
 /// BackupCoordinatorTests, ReminderReconcilerTests, …) cover each piece in
 /// isolation; these prove they work together once `WhereServices` glues them up.
 struct WhereServicesTests {
-    @Test func retiredServicesCannotRestoreNotificationsButANewScopeCan() async throws {
+    @Test func sessionTeardownWithdrawsNotificationsAndWidgetAccess() async throws {
         let world = try CompatibilityOutputTestSupport.makeWorld()
-        func makeServices() -> WhereServices {
-            WhereServices(
-                store: world.store,
-                locationSource: ScriptedLocationSource(),
-                reminderScheduler: world.reminders,
-                summaryScheduler: world.summary,
-                issueAlertScheduler: world.issues,
-                widgetRefresher: world.widgets,
-            )
-        }
-        let old = makeServices()
-        await old.summary.configure(enabled: true, time: .defaultMorning)
+        let services = WhereServices(
+            store: world.store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: world.reminders,
+            summaryScheduler: world.summary,
+            issueAlertScheduler: world.issues,
+            widgetRefresher: world.widgets,
+        )
+        await services.summary.configure(enabled: true, time: .defaultMorning)
         #expect(await world.summary.enabled)
-        await old.suspendForCompatibility()
-        await old.summary.configure(enabled: true, time: .defaultMorning)
+        await services.suspendForCompatibility()
         #expect(await !world.summary.enabled)
-        let replacement = makeServices()
-        await replacement.summary.configure(enabled: true, time: .defaultMorning)
-        #expect(await world.summary.enabled)
-        // A stale caller must not clear the replacement world's publication either.
-        await old.summary.configure(enabled: true, time: .defaultMorning)
-        await old.suspendForCompatibility()
-        #expect(await world.summary.enabled)
+        #expect(await world.widgets.compatibility.last?.allowsData == false)
     }
 
     private static func makeAggregator() -> DayAggregator {

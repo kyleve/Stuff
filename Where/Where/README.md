@@ -44,9 +44,10 @@ When a scene actually activates, `RootView` promotes the launch to `.userForegro
 
 The bootstrap opens and retains one real store for compatibility and recording
 authority. Compatibility and onboarding gate the domain services that use it.
-Blocking retires the active scope and permanently revokes its access permit.
+Blocking retires the active scope and permanently revokes its write permit.
 After verification succeeds again, a new scope receives a fresh permit over
-the retained store. Suspended operations keep their original revoked permit.
+the retained store. Suspended transactions keep their original revoked permit. Reads and external
+publications can finish after teardown.
 The `ScopeExclusivity` model checks these ownership and lifetime boundaries.
 
 Before either the regular or Inspector runtime receives that callback, the app

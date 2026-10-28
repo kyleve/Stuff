@@ -691,7 +691,7 @@ Recovery metadata remains available while the normal session is blocked.
 
 Control-plane inspection and recording coordination remain available while blocked.
 The production raw store remains at the bootstrap; services receive the scoped
-boundary. Startup and output adapters are integrated in subsequent stack layers.
+boundary. Session teardown and output cleanup use that same lifetime.
 
 ### Retiring a compatibility scope
 
@@ -703,17 +703,18 @@ service world with a new store permit.
 
 ### System outputs
 
-Each normal service world wraps its injected notification and widget adapters in
-`DataCompatibilityOutputs`. Publication and withdrawal share one serial boundary.
-Checks before and after external awaits prevent a suspended publication from
-winning after retirement. `Destinations` holds the process-owned raw adapters so
-startup can withdraw old outputs even when opening or verifying the store fails.
+Session teardown stops recording and asks `DataCompatibilityOutputs` to clear
+notification schedules, badges, and widget availability. The cleanup value holds
+the process adapters and also works when startup fails before store opening.
 Saved notification preferences remain unchanged.
 
-Widget publication first writes blocked metadata, then fresh snapshot data, then
-a compatible publication revision. `CompatibleWidgetSnapshotReader` requires the
-same supported revision before and after reading the cache. Missing or malformed
-metadata hides cached data. WidgetKit refresh remains asynchronous.
+Cleanup does not wait for in-flight publications. Previously started notifications,
+widget writes, or Spotlight indexing can finish afterward. This contract prevents
+stale store transactions, but does not guarantee immediate removal of every display.
+
+A successful widget snapshot write publishes its supported version.
+`CompatibleWidgetSnapshotReader` checks availability once before reading the cache.
+Missing or malformed metadata hides cached data. WidgetKit refresh remains asynchronous.
 
 `StandaloneDataCompatibility.requireAccess(to:)` permits a short-lived extension
 to write only at the current global version. It never claims recording ownership
@@ -726,4 +727,4 @@ failure remains blocked until remote verification succeeds. A remote retry that
 joins a local check waits for a remote verification before returning. Concurrent
 remote callers share that verification. Local imports can still enforce a higher
 floor while it is suspended. The `CompatibilityVerification` model checks this
-ordering; `CompatibilityOutputs` checks retirement across external awaits.
+ordering; `CompatibilityWrites` checks the transaction boundary across lockout and recovery.

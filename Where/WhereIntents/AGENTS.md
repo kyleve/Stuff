@@ -92,4 +92,4 @@ invoking a Siri/Shortcuts intent on a device. Do not construct extra
 `AppDelegate`s in tests. Each `didFinishLaunching` re-registers the handoff.
 `AppDependencyManager`'s re-registration behavior is undocumented.
 - Reject parked and new intent callers while compatibility is blocked; `clear()` must preserve that block. Require a fresh installation after successful verification (`IntentServicesTests`).
-- Validate scope access before returning an intent result, including cached widget answers. Serialize Spotlight publication and withdrawal (`WhereIntentReaderTests`).
+- Check scope access at the services handoff. Admitted reads can finish after lockout. Writes retain the central transaction guard. Request Spotlight withdrawal during teardown (`IntentServicesTests`, `WhereIntentReaderTests`).

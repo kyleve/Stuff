@@ -42,42 +42,14 @@ enum CompatibilityOutputTestSupport {
     }
 
     actor Widgets: WidgetTimelineRefreshing {
-        private var publicationFails = false
-        private var nextPublicationError: (any Error)?
         private var nextCompatibilityError: (any Error)?
-        private var nextPublicationGate: Gate?
-
-        func holdNextPublication(_ gate: Gate) {
-            nextPublicationGate = gate
-        }
-
-        func failPublication() {
-            publicationFails = true
-        }
-
-        func failNextPublication(with error: any Error) {
-            nextPublicationError = error
-        }
+        private(set) var compatibility: [WidgetCompatibilitySnapshot] = []
 
         func failNextCompatibilityPublication(with error: any Error) {
             nextCompatibilityError = error
         }
 
-        private(set) var snapshots: [WidgetSnapshot] = []
-        private(set) var compatibility: [WidgetCompatibilitySnapshot] = []
-        func publish(_ snapshot: WidgetSnapshot) async throws {
-            struct PublicationFailure: Error {}
-            if publicationFails { throw PublicationFailure() }
-            if let error = nextPublicationError {
-                nextPublicationError = nil
-                throw error
-            }
-            if let gate = nextPublicationGate {
-                nextPublicationGate = nil
-                await gate.suspend()
-            }
-            snapshots.append(snapshot)
-        }
+        func publish(_: WidgetSnapshot) async {}
 
         func publishCompatibility(_ snapshot: WidgetCompatibilitySnapshot) throws {
             if let error = nextCompatibilityError {
@@ -104,13 +76,10 @@ enum CompatibilityOutputTestSupport {
         let issues = Scheduler()
         let widgets = Widgets()
         let outputs = DataCompatibilityOutputs(
-            store: store,
-            destinations: .init(
-                reminders: reminders,
-                summary: summary,
-                issues: issues,
-                widgets: widgets,
-            ),
+            reminders: reminders,
+            summary: summary,
+            issues: issues,
+            widgets: widgets,
         )
         return World(
             store: store,
@@ -120,14 +89,5 @@ enum CompatibilityOutputTestSupport {
             issues: issues,
             widgets: widgets,
         )
-    }
-
-    static func makeIncompatible(_ store: SwiftDataStore) async throws {
-        try await store.perform {
-            try await store.addDataCompatibilityRequirement(.init(
-                id: UUID(),
-                version: .init(rawValue: 2),
-            ))
-        }
     }
 }

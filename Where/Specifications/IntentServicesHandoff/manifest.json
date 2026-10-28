@@ -14,12 +14,6 @@
       "outputContains": "Invariant NoSelfCreate is violated."
     },
     {
-      "name": "missing-validation",
-      "config": "MissingValidation.cfg",
-      "expect": "fail",
-      "outputContains": "Invariant NoInvalidResult is violated."
-    },
-    {
       "name": "clear-unblocks",
       "config": "ClearUnblocks.cfg",
       "expect": "fail",
@@ -32,10 +26,10 @@
       "outputContains": "Invariant WaiterAtMostOnce is violated."
     },
     {
-      "name": "old-consumer-after-recovery",
-      "config": "OldConsumerAfterRecovery.cfg",
+      "name": "old-read-after-recovery",
+      "config": "OldReadAfterRecovery.cfg",
       "expect": "fail",
-      "outputContains": "Invariant OldConsumerAfterRecoveryNotReached is violated."
+      "outputContains": "Invariant OldReadAfterRecoveryNotReached is violated."
     },
     {
       "name": "two-waiters",

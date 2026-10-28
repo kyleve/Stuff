@@ -13,7 +13,7 @@ struct WhereIntentReaderTests {
         WhereIntentReader(services: services, calendar: IntentTestSupport.calendar(), now: now)
     }
 
-    @Test func cachedTodaySnapshotCannotBypassACompatibilityLock() async throws {
+    @Test func previouslyAdmittedReaderCanFinishFromItsCachedSnapshot() async throws {
         let store = try SwiftDataStore.inMemory()
         let services = IntentTestSupport.services(store: store)
         let date = Date()
@@ -30,7 +30,7 @@ struct WhereIntentReaderTests {
             id: UUID(),
             version: .init(rawValue: 2),
         )) }
-        await #expect(throws: DataCompatibilityError.self) { _ = try await reader.todayRegions() }
+        #expect(try await reader.todayRegions() == [.california])
     }
 
     @Test func dayCountReflectsYearReportTotals() async throws {

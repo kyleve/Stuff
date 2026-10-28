@@ -1,7 +1,7 @@
 ---- MODULE IntentServicesHandoff ----
 EXTENDS Integers, FiniteSets
 CONSTANT Implementation
-ASSUME Implementation \in {"current", "self-create", "missing-validation", "clear-unblocks", "double-resume"}
+ASSUME Implementation \in {"current", "self-create", "clear-unblocks", "double-resume"}
 Consumers == {"first", "second"}
 Epochs == {1, 2}
 
@@ -12,7 +12,7 @@ variables availability = "awaiting", installed = 0, nextEpoch = 1, revoked = {},
           theme = [c \in Consumers |-> 0],
           parked = {}, resumed = [c \in Consumers |-> 0],
           selfCreated = FALSE, didBlock = FALSE, recovered = FALSE,
-          invalidResult = FALSE, staleConsumerRejected = FALSE, clearLostBlock = FALSE;
+          oldReadAfterRecovery = FALSE, clearLostBlock = FALSE;
 
 process (Request \in Consumers) {
 RequestStep:
@@ -81,11 +81,8 @@ UseStep:
     while (TRUE) {
         with (c = self[2]) {
             await phase[c] = "holding";
-            if (context[c] \in revoked /\ Implementation # "missing-validation") {
-                phase[c] := "rejected" || staleConsumerRejected := recovered;
-            } else {
-                phase[c] := "returned" || invalidResult := context[c] \in revoked;
-            };
+            phase[c] := "returned" ||
+            oldReadAfterRecovery := oldReadAfterRecovery \/ (recovered /\ context[c] \in revoked);
         };
     }
 }
@@ -99,10 +96,9 @@ TypeOK == /\ installed \in 0..2 /\ nextEpoch \in 1..3 /\ revoked \subseteq Epoch
 NoSelfCreate == ~selfCreated
 WaiterAtMostOnce == \A c \in Consumers : resumed[c] <= 1
 NoMixedContext == context = theme
-NoInvalidResult == ~invalidResult
 BlockHasNoWaiters == availability = "blocked" => (parked = {} /\ installed = 0)
 ClearPreservesBlock == ~clearLostBlock
 ResumedConsumerFinishes == \A c \in Consumers : (phase[c] = "holding") ~> (phase[c] \in {"returned", "rejected"})
-OldConsumerAfterRecoveryNotReached == ~staleConsumerRejected
+OldReadAfterRecoveryNotReached == ~oldReadAfterRecovery
 TwoWaitersNotReached == Cardinality(parked) < 2
 ====

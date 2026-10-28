@@ -13,8 +13,6 @@ public struct CompatibleWidgetSnapshotReader: Sendable {
     public func read() throws -> WidgetSnapshot? {
         guard let publication = try compatibilityStore.read(),
               publication.allowsData else { return nil }
-        let snapshot = snapshotStore.read()
-        guard try compatibilityStore.read() == publication else { return nil }
-        return snapshot
+        return snapshotStore.read()
     }
 }

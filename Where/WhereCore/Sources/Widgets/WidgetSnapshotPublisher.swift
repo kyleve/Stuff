@@ -80,6 +80,7 @@ public actor WidgetSnapshotPublisher {
             do {
                 let snapshot = try await widgetReader.snapshot(asOf: now())
                 try await widgetRefresher.publish(snapshot)
+                try await widgetRefresher.publishCompatibility(.init(requiredVersion: .current))
                 lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: now())
                 Self.logger.published(
                     day: .restricted(.dateTime, dayLogLabel(snapshot.day)),
@@ -100,6 +101,7 @@ public actor WidgetSnapshotPublisher {
                 )
                 do {
                     try await widgetRefresher.publish(snapshot)
+                    try await widgetRefresher.publishCompatibility(.init(requiredVersion: .current))
                     lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: date)
                 } catch { Self.logger.buildFailed(error: .restricted(.errorDetails, error)) }
                 Self.logger.buildFailed(error: .restricted(.errorDetails, error))

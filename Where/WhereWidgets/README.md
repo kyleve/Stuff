@@ -66,7 +66,8 @@ Each widget file ships `#Preview` timelines at the bottom (DEBUG only), using `W
 ### Compatibility metadata
 
 The provider reads through `CompatibleWidgetSnapshotReader`. It checks the separate
-`widget-compatibility.json` publication before and after reading cached data. Both
-checks must identify the same revision at this build's global data version.
-Missing, malformed, or blocked metadata produces an empty widget. The extension
-never opens the database; refresh timing is controlled by WidgetKit.
+`widget-compatibility.json` once before reading cached data. Missing, malformed,
+or unsupported metadata hides the snapshot. The app withdraws availability during
+lockout and restores it after a fresh snapshot write. An in-flight publication can
+finish after withdrawal. WidgetKit can retain an already displayed timeline until
+it refreshes.

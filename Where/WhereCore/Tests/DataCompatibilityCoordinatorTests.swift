@@ -11,7 +11,7 @@ struct DataCompatibilityCoordinatorTests {
         #expect(await fixture.coordinator.recheck() == .compatible(.current))
         await fixture.coordinator.invalidateAccount()
         await #expect(throws: DataCompatibilityError.accessRevoked) {
-            _ = try await oldScope.allSamples()
+            try await oldScope.perform {}
         }
         guard case .verificationFailed = await fixture.coordinator.recheck() else {
             Issue.record("Invalidated authority must not authorize offline use."); return
@@ -29,7 +29,7 @@ struct DataCompatibilityCoordinatorTests {
         let freshScope = try await fixture.coordinator.openDomainStore()
         #expect(try await freshScope.allSamples().isEmpty)
         await #expect(throws: DataCompatibilityError.accessRevoked) {
-            _ = try await oldScope.allSamples()
+            try await oldScope.perform {}
         }
     }
 
@@ -57,7 +57,7 @@ struct DataCompatibilityCoordinatorTests {
         }
         #expect(try await fixture.store.recordingAuthorityCommits() == originalCommits)
         await #expect(throws: DataCompatibilityError.accessRevoked) {
-            _ = try await oldScope.allSamples()
+            try await oldScope.perform {}
         }
         guard case .verificationFailed = await fixture.coordinator.recheckLocalHistory() else {
             Issue.record("Local history cannot clear account invalidation."); return
@@ -166,7 +166,7 @@ struct DataCompatibilityCoordinatorTests {
             case .newerRequirement: #expect(await transport.readCount == reads + 1)
         }
         await #expect(throws: DataCompatibilityError.accessRevoked) {
-            _ = try await domain.allSamples()
+            try await domain.perform {}
         }
     }
 
@@ -203,7 +203,7 @@ struct DataCompatibilityCoordinatorTests {
         )) }
         #expect(await coordinator.recheckLocalHistory() == .updateRequired(version))
         await #expect(throws: DataCompatibilityError.accessRevoked) {
-            _ = try await domain.allSamples()
+            try await domain.perform {}
         }
         gate.resume()
         #expect(await remote.value == .updateRequired(version))

@@ -14,8 +14,6 @@ extension RegionEntity: IndexedEntity {}
 /// (see the app's `AppDelegate`); indexing a handful of items is cheap and
 /// idempotent, and re-runs pick up any change to the tracked set.
 public actor RegionSpotlightIndexer {
-    private var isPublishing = false
-    private var waiters: [CheckedContinuation<Void, Never>] = []
     public init() {}
 
     private static let logger = WhereIntentsLog.logger
@@ -23,14 +21,12 @@ public actor RegionSpotlightIndexer {
     /// Not system-instantiated (the app calls this), so the services handoff
     /// arrives by plain injection rather than `@Dependency`.
     public func indexRegions(resolving intentServices: IntentServices) async {
-        await beginExclusive()
-        defer { endExclusive() }
         do {
             let services = try await intentServices.current()
             let entities = try await RegionEntity.tracked(from: services)
-            try await services.validateDataAccess()
+
             try await CSSearchableIndex.default().indexAppEntities(entities)
-            try await services.validateDataAccess()
+
             Self.logger.spotlightIndexed(regionCount: .restricted(.count, entities.count))
         } catch {
             // Degraded-but-handled: search integration is a nicety, so a failure
@@ -41,8 +37,6 @@ public actor RegionSpotlightIndexer {
     }
 
     public func withdraw() async {
-        await beginExclusive()
-        defer { endExclusive() }
         await clearIndex()
     }
 
@@ -51,15 +45,5 @@ public actor RegionSpotlightIndexer {
         catch {
             Self.logger.spotlightIndexFailed(error: .restricted(.errorDetails, error))
         }
-    }
-
-    private func beginExclusive() async {
-        if isPublishing { await withCheckedContinuation { waiters.append($0) } }
-        else { isPublishing = true }
-    }
-
-    private func endExclusive() {
-        if waiters.isEmpty { isPublishing = false }
-        else { waiters.removeFirst().resume() }
     }
 }
