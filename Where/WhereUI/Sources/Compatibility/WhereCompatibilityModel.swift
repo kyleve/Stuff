@@ -35,7 +35,9 @@ public final class WhereCompatibilityModel {
     }
 
     func retireScope(_ services: WhereServices) async {
+        async let outputsStopped: Void = withdrawOutputs()
         await coordinator?.retireScope(services)
+        await outputsStopped
     }
 
     func revokeAccess() async {
@@ -121,17 +123,20 @@ public final class WhereCompatibilityModel {
             return
         }
         state = targetState
-        if !isCompatible {
-            if withdrawing == nil {
-                withdrawing = Task {
-                    await bootstrap.withdrawCompatibilityOutputs()
-                    withdrawing = nil
-                }
-            }
-            await withdrawing?.value
-        }
+        await withdrawOutputs()
         guard self.publicationID == publicationID else { return }
         await onStateChange?(state)
+    }
+
+    /// Startup failures and scope retirement share the bootstrap's process-owned cleanup.
+    private func withdrawOutputs() async {
+        if withdrawing == nil {
+            withdrawing = Task {
+                await bootstrap.withdrawCompatibilityOutputs()
+                withdrawing = nil
+            }
+        }
+        await withdrawing?.value
     }
 
     private static let logger = WhereLog.root(WhereCompatibilityLog.self)

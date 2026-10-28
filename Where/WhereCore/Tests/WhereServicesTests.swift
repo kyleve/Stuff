@@ -11,7 +11,7 @@ import Testing
 /// BackupCoordinatorTests, ReminderReconcilerTests, …) cover each piece in
 /// isolation; these prove they work together once `WhereServices` glues them up.
 struct WhereServicesTests {
-    @Test func sessionTeardownWithdrawsNotificationsAndWidgetAccess() async throws {
+    @Test func scopeRetirementLeavesProcessOutputCleanupToItsOwner() async throws {
         let world = try CompatibilityOutputTestSupport.makeWorld()
         let services = WhereServices(
             store: world.store,
@@ -24,6 +24,8 @@ struct WhereServicesTests {
         await services.summary.configure(enabled: true, time: .defaultMorning)
         #expect(await world.summary.enabled)
         await services.suspendForCompatibility()
+        #expect(await world.summary.enabled)
+        await world.outputs.withdraw()
         #expect(await !world.summary.enabled)
         #expect(await world.widgets.compatibility.last?.allowsData == false)
     }

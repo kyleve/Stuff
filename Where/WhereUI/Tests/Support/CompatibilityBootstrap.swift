@@ -14,10 +14,12 @@ final class CompatibilityBootstrap: WhereScopeAssembling {
     let compatibility: DataCompatibilityCoordinator
     var preparationError: (any Error)?
     var serviceAssemblyGate: CompatibilityOperationGate?
+    var withdrawalGate: CompatibilityOperationGate?
     var locationSource: any LocationSource = ScriptedLocationSource(authorizationStatus: .always)
     private(set) var withdrawals = 0
     func withdrawCompatibilityOutputs() async {
         withdrawals += 1
+        await withdrawalGate?.wait()
     }
 
     private(set) var makeServicesCount = 0
