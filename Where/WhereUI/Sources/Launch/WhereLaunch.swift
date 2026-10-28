@@ -253,7 +253,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
 
     private let installationContextStore: any InstallationRecordingContextStoring
     private let storeStorage: SwiftDataStore.Storage
-    private let outputDestinations: DataCompatibilityOutputs.Destinations
+    private let outputDestinations: DataCompatibilityOutputs
     private let locationOutbox: any LocationOutbox
     private var locationSource: CoreLocationSource?
     private var preparedCompatibility: DataCompatibilityCoordinator?

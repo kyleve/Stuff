@@ -47,7 +47,7 @@ public struct TodayRegionsIntent: AppIntent {
             ).todayRegions()
         }
         let ordered = orderedRegions(regions)
-        try await services.validateDataAccess()
+
         return .result(
             dialog: IntentDialog("\(IntentStrings.today(regions: ordered))"),
             view: RegionsSnippetView.today(regions: ordered)
