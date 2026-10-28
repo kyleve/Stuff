@@ -6,6 +6,38 @@ import UIKit
 
 @MainActor
 struct InstallationRecordingContextStoreTests {
+    @Test func accountInvalidationPersistsWithoutChangingConsentOrPendingCommand() throws {
+        let fixture = try makeFixture(
+            ids: [Self.deviceID, Self.resetDeviceID],
+            dates: [Self.registeredAt, Self.resetRegisteredAt],
+        )
+        defer { fixture.cleanup() }
+        let store = fixture.makeStore()
+        _ = try store.confirmInitialRecording(isEnabled: true)
+        let pending = try RecordingAuthorityProposal(
+            state: .initial,
+            action: .claim,
+            deviceID: store.resolve().currentDevice.id,
+            buildVersion: .current,
+            eventID: .init(rawValue: UUID()),
+        )
+        try store.setRecordingControl(.init(
+            selection: .recordingRequested,
+            pendingTransition: pending,
+        ))
+        let account = RecordingAccountID.cloudKit(recordName: "account-a")
+        try store.setRecordingAccount(.verified(account))
+        let original = try store.resolve()
+        try store.setRecordingAccount(.invalidated(account))
+        let restored = try fixture.makeStore().resolve()
+        #expect(restored.recordingAccount == .invalidated(account))
+        #expect(restored.recordingChoice == original.recordingChoice)
+        #expect(restored.recordingControl == original.recordingControl)
+        #expect(restored.currentDevice == original.currentDevice)
+        _ = try store.rejoin()
+        #expect(try fixture.makeStore().resolve().recordingAccount == .invalidated(account))
+    }
+
     @Test func confirmedRoleSurvivesRestartInBackupExcludedSidecar() throws {
         let fixture = try makeFixture()
         defer { fixture.cleanup() }

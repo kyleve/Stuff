@@ -76,9 +76,10 @@ struct SwiftDataStoreTests {
     @Test func historyResetPreservesOwnerAndCompatibilityRequirements() async throws {
         let store = try SwiftDataStore.inMemory()
         let fixture = RecordingAuthorityFixture()
-        let authority = RecordingAuthorityCoordinator(
+        let authority = await RecordingAuthorityCoordinator(
             store: store,
             transport: LocalRecordingAuthorityTransport(now: { Date() }),
+            installation: RecordingCoordinationInstallation(deviceID: .init(rawValue: UUID())),
         )
         let claim = try fixture.proposal(.initial, .claim, device: fixture.phone)
         _ = try await authority.submit(claim)

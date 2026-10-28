@@ -8,6 +8,7 @@ import PeriscopeCore
 final class CompatibilityBootstrap: WhereScopeAssembling {
     let store: SwiftDataStore
     let installation: InMemoryInstallationRecordingContextStore
+    let transport = CompatibilityAccountTransport()
     let authority: RecordingAuthorityCoordinator
     let recording: RecordingDeviceCoordination
     let compatibility: DataCompatibilityCoordinator
@@ -39,7 +40,8 @@ final class CompatibilityBootstrap: WhereScopeAssembling {
         self.installation = installation
         let authority = RecordingAuthorityCoordinator(
             store: store,
-            transport: LocalRecordingAuthorityTransport(now: { Date() }),
+            transport: transport,
+            installation: installation,
         )
         self.authority = authority
         let recording = RecordingDeviceCoordination(

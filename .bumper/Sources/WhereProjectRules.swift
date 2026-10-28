@@ -32,6 +32,13 @@ let whereProjectRules = RuleSet {
         id: "where.recording_coordination_composition",
     )
     Rules.constructionOwnership(
+        "RecordingAccountAccess",
+        allowed: RuleScope
+            .files(["Where/WhereCore/Sources/Coordination/RecordingAuthorityCoordinator.swift"])
+            .union(nonWhereProductionScope),
+        id: "where.recording_account_access_composition",
+    )
+    Rules.constructionOwnership(
         "CompatibilityScopedStore",
         allowed: RuleScope.files(
             ["Where/WhereCore/Sources/Compatibility/DataCompatibilityCoordinator.swift"],

@@ -512,6 +512,10 @@ private final class CommittedFailingResetInstallationContextStore:
         onboardingContext = context
     }
 
+    func setRecordingAccount(_ binding: RecordingAccountBinding) throws {
+        onboardingContext = onboardingContext.settingRecordingAccount(binding)
+    }
+
     func setRecordingControl(_ control: RecordingInstallationControl) throws {
         onboardingContext = onboardingContext.settingRecordingControl(control)
     }
