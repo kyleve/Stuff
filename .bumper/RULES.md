@@ -180,11 +180,12 @@ is needed.
 
 ## Compatibility access
 
-`where.compatibility_store_boundary` requires the leading compatibility assertion
-on public SwiftData domain operations. The explicit operational exception list
-lives beside the rule in `Sources/WhereProjectRules.swift`. Transaction and
-snapshot completion checks are covered by `SwiftDataStoreCompatibilityTests`.
-Mutation guard: `domainStoreMethodsRequireCompatibilityChecks`.
+`where.compatibility_store_boundary` requires `validateTransaction(in: peer)`
+immediately before the persistence save. The check validates the scope permit
+and the compatibility requirement for transactions that contain domain writes.
+Mutation guard: `transactionSaveRequiresCompatibilityCheck`.
+The rule recognizes the current `peer.save()` syntax. Unit tests cover the
+mutation-context marker and rollback behavior.
 
 `where.compatibility_scope_ownership` permits production scoped-store construction
 only in `DataCompatibilityCoordinator`. Isolated test fixtures may construct their

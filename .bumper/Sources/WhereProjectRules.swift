@@ -331,59 +331,28 @@ private let previewCoverageRule = Rules.files(
 }
 
 /// These operations inspect or maintain the control plane while normal data is unavailable.
-private let compatibilityMetadataMethods: Set<String> = [
-    "perform",
-    "readSnapshot",
-    "changes",
-    "remoteChanges",
-    "dataGeneration",
-    "recordingDeviceResetBarrier",
-    "backupImportReceipt",
-    "addBackupImportReceipt",
-    "removeBackupImportReceipt",
-    "recordingDevices",
-    "recordingDeviceProfiles",
-    "addRecordingDeviceProfile",
-    "recordingDeviceMetadataChanges",
-    "addRecordingDeviceMetadataChange",
-    "recordingDeviceCheckIns",
-    "setRecordingDeviceCheckIn",
-    "recordingDeviceRemovals",
-    "addRecordingDeviceRemoval",
-    "dataCompatibilityRequirements",
-    "addDataCompatibilityRequirement",
-    "importedRecordingRecoveryExclusions",
-    "recordingAuthorityCommits",
-    "addRecordingAuthorityCommit",
-    "requiredDataCompatibilityVersion",
-    "setSupportedDataCompatibilityVersionForTesting",
-    "simulateRemoteRecordingImport",
-    "simulateRemoteDayImport",
-]
-
 private let compatibilityStoreBoundaryRule = Rules.files(
     "where.compatibility_store_boundary",
     severity: .error,
-    summary: "Every public domain store operation checks compatibility before accessing data.",
-    scope: .files([
-        "Where/WhereCore/Sources/Persistence/SwiftDataStore.swift",
-        "Where/WhereCore/Sources/Persistence/SwiftDataStore+Compatibility.swift",
-    ]),
+    summary: "Persistence checks the transaction lifetime and version immediately before save.",
+    scope: .files(["Where/WhereCore/Sources/Persistence/SwiftDataStore.swift"]),
 ) { file in
     SyntaxQuery<FunctionDeclSyntax>()
         .filter { match in
-            let modifiers = match.node.modifiers.map(\.name.text)
-            return modifiers.contains("public") && !modifiers.contains("static")
-                && !compatibilityMetadataMethods.contains(match.node.name.text)
-                && match.node.body?.statements.first?.item.trimmedDescription != "try assertDataCompatible()"
+            guard let body = match.node.body?.trimmedDescription,
+                  body.contains("try peer.save()") else { return false }
+            return body.range(
+                of: #"try validateTransaction\(in: peer\)\s+try peer\.save\(\)"#,
+                options: .regularExpression,
+            ) == nil
         }
         .matches(in: file)
         .map { match in
             match.failure(
-                message: "Domain store operation lacks its leading compatibility check.",
+                message: "Persistence save lacks its adjacent transaction check.",
                 evidence: ViolationEvidence(
                     observed: match.node.name.text,
-                    expectation: "begin with try assertDataCompatible()",
+                    expectation: "call validateTransaction(in: peer) immediately before peer.save()",
                 ),
             )
         }

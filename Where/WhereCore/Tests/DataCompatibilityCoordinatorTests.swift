@@ -74,7 +74,7 @@ struct DataCompatibilityCoordinatorTests {
         let newScope = try await updated.openDomainStore()
         #expect(try await newScope.allSamples().isEmpty)
         await #expect(throws: DataCompatibilityError.accessRevoked) {
-            _ = try await oldScope.allSamples()
+            try await oldScope.perform {}
         }
     }
 

@@ -3,7 +3,7 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct CompatibilityScopedStoreTests {
-    @Test func homeRegionHistoryForwardsUntilTheScopeIsRevoked() async throws {
+    @Test func revocationBlocksTransactionsWhileReadsRemainAvailable() async throws {
         let base = try SwiftDataStore.inMemory()
         let permit = DataAccessPermit()
         let scoped = CompatibilityScopedStore(base: base, permit: permit)
@@ -21,14 +21,12 @@ struct CompatibilityScopedStoreTests {
         #expect(try await base.homeRegionRecords() == [home])
 
         permit.revoke()
+        #expect(try await scoped.homeRegionRecords() == [home])
         await #expect(throws: DataCompatibilityError.accessRevoked) {
-            _ = try await scoped.homeRegionRecords()
+            try await scoped.perform { try await scoped.restoreHomeRegionRecord(historical) }
         }
         await #expect(throws: DataCompatibilityError.accessRevoked) {
-            try await scoped.restoreHomeRegionRecord(historical)
-        }
-        await #expect(throws: DataCompatibilityError.accessRevoked) {
-            try await scoped.replaceHomeRegionRecord(with: historical)
+            try await scoped.perform { try await scoped.replaceHomeRegionRecord(with: historical) }
         }
         #expect(try await base.homeRegionRecords() == [home])
     }

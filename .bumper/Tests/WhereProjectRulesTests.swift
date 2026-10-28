@@ -368,17 +368,17 @@ struct WhereProjectRulesTests {
         #expect(rejected.violations.map(\.rule.id) == ["where.store_transaction_boundary"])
     }
 
-    @Test func domainStoreMethodsRequireCompatibilityChecks() throws {
+    @Test func transactionSaveRequiresCompatibilityCheck() throws {
         let path: RelativeFilePath = "Where/WhereCore/Sources/Persistence/SwiftDataStore.swift"
         let allowed = try evaluate(
             path: path,
             component: .whereCore,
-            source: "public func samples() throws { try assertDataCompatible(); fetch() }",
+            source: "func commit() throws { try validateTransaction(in: peer)\ntry peer.save() }",
         )
         let rejected = try evaluate(
             path: path,
             component: .whereCore,
-            source: "public func samples() throws { fetch() }",
+            source: "func commit() throws { try peer.save() }",
         )
         #expect(allowed.violations.isEmpty)
         #expect(rejected.violations.map(\.rule.id) == ["where.compatibility_store_boundary"])

@@ -721,7 +721,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     private struct ActiveSnapshot {
         let context: ModelContext
         let generation: WhereDataGeneration
-        var requiresDataCompatibility = false
     }
 
     /// The context and logical generation are installed and cleared as one value, so neither an
@@ -803,7 +802,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public func readSnapshot<T: Sendable>(
         _ block: @Sendable () async throws -> T,
     ) async throws -> T {
-        try DataAccessPermit.current?.validate()
         let storeID = ObjectIdentifier(self)
         if Self.activeTransactionStores.contains(storeID) {
             guard let transaction = activeTransaction else {
@@ -838,9 +836,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             ) {
                 try await block()
             }
-            try DataAccessPermit.current?.validate()
-            if activeSnapshot?
-                .requiresDataCompatibility == true { try assertDataCompatible(in: peer) }
             guard try Self.latestHistoryTransactionID(in: peer)
                 == startingHistoryTransactionID
             else {
@@ -981,13 +976,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 {
                     throw WhereStoreReadConflictError.changedDuringTransaction
                 }
-                try DataAccessPermit.current?.validate()
-                if activeTransaction?
-                    .requiresDataCompatibility == true { try assertDataCompatible(in: peer) }
+                try validateTransaction(in: peer)
                 try peer.save()
-                try DataAccessPermit.current?.validate()
-                if activeTransaction?
-                    .requiresDataCompatibility == true { try assertDataCompatible(in: peer) }
+                try validateTransaction(in: peer)
                 // The persistent store can import a CloudKit reset while this
                 // asynchronous transaction body is suspended. Saving old-generation
                 // rows is harmless (they are inert), but reporting success would
@@ -1030,6 +1021,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// contract surfaces immediately instead of silently no-op'ing
     /// the save.
     private func mutationContext() -> ModelContext {
+        let context = controlMutationContext()
+        activeTransaction?.requiresDataCompatibility = true
+        return context
+    }
+
+    private func controlMutationContext() -> ModelContext {
         guard let context = activeTransaction?.context else {
             preconditionFailure(
                 "SwiftDataStore mutations must be called inside store.perform { ... }",
@@ -1063,12 +1060,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         readContext()
     }
 
-    func markDomainAccess() {
-        let identity = ObjectIdentifier(self)
-        if Self.activeTransactionStores
-            .contains(identity) { activeTransaction?.requiresDataCompatibility = true }
-        if Self.activeSnapshotStores
-            .contains(identity) { activeSnapshot?.requiresDataCompatibility = true }
+    private func validateTransaction(in context: ModelContext) throws {
+        try DataAccessPermit.current?.validate()
+        if activeTransaction?.requiresDataCompatibility == true {
+            try assertDataCompatible(in: context)
+        }
     }
 
     public func dataGeneration() async throws -> WhereDataGeneration {
@@ -1095,7 +1091,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         changedBy deviceID: RecordingDeviceID,
         at date: Date,
     ) async throws -> WhereDataGeneration {
-        try assertDataCompatible()
         precondition(
             reason.isDestructive,
             "Only a destructive operation rotates the data generation.",
@@ -1337,7 +1332,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func add(sample: LocationSample) async throws {
-        try assertDataCompatible()
         let context = mutationContext()
         let generationID = mutationGenerationID()
         let existing = try context.fetch(GenerationScopedFetch.samples(
@@ -1355,7 +1349,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func samples(in interval: DateInterval) async throws -> [LocationSample] {
-        try assertDataCompatible()
         let context = readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.samples(
@@ -1376,7 +1369,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func allSamples() async throws -> [LocationSample] {
-        try assertDataCompatible()
         let context = readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.samples(
@@ -1395,13 +1387,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public func sampleAttributionRevisions(
         for sampleIDs: Set<UUID>,
     ) async throws -> [SampleAttributionRevision] {
-        try assertDataCompatible()
         guard !sampleIDs.isEmpty else { return [] }
         return try await allSampleAttributionRevisions().filter { sampleIDs.contains($0.sampleID) }
     }
 
     public func allSampleAttributionRevisions() async throws -> [SampleAttributionRevision] {
-        try assertDataCompatible()
         let context = readContext()
         let generationID = try readGenerationID(in: context)
         let records = try context
@@ -1430,7 +1420,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func addSampleAttributionRevision(_ revision: SampleAttributionRevision) async throws {
-        try assertDataCompatible()
         guard revision.updatedAt.timeIntervalSince1970.isFinite else {
             throw SampleAttributionPersistenceError.incompleteHistory
         }
@@ -1541,7 +1530,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public func addDataCompatibilityRequirement(
         _ requirement: DataCompatibilityRequirement,
     ) async throws {
-        let context = mutationContext()
+        let context = controlMutationContext()
         if let previous = try await dataCompatibilityRequirements()
             .first(where: { $0.id == requirement.id })
         {
@@ -1570,7 +1559,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func addRecordingRecoveryExclusion(_ exclusion: RecordingRecoveryExclusion) async throws {
-        try assertDataCompatible()
         try exclusion.validate()
         let context = mutationContext()
         if let previous = try await recordingRecoveryExclusions()
@@ -1612,7 +1600,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         try commit.proposal.validate()
         guard let eventID = commit.proposal.result.revision?.eventID
         else { throw RecordingAuthorityError.invalidRecord }
-        let context = mutationContext()
+        let context = controlMutationContext()
         let commits = try await recordingAuthorityCommits()
         if let existing = commits
             .first(where: { $0.proposal.result.revision?.eventID == eventID })
@@ -1627,7 +1615,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func addRecordingDeviceProfile(_ profile: RecordingDeviceProfile) async throws {
-        let context = mutationContext()
+        let context = controlMutationContext()
         let id = profile.id.rawValue
         let existing = try context.fetch(
             FetchDescriptor<SDRecordingDeviceProfile>(predicate: #Predicate { $0.id == id }),
@@ -1674,7 +1662,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public func addRecordingDeviceMetadataChange(
         _ change: RecordingDeviceMetadataChange,
     ) async throws {
-        let context = mutationContext()
+        let context = controlMutationContext()
         let generationID = mutationGenerationID()
         let storedChangeID = change.id.rawValue
         let existing = try context.fetch(GenerationScopedFetch.metadataChanges(
@@ -1716,7 +1704,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func setRecordingDeviceCheckIn(_ checkIn: RecordingDeviceCheckIn) async throws {
-        let context = mutationContext()
+        let context = controlMutationContext()
         let generationID = mutationGenerationID()
         let existing = try context.fetch(GenerationScopedFetch.checkIns(
             belongingTo: generationID,
@@ -1781,7 +1769,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func addRecordingDeviceRemoval(_ archive: RecordingDeviceRemoval) async throws {
-        let context = mutationContext()
+        let context = controlMutationContext()
         let generationID = mutationGenerationID()
         let id = archive.id.rawValue
         let existing = try context.fetch(
@@ -1800,7 +1788,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func write(evidence: Evidence, blob: Data?) async throws {
-        try assertDataCompatible()
         let context = mutationContext()
         let generationID = mutationGenerationID()
         let matchingRecords = try context.fetch(GenerationScopedFetch.evidence(
@@ -1825,7 +1812,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func evidence(in interval: DateInterval) async throws -> [Evidence] {
-        try assertDataCompatible()
         let context = readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.evidence(
@@ -1843,7 +1829,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func allEvidence() async throws -> [Evidence] {
-        try assertDataCompatible()
         let context = readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.evidence(
@@ -1858,7 +1843,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func evidenceBlob(for id: UUID) async throws -> Data? {
-        try assertDataCompatible()
         let context = readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.evidence(
@@ -1873,7 +1857,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func write(blob: Data, for id: UUID) async throws {
-        try assertDataCompatible()
         let context = mutationContext()
         let generationID = mutationGenerationID()
         let descriptor = GenerationScopedFetch.evidence(
@@ -1885,12 +1868,10 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func read(for id: UUID) async throws -> Data? {
-        try assertDataCompatible()
-        return try await evidenceBlob(for: id)
+        try await evidenceBlob(for: id)
     }
 
     public func delete(for id: UUID) async throws {
-        try assertDataCompatible()
         let context = mutationContext()
         let generationID = mutationGenerationID()
         let descriptor = GenerationScopedFetch.evidence(
@@ -1902,7 +1883,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func setManualDay(_ day: DayPresence) async throws {
-        try assertDataCompatible()
         let context = mutationContext()
         let generationID = mutationGenerationID()
         let existing = try context.fetch(GenerationScopedFetch.manualDays(
@@ -1944,7 +1924,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func clearManualDay(_ day: CalendarDay) async throws {
-        try assertDataCompatible()
         let context = mutationContext()
         let generationID = mutationGenerationID()
         let descriptor = GenerationScopedFetch.manualDays(
@@ -1957,7 +1936,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func manualDays(in dayRange: ClosedRange<CalendarDay>) async throws -> [DayPresence] {
-        try assertDataCompatible()
         let context = readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.manualDays(
@@ -1975,7 +1953,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func allManualDays() async throws -> [DayPresence] {
-        try assertDataCompatible()
         let context = readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.manualDays(
@@ -1993,7 +1970,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         in interval: DateInterval,
         manualDays dayRange: ClosedRange<CalendarDay>,
     ) async throws {
-        try assertDataCompatible()
         let context = mutationContext()
         let generationID = mutationGenerationID()
         let samples = try context.fetch(GenerationScopedFetch.samples(
@@ -2024,7 +2000,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func dismissedIssueIDs() async throws -> Set<DataIssueID> {
-        try assertDataCompatible()
         let context = readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.dismissedIssues(
@@ -2039,7 +2014,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func allDismissedIssues() async throws -> [DismissedIssue] {
-        try assertDataCompatible()
         let context = readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.dismissedIssues(
@@ -2054,7 +2028,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func setIssueDismissed(_ dismissed: Bool, id: DataIssueID) async throws {
-        try assertDataCompatible()
         let context = mutationContext()
         let generationID = mutationGenerationID()
         let key = id.storeURL.absoluteString
@@ -2078,7 +2051,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func restoreDismissedIssue(_ issue: DismissedIssue) async throws {
-        try assertDataCompatible()
         let context = mutationContext()
         let generationID = mutationGenerationID()
         let key = issue.id.storeURL.absoluteString
@@ -2100,7 +2072,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     // MARK: - Planned stay
 
     public func plannedStayRecords() async throws -> [PlannedStayRecord] {
-        try assertDataCompatible()
         let context = readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.plannedStays(
@@ -2115,7 +2086,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func replacePlannedStayRecord(with record: PlannedStayRecord) async throws {
-        try assertDataCompatible()
         try record.validate()
         let context = mutationContext()
         let generationID = mutationGenerationID()
@@ -2129,7 +2099,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func restorePlannedStayRecord(_ record: PlannedStayRecord) async throws {
-        try assertDataCompatible()
         try record.validate()
         let context = mutationContext()
         let generationID = mutationGenerationID()
@@ -2143,7 +2112,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func homeRegionRecords() async throws -> [HomeRegionRecord] {
-        try assertDataCompatible()
         let context = readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.homeRegions(
@@ -2158,7 +2126,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func replaceHomeRegionRecord(with record: HomeRegionRecord) async throws {
-        try assertDataCompatible()
         try record.validate()
         let context = mutationContext()
         let generationID = mutationGenerationID()
@@ -2171,7 +2138,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func restoreHomeRegionRecord(_ record: HomeRegionRecord) async throws {
-        try assertDataCompatible()
         try record.validate()
         let context = mutationContext()
         let generationID = mutationGenerationID()
@@ -2187,7 +2153,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     // MARK: - Tracked regions
 
     public func trackedRegions() async throws -> Set<Region> {
-        try assertDataCompatible()
         let context = readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.trackedRegions(
@@ -2223,7 +2188,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func setTrackedRegion(_ tracked: Bool, region: Region) async throws {
-        try assertDataCompatible()
         let context = mutationContext()
         let generationID = mutationGenerationID()
         let descriptor = GenerationScopedFetch.trackedRegions(
@@ -2258,7 +2222,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func primaryRegions() async throws -> [PrimaryRegion] {
-        try assertDataCompatible()
         let context = readContext()
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.trackedRegions(
@@ -2307,7 +2270,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func setPrimaryRegions(_ regions: [PrimaryRegion]) async throws {
-        try assertDataCompatible()
         let context = mutationContext()
         let generationID = mutationGenerationID()
         let desiredIDs = Set(regions.map(\.region.rawValue))
