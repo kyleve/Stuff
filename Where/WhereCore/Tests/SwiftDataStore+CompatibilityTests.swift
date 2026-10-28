@@ -4,16 +4,14 @@ import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct SwiftDataStoreCompatibilityTests {
-    @Test func unsupportedRequirementBlocksHomeRegionReadsAndWrites() async throws {
+    @Test func unsupportedRequirementBlocksWritesButAllowsTeardownReads() async throws {
         let store = try SwiftDataStore.inMemory()
         let home = try HomeRegionRecord(id: UUID(), region: .california, updatedAt: Date())
         let required = DataCompatibilityVersion(rawValue: 2)
         try await store.perform {
             try await store.addDataCompatibilityRequirement(.init(id: UUID(), version: required))
         }
-        await #expect(throws: DataCompatibilityError.updateRequired(required)) {
-            _ = try await store.homeRegionRecords()
-        }
+        #expect(try await store.homeRegionRecords().isEmpty)
         await #expect(throws: DataCompatibilityError.updateRequired(required)) {
             try await store.perform { try await store.restoreHomeRegionRecord(home) }
         }
@@ -85,18 +83,25 @@ struct SwiftDataStoreCompatibilityTests {
         resume.finish()
         await #expect(throws: DataCompatibilityError.accessRevoked) { try await writing.value }
         #expect(try await base.allSamples().isEmpty)
+        #expect(try await scoped.allSamples().isEmpty)
+        let replacement = CompatibilityScopedStore(base: base, permit: DataAccessPermit())
+        try await replacement.perform { try await replacement.add(sample: Self.sample) }
         await #expect(throws: DataCompatibilityError.accessRevoked) {
-            _ = try await scoped.allSamples()
+            try await scoped.perform { try await scoped.add(sample: Self.sample) }
         }
+        #expect(try await base.allSamples().count == 1)
     }
 
-    @Test func malformedRequirementsBlockDomainReadsWithoutHidingMetadata() async throws {
+    @Test func malformedRequirementsBlockWritesWithoutHidingMetadata() async throws {
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)
         let context = ModelContext(container)
         context.insert(SDDataCompatibilityRequirement())
         try context.save()
         let store = SwiftDataStore(modelContainer: container)
-        await #expect(throws: DataCompatibilityError.self) { _ = try await store.allSamples() }
+        await #expect(throws: DataCompatibilityError.self) {
+            try await store.perform { try await store.add(sample: Self.sample) }
+        }
+        #expect(try await store.allSamples().isEmpty)
         #expect(try await store.recordingAuthorityCommits().isEmpty)
     }
 
@@ -117,7 +122,7 @@ struct SwiftDataStoreCompatibilityTests {
         await store.setSupportedDataCompatibilityVersionForTesting(.initial)
         #expect(try await store.requiredDataCompatibilityVersion() == .init(rawValue: 2))
         await #expect(throws: DataCompatibilityError.updateRequired(.init(rawValue: 2))) {
-            _ = try await store.allSamples()
+            try await store.perform { try await store.add(sample: Self.sample) }
         }
     }
 

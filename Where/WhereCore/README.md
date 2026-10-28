@@ -669,11 +669,11 @@ let scopedStore = try await compatibility.openDomainStore()
 // Assemble the normal world's services with scopedStore.
 ```
 
-Each scope gets an irrevocable permit over the existing store. Revoking it rejects
-suspended operations and permanently retires that scope. Resuming requires a new
-scope. `SwiftDataStore` also checks current requirements at domain entry points,
-snapshot completion, and before/after commit. Pending requirements participate in
-the pre-save check. Failed transactions cannot leave a raised floor behind.
+Each scope gets an irrevocable write permit over the existing store. Revocation
+rejects new transactions and rolls back suspended transactions before save.
+Recovery creates a fresh scope. Ordinary reads can finish during teardown.
+`SwiftDataStore` checks current and pending requirements at the transaction commit.
+Recovery metadata remains available while the normal session is blocked.
 
 Control-plane inspection and recording coordination remain available while blocked.
 The production raw store remains at the bootstrap; services receive the scoped
