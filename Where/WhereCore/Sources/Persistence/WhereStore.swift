@@ -16,7 +16,7 @@ import RegionKit
 /// production `SwiftDataStore` implementation traps with a
 /// `preconditionFailure` if a mutation is called outside `perform`.
 public protocol WhereStore: Sendable {
-    /// Recheck access before publishing data outside the store.
+    /// Check transaction admission. Ordinary reads are not a compatibility boundary.
     func validateDataAccess() async throws
     func requiredDataCompatibilityVersion() async throws -> DataCompatibilityVersion
     func dataCompatibilityRequirements() async throws -> [DataCompatibilityRequirement]

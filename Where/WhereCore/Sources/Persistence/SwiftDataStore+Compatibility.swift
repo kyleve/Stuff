@@ -32,7 +32,6 @@ extension SwiftDataStore {
         } catch { throw DataCompatibilityError.verificationFailed(error.localizedDescription) }
         guard supportedCompatibilityVersion >= required
         else { throw DataCompatibilityError.updateRequired(required) }
-        markDomainAccess()
     }
 
     private static func requiredVersion(in context: ModelContext) throws
