@@ -29,10 +29,10 @@ struct YearTotalsWidget: Widget {
                 // of falling back to `WhereStylesheet.default` (the extension has
                 // no other Broadway root), plus the region looks the snapshot
                 // carries so `\.regionStyles` renders the user's picks.
-                .whereBroadwayRoot(
+                .whereBroadwayRoot(WherePresentationContext(
                     theme: entry.theme,
                     regionStyles: RegionStyleResolver(appearances: entry.snapshot.appearances),
-                )
+                ))
         }
         .configurationDisplayName(String(localized: .widgetGalleryYearTotalsName))
         .description(String(localized: .widgetGalleryYearTotalsDescription))

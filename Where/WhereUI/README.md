@@ -396,6 +396,12 @@ next-launch controller, and card designer state. The host's installed app icon
 identity remains available. This wiring does not create services; each host
 still owns its in-memory world.
 
+`WherePresentationContext(theme:regionStyles:)` carries the complete visual
+identity for app, widget, and intent roots. Both values are required.
+`whereBroadwayRoot(_:)` applies them together and retains the root's outline
+cache across updates. Standalone components and previews can use the defaulted
+`whereBroadwayRoot(theme:regionStyles:)` convenience overload.
+
 ## Design system
 
 Appearance tokens — geometry, fonts, colors, motion — live in one place,

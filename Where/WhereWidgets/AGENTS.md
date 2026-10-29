@@ -39,8 +39,9 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 - In-widget strings come from WhereUI (shared views + `WhereFormat`). The
   gallery name/description resolve through this extension's own generated
   catalog symbols (`String(localized: .widgetGalleryTodayName)`).
-- **Seed the Broadway root via WhereUI's `whereBroadwayRoot()`** with the
-  separately published theme and the snapshot's region styles (applied in each
+- **Seed the Broadway root via WhereUI's `whereBroadwayRoot(_:)`** with a
+  required `WherePresentationContext` containing the separately published theme
+  and the snapshot's region styles (applied in each
   widget's `StaticConfiguration` content). Then the shared WhereUI views resolve
   trait-aware `@Environment(\.stylesheet)` tokens instead of `.default`. Never
   add a direct `BroadwayCore`/`BroadwayUI` dependency. Broadway arrives through

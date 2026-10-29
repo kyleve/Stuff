@@ -240,8 +240,9 @@ worked examples.
   Keep launch style consumers beneath `whereBroadwayRoot()`. The launch slice
   selects an `Equatable` reveal policy whose computed property builds the transition.
 - Keep scoped SwiftUI appearance overrides consistent with Broadway traits.
-  Pair `.dynamicTypeSize` limits with the corresponding content-size override.
-  Pair explicit `.colorScheme` overrides with `.bMode` for styled subtrees.
+  Use `bColorScheme(_:)` and `bDynamicTypeSize` for paired native/Broadway
+  overrides. Reserve `bMode` and `bContentSizeCategory` for deliberate
+  stylesheet-only overrides.
 - Keep live Card Designer and ranking-lab drafts outside the cached slice.
   These runtime inputs compose over the resolved base style. Document their
   direct system-trait reads at the declaration.
@@ -255,6 +256,10 @@ worked examples.
   Guard: `RegionAppearanceCatalogTests.idDerivedDefaultsHaveStableAssignments`.
 - **Seed `WhereTheme` through `whereBroadwayRoot(theme:regionStyles:)`.** Standard
   and Flat use the stable `standard` and `alternate` identities.
+- Pass a required `WherePresentationContext` to production app, widget, and
+  intent roots. Resolve its theme and region styles from the same world.
+  The defaulted root overload remains for standalone components and previews.
+  Guards: `WherePresentationContextTests`, `IntentServicesTests`.
 - Keep Standard as the base stylesheet. Resolve shared traits before applying `WhereThemeOverrides`.
   Put theme values and theme-specific trait decisions in their definition, such as `WhereFlatTheme`.
   Keep override application independent of theme selection and trait resolution.
