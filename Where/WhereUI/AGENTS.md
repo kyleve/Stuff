@@ -38,6 +38,9 @@ Layering, localization, preview, and testing conventions live in the feature
   model. Its isolated context requires an explicit session and clears inherited
   updates and developer tools. Keep new scope-sensitive environment values in
   that modifier. Guard: `WhereEnvironmentTests`.
+- Build Settings preview models through `SettingsPreviewWorld` and inject its
+  complete environment. Keep its services and preferences shared across the
+  session, report, backup, and recording-warning models. Guard: `SettingsPreviewWorldTests`.
 - The app injects its configured primary icon name at `RootView`; icon-picker
   code treats every manifest entry as an asset and derives primary versus
   alternate status from that injected name.

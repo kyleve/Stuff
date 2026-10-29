@@ -609,6 +609,11 @@ constructing them inline, and cover the empty / loaded / edge states, not just
 the happy path. See the feature
 [`Where/AGENTS.md`](../AGENTS.md#swiftui-views--previews).
 
+Settings previews use `SettingsPreviewWorld`. It creates one in-memory session
+and derives the report, backup, and recording-warning models from that session.
+Its preloaded report supplies static sample content. Call `environment(updates:developer:)`
+to inject the complete fixture through `whereEnvironment(_:)`.
+
 ## Flyover
 
 `Sources/Developer/Flyover` owns an explicit `WhereFlyoverScreenID` catalog.

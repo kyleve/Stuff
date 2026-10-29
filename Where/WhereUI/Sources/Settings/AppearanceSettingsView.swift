@@ -235,14 +235,19 @@ extension AppearanceSettingsView: SettingsSection {
                     await PreviewSupport.loadCardArtwork(for: [.california], cache: cache)
                 },
             ) {
-                let model = PreviewSupport.loadedModel()
-                model.previewTheme(.alternate)
+                let world = SettingsPreviewWorld(theme: .alternate, recordingWarning: .absent)
                 return NavigationStack {
-                    AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())
+                    AppearanceSettingsView(report: world.report)
                 }
-                .environment(model)
-                .environment(\.cardDesignerModel, CardDesignerModel(configuration: .standard))
                 .environment(\.regionOutlinePathCache, cache)
+                .whereEnvironment(world.environment(
+                    updates: nil,
+                    developer: .init(
+                        inspector: nil,
+                        launchController: nil,
+                        cardDesigner: CardDesignerModel(configuration: .standard),
+                    ),
+                ))
             }
             whereSnapshot(
                 name: "Default",
@@ -252,15 +257,19 @@ extension AppearanceSettingsView: SettingsSection {
                     await PreviewSupport.loadCardArtwork(for: [.california], cache: cache)
                 },
             ) {
+                let world = SettingsPreviewWorld(theme: .standard, recordingWarning: .absent)
                 NavigationStack {
-                    AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())
+                    AppearanceSettingsView(report: world.report)
                 }
-                .environment(PreviewSupport.loadedModel())
-                .environment(
-                    \.cardDesignerModel,
-                    CardDesignerModel(configuration: .standard),
-                )
                 .environment(\.regionOutlinePathCache, cache)
+                .whereEnvironment(world.environment(
+                    updates: nil,
+                    developer: .init(
+                        inspector: nil,
+                        launchController: nil,
+                        cardDesigner: CardDesignerModel(configuration: .standard),
+                    ),
+                ))
             }
         }
     }
