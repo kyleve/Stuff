@@ -222,7 +222,9 @@ def main(arguments: Optional[Iterable[str]] = None) -> int:
         suspects = sorted(
             identifier for identifier, record in stats.items() if record["fails"] > 0
         )
-        options.suspects.write_text("".join(identifier + "\n" for identifier in suspects))
+        options.suspects.write_text(
+            "".join(identifier + "\n" for identifier in suspects)
+        )
         options.counts.write_text(json.dumps(stats))
         print(f"  {len(stats)} distinct tests seen across the suite runs")
         print(f"  {len(suspects)} suspect(s) failed at least once")

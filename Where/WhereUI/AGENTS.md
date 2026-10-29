@@ -118,6 +118,9 @@ Layering, localization, preview, and testing conventions live in the feature
   `YearReportModel` scan result. Inject that scene as the Resolve model's `ResolutionSource`. Re-key on raw evidence changes; never gate refresh
   on aggregate-report equality. Schedule presentation deadlines only in the foreground.
 - Expose each calendar month as one accessibility element: regional totals in the label, chronological stay spans and dated badges in the value. Preserve planning qualifiers. Guard: `CalendarMonthAccessibilityTests`.
+- Keep overview availability derived from the full-size calendar visibility rule in `CalendarPresentationModel`. Unavailable months keep their region and projection colors, and remain actionable for rejection feedback. Guard: `CalendarPresentationModelTests`.
+- Inject the calendar zoom key at each entry point. Persist mode changes through `WherePreferences`; a nil key must not read or write preferences. Guard: `CalendarPresentationModelTests`.
+- Animate calendar zoom in an overlay after the destination scroll position settles. Keep moving geometry outside the scroll-target layout and cancel it when its viewport or report changes. Reduce Motion uses a crossfade. Guards: `CalendarZoomTransitionModelTests`, `CalendarContentViewTests`.
 - Keep calendar flight days and timeline flight events independent of review dismissal.
   Show uncertain arrival timing explicitly. Render supported travel periods separately from later ground observations.
   Split timeline stays only for presentation; preserve every region-day exactly once.
@@ -290,6 +293,10 @@ Use the [`update-explore-features`](../../.agents/skills/update-explore-features
 
 ## Testing
 
+Hosted tests that traverse SwiftUI accessibility must link and import
+`AccessibilitySnapshotParser` so a fresh simulator initializes its accessibility
+runtime. Guard: `CalendarContentViewTests`.
+
 `WhereStylesheetTests` pins every token default and trait-aware derivation.
 `WhereStylesheetEnvironmentTests` covers the `@Environment(\.stylesheet)`
 glue and `whereBroadwayRoot()` seeding, including the WhereWidgets path.
@@ -313,7 +320,11 @@ job, deliberately outside `Stuff-iOS-Tests` (root
 [`AGENTS.md`](../../AGENTS.md#targets)). Declarations use the helpers in
 [`Sources/Preview/WhereSnapshot.swift`](Sources/Preview/WhereSnapshot.swift).
 Follow `building-ui` for authoring and the repo `running-tests` skill for
-recording/reviewing references.
+recording/reviewing references. Apply [SnapshotKit's coverage policy](../../Shared/SnapshotKit/AGENTS.md):
+Explore Features galleries share layout coverage; retain focused large-type checks
+for dense content. Shared InstallerKitUI owns updater scenario coverage; Where's
+wrapper owns branding and integration. Preserve all updater preview/Flyover states
+through the shared fixture builder when narrowing its recorded cases.
 
 For new or changed themed components, use `whereThemeSnapshot` for one comparison
 sheet containing every supported theme. Use representative states across light/dark

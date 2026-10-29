@@ -178,7 +178,7 @@ struct PlannedStayEditor: View {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "NewStay",
-                configurations: .fullContentScreenDefaults,
+                configurations: .fullContentScreenRepresentative,
             ) {
                 PlannedStayEditor(report: PreviewSupport.loadedYearReportModel())
             }
@@ -192,7 +192,7 @@ struct PlannedStayEditor: View {
             }
             whereSnapshot(
                 name: "FlexibleStay",
-                configurations: .fullContentScreenDefaults,
+                configurations: .fullContentScreenRepresentative,
             ) {
                 let report = PreviewSupport.itineraryYearReportModel()
                 PlannedStayEditor(report: report, stay: report.forecasts.planning.stays.first {
@@ -205,11 +205,7 @@ struct PlannedStayEditor: View {
             let staleModel = flexibleEditorModel(report: PreviewSupport.itineraryYearReportModel())
             whereSnapshot(
                 name: "DeletedWhileEditing",
-                configurations: .fullContentPhoneLightDark
-                    + SnapshotConfiguration.combinations(
-                        devices: [.iPhoneFullContent],
-                        snapshotTypes: [.accessibility],
-                    ),
+                configurations: .fullContentPhoneLightDarkWithAnnotations,
                 onReadyToMeasure: {
                     // The preview mirrors an itinerary over an empty store.
                     // Await the real rejection before measuring its error row.

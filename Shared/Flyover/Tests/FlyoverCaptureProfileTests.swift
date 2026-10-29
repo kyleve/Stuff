@@ -5,6 +5,12 @@
     import Testing
 
     struct FlyoverCaptureProfileTests {
+        @Test(arguments: FlyoverCaptureProfile.allCases)
+        func publishedViewportMatchesTheNativeCapture(profile: FlyoverCaptureProfile) {
+            let configuration = profile.configuration(viewport: .device, captureExtent: .viewport)
+            #expect(configuration.device.size == .fixed(profile.profileSize))
+        }
+
         @Test func emptyRequestUsesLightAndDarkPhones() throws {
             #expect(try FlyoverCaptureProfile.parse([]) == [.phoneLight, .phoneDark])
         }

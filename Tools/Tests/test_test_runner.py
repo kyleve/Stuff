@@ -38,7 +38,10 @@ class TestRunnerTests(unittest.TestCase):
             ]
         }
         project = self.project_with_bundles(
-            [("CoreTests", "Shared/Core/Tests", "Core"), ("UITests", "Shared/UI/Tests", "UI")]
+            [
+                ("CoreTests", "Shared/Core/Tests", "Core"),
+                ("UITests", "Shared/UI/Tests", "UI"),
+            ]
         )
 
         self.assertEqual(
@@ -55,18 +58,17 @@ class TestRunnerTests(unittest.TestCase):
         selected = affected_bundles(["Project.swift"], {"targets": []}, project)
         self.assertEqual(len(selected), 15)
 
-        selected = affected_bundles(
-            [".xcode-build-version"], {"targets": []}, project
-        )
+        selected = affected_bundles([".xcode-build-version"], {"targets": []}, project)
         self.assertEqual(len(selected), 15)
 
         with self.assertRaisesRegex(ValueError, "only found 0 test bundles"):
             affected_bundles(["Project.swift"], {"targets": []}, "")
 
     def test_empty_affected_input_does_not_invoke_swift_package_manager(self):
-        with patch("sys.stdin", io.StringIO("")), patch(
-            "test_runner.subprocess.run"
-        ) as run:
+        with (
+            patch("sys.stdin", io.StringIO("")),
+            patch("test_runner.subprocess.run") as run,
+        ):
             self.assertEqual(main(["affected-bundles"]), 0)
         run.assert_not_called()
 
@@ -298,7 +300,9 @@ class TestRunnerTests(unittest.TestCase):
         bundles = list(leading)
         while len(bundles) < 15:
             index = len(bundles)
-            bundles.append((f"Dummy{index}Tests", f"Dummy/{index}/Tests", f"Dummy{index}"))
+            bundles.append(
+                (f"Dummy{index}Tests", f"Dummy/{index}/Tests", f"Dummy{index}")
+            )
         windows = []
         for name, sources, product in bundles:
             windows.append(

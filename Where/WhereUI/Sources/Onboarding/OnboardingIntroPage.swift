@@ -29,7 +29,7 @@ struct OnboardingIntroPage: View {
             OnboardingPage.all.map { page in
                 onboardingThemeSnapshot(
                     name: String(describing: page.id),
-                    configurations: .fullContentScreenDefaults + [
+                    configurations: .fullContentScreenRepresentative + [
                         SnapshotConfiguration(
                             layoutDirection: .rightToLeft,
                             device: .iPhoneFullContent,

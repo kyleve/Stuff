@@ -442,7 +442,7 @@ struct OnboardingPage: Identifiable {
     extension OnboardingView: SnapshotProviding {
         public static var snapshots: [SnapshotCase] {
             [
-                onboardingSnapshot(name: "Default", configurations: .screenDefaults) {
+                onboardingSnapshot(name: "Default", configurations: .screenRepresentative) {
                     // `onboardingModel()` (not `loadedModel()`) so `hasOnboarded`
                     // is false and the capture lands on the intro flow.phase.
                     OnboardingView(

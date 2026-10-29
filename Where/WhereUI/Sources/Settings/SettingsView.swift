@@ -368,7 +368,7 @@ struct SettingsView: View {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Default",
-                configurations: .fullContentScreenDefaults + [
+                configurations: .fullContentScreenRepresentative + [
                     SnapshotConfiguration(
                         layoutDirection: .rightToLeft,
                         device: .iPhoneFullContent,

@@ -13,7 +13,6 @@ let package = Package(
         .library(name: "InstallerKit", targets: ["InstallerKit"]),
         .library(name: "InstallerKitUI", targets: ["InstallerKitUI"]),
         .library(name: "CreditKit", targets: ["CreditKit"]),
-        .library(name: "LedgerCore", targets: ["LedgerCore"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
         .library(name: "LifecycleKitUI", targets: ["LifecycleKitUI"]),
         .library(name: "JournalKit", targets: ["JournalKit"]),
@@ -40,9 +39,8 @@ let package = Package(
         ),
         .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
         .package(url: "https://github.com/bitdriftlabs/capture-ios.git", from: "0.23.11"),
-        // Snapshot-testing engine + accessibility parser. Consumed only by the
-        // test-only `SnapshotKitTesting` target (never a shipping app). See
-        // Shared/SnapshotKitTesting.
+        // Snapshot-testing engine + accessibility parser. Consumed only by
+        // SnapshotKitTesting and test bundles, never a shipping app.
         .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.18.0"),
         .package(url: "https://github.com/cashapp/AccessibilitySnapshot", from: "0.12.0"),
         .package(url: "https://github.com/SFSafeSymbols/SFSafeSymbols", from: "7.0.0"),
@@ -81,13 +79,6 @@ let package = Package(
         .target(
             name: "CreditKit",
             path: "Shared/CreditKit/Sources",
-        ),
-        .target(
-            name: "LedgerCore",
-            dependencies: [
-                .target(name: "PeriscopeCore"),
-            ],
-            path: "Ledger/LedgerCore/Sources",
         ),
         .target(
             name: "LifecycleKit",

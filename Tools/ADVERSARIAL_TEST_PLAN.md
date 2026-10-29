@@ -28,8 +28,8 @@ functions returned expected values.
 | `simulator` | macOS/Xcode | simctl, registry | owned simulators | Never deletes an unowned or wrong-runtime device |
 | `icons` | mise Ruby | catalogs, manifest | tracked assets | All-or-nothing mutation |
 | `Where/install` | macOS/Xcode/device | signing and device inventory | physical device | Dry run performs no build/install/launch |
-| `Ledger/install` | macOS/Xcode | built/installed apps | `/Applications/Ledger.app` | Exact-process and transactional replacement |
 | `tla-check` | macOS/Linux-compatible tooling | manifests/specs | retained run artifacts | Pinned tools and honest pass/fail policy |
+| `flyover` | macOS/Xcode for capture, Python 3 and Node for tooling | catalog, generated atlas | generated directory | Export retains recovery material. Preview serves only validated files |
 
 The original comparison used `main` before the retained-tooling changes.
 Those changes added `--dry-run` modes to the mutating commands.
@@ -138,6 +138,16 @@ Report the remaining backups.
 If rollback itself fails, report both failures and preserve recovery material.
 Do not claim that restoration succeeded. Guard: `test_surfaces_apply_and_rollback_failures_together`.
 
+### Flyover export and preview
+
+Cover unsafe output aliases, replacement races, invalid markers, incomplete
+manifests, missing or extra images, symbolic links, path traversal, paths with
+spaces, automatic ports, occupied ports, loopback and LAN binding, and clean
+Control-C shutdown.
+
+The preview server must expose only files in its validated allowlist. It must
+bind to loopback unless the user selects LAN access.
+
 ### Installers
 
 For `Where/install`, cover unset teams and malformed mise configuration;
@@ -146,13 +156,8 @@ no, exact, and ambiguous matches; unusual names; confirmation EOF; list,
 build, install, and launch failures; and a dry-run transcript with no project
 generation, build, install, or launch.
 
-For `Ledger/install`, cover missing, wrong-ID, symlinked, and malformed app
-bundles; exact and similarly named processes; graceful and forced termination;
-a surviving process; failures during build, copy, commit, rollback, and
-cleanup; and a dry run with no build, signal, replacement, or launch.
-
 Installer unit and command tests use temporary destinations. Public commands
-that target `/Applications` or a physical device use dry-run or fake-process
+that target a physical device use dry-run or fake-process
 paths unless a real operation is explicitly approved.
 
 ### TLA and generators
@@ -192,7 +197,6 @@ After fixture tests pass, run the smallest real operations:
 - `./flaky --suite-runs 1 --iterations 2 --no-update`
 - Icon add and remove dry runs.
 - `./Where/install --dry-run`
-- `./Ledger/install --dry-run --no-open`
 
 Then run the repository's full macOS gate:
 
@@ -202,8 +206,6 @@ mise install
 ./swiftformat --lint
 ./shellcheck
 ./test --everything
-mise exec -- tuist test Ledger-macOS-Tests --no-selective-testing -- \
-  -destination 'platform=macOS'
 ```
 
 CircleCI exercises the rebased stack tip in a clean VM, including non-TTY

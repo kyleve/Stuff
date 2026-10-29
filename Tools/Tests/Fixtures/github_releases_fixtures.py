@@ -21,7 +21,10 @@ class ReleaseServer:
         self.requests.append(request)
         path = request.full_url.split("/repos/fixture/Stuff", 1)[1]
         if path == "":
-            return {"private": self.private, "visibility": "private" if self.private else "public"}
+            return {
+                "private": self.private,
+                "visibility": "private" if self.private else "public",
+            }
         if path == "/git/ref/heads/main":
             return {"object": {"sha": "b" * 40}}
         if path.startswith("/releases/tags/"):
@@ -36,18 +39,30 @@ class ReleaseServer:
         if path == "/releases/123/assets?name=app.ipa":
             if self.fail_upload:
                 raise ValueError("upload failed")
-            asset = {"id": 456, "name": "app.ipa", "size": len(request.data), "state": "uploaded",
-                     "digest": "sha256:" + hashlib.sha256(request.data).hexdigest(),
-                     "browser_download_url": "https://github.com/fixture/Stuff/releases/download/untagged-draft/app.ipa",
-                     **self.asset_changes}
+            asset = {
+                "id": 456,
+                "name": "app.ipa",
+                "size": len(request.data),
+                "state": "uploaded",
+                "digest": "sha256:" + hashlib.sha256(request.data).hexdigest(),
+                "browser_download_url": "https://github.com/fixture/Stuff/releases/download/untagged-draft/app.ipa",
+                **self.asset_changes,
+            }
             self.assets = [asset]
             return asset
         if path == "/releases/123" and request.method == "PATCH":
             if self.fail_publish:
                 raise ValueError("publication interrupted")
             self.release.update(json.loads(request.data))
-            self.assets = [{**asset,
-                            "browser_download_url": asset_url("fixture/Stuff", "where", "pr-42", {"run": 12, "attempt": 1}),
-                            **self.published_asset_changes} for asset in self.assets]
+            self.assets = [
+                {
+                    **asset,
+                    "browser_download_url": asset_url(
+                        "fixture/Stuff", "where", "pr-42", {"run": 12, "attempt": 1}
+                    ),
+                    **self.published_asset_changes,
+                }
+                for asset in self.assets
+            ]
             return self.release
         raise AssertionError(f"Unexpected request: {request.method} {path}")

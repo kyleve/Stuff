@@ -218,7 +218,7 @@ if [ "$BOOTSTRAP" = true ] || [ "$INSTALL" = true ]; then
     echo "==> install locked Ruby dependencies"
     BUNDLE_PATH=vendor/bundle BUNDLE_FROZEN=true "$MISE" exec -- bundle install
     echo "==> install site dependencies"
-    "$MISE" exec -- npm ci --prefix Tools/InstallerKit/Site
+    "$MISE" exec -- npm ci
 fi
 
 echo "==> sync-agents --install"

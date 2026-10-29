@@ -1,0 +1,400 @@
+/* Document defaults and control primitives shared by multiple surfaces. */
+
+@layer base {
+    * {
+        box-sizing: border-box;
+    }
+
+    html,
+    body,
+    #app {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+    }
+
+
+
+
+
+    #app img {
+        -webkit-user-drag: none;
+    }
+
+    body {
+        overflow: hidden;
+        background: var(--background);
+        color: var(--text);
+        -webkit-font-smoothing: antialiased;
+    }
+
+    button,
+    select,
+    input {
+        color: inherit;
+        font: inherit;
+    }
+
+    button,
+    select,
+    a {
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    button {
+        border: 0;
+        cursor: pointer;
+    }
+
+
+
+    select {
+        min-height: 36px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 0 30px 0 11px;
+        background: color-mix(in srgb, var(--surface-solid) 92%, transparent);
+    }
+
+    button:focus-visible,
+    select:focus-visible,
+    input:focus-visible,
+    a:focus-visible,
+    [tabindex]:focus-visible {
+        outline: 3px solid color-mix(in srgb, var(--accent) 65%, transparent);
+        outline-offset: 3px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+        margin: 0;
+    }
+
+    .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    .icon {
+        width: 19px;
+        height: 19px;
+        flex: 0 0 auto;
+        fill: none;
+        stroke: currentcolor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .eyebrow,
+    .product-label,
+    .field-label,
+    .context-kicker,
+    .command-section-label {
+        color: var(--secondary);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        line-height: 1.2;
+        text-transform: uppercase;
+    }
+
+    .secondary {
+        color: var(--secondary);
+    }
+
+    .app-identity,
+    .header-actions,
+    .header-button,
+    .dock-action,
+    .icon-button,
+    .segment,
+    .zoom-controls,
+    .inspector-action {
+        display: flex;
+        align-items: center;
+    }
+
+    .header-button,
+    .dock-action,
+    .icon-button,
+    .inspector-action {
+        justify-content: center;
+        min-width: 38px;
+        min-height: 38px;
+        gap: 7px;
+        border: 1px solid transparent;
+        border-radius: 11px;
+        background: transparent;
+        color: var(--secondary);
+        text-decoration: none;
+    }
+
+    .header-button:hover,
+    .dock-action:hover,
+    .icon-button:hover,
+    .inspector-action:hover {
+        background: var(--surface-muted);
+        color: var(--text);
+    }
+
+    kbd,
+    .escape-key {
+        min-width: 29px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 3px 6px;
+        background: var(--surface-solid);
+        box-shadow: 0 1px 1px rgb(0 0 0 / 6%);
+        color: var(--secondary);
+        font-family: inherit;
+        font-size: 10px;
+        line-height: 1.2;
+        text-align: center;
+    }
+
+    .shelf-index,
+    .group-number {
+        color: var(--accent);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    img[data-src]:not([src]) {
+        opacity: 0;
+    }
+
+    .capture-badge,
+    .route-count {
+        border: 1px solid rgb(255 255 255 / 18%);
+        border-radius: 99px;
+        padding: 5px 8px;
+        background: rgb(14 16 22 / 74%);
+        color: white;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1;
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+    }
+
+    .segmented-control,
+    .zoom-controls {
+        display: flex;
+        align-items: center;
+        padding: 3px;
+        border-radius: 12px;
+        background: var(--surface-muted);
+    }
+
+    .segment {
+        justify-content: center;
+        min-height: 38px;
+        gap: 7px;
+        border-radius: 9px;
+        padding: 0 12px;
+        background: transparent;
+        color: var(--secondary);
+        font-size: 13px;
+        font-weight: 650;
+    }
+
+    .segment[aria-pressed="true"] {
+        background: var(--surface-solid);
+        box-shadow: 0 1px 2px rgb(0 0 0 / 8%), 0 4px 12px rgb(0 0 0 / 6%);
+        color: var(--text);
+    }
+
+    .dock-separator {
+        width: 1px;
+        height: 28px;
+        margin: 0 3px;
+        background: var(--line);
+    }
+
+    .empty-results {
+        position: absolute;
+        z-index: 20;
+        top: 50%;
+        left: 50%;
+        display: grid;
+        width: min(360px, calc(100% - 40px));
+        place-items: center;
+        padding: 34px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-large);
+        background: var(--surface-solid);
+        box-shadow: var(--shadow-large);
+        text-align: center;
+        transform: translate(-50%, -50%);
+    }
+
+    .empty-results[hidden] {
+        display: none;
+    }
+
+    .empty-results .icon {
+        width: 28px;
+        height: 28px;
+        margin-bottom: 16px;
+        color: var(--accent);
+    }
+
+    .empty-results h2 {
+        font-size: 19px;
+    }
+
+    .empty-results p {
+        margin: 7px 0 20px;
+        color: var(--secondary);
+        font-size: 13px;
+    }
+
+    .primary-button,
+    .secondary-button {
+        min-height: 42px;
+        border-radius: 11px;
+        padding: 0 16px;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .primary-button {
+        background: var(--action-background);
+        color: var(--action-text);
+    }
+
+    .primary-button:hover {
+        background: var(--action-hover);
+    }
+
+    .secondary-button {
+        background: var(--surface-muted);
+        color: var(--text);
+    }
+
+    .route-chip {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        max-width: 100%;
+        min-height: 36px;
+        border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
+        border-radius: 10px;
+        padding: 7px 10px;
+        background: color-mix(in srgb, var(--accent-soft) 54%, transparent);
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 650;
+        text-align: left;
+        flex: 0 0 auto;
+    }
+
+    .route-chip span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .route-chip.modal {
+        border-color: color-mix(in srgb, var(--modal) 28%, var(--line));
+        background: color-mix(in srgb, var(--modal) 9%, var(--surface-solid));
+        color: var(--modal);
+    }
+
+    .route-chip .icon {
+        width: 15px;
+        height: 15px;
+    }
+
+    dialog {
+        color: var(--text);
+    }
+
+    dialog::backdrop {
+        background: rgb(8 10 16 / 42%);
+        -webkit-backdrop-filter: blur(5px);
+        backdrop-filter: blur(5px);
+    }
+
+    #app input,
+    #app textarea,
+    #app [contenteditable="true"],
+    #app .selectable-text {
+        -webkit-user-select: text;
+        user-select: text;
+    }
+
+    #app,
+    #app > dialog {
+        -webkit-user-select: none;
+        user-select: none;
+    }
+
+    .filter-field,
+    .inspector-field {
+        display: grid;
+        gap: 7px;
+    }
+
+    .detail-list {
+        margin: 0;
+    }
+
+    .metadata-row {
+        display: grid;
+        grid-template-columns: 94px minmax(0, 1fr);
+        gap: 16px;
+        padding: 11px 0;
+        border-bottom: 1px solid var(--line);
+        font-size: 12px;
+    }
+
+    .metadata-row dt {
+        color: var(--secondary);
+    }
+
+    .metadata-row dd {
+        overflow-wrap: anywhere;
+        margin: 0;
+        font-weight: 550;
+    }
+
+    .error {
+        display: grid;
+        width: min(620px, calc(100% - 40px));
+        min-height: 100%;
+        align-content: center;
+        margin: auto;
+    }
+
+    .error h1 {
+        margin: 8px 0 10px;
+        font-size: 34px;
+    }
+
+    .error p:last-child {
+        color: var(--secondary);
+    }
+}
+
+@layer responsive {
+    @media (pointer: coarse), (width <= 760px) {
+        .route-chip,
+        .primary-button,
+        .secondary-button {
+            min-width: var(--touch-target-size);
+            min-height: var(--touch-target-size);
+        }
+    }
+}

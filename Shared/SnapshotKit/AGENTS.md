@@ -11,6 +11,16 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 
 ## Invariants an agent can't re-derive
 
+- **Choose coverage per distinct layout, not per domain state.** Use a
+  `*Representative` matrix for representative layouts and the matching
+  `*LightDark` preset for additional states. Reuse the focused `WithAX5` and
+  `WithAnnotations` presets for repeated wrapping or annotation coverage;
+  AX5 and annotations are separate captures, not a Cartesian product.
+  Add individual configurations for exceptional contrast or tablet composition.
+  Document a repeated representative matrix at its declaration.
+- **Keep configuration selection explicit.** `SnapshotCase` and assertion APIs
+  must not supply a broad default matrix. Preserve configuration identifiers and
+  frame semantics when changing coverage. Guard: `SnapshotConfigurationTests`.
 - **`identifierParts` omit default axes.** Only non-default trait, frame, and type values appear in a config's `identifier`.
 - **Non-default values include `dark`, `xxxl`, `contrast`, `rtl`, `bold`, `accessibility`, and `iPad`.** The light/standard/default baseline stays empty.
 - **Reference-image filenames depend on this.** Treat omission rules as a wire format.
@@ -20,8 +30,10 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Stuff keeps AccessibilitySnapshot's annotation renderer in the test-only `SnapshotKitTesting` product.** It does not link into shipping UI modules.
 - **Accessibility configs only render as snapshot tests.** Do not "fix" previews to include them without a preview-only dependency boundary.
 - **Keep `SnapshotCase` content builders lazy.** Constructing a provider's descriptor array must not instantiate every view or model.
-- **Do not assume captured models are isolated between configurations.** The current
-  `SnapshotKitTesting` runner evaluates content once per case and re-hosts it;
+- **Do not assume captured models are isolated between configurations.** The
+  `SnapshotKitTesting` runner evaluates ordinary content once per case and re-hosts it.
+  Cutsheet panel builders run per configuration and must create fresh fixtures.
+  Retries reuse the supplied view and captured models in both paths. Ordinary
   per-configuration model isolation remains in [`TODOs.md`](TODOs.md).
 - **Use `\.isCapturingSnapshot` for motion end-states only.** A view may read it only to freeze motion at a deterministic phase.
 - **Never use it to change layout, content, or behavior.**
@@ -33,7 +45,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **The Broadway root wrap is a consumer concern** (`WhereUI`'s `whereSnapshot(...)`).
 - **Use full-content frames for scrollable subjects.**
 - **If a snapshot contains a `ScrollView`, `List`, `Form`, or equivalent UIKit-backed scroller, use a full-content frame preset.**
-- **That may be `.fullContentScreenDefaults`, a consumer's matching compact preset, or an explicit `.fullContent` frame.**
+- **That may be `.fullContentScreenRepresentative`, a consumer's matching compact preset, or an explicit `.fullContent` frame.**
 - **Device full-content presets keep their normal viewport height as a minimum.** They grow only when the settled content is taller.
 - **Custom full-content frames shrink-wrap unless given a minimum.**
 - **Capture the production screen including navigation, tab, sheet, search, and toolbar chrome when measurement converges.**

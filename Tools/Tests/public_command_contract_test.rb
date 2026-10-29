@@ -16,7 +16,6 @@ class PublicCommandContractTest < Minitest::Test
     icons
     Where/install
     Where/archive
-    Ledger/install
     tla-check
     ide
     swiftformat

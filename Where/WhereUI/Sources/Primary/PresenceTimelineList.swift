@@ -219,14 +219,19 @@ struct PresenceTimelineList: View {
 #if DEBUG
     extension PresenceTimelineList: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
+            // WithData and Flights own full layout coverage; uncertainty keeps focused
+            // accessibility checks.
             [
-                whereSnapshot(name: "InterruptedStay", configurations: .fullContentScreenDefaults) {
+                whereSnapshot(
+                    name: "InterruptedStay",
+                    configurations: .fullContentPhoneLightDark,
+                ) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport
                             .interruptedStayYearReportModel())
                     }
                 },
-                whereSnapshot(name: "Flights", configurations: .fullContentScreenDefaults) {
+                whereSnapshot(name: "Flights", configurations: .fullContentScreenRepresentative) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport
                             .flightHistoryYearReportModel())
@@ -234,28 +239,28 @@ struct PresenceTimelineList: View {
                 },
                 whereSnapshot(
                     name: "UncertainArrival",
-                    configurations: .fullContentScreenDefaults,
+                    configurations: .fullContentPhoneLightDarkWithAX5AndAnnotations,
                 ) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport
                             .flightYearReportModel(state: .uncertainArrival))
                     }
                 },
-                whereSnapshot(name: "Itinerary", configurations: .fullContentScreenDefaults) {
+                whereSnapshot(name: "Itinerary", configurations: .fullContentPhoneLightDark) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport.itineraryYearReportModel())
                     }
                 },
                 whereSnapshot(
                     name: "WithData",
-                    configurations: .fullContentScreenDefaults,
+                    configurations: .fullContentScreenRepresentative,
                     measurementReadiness: .immediate,
                 ) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
                     }
                 },
-                whereSnapshot(name: "InitialBottom", configurations: .screenDefaults) {
+                whereSnapshot(name: "InitialBottom", configurations: .phoneLightDark) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
                     }
@@ -289,11 +294,7 @@ struct PresenceTimelineList: View {
                 },
                 whereSnapshot(
                     name: "PlannedStay",
-                    configurations: .fullContentPhoneLightDark
-                        + SnapshotConfiguration.combinations(
-                            devices: [.iPhoneFullContent],
-                            snapshotTypes: [.accessibility],
-                        ),
+                    configurations: .fullContentPhoneLightDarkWithAnnotations,
                     measurementReadiness: .immediate,
                 ) {
                     NavigationStack {

@@ -154,7 +154,7 @@ struct ElsewhereView: View {
             snapshot(
                 name: "Loaded",
                 report: PreviewSupport.elsewhereCatalogYearReportModel(),
-                configurations: .fullContentScreenDefaults,
+                configurations: .fullContentScreenRepresentative,
             )
             snapshot(
                 name: "FlatLoaded",

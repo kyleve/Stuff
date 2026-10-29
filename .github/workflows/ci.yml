@@ -25,18 +25,48 @@ jobs:
   # pushes still run every job.
   format:
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
-    name: Lint & Tooling Checks
+    name: Lint & Formatting
     runs-on: xcode-27
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v3
-      - name: Install site dependencies and check Astro
-        run: |
-          mise exec -- npm ci --prefix Tools/InstallerKit/Site
-          mise exec -- npm run check --prefix Tools/InstallerKit/Site
+      - name: Install web lint dependencies
+        run: mise exec -- npm ci
       - name: ShellCheck
         run: ./shellcheck
+      - name: Python, TypeScript, and CSS lint
+        run: |
+          mise exec -- npm run lint
+          mise exec -- npm run test:lint
+      - run: ./swiftformat --lint
+      - name: SF Symbol lint
+        run: ./sf-symbols --lint
+      # Catalogs drift out of Xcode's serialization the moment one is written by
+      # anything but Xcode, and the cost lands on whoever next builds in the IDE
+      # (see "Formatting" in AGENTS.md). Keep this in the required
+      # Lint & Formatting job.
+      - name: String Catalog lint
+        run: ./xcstrings --lint
+      # The only thing that actually stops a stale attribution report from
+      # shipping: nothing about adding or bumping a dependency forces a re-run,
+      # and the app can't check itself (its test bundle can't read Package.swift).
+      # Offline and sub-second, so it rides along here for the same reason the
+      # catalog lint does.
+      - name: Attribution report check
+        run: ./attribution --check
+
+  test-tools:
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
+    name: Tool Tests
+    runs-on: xcode-27
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v3
+      # Site publication tests build Astro fixtures through the shared launcher.
+      - name: Install site dependencies
+        run: mise exec -- npm ci
       - name: Install locked Ruby dependencies
         run: BUNDLE_PATH=vendor/bundle BUNDLE_FROZEN=true mise exec -- bundle install
       - name: Retained tool tests
@@ -48,22 +78,34 @@ jobs:
           python3 .circleci/Tests/test_xcresult_to_junit.py
           python3 .circleci/Tests/test_test_artifacts.py
           ./snapshot-shards check
-      - run: ./swiftformat --lint
-      - name: SF Symbol lint
-        run: ./sf-symbols --lint
-      # Catalogs drift out of Xcode's serialization the moment one is written by
-      # anything but Xcode, and the cost lands on whoever next builds in the IDE
-      # (see "Formatting" in AGENTS.md). Keep this in the required
-      # Lint & Tooling Checks job.
-      - name: String Catalog lint
-        run: ./xcstrings --lint
-      # The only thing that actually stops a stale attribution report from
-      # shipping: nothing about adding or bumping a dependency forces a re-run,
-      # and the app can't check itself (its test bundle can't read Package.swift).
-      # Offline and sub-second, so it rides along here for the same reason the
-      # catalog lint does.
-      - name: Attribution report check
-        run: ./attribution --check
+
+  test-web:
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
+    name: Web Checks & Tests
+    runs-on: xcode-27
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v3
+      - name: Install site dependencies
+        run: mise exec -- npm ci
+      - name: Astro and TypeScript checks
+        run: mise exec -- npm run check --workspaces --if-present
+      - name: Web unit tests
+        run: mise exec -- npm run test:unit --workspaces --if-present
+      - name: Flyover browser regressions
+        run: |
+          mise exec -- npx playwright install chromium webkit
+          mise exec -- npm run test:browser --workspace stuff-flyover-site -- --reporter=line
+      - name: Upload browser failure diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: flyover-browser-failures
+          path: Shared/Flyover/Web/test-results
+          if-no-files-found: ignore
+          retention-days: 7
+
   architecture:
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
     name: Bumper Bowling
@@ -95,26 +137,20 @@ jobs:
   test-macos:
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
     name: Build & Test (macOS)
-    # Keep the native-macOS target on GitHub's pinned Xcode image.
+    # Host-side Swift tests require GitHub's pinned Xcode image.
     runs-on: xcode-27
-    # The macOS-only Ledger scheme is self-contained and fast (no simulator, no
-    # LFS), so this cap is well clear of a normal run.
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v3
-      # This invocation includes the attribution and backup-upgrader regressions.
+      - name: Install site dependencies
+        run: mise exec -- npm ci
+      # This invocation includes Flyover, attribution, and backup-upgrader checks.
       # Keep all host checks in this required job, alongside the iOS builder.
       - name: Host-side regression tests
         env:
           TEST_WORKDIR: ${{ github.workspace }}/test-output-host
         run: ./test --skip-architecture PeriscopeMacrosTests
-      # The workspace mixes iOS targets and the native-macOS Ledger targets, and
-      # no single xcodebuild destination can build both — so the macOS scheme
-      # runs here rather than alongside the iOS bundles. The iOS `test-ios` and
-      # `snapshot` jobs live in .circleci/config.yml (PR #237).
-      - name: Build & Test (macOS)
-        run: mise exec -- tuist test Ledger-macOS-Tests --no-selective-testing -- -destination 'platform=macOS'
       # Tests can crash the host process on CI without leaving any error in
       # Tuist's summarized log. On failure, capture crash reports + the .xcresult
       # bundle (which holds the per-test crash backtraces) and upload them.

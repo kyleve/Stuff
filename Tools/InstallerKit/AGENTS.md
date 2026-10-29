@@ -44,6 +44,10 @@ Guards: `signing_workflow_test.rb`, `signing_state_test.rb`, and `test_signing_p
   Verify the same asset's identity, size, digest, and canonical URL after publication before returning its install URL.
   Deploy the catalog and exact-build manifests together.
   Retired channels must not publish install manifests. Retain their commit history.
+- Deploy the site independently of archive enablement and signing configuration.
+  If the publication branch is absent, serve an empty schema-3 catalog.
+  Fail deployment on unreadable or invalid catalogs, including a missing catalog on an existing branch.
+  Guards: `test_installer_update_feed.py` and `test_installer_update_site.py`.
 - Publish preparing status before archiving and failed status after unsuccessful archive/publication jobs. Keep status scoped to the run and attempt; stale status must not replace newer progress or an equal/newer published release. Status alone never enables installs. Preserve the previous successful build, and clear progress on retirement.
 - Show only main installs on the homepage. Put PR builds under their app's page.
   Load site artwork from registered paths in the trusted checkout and publish it with the site.

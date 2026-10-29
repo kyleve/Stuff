@@ -47,3 +47,10 @@ fastlane/test_output
 # Bundler local configuration and installed gems
 .bundle/
 vendor/bundle/
+
+# Static website dependencies and generated output
+node_modules/
+.astro/
+dist/
+playwright-report/
+test-results/

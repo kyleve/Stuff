@@ -261,6 +261,28 @@
         }
       }
     },
+    "calendar.expandEstimate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open the estimate in the full-size calendar."
+          }
+        }
+      }
+    },
+    "calendar.expandMonth" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show this month in the full-size calendar."
+          }
+        }
+      }
+    },
     "calendar.month.combination.accessibility" : {
       "comment" : "Accessibility value component for the number of days shared by one exact combination of regions. The first argument is a localized day count; the second is a localized region list.",
       "extractionState" : "manual",
@@ -357,6 +379,17 @@
         }
       }
     },
+    "calendar.monthUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This month is not available in the full-size calendar."
+          }
+        }
+      }
+    },
     "calendar.region.title" : {
       "comment" : "Title for the calendar when it's focused on a single region, e.g. \"California · 2026\".",
       "extractionState" : "manual",
@@ -366,6 +399,28 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "calendar.showMonths" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Months"
+          }
+        }
+      }
+    },
+    "calendar.showYear" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Year"
           }
         }
       }

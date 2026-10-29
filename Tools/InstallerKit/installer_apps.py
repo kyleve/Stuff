@@ -25,7 +25,9 @@ def validate_metadata(value):
     validate_app_id(value["id"])
     if not isinstance(value["name"], str) or not value["name"].strip():
         raise ValueError("An app display name is required")
-    if not re.fullmatch(r"[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+", value["bundleIdentifier"]):
+    if not re.fullmatch(
+        r"[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+", value["bundleIdentifier"]
+    ):
         raise ValueError("Invalid app bundle identifier")
 
 
@@ -39,12 +41,20 @@ class AppPresentation:
 
 
 def presentation(value):
-    if not isinstance(value, dict) or not isinstance(value.get("subtitle"), str) or not value["subtitle"].strip():
+    if (
+        not isinstance(value, dict)
+        or not isinstance(value.get("subtitle"), str)
+        or not value["subtitle"].strip()
+    ):
         raise ValueError("App site presentation requires a subtitle")
     for key in ("icon", "darkIcon"):
         path = value.get(key)
-        if path is not None and (not isinstance(path, str) or not path.endswith(".png")
-                                 or Path(path).is_absolute() or ".." in Path(path).parts):
+        if path is not None and (
+            not isinstance(path, str)
+            or not path.endswith(".png")
+            or Path(path).is_absolute()
+            or ".." in Path(path).parts
+        ):
             raise ValueError("App artwork must be a repository-relative PNG path")
     if value.get("darkIcon") and not value.get("icon"):
         raise ValueError("Dark app artwork also requires a default icon")
@@ -64,7 +74,11 @@ class InstallerApp:
 
     @property
     def metadata(self):
-        return {"id": self.id, "name": self.name, "bundleIdentifier": self.bundle_identifier}
+        return {
+            "id": self.id,
+            "name": self.name,
+            "bundleIdentifier": self.bundle_identifier,
+        }
 
 
 def load_apps(path=REGISTRY):
@@ -83,20 +97,39 @@ def load_apps(path=REGISTRY):
         if not re.fullmatch(r"Payload/[A-Za-z0-9_-]+\.app", bundle):
             raise ValueError("Invalid IPA app bundle path")
         signed = value["signedBundles"]
-        if not isinstance(signed, list) or bundle not in signed or len(signed) != len(set(signed)):
+        if (
+            not isinstance(signed, list)
+            or bundle not in signed
+            or len(signed) != len(set(signed))
+        ):
             raise ValueError("Signed bundles must include the app exactly once")
         for item in signed:
-            if item != bundle and not re.fullmatch(re.escape(bundle) + r"/PlugIns/[A-Za-z0-9_-]+\.appex", item):
+            if item != bundle and not re.fullmatch(
+                re.escape(bundle) + r"/PlugIns/[A-Za-z0-9_-]+\.appex", item
+            ):
                 raise ValueError("Invalid signed extension path")
         source = value.get("sourceDirectory")
-        if source is not None and (not isinstance(source, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", source)):
+        if source is not None and (
+            not isinstance(source, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", source)
+        ):
             raise ValueError("Source directory must be one repository-root directory")
         info = value["requiredInfo"]
-        if not isinstance(info, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in info.items()):
-            raise ValueError("Expected app metadata must contain string keys and values")
-        apps[value["id"]] = InstallerApp(value["id"], value["name"], value["bundleIdentifier"],
-                                         bundle, tuple(signed), info,
-                                         presentation(value.get("site", {"subtitle": "Development build"})), source)
+        if not isinstance(info, dict) or not all(
+            isinstance(k, str) and isinstance(v, str) for k, v in info.items()
+        ):
+            raise ValueError(
+                "Expected app metadata must contain string keys and values"
+            )
+        apps[value["id"]] = InstallerApp(
+            value["id"],
+            value["name"],
+            value["bundleIdentifier"],
+            bundle,
+            tuple(signed),
+            info,
+            presentation(value.get("site", {"subtitle": "Development build"})),
+            source,
+        )
     return apps
 
 

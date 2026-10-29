@@ -52,11 +52,8 @@ extension View {
                 let model = InstallerBrowserPreview.model(scenario)
                 SnapshotCase(
                     name: scenario.rawValue,
-                    configurations: scenario == .available ? .fullContentScreenDefaults :
-                        SnapshotConfiguration.combinations(
-                            devices: [.iPhoneFullContent],
-                            colorSchemes: [.light, .dark],
-                        ),
+                    configurations: scenario == .available ? .fullContentScreenRepresentative :
+                        .fullContentPhoneLightDark,
                     measurementReadiness: scenario.requiresRefresh ? .sameAsCapture : .immediate,
                     onReadyToMeasure: {
                         if scenario.requiresRefresh { await model.refresh(force: true) }

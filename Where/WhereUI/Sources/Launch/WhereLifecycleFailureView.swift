@@ -114,7 +114,7 @@ struct WhereLifecycleFailureView: View {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "CommittedResetCleanup",
-                configurations: .screenDefaults,
+                configurations: .screenRepresentative,
                 measurementReadiness: .immediate,
             ) {
                 WhereLifecycleFailureView(presentation: .committedResetCleanup)

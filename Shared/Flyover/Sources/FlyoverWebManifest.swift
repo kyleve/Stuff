@@ -30,6 +30,8 @@
             public let layoutDirection: String
             public let legibilityWeight: String
             public let snapshotType: String
+            /// Present in new exports; omitted by legacy schema-1 producers.
+            public let viewportSize: Size?
         }
 
         public struct Canvas: Codable, Sendable {
@@ -89,6 +91,7 @@
             public let variantID: String
             public let profileID: String
             public let relativePath: String
+            public let thumbnailVariants: [Thumbnail]?
             public let thumbnailRelativePath: String?
             public let pointWidth: Double
             public let pointHeight: Double
@@ -98,6 +101,14 @@
             public let thumbnailPixelHeight: Int?
             public let scale: Double
             public let captureExtent: String
+        }
+
+        /// Additional smaller copies of the same cropped thumbnail; legacy fields retain the
+        /// largest.
+        public struct Thumbnail: Codable, Sendable {
+            public let relativePath: String
+            public let pixelWidth: Int
+            public let pixelHeight: Int
         }
 
         public struct IdentifiedFrame: Codable, Sendable {

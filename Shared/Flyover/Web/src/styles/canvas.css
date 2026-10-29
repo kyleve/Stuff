@@ -1,0 +1,405 @@
+/* Canvas styles. Responsive overrides stay beside their owning component. */
+
+@layer components {
+    .canvas-view {
+        position: relative;
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        background: var(--canvas);
+    }
+
+    .canvas-viewport {
+        position: absolute;
+        inset: 0;
+        overflow: auto;
+        overscroll-behavior: contain;
+        background-color: var(--canvas);
+        background-image: radial-gradient(circle, color-mix(in srgb, var(--text) 12%, transparent) 1px, transparent 1px);
+        background-position: 0 0;
+        background-size: 24px 24px;
+        scrollbar-color: color-mix(in srgb, var(--secondary) 32%, transparent) transparent;
+    }
+
+    .canvas-scaled {
+        position: relative;
+    }
+
+    .canvas-stage {
+        position: absolute;
+        top: 0;
+        left: 0;
+        transform-origin: top left;
+    }
+
+    .canvas-context,
+    .route-legend {
+        position: absolute;
+        z-index: 12;
+        top: 18px;
+        border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+        border-radius: 14px;
+        background: var(--surface);
+        box-shadow: var(--shadow-small);
+        -webkit-backdrop-filter: var(--glass);
+        backdrop-filter: var(--glass);
+    }
+
+    .canvas-context {
+        left: 20px;
+        display: grid;
+        min-width: 164px;
+        padding: 9px 13px 10px;
+        color: var(--text);
+        text-align: left;
+    }
+
+    .canvas-context strong {
+        max-width: 240px;
+        overflow: hidden;
+        margin-top: 2px;
+        font-size: 14px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .route-legend {
+        right: 20px;
+        display: flex;
+        gap: 13px;
+        padding: 9px 12px;
+        color: var(--secondary);
+        font-size: 11px;
+        font-weight: 650;
+    }
+
+    .route-legend span {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .route-legend i {
+        width: 18px;
+        height: 3px;
+        border-radius: 99px;
+        background: var(--accent);
+    }
+
+    .route-legend i.modal {
+        background: repeating-linear-gradient(90deg, var(--modal) 0 5px, transparent 5px 8px);
+    }
+
+    .group-shelf,
+    .depth-band,
+    .screen-card,
+    .canvas-routes {
+        position: absolute;
+    }
+
+    .group-shelf {
+        overflow: hidden;
+        border: 1px solid color-mix(in srgb, var(--line-strong) 86%, transparent);
+        border-radius: 30px;
+        background: color-mix(in srgb, var(--surface-solid) 42%, transparent);
+    }
+
+    .group-shelf[data-empty="true"] {
+        opacity: 0.35;
+    }
+
+    .shelf-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        height: 76px;
+        padding: 0 30px;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .shelf-header h2 {
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: -0.025em;
+    }
+
+    .depth-band {
+        border-left: 1px solid var(--line);
+        pointer-events: none;
+    }
+
+    .depth-band[data-entry="true"] {
+        border-left: 0;
+    }
+
+    .depth-band span {
+        position: absolute;
+        top: 16px;
+        left: 18px;
+        color: var(--tertiary);
+        font-size: 12px;
+        font-weight: 650;
+    }
+
+    .depth-band[data-empty="true"] {
+        opacity: 0.25;
+    }
+
+    .screen-card {
+        z-index: 4;
+        display: grid;
+        grid-template-rows: 58px minmax(0, 1fr) 58px;
+        overflow: hidden;
+        border: 1px solid color-mix(in srgb, var(--line-strong) 90%, transparent);
+        border-radius: 25px;
+        background: var(--surface-solid);
+        box-shadow: 0 4px 10px rgb(25 30 44 / 8%), 0 20px 45px rgb(25 30 44 / 10%);
+        transition: border-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease, transform 180ms ease;
+    }
+
+    .screen-card:hover,
+    .screen-card:focus-within,
+    .screen-card[data-route-relation="focus"] {
+        border-color: color-mix(in srgb, var(--accent) 60%, var(--line));
+        box-shadow: 0 8px 18px rgb(25 30 44 / 10%), 0 28px 60px rgb(25 30 44 / 16%);
+        transform: translateY(-3px);
+    }
+
+    .screen-card[data-hidden="true"] {
+        visibility: hidden;
+        opacity: 0;
+    }
+
+    .screen-card[data-route-relation="unrelated"] {
+        opacity: 0.34;
+    }
+
+    .screen-card[data-route-relation="upstream"],
+    .screen-card[data-route-relation="downstream"] {
+        border-color: color-mix(in srgb, var(--accent) 36%, var(--line));
+    }
+
+    .card-header,
+    .card-footer {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        padding: 0 17px;
+        background: var(--surface-solid);
+    }
+
+    .card-header {
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .card-heading {
+        min-width: 0;
+    }
+
+    .card-heading h3 {
+        overflow: hidden;
+        font-size: 16px;
+        font-weight: 680;
+        letter-spacing: -0.015em;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .card-inspect {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--accent);
+    }
+
+    .card-inspect:hover {
+        background: var(--accent-soft);
+    }
+
+    .card-image-button {
+        position: relative;
+        display: grid;
+        min-width: 0;
+        min-height: 0;
+        place-items: center;
+        overflow: hidden;
+        padding: 0;
+        background: linear-gradient(145deg, color-mix(in srgb, var(--surface-muted) 96%, var(--accent-soft)), var(--surface-muted));
+    }
+
+    .device-preview {
+        display: grid;
+        width: 100%;
+        height: 100%;
+        min-width: 0;
+        min-height: 0;
+        place-items: center;
+        overflow: hidden;
+    }
+
+    .device-preview img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        transition: opacity 120ms ease;
+    }
+
+    .device-preview[data-capture-extent="fullContent"],
+    .device-preview[data-capture-extent="fullContent2D"] {
+        width: auto;
+        max-width: 100%;
+        aspect-ratio: var(--viewport-aspect);
+        place-items: start center;
+    }
+
+    .device-preview[data-capture-extent="fullContent"] img,
+    .device-preview[data-capture-extent="fullContent2D"] img {
+        width: 100%;
+        height: auto;
+        object-fit: fill;
+    }
+
+    .card-image-meta {
+        position: absolute;
+        right: 11px;
+        bottom: 11px;
+        left: 11px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        opacity: 0;
+        transform: translateY(5px);
+        transition: opacity 160ms ease, transform 160ms ease;
+    }
+
+    .screen-card:hover .card-image-meta,
+    .screen-card:focus-within .card-image-meta {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .card-footer {
+        gap: 9px;
+        border-top: 1px solid var(--line);
+    }
+
+    .footer-label {
+        color: var(--secondary);
+        font-size: 11px;
+        font-weight: 650;
+        text-transform: uppercase;
+    }
+
+    .card-state-select {
+        flex: 1;
+        min-width: 0;
+        border: 0;
+        background-color: var(--surface-muted);
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .state-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--accent);
+    }
+
+    .single-state {
+        overflow: hidden;
+        color: var(--secondary);
+        font-size: 13px;
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .canvas-routes {
+        z-index: 3;
+        inset: 0;
+        overflow: visible;
+        pointer-events: none;
+    }
+
+    .route path {
+        fill: none;
+        stroke: var(--accent);
+        stroke-linecap: round;
+        stroke-width: 3;
+        vector-effect: non-scaling-stroke;
+    }
+
+    .route polygon {
+        fill: var(--accent);
+    }
+
+    .route-modal path {
+        stroke: var(--modal);
+        stroke-dasharray: 9 8;
+    }
+
+    .route-modal polygon {
+        fill: var(--modal);
+    }
+
+    .route {
+        opacity: 0.55;
+        transition: opacity 160ms ease;
+    }
+
+    .route[data-route-relation="focus"] {
+        opacity: 1;
+    }
+
+    .route[data-route-relation="unrelated"] {
+        opacity: 0.07;
+    }
+
+    .route[data-hidden="true"] {
+        display: none;
+    }
+}
+
+@layer responsive {
+    @media (width <= 760px) {
+        .canvas-context,
+        .route-legend {
+            top: 12px;
+        }
+
+        .canvas-context {
+            left: 12px;
+            min-width: 140px;
+        }
+
+        .route-legend {
+            right: 12px;
+        }
+    }
+
+    @media (pointer: coarse), (width <= 760px) {
+        .card-state-select,
+        .card-inspect {
+            min-width: var(--touch-target-size);
+            min-height: var(--touch-target-size);
+        }
+
+        .card-state-select {
+            height: var(--touch-target-size);
+        }
+    }
+
+    @media (width <= 440px) {
+        .route-legend {
+            display: none;
+        }
+    }
+}

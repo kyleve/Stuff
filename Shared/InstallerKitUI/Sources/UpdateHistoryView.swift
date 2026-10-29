@@ -51,7 +51,7 @@ struct UpdateHistoryView: View {
         static var snapshots: [SnapshotCase] {
             SnapshotCase(
                 name: "History",
-                configurations: .fullContentScreenDefaults,
+                configurations: .fullContentScreenRepresentative,
                 measurementReadiness: .sameAsCapture,
             ) {
                 InstallerBrowserPreview.navigation(
@@ -61,10 +61,7 @@ struct UpdateHistoryView: View {
             }
             SnapshotCase(
                 name: "Retired",
-                configurations: SnapshotConfiguration.combinations(
-                    devices: [.iPhoneFullContent],
-                    colorSchemes: [.light, .dark],
-                ),
+                configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .sameAsCapture,
             ) {
                 InstallerBrowserPreview.navigation(

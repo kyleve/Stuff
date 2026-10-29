@@ -56,7 +56,7 @@ extension PrivacyBackupsFeaturesView: SettingsSection {
 #if DEBUG
     extension PrivacyBackupsFeaturesView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .fullContentScreenDefaults) {
+            whereSnapshot(name: "Default", configurations: .fullContentPhoneLightDark) {
                 PrivacyBackupsFeaturesView(
                     configuration: .defaults(isDebugBuild: false),
                     focus: nil,

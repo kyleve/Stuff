@@ -8,7 +8,7 @@ set -euo pipefail
 # owned areas to include; everything else is passed through to cloc after `--`.
 
 SCOPE=all            # all | prod | test | snapshots | tooling
-AREAS=()             # where | shared | ledger | repo
+AREAS=()             # where | shared | repo
 INCLUDE_DOCS=false
 INCLUDE_DATA=false
 INCLUDE_STRINGS=false
@@ -19,6 +19,7 @@ ROOT_SCRIPTS=(
     attribution
     codex-watchdog
     flaky
+    flyover
     icons
     ide
     loc
@@ -53,7 +54,6 @@ Scope (pick one):
 Area (repeatable; default is every area):
   --where               Where/**
   --shared              Shared/**
-  --ledger              Ledger/**
   --repo                Repo root manifests and dev scripts only
 
 Content:
@@ -90,9 +90,6 @@ matches_area() {
                 ;;
             shared)
                 [[ "$path" == Shared/* ]] && return 0
-                ;;
-            ledger)
-                [[ "$path" == Ledger/* ]] && return 0
                 ;;
             repo)
                 case "$path" in
@@ -224,7 +221,6 @@ while [ $# -gt 0 ]; do
         --tooling-only) SCOPE=tooling ;;
         --where) AREAS+=("where") ;;
         --shared) AREAS+=("shared") ;;
-        --ledger) AREAS+=("ledger") ;;
         --repo) AREAS+=("repo") ;;
         --include-docs) INCLUDE_DOCS=true ;;
         --include-data) INCLUDE_DATA=true ;;

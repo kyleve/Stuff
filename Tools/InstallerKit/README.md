@@ -17,6 +17,10 @@ Apps appear after their first publication or retirement receipt.
 App cards show their icon, version, download size, and publication date.
 Build pages add the minimum iOS version, source commit, workflow run, bundle ID, and release notes.
 
+The same Pages deployment includes [Flyover atlases](../../Shared/Flyover/README.md#daily-web-publication) under `/flyover/`.
+The publishers share `Tools/circleci_pipeline.py` for pipeline polling and artifact selection.
+InstallerKit retains its signed-IPA validation and publication policy. Flyover uses a separate unsigned capture workflow.
+
 ## CI cleanup failures
 
 Cleanup attempts search-list restoration, temporary keychain deletion, and owned-profile removal independently. A failure makes the job fail and retains the ownership and recovery files for a retry. It does not delete unexpected profiles or a directory whose ownership changed.
@@ -166,12 +170,20 @@ New apps reuse publication and update logic. They do not need another site or a 
 [The Astro project](Site/README.md) contains the Astro templates and local preview commands.
 Python owns catalog validation and install manifests. Astro renders the pages from validated input.
 Local previews and WebKit snapshots share deterministic catalogs and the production templates.
+WebKit retains every page state at phone baseline. Index, app, and channel layouts
+cover both appearances and tablet; selected status pages add dark or tablet checks.
 
 ## Shared hosting
 
-Select **GitHub Actions** as the Pages source. Allow `workflow_dispatch` for
+Select **GitHub Actions** as the Pages source. Allow `push` and `workflow_dispatch` for
 [installer-pages.yml](../../.github/workflows/installer-pages.yml) in the repository's Actions event policy.
 The repository must be public for credential-free IPA downloads.
+
+**App Install Site** runs on pushes to `main` and manual dispatches on `main`.
+It requires Pages configuration but no signing credentials or app distribution enable variable.
+Before the publication branch exists, it deploys `{"schemaVersion":3,"apps":[]}` and the site's existing empty state.
+Apps can fetch a valid catalog before any signed build is available.
+After Pages configuration, run **App Install Site** manually on `main` to publish the initial catalog.
 
 The default feed is `https://<owner>.github.io/<repository>/updates.json`.
 Set the repository variable `INSTALLER_FEED_URL` before archiving when using a custom domain.
@@ -184,6 +196,10 @@ A concurrent writer reloads the catalog before merging its own app and channel.
 It then dispatches **App Install Site** on `main`.
 That workflow reads the latest complete catalog and deploys all pages and manifests together.
 It has one deployment concurrency group for all apps.
+The deployment command uses `--published-catalog` with `GH_TOKEN` and `contents: read` permission.
+Local builds and previews can still use `--catalog <path>`.
+Unreadable or invalid catalogs fail deployment and preserve the previous site.
+A missing `updates.json` on an existing publication branch also fails deployment.
 
 ## Publication contract
 

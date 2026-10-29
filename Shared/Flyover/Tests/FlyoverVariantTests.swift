@@ -63,7 +63,7 @@ struct FlyoverVariantTests {
     @Test func cutsheetsBecomeSeparateLazyVariantsWithStablePanelIDs() {
         var builds = 0
         func makeCase(reversed: Bool) -> SnapshotCase {
-            SnapshotCase.cutsheet(name: "Card", configurations: .componentDefaults) {
+            SnapshotCase.cutsheet(name: "Card", configurations: .componentRepresentative) {
                 for identity in reversed ? ["flat", "standard"] : ["standard", "flat"] {
                     SnapshotPanel(id: .init(rawValue: identity), label: identity) {
                         builds += 1

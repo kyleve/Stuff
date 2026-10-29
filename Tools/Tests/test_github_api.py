@@ -11,8 +11,13 @@ class GitHubAPITests(unittest.TestCase):
     def test_only_explicitly_allowed_missing_responses_are_absorbed(self):
         request = Request("https://api.github.com/test")
         for status in (404, 403, 500):
-            with self.subTest(status=status), patch("Tools.InstallerKit.github_api.build_opener") as opener:
-                opener.return_value.open.side_effect = HTTPError(request.full_url, status, "secret", {}, io.BytesIO())
+            with (
+                self.subTest(status=status),
+                patch("Tools.InstallerKit.github_api.build_opener") as opener,
+            ):
+                opener.return_value.open.side_effect = HTTPError(
+                    request.full_url, status, "secret", {}, io.BytesIO()
+                )
                 if status == 404:
                     self.assertIsNone(request_json(request, allow_missing=True))
                 else:
@@ -23,4 +28,8 @@ class GitHubAPITests(unittest.TestCase):
                     request_json(request)
 
     def test_redirects_never_forward_credentials(self):
-        self.assertIsNone(NoRedirects().redirect_request(None, None, 302, "", {}, "https://other.example"))
+        self.assertIsNone(
+            NoRedirects().redirect_request(
+                None, None, 302, "", {}, "https://other.example"
+            )
+        )

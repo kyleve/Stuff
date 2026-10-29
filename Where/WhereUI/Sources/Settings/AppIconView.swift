@@ -322,7 +322,7 @@ struct AppIconImage: View {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Default",
-                configurations: .fullContentScreenDefaults,
+                configurations: .fullContentScreenRepresentative,
                 settle: .immediate,
             ) {
                 NavigationStack {

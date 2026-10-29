@@ -54,7 +54,7 @@ struct PrivacyPassportCard: View {
 
     extension PrivacyPassportCard: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereThemeSnapshot(name: "Privacy", configurations: .componentDefaults) {
+            whereThemeSnapshot(name: "Privacy", configurations: .componentRepresentative) {
                 PrivacyPassportCard(
                     presentation: PrivacyPassportPresentation(
                         configuration: .defaults(isDebugBuild: false),

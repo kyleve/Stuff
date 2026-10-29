@@ -106,7 +106,9 @@ class TlaCheckTests(unittest.TestCase):
             )
             self.assertIn("-metadir", commands[1][0])
             self.assertIn("Current.cfg", commands[1][0])
-            self.assertEqual((paths[1] / "Example.tla").read_text(), "---- MODULE Example ----\n")
+            self.assertEqual(
+                (paths[1] / "Example.tla").read_text(), "---- MODULE Example ----\n"
+            )
             self.assertTrue(
                 (paths[2] / "generated" / "Example.tla")
                 .read_text()
@@ -121,7 +123,9 @@ class TlaCheckTests(unittest.TestCase):
             )
             self.assertIn("translating Example.tla", output.getvalue())
             self.assertIn("ok   current (pass; 25 generated", output.getvalue())
-            self.assertIn("ok   broken (expected failure; 1234 generated", output.getvalue())
+            self.assertIn(
+                "ok   broken (expected failure; 1234 generated", output.getvalue()
+            )
             self.assertIn(f"artifacts: {paths[2]}", output.getvalue())
 
             summary = json.loads((paths[2] / "summary.json").read_text())
@@ -131,7 +135,9 @@ class TlaCheckTests(unittest.TestCase):
             self.assertEqual(summary["cases"][0]["stats"]["depth"], 7)
             self.assertEqual(summary["cases"][0]["stats"]["elapsedSeconds"], 1.25)
             self.assertEqual(summary["cases"][1]["stats"]["generatedStates"], 1234)
-            self.assertEqual(summary["cases"][1]["matchedFailure"], "Invariant violated")
+            self.assertEqual(
+                summary["cases"][1]["matchedFailure"], "Invariant violated"
+            )
 
     def test_tla_source_skips_translation(self):
         cases = [{"name": "current", "config": "Current.cfg", "expect": "pass"}]
@@ -177,7 +183,9 @@ class TlaCheckTests(unittest.TestCase):
             (paths[1] / "Missing.cfg").unlink()
             calls = []
 
-            with self.assertRaisesRegex(tla_check.TlaCheckError, "Missing.cfg.*not found"):
+            with self.assertRaisesRegex(
+                tla_check.TlaCheckError, "Missing.cfg.*not found"
+            ):
                 tla_check.run_manifest(
                     *paths, process_runner=lambda *args, **kwargs: calls.append(args)
                 )
@@ -233,7 +241,9 @@ class TlaCheckTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             paths = self.fixture(Path(temporary), cases, source="tla")
             result = subprocess.CompletedProcess([], 0, "TLC exited quietly", "")
-            with self.assertRaisesRegex(tla_check.TlaCheckError, "did not report a clean check"):
+            with self.assertRaisesRegex(
+                tla_check.TlaCheckError, "did not report a clean check"
+            ):
                 tla_check.run_manifest(
                     *paths, process_runner=lambda *args, **kwargs: result
                 )
@@ -318,7 +328,9 @@ class TlaCheckTests(unittest.TestCase):
                     }
                 )
             )
-            with self.assertRaisesRegex(tla_check.TlaCheckError, "unknown expect 'maybe'"):
+            with self.assertRaisesRegex(
+                tla_check.TlaCheckError, "unknown expect 'maybe'"
+            ):
                 tla_check.load_manifest(path)
 
             path.write_text(
@@ -326,9 +338,7 @@ class TlaCheckTests(unittest.TestCase):
                     {
                         "source": "other",
                         "module": "Example.tla",
-                        "cases": [
-                            {"name": "one", "config": "A.cfg", "expect": "pass"}
-                        ],
+                        "cases": [{"name": "one", "config": "A.cfg", "expect": "pass"}],
                     }
                 )
             )
@@ -347,14 +357,20 @@ class TlaCheckTests(unittest.TestCase):
         cases = [{"name": "current", "config": "Current.cfg", "expect": "pass"}]
         with tempfile.TemporaryDirectory() as temporary:
             paths = self.fixture(Path(temporary), cases, source="tla")
-            arguments = [*(str(path) for path in paths[:4]), *paths[4].__dict__.values()]
+            arguments = [
+                *(str(path) for path in paths[:4]),
+                *paths[4].__dict__.values(),
+            ]
             stderr = io.StringIO()
 
-            with patch.object(
-                tla_check.subprocess,
-                "run",
-                side_effect=FileNotFoundError("mise is not installed"),
-            ), patch.object(tla_check.sys, "stderr", stderr):
+            with (
+                patch.object(
+                    tla_check.subprocess,
+                    "run",
+                    side_effect=FileNotFoundError("mise is not installed"),
+                ),
+                patch.object(tla_check.sys, "stderr", stderr),
+            ):
                 self.assertEqual(1, tla_check.main(arguments))
 
             self.assertIn("mise is not installed", stderr.getvalue())
@@ -362,7 +378,10 @@ class TlaCheckTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             paths = self.fixture(Path(temporary), cases, source="tla")
             paths[2].write_text("not a directory")
-            arguments = [*(str(path) for path in paths[:4]), *paths[4].__dict__.values()]
+            arguments = [
+                *(str(path) for path in paths[:4]),
+                *paths[4].__dict__.values(),
+            ]
             stderr = io.StringIO()
 
             with patch.object(tla_check.sys, "stderr", stderr):

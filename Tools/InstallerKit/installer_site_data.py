@@ -9,7 +9,13 @@ from urllib.parse import urlsplit
 
 from Tools.repository import repository_root
 from Tools.InstallerKit.installer_apps import AppPresentation, load_apps
-from Tools.InstallerKit.installer_installation import install_url, manifest, manifest_path, site_url, validate_release
+from Tools.InstallerKit.installer_installation import (
+    install_url,
+    manifest,
+    manifest_path,
+    site_url,
+    validate_release,
+)
 from Tools.InstallerKit.installer_update_feed import read_catalog
 
 
@@ -27,7 +33,10 @@ class PreparedSite:
 def app_artwork(app, presentation, base_path, files):
     """Copy trusted artwork; a missing registration produces a monogram in Astro."""
     urls = {}
-    for key, path in (("icon", presentation.icon), ("darkIcon", presentation.dark_icon)):
+    for key, path in (
+        ("icon", presentation.icon),
+        ("darkIcon", presentation.dark_icon),
+    ):
         urls[key] = None
         if path is None:
             continue
@@ -37,7 +46,7 @@ def app_artwork(app, presentation, base_path, files):
         contents = source.read_bytes()
         if not contents.startswith(b"\x89PNG\r\n\x1a\n"):
             raise ValueError(f"App artwork is not a PNG: {path}")
-        relative = f'assets/{app["id"]}/{hashlib.sha256(contents).hexdigest()[:16]}.png'
+        relative = f"assets/{app['id']}/{hashlib.sha256(contents).hexdigest()[:16]}.png"
         files[relative] = contents
         urls[key] = base_path + relative
     return {"subtitle": presentation.subtitle, **urls}
@@ -45,7 +54,10 @@ def app_artwork(app, presentation, base_path, files):
 
 def validate_channel(app, channel, repository, feed_url, files):
     name = channel["name"]
-    if not re.fullmatch(r"main|pr-[1-9][0-9]*", name) or type(channel["active"]) is not bool:
+    if (
+        not re.fullmatch(r"main|pr-[1-9][0-9]*", name)
+        or type(channel["active"]) is not bool
+    ):
         raise ValueError("Invalid update channel")
     if channel["active"] and not channel["releases"]:
         raise ValueError("Active channel has no releases")
@@ -58,11 +70,15 @@ def validate_channel(app, channel, repository, feed_url, files):
         prior = order
         if not re.fullmatch(r"[0-9a-f]{40}", release["sha"]):
             raise ValueError("Invalid build commit")
-        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", release["publishedAt"]):
+        if not re.fullmatch(
+            r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", release["publishedAt"]
+        ):
             raise ValueError("Publication date must use UTC")
         datetime.fromisoformat(release["publishedAt"].replace("Z", "+00:00"))
         if channel["active"]:
-            files[manifest_path(app["id"], name, release["id"])] = manifest(app, release)
+            files[manifest_path(app["id"], name, release["id"])] = manifest(
+                app, release
+            )
 
 
 def prepare_site(catalog, repository, feed_url, registered_apps=None):
@@ -73,35 +89,79 @@ def prepare_site(catalog, repository, feed_url, registered_apps=None):
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository):
         raise ValueError("Invalid GitHub repository")
     registered_apps = load_apps() if registered_apps is None else registered_apps
-    files = {"updates.json": json.dumps(catalog, ensure_ascii=False, separators=(",", ":")).encode(),
-             ".nojekyll": b""}
+    files = {
+        "updates.json": json.dumps(
+            catalog, ensure_ascii=False, separators=(",", ":")
+        ).encode(),
+        ".nojekyll": b"",
+    }
     apps = []
-    for app in sorted(catalog["apps"], key=lambda value: (value["name"].casefold(), value["id"])):
+    for app in sorted(
+        catalog["apps"], key=lambda value: (value["name"].casefold(), value["id"])
+    ):
         registered = registered_apps.get(app["id"])
         if registered and registered.bundle_identifier != app["bundleIdentifier"]:
-            raise ValueError("Catalog bundle identifier differs from its registered app")
-        presentation = registered.presentation if registered else AppPresentation("Development build", None, None)
+            raise ValueError(
+                "Catalog bundle identifier differs from its registered app"
+            )
+        presentation = (
+            registered.presentation
+            if registered
+            else AppPresentation("Development build", None, None)
+        )
         artwork = app_artwork(app, presentation, base_path, files)
         channels = []
         for channel in app["channels"]:
             validate_channel(app, channel, repository, feed_url, files)
             status = channel.get("buildStatus")
-            progress = ({"state": status["state"],
-                         "runURL": f'https://github.com/{repository}/actions/runs/{status["id"]["run"]}/attempts/{status["id"]["attempt"]}'}
-                        if status else None)
+            progress = (
+                {
+                    "state": status["state"],
+                    "runURL": f"https://github.com/{repository}/actions/runs/{status['id']['run']}/attempts/{status['id']['attempt']}",
+                }
+                if status
+                else None
+            )
             if channel["active"]:
                 release = channel["releases"][0]
                 for commit in release["commits"]:
-                    if not re.fullmatch(r"[0-9a-f]{40}", commit["sha"]) or not isinstance(commit["subject"], str):
+                    if not re.fullmatch(
+                        r"[0-9a-f]{40}", commit["sha"]
+                    ) or not isinstance(commit["subject"], str):
                         raise ValueError("Invalid commit in release notes")
-                channels.append({"name": channel["name"], "state": "active", "release": release,
-                                 "installURL": install_url(release["manifestURL"]),
-                                 **({"buildStatus": progress} if progress else {})})
+                channels.append(
+                    {
+                        "name": channel["name"],
+                        "state": "active",
+                        "release": release,
+                        "installURL": install_url(release["manifestURL"]),
+                        **({"buildStatus": progress} if progress else {}),
+                    }
+                )
             elif progress:
                 channels.append({"name": channel["name"], **progress})
             else:
-                channels.append({"name": channel["name"],
-                                 "state": "retired" if channel["releases"] else "unpublished"})
-        apps.append({"id": app["id"], "name": app["name"], "bundleIdentifier": app["bundleIdentifier"],
-                     "presentation": artwork, "channels": channels})
-    return PreparedSite({"siteURL": root, "basePath": base_path, "repository": repository, "apps": apps}, files)
+                channels.append(
+                    {
+                        "name": channel["name"],
+                        "state": "retired" if channel["releases"] else "unpublished",
+                    }
+                )
+        apps.append(
+            {
+                "id": app["id"],
+                "name": app["name"],
+                "bundleIdentifier": app["bundleIdentifier"],
+                "presentation": artwork,
+                "channels": channels,
+            }
+        )
+    return PreparedSite(
+        {
+            "siteURL": root,
+            "basePath": base_path,
+            "repository": repository,
+            "apps": apps,
+        },
+        files,
+    )

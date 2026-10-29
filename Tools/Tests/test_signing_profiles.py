@@ -7,13 +7,20 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from Tools.InstallerKit.signing_profiles import Target, prepare, read_profile, validate_settings
-
-TARGETS = (Target("Where", "TUIST_WHERE_ADHOC_APP_PROFILE"),
-           Target("WhereWidgets", "TUIST_WHERE_ADHOC_WIDGET_PROFILE"),
-           Target("WhereShareExtension", "TUIST_WHERE_ADHOC_SHARE_PROFILE"))
-REQUIRED = {"WHERE_AUDIENCE": "development"}
+from Tools.InstallerKit.signing_profiles import (
+    Target,
+    prepare,
+    read_profile,
+    validate_settings,
+)
 from Fixtures.where_distribution_fixtures import profile, write_profiles
+
+TARGETS = (
+    Target("Where", "TUIST_WHERE_ADHOC_APP_PROFILE"),
+    Target("WhereWidgets", "TUIST_WHERE_ADHOC_WIDGET_PROFILE"),
+    Target("WhereShareExtension", "TUIST_WHERE_ADHOC_SHARE_PROFILE"),
+)
+REQUIRED = {"WHERE_AUDIENCE": "development"}
 
 
 NOW = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -32,7 +39,9 @@ class WhereSigningTests(unittest.TestCase):
             profiles = json.loads((root / "plan/profiles.json").read_text())
             self.assertEqual(profiles[2]["uuid"], profile(2)["UUID"])
             self.assertEqual(profiles[0]["team"], "TESTTEAM01")
-            self.assertNotIn("fixture-device", (root / "plan/profiles.json").read_text())
+            self.assertNotIn(
+                "fixture-device", (root / "plan/profiles.json").read_text()
+            )
 
     def test_rejects_expired_development_enterprise_store_and_wildcard_profiles(self):
         mutations = [
@@ -42,21 +51,33 @@ class WhereSigningTests(unittest.TestCase):
             {"ProvisionedDevices": []},
             {"ApplicationIdentifierPrefix": "TESTTEAM01"},
             {"UUID": "invalid; command"},
-            {"Entitlements": {"get-task-allow": False, "application-identifier": "TESTTEAM01.*"}},
+            {
+                "Entitlements": {
+                    "get-task-allow": False,
+                    "application-identifier": "TESTTEAM01.*",
+                }
+            },
         ]
         for mutation in mutations:
             with self.subTest(mutation=mutation), self.assertRaises(ValueError):
                 read_profile(TARGETS[0], {**profile(0), **mutation}, NOW)
 
     def test_cross_profile_mismatch_does_not_create_output(self):
-        for mutation in ({"TeamIdentifier": ["OTHERTEAM1"]},
-                         {"ProvisionedDevices": ["different-device"]},
-                         {"UUID": profile(0)["UUID"]},
-                         {"Entitlements": profile(0)["Entitlements"]}):
-            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as temporary:
+        for mutation in (
+            {"TeamIdentifier": ["OTHERTEAM1"]},
+            {"ProvisionedDevices": ["different-device"]},
+            {"UUID": profile(0)["UUID"]},
+            {"Entitlements": profile(0)["Entitlements"]},
+        ):
+            with (
+                self.subTest(mutation=mutation),
+                tempfile.TemporaryDirectory() as temporary,
+            ):
                 root = Path(temporary)
                 write_profiles(root / "profiles")
-                (root / "profiles/WhereWidgets.plist").write_bytes(plistlib.dumps({**profile(1), **mutation}))
+                (root / "profiles/WhereWidgets.plist").write_bytes(
+                    plistlib.dumps({**profile(1), **mutation})
+                )
                 with self.assertRaises(ValueError):
                     prepare(root / "profiles", root / "output", NOW, TARGETS)
                 self.assertFalse((root / "output").exists())
@@ -67,10 +88,19 @@ class WhereSigningTests(unittest.TestCase):
             write_profiles(root / "profiles")
             prepare(root / "profiles", root / "plan", NOW, TARGETS)
             profiles = json.loads((root / "plan/profiles.json").read_text())
-            settings = [{"target": item["target"], "buildSettings": {
-                "PRODUCT_BUNDLE_IDENTIFIER": item["bundle_id"], "DEVELOPMENT_TEAM": item["team"],
-                "PROVISIONING_PROFILE_SPECIFIER": item["uuid"], "CODE_SIGN_STYLE": "Manual",
-                "WHERE_AUDIENCE": "development"}} for item in profiles]
+            settings = [
+                {
+                    "target": item["target"],
+                    "buildSettings": {
+                        "PRODUCT_BUNDLE_IDENTIFIER": item["bundle_id"],
+                        "DEVELOPMENT_TEAM": item["team"],
+                        "PROVISIONING_PROFILE_SPECIFIER": item["uuid"],
+                        "CODE_SIGN_STYLE": "Manual",
+                        "WHERE_AUDIENCE": "development",
+                    },
+                }
+                for item in profiles
+            ]
             validate_settings(settings, profiles, REQUIRED)
             for key in settings[0]["buildSettings"]:
                 changed = json.loads(json.dumps(settings))

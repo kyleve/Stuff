@@ -99,7 +99,7 @@ extension PersonalizationFeaturesView: SettingsSection {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Default",
-                configurations: .fullContentScreenDefaults,
+                configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
             ) {
                 PersonalizationFeaturesView(
