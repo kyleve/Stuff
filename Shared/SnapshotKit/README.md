@@ -95,6 +95,9 @@ capture + comparison pipeline lives in the sibling
   preview cutsheet. This includes explicit device layout traits. Thus, previews
   and test captures stay in lockstep. Simulated frame insets are capture-only.
   A preview cannot simulate safe areas.
+  The `Capture` SPI's `snapshotSwiftUITraits(_:)` supplies the shared color scheme,
+  Dynamic Type, layout direction, and legibility mapping. The preview wrapper and
+  test capture host retain their separate UIKit and animation policies.
 - **`\.isCapturingSnapshot`** — an environment flag that is `true` while
   `SnapshotKitTesting` captures the view (and in the preview cutsheet, which
   mirrors the tests). A view may read it **only** to render a deterministic

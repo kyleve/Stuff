@@ -13,6 +13,11 @@ it is **only** linked by `*SnapshotTests` bundles — never a shipping app. It
 re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
 `import SnapshotKitTesting`.
 
+Preview and capture share SnapshotKit's `snapshotSwiftUITraits(_:)` Capture SPI
+for native SwiftUI appearance values. The capture host still owns UIKit overrides,
+frame setup, and disabled-animation transactions. It does not use the preview's
+extra UIKit wrapper.
+
 ## What's in the box
 
 - **`assertSnapshots(of:)`** — the matrix runner: given a `SnapshotProviding`
