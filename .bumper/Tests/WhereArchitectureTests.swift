@@ -201,3 +201,27 @@ func `Where consumers can use InstallerKit`() throws {
     ))
     #expect(report.violations.isEmpty)
 }
+
+@Test
+func `ViewDocument rejects consumer dependencies`() throws {
+    for component in [WhereComponent.viewDocumentCore, .viewDocumentUI] {
+        for source in [
+            "import WhereUI",
+            "import BroadwayUI",
+            "import BroadwayCore",
+            "import SnapshotKit",
+        ] {
+            let report = try bumper.evaluate(RepositoryInput(
+                architecture: bumper.architecture,
+                files: [SourceInput(
+                    path: component == .viewDocumentCore ?
+                        "Shared/ViewDocument/ViewDocumentCore/Sources/ViewDocument.swift" :
+                        "Shared/ViewDocument/ViewDocumentUI/Sources/ViewDocumentView.swift",
+                    component: ComponentID(component.rawValue),
+                    source: source,
+                )],
+            ))
+            #expect(!report.violations.isEmpty)
+        }
+    }
+}
