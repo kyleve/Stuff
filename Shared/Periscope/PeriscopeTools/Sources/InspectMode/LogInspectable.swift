@@ -87,8 +87,7 @@ struct LogInspectorView: View {
         content
             .navigationTitle("Element Logs")
             .navigationBarTitleDisplayMode(.inline)
-            .environment(\.logRowDensity, .load(from: .standard))
-            .periscopeBroadwayRoot()
+            .periscopeBroadwayRoot(.inheritedOrSaved(.standard))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
