@@ -1,6 +1,6 @@
 # BroadwayUI – Module Shape
 
-BroadwayUI provides UIKit and SwiftUI components that own and propagate a `BContext` down the view hierarchy. Key types: `BRootViewController` (UIKit root container and trait observation), `BRootView` / `.broadwayRoot(themes:)` (SwiftUI-native root), and `BTraitOverridesViewController` (scoped overrides). It depends on **BroadwayCore**. See [`README.md`](README.md).
+BroadwayUI provides UIKit and SwiftUI components that own and propagate a `BContext` down the view hierarchy. Key types: `BRootViewController` (UIKit root container and trait observation), `BRootView` / `.broadwayRoot(themes:)` (SwiftUI-native root), and `BTraitOverridesViewController` (scoped overrides). It depends on **BroadwayCore**, **ViewDocumentCore**, and **ViewDocumentUI**. See [`README.md`](README.md).
 
 Read the root [`AGENTS.md`](../../../AGENTS.md) and the group [`../AGENTS.md`](../AGENTS.md) first.
 
@@ -21,3 +21,5 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) and the group [`../AGENTS.md`](.
 ## Testing
 
 Run `BroadwayUITests` in `StuffTestHost`, linking `TestHostSupport` (`./test BroadwayUITests`).
+
+- Document decorations use validated, prepared content. Resolve scales and accessibility from the Broadway slice; inject host activity and snapshot motion policy. Keep networking and product attachment names in consumers.

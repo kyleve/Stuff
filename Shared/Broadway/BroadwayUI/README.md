@@ -34,3 +34,9 @@ WindowGroup {
 
 Local SPM library declared in the root [`Package.swift`](../../../Package.swift) (depends on BroadwayCore): `.package(product: "BroadwayUI")`.
 Run tests with `./test BroadwayUITests`.
+
+## Portable documents
+
+BroadwayUI consumes the independent ViewDocument libraries. Prepare and validate a document before rendering it. Attach it with `bViewDocumentBackground` or `bViewDocumentOverlay`, passing host activity and static-motion policy. These decorations stay within the host bounds and do not receive input or accessibility focus.
+
+`BViewDocumentStylesheet` resolves semantic dimension scales from the current content-size category. Reduce Motion selects the document's static pose. Reduce Transparency and Increased Contrast hide decorations. The renderer does not load assets or fetch documents.

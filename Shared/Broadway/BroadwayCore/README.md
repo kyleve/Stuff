@@ -37,3 +37,7 @@ The cache is `@EquatableIgnored`, so two contexts compare equal on their inputs,
 Local SPM library declared in the root [`Package.swift`](../../../Package.swift).
 Depend on it with `.package(product: "BroadwayCore")`.
 Run tests with `./test BroadwayCoreTests`.
+
+## Portable theme values
+
+`BModeVarying` supports Codable when its value does. `BThemeValue<Value>` encodes either a constant or paired light/dark values. Call `resolve(mode:)` with the stylesheet slice's mode. Product modules own theme schemas and fallback rules.

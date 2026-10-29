@@ -257,6 +257,8 @@ let package = Package(
             name: "BroadwayUI",
             dependencies: [
                 .target(name: "BroadwayCore"),
+                .target(name: "ViewDocumentCore"),
+                .target(name: "ViewDocumentUI"),
             ],
             path: "Shared/Broadway/BroadwayUI/Sources",
         ),
