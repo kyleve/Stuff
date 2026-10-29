@@ -378,9 +378,23 @@ struct WhereApp: App {
 
 The regular runtime owns the model and launch runner. The DEBUG Inspector
 runtime supplies an entirely separate root. `RootView` applies
-`whereBroadwayRoot()` itself, so a host doesn't wrap it. For
+`whereEnvironment(_:)` itself, so a host doesn't wrap it. For
 a self-contained preview or UI test, the no-arg `RootView()` builds its own
 model and a foreground launch runner.
+
+The shared environment modifier also seeds the Broadway root. Its typed
+`WhereEnvironment.app` context requires the model, optional updater, and DEBUG
+developer dependencies. The session, demo status, theme, and region styles come
+from that model. Model changes update the mounted tree, including session
+replacement and logout. This replaces the standalone `demoMode(of:)` modifier.
+
+Onboarding preview and Flyover use `WhereEnvironment.isolated(model:session:)`.
+The session argument is required: onboarding passes `nil`; Flyover passes its
+sibling session. Both replace the inherited model, session, and style root,
+enable demo UI restrictions, and clear inherited updates, log inspector,
+next-launch controller, and card designer state. The host's installed app icon
+identity remains available. This wiring does not create services; each host
+still owns its in-memory world.
 
 ## Design system
 

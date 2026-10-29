@@ -180,7 +180,7 @@ a screen felt slow.
   `authorized: true`. No surface nags about a permission the demo cannot obtain.
   Guard: `DemoModeTests.demoPresentsAFullyGrantedUser`.
 - **Views branch on `\.isInDemoMode`.** Seed once at `RootView` via
-  `demoMode(of:)`. Guard: `DemoModeEnvironmentTests`.
+  `whereEnvironment(_:)`. Guard: `WhereEnvironmentTests`.
 - App Intents answer from the demo store while it is active. That is
   process-scoped and self-correcting on exit. It is accepted rather than
   special-cased (#150).

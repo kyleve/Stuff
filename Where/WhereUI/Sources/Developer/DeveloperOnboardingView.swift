@@ -1,6 +1,5 @@
 #if DEBUG
     import LifecycleKitUI
-    import PeriscopeTools
     import SnapshotKit
     import SwiftUI
     import WhereCore
@@ -64,11 +63,7 @@
                 isPresentationVisible: scenePhase == .active,
                 onReveal: dismissAfterWelcome,
             ))
-            .environment(preview.model)
-            .environment(WhereSession?.none)
-            .environment(\.isInDemoMode, true)
-            .environment(\.periscopeInspector, nil)
-            .whereBroadwayRoot(theme: preview.model.theme)
+            .whereEnvironment(.isolated(model: preview.model, session: nil))
             .accessibilityAddTraits(.isModal)
             .presentationBackground(.clear)
             .task {

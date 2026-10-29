@@ -33,6 +33,11 @@ Layering, localization, preview, and testing conventions live in the feature
 - Composition is the one exception: `WhereScope` and `WhereModel` decide which
   world the app is logged in to and assemble it. That's launch wiring, not
   domain logic — see [Scopes and the launch](../AGENTS.md#scopes-and-the-launch).
+- Inject app and isolated worlds through `whereEnvironment(_:)`. Its app
+  context derives the session, demo status, theme, and region styles from one
+  model. Its isolated context requires an explicit session and clears inherited
+  updates and developer tools. Keep new scope-sensitive environment values in
+  that modifier. Guard: `WhereEnvironmentTests`.
 - The app injects its configured primary icon name at `RootView`; icon-picker
   code treats every manifest entry as an asset and derives primary versus
   alternate status from that injected name.
