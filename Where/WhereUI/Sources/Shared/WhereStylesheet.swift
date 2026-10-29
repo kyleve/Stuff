@@ -126,6 +126,8 @@ struct WhereStylesheet: BStylesheet {
             calendar.overview.usesSpatialMotion = false
             launch.reveal = .crossfade
             launch.revealAnimation = motion.reducedReveal
+            onboarding.welcome.reveal = .crossfade
+            onboarding.welcome.revealAnimation = motion.reducedReveal
             launch.captionAnimation = nil
             settings.flashAnimation = nil
             card.dayCount = .reducedMotion
@@ -2852,6 +2854,13 @@ extension WhereStylesheet {
     struct OnboardingStyle: Equatable {
         var phone = Phone()
         var footer = Footer()
+        var welcome = Welcome()
+
+        struct Welcome: Equatable {
+            var minimumDuration: Duration = .milliseconds(1500)
+            var reveal = LaunchStyle.Reveal.zoom
+            var revealAnimation: Animation = .easeInOut(duration: 0.6)
+        }
 
         struct Footer: Equatable {
             var backgroundOpacity: Double = 0.96

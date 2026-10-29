@@ -139,7 +139,8 @@ Demo mode hides this surface and performs no update checks.
   **Onboarding Preview** opens the production flow in a full-screen cover with
   a fresh in-memory model, preferences, installation identity, and store. It
   reuses demo's scripted location and no-op system collaborators. Finishing or
-  choosing Demo dismisses the preview; Close discards it. No session starts and
+  choosing Demo shows the completion welcome, then reveals the existing app;
+  Close discards the preview. No session starts and
   the current app's data, theme, recording choice, and integrations stay intact.
 - **App icons** — `AppIcons.json` catalogs asset names, while the host injects
   the current audience's primary asset at `RootView`. The picker maps that one
@@ -266,6 +267,14 @@ journal intent.
   labeled sample history. The privacy passport uses process-effective diagnostics.
   Artwork uses the root-injected region cache; illustrations do not open a store.
   The picker and customization editor retain their Settings presentation.
+  Successful setup and Demo entry show **Welcome to Where** through the shared
+  launch artwork. The destination warms behind the cover. Once the destination
+  is ready and the scene is active, the welcome stays for at least 1.5 seconds
+  before a 0.6-second startup-style zoom reveal. Reduce Motion uses a crossfade.
+  An interrupted hold or reveal starts a fresh visible hold on return.
+  A launch failure removes the cover so the failure remains actionable.
+  The developer preview uses the same presentation, then dismisses without
+  an additional sheet animation. It never starts a session for the demo.
 - **`OnboardingView` / `OnboardingFlowModel`** — the rendered first-run flow and its view-scoped
   observable coordinator, registered for the launch's
   `OnboardingGate` and handed its `LifecycleGateHandle`. The gate follows the

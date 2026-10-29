@@ -9,6 +9,8 @@
     struct DeveloperOnboardingView: View {
         @State private var preview: DeveloperOnboardingModel
         @Environment(\.dismiss) private var dismiss
+        /// Scene activity is a runtime input for the completion hold, not an appearance trait.
+        @Environment(\.scenePhase) private var scenePhase
 
         init(diagnostics: DiagnosticReportingConfiguration) {
             _preview = State(initialValue: DeveloperOnboardingModel(
@@ -39,37 +41,49 @@
                 Color.clear
             }
             .safeAreaInset(edge: .top) {
-                HStack {
-                    Text(String(localized: .developerOnboardingTitle))
-                        .font(.headline)
-                    Spacer()
-                    Button(String(localized: .developerClose), systemSymbol: .xmark) {
-                        preview.close()
-                        dismiss()
+                if !preview.model.onboardingWelcome.isPresented {
+                    HStack {
+                        Text(String(localized: .developerOnboardingTitle))
+                            .font(.headline)
+                        Spacer()
+                        Button(String(localized: .developerClose), systemSymbol: .xmark) {
+                            preview.close()
+                            dismiss()
+                        }
+                        .labelStyle(.iconOnly)
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.circle)
                     }
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.bordered)
-                    .buttonBorderShape(.circle)
+                    .padding()
+                    .background(.background)
                 }
-                .padding()
-                .background(.background)
             }
+            .modifier(OnboardingWelcomePresentation(
+                model: preview.model.onboardingWelcome,
+                destination: .init(phase: preview.runner.phase),
+                isPresentationVisible: scenePhase == .active,
+                onReveal: dismissAfterWelcome,
+            ))
             .environment(preview.model)
             .environment(WhereSession?.none)
             .environment(\.isInDemoMode, true)
             .environment(\.periscopeInspector, nil)
             .whereBroadwayRoot(theme: preview.model.theme)
             .accessibilityAddTraits(.isModal)
+            .presentationBackground(.clear)
             .task {
                 await preview.run()
-                if case .ready = preview.runner.phase {
-                    dismiss()
-                }
             }
             .onDisappear {
                 preview.close()
                 Task { await preview.releaseScope() }
             }
+        }
+
+        private func dismissAfterWelcome() {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) { dismiss() }
         }
     }
 

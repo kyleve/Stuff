@@ -209,6 +209,11 @@ public struct RootView: View {
             #if DEBUG
             .safeAreaPadding(developerOverlayInsets)
             #endif
+            .modifier(OnboardingWelcomePresentation(
+                model: model.onboardingWelcome,
+                destination: .init(phase: launcher.phase),
+                isPresentationVisible: isLifecyclePresentationVisible,
+            ))
 
             // The floating developer launcher/accordion sits above every launch
             // phase and tab so its tools are reachable from anywhere (even logged

@@ -69,6 +69,7 @@ Layering, localization, preview, and testing conventions live in the feature
   in-memory preferences and installation context, and demo service wiring.
   Never start a session or connect app integrations. Closing or completing it
   must leave the live model untouched. Guard: `DeveloperOnboardingModelTests`.
+  Dismiss successful previews only after the shared welcome reveal completes.
 - Keep the DEBUG Logs destination visible for every
   `WhereModel.logStoreState`. Opening, unavailable, and failed stores are
   diagnostics to render, not reasons to hide the tool.
@@ -282,6 +283,11 @@ worked examples.
 Keep onboarding examples read-only and labeled as sample history. Reuse production
 renderers without constructing a scope. Privacy disclosures use process-effective
 diagnostics. Guard: `OnboardingIntroPageSnapshotTests`.
+Keep completion timing in `OnboardingWelcomeModel` and its shared presentation.
+Start its minimum hold only while the destination is ready and the scene is active.
+Restart interrupted holds and reveals, expose launch failures, and keep covered
+content unavailable to touches and accessibility until the reveal finishes.
+Guards: `OnboardingWelcomeModelTests`, `OnboardingWelcomePresentationTests`.
 
 ## Feature discovery
 

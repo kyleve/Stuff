@@ -5133,6 +5133,30 @@
         }
       }
     },
+    "onboarding.completion.subtitle" : {
+      "comment" : "Supporting text on the onboarding completion screen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your story starts here."
+          }
+        }
+      }
+    },
+    "onboarding.completion.title" : {
+      "comment" : "Heading after successful setup or entry into the demo.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Welcome to Where"
+          }
+        }
+      }
+    },
     "onboarding.continue" : {
       "comment" : "Button text for continuing to the next onboarding step.",
       "extractionState" : "manual",

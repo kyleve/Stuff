@@ -63,6 +63,7 @@
                 LaunchSplashView.flyoverData,
                 WhereLifecycleFailureView.flyoverData,
                 OnboardingView.flyoverData,
+                OnboardingWelcomeView.flyoverData,
                 RegionPickerView.flyoverData,
                 RegionCustomizeView.flyoverData,
                 LocationsView.flyoverData,

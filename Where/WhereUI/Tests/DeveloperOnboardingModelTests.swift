@@ -35,6 +35,8 @@
             #expect(await scope.services.ingestor.authorizationStatus() == .always)
             #expect(preview.model.session == nil)
             #expect(scope.logStore == nil)
+            #expect(preview.model.onboardingWelcome.phase == .waiting)
+            #expect(!live.onboardingWelcome.isPresented)
             #expect(live.activeScope === liveScope)
             #expect(live.session === liveSession)
             #expect(live.theme == liveTheme)
@@ -44,6 +46,11 @@
         }
 
         @Test func demoCompletesOnlyThePreviewGate() async throws {
+            let live = PreviewSupport.loadedModel()
+            let liveScope = live.activeScope
+            let liveSession = live.session
+            let liveContext = live.installationRecordingContext
+            let liveTheme = live.theme
             let preview = makePreview()
             let drive = Task { await preview.run() }
             let flow = try await makeFlow(preview, gate: gate(in: preview))
@@ -52,8 +59,15 @@
             #expect(preview.model.isInDemoMode)
             #expect(preview.model.session == nil)
             #expect(!preview.model.hasConfirmedRecordingChoice)
+            #expect(preview.model.onboardingWelcome.phase == .waiting)
+            #expect(live.activeScope === liveScope)
+            #expect(live.session === liveSession)
+            #expect(live.installationRecordingContext == liveContext)
+            #expect(live.theme == liveTheme)
+            #expect(!live.onboardingWelcome.isPresented)
             await preview.releaseScope()
             #expect(preview.model.activeScope == nil)
+            #expect(!preview.model.onboardingWelcome.isPresented)
         }
 
         @Test func closingAndReopeningStartsFresh() async throws {
