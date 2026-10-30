@@ -131,11 +131,17 @@ Demo mode hides this surface and performs no update checks.
   and next-launch Inspector/demo controls. The demo sheet selects which Resolve
   issue categories appear in a one-shot, in-memory launch. Forced crashes cover Swift traps, Objective-C
   exceptions, abort signals, and invalid memory access so crash reporters can be
-  checked end to end. The global launcher's accordion only updates
+  checked end to end. The global launcher's next-launch controls only update
   `WhereDeveloperLaunchController`. The current regular runtime continues until the
   developer relaunches. The Logs destination is always present. Before its
   durable store is ready it reports whether the open is still running,
   unavailable, or failed with the actual error.
+  **Onboarding Preview** opens the production flow in a full-screen cover with
+  a fresh in-memory model, preferences, installation identity, and store. It
+  reuses demo's scripted location and no-op system collaborators. Finishing or
+  choosing Demo shows the completion welcome, then reveals the existing app;
+  Close discards the preview. No session starts and
+  the current app's data, theme, recording choice, and integrations stay intact.
 - **App icons** — `AppIcons.json` catalogs asset names, while the host injects
   the current audience's primary asset at `RootView`. The picker maps that one
   asset to UIKit's `nil` primary-icon value and treats every other catalogued
@@ -254,11 +260,26 @@ journal intent.
   Welcome cards must be enabled, and the device must confidently resolve a
   tracked region with recording active.
 
+- **Onboarding presentation** uses `WhereStylesheet.onboarding` for shared headings,
+  actions, and passport backgrounds. Every setup step anchors its primary and
+  secondary actions in one vertical stack in a shared safe-area footer.
+  Read-only region cards and a year ribbon sit in minimal device frames with
+  labeled sample history. The privacy passport uses process-effective diagnostics.
+  Artwork uses the root-injected region cache; illustrations do not open a store.
+  The picker and customization editor retain their Settings presentation.
+  Successful setup and Demo entry show **Welcome to Where** through the shared
+  launch artwork. The destination warms behind the cover. Once the destination
+  is ready and the scene is active, the welcome stays for at least 1.5 seconds
+  before a 0.6-second startup-style zoom reveal. Reduce Motion uses a crossfade.
+  An interrupted hold or reveal starts a fresh visible hold on return.
+  A launch failure removes the cover so the failure remains actionable.
+  The developer preview uses the same presentation, then dismisses without
+  an additional sheet animation. It never starts a session for the demo.
 - **`OnboardingView` / `OnboardingFlowModel`** — the rendered first-run flow and its view-scoped
   observable coordinator, registered for the launch's
   `OnboardingGate` and handed its `LifecycleGateHandle`. The gate follows the
   side-effect-free demo preflight and precedes every world-building step, so
-  there is no session behind it: a paged intro,
+  there is no session behind it: a paged intro and theme selection,
   then picking up to five primary US regions (map or searchable list) and
   giving each a look, then verifying this installation's automatic-recording
   choice. The final page opens the real store in a dormant state to inspect recent synced advisory
@@ -357,9 +378,23 @@ struct WhereApp: App {
 
 The regular runtime owns the model and launch runner. The DEBUG Inspector
 runtime supplies an entirely separate root. `RootView` applies
-`whereBroadwayRoot()` itself, so a host doesn't wrap it. For
+`whereEnvironment(_:)` itself, so a host doesn't wrap it. For
 a self-contained preview or UI test, the no-arg `RootView()` builds its own
 model and a foreground launch runner.
+
+The shared environment modifier also seeds the Broadway root. Its typed
+`WhereEnvironment.app` context requires the model, optional updater, and DEBUG
+developer dependencies. The session, demo status, theme, and region styles come
+from that model. Model changes update the mounted tree, including session
+replacement and logout. This replaces the standalone `demoMode(of:)` modifier.
+
+Onboarding preview and Flyover use `WhereEnvironment.isolated(model:session:)`.
+The session argument is required: onboarding passes `nil`; Flyover passes its
+sibling session. Both replace the inherited model, session, and style root,
+enable demo UI restrictions, and clear inherited updates, log inspector,
+next-launch controller, and card designer state. The host's installed app icon
+identity remains available. This wiring does not create services; each host
+still owns its in-memory world.
 
 ## Design system
 

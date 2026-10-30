@@ -11,6 +11,7 @@ struct WhereThemeOverridesTests {
         sheet.card.regular.cornerRadius = 37
         sheet.locationWelcome.glow.opacity = 0.43
         sheet.locationForecast.ink.surfaceWashOpacity = 0.71
+        sheet.onboarding.usesOpaqueSurfaces = true
         let original = sheet
         WhereThemeOverrides().apply(to: &sheet)
         #expect(sheet == original)
@@ -29,6 +30,16 @@ struct WhereThemeOverridesTests {
         var overrides = WhereThemeOverrides()
         overrides.welcome.glowOpacity = 0
         overrides.forecast.summaryShadowOpacity = 0
+        overrides.apply(to: &sheet)
+        #expect(sheet == expected)
+    }
+
+    @Test func onboardingOverridePreservesArtworkAndLayout() {
+        var sheet = WhereStylesheet.default
+        var expected = sheet
+        expected.onboarding.usesOpaqueSurfaces = true
+        var overrides = WhereThemeOverrides()
+        overrides.onboarding.usesOpaqueSurfaces = true
         overrides.apply(to: &sheet)
         #expect(sheet == expected)
     }

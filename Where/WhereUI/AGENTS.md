@@ -33,6 +33,11 @@ Layering, localization, preview, and testing conventions live in the feature
 - Composition is the one exception: `WhereScope` and `WhereModel` decide which
   world the app is logged in to and assemble it. That's launch wiring, not
   domain logic — see [Scopes and the launch](../AGENTS.md#scopes-and-the-launch).
+- Inject app and isolated worlds through `whereEnvironment(_:)`. Its app
+  context derives the session, demo status, theme, and region styles from one
+  model. Its isolated context requires an explicit session and clears inherited
+  updates and developer tools. Keep new scope-sensitive environment values in
+  that modifier. Guard: `WhereEnvironmentTests`.
 - The app injects its configured primary icon name at `RootView`; icon-picker
   code treats every manifest entry as an asset and derives primary versus
   alternate status from that injected name.
@@ -60,11 +65,16 @@ Layering, localization, preview, and testing conventions live in the feature
   Remote-log revisions apply live. A runtime failure invalidates in-flight
   applies. An older completion must never win.
 - Keep the combined personal-data switch scoped to its named controls. Preserve consumer-defined grants and use effective policy for privacy disclosures.
-- The DEBUG developer accordion may only update
+- The DEBUG developer accordion’s next-launch controls may only update
   `WhereDeveloperLaunchController` for the next launch. Inspector and demo are
   mutually exclusive. It must not switch the current runtime. A demo request
   is consumed once before the onboarding gate and must never open a real store.
   Keep its synthetic clock scoped to the in-memory demo session.
+- Keep the DEBUG onboarding preview on its own `WhereModel`, gate-only runner,
+  in-memory preferences and installation context, and demo service wiring.
+  Never start a session or connect app integrations. Closing or completing it
+  must leave the live model untouched. Guard: `DeveloperOnboardingModelTests`.
+  Dismiss successful previews only after the shared welcome reveal completes.
 - Keep the DEBUG Logs destination visible for every
   `WhereModel.logStoreState`. Opening, unavailable, and failed stores are
   diagnostics to render, not reasons to hide the tool.
@@ -274,6 +284,15 @@ worked examples.
   actions; transient and confidence failures return to idle.
 - Establish the first successful live-region baseline without a welcome, including after backup import.
   Preserve explicit DEBUG reset requests and commit no history from cancelled or superseded lookups. Guard: `LocationWelcomeModelTests`.
+
+Keep onboarding examples read-only and labeled as sample history. Reuse production
+renderers without constructing a scope. Privacy disclosures use process-effective
+diagnostics. Guard: `OnboardingIntroPageSnapshotTests`.
+Keep completion timing in `OnboardingWelcomeModel` and its shared presentation.
+Start its minimum hold only while the destination is ready and the scene is active.
+Restart interrupted holds and reveals, expose launch failures, and keep covered
+content unavailable to touches and accessibility until the reveal finishes.
+Guards: `OnboardingWelcomeModelTests`, `OnboardingWelcomePresentationTests`.
 
 ## Feature discovery
 

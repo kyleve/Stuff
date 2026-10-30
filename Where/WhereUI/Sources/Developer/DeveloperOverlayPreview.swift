@@ -17,9 +17,15 @@
             Group {
                 if let context {
                     DeveloperOverlay(model: context.overlayModel)
-                        .environment(context.model)
-                        .environment(context.modeController as WhereDeveloperLaunchController?)
-                        .environment(\.periscopeInspector, context.inspector)
+                        .whereEnvironment(.app(.init(
+                            model: context.model,
+                            updates: nil,
+                            developer: .init(
+                                inspector: context.inspector,
+                                launchController: context.modeController,
+                                cardDesigner: nil,
+                            ),
+                        )))
                 } else {
                     ProgressView()
                 }

@@ -2962,6 +2962,17 @@
         }
       }
     },
+    "developer.onboarding.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Onboarding Preview"
+          }
+        }
+      }
+    },
     "developer.openSpansLink" : {
       "comment" : "Label for a button that opens the developer's spans.",
       "extractionState" : "manual",
@@ -5122,6 +5133,30 @@
         }
       }
     },
+    "onboarding.completion.subtitle" : {
+      "comment" : "Supporting text on the onboarding completion screen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your story starts here."
+          }
+        }
+      }
+    },
+    "onboarding.completion.title" : {
+      "comment" : "Heading after successful setup or entry into the demo.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Welcome to Where"
+          }
+        }
+      }
+    },
     "onboarding.continue" : {
       "comment" : "Button text for continuing to the next onboarding step.",
       "extractionState" : "manual",
@@ -5178,7 +5213,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Your location stays on your device and in your own iCloud. Turn on background location to start your passport."
+            "value" : "Your history stays on your devices and in your private iCloud account. You choose whether this device records automatically."
           }
         }
       }
@@ -5191,7 +5226,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Private by design"
+            "value" : "Your history, your control"
           }
         }
       }
@@ -5284,6 +5319,17 @@
         }
       }
     },
+    "onboarding.regions.heading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your regions"
+          }
+        }
+      }
+    },
     "onboarding.regions.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5338,6 +5384,17 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Restoring…"
+          }
+        }
+      }
+    },
+    "onboarding.sampleHistory" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sample history · Your story starts here"
           }
         }
       }

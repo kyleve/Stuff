@@ -10,6 +10,11 @@ struct WhereThemeOverrides: Equatable {
     var welcome = Welcome()
     var privacy = Privacy()
     var forecast = Forecast()
+    var onboarding = Onboarding()
+
+    struct Onboarding: Equatable {
+        var usesOpaqueSurfaces: Bool?
+    }
 
     struct Card: Equatable {
         var regular = Variant()
@@ -63,6 +68,9 @@ struct WhereThemeOverrides: Equatable {
 
     /// Applies values only; theme selection and trait decisions belong to resolution.
     func apply(to sheet: inout WhereStylesheet) {
+        if let value = onboarding.usesOpaqueSurfaces {
+            sheet.onboarding.usesOpaqueSurfaces = value
+        }
         if let value = card.regular.surface {
             sheet.card.regular.surface = value
         }
