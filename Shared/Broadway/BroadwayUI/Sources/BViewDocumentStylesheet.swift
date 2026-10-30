@@ -48,6 +48,13 @@ public struct BViewDocumentStylesheet: BStylesheet, Sendable {
     public var appearance: ViewDocumentAppearance {
         .init(background: background, dimensionScales: dimensionScales)
     }
+
+    public func shows(_ role: BSurfaceLayerRole) -> Bool {
+        switch role {
+            case .essential: true
+            case .ornament: showsDecoration
+        }
+    }
 }
 
 extension ViewFontDescriptor.TextStyle {

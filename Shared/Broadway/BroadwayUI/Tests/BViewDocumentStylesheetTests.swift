@@ -21,8 +21,11 @@ struct BViewDocumentStylesheetTests {
         ])
         traits.accessibility = .init(isReduceTransparencyEnabled: true)
         #expect(!BViewDocumentStylesheet(traits: traits).showsDecoration)
+        #expect(BViewDocumentStylesheet(traits: traits).shows(.essential))
+        #expect(!BViewDocumentStylesheet(traits: traits).shows(.ornament))
         traits.accessibility = .init(isDarkerSystemColorsEnabled: true)
         #expect(!BViewDocumentStylesheet(traits: traits).showsDecoration)
+        #expect(BViewDocumentStylesheet(traits: traits).shows(.essential))
     }
 
     @Test func traitChangeResolvesNewCachedSlice() {
