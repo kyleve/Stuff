@@ -65,7 +65,8 @@ public struct ValidatedWhereThemeDocument: Hashable, Sendable {
             }
         }
         guard budget.nodes <= ViewDocumentLimits.standard.nodes,
-              budget.animations <= ViewDocumentLimits.standard.animatedNodes
+              budget.animations <= ViewDocumentLimits.standard.animatedNodes,
+              budget.modifiers <= ViewDocumentLimits.standard.modifiers
         else {
             throw WhereThemeValidationError(
                 path: "layers",
@@ -98,8 +99,10 @@ struct WhereDocumentTheme: BTheme {
 private struct ThemeLayerBudget {
     var nodes = 0
     var animations = 0
+    var modifiers = 0
     mutating func include(_ node: ViewDocument.Node) {
         nodes += 1
+        modifiers += node.modifiers.count
         if node.animation != nil { animations += 1 }
         switch node.content {
             case let .group(_, _, _, children):

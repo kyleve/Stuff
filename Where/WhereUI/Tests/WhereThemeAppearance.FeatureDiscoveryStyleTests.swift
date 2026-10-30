@@ -96,19 +96,19 @@ struct WhereThemeFeatureDiscoveryStylePatchTests {
             replacement: 42,
         )
         try verifyThemePatch(
-            json: #"{"featureDiscovery":{"backgroundPattern":{"horizontalScale":{"constant":{"_0":42}}}}}"#,
+            json: #"{"featureDiscovery":{"backgroundPattern":{"horizontalScale":{"constant":{"_0":1.4}}}}}"#,
             keyPath: \WhereStylesheet.featureDiscovery.backgroundPattern.horizontalScale,
-            replacement: 42,
+            replacement: 1.4,
         )
         try verifyThemePatch(
-            json: #"{"featureDiscovery":{"backgroundPattern":{"centerXRatio":{"constant":{"_0":42}}}}}"#,
+            json: #"{"featureDiscovery":{"backgroundPattern":{"centerXRatio":{"constant":{"_0":0.3}}}}}"#,
             keyPath: \WhereStylesheet.featureDiscovery.backgroundPattern.centerXRatio,
-            replacement: 42,
+            replacement: 0.3,
         )
         try verifyThemePatch(
-            json: #"{"featureDiscovery":{"backgroundPattern":{"centerYRatio":{"constant":{"_0":42}}}}}"#,
+            json: #"{"featureDiscovery":{"backgroundPattern":{"centerYRatio":{"constant":{"_0":0.7}}}}}"#,
             keyPath: \WhereStylesheet.featureDiscovery.backgroundPattern.centerYRatio,
-            replacement: 42,
+            replacement: 0.7,
         )
         try verifyThemePatch(
             json: #"{"featureDiscovery":{"backgroundPattern":{"phaseStep":{"constant":{"_0":42}}}}}"#,

@@ -212,7 +212,8 @@ struct WhereStylesheet: BStylesheet {
         // Reduce Motion stops the cards' day count rolling its digits; it
         // crossfades to the new number instead.
         if traits.accessibility.isReduceMotionEnabled {
-            calendar.overview.usesSpatialMotion = baseline?.calendar.overview.usesSpatialMotion ?? false
+            calendar.overview.usesSpatialMotion = baseline?.calendar.overview
+                .usesSpatialMotion ?? false
             launch.reveal = baseline?.launch.reveal ?? .crossfade
             launch.revealAnimation = baseline?.launch.revealAnimation ?? motion.reducedReveal
             launch.captionAnimation = baseline?.launch.captionAnimation ?? nil

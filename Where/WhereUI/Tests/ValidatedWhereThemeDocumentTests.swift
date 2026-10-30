@@ -6,6 +6,56 @@ import ViewDocumentCore
 
 @MainActor
 struct ValidatedWhereThemeDocumentTests {
+    @Test func modifierBudgetIsSharedAcrossSlots() throws {
+        let modifiers: [ViewModifierDescriptor] = Array(repeating: .opacity(1), count: 32)
+        let layer = ViewDocument(schemaVersion: 1, root: .init(
+            id: .init(rawValue: "root"),
+            content: .group(
+                axis: .overlay,
+                alignment: .center,
+                spacing: 0,
+                children: (0 ..< 31).map {
+                    .init(
+                        id: .init(rawValue: "child-\($0)"),
+                        content: .text(""),
+                        modifiers: modifiers,
+                        animation: nil,
+                        accessibility: .hidden,
+                    )
+                },
+            ),
+            modifiers: modifiers,
+            animation: nil,
+            accessibility: .hidden,
+        ))
+        let resources = ViewDocumentResources(images: [], symbols: [])
+        var document = themeDocument(appearance: .init(), fallback: .standard)
+        document.layers.locationsBackground = [layer]
+        _ = try ValidatedWhereThemeDocument(document: document, resources: resources)
+        document.layers.regularCardOverlay = [layer]
+        #expect(throws: WhereThemeValidationError.self) {
+            try ValidatedWhereThemeDocument(document: document, resources: resources)
+        }
+    }
+
+    @Test func rejectsUnsafePatternsThroughJSONImport() throws {
+        for patch in [
+            #"{"featureDiscovery":{"backgroundPattern":{"horizontalScale":{"constant":{"_0":0}}}}}"#,
+            #"{"locationForecast":{"surface":{"microprintSpacing":{"constant":{"_0":1e-300}}}}}"#,
+            #"{"locationsBackground":{"preferredCellSize":{"constant":{"_0":2}}}}"#,
+        ] {
+            let json =
+                "{\"schemaVersion\":1,\"id\":\"unsafe\",\"fallback\":\"standard\",\"appearance\":" +
+                patch + ",\"layers\":{}}"
+            #expect(throws: WhereThemeValidationError.self) {
+                try ValidatedWhereThemeDocument.decode(
+                    Data(json.utf8),
+                    resources: .init(images: [], symbols: []),
+                )
+            }
+        }
+    }
+
     @Test func layerBudgetIsSharedAcrossSlots() throws {
         let layer = ViewDocument(schemaVersion: 1, root: .init(
             id: .init(rawValue: "root"),

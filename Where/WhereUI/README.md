@@ -719,3 +719,5 @@ The combined document has a byte limit and a shared node/animation budget across
 The bundled `HalloweenTheme.json` and `ChristmasTheme.json` demonstrate sparse JSON. `WhereThemePreview` loads both through the production boundary under DEBUG. The previews render production Locations artwork and regular/compact cards.
 
 Tests cover fallback parity, accessibility precedence, mode validation, explicit zero and clear operations, array replacement, component mappings, resources, and host bounds. `WhereThemePreviewSnapshotTests` covers the seasonal examples in light/dark and accessibility captures. Real Locations captures also exercise both seasonal documents. Existing card and Locations snapshots guard built-in appearance.
+
+Pattern validation bounds contour scale and center, microprint spacing, and artwork cell size before native rendering. Modifier counts share the theme-wide budget. Zero-sized artwork has no drawable transform.

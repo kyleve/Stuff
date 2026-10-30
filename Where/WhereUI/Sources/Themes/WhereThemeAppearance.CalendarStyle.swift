@@ -5,6 +5,7 @@ import ViewDocumentUI
 
 extension WhereThemeAppearance {
     public struct CalendarStyle: Codable, Hashable, Sendable {
+        public var overview: Overview?
         public var monthSpacing: BThemeValue<Double>?
         public var month: WhereThemeAppearance.CalendarStyle.MonthStyle?
         public var dotSize: BThemeValue<Double>?
@@ -19,6 +20,12 @@ extension WhereThemeAppearance {
             appearance: ViewDocumentAppearance,
             path: String,
         ) throws {
+            try overview?.apply(
+                to: &value.overview,
+                traits: traits,
+                appearance: appearance,
+                path: path + ".overview",
+            )
             if let authored = monthSpacing {
                 let resolved = authored.resolve(mode: traits.mode)
                 try WhereThemeValidation.validate(resolved, path: path + ".monthSpacing")
@@ -393,6 +400,130 @@ extension WhereThemeAppearance.CalendarStyle.RegionBand {
                 try WhereThemeValidation.validate(resolved, path: path + ".hatchLineWidth")
                 value.hatchLineWidth = CGFloat(resolved)
             }
+        }
+    }
+}
+
+extension WhereThemeAppearance.CalendarStyle {
+    public struct Overview: Codable, Hashable, Sendable {
+        public var columns: BThemeValue<Int>?
+        public var spacing: BThemeValue<Double>?
+        public var padding: BThemeValue<Double>?
+        public var cornerRadius: BThemeValue<Double>?
+        public var dayHeight: BThemeValue<Double>?
+        public var dayFontSize: BThemeValue<Double>?
+        public var titleFontSize: BThemeValue<Double>?
+        public var sectionSpacing: BThemeValue<Double>?
+        public var borderWidth: BThemeValue<Double>?
+        public var currentBorderWidth: BThemeValue<Double>?
+        public var unavailableForeground: BThemeValue<ViewColorDescriptor>?
+        public var usesSpatialMotion: BThemeValue<Bool>?
+        public var duration: BThemeValue<Double>?
+        public var zoomDuration: BThemeValue<Double>?
+        public var zoomBackground: BThemeValue<ViewColorDescriptor>?
+        public var shakeDistance: BThemeValue<Double>?
+        public var regionBand: RegionBand?
+        public init() {}
+        func apply(
+            to value: inout WhereStylesheet.CalendarStyle.Overview,
+            traits: BTraits,
+            appearance: ViewDocumentAppearance,
+            path: String,
+        ) throws {
+            if let authored = columns {
+                let resolved = authored.resolve(mode: traits.mode)
+                guard (1 ... 12).contains(resolved) else { throw WhereThemeValidationError(
+                    path: path + ".columns",
+                    reason: "Calendar columns must be between one and twelve",
+                ) }
+                value.columns = resolved
+            }
+            if let authored = spacing {
+                let resolved = authored.resolve(mode: traits.mode)
+                try WhereThemeValidation.validate(resolved, path: path + ".spacing")
+                value.spacing = CGFloat(resolved)
+            }
+            if let authored = padding {
+                let resolved = authored.resolve(mode: traits.mode)
+                try WhereThemeValidation.validate(resolved, path: path + ".padding")
+                value.padding = CGFloat(resolved)
+            }
+            if let authored = cornerRadius {
+                let resolved = authored.resolve(mode: traits.mode)
+                try WhereThemeValidation.validate(resolved, path: path + ".cornerRadius")
+                value.cornerRadius = CGFloat(resolved)
+            }
+            if let authored = dayHeight {
+                let resolved = authored.resolve(mode: traits.mode)
+                guard resolved.isFinite,
+                      (2 ... 10000).contains(resolved)
+                else { throw WhereThemeValidationError(
+                    path: path + ".dayHeight",
+                    reason: "Overview day height must be at least two points",
+                ) }
+                value.dayHeight = CGFloat(resolved)
+            }
+            if let authored = dayFontSize {
+                let resolved = authored.resolve(mode: traits.mode)
+                try WhereThemeValidation.validate(resolved, path: path + ".dayFontSize")
+                value.dayFontSize = CGFloat(resolved)
+            }
+            if let authored = titleFontSize {
+                let resolved = authored.resolve(mode: traits.mode)
+                try WhereThemeValidation.validate(resolved, path: path + ".titleFontSize")
+                value.titleFontSize = CGFloat(resolved)
+            }
+            if let authored = sectionSpacing {
+                let resolved = authored.resolve(mode: traits.mode)
+                try WhereThemeValidation.validate(resolved, path: path + ".sectionSpacing")
+                value.sectionSpacing = CGFloat(resolved)
+            }
+            if let authored = borderWidth {
+                let resolved = authored.resolve(mode: traits.mode)
+                try WhereThemeValidation.validate(resolved, path: path + ".borderWidth")
+                value.borderWidth = CGFloat(resolved)
+            }
+            if let authored = currentBorderWidth {
+                let resolved = authored.resolve(mode: traits.mode)
+                try WhereThemeValidation.validate(resolved, path: path + ".currentBorderWidth")
+                value.currentBorderWidth = CGFloat(resolved)
+            }
+            if let authored = unavailableForeground {
+                let resolved = authored.resolve(mode: traits.mode)
+                try WhereThemeValidation.validate(resolved, path: path + ".unavailableForeground")
+                value.unavailableForeground = appearance.color(resolved)
+            }
+            if let authored = usesSpatialMotion {
+                let resolved = authored.resolve(mode: traits.mode)
+                try WhereThemeValidation.validate(resolved, path: path + ".usesSpatialMotion")
+                value.usesSpatialMotion = resolved
+            }
+            if let authored = duration {
+                let resolved = authored.resolve(mode: traits.mode)
+                try WhereThemeValidation.validate(resolved, path: path + ".duration")
+                value.duration = resolved
+            }
+            if let authored = zoomDuration {
+                let resolved = authored.resolve(mode: traits.mode)
+                try WhereThemeValidation.validate(resolved, path: path + ".zoomDuration")
+                value.zoomDuration = resolved
+            }
+            if let authored = zoomBackground {
+                let resolved = authored.resolve(mode: traits.mode)
+                try WhereThemeValidation.validate(resolved, path: path + ".zoomBackground")
+                value.zoomBackground = appearance.color(resolved)
+            }
+            if let authored = shakeDistance {
+                let resolved = authored.resolve(mode: traits.mode)
+                try WhereThemeValidation.validate(resolved, path: path + ".shakeDistance")
+                value.shakeDistance = CGFloat(resolved)
+            }
+            try regionBand?.apply(
+                to: &value.regionBand,
+                traits: traits,
+                appearance: appearance,
+                path: path + ".regionBand",
+            )
         }
     }
 }
