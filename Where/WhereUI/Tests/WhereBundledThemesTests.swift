@@ -1,6 +1,7 @@
 import BroadwayCore
 import SwiftUI
 import Testing
+import ViewDocumentCore
 import WhereCore
 @testable import WhereUI
 
@@ -12,9 +13,31 @@ struct WhereBundledThemesTests {
         let resolved = try WhereBundledThemeDefinitions.resolved(theme)
         #expect(prepared.resolved == resolved)
         try resolved.appearance.requireComplete(path: "appearance")
-        if theme == .halloween {
-            #expect(resolved.id == .halloween)
+        if theme == .halloween || theme == .holiday {
             #expect(prepared.componentArtwork[.regularCard]?.isEmpty == false)
+        }
+    }
+
+    @Test func holidayResolvesWithoutTheHalloweenDocumentOrAssets() throws {
+        let documents = try WhereBundledThemes.documents.get().filter { $0.id != .halloween }
+        let assets = try WhereBundledThemes.assets(.holiday)
+        let prepared = try WhereThemeCatalog(documents: documents).prepare(.holiday, assets: assets)
+        let bundled = try WhereBundledThemes.prepared(.holiday)
+        #expect(prepared.resolved == bundled.resolved)
+        #expect(prepared.validated.document.parent == .flat)
+        #expect(assets.resources.images == Set([
+            ViewAssetID(rawValue: "holiday.bells"),
+            ViewAssetID(rawValue: "holiday.bough"),
+            ViewAssetID(rawValue: "holiday.woodland"),
+        ]))
+        #expect(prepared.resolved.appearance.card?.regular?.cornerRadius == .constant(18))
+        #expect(prepared.resolved.components.regularCard?.nativeArtwork == [.watermark])
+        #expect(prepared.resolved.components.section?.artwork == [])
+        #expect(throws: ViewDocumentValidationError.self) {
+            try WhereThemeCatalog(documents: documents).prepare(
+                .holiday,
+                assets: WhereBundledThemes.assets(.halloween),
+            )
         }
     }
 

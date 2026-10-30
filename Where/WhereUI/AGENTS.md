@@ -245,7 +245,7 @@ worked examples.
   Guard: `RegionAppearanceCatalogTests.idDerivedDefaultsHaveStableAssignments`.
 - **Seed `WhereTheme` through `whereBroadwayRoot(theme:regionStyles:)`.** Standard
   and Flat use the stable `standard` and `alternate` identities.
-- Bundled JSON is authoritative. Standard is a complete root; Flat inherits Standard; Halloween inherits Flat. Resolve documents through `WhereThemeCatalog` before rendering. Do not add a native theme override path.
+- Bundled JSON is authoritative. Standard is a complete root; Flat inherits Standard; the bundled seasonal themes inherit Flat. Resolve documents through `WhereThemeCatalog` before rendering. Do not add a native theme override path.
 - Keep portable appearance in `Sources/Themes/WhereThemeAppearance*`. Add each authored stylesheet field to its typed patch, inheritance, canonical Standard document, and mapping tests. Keep runtime geometry, region identity, data reduction, and lifecycle scheduling native.
 - Omitted fields inherit. Explicit values replace. Artwork arrays replace as a unit, including empty arrays. Optional visuals use `WhereThemeOptional.clear`. A literal value replaces an inherited named reference; do not supply both in one document.
 - Validate complete roots, parents, named references, complexity, and placement before root injection. Prepare assets once. Cache identity includes complete resolved content, not only its ID. Failed imports retain the last accepted theme.

@@ -8,6 +8,7 @@ public struct WhereThemeDocument: Codable, Hashable, Sendable {
         public static let standard = Self(rawValue: "standard")
         public static let flat = Self(rawValue: "flat")
         public static let halloween = Self(rawValue: "halloween")
+        public static let holiday = Self(rawValue: "holiday")
         public var rawValue: String
         public init(rawValue: String) {
             self.rawValue = rawValue

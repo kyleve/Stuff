@@ -6,8 +6,9 @@ import UIKit
 
 struct LocationsViewTests {
     @MainActor
-    @Test func halloweenCardsScrollWithinTheClippedViewport() async throws {
-        let theme = try WhereThemeExamples.halloween.prepare()
+    @Test(arguments: WhereThemeExamples.allCases)
+    func seasonalCardsScrollWithinTheClippedViewport(example: WhereThemeExamples) async throws {
+        let theme = try example.prepare()
         let report = PreviewSupport.loadedYearReportModel()
         let cache = RegionOutlinePathCache()
         await PreviewSupport.loadCardArtwork(for: [.california, .newYork], cache: cache)
@@ -51,8 +52,11 @@ struct LocationsViewTests {
     }
 
     @MainActor
-    @Test func halloweenCardsKeepNativeFocusBoundsThroughRepeatedNavigationAndSheets() async throws {
-        let theme = try WhereThemeExamples.halloween.prepare()
+    @Test(arguments: WhereThemeExamples.allCases)
+    func seasonalCardsKeepNativeFocusBoundsThroughRepeatedNavigationAndSheets(
+        example: WhereThemeExamples,
+    ) async throws {
+        let theme = try example.prepare()
         let report = PreviewSupport.loadedYearReportModel()
         let cache = RegionOutlinePathCache()
         await PreviewSupport.loadCardArtwork(for: [.california, .newYork], cache: cache)
@@ -66,7 +70,7 @@ struct LocationsViewTests {
                 ThemeInteractionTestSupport.button("California", in: host.view) != nil
                     && ThemeInteractionTestSupport.button("New York", in: host.view) != nil
             }
-            try assertNativeCardBounds(in: host.view)
+            try assertNativeCardBounds(in: host.view, minimumGap: example == .halloween ? 70 : 60)
             let navigation = try #require(ThemeInteractionTestSupport.navigation(in: host))
             for _ in 0 ..< 2 {
                 try ThemeInteractionTestSupport.activate(
@@ -80,7 +84,10 @@ struct LocationsViewTests {
                     navigation.viewControllers.count == 1 && navigation.transitionCoordinator == nil
                         && ThemeInteractionTestSupport.button("California", in: host.view) != nil
                 }
-                try assertNativeCardBounds(in: host.view)
+                try assertNativeCardBounds(
+                    in: host.view,
+                    minimumGap: example == .halloween ? 70 : 60,
+                )
             }
             try ThemeInteractionTestSupport.activate(
                 #require(ThemeInteractionTestSupport.button("Planned stays", in: host.view)),
@@ -99,16 +106,16 @@ struct LocationsViewTests {
                 ThemeInteractionTestSupport.presented(in: host) == nil
             }
             #expect(ThemeInteractionTestSupport.button("California", in: host.view) != nil)
-            try assertNativeCardBounds(in: host.view)
+            try assertNativeCardBounds(in: host.view, minimumGap: example == .halloween ? 70 : 60)
         }
     }
 
     @MainActor
-    private func assertNativeCardBounds(in view: UIView) throws {
+    private func assertNativeCardBounds(in view: UIView, minimumGap: CGFloat) throws {
         let california = try #require(ThemeInteractionTestSupport.button("California", in: view))
         let newYork = try #require(ThemeInteractionTestSupport.button("New York", in: view))
-        // The pumpkin occupies this gap without joining either native focus target.
-        #expect(newYork.accessibilityFrame.minY - california.accessibilityFrame.maxY >= 70)
+        // Exterior artwork occupies this gap without joining either native focus target.
+        #expect(newYork.accessibilityFrame.minY - california.accessibilityFrame.maxY >= minimumGap)
         #expect(california.accessibilityFrame.width > 0)
         #expect(california.accessibilityLabel?.contains("148") == true)
     }

@@ -7,6 +7,7 @@ struct WhereThemeTests {
         #expect(WhereTheme.standard.rawValue == "standard")
         #expect(WhereTheme.alternate.rawValue == "alternate")
         #expect(WhereTheme.halloween.rawValue == "halloween")
+        #expect(WhereTheme.holiday.rawValue == "holiday")
     }
 
     @Test(arguments: WhereTheme.allCases)
