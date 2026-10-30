@@ -74,8 +74,22 @@ struct ValidatedViewDocumentTests {
             ),
         )
         for limits in [
-            ViewDocumentLimits(bytes: 10000, depth: 1, nodes: 10, animatedNodes: 0),
-            .init(bytes: 10000, depth: 10, nodes: 1, animatedNodes: 0),
+            ViewDocumentLimits(
+                bytes: 10000,
+                depth: 1,
+                nodes: 10,
+                animatedNodes: 0,
+                modifiersPerNode: 32,
+                modifiers: 1024,
+            ),
+            .init(
+                bytes: 10000,
+                depth: 10,
+                nodes: 1,
+                animatedNodes: 0,
+                modifiersPerNode: 32,
+                modifiers: 1024,
+            ),
         ] {
             #expect(throws: ViewDocumentValidationError.self) {
                 try ValidatedViewDocument(
@@ -102,7 +116,14 @@ struct ValidatedViewDocumentTests {
             try ValidatedViewDocument.decode(
                 Data(repeating: 32, count: 1024),
                 resources: noDocumentResources,
-                limits: .init(bytes: 100, depth: 16, nodes: 256, animatedNodes: 32),
+                limits: .init(
+                    bytes: 100,
+                    depth: 16,
+                    nodes: 256,
+                    animatedNodes: 32,
+                    modifiersPerNode: 32,
+                    modifiers: 1024,
+                ),
             )
         }
     }

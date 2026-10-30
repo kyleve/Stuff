@@ -5,6 +5,7 @@ struct ViewDocumentValidator {
     let limits: ViewDocumentLimits
     var identities: Set<ViewDocument.Node.ID> = []
     var animations = 0
+    var modifiers = 0
     var referencedImages: Set<ViewAssetID> = []
     var referencedSymbols: Set<ViewSymbolID> = []
 
@@ -13,6 +14,17 @@ struct ViewDocumentValidator {
         try require(!node.id.rawValue.isEmpty, path + ".id", "Empty node identity")
         try require(identities.insert(node.id).inserted, path + ".id", "Duplicate node identity")
         try require(identities.count <= limits.nodes, path, "Tree exceeds node limit")
+        try require(
+            node.modifiers.count <= limits.modifiersPerNode,
+            path + ".modifiers",
+            "Node exceeds modifier limit",
+        )
+        try require(
+            node.modifiers.count <= limits.modifiers - modifiers,
+            path + ".modifiers",
+            "Tree exceeds modifier limit",
+        )
+        modifiers += node.modifiers.count
         switch node.content {
             case .text: break
             case let .image(asset):

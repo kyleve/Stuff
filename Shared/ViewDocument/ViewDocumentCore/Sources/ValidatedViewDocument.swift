@@ -10,7 +10,9 @@ public struct ValidatedViewDocument: Hashable, Sendable {
         resources: ViewDocumentResources,
         limits: ViewDocumentLimits,
     ) throws {
-        guard limits.bytes > 0, limits.depth > 0, limits.nodes > 0, limits.animatedNodes >= 0 else {
+        guard limits.bytes > 0, limits.depth > 0, limits.nodes > 0, limits.animatedNodes >= 0,
+              limits.modifiersPerNode >= 0, limits.modifiers >= 0
+        else {
             throw ViewDocumentValidationError(path: "$", reason: "Invalid validation limits")
         }
         guard document.schemaVersion == 1 else {
