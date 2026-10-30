@@ -170,6 +170,57 @@ struct CalendarPresentationModelTests {
         #expect(!model.expand(nil))
     }
 
+    @Test func initialEstimateAlignmentSurvivesReconciliationUntilSuperseded() {
+        let model = model()
+        model.prepareInitialPosition()
+        model.reconcile(
+            year: 2026,
+            availableMonths: (1 ... 10).map { month($0) },
+            currentMonth: month(7),
+            estimateMonth: month(7),
+        )
+        #expect(model.initialBottomTarget == .estimate(month(7)))
+        model.expand(.month(month(5)))
+        #expect(model.initialBottomTarget == nil)
+        #expect(model.target == .month(month(5)))
+    }
+
+    @Test func browsingAndZoomReplaceInitialBottomAlignment() {
+        let model = model()
+        model.prepareInitialPosition()
+        model.remember(.month(month(5)))
+        #expect(model.initialBottomTarget == nil)
+        model.prepareInitialPosition()
+        model.toggle()
+        #expect(model.initialBottomTarget == nil)
+        model.expand(.estimate(month(7)))
+        #expect(model.initialBottomTarget == nil)
+        model.prepareInitialPosition()
+        model.finishPinch(magnification: 0.5, destination: nil)
+        #expect(model.initialBottomTarget == nil)
+    }
+
+    @Test func removedEstimateAndNewYearDiscardInitialBottomAlignment() {
+        let model = model()
+        model.prepareInitialPosition()
+        model.reconcile(
+            year: 2026,
+            availableMonths: (1 ... 7).map { month($0) },
+            currentMonth: month(7),
+            estimateMonth: nil,
+        )
+        #expect(model.initialBottomTarget == nil)
+        model.prepareInitialPosition()
+        #expect(model.initialBottomTarget == .month(month(7)))
+        model.reconcile(
+            year: 2025,
+            availableMonths: [month(12, year: 2025)],
+            currentMonth: nil,
+            estimateMonth: nil,
+        )
+        #expect(model.initialBottomTarget == nil)
+    }
+
     @Test func overviewAvailabilityMatchesDetailedPlanningVisibility() throws {
         let report = PreviewSupport.plannedStayYearReportModel()
         let yearReport = try #require(report.report)

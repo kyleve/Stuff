@@ -34,6 +34,8 @@ final class CalendarPresentationModel {
     }
 
     private(set) var target: Target?
+    /// Preserve the first bottom-aligned placement until navigation or browsing replaces it.
+    private(set) var initialBottomTarget: Target?
     private(set) var year: Int?
     private(set) var availableMonths: Set<CalendarDay> = []
     private(set) var estimateMonth: CalendarDay?
@@ -64,6 +66,9 @@ final class CalendarPresentationModel {
             target = (currentMonth.flatMap { self.availableMonths.contains($0) ? $0 : nil }
                 ?? availableMonths.last).map(Target.month)
         }
+        if changedYear || initialBottomTarget.map({ !isAvailable($0) }) == true {
+            initialBottomTarget = nil
+        }
         if changedYear { rejectedTarget = nil }
     }
 
@@ -74,8 +79,13 @@ final class CalendarPresentationModel {
         }
     }
 
+    func prepareInitialPosition() {
+        initialBottomTarget = estimateMonth.map(Target.estimate) ?? target
+    }
+
     func remember(_ target: Target) {
         guard mode == .detail, isAvailable(target) else { return }
+        initialBottomTarget = nil
         self.target = target
     }
 
@@ -87,6 +97,7 @@ final class CalendarPresentationModel {
             rejectionCount += 1
             return false
         }
+        initialBottomTarget = nil
         target = destination
         mode = .detail
         return true
@@ -94,7 +105,9 @@ final class CalendarPresentationModel {
 
     func toggle() {
         switch mode {
-            case .detail: mode = .overview
+            case .detail:
+                initialBottomTarget = nil
+                mode = .overview
             case .overview: expand(nil)
         }
     }
@@ -102,7 +115,10 @@ final class CalendarPresentationModel {
     func finishPinch(magnification: CGFloat, destination: Target?) {
         switch mode {
             case .detail:
-                if magnification <= Self.overviewThreshold { mode = .overview }
+                if magnification <= Self.overviewThreshold {
+                    initialBottomTarget = nil
+                    mode = .overview
+                }
             case .overview:
                 if magnification >= Self.detailThreshold { expand(destination) }
         }
