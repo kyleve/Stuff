@@ -90,6 +90,17 @@ struct ViewDocumentValidator {
             case let .image(asset):
                 try require(resources.images.contains(asset), path, "Missing image asset")
                 referencedImages.insert(asset)
+            case let .raster(image):
+                try require(resources.images.contains(image.asset), path, "Missing image asset")
+                referencedImages.insert(image.asset)
+                switch image.sizing {
+                    case .fit, .fill: break
+                    case let .tile(scale): try number(
+                            scale,
+                            path + ".sizing.scale",
+                            range: 0.1 ... 10,
+                        )
+                }
             case let .symbol(symbol):
                 try require(resources.symbols.contains(symbol), path, "Missing registered symbol")
                 referencedSymbols.insert(symbol)

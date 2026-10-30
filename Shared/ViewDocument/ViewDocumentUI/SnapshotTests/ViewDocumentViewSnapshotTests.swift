@@ -7,7 +7,17 @@ import ViewDocumentUI
 
 @MainActor
 struct ViewDocumentViewSnapshotTests {
-    @Test func standaloneContent() async throws {
+    @Test func standaloneContentLightDark() async throws {
+        try await standaloneContent(snapshotTypes: [.standard])
+    }
+
+    @Test func standaloneContentExtended() async throws {
+        try await standaloneContent(snapshotTypes: [.accessibility])
+    }
+
+    private func standaloneContent(snapshotTypes: [SnapshotConfiguration
+            .SnapshotType]) async throws
+    {
         let root = ViewDocument.Node(
             id: .init(rawValue: "root"),
             content: .group(axis: .vertical, alignment: .center, spacing: 20, children: [
@@ -78,8 +88,9 @@ struct ViewDocumentViewSnapshotTests {
             configurations: SnapshotConfiguration.combinations(
                 devices: [.iPhone],
                 colorSchemes: [.light, .dark],
-                snapshotTypes: [.standard, .accessibility],
+                snapshotTypes: snapshotTypes,
             ),
+            testName: "standaloneContent()",
         )
     }
 }

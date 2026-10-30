@@ -42,6 +42,7 @@ public struct ViewDocument: Codable, Hashable, Sendable {
     public indirect enum Content: Codable, Hashable, Sendable {
         case text(String)
         case image(ViewAssetID)
+        case raster(ViewImageDescriptor)
         case symbol(ViewSymbolID)
         case shape(ViewShapeDescriptor)
         case spacer(minimum: Double)

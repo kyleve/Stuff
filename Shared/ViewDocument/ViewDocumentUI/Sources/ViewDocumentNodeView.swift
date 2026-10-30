@@ -24,6 +24,10 @@ struct ViewDocumentNodeView: View {
         switch node.content {
             case let .text(text): AnyView(Text(verbatim: text))
             case let .image(asset): AnyView(assets.images[asset]!.resizable().scaledToFit())
+            case let .raster(descriptor): AnyView(ViewDocumentImage(
+                    image: assets.images[descriptor.asset]!,
+                    sizing: descriptor.sizing,
+                ))
             case let .symbol(symbol): AnyView(assets.symbols[symbol]!)
             case let .shape(shape): AnyView(ViewDocumentShape(descriptor: shape))
             case let .spacer(minimum): AnyView(Spacer(minLength: minimum))
