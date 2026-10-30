@@ -258,8 +258,16 @@ struct ViewDocumentValidator {
         }
     }
 
-    func color(_ color: ViewColorDescriptor, _ path: String) throws {
+    func color(_ color: ViewColorDescriptor, _ path: String, depth: Int = 0) throws {
+        try require(depth <= 8, path, "Color composition exceeds depth limit")
         switch color {
+            case let .opacity(value, alpha):
+                try self.color(value, path, depth: depth + 1)
+                try number(alpha, path, range: 0 ... 1)
+            case let .mix(first, second, fraction):
+                try self.color(first, path, depth: depth + 1)
+                try self.color(second, path, depth: depth + 1)
+                try number(fraction, path, range: 0 ... 1)
             case .semantic: break
             case let .rgba(red, green, blue, alpha):
                 for value in [red, green, blue, alpha] {

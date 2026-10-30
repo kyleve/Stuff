@@ -82,6 +82,15 @@ public struct ViewArtworkPlacement: Codable, Hashable, Sendable {
 
     /// The renderer must clip to paintBounds; transforms cannot enlarge that contract.
     public func geometry(in host: Extent, rightToLeft: Bool) -> Geometry {
+        geometry(in: host, rightToLeft: rightToLeft, maximumOutsets: nil)
+    }
+
+    /// The host can reduce its reserved gutters without reducing native content width.
+    public func geometry(
+        in host: Extent,
+        rightToLeft: Bool,
+        maximumOutsets: Outsets?,
+    ) -> Geometry {
         let width = host.width.isFinite ? max(0, Double(host.width)) : 0
         let height = host.height.isFinite ? max(0, Double(host.height)) : 0
         let proposed = switch size {
@@ -89,7 +98,19 @@ public struct ViewArtworkPlacement: Codable, Hashable, Sendable {
             case let .relative(x, y, maximumWidth, maximumHeight):
                 Extent(width: min(width * x, maximumWidth), height: min(height * y, maximumHeight))
         }
-        let scale = proposed.width > 0 ? min(1, width / Double(proposed.width)) : 0
+        var allowanceScale = 1.0
+        if let maximumOutsets {
+            func constrain(_ requested: Double, _ available: Double) {
+                guard requested > 0 else { return }
+                let available = available.isFinite ? max(0, available) : 0
+                allowanceScale = min(allowanceScale, available / requested)
+            }
+            constrain(outsets.top, maximumOutsets.top)
+            constrain(outsets.leading, maximumOutsets.leading)
+            constrain(outsets.bottom, maximumOutsets.bottom)
+            constrain(outsets.trailing, maximumOutsets.trailing)
+        }
+        let scale = proposed.width > 0 ? min(allowanceScale, width / Double(proposed.width)) : 0
         let artworkWidth = Double(proposed.width) * scale
         let artworkHeight = Double(proposed.height) * scale
         let horizontal: Double = switch anchor {
@@ -102,8 +123,8 @@ public struct ViewArtworkPlacement: Codable, Hashable, Sendable {
             case .leading, .center, .trailing: 0.5
             case .bottomLeading, .bottom, .bottomTrailing: 1
         }
-        let left = rightToLeft ? outsets.trailing : outsets.leading
-        let right = rightToLeft ? outsets.leading : outsets.trailing
+        let left = (rightToLeft ? outsets.trailing : outsets.leading) * allowanceScale
+        let right = (rightToLeft ? outsets.leading : outsets.trailing) * allowanceScale
         let x = (width - artworkWidth) * horizontal + offset.x * scale * (rightToLeft ? -1 : 1)
         let y = (height - artworkHeight) * vertical + offset.y * scale
         return Geometry(
@@ -115,9 +136,9 @@ public struct ViewArtworkPlacement: Codable, Hashable, Sendable {
             ),
             paintBounds: Frame(
                 x: -left,
-                y: -outsets.top,
+                y: -outsets.top * allowanceScale,
                 width: width + left + right,
-                height: height + outsets.top + outsets.bottom,
+                height: height + (outsets.top + outsets.bottom) * allowanceScale,
             ),
         )
     }

@@ -33,6 +33,10 @@ General content preserves text accessibility and supports image labels and group
 
 Hosts supply semantic background colors and dimension scales. Fonts preserve semantic Dynamic Type behavior. An omitted font weight preserves the system weight of that text style. Use fixed sizes only for intentional fixed artwork.
 
+Native palette references retain SwiftUI's light, dark, and Increased Contrast colors. Use them for system color meanings instead of captured RGB samples.
+Hosts can inject separate background levels through `ViewDocumentAppearance.Backgrounds`.
+The single-background initializer uses its supplied color for every level.
+
 Assets are prepared SwiftUI images keyed by typed identities. Hosts load packaged PNG/JPEG assets and register approved symbols before rendering. Documents cannot access paths or URLs.
 
 Use `raster(ViewImageDescriptor)` for fit, clipped fill, or native image tiling. The original `image` operation retains its fit behavior.
@@ -41,6 +45,7 @@ Tile scale is bounded to prevent excessive texture density. Tiling does not repe
 `ViewArtworkPlacement` describes a host-relative frame and separate paint bounds. Hosts validate placement before rendering.
 Sizes have finite point caps. Fixed artwork shrinks uniformly when the host becomes narrower, including its offset.
 Leading and trailing anchors, offsets, and outsets follow layout direction.
+A host can supply smaller maximum outsets. Geometry then scales artwork, offsets, and paint bounds together to fit those reserved gaps.
 Interior artwork cannot declare outsets. Exterior artwork can extend up to 128 points per edge.
 The host must clip all transforms to the declared paint bounds and keep those bounds outside layout, hit testing, and accessibility.
 The host owns surface composition, edge protection, reserved gaps, and viewport clipping.

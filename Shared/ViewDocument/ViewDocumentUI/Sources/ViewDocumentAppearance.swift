@@ -3,16 +3,51 @@ import ViewDocumentCore
 
 /// Host-resolved appearance inputs. Resolution does not consult ambient UIKit traits.
 public struct ViewDocumentAppearance {
-    public var background: Color
+    /// Platform background levels supplied by the host. No platform color API is required here.
+    public struct Backgrounds: Equatable, Sendable {
+        public var primary: Color
+        public var secondary: Color
+        public var grouped: Color
+        public var secondaryGrouped: Color
+
+        public init(primary: Color, secondary: Color, grouped: Color, secondaryGrouped: Color) {
+            self.primary = primary
+            self.secondary = secondary
+            self.grouped = grouped
+            self.secondaryGrouped = secondaryGrouped
+        }
+    }
+
+    public var backgrounds: Backgrounds
+    public var background: Color {
+        get { backgrounds.primary }
+        set { backgrounds.primary = newValue }
+    }
+
     public var dimensionScales: [ViewFontDescriptor.TextStyle: Double]
 
     public init(background: Color, dimensionScales: [ViewFontDescriptor.TextStyle: Double]) {
-        self.background = background
+        self.init(backgrounds: .init(
+            primary: background,
+            secondary: background,
+            grouped: background,
+            secondaryGrouped: background,
+        ), dimensionScales: dimensionScales)
+    }
+
+    public init(backgrounds: Backgrounds, dimensionScales: [ViewFontDescriptor.TextStyle: Double]) {
+        self.backgrounds = backgrounds
         self.dimensionScales = dimensionScales
     }
 
     public func color(_ value: ViewColorDescriptor) -> Color {
         switch value {
+            case let .opacity(value, alpha): color(value).opacity(alpha)
+            case let .mix(first, second, fraction): color(first).mix(
+                    with: color(second),
+                    by: fraction,
+                    in: .perceptual,
+                )
             case let .rgba(red, green, blue, alpha): Color(
                     .sRGB,
                     red: red,
@@ -26,6 +61,25 @@ public struct ViewDocumentAppearance {
                     case .secondary: .secondary
                     case .accent: .accentColor
                     case .background: background
+                    case .secondaryBackground: backgrounds.secondary
+                    case .groupedBackground: backgrounds.grouped
+                    case .secondaryGroupedBackground: backgrounds.secondaryGrouped
+                    case .red: .red
+                    case .orange: .orange
+                    case .yellow: .yellow
+                    case .green: .green
+                    case .mint: .mint
+                    case .teal: .teal
+                    case .cyan: .cyan
+                    case .blue: .blue
+                    case .indigo: .indigo
+                    case .purple: .purple
+                    case .pink: .pink
+                    case .brown: .brown
+                    case .gray: .gray
+                    case .black: .black
+                    case .white: .white
+                    case .clear: .clear
                 }
         }
     }
