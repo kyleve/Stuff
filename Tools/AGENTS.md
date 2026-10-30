@@ -44,6 +44,7 @@ These rules also apply when changing a root command or installer that calls this
 ## Snapshot shard plans
 
 - Discover each snapshot source root from its owning target's literal source array, including multiline arrays with shared support files. Reject unsupported declarations without borrowing the next target's sources. Guard: `test_snapshot_shards.py`.
+- Exclude helper-only Swift files from suite discovery. Files named `*Tests.swift` or containing test declarations must declare one matching top-level suite. Guard: `test_snapshot_shards.py`.
 - Keep measured timings in balance reports, not the persisted execution plan.
 - Preserve assignments unless intake, the improvement threshold, or an explicit shard-count change requires an update.
   Guard: [test_snapshot_shards.py](Tests/test_snapshot_shards.py).
