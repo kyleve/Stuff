@@ -8,16 +8,23 @@ public struct BViewDocumentLayer: View {
     let document: PreparedViewDocument
     let isActive: Bool
     let motionIsStatic: Bool
+    let role: BSurfaceLayerRole
     @Environment(\.bViewDocumentStylesheet) private var sheet
 
-    public init(document: PreparedViewDocument, isActive: Bool, motionIsStatic: Bool) {
+    public init(
+        document: PreparedViewDocument,
+        isActive: Bool,
+        motionIsStatic: Bool,
+        role: BSurfaceLayerRole = .ornament,
+    ) {
         self.document = document
         self.isActive = isActive
         self.motionIsStatic = motionIsStatic
+        self.role = role
     }
 
     public var body: some View {
-        if sheet.showsDecoration {
+        if sheet.shows(role) {
             ViewDocumentView(
                 prepared: document,
                 appearance: sheet.appearance,

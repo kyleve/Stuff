@@ -1,5 +1,20 @@
 # BroadwayUI
 
+## Composed surfaces
+
+`BSurface` orders the base, interior artwork, native content, highlights, and exterior artwork.
+Only native content determines layout. Supply a `finish` modifier for material treatment or the inner zoom-transition source.
+The exterior layer follows that modifier and does not become part of its clipping or transition source.
+
+Validate a `ViewArtworkPlacement` with `BArtworkPlacement` before constructing `BArtworkLayer`.
+The layer hosts either a prepared document or native artwork. It clips all transforms to the declared paint bounds.
+Exterior artwork also excludes the content center. Its edge band is at most 16 points and shrinks for small hosts.
+The containing layout must reserve gaps and gutters. The layer does not disable scroll viewport clipping.
+
+`BSurfaceLayerRole.essential` preserves required surface content when accessibility settings simplify ornament.
+`BViewDocumentLayer` accepts that role and always retains the Reduce Motion policy.
+Both artwork paths remain hidden from accessibility and ignore hit testing.
+
 UIKit + SwiftUI components that carry a `BContext` (from BroadwayCore) through the view hierarchy.
 
 ## Public API

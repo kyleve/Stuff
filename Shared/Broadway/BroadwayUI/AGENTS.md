@@ -23,3 +23,6 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) and the group [`../AGENTS.md`](.
 Run `BroadwayUITests` in `StuffTestHost`, linking `TestHostSupport` (`./test BroadwayUITests`).
 
 - Document decorations use validated, prepared content. Resolve scales and accessibility from the Broadway slice; inject host activity and snapshot motion policy. Keep networking and product attachment names in consumers.
+- Compose native content with `BSurface`. Its finish owns the inner material or transition source; exterior artwork stays outside that finish.
+- Host artwork through validated `BArtworkPlacement` and `BArtworkLayer`. Keep paint bounds separate from layout and interaction. The parent reserves gaps and retains viewport clipping.
+- Essential layers remain visible under accessibility simplification. Exterior artwork may paint only in its bounded edge band and exterior zone; native content remains protected.
