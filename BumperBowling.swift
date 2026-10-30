@@ -1,6 +1,8 @@
 import BumperBowlingCore
 
 enum WhereComponent: String, ComponentKey {
+    case viewDocumentCore
+    case viewDocumentUI
     case periscope
     case loggingTests
     case installerKit
@@ -17,6 +19,8 @@ enum WhereComponent: String, ComponentKey {
 
 let bumper = BumperProject {
     Included {
+        "Shared/ViewDocument/ViewDocumentCore/Sources"
+        "Shared/ViewDocument/ViewDocumentUI/Sources"
         "Shared/Periscope/PeriscopeCore/Sources"
         "Shared/Periscope/PeriscopeMacros/Sources"
         "Shared/Periscope/PeriscopeTools/Sources"
@@ -51,6 +55,20 @@ let bumper = BumperProject {
     }
 
     Architecture(WhereComponent.self) {
+        Component(.viewDocumentCore) {
+            Owns("Shared/ViewDocument/ViewDocumentCore/Sources")
+            Modules("ViewDocumentCore")
+            Applies(.whereFoundationLayer)
+            DoesNotUse("BroadwayCore", "BroadwayUI", "SnapshotKit", "SnapshotKitTesting")
+        }
+        Component(.viewDocumentUI) {
+            Owns("Shared/ViewDocument/ViewDocumentUI/Sources")
+            Modules("ViewDocumentUI")
+            MayDependOn(.viewDocumentCore)
+            Applies(.wherePresentationLayer)
+            DoesNotUse("BroadwayCore", "BroadwayUI", "SnapshotKit", "SnapshotKitTesting")
+        }
+
         Component(.periscope) {
             Owns("Shared/Periscope/PeriscopeCore/Sources")
             Owns("Shared/Periscope/PeriscopeMacros/Sources")
