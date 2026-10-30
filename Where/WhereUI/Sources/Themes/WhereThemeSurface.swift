@@ -96,10 +96,10 @@ public struct WhereThemeMatteSurface: Codable, Hashable, Sendable {
         var result = base
         if let value = fill?.base?.resolve(mode: mode) {
             try WhereThemeValidation.validate(value, path: "surface.fill.base")
-            if case let .rgba(_, _, _, alpha) = value, alpha != 1 {
+            guard WhereThemeValidation.isOpaque(value) else {
                 throw WhereThemeValidationError(
                     path: "surface.fill.base",
-                    reason: "Matte paper must be opaque",
+                    reason: "Matte paper requires opaque RGBA, primary, or background color",
                 )
             }
             result.fill.base = appearance.color(value)

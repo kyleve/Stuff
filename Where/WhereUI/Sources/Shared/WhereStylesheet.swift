@@ -94,6 +94,19 @@ struct WhereStylesheet: BStylesheet {
                 )
             }
             enforceThemeAccessibility(traits: traits, baseline: accessibleBase)
+            if traits.accessibility.isReduceTransparencyEnabled {
+                // Keep opaque authored colors, but never use alpha as the required solid backdrop.
+                if let paper = document.appearance.locationForecast?.summary?.paper,
+                   !WhereThemeValidation.isOpaque(paper.resolve(mode: traits.mode))
+                {
+                    locationForecast.summary.paper = accessibleBase.locationForecast.summary.paper
+                }
+                if let paper = document.appearance.locationsBackground?.paper,
+                   !WhereThemeValidation.isOpaque(paper.resolve(mode: traits.mode))
+                {
+                    locationsBackground.paper = accessibleBase.locationsBackground.paper
+                }
+            }
             if traits.accessibility.isDarkerSystemColorsEnabled {
                 preserveSurfaceContrast(from: accessibleBase)
             }

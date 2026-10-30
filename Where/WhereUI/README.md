@@ -716,6 +716,10 @@ Layer slots cover the Locations background and regular/compact card backgrounds 
 
 The combined document has a byte limit and a shared node/animation budget across its slots. Validation also checks each layer's depth, identities, resources, and modifiers. Numeric appearance validation rejects non-finite values and unsafe pattern density.
 
+Map centers and spans use geographic ranges, and meter spans retain the native zero value and 50-kilometer preview default. Grid column spacing cannot be negative. Color fractions stay within 0–1, and presentation timing stays within 60 seconds.
+
+Matte base fills accept opaque RGBA colors or the primary/background semantic roles. Secondary and inherited accent colors cannot guarantee opacity. Under Reduce Transparency, translucent authored paper uses the native fallback color. Opaque authored paper remains unchanged.
+
 The bundled `HalloweenTheme.json` and `ChristmasTheme.json` demonstrate sparse JSON. `WhereThemePreview` loads both through the production boundary under DEBUG. The previews render production Locations artwork and regular/compact cards.
 
 Tests cover fallback parity, accessibility precedence, mode validation, explicit zero and clear operations, array replacement, component mappings, resources, and host bounds. `WhereThemePreviewSnapshotTests` covers the seasonal examples in light/dark and accessibility captures. Real Locations captures also exercise both seasonal documents. Existing card and Locations snapshots guard built-in appearance.

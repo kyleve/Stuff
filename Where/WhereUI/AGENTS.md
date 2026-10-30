@@ -251,7 +251,7 @@ worked examples.
   Omitted overrides inherit the adjusted base. Explicit zero values disable effects.
   Use `BModeVarying` for paired light/dark values. Keep runtime region colors outside theme definitions.
   Guards: `WhereThemeOverridesTests`, `WhereFlatThemeTests`.
-- Keep portable appearance in `Sources/Themes/WhereThemeAppearance*`. Add each new authored stylesheet field to its typed patch and mapping tests. Keep lifecycle scheduling, data reduction, and runtime region identity outside the wire schema.
+- Keep portable appearance in `Sources/Themes/WhereThemeAppearance*`. Add each new authored stylesheet field to its typed patch and mapping tests. Validate exceptional units, divisors, and fractions explicitly at their mapping sites. Keep lifecycle scheduling, data reduction, and runtime region identity outside the wire schema.
 - Validate theme documents and prepare resources before root injection. Cache identity includes complete document content, not only its ID. Fallbacks name built-ins only.
 - Apply custom appearance over the native fallback and preserve that fallback's accessibility constraints. Keep decorative layers bounded, noninteractive, and hidden from accessibility. Inject `MotionIsStatic` and actual host activity into Broadway's renderer.
 - **Design new and changed custom components for every supported theme.**

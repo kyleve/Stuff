@@ -41,7 +41,12 @@ extension WhereThemeAppearance {
             }
             if let authored = columnSpacing {
                 let resolved = authored.resolve(mode: traits.mode)
-                try WhereThemeValidation.validate(resolved, path: path + ".columnSpacing")
+                // Grid column counts divide by the icon width plus this spacing.
+                try WhereThemeValidation.validate(
+                    resolved,
+                    range: 0 ... 10000,
+                    path: path + ".columnSpacing",
+                )
                 value.columnSpacing = CGFloat(resolved)
             }
             if let authored = gridPadding {
