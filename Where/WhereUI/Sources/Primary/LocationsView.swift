@@ -294,6 +294,7 @@ struct LocationsContent: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background {
                 LocationsBackground(regions: backgroundRegions)
+                    .whereThemeOverlay(.locationsBackground)
                     .ignoresSafeArea()
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -302,6 +303,7 @@ struct LocationsContent: View {
                     LocationsToolbar(report: report, navigation: navigation)
                 }
             }
+            .environment(\.whereThemeLayersAreActive, isCardSurfaceUncovered)
             .observesTilt(tilt, enabled: isCardSurfaceUncovered && cardSurface.usesReflection)
             .debugLogInspectable(WhereLog.session(YearReportModelLog.self))
     }
@@ -618,3 +620,44 @@ private struct LocationsToolbar: ToolbarContent {
         }
     }
 }
+
+#if DEBUG
+    extension LocationsView {
+        @MainActor
+        enum SeasonalThemes: SnapshotProviding {
+            static var snapshots: [SnapshotCase] {
+                for example in WhereThemeExamples.allCases {
+                    snapshot(example)
+                }
+            }
+
+            private static func snapshot(_ example: WhereThemeExamples) -> SnapshotCase {
+                let theme: PreparedWhereThemeDocument
+                do { theme = try example.prepare() }
+                catch { preconditionFailure("Invalid bundled theme: \(error)") }
+                let report = PreviewSupport.loadedYearReportModel()
+                let cache = RegionOutlinePathCache()
+                let regions = LocationsBackgroundArtwork.regions(in: report.ranking)
+                return SnapshotCase(
+                    name: example.rawValue,
+                    configurations: .fullContentPhoneLightDark,
+                    measurementReadiness: .immediate,
+                    settle: .settledAtLeast(minDuration: 1),
+                    onReadyToSnapshot: {
+                        for region in regions {
+                            _ = await cache.path(for: region, resolution: .small)
+                            _ = await cache.path(for: region, resolution: .medium)
+                            _ = await cache.path(for: region, resolution: .micro)
+                        }
+                    },
+                ) {
+                    LocationsBrowsePane(report: report)
+                        .environment(\.regionOutlinePathCache, cache)
+                        .whereBroadwayRoot(themeDocument: theme)
+                }
+            }
+        }
+    }
+
+    #Preview("Seasonal theme documents") { LocationsView.SeasonalThemes.snapshotPreviews }
+#endif
