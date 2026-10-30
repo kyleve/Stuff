@@ -195,6 +195,38 @@ struct CalendarContentViewTests {
         }
     }
 
+    @Test func aRemountedCalendarPreservesTheInitialEstimateAlignment() async throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        let navigation = CalendarNavigationModel()
+        let first = UIHostingController(rootView: CalendarContentView(
+            report: report,
+            navigation: navigation,
+        ).whereBroadwayRoot())
+        var initialBottom: CGFloat?
+        try await show(first) { _ in
+            try await waitForCalendar("initial estimate to reach the viewport bottom") {
+                guard let frame = element("Planned stays", in: first.view)?.accessibilityFrame
+                else { return false }
+                let viewport = first.view.convert(first.view.bounds, to: nil)
+                return viewport.contains(frame) && frame.minY > viewport.midY
+            }
+            initialBottom = element("Planned stays", in: first.view)?.accessibilityFrame.maxY
+        }
+        let expectedBottom = try #require(initialBottom)
+        let second = UIHostingController(rootView: CalendarContentView(
+            report: report,
+            navigation: navigation,
+        ).whereBroadwayRoot())
+        try await show(second) { _ in
+            try await waitForCalendar("remounted estimate to retain its bottom alignment") {
+                guard let bottom = element("Planned stays", in: second.view)?.accessibilityFrame
+                    .maxY
+                else { return false }
+                return abs(bottom - expectedBottom) <= 1
+            }
+        }
+    }
+
     @Test func aRemountedCalendarUsesTheSceneAnchor() async throws {
         let report = PreviewSupport.loadedYearReportModel()
         let scene = SceneNavigationModel()

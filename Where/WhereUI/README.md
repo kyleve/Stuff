@@ -72,7 +72,7 @@ Demo mode hides this surface and performs no update checks.
 `MainTabs` owns one report model and one `SceneNavigationModel` for the session.
 The navigation model retains tab selection, region routes, the compact year mode, Settings routes, search, and calendar anchors.
 Each destination receives its own child state. Calendar, timeline, and Locations anchors survive pane remounts.
-The calendar keeps its native scroll binding in the mounted view. Retained presentation state restores the typed month or estimate target after a remount.
+The calendar keeps its native scroll binding in the mounted view. Retained presentation state restores the typed month or estimate target after a remount. The initial bottom alignment survives remounts until browsing, selection, zoom, or a year change replaces it.
 A report-year change waits for matching data before positioning. Stale visibility callbacks cannot replace the new year's anchor.
 Calendar sections and day rows measure eagerly so offscreen estimates cannot move a restored month.
 The timeline keeps its pinned overview outside the scrolling rows; large text places it in the content flow.
