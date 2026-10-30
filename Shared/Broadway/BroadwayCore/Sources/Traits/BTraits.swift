@@ -18,7 +18,8 @@ import UIKit
 /// Accessing a type that hasn't been explicitly set returns
 /// its ``BTraitsValue/defaultValue``.
 public struct BTraits: Equatable, Hashable, @unchecked Sendable {
-    init() {}
+    /// Deterministic defaults without live trait observers. Roots use `system`.
+    public init() {}
 
     /// A traits container pre-registered with all built-in system trait types.
     @MainActor public static var system: BTraits {
