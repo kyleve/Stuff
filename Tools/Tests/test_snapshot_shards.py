@@ -169,6 +169,53 @@ class ShardTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "must declare one top-level suite"):
                 MODULE.source_inventory(repo)
 
+    def test_shared_snapshot_helpers_are_not_suites(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            helper = repo / "Module" / "SnapshotTests" / "WhereThemeSnapshotGate.swift"
+            helper.write_text(
+                "protocol WhereThemeSnapshotGate {}\n"
+                "enum LightDarkSnapshots<Source: WhereThemeSnapshotGate> {}\n"
+            )
+            plan = repo / "plan.json"
+            plan.write_text(json.dumps(self.make_plan()))
+
+            self.assertEqual(len(MODULE.source_inventory(repo)), 3)
+            result = subprocess.run(
+                [sys.executable, SCRIPT, "--plan", plan, "check", "--repo", repo],
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stderr, "")
+            self.assertIn("3 suites", result.stdout)
+
+    def test_helper_names_cannot_hide_test_declarations(self):
+        for source in (
+            "struct HiddenTests { @Test func example() {} }\n",
+            "enum Helpers {\n    struct Nested { @Test func example() {} }\n}\n",
+            "enum Helpers {\n    struct Nested { @Testing.Test func example() {} }\n}\n",
+        ):
+            with (
+                self.subTest(source=source),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                repo = self.make_repo(directory)
+                helper = repo / "Module" / "SnapshotTests" / "Helpers.swift"
+                helper.write_text(source)
+                with self.assertRaisesRegex(
+                    ValueError, "must declare one top-level suite"
+                ):
+                    MODULE.source_inventory(repo)
+
+    def test_empty_test_files_are_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            source = repo / "Module" / "SnapshotTests" / "EmptyTests.swift"
+            source.write_text("import Testing\n")
+            with self.assertRaisesRegex(ValueError, "must declare one top-level suite"):
+                MODULE.source_inventory(repo)
+
     def test_compares_the_plan_with_xcode_enumeration(self):
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "suites.txt"
