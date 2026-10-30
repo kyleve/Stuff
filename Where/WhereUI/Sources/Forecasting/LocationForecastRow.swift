@@ -21,7 +21,7 @@ struct LocationForecastRow: View {
 
             Text(WhereFormat.forecastPercentage(forecast.estimatedTotalDays, year: forecast.year))
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.whereSecondary)
             LocationForecastProgress(forecast: forecast, tint: tint)
 
             VStack(alignment: .leading, spacing: row.estimateSpacing) {
@@ -29,21 +29,22 @@ struct LocationForecastRow: View {
                     yearToDateDays: forecast.yearToDateDays,
                 ))
                 .font(row.detailFont)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.whereSecondary)
 
                 if forecast.plannedDays.upper > 0 {
                     Text(String(localized: .forecastPlannedContribution(WhereFormat
                             .dayCount(forecast.plannedDays))))
                         .font(row.detailFont)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.whereSecondary)
                 }
                 if forecast.projectedRemainingDays.upper > 0 {
                     Text(gapDescription)
                         .font(row.detailFont)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.whereSecondary)
                 }
             }
         }
+        .fixedSize(horizontal: false, vertical: true)
         .padding(row.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {

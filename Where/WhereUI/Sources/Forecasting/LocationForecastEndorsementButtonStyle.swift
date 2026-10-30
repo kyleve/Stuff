@@ -11,9 +11,11 @@ struct LocationForecastEndorsementButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(controls.font)
+            .lineLimit(nil)
             .foregroundStyle(tint)
             .padding(.horizontal, controls.horizontalPadding)
             .frame(maxWidth: expands ? .infinity : nil, minHeight: controls.minimumHeight)
+            .fixedSize(horizontal: false, vertical: true)
             .background {
                 RoundedRectangle(cornerRadius: controls.cornerRadius)
                     .fill(tint.opacity(ink.controlFillOpacity))

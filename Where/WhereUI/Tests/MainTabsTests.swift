@@ -1,4 +1,5 @@
 import InstallerKit
+@_spi(Capture) import SnapshotKit
 @_spi(Testing) import InstallerKitUI
 import SwiftUI
 import TestHostSupport
@@ -8,6 +9,43 @@ import WhereCore
 
 @MainActor
 struct MainTabsTests {
+    @Test func halloweenSwitchesTabsAndReturnsFromBackground() async throws {
+        let snapshot = try await MainTabs.halloweenSnapshot(selection: .locations)
+        guard case let .single(content) = snapshot.capture else {
+            Issue.record("Expected the production tab fixture")
+            return
+        }
+        var observedPhase: ScenePhase?
+        func root(_ phase: ScenePhase) -> some View {
+            content()
+                .background { ThemeScenePhaseProbe { observedPhase = $0 } }
+                .environment(\.scenePhase, phase)
+        }
+        let host = UIHostingController(rootView: root(.active))
+        try await show(host) { host in
+            try await waitForUpdateScene { findTabController(in: host)?.tabs.count == 4 }
+            let tabs = try #require(findTabController(in: host))
+            for index in [1, 2, 3, 0] {
+                tabs.selectedIndex = index
+                if let selected = tabs.selectedViewController {
+                    tabs.delegate?.tabBarController?(tabs, didSelect: selected)
+                }
+                try await waitForUpdateScene {
+                    tabs.selectedIndex == index && tabs.selectedViewController?.viewIfLoaded?
+                        .window != nil
+                }
+            }
+            host.rootView = root(.background)
+            try await waitForUpdateScene { observedPhase == .background }
+            host.rootView = root(.active)
+            try await waitForUpdateScene {
+                observedPhase == .active && findTabController(in: host)?.selectedIndex == 0
+                    && ThemeInteractionTestSupport.button("California", in: host.view) != nil
+            }
+            #expect(tabs.tabs.map(\.title) == ["Locations", "Elsewhere", "Your Year", "Settings"])
+        }
+    }
+
     @Test func elsewhereTabAppearsForAVisitAndFallsBackAfterItsRemoval() async throws {
         let session = PreviewSupport.loadedSession()
         session.preferences.showsLocationWelcome = false
@@ -61,7 +99,9 @@ struct MainTabsTests {
             try await waitForUpdateScene { fixture.renderedPhase == .background }
             #expect(client.fetchCount == 0)
             fixture.phase = .active
-            try await waitForUpdateScene { updates.needsAttention }
+            try await waitForUpdateScene {
+                fixture.renderedPhase == .active && updates.needsAttention && !updates.isChecking
+            }
             #expect(client.fetchCount == 1)
             fixture.phase = .background
             try await waitForUpdateScene { fixture.renderedPhase == .background }

@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "id": "halloween",
+  "fallback": "standard",
+  "appearance": {
+    "locationsBackground": {
+      "rosetteOpacity": {
+        "constant": {
+          "_0": 0
+        }
+      }
+    }
+  },
+  "layers": {
+    "locationsBackground": [
+      {
+        "schemaVersion": 1,
+        "root": {
+          "id": "halloween-background",
+          "content": {
+            "group": {
+              "axis": "vertical",
+              "alignment": "center",
+              "spacing": 0,
+              "children": [
+                {
+                  "id": "above",
+                  "content": {
+                    "spacer": {
+                      "minimum": 0
+                    }
+                  },
+                  "modifiers": [],
+                  "accessibility": {
+                    "hidden": {}
+                  }
+                },
+                {
+                  "id": "bottom-row",
+                  "content": {
+                    "group": {
+                      "axis": "horizontal",
+                      "alignment": "center",
+                      "spacing": 0,
+                      "children": [
+                        {
+                          "id": "leading",
+                          "content": {
+                            "spacer": {
+                              "minimum": 0
+                            }
+                          },
+                          "modifiers": [],
+                          "accessibility": {
+                            "hidden": {}
+                          }
+                        },
+                        {
+                          "id": "pumpkin",
+                          "content": {
+                            "text": {
+                              "_0": "🎃"
+                            }
+                          },
+                          "modifiers": [
+                            {
+                              "font": {
+                                "_0": {
+                                  "size": {
+                                    "fixed": {
+                                      "_0": 88
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "opacity": {
+                                "_0": 0.7
+                              }
+                            }
+                          ],
+                          "accessibility": {
+                            "hidden": {}
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "modifiers": [],
+                  "accessibility": {
+                    "hidden": {}
+                  }
+                }
+              ]
+            }
+          },
+          "modifiers": [
+            {
+              "padding": {
+                "_0": {
+                  "points": {
+                    "_0": 24
+                  }
+                }
+              }
+            }
+          ],
+          "accessibility": {
+            "hidden": {}
+          }
+        }
+      }
+    ]
+  }
+}

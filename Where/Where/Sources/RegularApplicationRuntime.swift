@@ -164,15 +164,16 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
 
     func makeRootView() -> AnyView {
         #if DEBUG
-            AnyView(RootView(
+            let root = RootView(
                 model: model,
                 launcher: launcher,
                 primaryAppIconName: buildEnvironment.primaryAppIconName,
                 updates: updates,
                 developerLaunchController: developerLaunchController,
-            ))
+            )
+            return AnyView(root)
         #else
-            AnyView(RootView(
+            return AnyView(RootView(
                 model: model,
                 launcher: launcher,
                 primaryAppIconName: buildEnvironment.primaryAppIconName,

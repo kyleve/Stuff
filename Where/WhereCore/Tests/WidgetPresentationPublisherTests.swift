@@ -16,7 +16,8 @@ struct WidgetPresentationPublisherTests {
         }
     }
 
-    @Test func publishesWithoutTouchingWidgetData() async throws {
+    @Test(arguments: WhereTheme.allCases)
+    func publishesWithoutTouchingWidgetData(theme: WhereTheme) async throws {
         let directory = FileManager.default.temporaryDirectory
             .appending(path: "WidgetPresentationPublisherTests-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -25,9 +26,9 @@ struct WidgetPresentationPublisherTests {
         let reloads = ReloadSpy()
         let publisher = WidgetPresentationPublisher(store: store, reloadTimelines: reloads.reload)
 
-        await publisher.publish(.alternate)
+        await publisher.publish(theme)
 
-        #expect(store.readTheme() == .alternate)
+        #expect(store.readTheme() == theme)
         #expect(reloads.reloadCount == 1)
         #expect(!FileManager.default.fileExists(
             atPath: directory.appending(path: "widget-snapshot.json").path,

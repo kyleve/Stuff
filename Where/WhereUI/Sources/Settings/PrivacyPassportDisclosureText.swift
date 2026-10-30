@@ -17,7 +17,7 @@ struct PrivacyPassportDisclosureText: View {
 
             Text(disclosure.detail)
                 .font(style.detailFont)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.whereSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }

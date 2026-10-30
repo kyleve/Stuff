@@ -145,6 +145,7 @@ struct AppearanceSettingsView: View {
                 #endif
             }
         }
+        .whereThemeActivity(!showAppIcon)
         .navigationTitle(String(localized: .settingsAppearanceGroup))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showAppIcon) {

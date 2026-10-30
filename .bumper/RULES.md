@@ -185,3 +185,5 @@ is needed.
 ViewDocumentCore uses Foundation only. ViewDocumentUI depends on Core and system UI frameworks.
 Both reject Broadway, Where, and SnapshotKit imports. The `ViewDocument rejects consumer dependencies` mutation test covers these boundaries.
 Asset providers supply prepared images. The import rules do not inspect image contents or enforce resource limits; document validation owns those checks.
+
+WhereUI may consume ViewDocumentCore and ViewDocumentUI for validated theme layers. The domain and adapter targets cannot import those modules directly. The downward-dependency fixture covers this presentation boundary.

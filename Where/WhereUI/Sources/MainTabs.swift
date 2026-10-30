@@ -38,6 +38,7 @@ struct MainTabs: View {
     @Environment(\.isInDemoMode) private var isInDemoMode
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.whereComponentStylesheet) private var componentStylesheet
     private let recordingWarningSource: RecordingConfigurationWarningModel.Source
     private let allowsWelcomeLookup: Bool
 
@@ -73,6 +74,9 @@ struct MainTabs: View {
                 value: TabID.locations,
             ) {
                 LocationsView(report: report, openElsewhere: { selection.selected = .elsewhere })
+                    .whereThemeActivity(selection
+                        .selected == .locations && welcomePresentation == nil &&
+                        planningDestination == nil)
                     .reportingDeveloperTabBarInset()
             }
 
@@ -83,17 +87,27 @@ struct MainTabs: View {
                     value: TabID.elsewhere,
                 ) {
                     ElsewhereView(report: report, isSelected: selection.selected == .elsewhere)
+                        .whereThemeActivity(selection
+                            .selected == .elsewhere && welcomePresentation == nil &&
+                            planningDestination == nil)
                         .reportingDeveloperTabBarInset()
                 }
             }
 
             Tab(String(localized: .tabYear), systemSymbol: .calendar, value: TabID.year) {
                 YearView(report: report)
+                    .whereThemeActivity(selection
+                        .selected == .year && welcomePresentation == nil && planningDestination ==
+                        nil)
                     .reportingDeveloperTabBarInset()
             }
 
             Tab(value: TabID.settings) {
                 SettingsView(report: report, recordingWarning: recordingWarning)
+                    .whereThemeActivity(selection
+                        .selected == .settings && welcomePresentation == nil &&
+                        planningDestination ==
+                        nil)
                     .reportingDeveloperTabBarInset()
             } label: {
                 RecordingConfigurationWarningTabLabel(
@@ -105,6 +119,7 @@ struct MainTabs: View {
             .badge((recordingWarning.isPresented ? 1 : 0) +
                 ((!isInDemoMode && updates?.needsAttention == true) ? 1 : 0))
         }
+        .tint(componentStylesheet[.locations].foreground)
         .accessibilityHidden(welcomePresentation != nil)
         .onChange(of: report.hasElsewhere, initial: true) { _, hasElsewhere in
             selection.reconcile(hasElsewhere: hasElsewhere)
@@ -434,5 +449,68 @@ struct MainTabs: View {
 
     #Preview {
         MainTabsPreview()
+    }
+#endif
+
+#if DEBUG
+    extension MainTabs {
+        static func halloweenSnapshot(selection: MainTabSelection
+            .TabID) async throws -> SnapshotCase
+        {
+            let session = PreviewSupport.loadedSession()
+            session.preferences.showsLocationWelcome = false
+            let report = YearReportModel(
+                services: session.services,
+                selectedYear: PreviewSupport.year,
+                preferences: session.preferences,
+                now: session.now,
+            )
+            let welcome = LocationWelcomeModel(
+                services: session.services,
+                preferences: session.preferences,
+                now: session.now,
+            )
+            let cache = RegionOutlinePathCache()
+            let model = PreviewSupport.loadedModel()
+            model.previewTheme(.halloween)
+            try await session.services.setPrimaryRegions([
+                PrimaryRegion(region: .california, appearance: nil, order: 0),
+                PrimaryRegion(region: .newYork, appearance: nil, order: 1),
+            ])
+            for day in PreviewSupport.sampleReport().days {
+                try await session.services.journal.addManualDay(
+                    date: day.day.startOfDay(in: report.calendar),
+                    regions: day.regions,
+                    audit: nil,
+                )
+            }
+            await report.refresh()
+            if let input = report.elsewhereInput { await report.elsewhere.refresh(input) }
+            let name = switch selection {
+                case .locations: "Locations"
+                case .elsewhere: "Elsewhere"
+                case .year: "Year"
+                case .settings: "Settings"
+            }
+            return SnapshotCase(
+                name: name,
+                configurations: .fullContentPhoneLightDark,
+                referenceGroup: .init(rawValue: "halloween"),
+                onReadyToSnapshot: {
+                    await PreviewSupport.loadCardArtwork(
+                        for: [.california, .newYork] +
+                            (report.elsewhere.content(for: report.selectedYear)?.regions
+                                .map(\.region) ?? []),
+                        cache: cache,
+                    )
+                },
+            ) {
+                MainTabs(session: session, report: report, welcome: welcome, selection: selection)
+                    .environment(session)
+                    .environment(model)
+                    .environment(\.regionOutlinePathCache, cache)
+                    .whereBroadwayRoot(theme: .halloween)
+            }
+        }
     }
 #endif
