@@ -178,35 +178,36 @@ extension RegionsSnippetView {
                 configurations: .componentLightDark,
                 referenceGroup: .themes,
             ) {
-                for theme in WhereTheme.allCases {
-                    SnapshotPanel(
-                        id: .init(rawValue: "\(theme.rawValue)-default"),
-                        label: "\(theme.title) · Default",
-                    ) {
-                        RegionsSnippetView.today(regions: [.california, .newYork])
-                            .background(.background)
-                            .whereBroadwayRoot(WherePresentationContext(
-                                theme: theme,
-                                regionStyles: .default,
-                            ))
-                    }
-                    SnapshotPanel(
-                        id: .init(rawValue: "\(theme.rawValue)-custom"),
-                        label: "\(theme.title) · Customized",
-                    ) {
-                        RegionsSnippetView.today(regions: [.california, .newYork])
-                            .background(.background)
-                            .whereBroadwayRoot(WherePresentationContext(
-                                theme: theme,
-                                regionStyles: RegionStyleResolver(appearances: [
-                                    .california: RegionAppearance(
-                                        color: .pink,
-                                        emoji: "🦋",
-                                        symbolName: .starFill,
-                                    ),
-                                ]),
-                            ))
-                    }
+                // Native snippet layout is shared across themes; exercise both
+                // default and saved region appearances without duplicate panels.
+                let theme = WhereTheme.standard
+                SnapshotPanel(
+                    id: .init(rawValue: "\(theme.rawValue)-default"),
+                    label: "\(theme.title) · Default",
+                ) {
+                    RegionsSnippetView.today(regions: [.california, .newYork])
+                        .background(.background)
+                        .whereBroadwayRoot(WherePresentationContext(
+                            theme: theme,
+                            regionStyles: .default,
+                        ))
+                }
+                SnapshotPanel(
+                    id: .init(rawValue: "\(theme.rawValue)-custom"),
+                    label: "\(theme.title) · Customized",
+                ) {
+                    RegionsSnippetView.today(regions: [.california, .newYork])
+                        .background(.background)
+                        .whereBroadwayRoot(WherePresentationContext(
+                            theme: theme,
+                            regionStyles: RegionStyleResolver(appearances: [
+                                .california: RegionAppearance(
+                                    color: .pink,
+                                    emoji: "🦋",
+                                    symbolName: .starFill,
+                                ),
+                            ]),
+                        ))
                 }
             }
         }
