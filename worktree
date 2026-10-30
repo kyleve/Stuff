@@ -3,27 +3,72 @@ set -euo pipefail
 
 usage() {
     cat <<'EOF'
-Usage: ./worktree --check-main | --update-main
+Usage: ./worktree <mode> [options]
 
 Checks whether this checkout contains the latest origin/main, or safely
-fast-forwards a checkout that is directly behind it.
+fast-forwards a checkout that is directly behind it. Also removes build
+caches when a worktree is deleted.
 
-Options:
+Modes:
   --check-main   Fetch origin/main and warn when HEAD does not contain it.
                  Never changes HEAD or the working tree; a fetch failure warns
                  without blocking worktree setup.
   --update-main  Fetch origin/main and fast-forward only when HEAD is its
                  ancestor. Refuses divergent history.
+  --cleanup      Remove this checkout's Xcode DerivedData and simulator.
+  --prune-derived-data
+                 Remove DerivedData for deleted Codex worktrees of this repo,
+                 including the older ~/.codex-workspaces/worktrees location.
+
+Cleanup options:
+  --dry-run      Report the cleanup actions without changing anything.
+  --derived-data-root PATH
+                 Inspect this directory instead of Xcode's default DerivedData.
+
+Other options:
   -h, --help     Show this help.
+
+Ownership comes from info.plist, never from the cache directory name alone.
+Caches without ownership metadata and shared Xcode caches are retained.
 EOF
 }
 
-if [ "$#" -ne 1 ]; then
+if [ "$#" -eq 0 ]; then
     usage >&2
     exit 1
 fi
 
 mode="$1"
+shift
+dry_run=false
+cleanup_args=("$mode")
+case "$mode" in
+    --cleanup|--prune-derived-data)
+        while [ "$#" -gt 0 ]; do
+            case "$1" in
+                --dry-run) dry_run=true; cleanup_args+=(--dry-run); shift ;;
+                --derived-data-root)
+                    if [ "$#" -lt 2 ] || [ -z "$2" ] || [[ "$2" == --* ]]; then
+                        echo "error: --derived-data-root requires a path" >&2
+                        exit 1
+                    fi
+                    case "$2" in
+                        /*|\~*) cleanup_args+=(--derived-data-root "$2") ;;
+                        *) cleanup_args+=(--derived-data-root "$PWD/$2") ;;
+                    esac
+                    shift 2
+                    ;;
+                *) echo "error: unknown cleanup option '$1'" >&2; exit 1 ;;
+            esac
+        done
+        ;;
+    *)
+        if [ "$#" -ne 0 ]; then
+            usage >&2
+            exit 1
+        fi
+        ;;
+esac
 main_ref="refs/remotes/origin/main"
 
 fetch_main() {
@@ -35,6 +80,20 @@ short_commit() {
 }
 
 case "$mode" in
+    --cleanup|--prune-derived-data)
+        # Resolve resources from the wrapper, even when invoked outside the checkout.
+        cd "$(dirname "$0")"
+        status=0
+        python3 -B -m Tools.worktree_cleanup "${cleanup_args[@]}" || status=$?
+        if [ "$mode" = --cleanup ]; then
+            if [ "$dry_run" = true ]; then
+                echo "Would run ./simulator --delete in $(pwd -P)" >&2
+            else
+                ./simulator --delete || status=$?
+            fi
+        fi
+        exit "$status"
+        ;;
     --check-main)
         if ! fetch_main; then
             echo "warning: could not fetch origin/main; main freshness is unknown" >&2

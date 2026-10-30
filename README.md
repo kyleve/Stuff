@@ -82,7 +82,11 @@ It refuses divergent feature history.
 On macOS the environment also runs `./ide --bootstrap --no-open`.
 That hydrates the checkout's Git LFS snapshot references before generating the project.
 It offers affected tests and format lint actions.
-On cleanup it removes only that checkout's simulator.
+On cleanup, `./worktree --cleanup` removes that checkout's DerivedData and registered simulator.
+Xcode's `info.plist` identifies cache ownership. Shared caches and directories without ownership metadata remain untouched.
+For caches from deleted worktrees, first run `./worktree --prune-derived-data --dry-run`.
+Run `./worktree --prune-derived-data` to remove the identified caches.
+Both cleanup modes accept `--derived-data-root PATH` for a custom Xcode cache location.
 `.worktreeinclude` copies the gitignored `.mise.local.toml` signing override from the source checkout into each new managed worktree.
 
 Where's production architecture is checked with Bumper Bowling through the root Swift package:
@@ -196,7 +200,7 @@ ide                 Dev script – bootstrap (mise + tools), hooks, sync-agents,
 swiftformat         Run SwiftFormat via mise (default: format `.`)
 sync-agents         Sync AGENTS.md → CLAUDE.md and .claude/skills/
 simulator           Resolve/create this checkout's simulator, boot it, print its UDID
-worktree            Check or safely fast-forward a checkout against origin/main
+worktree            Check or update against origin/main; remove owned worktree caches
 profile             Report build/test hot spots (see `./profile --help`)
 flyover             Export, preview, and develop Where's native Flyover QA atlas with Astro
 flaky               Detect flaky tests, update FLAKY_TESTS.md (see `./flaky --help`)

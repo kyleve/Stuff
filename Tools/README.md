@@ -91,6 +91,25 @@ Tests use the same module imports without changing Python's search path.
 The [Astro project](InstallerKit/Site/README.md) owns routes, components, and styles.
 [Where's distribution guide](../Where/DISTRIBUTION.md) owns its signing setup and device validation.
 
+## Worktree cleanup
+
+`./worktree --cleanup` removes the current checkout's DerivedData and registered simulator.
+It attempts both operations. If either operation fails, the command reports failure.
+Add `--dry-run` to preview cache removal and the simulator command without changes.
+
+`./worktree --prune-derived-data` removes caches for absent Codex worktrees of this repository.
+It recognizes `$CODEX_HOME/worktrees`, `~/.codex/worktrees`, and the older `~/.codex-workspaces/worktrees` location.
+It requires an available worktree root and preserves existing checkouts, even when their generated workspace is absent.
+Add `--dry-run` to preview removal. Both modes accept `--derived-data-root PATH` for a custom cache location.
+The default location is `~/Library/Developer/Xcode/DerivedData`.
+
+`worktree_cleanup.py` reads each cache's `info.plist` and matches its absolute `WorkspacePath` to the checkout.
+Root-level projects, workspaces, and workspaces embedded in root-level projects are supported.
+Cache names alone never establish ownership. Shared caches and caches without usable metadata remain untouched.
+Before removal, the command checks the directory identity and metadata again.
+The orphan sweep also checks that the checkout is still absent.
+It reports parse errors, skipped repository caches, and removal failures on stderr.
+
 ## Snapshot shard policy
 
 `snapshot_shards.py` keeps weekly assignments stable. Its bounded greedy search
