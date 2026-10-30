@@ -6,6 +6,29 @@ import ViewDocumentCore
 
 @MainActor
 struct ValidatedWhereThemeDocumentTests {
+    @Test func rasterLayersRequirePreparedAssets() throws {
+        let asset = ViewAssetID(rawValue: "illustration")
+        var document = themeDocument(appearance: .init(), fallback: .flat)
+        document.layers.regularCardBackground = [.init(schemaVersion: 1, root: .init(
+            id: .init(rawValue: "art"),
+            content: .raster(.init(asset: asset, sizing: .fill)),
+            modifiers: [],
+            animation: nil,
+            accessibility: .hidden,
+        ))]
+        #expect(throws: ViewDocumentValidationError.self) {
+            try ValidatedWhereThemeDocument(
+                document: document,
+                resources: .init(images: [], symbols: []),
+            )
+        }
+        let accepted = try ValidatedWhereThemeDocument(
+            document: document,
+            resources: .init(images: [asset], symbols: []),
+        )
+        #expect(accepted.layers[.regularCardBackground]?.first?.resources.images == [asset])
+    }
+
     @Test func modifierBudgetIsSharedAcrossSlots() throws {
         let modifiers: [ViewModifierDescriptor] = Array(repeating: .opacity(1), count: 32)
         let layer = ViewDocument(schemaVersion: 1, root: .init(

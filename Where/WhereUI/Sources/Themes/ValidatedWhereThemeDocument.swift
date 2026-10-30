@@ -109,7 +109,7 @@ private struct ThemeLayerBudget {
                 for child in children {
                     include(child)
                 }
-            case .text, .image, .symbol, .shape, .spacer: break
+            case .text, .image, .raster, .symbol, .shape, .spacer: break
         }
     }
 }
