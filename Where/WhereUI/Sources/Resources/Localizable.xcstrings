@@ -11342,6 +11342,28 @@
         }
       }
     },
+    "theme.holiday.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Evergreen paper, winter scenes, and festive bells."
+          }
+        }
+      }
+    },
+    "theme.holiday.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Holiday"
+          }
+        }
+      }
+    },
     "theme.notSelected.value" : {
       "extractionState" : "manual",
       "localizations" : {

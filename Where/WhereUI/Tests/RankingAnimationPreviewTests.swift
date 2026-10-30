@@ -6,10 +6,13 @@ import UIKit
 
 @MainActor
 struct RankingAnimationPreviewTests {
-    @Test(arguments: [false, true])
-    func halloweenCardsCompleteTwoOvertakesWithNativeFocusOrder(reduceMotion: Bool) async throws {
+    @Test(arguments: WhereThemeExamples.allCases, [false, true])
+    func seasonalCardsCompleteTwoOvertakesWithNativeFocusOrder(
+        example: WhereThemeExamples,
+        reduceMotion: Bool,
+    ) async throws {
         let model = RankingAnimationLabModel()
-        let theme = try WhereThemeExamples.halloween.prepare()
+        let theme = try example.prepare()
         let cache = RegionOutlinePathCache()
         await PreviewSupport.loadCardArtwork(for: [.california, .newYork], cache: cache)
         let root = RankingAnimationPreview(
@@ -43,7 +46,10 @@ struct RankingAnimationPreviewTests {
                 }
                 let labels = ThemeInteractionTestSupport.objects(in: host.view)
                     .filter(\.isAccessibilityElement).compactMap(\.accessibilityLabel)
-                #expect(!labels.contains { $0.localizedCaseInsensitiveContains("pumpkin") })
+                for ornament in ["pumpkin", "bells", "bough", "woodland"] {
+                    #expect(labels
+                        .contains { $0.localizedCaseInsensitiveContains(ornament) } == false)
+                }
             }
         }
     }
