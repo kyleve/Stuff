@@ -27,9 +27,19 @@ struct OnboardingIntroPage: View {
     extension OnboardingIntroPage: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             OnboardingPage.all.map { page in
-                onboardingThemeSnapshot(
+                // Welcome carries the shared shell's broad matrix; other artwork
+                // states retain focused text, annotation, direction, and tablet coverage.
+                let configurations: [SnapshotConfiguration] = switch page.id {
+                    case .welcome:
+                        .fullContentScreenRepresentative
+                    case .automatic, .privacy:
+                        .fullContentPhoneLightDarkWithAX5AndAnnotations + [
+                            SnapshotConfiguration(device: .iPadFullContent),
+                        ]
+                }
+                return onboardingThemeSnapshot(
                     name: String(describing: page.id),
-                    configurations: .fullContentScreenRepresentative + [
+                    configurations: configurations + [
                         SnapshotConfiguration(
                             layoutDirection: .rightToLeft,
                             device: .iPhoneFullContent,
