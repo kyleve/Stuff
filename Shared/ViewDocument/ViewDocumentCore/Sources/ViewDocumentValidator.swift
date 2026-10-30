@@ -1,15 +1,25 @@
 import Foundation
 
 struct ViewDocumentValidator {
+    // Bound compounded transforms and authored lengths before native rendering loses precision.
+    // Scale-down operations cannot refund these conservative budgets.
+    private static let maximumScaleAmplification = 1000.0
+    private static let maximumAmplifiedGeometry = 100_000_000.0
     let resources: ViewDocumentResources
     let limits: ViewDocumentLimits
     var identities: Set<ViewDocument.Node.ID> = []
     var animations = 0
     var modifiers = 0
+    var amplifiedGeometry = 0.0
     var referencedImages: Set<ViewAssetID> = []
     var referencedSymbols: Set<ViewSymbolID> = []
 
-    mutating func visit(_ node: ViewDocument.Node, path: String, depth: Int) throws {
+    mutating func visit(
+        _ node: ViewDocument.Node,
+        path: String,
+        depth: Int,
+        inheritedScaleAmplification: Double,
+    ) throws {
         try require(depth <= limits.depth, path, "Tree exceeds depth limit")
         try require(!node.id.rawValue.isEmpty, path + ".id", "Empty node identity")
         try require(identities.insert(node.id).inserted, path + ".id", "Duplicate node identity")
@@ -25,32 +35,17 @@ struct ViewDocumentValidator {
             "Tree exceeds modifier limit",
         )
         modifiers += node.modifiers.count
-        switch node.content {
-            case .text: break
-            case let .image(asset):
-                try require(
-                    resources.images.contains(asset),
-                    path,
-                    "Missing image asset",
-                )
-                referencedImages.insert(asset)
-            case let .symbol(symbol):
-                try require(
-                    resources.symbols.contains(symbol),
-                    path,
-                    "Missing registered symbol",
-                )
-                referencedSymbols.insert(symbol)
-            case let .shape(value): try shape(value, path)
-            case let .spacer(minimum): try number(minimum, path, range: 0 ... 100_000)
-            case let .group(_, _, spacing, children):
-                try number(spacing, path + ".spacing", range: 0 ... 100_000)
-                for (index, child) in children.enumerated() {
-                    try visit(child, path: path + ".children[\(index)]", depth: depth + 1)
-                }
-        }
+        var scaleAmplification = inheritedScaleAmplification
         for (index, modifier) in node.modifiers.enumerated() {
-            try validate(modifier, path + ".modifiers[\(index)]")
+            let modifierPath = path + ".modifiers[\(index)]"
+            try validate(modifier, modifierPath)
+            if case let .scale(x, y) = modifier {
+                scaleAmplification = try amplify(
+                    scaleAmplification,
+                    by: max(abs(x), abs(y)),
+                    path: modifierPath,
+                )
+            }
         }
         if let animation = node.animation {
             animations += 1
@@ -58,6 +53,20 @@ struct ViewDocumentValidator {
             try pose(animation.from, path)
             try pose(animation.to, path)
             try pose(animation.staticPose, path)
+            let animationScale = [animation.from, animation.to, animation.staticPose]
+                .reduce(1.0) { max($0, abs($1.scaleX), abs($1.scaleY)) }
+            scaleAmplification = try amplify(
+                scaleAmplification,
+                by: animationScale,
+                path: path + ".animation",
+            )
+            let offset = [animation.from, animation.to, animation.staticPose]
+                .reduce(0.0) { max($0, abs($1.offsetX), abs($1.offsetY)) }
+            try includeGeometry(
+                offset,
+                amplification: scaleAmplification,
+                path: path + ".animation",
+            )
             try number(animation.duration, path + ".animation.duration", range: 0.1 ... 3600)
             try number(animation.delay, path + ".animation.delay", range: 0 ... 3600)
             switch animation.repetition {
@@ -68,6 +77,83 @@ struct ViewDocumentValidator {
                         "Invalid repetition count",
                     )
             }
+        }
+        for (index, modifier) in node.modifiers.enumerated() {
+            try includeGeometry(
+                geometryCost(modifier),
+                amplification: scaleAmplification,
+                path: path + ".modifiers[\(index)]",
+            )
+        }
+        switch node.content {
+            case .text: break
+            case let .image(asset):
+                try require(resources.images.contains(asset), path, "Missing image asset")
+                referencedImages.insert(asset)
+            case let .symbol(symbol):
+                try require(resources.symbols.contains(symbol), path, "Missing registered symbol")
+                referencedSymbols.insert(symbol)
+            case let .shape(value): try shape(value, path)
+            case let .spacer(minimum):
+                try number(minimum, path, range: 0 ... 100_000)
+                try includeGeometry(minimum, amplification: scaleAmplification, path: path)
+            case let .group(_, _, spacing, children):
+                try number(spacing, path + ".spacing", range: 0 ... 100_000)
+                try includeGeometry(
+                    spacing * Double(max(0, children.count - 1)),
+                    amplification: scaleAmplification,
+                    path: path + ".spacing",
+                )
+                for (index, child) in children.enumerated() {
+                    try visit(
+                        child,
+                        path: path + ".children[\(index)]",
+                        depth: depth + 1,
+                        inheritedScaleAmplification: scaleAmplification,
+                    )
+                }
+        }
+    }
+
+    private func amplify(_ inherited: Double, by scale: Double, path: String) throws -> Double {
+        let amplified = inherited * max(1, scale)
+        try require(
+            amplified <= Self.maximumScaleAmplification,
+            path,
+            "Combined scale exceeds the supported amplification",
+        )
+        return amplified
+    }
+
+    private mutating func includeGeometry(
+        _ points: Double,
+        amplification: Double,
+        path: String,
+    ) throws {
+        let cost = points * amplification
+        try require(
+            cost <= Self.maximumAmplifiedGeometry - amplifiedGeometry,
+            path,
+            "Combined authored geometry exceeds the rendering budget",
+        )
+        amplifiedGeometry += cost
+    }
+
+    /// Count authored extents conservatively; the host still owns measured layout and font metrics.
+    private func geometryCost(_ modifier: ViewModifierDescriptor) -> Double {
+        func points(_ dimension: ViewDimension?) -> Double {
+            switch dimension {
+                case let .points(value), let .scaled(value, _): value
+                case nil: 0
+            }
+        }
+        return switch modifier {
+            case let .frame(width, height, _): max(points(width), points(height))
+            case let .padding(value): 2 * points(value)
+            case let .offset(x, y): max(abs(x), abs(y))
+            case let .shadow(_, radius, x, y): 2 * radius + max(abs(x), abs(y))
+            case let .border(_, _, width): 2 * width
+            case .font, .foreground, .scale, .rotation, .opacity, .clip, .background, .blend: 0
         }
     }
 

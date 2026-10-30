@@ -38,3 +38,5 @@ Assets are prepared SwiftUI images keyed by typed identities. Hosts load package
 Animations sample elapsed seconds. Curves use linear, quadratic ease-in/out, or cosine ease-in-out interpolation. Autoreversing repetition counts complete forward-and-back cycles. Each animation has a separate static pose. Inactive views render that pose and restart on activation. Finite animations stop requesting frames after their final cycle.
 
 Validation checks versions, ranges, resource availability, identity uniqueness, and complexity. Standard limits are 1 MiB, depth 16, 256 nodes, and 32 animated nodes. Validation errors carry a document path. Unknown enum operations fail decoding; additive object fields follow Codable's forward-compatible decoding behavior.
+
+Validation also bounds cumulative scale amplification across modifiers, ancestor nodes, and animation poses. Individually valid scales can otherwise combine into transforms that native rendering cannot display.
