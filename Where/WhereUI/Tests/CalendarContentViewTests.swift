@@ -30,7 +30,7 @@ struct CalendarContentViewTests {
             try await waitForCalendar("overview to load") {
                 element("November", in: host.view) != nil && isEnabled("Show Months", in: host.view)
             }
-            for _ in 0 ..< 3 {
+            for iteration in 0 ..< 6 {
                 try activate(#require(element("November", in: host.view)))
                 if !reduceMotion {
                     try await waitForCalendar("month transition to start") {
@@ -38,7 +38,7 @@ struct CalendarContentViewTests {
                             .contains(.notEnabled) == true
                     }
                 }
-                try await waitForCalendar("November to expand") {
+                try await waitForCalendar("November to expand on iteration \(iteration)") {
                     isEnabled("Show Year", in: host.view)
                         && isVisible("November", in: host.view, expanded: true)
                 }
@@ -119,10 +119,7 @@ struct CalendarContentViewTests {
         }
         return visit(root)
     }
-}
 
-@MainActor
-struct CalendarContentViewTestsDuo {
     @Test func repeatedLinkedSelectionExpandsOverviewAndKeepsMonthTarget() async throws {
         let report = PreviewSupport.loadedYearReportModel()
         let history = HistoryNavigationModel()
@@ -143,8 +140,7 @@ struct CalendarContentViewTestsDuo {
                 history.select(month: month, dateCalendar: report.calendar)
                 try await waitForAsync {
                     history.calendar.pendingReveal == nil && presentation.mode == .detail
-                        && history.calendar.calendarScrollPosition
-                        .viewID(type: CalendarPresentationModel.Target.self) == .month(month)
+                        && isVisible("February", in: host.view, expanded: true)
                 }
                 presentation.toggle()
                 #expect(presentation.mode == .overview)
@@ -187,7 +183,10 @@ struct CalendarContentViewTestsDuo {
             try await waitForAsync { navigation.initiallyPositionedYear == report.selectedYear }
             let previousYear = report.selectedYear - 1
             await report.select(year: previousYear)
-            try await waitForAsync { navigation.initiallyPositionedYear == previousYear }
+            try await waitForAsync {
+                navigation.initiallyPositionedYear == previousYear
+                    && isVisible("December", in: host.view, expanded: true)
+            }
             #expect(navigation.scrollPosition.viewID(type: CalendarDay.self) == CalendarDay(
                 year: previousYear,
                 month: 12,
@@ -221,8 +220,7 @@ struct CalendarContentViewTestsDuo {
         .whereBroadwayRoot())
         try await show(second) { _ in
             try await waitForAsync {
-                navigation.calendarScrollPosition
-                    .viewID(type: CalendarPresentationModel.Target.self) == .month(browsed)
+                isVisible("February", in: second.view, expanded: true)
             }
             #expect(scene.locations.calendar.initiallyPositionedYear == nil)
         }
