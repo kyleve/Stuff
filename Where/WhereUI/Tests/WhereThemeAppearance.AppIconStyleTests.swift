@@ -4,6 +4,32 @@ import Testing
 
 @MainActor
 struct WhereThemeAppIconStylePatchTests {
+    @Test(arguments: [-150.0, -149.999999999, -1])
+    func rejectsNegativeGridColumnSpacing(_ spacing: Double) throws {
+        var appearance = WhereThemeAppearance()
+        appearance.appIcon = .init()
+        appearance.appIcon?.columnSpacing = .constant(spacing)
+        #expect(throws: WhereThemeValidationError.self) {
+            try resolveTheme(
+                themeDocument(appearance: appearance, fallback: .standard),
+                traits: .system,
+            )
+        }
+    }
+
+    @Test func zeroGridColumnSpacingRemainsUsable() throws {
+        var appearance = WhereThemeAppearance()
+        appearance.appIcon = .init()
+        appearance.appIcon?.columnSpacing = .constant(0)
+        let sheet = try resolveTheme(
+            themeDocument(appearance: appearance, fallback: .standard),
+            traits: .system,
+        )
+        let metrics = AppIconLayout.gridMetrics(containerWidth: 390, style: sheet.appIcon)
+        #expect(metrics.columnCount == 2)
+        #expect(metrics.iconSize.isFinite && metrics.iconSize > 0)
+    }
+
     @Test func changesOnlyAuthoredFieldsAfterRoundTrip() throws {
         try verifyThemePatch(
             json: #"{"appIcon":{"gridMax":{"constant":{"_0":42}}}}"#,

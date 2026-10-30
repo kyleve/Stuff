@@ -253,12 +253,20 @@ extension WhereThemeAppearance.PrivacyPassportCardStyle {
             }
             if let authored = intensity {
                 let resolved = authored.resolve(mode: traits.mode)
-                try WhereThemeValidation.validate(resolved, path: path + ".intensity")
+                try WhereThemeValidation.validate(
+                    resolved,
+                    range: 0 ... 1,
+                    path: path + ".intensity",
+                )
                 value.intensity = resolved
             }
             if let authored = staticGlintIntensity {
                 let resolved = authored.resolve(mode: traits.mode)
-                try WhereThemeValidation.validate(resolved, path: path + ".staticGlintIntensity")
+                try WhereThemeValidation.validate(
+                    resolved,
+                    range: 0 ... 1,
+                    path: path + ".staticGlintIntensity",
+                )
                 value.staticGlintIntensity = resolved
             }
             try staticPose?.apply(

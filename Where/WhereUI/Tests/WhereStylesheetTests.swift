@@ -13,6 +13,43 @@ import WhereCore
 /// later trait-aware derivation — can't silently drift the defaults.
 struct WhereStylesheetTests {
     @MainActor
+    @Test(arguments: [0.0, 1.0])
+    func reduceTransparencyKeepsPaperOpaque(alpha: Double) throws {
+        var appearance = WhereThemeAppearance()
+        appearance.locationForecast = .init()
+        appearance.locationForecast?.summary = .init()
+        appearance.locationForecast?.summary?.paper = .constant(.rgba(
+            red: 1,
+            green: 0,
+            blue: 0,
+            alpha: alpha,
+        ))
+        appearance.locationsBackground = .init()
+        appearance.locationsBackground?.paper = .constant(.rgba(
+            red: 1,
+            green: 0,
+            blue: 0,
+            alpha: alpha,
+        ))
+        var traits = BTraits.system
+        traits.accessibility = .init(isReduceTransparencyEnabled: true)
+        let baseline = try resolveTheme(
+            themeDocument(appearance: .init(), fallback: .standard),
+            traits: traits,
+        )
+        let result = try resolveTheme(
+            themeDocument(appearance: appearance, fallback: .standard),
+            traits: traits,
+        )
+        let red = Color(.sRGB, red: 1, green: 0, blue: 0, opacity: 1)
+        #expect(result.locationForecast.summary
+            .paper == (alpha == 1 ? red : baseline.locationForecast.summary.paper))
+        #expect(result.locationsBackground
+            .paper == (alpha == 1 ? red : baseline.locationsBackground.paper))
+        #expect(result.locationForecast.summary.usesOpaquePaper)
+    }
+
+    @MainActor
     @Test(arguments: DynamicTypeSize.allCases)
     func launcherMatchesSwiftUIScaledMetric(size: DynamicTypeSize) throws {
         let box = ScaledDimensionProbeBox()

@@ -119,22 +119,38 @@ extension WhereThemeAppearance {
             }
             if let authored = mapCenterLatitude {
                 let resolved = authored.resolve(mode: traits.mode)
-                try WhereThemeValidation.validate(resolved, path: path + ".mapCenterLatitude")
+                try WhereThemeValidation.validate(
+                    resolved,
+                    range: -90 ... 90,
+                    path: path + ".mapCenterLatitude",
+                )
                 value.mapCenterLatitude = resolved
             }
             if let authored = mapCenterLongitude {
                 let resolved = authored.resolve(mode: traits.mode)
-                try WhereThemeValidation.validate(resolved, path: path + ".mapCenterLongitude")
+                try WhereThemeValidation.validate(
+                    resolved,
+                    range: -180 ... 180,
+                    path: path + ".mapCenterLongitude",
+                )
                 value.mapCenterLongitude = resolved
             }
             if let authored = mapSpanLatitude {
                 let resolved = authored.resolve(mode: traits.mode)
-                try WhereThemeValidation.validate(resolved, path: path + ".mapSpanLatitude")
+                try WhereThemeValidation.validate(
+                    resolved,
+                    range: Double.leastNormalMagnitude ... 180,
+                    path: path + ".mapSpanLatitude",
+                )
                 value.mapSpanLatitude = resolved
             }
             if let authored = mapSpanLongitude {
                 let resolved = authored.resolve(mode: traits.mode)
-                try WhereThemeValidation.validate(resolved, path: path + ".mapSpanLongitude")
+                try WhereThemeValidation.validate(
+                    resolved,
+                    range: Double.leastNormalMagnitude ... 360,
+                    path: path + ".mapSpanLongitude",
+                )
                 value.mapSpanLongitude = resolved
             }
         }

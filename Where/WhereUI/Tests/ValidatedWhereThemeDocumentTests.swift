@@ -43,6 +43,16 @@ struct ValidatedWhereThemeDocumentTests {
             #"{"featureDiscovery":{"backgroundPattern":{"horizontalScale":{"constant":{"_0":0}}}}}"#,
             #"{"locationForecast":{"surface":{"microprintSpacing":{"constant":{"_0":1e-300}}}}}"#,
             #"{"locationsBackground":{"preferredCellSize":{"constant":{"_0":2}}}}"#,
+            #"{"card":{"regular":{"sheen":{"intensity":{"constant":{"_0":42}}}}}}"#,
+            #"{"card":{"regular":{"sheen":{"staticGlintIntensity":{"constant":{"_0":42}}}}}}"#,
+            #"{"privacyPassportCard":{"reflectiveSurface":{"intensity":{"constant":{"_0":42}}}}}"#,
+            #"{"privacyPassportCard":{"reflectiveSurface":{"staticGlintIntensity":{"constant":{"_0":42}}}}}"#,
+            #"{"card":{"rosetteFill":{"primary":{"constant":{"_0":42}}}}}"#,
+            #"{"card":{"rosetteFill":{"secondary":{"constant":{"_0":42}}}}}"#,
+            #"{"card":{"constellation":{"coreWhiteMix":{"constant":{"_0":42}}}}}"#,
+            #"{"card":{"securityPrint":{"whiteMix":{"constant":{"_0":42}}}}}"#,
+            #"{"developerOverlay":{"menu":{"motion":{"stagger":{"constant":{"_0":10000}}}}}}"#,
+            #"{"passportSeal":{"dashSpacing":{"constant":{"_0":-1}}}}"#,
         ] {
             let json =
                 "{\"schemaVersion\":1,\"id\":\"unsafe\",\"fallback\":\"standard\",\"appearance\":" +

@@ -129,7 +129,11 @@ extension WhereThemeAppearance.CardStyles {
             }
             if let authored = coreWhiteMix {
                 let resolved = authored.resolve(mode: traits.mode)
-                try WhereThemeValidation.validate(resolved, path: path + ".coreWhiteMix")
+                try WhereThemeValidation.validate(
+                    resolved,
+                    range: 0 ... 1,
+                    path: path + ".coreWhiteMix",
+                )
                 value.coreWhiteMix = resolved
             }
             if let authored = haloRadius {
@@ -288,12 +292,16 @@ extension WhereThemeAppearance.CardStyles {
         ) throws {
             if let authored = primary {
                 let resolved = authored.resolve(mode: traits.mode)
-                try WhereThemeValidation.validate(resolved, path: path + ".primary")
+                try WhereThemeValidation.validate(resolved, range: 0 ... 1, path: path + ".primary")
                 value.primary = resolved
             }
             if let authored = secondary {
                 let resolved = authored.resolve(mode: traits.mode)
-                try WhereThemeValidation.validate(resolved, path: path + ".secondary")
+                try WhereThemeValidation.validate(
+                    resolved,
+                    range: 0 ... 1,
+                    path: path + ".secondary",
+                )
                 value.secondary = resolved
             }
         }
@@ -315,7 +323,11 @@ extension WhereThemeAppearance.CardStyles {
         ) throws {
             if let authored = whiteMix {
                 let resolved = authored.resolve(mode: traits.mode)
-                try WhereThemeValidation.validate(resolved, path: path + ".whiteMix")
+                try WhereThemeValidation.validate(
+                    resolved,
+                    range: 0 ... 1,
+                    path: path + ".whiteMix",
+                )
                 value.whiteMix = resolved
             }
             if let authored = backgroundBlendMode {

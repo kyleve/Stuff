@@ -3,6 +3,25 @@ import ViewDocumentCore
 
 /// Validation runs before a document can enter Broadway's stylesheet cache.
 enum WhereThemeValidation {
+    /// Secondary has alpha; an inherited accent can also be translucent.
+    static func isOpaque(_ value: ViewColorDescriptor) -> Bool {
+        switch value {
+            case let .rgba(_, _, _, alpha): alpha == 1
+            case .semantic(.primary), .semantic(.background): true
+            case .semantic(.secondary), .semantic(.accent): false
+        }
+    }
+
+    /// Use explicit units for domain values that are not ordinary layout dimensions.
+    static func validate(_ value: Double, range: ClosedRange<Double>, path: String) throws {
+        guard value.isFinite, range.contains(value) else {
+            throw WhereThemeValidationError(
+                path: path,
+                reason: "Value is outside the supported range \(range)",
+            )
+        }
+    }
+
     static func validate(_ value: Double, path: String) throws {
         let field = path.split(separator: ".").last.map(String.init)?.lowercased() ?? path
         // These values feed divisors and repeated artwork, so zero and tiny positive values

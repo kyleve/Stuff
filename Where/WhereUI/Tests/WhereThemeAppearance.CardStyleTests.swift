@@ -76,14 +76,14 @@ struct WhereThemeCardStylePatchTests {
             replacement: 42,
         )
         try verifyThemePatch(
-            json: #"{"card":{"regular":{"sheen":{"intensity":{"constant":{"_0":42}}}}}}"#,
+            json: #"{"card":{"regular":{"sheen":{"intensity":{"constant":{"_0":0.25}}}}}}"#,
             keyPath: \WhereStylesheet.card.regular.sheen.intensity,
-            replacement: 42,
+            replacement: 0.25,
         )
         try verifyThemePatch(
-            json: #"{"card":{"regular":{"sheen":{"staticGlintIntensity":{"constant":{"_0":42}}}}}}"#,
+            json: #"{"card":{"regular":{"sheen":{"staticGlintIntensity":{"constant":{"_0":0.25}}}}}}"#,
             keyPath: \WhereStylesheet.card.regular.sheen.staticGlintIntensity,
-            replacement: 42,
+            replacement: 0.25,
         )
         try verifyThemePatch(
             json: #"{"card":{"regular":{"glow":{"opacity":{"constant":{"_0":0.25}}}}}}"#,

@@ -246,7 +246,11 @@ extension WhereThemeAppearance.DeveloperOverlayStyle {
             }
             if let authored = stagger {
                 let resolved = authored.resolve(mode: traits.mode)
-                try WhereThemeValidation.validate(resolved, path: path + ".stagger")
+                try WhereThemeValidation.validate(
+                    resolved,
+                    range: 0 ... 60,
+                    path: path + ".stagger",
+                )
                 value.stagger = resolved
             }
             if let authored = scale {

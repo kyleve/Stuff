@@ -7,6 +7,48 @@ import ViewDocumentUI
 @testable import WhereUI
 
 struct WhereThemeSurfaceTests {
+    @Test(arguments: [
+        ViewColorDescriptor.semantic(.secondary),
+        .semantic(.accent),
+        .rgba(red: 1, green: 0, blue: 0, alpha: 0.5),
+    ])
+    func matteFillRejectsColorsWithoutOpaqueAlpha(_ color: ViewColorDescriptor) throws {
+        let surface = WhereThemeMatteSurface(
+            fill: .init(base: .constant(color), tintMix: 0),
+            outline: nil,
+            shadow: nil,
+            pressedTintOpacity: nil,
+        )
+        #expect(throws: WhereThemeValidationError.self) {
+            try surface.resolve(
+                mode: .light,
+                appearance: .init(background: .white, dimensionScales: [:]),
+                base: WhereStylesheet.default.card.elsewherePaper.surface,
+            )
+        }
+    }
+
+    @Test(arguments: [
+        ViewColorDescriptor.semantic(.primary),
+        .semantic(.background),
+        .rgba(red: 1, green: 0, blue: 0, alpha: 1),
+    ])
+    func matteFillAcceptsOpaqueColors(_ color: ViewColorDescriptor) throws {
+        let surface = WhereThemeMatteSurface(
+            fill: .init(base: .constant(color), tintMix: 0),
+            outline: nil,
+            shadow: nil,
+            pressedTintOpacity: nil,
+        )
+        let appearance = ViewDocumentAppearance(background: .white, dimensionScales: [:])
+        let result = try surface.resolve(
+            mode: .light,
+            appearance: appearance,
+            base: WhereStylesheet.default.card.elsewherePaper.surface,
+        )
+        #expect(result.fill.base == appearance.color(color))
+    }
+
     @MainActor
     @Test func sparseMattePatchInheritsFlatFillAndProtectsContrast() throws {
         var patch = WhereThemeMatteSurface()

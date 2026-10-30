@@ -4,6 +4,66 @@ import Testing
 
 @MainActor
 struct WhereThemeRegionPickerStylePatchTests {
+    @Test func geographicCentersAcceptWesternAndSouthernCoordinates() throws {
+        var appearance = WhereThemeAppearance()
+        appearance.regionPicker = .init()
+        appearance.regionPicker?.mapCenterLatitude = .constant(-33.86)
+        appearance.regionPicker?.mapCenterLongitude = .constant(-98.35)
+        let sheet = try resolveTheme(
+            themeDocument(appearance: appearance, fallback: .standard),
+            traits: .system,
+        )
+        #expect(sheet.regionPicker.mapCenterLatitude == -33.86)
+        #expect(sheet.regionPicker.mapCenterLongitude == -98.35)
+    }
+
+    @Test func rejectsInvalidGeographicCentersAndSpans() throws {
+        for latitude in [-90.01, 90.01] {
+            var appearance = WhereThemeAppearance()
+            appearance.regionPicker = .init()
+            appearance.regionPicker?.mapCenterLatitude = .constant(latitude)
+            #expect(throws: WhereThemeValidationError.self) {
+                try resolveTheme(
+                    themeDocument(appearance: appearance, fallback: .standard),
+                    traits: .system,
+                )
+            }
+        }
+        for longitude in [-180.01, 180.01] {
+            var appearance = WhereThemeAppearance()
+            appearance.regionPicker = .init()
+            appearance.regionPicker?.mapCenterLongitude = .constant(longitude)
+            #expect(throws: WhereThemeValidationError.self) {
+                try resolveTheme(
+                    themeDocument(appearance: appearance, fallback: .standard),
+                    traits: .system,
+                )
+            }
+        }
+        for span in [0.0, -1, 180.01] {
+            var appearance = WhereThemeAppearance()
+            appearance.regionPicker = .init()
+            appearance.regionPicker?.mapSpanLatitude = .constant(span)
+            #expect(throws: WhereThemeValidationError.self) {
+                _ = try resolveTheme(
+                    themeDocument(appearance: appearance, fallback: .standard),
+                    traits: .system,
+                )
+            }
+        }
+        for span in [0.0, -1, 360.01] {
+            var appearance = WhereThemeAppearance()
+            appearance.regionPicker = .init()
+            appearance.regionPicker?.mapSpanLongitude = .constant(span)
+            #expect(throws: WhereThemeValidationError.self) {
+                try resolveTheme(
+                    themeDocument(appearance: appearance, fallback: .standard),
+                    traits: .system,
+                )
+            }
+        }
+    }
+
     @Test func changesOnlyAuthoredFieldsAfterRoundTrip() throws {
         try verifyThemePatch(
             json: #"{"regionPicker":{"mapCornerRadius":{"constant":{"_0":42}}}}"#,

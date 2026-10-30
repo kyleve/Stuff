@@ -54,7 +54,11 @@ extension WhereThemeAppearance {
             }
             if let authored = dashSpacing {
                 let resolved = authored.resolve(mode: traits.mode)
-                try WhereThemeValidation.validate(resolved, path: path + ".dashSpacing")
+                try WhereThemeValidation.validate(
+                    resolved,
+                    range: 0 ... 10000,
+                    path: path + ".dashSpacing",
+                )
                 value.dashSpacing = CGFloat(resolved)
             }
             if let authored = symbolFont {

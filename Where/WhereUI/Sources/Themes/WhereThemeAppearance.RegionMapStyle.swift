@@ -91,7 +91,12 @@ extension WhereThemeAppearance.RegionMapStyle {
             }
             if let authored = minimumSpanMeters {
                 let resolved = authored.resolve(mode: traits.mode)
-                try WhereThemeValidation.validate(resolved, path: path + ".minimumSpanMeters")
+                // A full-world span is about forty million meters; zero keeps the native bounds.
+                try WhereThemeValidation.validate(
+                    resolved,
+                    range: 0 ... 40_100_000,
+                    path: path + ".minimumSpanMeters",
+                )
                 value.minimumSpanMeters = resolved
             }
         }

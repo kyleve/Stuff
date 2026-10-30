@@ -81,19 +81,19 @@ struct WhereThemeCardStylesPatchTests {
             replacement: 42,
         )
         try verifyThemePatch(
-            json: #"{"card":{"rosetteFill":{"primary":{"constant":{"_0":42}}}}}"#,
+            json: #"{"card":{"rosetteFill":{"primary":{"constant":{"_0":0.25}}}}}"#,
             keyPath: \WhereStylesheet.card.rosetteFill.primary,
-            replacement: 42,
+            replacement: 0.25,
         )
         try verifyThemePatch(
-            json: #"{"card":{"rosetteFill":{"secondary":{"constant":{"_0":42}}}}}"#,
+            json: #"{"card":{"rosetteFill":{"secondary":{"constant":{"_0":0.25}}}}}"#,
             keyPath: \WhereStylesheet.card.rosetteFill.secondary,
-            replacement: 42,
+            replacement: 0.25,
         )
         try verifyThemePatch(
-            json: #"{"card":{"securityPrint":{"whiteMix":{"constant":{"_0":42}}}}}"#,
+            json: #"{"card":{"securityPrint":{"whiteMix":{"constant":{"_0":0.25}}}}}"#,
             keyPath: \WhereStylesheet.card.securityPrint.whiteMix,
-            replacement: 42,
+            replacement: 0.25,
         )
         try verifyThemePatch(
             json: #"{"card":{"constellation":{"coreDiameter":{"constant":{"_0":42}}}}}"#,
@@ -106,9 +106,9 @@ struct WhereThemeCardStylesPatchTests {
             replacement: 0.25,
         )
         try verifyThemePatch(
-            json: #"{"card":{"constellation":{"coreWhiteMix":{"constant":{"_0":42}}}}}"#,
+            json: #"{"card":{"constellation":{"coreWhiteMix":{"constant":{"_0":0.25}}}}}"#,
             keyPath: \WhereStylesheet.card.constellation.coreWhiteMix,
-            replacement: 42,
+            replacement: 0.25,
         )
         try verifyThemePatch(
             json: #"{"card":{"constellation":{"haloRadius":{"constant":{"_0":42}}}}}"#,

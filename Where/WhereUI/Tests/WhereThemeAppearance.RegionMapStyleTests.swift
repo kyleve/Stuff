@@ -4,6 +4,19 @@ import Testing
 
 @MainActor
 struct WhereThemeRegionMapStylePatchTests {
+    @Test(arguments: [0.0, 50000.0])
+    func meterSpansAcceptTheNativeDefaults(_ span: Double) throws {
+        var appearance = WhereThemeAppearance()
+        appearance.regionMap = .init()
+        appearance.regionMap?.pointPreview = .init()
+        appearance.regionMap?.pointPreview?.minimumSpanMeters = .constant(span)
+        let sheet = try resolveTheme(
+            themeDocument(appearance: appearance, fallback: .standard),
+            traits: .system,
+        )
+        #expect(sheet.regionMap.pointPreview.minimumSpanMeters == span)
+    }
+
     @Test func changesOnlyAuthoredFieldsAfterRoundTrip() throws {
         try verifyThemePatch(
             json: #"{"regionMap":{"uncertaintyFillOpacity":{"constant":{"_0":0.25}}}}"#,

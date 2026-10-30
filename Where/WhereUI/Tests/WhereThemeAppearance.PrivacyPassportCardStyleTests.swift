@@ -66,14 +66,14 @@ struct WhereThemePrivacyPassportCardStylePatchTests {
             replacement: 0.25,
         )
         try verifyThemePatch(
-            json: #"{"privacyPassportCard":{"reflectiveSurface":{"intensity":{"constant":{"_0":42}}}}}"#,
+            json: #"{"privacyPassportCard":{"reflectiveSurface":{"intensity":{"constant":{"_0":0.25}}}}}"#,
             keyPath: \WhereStylesheet.privacyPassportCard.reflectiveSurface.intensity,
-            replacement: 42,
+            replacement: 0.25,
         )
         try verifyThemePatch(
-            json: #"{"privacyPassportCard":{"reflectiveSurface":{"staticGlintIntensity":{"constant":{"_0":42}}}}}"#,
+            json: #"{"privacyPassportCard":{"reflectiveSurface":{"staticGlintIntensity":{"constant":{"_0":0.25}}}}}"#,
             keyPath: \WhereStylesheet.privacyPassportCard.reflectiveSurface.staticGlintIntensity,
-            replacement: 42,
+            replacement: 0.25,
         )
         try verifyThemePatch(
             json: #"{"privacyPassportCard":{"disclosure":{"rowSpacing":{"constant":{"_0":42}}}}}"#,
