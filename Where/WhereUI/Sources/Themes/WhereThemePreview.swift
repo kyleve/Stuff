@@ -77,8 +77,7 @@
             let report = PreviewSupport.itineraryYearReportModel()
             let model = PreviewSupport.loadedModel()
             let session = PreviewSupport.loadedSession()
-            let preview = try WhereThemePreviewModel.bundled()
-            preview.select(.halloween)
+            model.previewTheme(.halloween)
             let configurations: [SnapshotConfiguration] = switch subject {
                 case .forecast, .welcome, .privacy: .componentLightDark
                 case .timeline, .appearance, .planning: .fullContentPhoneLightDark
@@ -125,7 +124,6 @@
                     }
                 }
                 .environment(model).environment(session)
-                .whereThemePreview(preview)
                 .environment(\.regionOutlinePathCache, cache)
                 .whereBroadwayRoot(themeDocument: theme)
             }

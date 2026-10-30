@@ -4,7 +4,23 @@ import Testing
 
 @MainActor
 struct OnboardingThemeSelectionViewSnapshotTests {
-    @Test func themeSelection() async {
-        await assertSnapshots(of: OnboardingThemeSelectionView.self)
+    @Test func themeSelectionLightDark() async {
+        await assertSnapshots(
+            of: WhereLightDarkSnapshots<OnboardingThemeSelectionView>.self,
+            testName: "themeSelection()",
+        )
+    }
+
+    @Test func themeSelectionExtended() async {
+        await assertSnapshots(
+            of: WhereExtendedSnapshots<OnboardingThemeSelectionView>.self,
+            testName: "themeSelection()",
+        )
+    }
+}
+
+extension OnboardingThemeSelectionView: WhereThemeSnapshotGate {
+    static var lightDarkCases: Set<String> {
+        ["Standard", "Alternate", "Halloween"]
     }
 }

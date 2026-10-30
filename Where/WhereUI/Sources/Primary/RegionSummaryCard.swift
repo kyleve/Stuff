@@ -695,6 +695,11 @@ private struct ArcText: View {
                 case .column: "Column"
                 case .elsewhere: "Elsewhere"
             }
+            let role: WhereThemeComponents.Role = switch variant {
+                case .regular: .regularCard
+                case .compact: .compactCard
+                case .elsewhere: .elsewhereCard
+            }
             return whereThemeSnapshot(
                 name: name + (reduceTransparency ? "ReduceTransparency" : ""),
                 configurations: reduceTransparency ? .componentLightDark : .componentRepresentative,
@@ -714,6 +719,7 @@ private struct ArcText: View {
                     estimatedDays: variant == .elsewhere ? nil : DayBounds(lower: 180, upper: 220),
                     year: 2026,
                 )
+                .whereThemeArtworkSpace(role)
                 .padding(24)
                 .background(.background)
                 .environment(\.regionOutlinePathCache, cache)

@@ -18,6 +18,10 @@ enum WhereBundledThemes {
         .init(rawValue: "flat"),
         assets: .init(images: [:], symbols: [:]),
     ) }
+    private static let halloween = Result { try catalog().prepare(
+        .halloween,
+        assets: HalloweenThemeAssets.load(),
+    ) }
     static func load(_ name: String) throws -> WhereThemeDocument {
         try WhereBundledThemeDefinitions
             .load(name)
@@ -36,6 +40,7 @@ enum WhereBundledThemes {
         switch theme {
             case .standard: try standard.get()
             case .alternate: try flat.get()
+            case .halloween: try halloween.get()
         }
     }
 }
@@ -43,7 +48,7 @@ enum WhereBundledThemes {
 /// Thread-safe immutable definitions also supply off-tree stylesheet fallbacks.
 enum WhereBundledThemeDefinitions {
     static let documents: Result<[WhereThemeDocument], any Error> = Result {
-        try ["StandardTheme", "FlatTheme"].map { try load($0) }
+        try ["StandardTheme", "FlatTheme", "HalloweenTheme"].map { try load($0) }
     }
 
     private static let standard = Result {
@@ -54,8 +59,16 @@ enum WhereBundledThemeDefinitions {
         try WhereThemeCatalog(documents: documents.get()).resolve(.init(rawValue: "flat"))
     }
 
+    private static let halloween = Result {
+        try WhereThemeCatalog(documents: documents.get()).resolve(.halloween)
+    }
+
     static func resolved(_ theme: WhereTheme) throws -> ResolvedWhereTheme {
-        switch theme { case .standard: try standard.get(); case .alternate: try flat.get() }
+        switch theme {
+            case .standard: try standard.get()
+            case .alternate: try flat.get()
+            case .halloween: try halloween.get()
+        }
     }
 
     static func load(_ name: String) throws -> WhereThemeDocument {

@@ -11,4 +11,12 @@ struct WhereThemeThemePickerStylePatchTests {
             replacement: 42,
         )
     }
+
+    @Test func minimumOptionWidthRoundTripsAndApplies() throws {
+        try verifyThemePatch(
+            json: #"{"themePicker":{"minimumOptionWidth":{"constant":{"_0":210}}}}"#,
+            keyPath: \WhereStylesheet.themePicker.minimumOptionWidth,
+            replacement: 210,
+        )
+    }
 }

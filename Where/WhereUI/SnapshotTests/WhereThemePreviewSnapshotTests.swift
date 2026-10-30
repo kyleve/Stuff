@@ -11,9 +11,16 @@ struct WhereThemePreviewSnapshotTests {
     }
 
     @Test func sharedSurfacesLightDark() async throws {
-        for subject in WhereThemePreview.Subject.allCases {
+        for subject in WhereThemePreview.Subject.allCases where subject != .appearance {
             try await assertThemeSnapshot(WhereThemePreview.snapshot(subject))
         }
+    }
+
+    @Test func appearanceLightDark() async throws {
+        try await assertThemeSnapshot(
+            WhereThemePreview.snapshot(.appearance),
+            testName: "sharedSurfacesLightDark()",
+        )
     }
 
     @Test func seasonalDocumentsExtended() async throws {
@@ -21,7 +28,7 @@ struct WhereThemePreviewSnapshotTests {
     }
 
     @Test func sharedSurfacesExtended() async throws {
-        for subject in WhereThemePreview.Subject.allCases {
+        for subject in WhereThemePreview.Subject.allCases where subject != .appearance {
             let snapshot = try WhereThemePreview.snapshot(subject)
             let configurations: [SnapshotConfiguration] = switch subject {
                 case .forecast, .welcome, .privacy:
@@ -38,6 +45,17 @@ struct WhereThemePreviewSnapshotTests {
             }
             await assertThemeSnapshot(snapshot.withThemeConfigurations(configurations))
         }
+    }
+
+    @Test func appearanceExtended() async throws {
+        let snapshot = try WhereThemePreview.snapshot(.appearance)
+        await assertThemeSnapshot(
+            snapshot.withThemeConfigurations([
+                .init(dynamicType: .accessibility5, device: .iPhoneFullContent),
+                .init(device: .iPhoneFullContent, snapshotType: .accessibility),
+            ]),
+            testName: "sharedSurfacesExtended()",
+        )
     }
 
     @Test func accessibilityPolicyExtended() async throws {

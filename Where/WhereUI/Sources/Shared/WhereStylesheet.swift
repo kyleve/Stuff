@@ -3007,7 +3007,6 @@ extension WhereStylesheet {
     struct ThemePickerStyle: Equatable {
         var layout = ContentLayout.inline
         var spacing: CGFloat = 12
-        /// Two 176-point specimens plus their gap keep counts readable in a narrow pane.
-        var minimumInlineWidth: CGFloat = 364
+        var minimumOptionWidth: CGFloat = 180
     }
 }

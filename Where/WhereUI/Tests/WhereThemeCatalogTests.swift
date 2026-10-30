@@ -7,6 +7,33 @@ import ViewDocumentUI
 
 @MainActor
 struct WhereThemeCatalogTests {
+    @Test func rejectedReplacementsPreserveTheAcceptedCatalogAndArtwork() throws {
+        let accepted = try WhereBundledThemes.catalog()
+        let assets = try HalloweenThemeAssets.load()
+        let original = try accepted.prepare(.halloween, assets: assets)
+        var invalid = original.validated.document
+        invalid.parent = invalid.id
+        #expect(throws: WhereThemeValidationError.self) {
+            try accepted.replacing(invalid).prepare(.halloween, assets: assets)
+        }
+        var missingAsset = original.validated.document
+        missingAsset.components.regularCard?.artwork?[0].document.root.content = .raster(.init(
+            asset: .init(rawValue: "not-bundled"),
+            sizing: .fit,
+        ))
+        #expect(throws: ViewDocumentValidationError.self) {
+            try accepted.replacing(missingAsset).prepare(.halloween, assets: assets)
+        }
+        #expect(try accepted.prepare(.halloween, assets: assets).validated == original.validated)
+
+        var updated = original.validated.document
+        updated.appearance.card?.regular?.cornerRadius = .constant(35)
+        let replacement = try accepted.replacing(updated).prepare(.halloween, assets: assets)
+        #expect(replacement.resolved.id == .halloween)
+        #expect(replacement.resolved.appearance.card?.regular?.cornerRadius == .constant(35))
+        #expect(try accepted.prepare(.halloween, assets: assets).validated == original.validated)
+    }
+
     @Test nonisolated func maximumParentDepthResolvesOnAWorkerThread() async throws {
         try await Task.detached {
             let root = try WhereBundledThemeDefinitions.load("StandardTheme")

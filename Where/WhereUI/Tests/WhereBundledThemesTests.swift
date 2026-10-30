@@ -6,6 +6,18 @@ import WhereCore
 
 @MainActor
 struct WhereBundledThemesTests {
+    @Test(arguments: WhereTheme.allCases)
+    func everySavedThemePreparesThroughTheBundledCatalog(theme: WhereTheme) throws {
+        let prepared = try WhereBundledThemes.prepared(theme)
+        let resolved = try WhereBundledThemeDefinitions.resolved(theme)
+        #expect(prepared.resolved == resolved)
+        try resolved.appearance.requireComplete(path: "appearance")
+        if theme == .halloween {
+            #expect(resolved.id == .halloween)
+            #expect(prepared.componentArtwork[.regularCard]?.isEmpty == false)
+        }
+    }
+
     @Test(arguments: [BMode.light, .dark], [false, true])
     func resolvesModeAndContrast(mode: BMode, increasedContrast: Bool) throws {
         var traits = BTraits.system
