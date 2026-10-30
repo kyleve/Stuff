@@ -3,6 +3,34 @@ import Testing
 import ViewDocumentCore
 
 struct ViewArtworkPlacementTests {
+    @Test func hostGuttersShrinkArtworkBeforeNativeContent() throws {
+        let placement = ViewArtworkPlacement(
+            anchor: .bottomTrailing,
+            size: .fixed(width: 100, height: 80),
+            offset: .init(x: 40, y: 20),
+            plane: .exterior,
+            outsets: .init(top: 0, leading: 0, bottom: 20, trailing: 40),
+        )
+        try placement.validate()
+        let geometry = placement.geometry(
+            in: .init(width: 300, height: 100),
+            rightToLeft: false,
+            maximumOutsets: .init(top: 0, leading: 0, bottom: 20, trailing: 10),
+        )
+        #expect(geometry.frame.width == 25)
+        #expect(geometry.frame.height == 20)
+        #expect(geometry.frame.x == 285)
+        #expect(geometry.paintBounds.width == 310)
+        #expect(geometry.paintBounds.height == 105)
+        let hidden = placement.geometry(
+            in: .init(width: 300, height: 100),
+            rightToLeft: true,
+            maximumOutsets: .zero,
+        )
+        #expect(hidden.frame.width == 0)
+        #expect(hidden.paintBounds.width == 300)
+    }
+
     @Test func separatesOverflowFromHostLayoutAndMirrorsDirection() throws {
         let placement = ViewArtworkPlacement(
             anchor: .bottomTrailing,

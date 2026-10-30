@@ -10,3 +10,5 @@ Authored frame, padding, spacing, offset, and effect lengths share a 100-million
 
 `ViewArtworkPlacement` validates host-relative artwork independently of the view tree. Call `validate()` before accepting it and `geometry(in:rightToLeft:)` during layout.
 Its `Extent` and `Frame` values use portable point coordinates. The host converts them to its rendering framework and enforces paint clipping.
+
+Portable colors include bounded opacity and perceptual blends. Semantic colors remain semantic through these operations. Color composition has a maximum depth of eight.
