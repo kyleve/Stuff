@@ -1201,6 +1201,36 @@ struct WhereStylesheetTests {
 /// BroadwayUI's `BContextEnvironmentTests`.
 @MainActor
 struct WhereStylesheetEnvironmentTests {
+    @Test func customDocumentUpdatesMountedRootWithoutChangingIdentity() throws {
+        func prepare(radius: Double) throws -> PreparedWhereThemeDocument {
+            var appearance = WhereThemeAppearance()
+            appearance.card = .init()
+            appearance.card?.regular = .init()
+            appearance.card?.regular?.cornerRadius = .constant(radius)
+            let validated = try ValidatedWhereThemeDocument(
+                document: themeDocument(appearance: appearance, fallback: .flat),
+                resources: .init(images: [], symbols: []),
+            )
+            return try PreparedWhereThemeDocument(
+                validated: validated,
+                assets: .init(images: [:], symbols: [:]),
+            )
+        }
+        let box = StylesheetProbeBox()
+        func content(_ theme: PreparedWhereThemeDocument) -> some View {
+            StylesheetProbe(box: box).whereBroadwayRoot(themeDocument: theme)
+        }
+        let first = try prepare(radius: 12)
+        let second = try prepare(radius: 24)
+        let host = UIHostingController(rootView: content(first))
+        try show(host) { _ in
+            try waitFor { box.sheet?.card.regular.cornerRadius == 12 }
+            #expect(box.sheet?.theme == .alternate)
+            host.rootView = content(second)
+            try waitFor { box.sheet?.card.regular.cornerRadius == 24 }
+        }
+    }
+
     @Test func fallsBackToDefaultWithoutAContext() {
         #expect(EnvironmentValues().stylesheet == .default)
     }

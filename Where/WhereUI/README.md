@@ -691,3 +691,31 @@ for changes confined to a child component. Standard references keep existing pat
 Flat screen references use `flat/`, and comparison sheets use `themes/`. Special
 traits nest under the group's `other/` directory. Review sheet PNGs before recording. Their embedded panel maps are part of the
 reference; preserve PNG metadata when copying them.
+
+## Portable themes
+
+`WhereThemeDocument` is a versioned Codable value with a typed identity, a built-in fallback, sparse appearance overrides, and decorative layers. The fallback is Standard or Flat. A custom theme cannot inherit from another custom theme.
+
+`WhereThemeAppearance` follows the component structure of `WhereStylesheet`. Each optional field inherits when omitted. Scalar values use Broadway's `BThemeValue`: either a constant or explicit light/dark values. Arrays replace the inherited array. Matte finishes and tint adjustments inherit individual omitted fields. Selecting matte over a reflective fallback starts from opaque neutral paper. `WhereThemeOptional.clear` removes an optional component; `.value` supplies its override. A newly enabled optional component starts from its documented native specimen before applying its patch.
+
+The built-in fallback remains the source of omitted defaults. Therefore, an omitted value can follow a new app version's design. Schema version 1 does not freeze the built-in design across app releases. Standard and Flat retain the persisted `standard` and `alternate` identities.
+
+Prepare themes before passing them to a view:
+
+```swift
+let validated = try ValidatedWhereThemeDocument.decode(data, resources: assets.resources)
+let prepared = try PreparedWhereThemeDocument(validated: validated, assets: assets)
+content.whereBroadwayRoot(themeDocument: prepared)
+```
+
+The validation and preparation APIs throw without changing the selected theme. A caller can keep its last accepted theme when new input fails. This phase adds no downloader, import screen, persistence, or user-facing custom-theme picker.
+
+The stylesheet resolves the built-in fallback, applies the document, and preserves the fallback's required accessibility adjustments. Runtime region colors and Card Designer drafts retain their existing ownership. Launch scheduling, data-reduction limits, and cache policy remain native values.
+
+Layer slots cover the Locations background and regular/compact card backgrounds and overlays. Each layer is a validated ViewDocument tree. Assets come from the injected registry. Layers remain clipped to their host, cannot receive input, and are hidden from accessibility. Reduce Transparency and Increased Contrast hide decorations. Reduce Motion and snapshot capture use static poses. Inactive or disappeared surfaces stop animation.
+
+The combined document has a byte limit and a shared node/animation budget across its slots. Validation also checks each layer's depth, identities, resources, and modifiers. Numeric appearance validation rejects non-finite values and unsafe pattern density.
+
+The bundled `HalloweenTheme.json` and `ChristmasTheme.json` demonstrate sparse JSON. `WhereThemePreview` loads both through the production boundary under DEBUG. The previews render production Locations artwork and regular/compact cards.
+
+Tests cover fallback parity, accessibility precedence, mode validation, explicit zero and clear operations, array replacement, component mappings, resources, and host bounds. `WhereThemePreviewSnapshotTests` covers the seasonal examples in light/dark and accessibility captures. Real Locations captures also exercise both seasonal documents. Existing card and Locations snapshots guard built-in appearance.

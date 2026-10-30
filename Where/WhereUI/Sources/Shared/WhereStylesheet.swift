@@ -50,7 +50,8 @@ struct WhereStylesheet: BStylesheet {
         // of tokens that should react to the current traits. Everything else
         // stays constant, so a default/system context reproduces `default`.
         let traits = context.traits
-        theme = context.themes[WhereTheme.self]
+        let document = context.themes[WhereDocumentTheme.self].document?.document
+        theme = document?.fallback.theme ?? context.themes[WhereTheme.self]
 
         developerOverlay.launcher.diameter = BScaledDimension.value(
             developerOverlay.launcher.diameter,
@@ -58,74 +59,7 @@ struct WhereStylesheet: BStylesheet {
             category: traits.contentSizeCategory,
         )
 
-        // Grow day-grid tap targets at accessibility Dynamic Type sizes.
-        if traits.contentSizeCategory.isAccessibilitySize {
-            locationWelcome.accessory.copy = .compact
-            locationForecast.header.layout = .stacked
-            locationForecast.row.layout = .stacked
-            locationForecast.controls.layout = .stacked
-            privacyPassportCard.headerLayout = .stacked
-            privacyPassportCard.disclosure.layout = .stacked
-            themePicker.layout = .stacked
-            yearModePicker.layout = .stacked
-            openSourceStamp.layout = .stacked
-            plannedStayWarningStamp.layout = .stacked
-            featureDiscovery.appIcon.layout = .stacked
-            featureDiscovery.regionStyle.layout = .stacked
-            featureDiscovery.shareSheet = .accessible
-            featureDiscovery.evidenceArchive = .accessible
-            calendar.overview.columns = 1
-            calendar.overview.dayHeight = 28
-            calendar.overview.dayFontSize = 16
-            calendar.overview.titleFontSize = 22
-            calendar.day.minHeight = 56
-            calendar.day.numberFontSize = 24
-            calendar.day.numberSize = 36
-            calendar.month.weekdayFontSize = 14
-            calendar.month.stacksFooter = true
-            timeline.overview.pinsToViewport = false
-            timeline.row.stacksDayCount = true
-            featureDiscovery.siri.bubble.indent = 0
-        }
-
-        // Give every region a consistently labeled ribbon band when tint
-        // alone is not an acceptable differentiator.
-        if traits.accessibility.shouldDifferentiateWithoutColor {
-            timeline.overview.pinsToViewport = false
-            timeline.ribbon.separatesRegions = true
-        }
-
-        // Reduce Transparency flattens the cards: drop the decorative rim-glow
-        // layer (the translucent halo) on both card variants.
-        if traits.accessibility.isReduceTransparencyEnabled {
-            locationForecast.summary.usesOpaquePaper = true
-            locationForecast.summary.shadowOpacity = 0
-            locationsBackground.showsInk = false
-            card.regular.glow.radius = 0
-            card.compact.glow.radius = 0
-            card.constellation.haloOpacity = 0
-            privacyPassportCard.disclosure.fillOpacity = 0.16
-        }
-
-        if traits.accessibility.isDarkerSystemColorsEnabled {
-            locationForecast.ink = .increasedContrast
-            openSourceStamp.ink = .increasedContrast
-            plannedStayWarningStamp.ink = .increasedContrast
-        }
-
-        // Reduce Motion stops the cards' day count rolling its digits; it
-        // crossfades to the new number instead.
-        if traits.accessibility.isReduceMotionEnabled {
-            calendar.overview.usesSpatialMotion = false
-            launch.reveal = .crossfade
-            launch.revealAnimation = motion.reducedReveal
-            launch.captionAnimation = nil
-            settings.flashAnimation = nil
-            card.dayCount = .reducedMotion
-            locationCardStack.overtake = .reducedMotion
-            locationWelcome.motion = .reduced
-            developerOverlay.menu.motion = .reduced
-        }
+        enforceThemeAccessibility(traits: traits, baseline: nil)
 
         // Pale, luminosity-only ink lifts the background security print off
         // dark glass without changing its hue or saturation on touch.
@@ -144,6 +78,150 @@ struct WhereStylesheet: BStylesheet {
         // Resolve theme finishes after shared traits so they retain their depth cues.
         let overrides = WhereThemeOverrides.resolve(theme: theme, traits: traits, base: self)
         overrides.apply(to: &self)
+        if let document {
+            let accessibleBase = self
+            try document.appearance.apply(
+                to: &self,
+                traits: traits,
+                appearance: BViewDocumentStylesheet(traits: traits).appearance,
+                path: "appearance",
+            )
+            if document.appearance.developerOverlay?.launcher?.diameter != nil {
+                developerOverlay.launcher.diameter = BScaledDimension.value(
+                    developerOverlay.launcher.diameter,
+                    relativeTo: .title2,
+                    category: traits.contentSizeCategory,
+                )
+            }
+            enforceThemeAccessibility(traits: traits, baseline: accessibleBase)
+            if traits.accessibility.isDarkerSystemColorsEnabled {
+                preserveSurfaceContrast(from: accessibleBase)
+            }
+        }
+    }
+
+    /// Custom finishes cannot weaken the fallback's high-contrast edge treatment.
+    private mutating func preserveSurfaceContrast(from baseline: Self) {
+        func protect(_ surface: SurfaceTreatment, minimum: SurfaceTreatment) -> SurfaceTreatment {
+            switch surface {
+                case .reflective:
+                    return minimum
+                case var .matte(value):
+                    let outline: MatteSurface.Outline = switch minimum {
+                        case let .matte(inherited): inherited.outline
+                        case .reflective: .init(opacity: 0.65, width: 1.5)
+                    }
+                    value.outline.opacity = max(value.outline.opacity, outline.opacity)
+                    value.outline.width = max(value.outline.width, outline.width)
+                    return .matte(value)
+            }
+        }
+        card.regular.surface = protect(card.regular.surface, minimum: baseline.card.regular.surface)
+        card.compact.surface = protect(card.compact.surface, minimum: baseline.card.compact.surface)
+        card.elsewherePaper.surface.outline.opacity = max(
+            card.elsewherePaper.surface.outline.opacity,
+            baseline.card.elsewherePaper.surface.outline.opacity,
+        )
+        card.elsewherePaper.surface.outline.width = max(
+            card.elsewherePaper.surface.outline.width,
+            baseline.card.elsewherePaper.surface.outline.width,
+        )
+        locationWelcome.surface = protect(
+            locationWelcome.surface,
+            minimum: baseline.locationWelcome.surface,
+        )
+        locationWelcome.close.surface = protect(
+            locationWelcome.close.surface,
+            minimum: baseline.locationWelcome.close.surface,
+        )
+        privacyPassportCard.surface = protect(
+            privacyPassportCard.surface,
+            minimum: baseline.privacyPassportCard.surface,
+        )
+        locationForecast.summary.treatment = protect(
+            locationForecast.summary.treatment,
+            minimum: baseline.locationForecast.summary.treatment,
+        )
+    }
+
+    private mutating func enforceThemeAccessibility(traits: BTraits, baseline: Self?) {
+        // Grow day-grid tap targets at accessibility Dynamic Type sizes.
+        if traits.contentSizeCategory.isAccessibilitySize {
+            locationWelcome.accessory.copy = baseline?.locationWelcome.accessory.copy ?? .compact
+            locationForecast.header.layout = baseline?.locationForecast.header.layout ?? .stacked
+            locationForecast.row.layout = baseline?.locationForecast.row.layout ?? .stacked
+            locationForecast.controls.layout = baseline?.locationForecast.controls
+                .layout ?? .stacked
+            privacyPassportCard.headerLayout = baseline?.privacyPassportCard
+                .headerLayout ?? .stacked
+            privacyPassportCard.disclosure.layout = baseline?.privacyPassportCard.disclosure
+                .layout ?? .stacked
+            themePicker.layout = baseline?.themePicker.layout ?? .stacked
+            yearModePicker.layout = baseline?.yearModePicker.layout ?? .stacked
+            openSourceStamp.layout = baseline?.openSourceStamp.layout ?? .stacked
+            plannedStayWarningStamp.layout = baseline?.plannedStayWarningStamp.layout ?? .stacked
+            featureDiscovery.appIcon.layout = baseline?.featureDiscovery.appIcon.layout ?? .stacked
+            featureDiscovery.regionStyle.layout = baseline?.featureDiscovery.regionStyle
+                .layout ?? .stacked
+            featureDiscovery.shareSheet = baseline?.featureDiscovery.shareSheet ?? .accessible
+            featureDiscovery.evidenceArchive = baseline?.featureDiscovery
+                .evidenceArchive ?? .accessible
+            calendar.overview.columns = baseline?.calendar.overview.columns ?? 1
+            calendar.overview.dayHeight = baseline?.calendar.overview.dayHeight ?? 28
+            calendar.overview.dayFontSize = baseline?.calendar.overview.dayFontSize ?? 16
+            calendar.overview.titleFontSize = baseline?.calendar.overview.titleFontSize ?? 22
+            calendar.day.minHeight = baseline?.calendar.day.minHeight ?? 56
+            calendar.day.numberFontSize = baseline?.calendar.day.numberFontSize ?? 24
+            calendar.day.numberSize = baseline?.calendar.day.numberSize ?? 36
+            calendar.month.weekdayFontSize = baseline?.calendar.month.weekdayFontSize ?? 14
+            calendar.month.stacksFooter = baseline?.calendar.month.stacksFooter ?? true
+            timeline.overview.pinsToViewport = baseline?.timeline.overview.pinsToViewport ?? false
+            timeline.row.stacksDayCount = baseline?.timeline.row.stacksDayCount ?? true
+            featureDiscovery.siri.bubble.indent = baseline?.featureDiscovery.siri.bubble.indent ?? 0
+        }
+
+        // Give every region a consistently labeled ribbon band when tint
+        // alone is not an acceptable differentiator.
+        if traits.accessibility.shouldDifferentiateWithoutColor {
+            timeline.overview.pinsToViewport = baseline?.timeline.overview.pinsToViewport ?? false
+            timeline.ribbon.separatesRegions = baseline?.timeline.ribbon.separatesRegions ?? true
+        }
+
+        // Reduce Transparency flattens the cards: drop the decorative rim-glow
+        // layer (the translucent halo) on both card variants.
+        if traits.accessibility.isReduceTransparencyEnabled {
+            locationForecast.summary.usesOpaquePaper = baseline?.locationForecast.summary
+                .usesOpaquePaper ?? true
+            locationForecast.summary.shadowOpacity = baseline?.locationForecast.summary
+                .shadowOpacity ?? 0
+            locationsBackground.showsInk = baseline?.locationsBackground.showsInk ?? false
+            card.regular.glow.radius = baseline?.card.regular.glow.radius ?? 0
+            card.compact.glow.radius = baseline?.card.compact.glow.radius ?? 0
+            card.constellation.haloOpacity = baseline?.card.constellation.haloOpacity ?? 0
+            privacyPassportCard.disclosure.fillOpacity = baseline?.privacyPassportCard.disclosure
+                .fillOpacity ?? 0.16
+        }
+
+        if traits.accessibility.isDarkerSystemColorsEnabled {
+            locationForecast.ink = baseline?.locationForecast.ink ?? .increasedContrast
+            openSourceStamp.ink = baseline?.openSourceStamp.ink ?? .increasedContrast
+            plannedStayWarningStamp.ink = baseline?.plannedStayWarningStamp
+                .ink ?? .increasedContrast
+        }
+
+        // Reduce Motion stops the cards' day count rolling its digits; it
+        // crossfades to the new number instead.
+        if traits.accessibility.isReduceMotionEnabled {
+            calendar.overview.usesSpatialMotion = baseline?.calendar.overview.usesSpatialMotion ?? false
+            launch.reveal = baseline?.launch.reveal ?? .crossfade
+            launch.revealAnimation = baseline?.launch.revealAnimation ?? motion.reducedReveal
+            launch.captionAnimation = baseline?.launch.captionAnimation ?? nil
+            settings.flashAnimation = baseline?.settings.flashAnimation ?? nil
+            card.dayCount = baseline?.card.dayCount ?? .reducedMotion
+            locationCardStack.overtake = baseline?.locationCardStack.overtake ?? .reducedMotion
+            locationWelcome.motion = baseline?.locationWelcome.motion ?? .reduced
+            developerOverlay.menu.motion = baseline?.developerOverlay.menu.motion ?? .reduced
+        }
     }
 
     /// The fixed token set: the fallback used off the `View` tree (layout
@@ -2756,10 +2834,21 @@ extension View {
     /// The root also owns and injects the region-outline `Path` cache so cards
     /// share render artifacts without a process-global UI singleton.
     public func whereBroadwayRoot(
+        themeDocument: PreparedWhereThemeDocument,
+        regionStyles: RegionStyleResolver = .default,
+    ) -> some View {
+        modifier(WhereBroadwayRootModifier(
+            theme: themeDocument.validated.document.fallback.theme,
+            regionStyles: regionStyles,
+            document: themeDocument,
+        ))
+    }
+
+    public func whereBroadwayRoot(
         theme: WhereTheme = .standard,
         regionStyles: RegionStyleResolver = .default,
     ) -> some View {
-        modifier(WhereBroadwayRootModifier(theme: theme, regionStyles: regionStyles))
+        modifier(WhereBroadwayRootModifier(theme: theme, regionStyles: regionStyles, document: nil))
     }
 }
 
@@ -2769,11 +2858,19 @@ extension View {
 private struct WhereBroadwayRootModifier: ViewModifier {
     let theme: WhereTheme
     let regionStyles: RegionStyleResolver
+    let document: PreparedWhereThemeDocument?
     @State private var regionOutlinePathCache = RegionOutlinePathCache()
+
+    private var themes: BThemes {
+        var values = WhereThemes.current(theme: theme)
+        values[WhereDocumentTheme.self] = .init(document: document?.validated)
+        return values
+    }
 
     func body(content: Content) -> some View {
         content
-            .broadwayRoot(themes: WhereThemes.current(theme: theme))
+            .broadwayRoot(themes: themes)
+            .environment(\.whereThemeDocument, document)
             .environment(\.regionStyles, regionStyles)
             .environment(\.regionOutlinePathCache, regionOutlinePathCache)
     }

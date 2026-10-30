@@ -406,8 +406,25 @@ struct RegionSummaryCard: View {
         .background { stampPaper }
     }
 
+    private var themeBackgroundSlot: WhereThemeDocument.Slot? {
+        switch variant {
+            case .regular: .regularCardBackground
+            case .compact: .compactCardBackground
+            case .elsewhere: nil
+        }
+    }
+
+    private var themeOverlaySlot: WhereThemeDocument.Slot? {
+        switch variant {
+            case .regular: .regularCardOverlay
+            case .compact: .compactCardOverlay
+            case .elsewhere: nil
+        }
+    }
+
     var body: some View {
         content
+            .whereThemeBackground(themeBackgroundSlot, cornerRadius: card.cornerRadius)
             .modifier(RegionCardSurface(
                 card: card,
                 glassTintOpacity: cardStyles.glassTintOpacity,
@@ -415,6 +432,7 @@ struct RegionSummaryCard: View {
                 interactive: interactive,
                 tilt: tilt,
             ))
+            .whereThemeOverlay(themeOverlaySlot, cornerRadius: card.cornerRadius)
             .accessibilityElement(children: .combine)
             .accessibilityLabel(accessibilityLabel)
             .accessibilityValue(places ?? "")
