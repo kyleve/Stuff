@@ -6,6 +6,7 @@ public struct BArtworkLayer<SurfaceShape: InsettableShape, Content: View>: View 
     private let placement: BArtworkPlacement
     private let shape: SurfaceShape
     private let role: BSurfaceLayerRole
+    private let maximumOutsets: ViewArtworkPlacement.Outsets?
     private let content: Content
     @Environment(\.bViewDocumentStylesheet) private var sheet
     /// Layout direction is local container geometry and can differ beneath the Broadway root.
@@ -15,11 +16,13 @@ public struct BArtworkLayer<SurfaceShape: InsettableShape, Content: View>: View 
         placement: BArtworkPlacement,
         shape: SurfaceShape,
         role: BSurfaceLayerRole,
+        maximumOutsets: ViewArtworkPlacement.Outsets? = nil,
         @ViewBuilder content: () -> Content,
     ) {
         self.placement = placement
         self.shape = shape
         self.role = role
+        self.maximumOutsets = maximumOutsets
         self.content = content()
     }
 
@@ -29,26 +32,29 @@ public struct BArtworkLayer<SurfaceShape: InsettableShape, Content: View>: View 
                 let geometry = placement.value.geometry(
                     in: .init(width: host.size.width, height: host.size.height),
                     rightToLeft: layoutDirection == .rightToLeft,
+                    maximumOutsets: maximumOutsets,
                 )
                 let frame = geometry.frame
                 let bounds = geometry.paintBounds
-                content
-                    .frame(width: frame.width, height: frame.height)
-                    .position(
-                        x: frame.x + frame.width / 2 - bounds.x,
-                        y: frame.y + frame.height / 2 - bounds.y,
-                    )
-                    .frame(width: bounds.width, height: bounds.height)
-                    .mask {
-                        BArtworkClip(
-                            shape: shape,
-                            host: host.size,
-                            paintBounds: bounds,
-                            plane: placement.value.plane,
+                if frame.width > 0, frame.height > 0 {
+                    content
+                        .frame(width: frame.width, height: frame.height)
+                        .position(
+                            x: frame.x + frame.width / 2 - bounds.x,
+                            y: frame.y + frame.height / 2 - bounds.y,
                         )
-                        .fill(style: FillStyle(eoFill: true))
-                    }
-                    .offset(x: bounds.x, y: bounds.y)
+                        .frame(width: bounds.width, height: bounds.height)
+                        .mask {
+                            BArtworkClip(
+                                shape: shape,
+                                host: host.size,
+                                paintBounds: bounds,
+                                plane: placement.value.plane,
+                            )
+                            .fill(style: FillStyle(eoFill: true))
+                        }
+                        .offset(x: bounds.x, y: bounds.y)
+                }
             }
             .allowsHitTesting(false)
             .accessibilityHidden(true)

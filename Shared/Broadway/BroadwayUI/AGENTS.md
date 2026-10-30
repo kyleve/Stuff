@@ -12,6 +12,7 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) and the group [`../AGENTS.md`](.
 - **Do not add `BTraitsObserver` to `BRootView`.** SwiftUI re-evaluates `body` on color-scheme and Dynamic Type changes.
 - **A `.task` mirrors `BAccessibility.changes()` into state.** Both rebuild the injected `BContext`.
 - **Context-building lives in `BRootContext.make(...)`.** That makes the trait mapping testable without a host.
+- Merge effective SwiftUI contrast into the root accessibility slice. A local override must not weaken the system setting. Guard: `BRootViewTests`.
 - **Make `\.bContext` prefer a synchronous SwiftUI value, and mirror to UIKit.**
 - **`BContext+SwiftUI` stores a SwiftUI-set context in a pure-SwiftUI `EnvironmentKey`.** That covers `BRootView`, `broadwayRoot`, and `bTraitOverrides`.
 - **Read it synchronously.** Do not round-trip through `UITraitCollection`. Do not accept first-frame lag.
@@ -23,6 +24,6 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) and the group [`../AGENTS.md`](.
 Run `BroadwayUITests` in `StuffTestHost`, linking `TestHostSupport` (`./test BroadwayUITests`).
 
 - Document decorations use validated, prepared content. Resolve scales and accessibility from the Broadway slice; inject host activity and snapshot motion policy. Keep networking and product attachment names in consumers.
-- Compose native content with `BSurface`. Its finish owns the inner material or transition source; exterior artwork stays outside that finish.
+- Compose native content with `BSurface`. Its finish owns the inner material or transition source; exterior artwork stays outside that finish. Preserve its explicit accessibility content shape after exterior composition.
 - Host artwork through validated `BArtworkPlacement` and `BArtworkLayer`. Keep paint bounds separate from layout and interaction. The parent reserves gaps and retains viewport clipping.
 - Essential layers remain visible under accessibility simplification. Exterior artwork may paint only in its bounded edge band and exterior zone; native content remains protected.
