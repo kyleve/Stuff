@@ -22,7 +22,7 @@ public struct ValidatedViewDocument: Hashable, Sendable {
             )
         }
         var validator = ViewDocumentValidator(resources: resources, limits: limits)
-        try validator.visit(document.root, path: "$.root", depth: 1)
+        try validator.visit(document.root, path: "$.root", depth: 1, inheritedScaleAmplification: 1)
         guard try JSONEncoder().encode(document).count <= limits.bytes else {
             throw ViewDocumentValidationError(path: "$", reason: "Document exceeds byte limit")
         }
