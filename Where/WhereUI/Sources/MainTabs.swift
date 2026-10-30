@@ -471,9 +471,8 @@ struct MainTabs: View {
                 now: session.now,
             )
             let cache = RegionOutlinePathCache()
-            let theme: PreparedWhereThemeDocument
-            do { theme = try WhereThemeExamples.halloween.prepare() }
-            catch { preconditionFailure("Invalid Halloween theme: \(error)") }
+            let model = PreviewSupport.loadedModel()
+            model.previewTheme(.halloween)
             try await session.services.setPrimaryRegions([
                 PrimaryRegion(region: .california, appearance: nil, order: 0),
                 PrimaryRegion(region: .newYork, appearance: nil, order: 1),
@@ -508,9 +507,9 @@ struct MainTabs: View {
             ) {
                 MainTabs(session: session, report: report, welcome: welcome, selection: selection)
                     .environment(session)
-                    .environment(PreviewSupport.loadedModel())
+                    .environment(model)
                     .environment(\.regionOutlinePathCache, cache)
-                    .whereBroadwayRoot(themeDocument: theme)
+                    .whereBroadwayRoot(theme: .halloween)
             }
         }
     }

@@ -21,6 +21,6 @@ struct CalendarContentViewSnapshotTests {
 
 extension CalendarContentView: WhereThemeSnapshotGate {
     static var lightDarkCases: Set<String> {
-        ["WithData", "YearOverview"]
+        ["WithData", "YearOverview", "YearOverviewPlannedStays"]
     }
 }

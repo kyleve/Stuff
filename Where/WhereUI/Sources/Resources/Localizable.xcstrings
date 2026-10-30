@@ -7473,39 +7473,6 @@
         }
       }
     },
-    "settings.appearance.preview.footer" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Preview for this session. Your saved theme stays unchanged."
-          }
-        }
-      }
-    },
-    "settings.appearance.preview.halloween" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Halloween"
-          }
-        }
-      }
-    },
-    "settings.appearance.preview.header" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Theme Preview"
-          }
-        }
-      }
-    },
     "settings.appearance.theme.footer" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -11349,6 +11316,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Flat"
+          }
+        }
+      }
+    },
+    "theme.halloween.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Illustrated pumpkins, warm paper, and deep plum colors."
+          }
+        }
+      }
+    },
+    "theme.halloween.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Halloween"
           }
         }
       }

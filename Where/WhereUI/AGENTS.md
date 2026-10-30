@@ -252,7 +252,7 @@ worked examples.
 - Apply native accessibility constraints after document resolution. Keep ornament separate from essential surfaces. Inject static-motion policy and actual host activity into Broadway's renderer.
 - Use component surfaces for interior and exterior artwork. Keep paint bounds finite, reserve gaps and gutters in parent layouts, and preserve viewport clipping. Exterior artwork must not expand interaction or accessibility bounds. Keep the inner card as the zoom source.
 - Validate host capabilities before injection. Keep List rows and joined timeline segments interior-only. Apply artwork spacing outside buttons and accessibility groups in other hosts. Guard: `WhereThemeComponentsCapabilitiesTests`.
-- Inject `WhereThemePreviewModel` only from the Development app composition root. Scope its selected document to the ready app. Never persist preview selection or publish it to widgets or App Intents.
+- Route every bundled theme through the saved `WhereTheme` selection and `whereBroadwayRoot`. Use the same selection flow in every app audience, including onboarding and relaunch. Guards: `WhereModelTests`, `WhereStylesheetEnvironmentTests`.
 - **Design new and changed custom components for every supported theme.**
   Resolve theme and accessibility choices in the owning `WhereStylesheet`
   component style. Views consume that style without checking the selected theme.

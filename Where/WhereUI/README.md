@@ -449,14 +449,14 @@ User-picked appearances and the original bespoke defaults take precedence.
 Glass and reflective artwork. Flat uses opaque, strongly colored paper with
 printed edges and neutral drop shadows. It keeps the passport artwork and
 omits sheen, luminous glows, and GPS-dot halos. The welcome, Elsewhere, privacy,
-and estimate surfaces share this finish. System chrome stays native.
+and estimate surfaces share this finish. Halloween adds illustrated edges and coordinated paper and ink colors. System chrome stays native.
 
 Theme assembly starts with the bundled JSON catalog. Standard defines every authored value.
-Flat inherits Standard and replaces its finishes. Both themes use the same complete resolved document path.
+Flat inherits Standard and replaces its finishes. Halloween inherits Flat. Every theme uses the same complete resolved document path.
 The stylesheet selects light or dark values, then applies native accessibility constraints.
 Runtime region colors and live Card Designer drafts retain their existing ownership.
 
-New custom components support both themes through their resolved styles.
+New custom components support every bundled theme through their resolved styles.
 The [module rules](AGENTS.md) define surface treatments and required snapshot coverage.
 
 Flat adjusts region text colors for contrast against its opaque fills.
@@ -464,8 +464,8 @@ The palette test covers every selectable region color in light and dark modes.
 
 Flat retains the persisted `alternate` raw value. Onboarding previews before
 commit. Appearance Settings persists immediately. Widgets and snippets
-receive the same identity through their cross-process snapshots. Their existing
-lightweight content and system backgrounds stay unchanged.
+receive the same identity through the widget presentation file and App Intents handoff.
+They retain their lightweight native content and system backgrounds.
 
 Both `RegionSummaryCard` sizes ask the root-owned `RegionOutlinePathCache` for
 region artwork. The watermark uses a medium path, and the stamp seal uses a
@@ -479,8 +479,8 @@ paper in dark mode. Silhouettes, stamps, and borders use the original region col
 with the shared decorative opacities. Text uses a separate contrast adjustment.
 Its cards omit annual progress bars. Compact primary specimens in theme pickers
 and galleries retain the selected Locations theme. Elsewhere uses the shared
-matte renderer in both themes. Flat supplies its outline and shadow and
-preserves the white or neutral-dark fill.
+matte renderer in Standard and Flat. Flat supplies its outline and shadow and
+preserves the white or neutral-dark fill. Halloween supplies its own paper, ink, and artwork.
 Regions without geometry retain the symbol treatment. On both tabs, recorded
 fixes for the selected year are projected through that same geometry and
 reduced to a clipped, static constellation of glowing pinpricks. Manually logged days add no invented
@@ -526,7 +526,7 @@ as dates pass. Appearance settings can hide estimates without removing plans or 
 The Estimated Time settings page also opens the planner.
 
 On Locations, the collapsible estimate uses soft glass with faint security print, primary-region watermarks, and a translucent black outer stroke.
-Flat appearance and Reduce Transparency use opaque paper. Calendar, Timeline, and discovery panels retain their passport-visa appearance.
+Flat and Halloween use opaque paper. Reduce Transparency also enforces opaque paper. Calendar, Timeline, and discovery panels retain their passport-visa appearance.
 The estimate's outline sits outside the card in both Standard and Flat, blending with the surrounding background.
 `LocationForecastSummary` owns the Locations disclosure and expansion state. It shares
 `LocationForecastContent` (forecast rows and planning controls) with the always-expanded
@@ -735,11 +735,11 @@ Native component fonts scale with Dynamic Type, including authored point-size ba
 Supporting text uses stronger document ink when a component supplies a foreground color. Built-in secondary text retains its existing system style.
 Reduce Motion and snapshots use authored static poses. Animation also depends on visibility, the selected tab, scene activity, and covering presentations.
 
-The Development app injects a session-only `WhereThemePreviewModel`. Appearance Settings can select Halloween.
-Selecting Standard or Flat clears the preview. Failed imports retain the last accepted theme and expose the error.
-Preview selection affects the ready app. Launch and onboarding use the saved built-in theme.
-Widgets, App Intents, Beta, and App Store do not select seasonal previews.
-This iteration includes no downloader or seasonal widget styling.
+Standard, Flat, and Halloween are saved `WhereTheme` choices in every app audience.
+Appearance Settings and onboarding share the adaptive picker. `RootView` applies the selection through `whereBroadwayRoot`, including launch and ready content.
+The existing widget and App Intents handoffs carry the same selection to their lightweight native surfaces.
+Imported documents use `WhereThemeCatalog.replacing` followed by `prepare`; callers accept the replacement only after both succeed.
+This iteration includes no downloader or additional widget artwork.
 
 The fast visual gate uses one iPhone size, normal Dynamic Type, and standard light/dark captures.
 Card and Locations comparisons pass before the remaining tabs. Extended entry points retain broader CI coverage and existing reference identities.

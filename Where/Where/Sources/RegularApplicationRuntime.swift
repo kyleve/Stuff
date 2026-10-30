@@ -18,9 +18,6 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
     let model: WhereModel
     let intentServices: IntentServices
     private let updates: UpdateModel?
-    #if WHERE_DEVELOPMENT
-        private let themePreview = WhereThemePreviewModel.bundledOrFallback()
-    #endif
     private let buildEnvironment: WhereBuildEnvironment
     private let widgetPresentationPublisher: WidgetPresentationPublisher
     private(set) var launcher: LifecycleRunner<WhereSession>!
@@ -174,11 +171,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
                 updates: updates,
                 developerLaunchController: developerLaunchController,
             )
-            #if WHERE_DEVELOPMENT
-                return AnyView(root.whereThemePreview(themePreview))
-            #else
-                return AnyView(root)
-            #endif
+            return AnyView(root)
         #else
             return AnyView(RootView(
                 model: model,

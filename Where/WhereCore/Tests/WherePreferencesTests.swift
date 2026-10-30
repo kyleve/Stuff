@@ -128,12 +128,13 @@ struct WherePreferencesTests {
         }
     }
 
-    @Test func themeRoundTripsAndUnknownValuesFallBackToStandard() {
+    @Test(arguments: WhereTheme.allCases)
+    func themeRoundTripsAndUnknownValuesFallBackToStandard(theme: WhereTheme) {
         let store = InMemoryKeyValueStore()
         let preferences = WherePreferences(store: store)
 
-        preferences.theme = .alternate
-        #expect(preferences.theme == .alternate)
+        preferences.theme = theme
+        #expect(WherePreferences(store: store).theme == theme)
 
         store.set("future-theme", forKey: "where.theme")
         #expect(preferences.theme == .standard)

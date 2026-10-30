@@ -173,7 +173,8 @@ private struct ResolveToolbarLabel: View {
     extension LocationsView: SnapshotProviding {
         /// Allow native glass adaptation and the background artwork to settle before capture.
         static var snapshots: [SnapshotCase] {
-            for theme in WhereTheme.allCases where theme != .standard {
+            // Halloween has full-screen and accessibility coverage in MainTabs snapshots.
+            for theme in [WhereTheme.alternate] {
                 artworkSnapshot(
                     name: "\(theme.snapshotReferenceGroup!.rawValue.capitalized)Loaded",
                     report: PreviewSupport.loadedYearReportModel(),

@@ -2963,5 +2963,6 @@ extension WhereStylesheet {
     struct ThemePickerStyle: Equatable {
         var layout = ContentLayout.inline
         var spacing: CGFloat = 12
+        var minimumOptionWidth: CGFloat = 180
     }
 }

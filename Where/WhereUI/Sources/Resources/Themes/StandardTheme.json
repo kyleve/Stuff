@@ -4373,6 +4373,11 @@
           }
         }
       },
+      "minimumOptionWidth": {
+        "constant": {
+          "_0": 180
+        }
+      },
       "spacing": {
         "constant": {
           "_0": 12

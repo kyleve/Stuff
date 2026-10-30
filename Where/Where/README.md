@@ -120,4 +120,4 @@ On a fresh install, onboarding recommends automatic recording On for an iPhone o
 Existing installations created before that choice was introduced revisit only the final recording page once.
 Enabling is the only path that asks for location access.
 
-Development builds also own one session-only `WhereThemePreviewModel`. Appearance Settings can preview Halloween across ready app content. Standard or Flat selection clears the preview. Launch and onboarding keep the saved theme. Beta, App Store, widgets, and App Intents receive no preview model.
+Standard, Flat, and Halloween share the saved theme preference and root rendering path in every audience. Appearance Settings saves the selection. Onboarding previews it through `WhereModel` and commits it on completion. The normal theme handoff supplies widgets and App Intents.

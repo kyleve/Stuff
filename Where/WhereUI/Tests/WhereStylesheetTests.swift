@@ -1210,7 +1210,7 @@ struct WhereStylesheetTests {
     }
 
     @MainActor
-    @Test(arguments: [BMode.light, .dark], WhereTheme.allCases)
+    @Test(arguments: [BMode.light, .dark], [WhereTheme.standard, .alternate])
     func calendarOverviewInkRemainsDistinctFromDetail(mode: BMode, theme: WhereTheme) throws {
         var context = BContext(traits: .system)
         context.traitOverrides.mode = mode
@@ -1260,6 +1260,23 @@ struct WhereStylesheetTests {
 /// BroadwayUI's `BContextEnvironmentTests`.
 @MainActor
 struct WhereStylesheetEnvironmentTests {
+    @Test(arguments: WhereTheme.allCases, [BMode.light, .dark])
+    func savedAndPreparedThemesUseTheSameRoot(theme: WhereTheme, mode: BMode) throws {
+        let saved = StylesheetProbeBox()
+        let supplied = StylesheetProbeBox()
+        let prepared = try WhereBundledThemes.prepared(theme)
+        let host = UIHostingController(rootView: VStack {
+            StylesheetProbe(box: saved).bMode(mode).whereBroadwayRoot(theme: theme)
+            StylesheetProbe(box: supplied).bMode(mode).whereBroadwayRoot(themeDocument: prepared)
+        })
+        try show(host) { _ in
+            try waitFor { saved.sheet != nil && supplied.sheet != nil }
+            #expect(saved.sheet == supplied.sheet)
+            #expect(saved.document == prepared.validated)
+            #expect(supplied.document == prepared.validated)
+        }
+    }
+
     @Test func customDocumentUpdatesMountedRootWithoutChangingIdentity() throws {
         func prepare(radius: Double) throws -> PreparedWhereThemeDocument {
             var appearance = WhereThemeAppearance()
@@ -1392,9 +1409,13 @@ struct WhereStylesheetEnvironmentTests {
             host.rootView = content(theme: .alternate)
             try waitFor { box.sheet?.card.regular.surface.usesReflection == false }
             #expect(box.sheet?.privacyPassportCard.surface.usesReflection == false)
+            host.rootView = content(theme: .halloween)
+            try waitFor { box.document?.resolved.id == .halloween }
+            #expect(box.sheet?.card.regular.cornerRadius == 26)
             host.rootView = content(theme: .standard)
             try waitFor { box.sheet?.card.regular.surface.usesReflection == true }
             #expect(box.sheet?.privacyPassportCard.surface.usesReflection == true)
+            #expect(box.document?.resolved.id == .standard)
         }
     }
 }
@@ -1403,15 +1424,18 @@ private final class StylesheetProbeBox {
     var calendarDayMinHeight: CGFloat?
     var theme: WhereTheme?
     var sheet: WhereStylesheet?
+    var document: ValidatedWhereThemeDocument?
 }
 
 private struct StylesheetProbe: View {
     let box: StylesheetProbeBox
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.whereThemeDocument) private var document
 
     var body: some View {
         Color.clear
+            .onChange(of: document?.validated, initial: true) { _, value in box.document = value }
             .onChange(of: stylesheet, initial: true) { _, value in box.sheet = value }
             .onChange(of: stylesheet.calendar.day.minHeight, initial: true) { _, newValue in
                 box.calendarDayMinHeight = newValue
