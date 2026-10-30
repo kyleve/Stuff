@@ -39,7 +39,6 @@ final class CalendarNavigationModel {
         return request
     }
 
-    var calendarScrollPosition = ScrollPosition(idType: CalendarPresentationModel.Target.self)
     @ObservationIgnored private var presentations: [CalendarZoomKey: CalendarPresentationModel] =
         [:]
     @ObservationIgnored private var sessionPresentation: CalendarPresentationModel?

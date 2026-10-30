@@ -175,7 +175,7 @@ Layering, localization, preview, and testing conventions live in the feature
   Each new snapshot configuration owns its fixture and readiness state. Transition tests retain one mounted scene.
   Adaptive shell captures apply their declared initial browse position after asynchronous fixture readiness.
 - Set `demoExitPresentation` to `.embedded` for isolated demo tools. Their Settings list must not call the containing app's lifecycle.
-- Keep rendered calendar anchors typed as `CalendarPresentationModel.Target`, preserving month and estimate destinations. Explicit reveal requests carry `CalendarDay`. Restore the visible month when a pane remounts.
+- Keep rendered calendar anchors typed as `CalendarPresentationModel.Target`, preserving month and estimate destinations. Keep the native scroll binding in the mounted view; restore the retained presentation target on remount. Explicit reveal requests carry `CalendarDay`.
   Ignore visibility callbacks from a superseded year. Scrolling must not issue companion-pane selection commands.
   Measure month sections and day rows eagerly so offscreen estimates cannot move a restored anchor.
 - Keep itinerary persistence, forecast bounds, overlaps, and Home projections in WhereCore.
