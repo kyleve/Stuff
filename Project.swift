@@ -715,6 +715,7 @@ let project = Project(
             bundleIdSuffix: "whereui",
             productDependency: "WhereUI",
             sources: ["Where/WhereUI/Tests/**"],
+            resources: ["Where/WhereUI/Tests/Fixtures/Themes/*.json"],
             // The parser initializes SwiftUI accessibility for hosted interaction tests,
             // including on fresh CI simulators with no accessibility tooling attached.
             extraPackageProducts: ["AccessibilitySnapshotParser", "LifecycleKit", "SFSafeSymbols"],

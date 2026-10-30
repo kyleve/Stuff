@@ -145,6 +145,8 @@ struct CalendarContentView: View {
         // Log View Mode: reveal an inspect badge for this calendar's events. A
         // no-op in release.
         .debugLogInspectable(WhereLog.session(CalendarViewLog.self))
+        .whereThemeScreen(.year)
+        .whereThemeActivity(planningDestination.wrappedValue == nil)
         .modifier(PlanningPresentation(
             report: report,
             destination: planningDestination,
@@ -239,6 +241,7 @@ struct CalendarContentView: View {
                                 }
                                 .id(target(for: month))
                                 .accessibilityFocused($focusedTarget, equals: target(for: month))
+                                .whereThemeArtworkSpace(.calendarMonth)
                             if showsForecast(after: month) {
                                 LocationForecastPanel(
                                     forecasts: calendarForecasts,
@@ -254,6 +257,7 @@ struct CalendarContentView: View {
                                     $focusedTarget,
                                     equals: .estimate(monthKey(month)),
                                 )
+                                .whereThemeArtworkSpace(.forecastPanel)
                             }
                         }
                     }
@@ -491,6 +495,7 @@ struct CalendarContentView: View {
             rejected: presentation.rejectedTarget == destination,
             trigger: presentation.rejectionCount,
         ))
+        .whereThemeArtworkSpace(.calendarMonth)
     }
 
     private func overviewEstimate(_ month: CalendarMonth) -> some View {
@@ -507,6 +512,7 @@ struct CalendarContentView: View {
             [.overview: [.tile(destination): $0]]
         }
         .accessibilityHint(String(localized: .calendarExpandEstimate))
+        .whereThemeArtworkSpace(.forecastPanel)
     }
 
     private func showsForecast(after month: CalendarMonth) -> Bool {

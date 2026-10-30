@@ -9,9 +9,9 @@ extension WhereThemeAppearance {
         public var ink: BThemeValue<ViewColorDescriptor>?
         public var showsInk: BThemeValue<Bool>?
         public var preferredCellSize: BThemeValue<Double>?
-        public var artwork: WhereThemeAppearance.CardStyle.RegionShape.Artwork?
+        @CopyOnWrite public var artwork: WhereThemeAppearance.CardStyle.RegionShape.Artwork? = nil
         public var maximumAspectScale: BThemeValue<Double>?
-        public var rosette: WhereThemeAppearance.CardStyle.Rosette?
+        @CopyOnWrite public var rosette: WhereThemeAppearance.CardStyle.Rosette? = nil
         public var rosetteOpacity: BThemeValue<Double>?
 
         public init() {}
@@ -65,5 +65,21 @@ extension WhereThemeAppearance {
                 value.rosetteOpacity = resolved
             }
         }
+    }
+}
+
+extension WhereThemeAppearance.LocationsBackgroundStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.paper = paper ?? parent.paper
+        result.ink = ink ?? parent.ink
+        result.showsInk = showsInk ?? parent.showsInk
+        result.preferredCellSize = preferredCellSize ?? parent.preferredCellSize
+        result.artwork = inheritPatch(artwork, from: parent.artwork)
+        result.maximumAspectScale = maximumAspectScale ?? parent.maximumAspectScale
+        result.rosette = inheritPatch(rosette, from: parent.rosette)
+        result.rosetteOpacity = rosetteOpacity ?? parent.rosetteOpacity
+        return result
     }
 }

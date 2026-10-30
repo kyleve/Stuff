@@ -54,3 +54,14 @@ extension WhereThemeAppearance.LaunchStyle {
         }
     }
 }
+
+extension WhereThemeAppearance.LaunchStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.reveal = reveal ?? parent.reveal
+        result.revealAnimation = revealAnimation ?? parent.revealAnimation
+        result.captionAnimation = captionAnimation ?? parent.captionAnimation
+        return result
+    }
+}

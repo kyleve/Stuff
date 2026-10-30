@@ -39,9 +39,16 @@ struct LocationForecastSummary: View {
             LocationForecastSummarySurface(artwork: artworkModel
                 .artwork(for: primaryRegions) ?? [])
         }
+        .overlay { WhereComponentArtwork(
+            role: .summary,
+            plane: .exterior,
+            shape: RoundedRectangle(cornerRadius: style.summary.cornerRadius),
+        ) }
         .regionArtworkTask(id: primaryRegions, model: artworkModel) { cache in
             await LocationForecastArtworkLoader.loadSummary(regions: primaryRegions, cache: cache)
         }
+        .modifier(WhereComponentTextStyle(role: .summary))
+        .whereThemeArtworkSpace(.summary)
     }
 
     private func toggleExpansion() {

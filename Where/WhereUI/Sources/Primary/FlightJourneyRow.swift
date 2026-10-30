@@ -25,14 +25,14 @@ struct FlightJourneyRow: View {
                             end: period.end,
                             calendar: calendar,
                         ))
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption).foregroundStyle(.whereSecondary)
                     }
                     if arrival.isTimingUncertain {
                         Text(.flightStatusUncertainTitle)
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.caption).foregroundStyle(.whereSecondary)
                         Text(String(localized: .flightStatusGroundObserved(arrival.firstGroundAt
                                 .formatted(.dateTime.month(.abbreviated).day().hour().minute()))))
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.caption).foregroundStyle(.whereSecondary)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

@@ -16,6 +16,7 @@ struct MonthGridView: View {
     var isAvailable = true
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.whereComponentStylesheet) private var components
 
     private var calendar: WhereStylesheet.CalendarStyle {
         compact ? stylesheet.calendar.compact : stylesheet.calendar
@@ -62,15 +63,15 @@ struct MonthGridView: View {
         }
         .padding(calendar.month.padding)
         .foregroundStyle(card.foreground)
-        .background {
-            // Transparent month cards share the screen background. The current
-            // month stands out through its accent text and heavier border.
-            cardShape
-                .fill(card.fill)
-                .overlay {
-                    cardShape.strokeBorder(card.border, lineWidth: card.borderWidth)
-                }
+        .whereThemePanel(
+            .calendarMonth,
+            in: cardShape,
+            tint: components[.calendarMonth].foreground ?? .primary,
+        ) {
+            if components[.calendarMonth].surface == nil,
+               components[.calendarMonth].background == nil { cardShape.fill(card.fill) }
         }
+        .overlay { cardShape.strokeBorder(card.border, lineWidth: card.borderWidth) }
         .contentShape(cardShape)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(monthAccessibility.label)
@@ -80,7 +81,7 @@ struct MonthGridView: View {
     private var monthHeading: some View {
         Text(monthName)
             .font(compact ? .system(size: calendar.overview.titleFontSize, weight: .semibold) :
-                .title.weight(.semibold))
+                (components[.calendarMonth].heading ?? .title.weight(.semibold)))
             .frame(maxWidth: .infinity, alignment: .leading)
             .foregroundStyle(isAvailable ? card.foreground : calendar.overview
                 .unavailableForeground)
@@ -116,7 +117,7 @@ struct MonthGridView: View {
                     }
                 }
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.whereSecondary)
             }
         }
     }
@@ -136,7 +137,7 @@ struct MonthGridView: View {
                     Text(symbol)
                         .font(.system(size: calendar.month.weekdayFontSize))
                         .lineLimit(1)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.whereSecondary)
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -327,7 +328,7 @@ private struct MonthFooter: View {
             Text(WhereFormat.dayCount(tally.days))
                 .font(.subheadline)
                 .monospacedDigit()
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.whereSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .opacity(focusedRegion == nil || isFocused ? 1 : calendar.month.unfocusedRowOpacity)

@@ -28,3 +28,13 @@ extension WhereThemeAppearance {
         }
     }
 }
+
+extension WhereThemeAppearance.ThemePickerStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.layout = layout ?? parent.layout
+        result.spacing = spacing ?? parent.spacing
+        return result
+    }
+}

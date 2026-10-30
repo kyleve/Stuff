@@ -105,6 +105,8 @@ struct LocationsView: View {
                 .bHorizontalSizeClass(arrangement == .compact ? .compact : .regular)
             }
         }
+        .whereThemeActivity(!navigation.showingResolution && navigation
+            .planningDestination == nil && navigation.flightReview == nil)
         .sheet(item: $navigation.flightReview) { review in
             NavigationStack {
                 FlightDayDetailView(review: review, report: report)
@@ -291,10 +293,10 @@ struct LocationsContent: View {
 
     var body: some View {
         screen
+            .modifier(WhereComponentTextStyle(role: .locations))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background {
                 LocationsBackground(regions: backgroundRegions)
-                    .whereThemeOverlay(.locationsBackground)
                     .ignoresSafeArea()
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -303,7 +305,8 @@ struct LocationsContent: View {
                     LocationsToolbar(report: report, navigation: navigation)
                 }
             }
-            .environment(\.whereThemeLayersAreActive, !navigation.showingResolution && navigation.planningDestination == nil && navigation.flightReview == nil)
+            .whereThemeActivity(!navigation.showingResolution && navigation
+                .planningDestination == nil && navigation.flightReview == nil)
             .observesTilt(tilt, enabled: isCardSurfaceUncovered && cardSurface.usesReflection)
             .debugLogInspectable(WhereLog.session(YearReportModelLog.self))
     }

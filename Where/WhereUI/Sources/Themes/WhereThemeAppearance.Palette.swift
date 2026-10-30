@@ -5,9 +5,9 @@ import ViewDocumentUI
 
 extension WhereThemeAppearance {
     public struct Palette: Codable, Hashable, Sendable {
-        public var primary: WhereThemeAppearance.Palette.Primary?
-        public var splash: WhereThemeAppearance.Palette.Splash?
-        public var onboarding: WhereThemeAppearance.Palette.Onboarding?
+        @CopyOnWrite public var primary: WhereThemeAppearance.Palette.Primary? = nil
+        @CopyOnWrite public var splash: WhereThemeAppearance.Palette.Splash? = nil
+        @CopyOnWrite public var onboarding: WhereThemeAppearance.Palette.Onboarding? = nil
 
         public init() {}
 
@@ -129,5 +129,48 @@ extension WhereThemeAppearance.Palette {
                 value.iconGlow = appearance.color(resolved)
             }
         }
+    }
+}
+
+extension WhereThemeAppearance.Palette: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.primary = inheritPatch(primary, from: parent.primary)
+        result.splash = inheritPatch(splash, from: parent.splash)
+        result.onboarding = inheritPatch(onboarding, from: parent.onboarding)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.Palette.Onboarding: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.backgroundTop = backgroundTop ?? parent.backgroundTop
+        result.backgroundBottom = backgroundBottom ?? parent.backgroundBottom
+        return result
+    }
+}
+
+extension WhereThemeAppearance.Palette.Primary: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.backgroundTop = backgroundTop ?? parent.backgroundTop
+        result.backgroundBottom = backgroundBottom ?? parent.backgroundBottom
+        return result
+    }
+}
+
+extension WhereThemeAppearance.Palette.Splash: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.background = background ?? parent.background
+        result.vignetteCenter = vignetteCenter ?? parent.vignetteCenter
+        result.vignetteEdge = vignetteEdge ?? parent.vignetteEdge
+        result.iconGlow = iconGlow ?? parent.iconGlow
+        return result
     }
 }

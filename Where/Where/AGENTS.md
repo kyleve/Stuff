@@ -36,6 +36,8 @@ layering, and the domain rules this target merely starts up.
 
 ## Invariants
 
+- Construct the session-only theme preview model only under `WHERE_DEVELOPMENT` in the regular runtime. Inject it into WhereUI; apply it only to ready content. Never pass preview selection to preferences, widget publication, or App Intents.
+
 - Construct InstallerKit’s update service and model once in the regular runtime.
   Require the Development audience, valid local or published InstallerKit metadata, and a non-test
   process. Inject through `RootView`; foreground UI owns checking.

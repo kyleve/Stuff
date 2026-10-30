@@ -29,6 +29,7 @@ import BroadwayUI
                     )
                 }
                 .buttonStyle(cardStyle.buttonStyle(tint: previewStyle.tint))
+                .whereThemeArtworkSpace(variant.style == .regular ? .regularCard : .compactCard)
             }
             .environment(\.cardDesignerConfiguration, configuration)
             .environment(\.colorScheme, colorScheme)

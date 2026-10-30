@@ -199,6 +199,7 @@ public struct RootView: View {
                         initialDetails: model.initialYearDetails,
                         selectedYear: model.initialSelectedYear,
                     )
+                    .modifier(WhereReadyTheme())
                     .id(session.id)
                 }
             }

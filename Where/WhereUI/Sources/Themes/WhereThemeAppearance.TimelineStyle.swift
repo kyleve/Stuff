@@ -5,12 +5,12 @@ import ViewDocumentUI
 
 extension WhereThemeAppearance {
     public struct TimelineStyle: Codable, Hashable, Sendable {
-        public var flight: WhereThemeAppearance.TimelineStyle.Flight?
-        public var overview: WhereThemeAppearance.TimelineStyle.Overview?
-        public var ribbon: WhereThemeAppearance.TimelineStyle.Ribbon?
-        public var rail: WhereThemeAppearance.TimelineStyle.Rail?
-        public var row: WhereThemeAppearance.TimelineStyle.Row?
-        public var planned: WhereThemeAppearance.TimelineStyle.Planned?
+        @CopyOnWrite public var flight: WhereThemeAppearance.TimelineStyle.Flight? = nil
+        @CopyOnWrite public var overview: WhereThemeAppearance.TimelineStyle.Overview? = nil
+        @CopyOnWrite public var ribbon: WhereThemeAppearance.TimelineStyle.Ribbon? = nil
+        @CopyOnWrite public var rail: WhereThemeAppearance.TimelineStyle.Rail? = nil
+        @CopyOnWrite public var row: WhereThemeAppearance.TimelineStyle.Row? = nil
+        @CopyOnWrite public var planned: WhereThemeAppearance.TimelineStyle.Planned? = nil
 
         public init() {}
 
@@ -371,7 +371,7 @@ extension WhereThemeAppearance.TimelineStyle {
 
 extension WhereThemeAppearance.TimelineStyle {
     public struct Row: Codable, Hashable, Sendable {
-        public var singleDay: WhereThemeAppearance.TimelineStyle.Row.Sizing?
+        @CopyOnWrite public var singleDay: WhereThemeAppearance.TimelineStyle.Row.Sizing? = nil
         public var spacing: BThemeValue<Double>?
         public var labelSpacing: BThemeValue<Double>?
         public var gap: BThemeValue<Double>?
@@ -505,5 +505,133 @@ extension WhereThemeAppearance.TimelineStyle.Row {
                 value.verticalPadding = CGFloat(resolved)
             }
         }
+    }
+}
+
+extension WhereThemeAppearance.TimelineStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.flight = inheritPatch(flight, from: parent.flight)
+        result.overview = inheritPatch(overview, from: parent.overview)
+        result.ribbon = inheritPatch(ribbon, from: parent.ribbon)
+        result.rail = inheritPatch(rail, from: parent.rail)
+        result.row = inheritPatch(row, from: parent.row)
+        result.planned = inheritPatch(planned, from: parent.planned)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.TimelineStyle.Flight: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.iconFont = iconFont ?? parent.iconFont
+        result.verticalPadding = verticalPadding ?? parent.verticalPadding
+        result.labelSpacing = labelSpacing ?? parent.labelSpacing
+        result.tint = tint ?? parent.tint
+        return result
+    }
+}
+
+extension WhereThemeAppearance.TimelineStyle.Overview: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.spacing = spacing ?? parent.spacing
+        result.padding = padding ?? parent.padding
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.background = background ?? parent.background
+        result.border = border ?? parent.border
+        result.borderWidth = borderWidth ?? parent.borderWidth
+        result.yearFont = yearFont ?? parent.yearFont
+        result.pinsToViewport = pinsToViewport ?? parent.pinsToViewport
+        return result
+    }
+}
+
+extension WhereThemeAppearance.TimelineStyle.Planned: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.fillOpacity = fillOpacity ?? parent.fillOpacity
+        result.borderOpacity = borderOpacity ?? parent.borderOpacity
+        result.hatchOpacity = hatchOpacity ?? parent.hatchOpacity
+        result.hatchSpacing = hatchSpacing ?? parent.hatchSpacing
+        result.hatchLineWidth = hatchLineWidth ?? parent.hatchLineWidth
+        result.labelOpacity = labelOpacity ?? parent.labelOpacity
+        result.transitionHeight = transitionHeight ?? parent.transitionHeight
+        result.joinedBaseHeight = joinedBaseHeight ?? parent.joinedBaseHeight
+        result.joinedVerticalPadding = joinedVerticalPadding ?? parent.joinedVerticalPadding
+        result.joinedLabelSpacing = joinedLabelSpacing ?? parent.joinedLabelSpacing
+        result.joinedCountHorizontalPadding = joinedCountHorizontalPadding ?? parent
+            .joinedCountHorizontalPadding
+        result.joinedCountVerticalPadding = joinedCountVerticalPadding ?? parent
+            .joinedCountVerticalPadding
+        return result
+    }
+}
+
+extension WhereThemeAppearance.TimelineStyle.Rail: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.lineWidth = lineWidth ?? parent.lineWidth
+        result.toCardSpacing = toCardSpacing ?? parent.toCardSpacing
+        result.nodeSize = nodeSize ?? parent.nodeSize
+        result.nodeEmojiFont = nodeEmojiFont ?? parent.nodeEmojiFont
+        result.nodeFillOpacity = nodeFillOpacity ?? parent.nodeFillOpacity
+        result.nodeStrokeWidth = nodeStrokeWidth ?? parent.nodeStrokeWidth
+        return result
+    }
+}
+
+extension WhereThemeAppearance.TimelineStyle.Ribbon: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.monthLabelSpacing = monthLabelSpacing ?? parent.monthLabelSpacing
+        result.height = height ?? parent.height
+        result.track = track ?? parent.track
+        result.border = border ?? parent.border
+        result.borderWidth = borderWidth ?? parent.borderWidth
+        result.regionSpacing = regionSpacing ?? parent.regionSpacing
+        result.regionLabelSpacing = regionLabelSpacing ?? parent.regionLabelSpacing
+        result.separatesRegions = separatesRegions ?? parent.separatesRegions
+        return result
+    }
+}
+
+extension WhereThemeAppearance.TimelineStyle.Row: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.singleDay = inheritPatch(singleDay, from: parent.singleDay)
+        result.spacing = spacing ?? parent.spacing
+        result.labelSpacing = labelSpacing ?? parent.labelSpacing
+        result.gap = gap ?? parent.gap
+        result.baseHeight = baseHeight ?? parent.baseHeight
+        result.yearScaleHeight = yearScaleHeight ?? parent.yearScaleHeight
+        result.horizontalPadding = horizontalPadding ?? parent.horizontalPadding
+        result.verticalPadding = verticalPadding ?? parent.verticalPadding
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.fillOpacity = fillOpacity ?? parent.fillOpacity
+        result.borderOpacity = borderOpacity ?? parent.borderOpacity
+        result.borderWidth = borderWidth ?? parent.borderWidth
+        result.countHorizontalPadding = countHorizontalPadding ?? parent.countHorizontalPadding
+        result.countVerticalPadding = countVerticalPadding ?? parent.countVerticalPadding
+        result.countFillOpacity = countFillOpacity ?? parent.countFillOpacity
+        result.stacksDayCount = stacksDayCount ?? parent.stacksDayCount
+        return result
+    }
+}
+
+extension WhereThemeAppearance.TimelineStyle.Row.Sizing: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.baseHeight = baseHeight ?? parent.baseHeight
+        result.verticalPadding = verticalPadding ?? parent.verticalPadding
+        return result
     }
 }

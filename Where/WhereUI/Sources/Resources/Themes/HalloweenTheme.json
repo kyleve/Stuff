@@ -1,113 +1,1715 @@
 {
-  "schemaVersion": 1,
-  "id": "halloween",
-  "fallback": "standard",
   "appearance": {
-    "locationsBackground": {
-      "rosetteOpacity": {
+    "card": {
+      "compact": {
+        "contentTint": {
+          "constant": {
+            "_0": {
+              "color": {
+                "modes": {
+                  "_0": {
+                    "dark": {
+                      "rgba": {
+                        "alpha": 1,
+                        "blue": 1.0,
+                        "green": 1.0,
+                        "red": 1.0
+                      }
+                    },
+                    "light": {
+                      "rgba": {
+                        "alpha": 1,
+                        "blue": 0.2196078431372549,
+                        "green": 0.12549019607843137,
+                        "red": 0.1843137254901961
+                      }
+                    }
+                  }
+                }
+              },
+              "fraction": 0.65
+            }
+          }
+        },
+        "cornerRadius": {
+          "constant": {
+            "_0": 20
+          }
+        },
+        "dayUnitTypography": {
+          "design": {
+            "constant": {
+              "_0": {
+                "rounded": {}
+              }
+            }
+          }
+        },
+        "heroNumberTypography": {
+          "design": {
+            "constant": {
+              "_0": {
+                "rounded": {}
+              }
+            }
+          }
+        },
+        "padding": {
+          "constant": {
+            "_0": 18
+          }
+        },
+        "progressBarHeight": {
+          "constant": {
+            "_0": 7
+          }
+        },
+        "regionNameTracking": {
+          "constant": {
+            "_0": 0
+          }
+        },
+        "regionNameTypography": {
+          "design": {
+            "constant": {
+              "_0": {
+                "rounded": {}
+              }
+            }
+          },
+          "weight": {
+            "constant": {
+              "_0": {
+                "bold": {}
+              }
+            }
+          }
+        }
+      },
+      "nameOpacity": {
         "constant": {
-          "_0": 0
+          "_0": 1
+        }
+      },
+      "regular": {
+        "contentTint": {
+          "constant": {
+            "_0": {
+              "color": {
+                "modes": {
+                  "_0": {
+                    "dark": {
+                      "rgba": {
+                        "alpha": 1,
+                        "blue": 1.0,
+                        "green": 1.0,
+                        "red": 1.0
+                      }
+                    },
+                    "light": {
+                      "rgba": {
+                        "alpha": 1,
+                        "blue": 0.2196078431372549,
+                        "green": 0.12549019607843137,
+                        "red": 0.1843137254901961
+                      }
+                    }
+                  }
+                }
+              },
+              "fraction": 0.65
+            }
+          }
+        },
+        "cornerRadius": {
+          "constant": {
+            "_0": 26
+          }
+        },
+        "dayUnitTypography": {
+          "design": {
+            "constant": {
+              "_0": {
+                "rounded": {}
+              }
+            }
+          }
+        },
+        "heroNumberTypography": {
+          "design": {
+            "constant": {
+              "_0": {
+                "rounded": {}
+              }
+            }
+          }
+        },
+        "padding": {
+          "constant": {
+            "_0": 24
+          }
+        },
+        "progressBarHeight": {
+          "constant": {
+            "_0": 7
+          }
+        },
+        "regionNameTracking": {
+          "constant": {
+            "_0": 0
+          }
+        },
+        "regionNameTypography": {
+          "design": {
+            "constant": {
+              "_0": {
+                "rounded": {}
+              }
+            }
+          },
+          "weight": {
+            "constant": {
+              "_0": {
+                "bold": {}
+              }
+            }
+          }
+        }
+      },
+      "securityPrint": {
+        "backgroundBlendMode": {
+          "constant": {
+            "_0": "normal"
+          }
+        }
+      },
+      "watermarkOpacity": {
+        "constant": {
+          "_0": 0.04
+        }
+      }
+    },
+    "locationForecast": {
+      "header": {
+        "elapsedFont": {
+          "constant": {
+            "_0": {
+              "design": "rounded",
+              "size": {
+                "semantic": {
+                  "_0": "subheadline"
+                }
+              },
+              "weight": "regular"
+            }
+          }
+        },
+        "titleFont": {
+          "constant": {
+            "_0": {
+              "design": "rounded",
+              "size": {
+                "semantic": {
+                  "_0": "title3"
+                }
+              },
+              "weight": "bold"
+            }
+          }
+        }
+      }
+    },
+    "locationsBackground": {
+      "ink": {
+        "modes": {
+          "_0": {
+            "dark": {
+              "rgba": {
+                "alpha": 1,
+                "blue": 0.8,
+                "green": 0.6431372549019608,
+                "red": 0.7333333333333333
+              }
+            },
+            "light": {
+              "rgba": {
+                "alpha": 1,
+                "blue": 0.6039215686274509,
+                "green": 0.45098039215686275,
+                "red": 0.5568627450980392
+              }
+            }
+          }
+        }
+      }
+    },
+    "privacyPassportCard": {
+      "outlineOpacity": {
+        "constant": {
+          "_0": 0.3
         }
       }
     }
   },
-  "layers": {
-    "locationsBackground": [
-      {
-        "schemaVersion": 1,
-        "root": {
-          "id": "halloween-background",
-          "content": {
-            "group": {
-              "axis": "vertical",
-              "alignment": "center",
-              "spacing": 0,
-              "children": [
+  "components": {
+    "calendarMonth": {
+      "artwork": [],
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "value": {
+          "_0": "heading"
+        }
+      },
+      "nativeArtwork": [],
+      "surface": {
+        "value": {
+          "_0": "halloween.lavender"
+        }
+      }
+    },
+    "compactCard": {
+      "artwork": [
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "shape": {
+                  "_0": {
+                    "rectangle": {}
+                  }
+                }
+              },
+              "id": "edge",
+              "modifiers": [
                 {
-                  "id": "above",
-                  "content": {
-                    "spacer": {
-                      "minimum": 0
+                  "foreground": {
+                    "_0": {
+                      "color": {
+                        "_0": {
+                          "rgba": {
+                            "alpha": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "red": 0
+                          }
+                        }
+                      }
                     }
-                  },
-                  "modifiers": [],
-                  "accessibility": {
-                    "hidden": {}
                   }
                 },
                 {
-                  "id": "bottom-row",
-                  "content": {
-                    "group": {
-                      "axis": "horizontal",
-                      "alignment": "center",
-                      "spacing": 0,
-                      "children": [
-                        {
-                          "id": "leading",
-                          "content": {
-                            "spacer": {
-                              "minimum": 0
-                            }
-                          },
-                          "modifiers": [],
-                          "accessibility": {
-                            "hidden": {}
-                          }
-                        },
-                        {
-                          "id": "pumpkin",
-                          "content": {
-                            "text": {
-                              "_0": "🎃"
-                            }
-                          },
-                          "modifiers": [
-                            {
-                              "font": {
-                                "_0": {
-                                  "size": {
-                                    "fixed": {
-                                      "_0": 88
-                                    }
-                                  }
-                                }
+                  "border": {
+                    "paint": {
+                      "color": {
+                        "_0": {
+                          "opacity": {
+                            "_0": {
+                              "semantic": {
+                                "_0": "primary"
                               }
                             },
-                            {
-                              "opacity": {
-                                "_0": 0.7
-                              }
-                            }
-                          ],
-                          "accessibility": {
-                            "hidden": {}
+                            "_1": 0.2
                           }
                         }
-                      ]
-                    }
-                  },
-                  "modifiers": [],
-                  "accessibility": {
-                    "hidden": {}
+                      }
+                    },
+                    "shape": {
+                      "roundedRectangle": {
+                        "radius": 20
+                      }
+                    },
+                    "width": 2.5
                   }
                 }
               ]
+            },
+            "schemaVersion": 1
+          },
+          "id": "edge",
+          "opacity": {
+            "constant": {
+              "_0": 1
             }
           },
-          "modifiers": [
-            {
-              "padding": {
-                "_0": {
-                  "points": {
-                    "_0": 24
+          "placement": {
+            "anchor": "center",
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
+            "outsets": {
+              "bottom": 0,
+              "leading": 0,
+              "top": 0,
+              "trailing": 0
+            },
+            "plane": "interior",
+            "size": {
+              "relative": {
+                "height": 1,
+                "maximumHeight": 2048,
+                "maximumWidth": 2048,
+                "width": 1
+              }
+            }
+          },
+          "role": "essential"
+        },
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "raster": {
+                  "_0": {
+                    "asset": "halloween.pumpkins",
+                    "sizing": {
+                      "fit": {}
+                    }
                   }
+                }
+              },
+              "id": "pumpkins",
+              "modifiers": []
+            },
+            "schemaVersion": 1
+          },
+          "id": "pumpkins",
+          "opacity": {
+            "constant": {
+              "_0": 1
+            }
+          },
+          "placement": {
+            "anchor": "bottomTrailing",
+            "offset": {
+              "x": 6,
+              "y": 38
+            },
+            "outsets": {
+              "bottom": 38,
+              "leading": 0,
+              "top": 0,
+              "trailing": 6
+            },
+            "plane": "exterior",
+            "size": {
+              "fixed": {
+                "height": 51,
+                "width": 70
+              }
+            }
+          },
+          "role": "ornament"
+        }
+      ],
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [
+        "watermark"
+      ],
+      "surface": {
+        "value": {
+          "_0": "halloween.paper"
+        }
+      }
+    },
+    "elsewhere": {
+      "artwork": [
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "raster": {
+                  "_0": {
+                    "asset": "halloween.moon",
+                    "sizing": {
+                      "fit": {}
+                    }
+                  }
+                }
+              },
+              "id": "moon",
+              "modifiers": []
+            },
+            "schemaVersion": 1
+          },
+          "id": "moon",
+          "opacity": {
+            "constant": {
+              "_0": 1
+            }
+          },
+          "placement": {
+            "anchor": "topLeading",
+            "offset": {
+              "x": 5,
+              "y": 15
+            },
+            "outsets": {
+              "bottom": 0,
+              "leading": 0,
+              "top": 0,
+              "trailing": 0
+            },
+            "plane": "interior",
+            "size": {
+              "fixed": {
+                "height": 96,
+                "width": 105
+              }
+            }
+          },
+          "role": "ornament"
+        },
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "raster": {
+                  "_0": {
+                    "asset": "halloween.vine",
+                    "sizing": {
+                      "fit": {}
+                    }
+                  }
+                }
+              },
+              "id": "garden",
+              "modifiers": []
+            },
+            "schemaVersion": 1
+          },
+          "id": "garden",
+          "opacity": {
+            "constant": {
+              "_0": 0.4
+            }
+          },
+          "placement": {
+            "anchor": "bottomTrailing",
+            "offset": {
+              "x": 20,
+              "y": 20
+            },
+            "outsets": {
+              "bottom": 0,
+              "leading": 0,
+              "top": 0,
+              "trailing": 0
+            },
+            "plane": "interior",
+            "size": {
+              "fixed": {
+                "height": 225,
+                "width": 150
+              }
+            }
+          },
+          "role": "ornament"
+        }
+      ],
+      "background": {
+        "value": {
+          "_0": "page"
+        }
+      },
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": []
+    },
+    "elsewhereCard": {
+      "artwork": [
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "shape": {
+                  "_0": {
+                    "rectangle": {}
+                  }
+                }
+              },
+              "id": "edge",
+              "modifiers": [
+                {
+                  "foreground": {
+                    "_0": {
+                      "color": {
+                        "_0": {
+                          "rgba": {
+                            "alpha": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "red": 0
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "border": {
+                    "paint": {
+                      "color": {
+                        "_0": {
+                          "opacity": {
+                            "_0": {
+                              "semantic": {
+                                "_0": "primary"
+                              }
+                            },
+                            "_1": 0.2
+                          }
+                        }
+                      }
+                    },
+                    "shape": {
+                      "roundedRectangle": {
+                        "radius": 20
+                      }
+                    },
+                    "width": 2.5
+                  }
+                }
+              ]
+            },
+            "schemaVersion": 1
+          },
+          "id": "edge",
+          "opacity": {
+            "constant": {
+              "_0": 1
+            }
+          },
+          "placement": {
+            "anchor": "center",
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
+            "outsets": {
+              "bottom": 0,
+              "leading": 0,
+              "top": 0,
+              "trailing": 0
+            },
+            "plane": "interior",
+            "size": {
+              "relative": {
+                "height": 1,
+                "maximumHeight": 2048,
+                "maximumWidth": 2048,
+                "width": 1
+              }
+            }
+          },
+          "role": "essential"
+        },
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "raster": {
+                  "_0": {
+                    "asset": "halloween.vine",
+                    "sizing": {
+                      "fit": {}
+                    }
+                  }
+                }
+              },
+              "id": "vine",
+              "modifiers": []
+            },
+            "schemaVersion": 1
+          },
+          "id": "vine",
+          "opacity": {
+            "constant": {
+              "_0": 0.25
+            }
+          },
+          "placement": {
+            "anchor": "topTrailing",
+            "offset": {
+              "x": 4,
+              "y": -4
+            },
+            "outsets": {
+              "bottom": 0,
+              "leading": 0,
+              "top": 0,
+              "trailing": 0
+            },
+            "plane": "interior",
+            "size": {
+              "fixed": {
+                "height": 64,
+                "width": 43
+              }
+            }
+          },
+          "role": "ornament"
+        }
+      ],
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [],
+      "surface": {
+        "value": {
+          "_0": "halloween.paper"
+        }
+      }
+    },
+    "forecastPanel": {
+      "artwork": [],
+      "body": {
+        "value": {
+          "_0": "forecastBody"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "value": {
+          "_0": "forecastHeading"
+        }
+      },
+      "nativeArtwork": [],
+      "surface": {
+        "value": {
+          "_0": "halloween.lavender"
+        }
+      }
+    },
+    "locations": {
+      "artwork": [
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "animation": {
+                "curve": "easeInOut",
+                "delay": 0,
+                "duration": 9,
+                "from": {
+                  "offsetX": 0,
+                  "offsetY": -2,
+                  "opacity": 1,
+                  "rotation": -1.4,
+                  "scaleX": 1,
+                  "scaleY": 1
+                },
+                "repetition": {
+                  "forever": {
+                    "autoreverses": true
+                  }
+                },
+                "staticPose": {
+                  "offsetX": 0,
+                  "offsetY": 0,
+                  "opacity": 1,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1
+                },
+                "to": {
+                  "offsetX": 0,
+                  "offsetY": 2,
+                  "opacity": 1,
+                  "rotation": 1.4,
+                  "scaleX": 1,
+                  "scaleY": 1
+                }
+              },
+              "content": {
+                "raster": {
+                  "_0": {
+                    "asset": "halloween.moon",
+                    "sizing": {
+                      "fit": {}
+                    }
+                  }
+                }
+              },
+              "id": "moon",
+              "modifiers": []
+            },
+            "schemaVersion": 1
+          },
+          "id": "moon",
+          "opacity": {
+            "constant": {
+              "_0": 1
+            }
+          },
+          "placement": {
+            "anchor": "topLeading",
+            "offset": {
+              "x": 9,
+              "y": 36
+            },
+            "outsets": {
+              "bottom": 0,
+              "leading": 0,
+              "top": 0,
+              "trailing": 0
+            },
+            "plane": "interior",
+            "size": {
+              "fixed": {
+                "height": 158,
+                "width": 172
+              }
+            }
+          },
+          "role": "ornament"
+        },
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "raster": {
+                  "_0": {
+                    "asset": "halloween.vine",
+                    "sizing": {
+                      "fit": {}
+                    }
+                  }
+                }
+              },
+              "id": "garden",
+              "modifiers": []
+            },
+            "schemaVersion": 1
+          },
+          "id": "garden",
+          "opacity": {
+            "constant": {
+              "_0": 0.4
+            }
+          },
+          "placement": {
+            "anchor": "bottomTrailing",
+            "offset": {
+              "x": 20,
+              "y": 20
+            },
+            "outsets": {
+              "bottom": 0,
+              "leading": 0,
+              "top": 0,
+              "trailing": 0
+            },
+            "plane": "interior",
+            "size": {
+              "fixed": {
+                "height": 225,
+                "width": 150
+              }
+            }
+          },
+          "role": "ornament"
+        }
+      ],
+      "background": {
+        "value": {
+          "_0": "page"
+        }
+      },
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": []
+    },
+    "privacy": {
+      "artwork": [],
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "value": {
+          "_0": "heading"
+        }
+      },
+      "nativeArtwork": [],
+      "surface": {
+        "value": {
+          "_0": "halloween.passport"
+        }
+      }
+    },
+    "regularCard": {
+      "artwork": [
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "shape": {
+                  "_0": {
+                    "rectangle": {}
+                  }
+                }
+              },
+              "id": "edge",
+              "modifiers": [
+                {
+                  "foreground": {
+                    "_0": {
+                      "color": {
+                        "_0": {
+                          "rgba": {
+                            "alpha": 0,
+                            "blue": 0,
+                            "green": 0,
+                            "red": 0
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "border": {
+                    "paint": {
+                      "color": {
+                        "_0": {
+                          "opacity": {
+                            "_0": {
+                              "semantic": {
+                                "_0": "primary"
+                              }
+                            },
+                            "_1": 0.2
+                          }
+                        }
+                      }
+                    },
+                    "shape": {
+                      "roundedRectangle": {
+                        "radius": 26
+                      }
+                    },
+                    "width": 2.5
+                  }
+                }
+              ]
+            },
+            "schemaVersion": 1
+          },
+          "id": "edge",
+          "opacity": {
+            "constant": {
+              "_0": 1
+            }
+          },
+          "placement": {
+            "anchor": "center",
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
+            "outsets": {
+              "bottom": 0,
+              "leading": 0,
+              "top": 0,
+              "trailing": 0
+            },
+            "plane": "interior",
+            "size": {
+              "relative": {
+                "height": 1,
+                "maximumHeight": 2048,
+                "maximumWidth": 2048,
+                "width": 1
+              }
+            }
+          },
+          "role": "essential"
+        },
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "raster": {
+                  "_0": {
+                    "asset": "halloween.vine",
+                    "sizing": {
+                      "fit": {}
+                    }
+                  }
+                }
+              },
+              "id": "vine",
+              "modifiers": []
+            },
+            "schemaVersion": 1
+          },
+          "id": "vine",
+          "opacity": {
+            "constant": {
+              "_0": 0.24
+            }
+          },
+          "placement": {
+            "anchor": "topTrailing",
+            "offset": {
+              "x": 7,
+              "y": -8
+            },
+            "outsets": {
+              "bottom": 0,
+              "leading": 0,
+              "top": 0,
+              "trailing": 0
+            },
+            "plane": "interior",
+            "size": {
+              "fixed": {
+                "height": 108,
+                "width": 72
+              }
+            }
+          },
+          "role": "ornament"
+        },
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "raster": {
+                  "_0": {
+                    "asset": "halloween.pumpkins",
+                    "sizing": {
+                      "fit": {}
+                    }
+                  }
+                }
+              },
+              "id": "pumpkins",
+              "modifiers": []
+            },
+            "schemaVersion": 1
+          },
+          "id": "pumpkins",
+          "opacity": {
+            "constant": {
+              "_0": 1
+            }
+          },
+          "placement": {
+            "anchor": "bottomTrailing",
+            "offset": {
+              "x": 12,
+              "y": 70
+            },
+            "outsets": {
+              "bottom": 70,
+              "leading": 0,
+              "top": 0,
+              "trailing": 12
+            },
+            "plane": "exterior",
+            "size": {
+              "fixed": {
+                "height": 92,
+                "width": 126
+              }
+            }
+          },
+          "role": "ornament"
+        }
+      ],
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [
+        "watermark"
+      ],
+      "surface": {
+        "value": {
+          "_0": "halloween.paper"
+        }
+      }
+    },
+    "section": {
+      "artwork": [],
+      "background": {
+        "value": {
+          "_0": "lavender"
+        }
+      },
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": [],
+      "surface": {
+        "clear": {}
+      }
+    },
+    "settings": {
+      "artwork": [
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "raster": {
+                  "_0": {
+                    "asset": "halloween.moon",
+                    "sizing": {
+                      "fit": {}
+                    }
+                  }
+                }
+              },
+              "id": "moon",
+              "modifiers": []
+            },
+            "schemaVersion": 1
+          },
+          "id": "moon",
+          "opacity": {
+            "constant": {
+              "_0": 0.7
+            }
+          },
+          "placement": {
+            "anchor": "topLeading",
+            "offset": {
+              "x": 14,
+              "y": 6
+            },
+            "outsets": {
+              "bottom": 0,
+              "leading": 0,
+              "top": 0,
+              "trailing": 0
+            },
+            "plane": "interior",
+            "size": {
+              "fixed": {
+                "height": 83,
+                "width": 90
+              }
+            }
+          },
+          "role": "ornament"
+        }
+      ],
+      "background": {
+        "value": {
+          "_0": "page"
+        }
+      },
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": []
+    },
+    "sheet": {
+      "artwork": [],
+      "background": {
+        "value": {
+          "_0": "page"
+        }
+      },
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": []
+    },
+    "summary": {
+      "artwork": [],
+      "body": {
+        "value": {
+          "_0": "forecastBody"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "value": {
+          "_0": "forecastHeading"
+        }
+      },
+      "nativeArtwork": [],
+      "surface": {
+        "value": {
+          "_0": "halloween.lavender"
+        }
+      }
+    },
+    "timelineEntry": {
+      "artwork": [],
+      "body": {
+        "value": {
+          "_0": "forecastBody"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "value": {
+          "_0": "heading"
+        }
+      },
+      "nativeArtwork": [],
+      "surface": {
+        "value": {
+          "_0": "halloween.paper"
+        }
+      }
+    },
+    "welcome": {
+      "artwork": [],
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "value": {
+          "_0": "heading"
+        }
+      },
+      "nativeArtwork": [],
+      "surface": {
+        "value": {
+          "_0": "halloween.paper"
+        }
+      }
+    },
+    "year": {
+      "artwork": [
+        {
+          "document": {
+            "root": {
+              "accessibility": {
+                "hidden": {}
+              },
+              "content": {
+                "raster": {
+                  "_0": {
+                    "asset": "halloween.vine",
+                    "sizing": {
+                      "fit": {}
+                    }
+                  }
+                }
+              },
+              "id": "vine",
+              "modifiers": []
+            },
+            "schemaVersion": 1
+          },
+          "id": "vine",
+          "opacity": {
+            "constant": {
+              "_0": 0.35
+            }
+          },
+          "placement": {
+            "anchor": "bottomTrailing",
+            "offset": {
+              "x": 10,
+              "y": 16
+            },
+            "outsets": {
+              "bottom": 0,
+              "leading": 0,
+              "top": 0,
+              "trailing": 0
+            },
+            "plane": "interior",
+            "size": {
+              "fixed": {
+                "height": 147,
+                "width": 98
+              }
+            }
+          },
+          "role": "ornament"
+        }
+      ],
+      "background": {
+        "value": {
+          "_0": "page"
+        }
+      },
+      "body": {
+        "value": {
+          "_0": "body"
+        }
+      },
+      "foreground": {
+        "value": {
+          "_0": "ink"
+        }
+      },
+      "heading": {
+        "clear": {}
+      },
+      "nativeArtwork": []
+    }
+  },
+  "id": "halloween",
+  "parent": "flat",
+  "schemaVersion": 2,
+  "values": {
+    "colors": [
+      {
+        "id": "page",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.19215686274509805,
+                  "green": 0.11764705882352941,
+                  "red": 0.1450980392156863
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.9098039215686274,
+                  "green": 0.9411764705882353,
+                  "red": 0.9647058823529412
                 }
               }
             }
-          ],
-          "accessibility": {
-            "hidden": {}
+          }
+        }
+      },
+      {
+        "id": "paper",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.2627450980392157,
+                  "green": 0.17254901960784313,
+                  "red": 0.2196078431372549
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.9176470588235294,
+                  "green": 0.9686274509803922,
+                  "red": 0.9921568627450981
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "lavender",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.24313725490196078,
+                  "green": 0.1450980392156863,
+                  "red": 0.18823529411764706
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.9490196078431372,
+                  "green": 0.8862745098039215,
+                  "red": 0.9215686274509803
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "ink",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.9294117647058824,
+                  "green": 0.8549019607843137,
+                  "red": 0.9098039215686274
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.32941176470588235,
+                  "green": 0.2235294117647059,
+                  "red": 0.3137254901960784
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "accent",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.4745098039215686,
+                  "green": 0.6980392156862745,
+                  "red": 0.9294117647058824
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 1,
+                  "blue": 0.21176470588235294,
+                  "green": 0.3058823529411765,
+                  "red": 0.5568627450980392
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "softShadow",
+        "value": {
+          "modes": {
+            "_0": {
+              "dark": {
+                "rgba": {
+                  "alpha": 0.32,
+                  "blue": 0.09411764705882353,
+                  "green": 0.043137254901960784,
+                  "red": 0.06274509803921569
+                }
+              },
+              "light": {
+                "rgba": {
+                  "alpha": 0.12,
+                  "blue": 0.32941176470588235,
+                  "green": 0.2235294117647059,
+                  "red": 0.3137254901960784
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "passport",
+        "value": {
+          "constant": {
+            "_0": {
+              "rgba": {
+                "alpha": 1,
+                "blue": 0.24,
+                "green": 0.12,
+                "red": 0.18
+              }
+            }
+          }
+        }
+      }
+    ],
+    "fonts": [
+      {
+        "id": "heading",
+        "value": {
+          "constant": {
+            "_0": {
+              "design": "rounded",
+              "size": {
+                "semantic": {
+                  "_0": "headline"
+                }
+              },
+              "weight": "semibold"
+            }
+          }
+        }
+      },
+      {
+        "id": "body",
+        "value": {
+          "constant": {
+            "_0": {
+              "design": "rounded",
+              "size": {
+                "semantic": {
+                  "_0": "body"
+                }
+              },
+              "weight": "regular"
+            }
+          }
+        }
+      },
+      {
+        "id": "forecastHeading",
+        "value": {
+          "constant": {
+            "_0": {
+              "design": "rounded",
+              "size": {
+                "semantic": {
+                  "_0": "title3"
+                }
+              },
+              "weight": "bold"
+            }
+          }
+        }
+      },
+      {
+        "id": "forecastBody",
+        "value": {
+          "constant": {
+            "_0": {
+              "design": "rounded",
+              "size": {
+                "semantic": {
+                  "_0": "subheadline"
+                }
+              },
+              "weight": "regular"
+            }
+          }
+        }
+      }
+    ],
+    "surfaces": [
+      {
+        "id": "halloween.paper",
+        "value": {
+          "constant": {
+            "_0": {
+              "paper": {
+                "_0": {
+                  "fill": "paper",
+                  "outline": {
+                    "opacity": 0.3,
+                    "width": 1.25
+                  },
+                  "pressedTintOpacity": 0.1,
+                  "shadow": {
+                    "color": "softShadow",
+                    "offsetY": 4,
+                    "radius": 9
+                  },
+                  "tintMix": 0.06
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "halloween.lavender",
+        "value": {
+          "constant": {
+            "_0": {
+              "paper": {
+                "_0": {
+                  "fill": "lavender",
+                  "outline": {
+                    "opacity": 0.3,
+                    "width": 1.25
+                  },
+                  "pressedTintOpacity": 0.1,
+                  "shadow": {
+                    "color": "softShadow",
+                    "offsetY": 4,
+                    "radius": 9
+                  },
+                  "tintMix": 0
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "halloween.passport",
+        "value": {
+          "constant": {
+            "_0": {
+              "paper": {
+                "_0": {
+                  "fill": "passport",
+                  "outline": {
+                    "opacity": 0.3,
+                    "width": 1.25
+                  },
+                  "pressedTintOpacity": 0.1,
+                  "shadow": {
+                    "color": "softShadow",
+                    "offsetY": 4,
+                    "radius": 9
+                  },
+                  "tintMix": 0
+                }
+              }
+            }
           }
         }
       }

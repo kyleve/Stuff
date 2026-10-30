@@ -16,6 +16,7 @@ struct LocationForecastPanel: View {
     }
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.whereComponentStylesheet) private var components
 
     private var style: WhereStylesheet.LocationForecastStyle {
         stylesheet.locationForecast
@@ -25,7 +26,11 @@ struct LocationForecastPanel: View {
         let shape = RoundedRectangle(cornerRadius: style.cornerRadius)
 
         VStack(alignment: .leading, spacing: style.rowSpacing) {
-            LocationForecastHeader(elapsedDays: forecasts.first?.elapsedDays, isExpanded: true)
+            LocationForecastHeader(
+                elapsedDays: forecasts.first?.elapsedDays,
+                isExpanded: true,
+                role: .forecastPanel,
+            )
             LocationForecastContent(
                 forecasts: forecasts,
                 homeRegion: homeRegion,
@@ -34,9 +39,14 @@ struct LocationForecastPanel: View {
         }
         .padding(style.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background {
+        .whereThemePanel(
+            .forecastPanel,
+            in: shape,
+            tint: components[.forecastPanel].foreground ?? .primary,
+        ) {
             ZStack {
-                shape.fill(.background)
+                if components[.forecastPanel].surface == nil,
+                   components[.forecastPanel].background == nil { shape.fill(.background) }
                 if style.ink.surfaceWashOpacity > 0 {
                     LinearGradient(
                         colors: [
@@ -48,15 +58,17 @@ struct LocationForecastPanel: View {
                         endPoint: .bottomTrailing,
                     )
                 }
-                SecurityPrintRosette(
-                    tint: .primary,
-                    wobble: style.surface.rosetteWobble,
-                    lineWidth: style.surface.rosetteLineWidth,
-                    primaryRingSpacing: style.surface.primaryRingSpacing,
-                    secondaryRingSpacing: style.surface.secondaryRingSpacing,
-                    primaryOpacity: style.ink.rosettePrimaryOpacity,
-                    secondaryOpacity: style.ink.rosetteSecondaryOpacity,
-                )
+                if components[.forecastPanel].nativeArtwork.contains(.rosette) {
+                    SecurityPrintRosette(
+                        tint: .primary,
+                        wobble: style.surface.rosetteWobble,
+                        lineWidth: style.surface.rosetteLineWidth,
+                        primaryRingSpacing: style.surface.primaryRingSpacing,
+                        secondaryRingSpacing: style.surface.secondaryRingSpacing,
+                        primaryOpacity: style.ink.rosettePrimaryOpacity,
+                        secondaryOpacity: style.ink.rosetteSecondaryOpacity,
+                    )
+                }
             }
             .clipShape(shape)
             .allowsHitTesting(false)
@@ -67,15 +79,17 @@ struct LocationForecastPanel: View {
                     Color.primary.opacity(style.ink.surfaceOutlineOpacity),
                     lineWidth: style.surface.outlineWidth,
                 )
-                RegionOutlineSecurityBorder(
-                    paths: regionBorderPaths,
-                    tint: .primary,
-                    cornerRadius: style.cornerRadius,
-                    inset: style.surface.inset,
-                    glyphSize: style.surface.microprintGlyphSize,
-                    spacing: style.surface.microprintSpacing,
-                    opacity: style.ink.microprintOpacity,
-                )
+                if components[.forecastPanel].nativeArtwork.contains(.microprint) {
+                    RegionOutlineSecurityBorder(
+                        paths: regionBorderPaths,
+                        tint: .primary,
+                        cornerRadius: style.cornerRadius,
+                        inset: style.surface.inset,
+                        glyphSize: style.surface.microprintGlyphSize,
+                        spacing: style.surface.microprintSpacing,
+                        opacity: style.ink.microprintOpacity,
+                    )
+                }
             }
             .allowsHitTesting(false)
         }

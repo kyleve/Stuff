@@ -71,3 +71,20 @@ extension WhereThemeAppearance {
         }
     }
 }
+
+extension WhereThemeAppearance.Spacing: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.xxSmall = xxSmall ?? parent.xxSmall
+        result.xSmall = xSmall ?? parent.xSmall
+        result.small = small ?? parent.small
+        result.medium = medium ?? parent.medium
+        result.regular = regular ?? parent.regular
+        result.large = large ?? parent.large
+        result.xLarge = xLarge ?? parent.xLarge
+        result.xxLarge = xxLarge ?? parent.xxLarge
+        result.xxxLarge = xxxLarge ?? parent.xxxLarge
+        return result
+    }
+}

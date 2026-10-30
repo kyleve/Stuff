@@ -5,12 +5,13 @@ import ViewDocumentUI
 
 extension WhereThemeAppearance {
     public struct DeveloperOverlayStyle: Codable, Hashable, Sendable {
-        public var launcher: WhereThemeAppearance.DeveloperOverlayStyle.Launcher?
+        @CopyOnWrite public var launcher: WhereThemeAppearance.DeveloperOverlayStyle.Launcher? = nil
         public var edgeInset: BThemeValue<Double>?
         public var presentationAnimation: BThemeValue<WhereThemeAnimation>?
-        public var floatingWindow: WhereThemeAppearance.DeveloperOverlayStyle.FloatingWindow?
-        public var panel: WhereThemeAppearance.DeveloperOverlayStyle.Panel?
-        public var menu: WhereThemeAppearance.DeveloperOverlayStyle.Menu?
+        @CopyOnWrite public var floatingWindow: WhereThemeAppearance.DeveloperOverlayStyle
+            .FloatingWindow? = nil
+        @CopyOnWrite public var panel: WhereThemeAppearance.DeveloperOverlayStyle.Panel? = nil
+        @CopyOnWrite public var menu: WhereThemeAppearance.DeveloperOverlayStyle.Menu? = nil
 
         public init() {}
 
@@ -159,7 +160,7 @@ extension WhereThemeAppearance.DeveloperOverlayStyle {
         public var cornerRadius: BThemeValue<Double>?
         public var subtitleSpacing: BThemeValue<Double>?
         public var iconWidth: BThemeValue<Double>?
-        public var motion: WhereThemeAppearance.DeveloperOverlayStyle.MenuMotion?
+        @CopyOnWrite public var motion: WhereThemeAppearance.DeveloperOverlayStyle.MenuMotion? = nil
 
         public init() {}
 
@@ -354,5 +355,96 @@ extension WhereThemeAppearance.DeveloperOverlayStyle {
                 value.resizeGripClearance = CGFloat(resolved)
             }
         }
+    }
+}
+
+extension WhereThemeAppearance.DeveloperOverlayStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.launcher = inheritPatch(launcher, from: parent.launcher)
+        result.edgeInset = edgeInset ?? parent.edgeInset
+        result.presentationAnimation = presentationAnimation ?? parent.presentationAnimation
+        result.floatingWindow = inheritPatch(floatingWindow, from: parent.floatingWindow)
+        result.panel = inheritPatch(panel, from: parent.panel)
+        result.menu = inheritPatch(menu, from: parent.menu)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.DeveloperOverlayStyle.FloatingWindow: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.maxWidth = maxWidth ?? parent.maxWidth
+        result.maxHeight = maxHeight ?? parent.maxHeight
+        result.heightFraction = heightFraction ?? parent.heightFraction
+        result.minSize = minSize ?? parent.minSize
+        result.maxContentInsetFraction = maxContentInsetFraction ?? parent.maxContentInsetFraction
+        return result
+    }
+}
+
+extension WhereThemeAppearance.DeveloperOverlayStyle.Launcher: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.diameter = diameter ?? parent.diameter
+        result.glyphRatio = glyphRatio ?? parent.glyphRatio
+        result.shadowColor = shadowColor ?? parent.shadowColor
+        result.shadowRadius = shadowRadius ?? parent.shadowRadius
+        result.shadowOffsetY = shadowOffsetY ?? parent.shadowOffsetY
+        return result
+    }
+}
+
+extension WhereThemeAppearance.DeveloperOverlayStyle.Menu: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.maxWidth = maxWidth ?? parent.maxWidth
+        result.launcherSpacing = launcherSpacing ?? parent.launcherSpacing
+        result.rowSpacing = rowSpacing ?? parent.rowSpacing
+        result.horizontalPadding = horizontalPadding ?? parent.horizontalPadding
+        result.verticalPadding = verticalPadding ?? parent.verticalPadding
+        result.minRowHeight = minRowHeight ?? parent.minRowHeight
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.subtitleSpacing = subtitleSpacing ?? parent.subtitleSpacing
+        result.iconWidth = iconWidth ?? parent.iconWidth
+        result.motion = inheritPatch(motion, from: parent.motion)
+        return result
+    }
+}
+
+extension WhereThemeAppearance.DeveloperOverlayStyle.MenuMotion: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.animation = animation ?? parent.animation
+        result.stagger = stagger ?? parent.stagger
+        result.scale = scale ?? parent.scale
+        result.usesSpatialMotion = usesSpatialMotion ?? parent.usesSpatialMotion
+        return result
+    }
+}
+
+extension WhereThemeAppearance.DeveloperOverlayStyle.Panel: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.cornerRadius = cornerRadius ?? parent.cornerRadius
+        result.fullScreenInset = fullScreenInset ?? parent.fullScreenInset
+        result.shadowOpacity = shadowOpacity ?? parent.shadowOpacity
+        result.shadowRadius = shadowRadius ?? parent.shadowRadius
+        result.shadowOffsetY = shadowOffsetY ?? parent.shadowOffsetY
+        result.controlHorizontalPadding = controlHorizontalPadding ?? parent
+            .controlHorizontalPadding
+        result.controlVerticalPadding = controlVerticalPadding ?? parent.controlVerticalPadding
+        result.dragHandleSize = dragHandleSize ?? parent.dragHandleSize
+        result.dragHandleMinHeight = dragHandleMinHeight ?? parent.dragHandleMinHeight
+        result.resizeGripSize = resizeGripSize ?? parent.resizeGripSize
+        result.resizeIconSize = resizeIconSize ?? parent.resizeIconSize
+        result.resizeGripClearance = resizeGripClearance ?? parent.resizeGripClearance
+        return result
     }
 }

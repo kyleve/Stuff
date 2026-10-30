@@ -152,6 +152,7 @@ struct PresenceTimelineList: View {
                                     homeRegion: report.forecasts.planning.homeRegion,
                                     planningAction: { planningDestination.wrappedValue = .list },
                                 )
+                                .whereThemeArtworkSpace(.forecastPanel)
                             }
                         }
                         .padding(.horizontal, stylesheet.spacing.xxLarge)
@@ -180,6 +181,8 @@ struct PresenceTimelineList: View {
                 }
             }
         }
+        .whereThemeScreen(.year)
+        .whereThemeActivity(planningDestination.wrappedValue == nil)
         .modifier(PlanningPresentation(
             report: report,
             destination: planningDestination,

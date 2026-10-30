@@ -40,11 +40,12 @@ struct PlannedPresenceJourneyRow: View {
                 position: cardPosition,
                 tint: style.tint,
             )
-            .background {
-                PlannedPresenceJourneyBackground(
-                    position: cardPosition,
-                    tint: style.tint,
-                )
+            .whereThemePanel(
+                .timelineEntry,
+                in: cardPosition.shape(cornerRadius: row.cornerRadius),
+                tint: style.tint,
+            ) {
+                PlannedPresenceJourneyBackground(position: cardPosition, tint: style.tint)
             }
             .overlay {
                 PresenceJourneyCardBorder(

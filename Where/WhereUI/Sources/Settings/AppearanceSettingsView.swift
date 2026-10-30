@@ -12,6 +12,7 @@ struct AppearanceSettingsView: View {
 
     @State private var showAppIcon = false
     @Environment(WhereModel.self) private var model
+    @Environment(\.whereThemePreview) private var themePreview
     @State private var estimatedTimeSettings: EstimatedTimeAndPlanningSettingsModel
     #if DEBUG
         @Environment(\.cardDesignerModel) private var cardDesignerModel
@@ -32,6 +33,7 @@ struct AppearanceSettingsView: View {
             Form {
                 Section {
                     WhereThemePicker(selection: model.theme) {
+                        themePreview?.clear()
                         model.selectTheme($0)
                     }
                     .settingsRow(Item.theme)
@@ -39,6 +41,33 @@ struct AppearanceSettingsView: View {
                     Text(.settingsAppearanceThemeHeader)
                 } footer: {
                     Text(.settingsAppearanceThemeFooter)
+                }
+
+                if let themePreview {
+                    Section {
+                        Button {
+                            themePreview.select(.halloween)
+                        } label: {
+                            HStack {
+                                Text(.settingsAppearancePreviewHalloween)
+                                Spacer()
+                                if themePreview.theme?.resolved.id == .halloween {
+                                    Image(systemSymbol: .checkmark).accessibilityHidden(true)
+                                }
+                            }
+                        }
+                        .accessibilityAddTraits(themePreview.theme?.resolved
+                            .id == .halloween ? .isSelected : [])
+                        .whereThemeListRow()
+                        if let error = themePreview.failure {
+                            Text(error.localizedDescription)
+                                .foregroundStyle(.red)
+                        }
+                    } header: {
+                        Text(.settingsAppearancePreviewHeader)
+                    } footer: {
+                        Text(.settingsAppearancePreviewFooter)
+                    }
                 }
 
                 Section {
@@ -145,6 +174,7 @@ struct AppearanceSettingsView: View {
                 #endif
             }
         }
+        .whereThemeActivity(!showAppIcon)
         .navigationTitle(String(localized: .settingsAppearanceGroup))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showAppIcon) {

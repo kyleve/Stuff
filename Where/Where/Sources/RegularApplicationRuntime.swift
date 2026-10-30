@@ -18,6 +18,9 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
     let model: WhereModel
     let intentServices: IntentServices
     private let updates: UpdateModel?
+    #if WHERE_DEVELOPMENT
+        private let themePreview = WhereThemePreviewModel.bundledOrFallback()
+    #endif
     private let buildEnvironment: WhereBuildEnvironment
     private let widgetPresentationPublisher: WidgetPresentationPublisher
     private(set) var launcher: LifecycleRunner<WhereSession>!
@@ -164,15 +167,20 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
 
     func makeRootView() -> AnyView {
         #if DEBUG
-            AnyView(RootView(
+            let root = RootView(
                 model: model,
                 launcher: launcher,
                 primaryAppIconName: buildEnvironment.primaryAppIconName,
                 updates: updates,
                 developerLaunchController: developerLaunchController,
-            ))
+            )
+            #if WHERE_DEVELOPMENT
+                return AnyView(root.whereThemePreview(themePreview))
+            #else
+                return AnyView(root)
+            #endif
         #else
-            AnyView(RootView(
+            return AnyView(RootView(
                 model: model,
                 launcher: launcher,
                 primaryAppIconName: buildEnvironment.primaryAppIconName,

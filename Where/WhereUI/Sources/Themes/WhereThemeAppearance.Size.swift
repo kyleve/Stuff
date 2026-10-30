@@ -38,3 +38,15 @@ extension WhereThemeAppearance {
         }
     }
 }
+
+extension WhereThemeAppearance.Size: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.statusIconWidth = statusIconWidth ?? parent.statusIconWidth
+        result.launchIcon = launchIcon ?? parent.launchIcon
+        result.launchCaptionBottomInset = launchCaptionBottomInset ?? parent
+            .launchCaptionBottomInset
+        return result
+    }
+}

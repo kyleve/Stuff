@@ -35,3 +35,14 @@ extension WhereThemeAppearance {
         }
     }
 }
+
+extension WhereThemeAppearance.Typography: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.onboardingIcon = onboardingIcon ?? parent.onboardingIcon
+        result.widgetHeroRegion = widgetHeroRegion ?? parent.widgetHeroRegion
+        result.widgetTotalNumber = widgetTotalNumber ?? parent.widgetTotalNumber
+        return result
+    }
+}

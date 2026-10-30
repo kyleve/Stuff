@@ -5,8 +5,8 @@ import ViewDocumentUI
 
 extension WhereThemeAppearance {
     public struct RegionMapStyle: Codable, Hashable, Sendable {
-        public var overview: WhereThemeAppearance.RegionMapStyle.Viewport?
-        public var pointPreview: WhereThemeAppearance.RegionMapStyle.Viewport?
+        @CopyOnWrite public var overview: WhereThemeAppearance.RegionMapStyle.Viewport? = nil
+        @CopyOnWrite public var pointPreview: WhereThemeAppearance.RegionMapStyle.Viewport? = nil
         public var uncertaintyFillOpacity: BThemeValue<Double>?
         public var uncertaintyStrokeOpacity: BThemeValue<Double>?
         public var uncertaintyStrokeWidth: BThemeValue<Double>?
@@ -100,5 +100,32 @@ extension WhereThemeAppearance.RegionMapStyle {
                 value.minimumSpanMeters = resolved
             }
         }
+    }
+}
+
+extension WhereThemeAppearance.RegionMapStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.overview = inheritPatch(overview, from: parent.overview)
+        result.pointPreview = inheritPatch(pointPreview, from: parent.pointPreview)
+        result.uncertaintyFillOpacity = uncertaintyFillOpacity ?? parent.uncertaintyFillOpacity
+        result.uncertaintyStrokeOpacity = uncertaintyStrokeOpacity ?? parent
+            .uncertaintyStrokeOpacity
+        result.uncertaintyStrokeWidth = uncertaintyStrokeWidth ?? parent.uncertaintyStrokeWidth
+        result.routeLineWidth = routeLineWidth ?? parent.routeLineWidth
+        result.capturePointDiameter = capturePointDiameter ?? parent.capturePointDiameter
+        result.captureInset = captureInset ?? parent.captureInset
+        return result
+    }
+}
+
+extension WhereThemeAppearance.RegionMapStyle.Viewport: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.height = height ?? parent.height
+        result.minimumSpanMeters = minimumSpanMeters ?? parent.minimumSpanMeters
+        return result
     }
 }

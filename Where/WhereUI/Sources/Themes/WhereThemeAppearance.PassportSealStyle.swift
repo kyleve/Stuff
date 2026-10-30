@@ -69,3 +69,19 @@ extension WhereThemeAppearance {
         }
     }
 }
+
+extension WhereThemeAppearance.PassportSealStyle: WhereThemePatch {
+    func inheriting(_ parent: Self?) -> Self {
+        guard let parent else { return self }
+        var result = self
+        result.size = size ?? parent.size
+        result.rotationDegrees = rotationDegrees ?? parent.rotationDegrees
+        result.outerLineWidth = outerLineWidth ?? parent.outerLineWidth
+        result.innerLineWidth = innerLineWidth ?? parent.innerLineWidth
+        result.innerInset = innerInset ?? parent.innerInset
+        result.dashLength = dashLength ?? parent.dashLength
+        result.dashSpacing = dashSpacing ?? parent.dashSpacing
+        result.symbolFont = symbolFont ?? parent.symbolFont
+        return result
+    }
+}
