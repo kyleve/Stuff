@@ -17,6 +17,9 @@ system font metrics and an explicit Broadway content-size category. Use it durin
 stylesheet slicing. `BContentSizeCategory.uiContentSizeCategory` provides the
 reverse of `BContentSizeCategory.from(_:)` for UIKit consumers.
 
+`BHorizontalSizeClass` and `BVerticalSizeClass` preserve compact, regular, and unspecified values.
+`BTraits.system` registers both for live UIKit observation. Scoped overrides use the matching properties on `BTraits.Overrides`.
+
 `BModeVarying<Value>` stores light and dark values without reading ambient traits.
 Its read-only subscript selects a value from an explicit `BMode` during slicing.
 It conditionally conforms to `Equatable`, `Hashable`, and `Sendable` when its value does.

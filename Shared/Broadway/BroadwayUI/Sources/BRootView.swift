@@ -23,6 +23,8 @@ public struct BRootView<Content: View>: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var accessibility: BAccessibility = .current()
 
     public init(themes: BThemes = .init(), @ViewBuilder content: () -> Content) {
@@ -35,6 +37,8 @@ public struct BRootView<Content: View>: View {
             .environment(\.bContext, BRootContext.make(
                 colorScheme: colorScheme,
                 dynamicTypeSize: dynamicTypeSize,
+                horizontalSizeClass: horizontalSizeClass,
+                verticalSizeClass: verticalSizeClass,
                 accessibility: accessibility,
                 themes: themes,
             ))
@@ -65,6 +69,8 @@ enum BRootContext {
     static func make(
         colorScheme: ColorScheme,
         dynamicTypeSize: DynamicTypeSize,
+        horizontalSizeClass: UserInterfaceSizeClass?,
+        verticalSizeClass: UserInterfaceSizeClass?,
         accessibility: BAccessibility,
         themes: BThemes,
     ) -> BContext {
@@ -79,6 +85,8 @@ enum BRootContext {
         // there instead when a token needs to follow a scoped scheme override.
         traits.mode = BMode(colorScheme)
         traits.contentSizeCategory = BContentSizeCategory(dynamicTypeSize)
+        traits.horizontalSizeClass = BHorizontalSizeClass(horizontalSizeClass)
+        traits.verticalSizeClass = BVerticalSizeClass(verticalSizeClass)
         traits.accessibility = accessibility
         return BContext(traits: traits, themes: themes)
     }
